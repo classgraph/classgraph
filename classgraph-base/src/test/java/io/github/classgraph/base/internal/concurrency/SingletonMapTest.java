@@ -45,8 +45,8 @@ public class SingletonMapTest {
             this.behavior = behavior;
         }
 
-        TestMap(final AtomicBoolean closed, final String closedMessage, final NewInstanceBehavior behavior) {
-            super(closed, closedMessage);
+        TestMap(final AtomicBoolean closed, final NewInstanceBehavior behavior) {
+            super(closed);
             this.behavior = behavior;
         }
 
@@ -169,12 +169,11 @@ public class SingletonMapTest {
     @Test
     public void closedFlagTurnsAwayALookup() throws Exception {
         final var closed = new AtomicBoolean(false);
-        final var map = new TestMap(closed, "the owner has been closed", key -> key);
+        final var map = new TestMap(closed, key -> key);
         assertThat(map.get("a", null)).isEqualTo("a");
 
         closed.set(true);
-        assertThatThrownBy(() -> map.get("b", null)).isInstanceOf(IOException.class)
-                .hasMessage("the owner has been closed");
+        assertThatThrownBy(() -> map.get("b", null)).isInstanceOf(IOException.class).hasMessage("Already closed");
         // Even a key that is already in the map is turned away, since the value it holds is about to be released
         assertThatThrownBy(() -> map.get("a", null)).isInstanceOf(IOException.class);
         assertThatThrownBy(() -> map.get("b", null, () -> "fromFactory")).isInstanceOf(IOException.class);
@@ -182,22 +181,48 @@ public class SingletonMapTest {
     }
 
     /**
-     * Only a lookup is turned away by the closed flag: the owner's teardown marks itself closed and then reads the
-     * values out of the map and empties it, so those must keep working with the flag set.
+     * Reading the contents of the map is turned away by the closed flag in the same way as a lookup, since those
+     * values are about to be released.
+     */
+    @Test
+    public void closedFlagTurnsAwayAReadOfTheMapContents() throws Exception {
+        final var closed = new AtomicBoolean(false);
+        final var map = new TestMap(closed, key -> key);
+        assertThat(map.get("a", null)).isEqualTo("a");
+
+        closed.set(true);
+        assertThatThrownBy(map::values).isInstanceOf(IOException.class).hasMessage("Already closed");
+        assertThatThrownBy(map::entries).isInstanceOf(IOException.class).hasMessage("Already closed");
+    }
+
+    /**
+     * The owner's teardown marks itself closed and only then takes the values out of the map, so the one read that
+     * empties the map must keep working with the flag set.
      */
     @Test
     public void closedFlagDoesNotBlockTheTeardown() throws Exception {
         final var closed = new AtomicBoolean(false);
-        final var map = new TestMap(closed, "the owner has been closed", key -> key);
+        final var map = new TestMap(closed, key -> key);
         assertThat(map.get("a", null)).isEqualTo("a");
         assertThat(map.get("b", null)).isEqualTo("b");
 
         closed.set(true);
         assertThat(map.isEmpty()).isFalse();
-        assertThat(map.values()).containsExactlyInAnyOrder("a", "b");
-        assertThat(map.entries()).hasSize(2);
-        assertThat(map.remove("a")).isEqualTo("a");
-        map.clear();
+        assertThat(map.drain()).containsExactlyInAnyOrder("a", "b");
+        assertThat(map.isEmpty()).isTrue();
+        // Draining an already empty map is allowed too, so a teardown that runs twice does not throw
+        assertThat(map.drain()).isEmpty();
+    }
+
+    /** {@code drain()} hands back the values and empties the map, whether or not the map has an owner. */
+    @Test
+    public void drainReturnsTheValuesAndEmptiesTheMap() throws Exception {
+        final var map = new TestMap(key -> "null".equals(key) ? null : key);
+        assertThat(map.get("a", null)).isEqualTo("a");
+        assertThatThrownBy(() -> map.get("null", null)).isInstanceOf(NullSingletonException.class);
+
+        // The null singleton is an entry of the map but is not one of its values
+        assertThat(map.drain()).containsExactly("a");
         assertThat(map.isEmpty()).isTrue();
     }
 }

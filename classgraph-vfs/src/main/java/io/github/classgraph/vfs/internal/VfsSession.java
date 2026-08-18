@@ -124,7 +124,7 @@ public class VfsSession {
      * the teardown emptied the map would hand out {@link ModuleReader} instances that nothing would ever close.
      */
     private final SingletonMap<ModuleReference, Recycler<ModuleReader, IOException>, IOException> //
-    moduleReaderRecyclerMap = new SingletonMap<>(closed, SESSION_CLOSED) {
+    moduleReaderRecyclerMap = new SingletonMap<>(closed) {
         @Override
         public Recycler<ModuleReader, IOException> newInstance(final ModuleReference moduleReference,
                 final @Nullable LogNode ignored) throws IOException {
@@ -494,15 +494,15 @@ public class VfsSession {
         var completedWithoutInterruption = false;
         while (!completedWithoutInterruption) {
             try {
-                // This waits for any reader that is still being opened, so that the snapshot is complete
-                recyclers = moduleReaderRecyclerMap.values();
+                // This waits for any reader that is still being opened, so that nothing is left behind. An
+                // interrupted wait empties nothing, so the whole map is still there to be taken on the retry
+                recyclers = moduleReaderRecyclerMap.drain();
                 completedWithoutInterruption = true;
             } catch (final InterruptedException e) {
                 // Try again if interrupted
                 interrupted.set(true);
             }
         }
-        moduleReaderRecyclerMap.clear();
         for (final Recycler<ModuleReader, IOException> recycler : recyclers) {
             teardown.run(recycler::forceClose);
         }

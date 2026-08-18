@@ -61,13 +61,6 @@ import org.jspecify.annotations.Nullable;
  * step of the session's teardown.
  */
 public class NestedJarHandler {
-    /**
-     * The message of the {@link IOException} thrown by a lookup made in one of the caches below after the session
-     * has been closed. The caches are dropped when it is torn down, so a lookup made after that would build and
-     * cache a fresh zipfile that nothing would ever close again.
-     */
-    private static final String VFS_CLOSED = "The Vfs has been closed";
-
     /** The session that the zipfiles opened by this handler are registered with. */
     private final VfsSession session;
 
@@ -118,7 +111,7 @@ public class NestedJarHandler {
         // turns a lookup away itself once the session is closed, rather than each caller having to ask first
         final var closed = session.closedFlag();
 
-        canonicalFileToPhysicalZipFileMap = new SingletonMap<>(closed, VFS_CLOSED) {
+        canonicalFileToPhysicalZipFileMap = new SingletonMap<>(closed) {
             @Override
             public PhysicalZipFile newInstance(final File canonicalFile, final @Nullable LogNode log)
                     throws IOException {
@@ -126,14 +119,14 @@ public class NestedJarHandler {
             }
         };
 
-        pathToPhysicalZipFileMap = new SingletonMap<>(closed, VFS_CLOSED) {
+        pathToPhysicalZipFileMap = new SingletonMap<>(closed) {
             @Override
             public PhysicalZipFile newInstance(final Path path, final @Nullable LogNode log) throws IOException {
                 return new PhysicalZipFile(path, session, log);
             }
         };
 
-        fastZipEntryToZipFileSliceMap = new SingletonMap<>(closed, VFS_CLOSED) {
+        fastZipEntryToZipFileSliceMap = new SingletonMap<>(closed) {
             @Override
             public ZipFileSlice newInstance(final FastZipEntry childZipEntry, final @Nullable LogNode log)
                     throws IOException, InterruptedException {
@@ -141,7 +134,7 @@ public class NestedJarHandler {
             }
         };
 
-        zipFileSliceToLogicalZipFileMap = new SingletonMap<>(closed, VFS_CLOSED) {
+        zipFileSliceToLogicalZipFileMap = new SingletonMap<>(closed) {
             @Override
             public LogicalZipFile newInstance(final ZipFileSlice zipFileSlice, final @Nullable LogNode log)
                     throws IOException, InterruptedException {
@@ -151,7 +144,7 @@ public class NestedJarHandler {
             }
         };
 
-        nestedPathToLogicalZipFileAndPackageRootMap = new SingletonMap<>(closed, VFS_CLOSED) {
+        nestedPathToLogicalZipFileAndPackageRootMap = new SingletonMap<>(closed) {
             @Override
             public Entry<LogicalZipFile, String> newInstance(final String nestedJarPathRaw,
                     final @Nullable LogNode log) throws IOException, InterruptedException {

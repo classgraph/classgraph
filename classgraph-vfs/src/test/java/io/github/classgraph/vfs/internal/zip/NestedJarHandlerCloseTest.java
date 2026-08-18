@@ -63,10 +63,10 @@ public class NestedJarHandlerCloseTest {
             session.close(/* log = */ null);
 
             assertThatThrownBy(() -> map.get(jarFile.getPath(), /* log = */ null)).isInstanceOf(IOException.class)
-                    .hasMessage("The Vfs has been closed");
+                    .hasMessage("Already closed");
             // A path that was never opened is turned away by the same check, before anything is opened for it
             assertThatThrownBy(() -> map.get(new File(tempDir, "never-opened.jar").getPath(), /* log = */ null))
-                    .isInstanceOf(IOException.class).hasMessage("The Vfs has been closed");
+                    .isInstanceOf(IOException.class).hasMessage("Already closed");
         } finally {
             // The jarfile must not be left open, otherwise the temporary directory cannot be deleted on Windows
             session.close(/* log = */ null);

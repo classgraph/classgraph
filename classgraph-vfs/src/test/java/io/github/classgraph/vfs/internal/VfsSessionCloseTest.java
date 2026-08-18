@@ -104,7 +104,7 @@ class VfsSessionCloseTest {
         final var moduleReaderRecyclerMap = session.moduleReaderRecyclerMap();
         session.close(/* log = */ null);
         assertThatThrownBy(() -> moduleReaderRecyclerMap.get(javaBase(), /* log = */ null))
-                .hasMessageContaining("session has been closed");
+                .hasMessageContaining("Already closed");
         assertThatThrownBy(() -> moduleReaderRecyclerMap.newInstance(javaBase(), /* log = */ null))
                 .hasMessageContaining("session has been closed");
     }

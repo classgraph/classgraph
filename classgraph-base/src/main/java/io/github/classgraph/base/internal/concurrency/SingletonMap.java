@@ -51,8 +51,9 @@ import org.jspecify.annotations.Nullable;
  * <p>
  * A map may be given the {@link AtomicBoolean} that whatever owns it sets when it is closed, in which case a lookup
  * made after the owner was closed throws {@link IOException}, rather than building and caching a value that nothing
- * would ever release again. Only a lookup is checked: the values already in the map are still read through
- * {@link #values()} and dropped by {@link #clear()}, which is how the owner's teardown releases them.
+ * would ever release again. Reading the contents of the map through {@link #values()} or {@link #entries()} is
+ * refused in the same way, since those values are about to be released. The owner's own teardown takes the values
+ * out with {@link #drain()}, which is the one read that a close does not turn away.
  *
  * @param <K>
  *            The key type.
@@ -72,13 +73,9 @@ public abstract class SingletonMap<K, V, E extends Exception> {
      */
     private final @Nullable AtomicBoolean closed;
 
-    /** The message of the {@link IOException} thrown by a lookup made after the owner of this map was closed. */
-    private final String closedMessage;
-
     /** Constructor, for a map that has no owner that can be closed, so that a lookup is always allowed. */
     public SingletonMap() {
         this.closed = null;
-        this.closedMessage = "";
     }
 
     /**
@@ -88,12 +85,9 @@ public abstract class SingletonMap<K, V, E extends Exception> {
      *            the flag that the owner of this map sets when it is closed. The flag is held, not copied, so this
      *            map sees the close the moment the owner marks it, and the owner's closed state is not tracked in a
      *            second place that could disagree with it.
-     * @param closedMessage
-     *            the message of the {@link IOException} thrown by a lookup made after the owner was closed.
      */
-    public SingletonMap(final AtomicBoolean closed, final String closedMessage) {
+    public SingletonMap(final AtomicBoolean closed) {
         this.closed = closed;
-        this.closedMessage = closedMessage;
     }
 
     /**
@@ -104,7 +98,7 @@ public abstract class SingletonMap<K, V, E extends Exception> {
      */
     private void checkNotClosed() throws IOException {
         if (closed != null && closed.get()) {
-            throw new IOException(closedMessage);
+            throw new IOException("Already closed");
         }
     }
 
@@ -373,10 +367,25 @@ public abstract class SingletonMap<K, V, E extends Exception> {
      *
      * @return the singleton values in the map, skipping over any value for which newInstance() threw an exception
      *         or returned null.
+     * @throws IOException
+     *             if the owner of this map has been closed.
      * @throws InterruptedException
      *             If getting the values was interrupted.
      */
-    public List<V> values() throws InterruptedException {
+    public List<V> values() throws IOException, InterruptedException {
+        checkNotClosed();
+        return collectValues();
+    }
+
+    /**
+     * Get all valid singleton values in the map, whether or not the owner of this map has been closed.
+     *
+     * @return the singleton values in the map, skipping over any value for which newInstance() threw an exception
+     *         or returned null.
+     * @throws InterruptedException
+     *             If getting the values was interrupted.
+     */
+    private List<V> collectValues() throws InterruptedException {
         final List<V> entries = new ArrayList<>(map.size());
         for (final Entry<K, SingletonHolder<V>> ent : map.entrySet()) {
             final var entryValue = ent.getValue().get();
@@ -385,6 +394,23 @@ public abstract class SingletonMap<K, V, E extends Exception> {
             }
         }
         return entries;
+    }
+
+    /**
+     * Take every singleton value out of the map, emptying it. This is how whatever owns a map releases the values
+     * in it, so unlike {@link #values()} it is still allowed once the owner has been closed. Nothing is removed
+     * until every value has been collected, so if the wait for a value that another thread is still creating is
+     * interrupted, the map is left as it was and the call can simply be retried.
+     *
+     * @return the singleton values that were in the map, skipping over any value for which newInstance() threw an
+     *         exception or returned null.
+     * @throws InterruptedException
+     *             If getting the values was interrupted.
+     */
+    public List<V> drain() throws InterruptedException {
+        final var values = collectValues();
+        map.clear();
+        return values;
     }
 
     /**
@@ -401,10 +427,13 @@ public abstract class SingletonMap<K, V, E extends Exception> {
      * null value.
      *
      * @return the map entries.
+     * @throws IOException
+     *             if the owner of this map has been closed.
      * @throws InterruptedException
      *             if interrupted.
      */
-    public List<Entry<K, @Nullable V>> entries() throws InterruptedException {
+    public List<Entry<K, @Nullable V>> entries() throws IOException, InterruptedException {
+        checkNotClosed();
         final List<Entry<K, @Nullable V>> entries = new ArrayList<>(map.size());
         for (final Entry<K, SingletonHolder<V>> ent : map.entrySet()) {
             entries.add(new SimpleEntry<>(ent.getKey(), ent.getValue().get()));
