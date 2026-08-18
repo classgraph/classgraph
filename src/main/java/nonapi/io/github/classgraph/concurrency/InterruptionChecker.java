@@ -51,14 +51,26 @@ public class InterruptionChecker {
     }
 
     /**
-     * Set the {@link ExecutionException} that was thrown by a worker.
+     * Set the {@link ExecutionException} that was thrown by a worker. An exception that was caused by an
+     * interruption is recorded as an interruption instead, since a worker that was interrupted was cancelled rather
+     * than broken.
      *
      * @param executionException
      *            the execution exception that was thrown
      */
     public void setExecutionException(final ExecutionException executionException) {
+        if (executionException == null) {
+            return;
+        }
+        if (getCause(executionException) instanceof InterruptedException) {
+            // Recording an interruption as an exception would make check() report the work as having failed rather
+            // than as having been cancelled, since a recorded exception is thrown ahead of the interruption check.
+            // It would also mask a genuine failure on another thread, since only the first exception is recorded
+            interrupt();
+            return;
+        }
         // Only set the execution exception once
-        if (executionException != null && thrownExecutionException.get() == null) {
+        if (thrownExecutionException.get() == null) {
             thrownExecutionException.compareAndSet(/* expectedValue = */ null, executionException);
         }
     }
