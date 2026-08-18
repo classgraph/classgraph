@@ -1623,6 +1623,10 @@ public class ClassGraph {
         } catch (final InterruptedException e) {
             // Interrupted during the Scanner constructor's execution (specifically, by getModuleOrder(),
             // which is unlikely to ever actually be interrupted -- but this exception needs to be caught).
+            // The constructor runs on this thread, so restore this thread's interrupt status, which was cleared
+            // by the throw -- otherwise the caller's cancellation is lost, and get() on the returned Future
+            // reports the scan as having failed rather than as having been interrupted.
+            Thread.currentThread().interrupt();
             return executorService.submit(new Callable<ScanResult>() {
                 @Override
                 public ScanResult call() throws Exception {
