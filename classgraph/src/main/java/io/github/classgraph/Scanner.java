@@ -147,16 +147,12 @@ class Scanner implements Callable<ScanResult> {
      *            the failure handler
      * @param topLevelLog
      *            the log
-     *
-     * @throws InterruptedException
-     *             if interrupted
      */
     Scanner(final boolean performScan, final ScanSpec scanSpec,
             final ClassLoaderAndModuleLayerSpec classLoaderAndModuleLayerSpec,
             final ExecutorService executorService, final int numParallelTasks,
             final @Nullable Consumer<ScanResult> scanResultProcessor,
-            final @Nullable Consumer<Throwable> failureHandler, final @Nullable LogNode topLevelLog)
-            throws InterruptedException {
+            final @Nullable Consumer<Throwable> failureHandler, final @Nullable LogNode topLevelLog) {
         this.scanSpec = scanSpec;
         this.performScan = performScan;
         scanSpec.sortPrefixes();
@@ -252,12 +248,10 @@ class Scanner implements Callable<ScanResult> {
      *            the list to add non-accepted, non-rejected modules to
      * @param classLoaderProbeLog
      *            the log node, or null to skip logging
-     * @throws InterruptedException
-     *             if the thread was interrupted while opening a module
      */
     private void addModules(final @Nullable List<ModuleReference> moduleReferences, final boolean isSystemModules,
             final @Nullable String defaultClassLoaderStr, final List<ModuleReference> unscannedModuleReferences,
-            final @Nullable LogNode classLoaderProbeLog) throws InterruptedException {
+            final @Nullable LogNode classLoaderProbeLog) {
         if (moduleReferences == null) {
             return;
         }

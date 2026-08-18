@@ -37,7 +37,6 @@ import java.nio.ByteBuffer;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -1308,22 +1307,9 @@ public class ClassGraph {
      */
     private Future<ScanResult> scanAsync(final boolean performScan, final ExecutorService executorService,
             final int numParallelTasks) {
-        try {
-            return executorService.submit(new Scanner(performScan, scanSpec, classLoaderAndModuleLayerSpec,
-                    executorService, numParallelTasks, /* scanResultProcessor = */ null,
-                    /* failureHandler = */ null, topLevelLog));
-        } catch (final InterruptedException e) {
-            // Interrupted during the Scanner constructor's execution (specifically, by getModuleOrder(), which is
-            // unlikely to ever actually be interrupted -- but this exception needs to be caught). The constructor
-            // runs on this thread, so restore this thread's interrupt status, which was cleared by the throw --
-            // otherwise the caller's cancellation is lost, and get() on the returned Future reports the scan as
-            // having failed rather than as having been interrupted. (the cast is needed to disambiguate
-            // ExecutorService::submit's Callable and Runnable overloads)
-            Thread.currentThread().interrupt();
-            return executorService.submit((Callable<ScanResult>) () -> {
-                throw e;
-            });
-        }
+        return executorService.submit(
+                new Scanner(performScan, scanSpec, classLoaderAndModuleLayerSpec, executorService, numParallelTasks,
+                        /* scanResultProcessor = */ null, /* failureHandler = */ null, topLevelLog));
     }
 
     /**
