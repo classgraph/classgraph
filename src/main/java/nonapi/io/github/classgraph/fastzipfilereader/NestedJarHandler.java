@@ -83,6 +83,8 @@ import nonapi.io.github.classgraph.utils.FastPathResolver;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.JarUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
+import nonapi.io.github.classgraph.utils.VersionFinder;
+import nonapi.io.github.classgraph.utils.VersionFinder.OperatingSystem;
 
 /** Open and read jarfiles, which may be nested within other jarfiles. */
 public class NestedJarHandler {
@@ -418,6 +420,10 @@ public class NestedJarHandler {
     /** True if {@link #close(LogNode)} has been called. */
     private final AtomicBoolean closed = new AtomicBoolean(false);
 
+    /** True if a file was mapped that only the garbage collector can unmap. */
+    // #939
+    private final AtomicBoolean filesAwaitingUnmapping = new AtomicBoolean(false);
+
     /** The interruption checker. */
     public InterruptionChecker interruptionChecker;
 
@@ -576,6 +582,15 @@ public class NestedJarHandler {
         if (openSlicesCurr != null) {
             openSlicesCurr.remove(slice);
         }
+    }
+
+    /**
+     * Record that a file was unmapped by dropping the last reference to its mapped buffer, leaving it to the
+     * garbage collector to unmap the file, so that {@link #close(LogNode)} knows to ask for a collection.
+     */
+    // #939
+    public void markFileAsAwaitingUnmapping() {
+        filesAwaitingUnmapping.set(true);
     }
 
     /**
@@ -1200,6 +1215,18 @@ public class NestedJarHandler {
             if (inflaterRecycler != null) {
                 inflaterRecycler.forceClose();
             }
+            // Below JDK 22 a file is unmapped only once the garbage collector finds the mapped buffer
+            // unreachable, and Windows refuses to delete, rename or overwrite a file while it is mapped. Closing
+            // the slices above dropped the last reference to every mapping this scan made, so ask for a
+            // collection here: without one, a file that the scan mapped stays locked until the next collection
+            // happens to run, which in a large heap can be minutes after the scan finished, or never. This is
+            // best effort -- below JDK 22 nothing can unmap a file on demand, and nothing can observe that the
+            // collector has done it. Only Windows pays for the collection: every other operating system lets a
+            // mapped file be deleted or replaced, so releasing the mapping promptly buys nothing there.
+            // #939
+            if (filesAwaitingUnmapping.get() && VersionFinder.OS == OperatingSystem.Windows) {
+                System.gc();
+            }
             // Temp files have to be deleted last, after all PhysicalZipFiles are closed and
             // files are unmapped
             if (tempFiles != null) {
@@ -1218,10 +1245,11 @@ public class NestedJarHandler {
                 if (!undeleted.isEmpty()) {
                     // Windows refuses to delete a file that is still memory-mapped, and below JDK 22 a mapping
                     // is released only once the garbage collector finds it unreachable -- which closing the
-                    // slices above has just made it, so ask for a collection and try again. This is the only
-                    // reason to ask, so it is asked for only when a delete has actually failed, rather than on
-                    // every close. If the JVM was started with -XX:+DisableExplicitGC then this is a no-op, and
-                    // the file is left to the File#deleteOnExit() hook that makeTempFile registered.
+                    // slices above has just made it, so ask for a collection and try again. (This is a second
+                    // request on Windows below JDK 22, but the first one is skipped on every other operating
+                    // system and JDK, where a delete can still fail for an unrelated reason.) If the JVM was
+                    // started with -XX:+DisableExplicitGC then this is a no-op, and the file is left to the
+                    // File#deleteOnExit() hook that makeTempFile registered.
                     System.gc();
                     for (final File tempFile : undeleted) {
                         try {

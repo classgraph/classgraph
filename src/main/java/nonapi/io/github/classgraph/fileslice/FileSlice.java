@@ -391,6 +391,12 @@ public class FileSlice extends Slice {
                     // the moment this slice is closed (see mapFile())
                     FileUtils.closeArena(arena, nestedJarHandler.reflectionUtils, /* log = */ null);
                     arena = null;
+                } else if (backingByteBuffer != null) {
+                    // Below JDK 22 there is no arena to close, so the file stays mapped until the garbage
+                    // collector finds the buffer unreachable. Tell the NestedJarHandler, so that closing the scan
+                    // can ask for a collection.
+                    // #939
+                    nestedJarHandler.markFileAsAwaitingUnmapping();
                 }
                 // Below JDK 22 there is no arena, and dropping the reference to the mapped buffer is not merely
                 // tidiness: it is what lets the garbage collector find the mapping unreachable and unmap the file

@@ -171,6 +171,32 @@ public class SliceTest {
     }
 
     /**
+     * A file that a scan memory-mapped can be deleted once the scan has been closed. Windows refuses to delete a
+     * file that is still mapped, and below JDK 22 the mapping is released only when the garbage collector finds
+     * the mapped buffer unreachable, so closing the scan has to ask for a collection to make the file deletable
+     * again. (Every other operating system lets a mapped file be deleted, so this test only bites on Windows.)
+     *
+     * @param tempDir
+     *            a temporary directory
+     * @throws IOException
+     *             if the file could not be written, opened or deleted
+     */
+    // #939
+    @Test
+    public void aMappedFileCanBeDeletedOnceTheScanIsClosed(@TempDir final File tempDir) throws IOException {
+        final NestedJarHandler nestedJarHandler = memoryMappingNestedJarHandler();
+        final File file = writeFile(tempDir, "mapped.bin");
+        final FileSlice slice = new FileSlice(file, nestedJarHandler, /* log = */ null);
+        assertThat(slice.read().isDirect()).isTrue();
+
+        // Closing the handler closes the slice, which drops the last reference to the mapped buffer
+        nestedJarHandler.close(/* log = */ null);
+
+        Files.delete(file.toPath());
+        assertThat(file.exists()).isFalse();
+    }
+
+    /**
      * A reader taken before the slice was closed holds a view of the memory mapping that closing the slice
      * releases. Every other reader reports a read of a file the scan has released as an {@link IOException}, so
      * this one does too, on every JDK: on JDK 22 or later rather than letting the arena's
