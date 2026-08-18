@@ -45,6 +45,7 @@ import nonapi.io.github.classgraph.fileslice.reader.RandomAccessFileChannelReade
 import nonapi.io.github.classgraph.fileslice.reader.RandomAccessReader;
 import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
+import nonapi.io.github.classgraph.utils.VersionFinder;
 
 /** A {@link File} slice. */
 public class FileSlice extends Slice {
@@ -60,19 +61,25 @@ public class FileSlice extends Slice {
     /** The file channel. */
     private FileChannel fileChannel;
 
-    /** The backing byte buffer, if any. */
-    private ByteBuffer backingByteBuffer;
+    /**
+     * The mapped byte buffer, if the file was memory-mapped, or null once closed. Only set on the toplevel file
+     * slice, which owns the mapping. Volatile, since every slice of the file reads it, but only the toplevel slice
+     * writes it.
+     */
+    private volatile ByteBuffer backingByteBuffer;
 
     /**
      * The {@code java.lang.foreign.Arena} (JDK 22+) used to memory-map the file, if any. Typed as {@link Object},
      * since ClassGraph needs to compile and run on JDK 8+. Closing the arena unmaps {@link #backingByteBuffer},
-     * without needing to call the terminally-deprecated {@code Unsafe::invokeCleaner} method (#939). Only set for
-     * toplevel file slices, which own the mapping (sub slices just duplicate the backing byte buffer).
+     * without needing to call the terminally-deprecated {@code Unsafe::invokeCleaner} method (#939). Only set on
+     * the toplevel file slice, which owns the mapping, and only on JDK 22 or later, where arenas exist.
      */
     private Object arena;
 
-    /** True if this is a top level file slice. */
-    private final boolean isTopLevelFileSlice;
+    /**
+     * The toplevel file slice, which owns the memory mapping, or {@code this} if this is the toplevel slice.
+     */
+    private final FileSlice topLevelFileSlice;
 
     /** True if {@link #close} has been called. */
     private final AtomicBoolean isClosed = new AtomicBoolean();
@@ -117,16 +124,15 @@ public class FileSlice extends Slice {
         this.raf = parentSlice.raf;
         this.fileChannel = parentSlice.fileChannel;
         this.fileLength = parentSlice.fileLength;
-        this.isTopLevelFileSlice = false;
+        this.topLevelFileSlice = parentSlice.topLevelFileSlice;
 
-        if (parentSlice.backingByteBuffer != null) {
-            // Duplicate and slice the backing byte buffer, if there is one
-            this.backingByteBuffer = parentSlice.backingByteBuffer.duplicate();
-            final Buffer bb = toBuffer(this.backingByteBuffer);
-            bb.position((int) sliceStartPos);
-            bb.limit((int) (sliceStartPos + sliceLength));
-        }
-
+        // A sub slice reads the memory mapping through the toplevel slice rather than keeping a duplicate of
+        // its own: any view of a mapping keeps it alive, and below JDK 22 a mapping is released only once the
+        // garbage collector finds it unreachable, so a sub slice holding a duplicate would keep the file mapped
+        // -- and, on Windows, locked open -- however long ago the file was closed. The mapping always covers the
+        // whole file, and is addressed in whole-file coordinates by way of sliceStartPos, in a sub slice as much
+        // as in the toplevel slice.
+        //
         // Only mark toplevel file slices as open (sub slices don't need to be marked as open since
         // they don't need to be closed, they just copy the resource references of the toplevel slice) 
     }
@@ -157,37 +163,44 @@ public class FileSlice extends Slice {
         this.raf = new RandomAccessFile(file, "r");
         this.fileChannel = raf.getChannel();
         this.fileLength = file.length();
-        this.isTopLevelFileSlice = true;
+        this.topLevelFileSlice = this;
 
         // (Files larger than MAX_BUFFER_SIZE cannot be memory-mapped to a single ByteBuffer -- for those,
         // fall through and use the RandomAccessFile API instead)
         if (nestedJarHandler.scanSpec.enableMemoryMapping && fileLength <= FileUtils.MAX_BUFFER_SIZE) {
-            // Memory-map the file using the java.lang.foreign.Arena API, so that the mapped ByteBuffer can be
-            // unmapped by closing the arena when this slice is closed. (openArena returns null on JDK older
-            // than 22, and the file is then read through the RandomAccessFile API instead -- see mapFile().)
-            arena = FileUtils.openArena(nestedJarHandler.reflectionUtils);
-            try {
-                // Try mapping file (some operating systems throw OutOfMemoryError if file
-                // can't be mapped, some throw IOException)
-                backingByteBuffer = mapFile();
-            } catch (IOException | OutOfMemoryError e) {
-                // Try running garbage collection then try mapping the file again
-                System.gc();
-                nestedJarHandler.runFinalizationMethod();
-                try {
-                    backingByteBuffer = mapFile();
-                } catch (IOException | OutOfMemoryError e2) {
-                    if (log != null) {
-                        log.log("File " + file + " cannot be memory mapped: " + e2
-                                + " (using RandomAccessFile API instead)");
-                    }
-                    // Fall through -- RandomAccessFile API will be used instead
-                }
+            // On JDK 22+, memory-map the file using the java.lang.foreign.Arena API, so that the mapped
+            // ByteBuffer is unmapped as soon as this slice is closed, by closing the arena. Below JDK 22 there
+            // are no arenas, so the file is mapped with FileChannel#map and left to the JDK's own cleaner to
+            // unmap (see mapFile()).
+            boolean canMapFile = true;
+            if (VersionFinder.JAVA_MAJOR_VERSION >= 22) {
+                arena = FileUtils.openArena(nestedJarHandler.reflectionUtils);
+                canMapFile = arena != null;
             }
-            if (backingByteBuffer == null && arena != null) {
-                // The arena ended up not being used to map the file -- close it again
-                FileUtils.closeArena(arena, nestedJarHandler.reflectionUtils, log);
-                arena = null;
+            if (canMapFile) {
+                try {
+                    // Try mapping file (some operating systems throw OutOfMemoryError if file
+                    // can't be mapped, some throw IOException)
+                    backingByteBuffer = mapFile();
+                } catch (IOException | OutOfMemoryError e) {
+                    // Try running garbage collection then try mapping the file again
+                    System.gc();
+                    nestedJarHandler.runFinalizationMethod();
+                    try {
+                        backingByteBuffer = mapFile();
+                    } catch (IOException | OutOfMemoryError e2) {
+                        if (log != null) {
+                            log.log("File " + file + " cannot be memory mapped: " + e2
+                                    + " (using RandomAccessFile API instead)");
+                        }
+                        // Fall through -- RandomAccessFile API will be used instead
+                    }
+                }
+                if (backingByteBuffer == null && arena != null) {
+                    // The arena ended up not being used to map the file -- close it again
+                    FileUtils.closeArena(arena, nestedJarHandler.reflectionUtils, log);
+                    arena = null;
+                }
             }
         }
 
@@ -196,29 +209,28 @@ public class FileSlice extends Slice {
     }
 
     /**
-     * Memory-map the file to a {@link ByteBuffer} using an {@code Arena}, which is only available on JDK 22+.
+     * Memory-map the whole file to a {@link ByteBuffer}.
      *
      * <p>
-     * A file is only memory-mapped if it can also be unmapped safely, which is why an arena is required. A
-     * mapping outlives the call that reads from it -- a sub-slice duplicates it, a
-     * {@link RandomAccessByteBufferReader} keeps a duplicate for the life of the reader, and {@link #read()}
-     * hands a slice of it to the caller -- so a mapping can still be being read when the
-     * {@link io.github.classgraph.ScanResult} that owns it is closed. Closing an arena makes the reading
-     * thread throw {@link IllegalStateException}, which is recoverable, but the only way to unmap on demand
-     * before JDK 22 is {@code Unsafe::invokeCleaner}, which frees the address range unconditionally, and a
-     * thread that reads one byte afterwards takes a SIGSEGV that kills the JVM. So below JDK 22 the file is
-     * read through the {@link RandomAccessFile} API instead, which is slower but cannot crash the JVM.
+     * A mapping outlives the call that reads from it -- a {@link RandomAccessByteBufferReader} keeps a duplicate
+     * for the life of the reader, and {@link #read()} hands a slice of it to the caller -- so a mapping can still
+     * be being read when the {@link io.github.classgraph.ScanResult} that owns it is closed. It therefore has to
+     * be released in a way that cannot pull the memory out from under a thread that is still reading it: on JDK
+     * 22 and later, by closing the arena the file was mapped in, which makes the reading thread throw a
+     * recoverable {@link IllegalStateException}; below JDK 22, where there are no arenas, by leaving the mapping
+     * to the JDK's own cleaner, which unmaps the file once no view of it is reachable any more. What is never
+     * called is {@code Unsafe::invokeCleaner} (#939), which frees the address range unconditionally, so that a
+     * thread that reads one byte afterwards takes a SIGSEGV that kills the JVM.
      *
-     * @return the mapped byte buffer, or null if the file cannot be memory-mapped safely on this JDK.
+     * @return the mapped byte buffer.
      * @throws IOException
      *             if an I/O exception occurred while mapping the file (mapping may succeed if retried after
      *             garbage collection).
      */
     private ByteBuffer mapFile() throws IOException {
-        if (arena == null) {
-            return null;
-        }
-        return FileUtils.mapFileUsingArena(arena, fileChannel, 0L, fileLength, nestedJarHandler.reflectionUtils);
+        return arena == null ? fileChannel.map(FileChannel.MapMode.READ_ONLY, 0L, fileLength)
+                : FileUtils.mapFileUsingArena(arena, fileChannel, 0L, fileLength,
+                        nestedJarHandler.reflectionUtils);
     }
 
     /**
@@ -268,12 +280,19 @@ public class FileSlice extends Slice {
      */
     @Override
     public RandomAccessReader randomAccessReader() {
-        if (backingByteBuffer == null) {
+        // Read the field into a local, so that a close running concurrently cannot null it between the check
+        // and the use
+        final ByteBuffer mappedByteBuffer = topLevelFileSlice.backingByteBuffer;
+        if (mappedByteBuffer == null) {
             // If file was not mmap'd, return a RandomAccessReader that uses the FileChannel
             return new RandomAccessFileChannelReader(fileChannel, sliceStartPos, sliceLength);
         } else {
-            // If file was mmap'd, return a RandomAccessReader that uses the ByteBuffer
-            return new RandomAccessByteBufferReader(backingByteBuffer, sliceStartPos, sliceLength);
+            // If file was mmap'd, return a RandomAccessReader that uses the ByteBuffer. The reader keeps a
+            // duplicate of the mapping for as long as it is alive, so it is also given the toplevel slice's
+            // closed flag to check before each read -- below JDK 22 closing the file does not unmap it, so
+            // without the flag a reader that outlived the close would keep returning file content
+            return new RandomAccessByteBufferReader(mappedByteBuffer, sliceStartPos, sliceLength,
+                    topLevelFileSlice.isClosed);
         }
     }
 
@@ -319,6 +338,9 @@ public class FileSlice extends Slice {
      */
     @Override
     public ByteBuffer read() throws IOException {
+        // Read the field into a local, so that a close running concurrently cannot null it between the check
+        // and the use
+        final ByteBuffer mappedByteBuffer = topLevelFileSlice.backingByteBuffer;
         if (isDeflatedZipEntry) {
             // Inflate to RAM if deflated (unfortunately there is no lazy-loading ByteBuffer that will
             // decompress partial streams on demand, so we have to decompress the whole zip entry) 
@@ -326,7 +348,7 @@ public class FileSlice extends Slice {
                 throw new IOException("Uncompressed size is larger than 2GB");
             }
             return ByteBuffer.wrap(load());
-        } else if (backingByteBuffer == null) {
+        } else if (mappedByteBuffer == null) {
             // Copy from RandomAccessFile to byte array, then wrap in a ByteBuffer
             if (sliceLength > FileUtils.MAX_BUFFER_SIZE) {
                 throw new IOException("File is larger than 2GB");
@@ -336,8 +358,13 @@ public class FileSlice extends Slice {
             // FileSlice is backed with the memory mapping of the whole file, which covers the whole file even for
             // a sub-slice, so narrow the mapping to this slice (a low-cost operation). Slicing, rather than merely
             // duplicating, is what makes the returned buffer start at position zero and stops it from being
-            // widened again (by ByteBuffer#clear, say) to reach the rest of the file.
-            return backingByteBuffer.slice();
+            // widened again (by ByteBuffer#clear, say) to reach the rest of the file. (ByteBuffer#slice(int, int)
+            // would narrow and slice in one call, but it was only added in JDK 13.)
+            final ByteBuffer dup = mappedByteBuffer.duplicate();
+            final Buffer bb = toBuffer(dup);
+            bb.position((int) sliceStartPos);
+            bb.limit((int) (sliceStartPos + sliceLength));
+            return dup.slice();
         }
     }
 
@@ -351,30 +378,33 @@ public class FileSlice extends Slice {
         return super.hashCode();
     }
 
-    /** Close the slice. Unmaps any backing {@link MappedByteBuffer}. */
+    /** Close the slice. Releases any memory mapping of the file. */
     @Override
     public void close() {
         if (!isClosed.getAndSet(true)) {
-            if (isTopLevelFileSlice && arena != null) {
-                // Only unmap the backing ByteBuffer in the toplevel file slice, so that it is only unmapped
-                // once (a sub slice just duplicates the toplevel slice's mapping). Unmapping is performed by
-                // closing the arena that was used to map the file, which is why a file is only mapped on JDK
-                // 22+, where arenas exist (see mapFile()).
-                FileUtils.closeArena(arena, nestedJarHandler.reflectionUtils, /* log = */ null);
-                arena = null;
-            }
-            backingByteBuffer = null;
-            fileChannel = null;
-            if (isTopLevelFileSlice && raf != null) {
-                // Only close the RandomAccessFile in the toplevel file slice, so that it is only closed
-                // once (sub slices just copy the reference to the toplevel slice's RandomAccessFile)
-                try {
-                    // Closing raf will also close the associated FileChannel
-                    raf.close();
-                } catch (final IOException e) {
-                    // Ignore
+            // Only the toplevel file slice owns the mapping and the file handle, so that they are only released
+            // once (a sub slice reads the mapping through the toplevel slice, and just copies the reference to
+            // the toplevel slice's RandomAccessFile)
+            if (topLevelFileSlice == this) {
+                if (arena != null) {
+                    // On JDK 22+ the file is unmapped by closing the arena it was mapped in, which unmaps it
+                    // the moment this slice is closed (see mapFile())
+                    FileUtils.closeArena(arena, nestedJarHandler.reflectionUtils, /* log = */ null);
+                    arena = null;
+                }
+                // Below JDK 22 there is no arena, and dropping the reference to the mapped buffer is not merely
+                // tidiness: it is what lets the garbage collector find the mapping unreachable and unmap the file
+                backingByteBuffer = null;
+                if (raf != null) {
+                    try {
+                        // Closing raf will also close the associated FileChannel
+                        raf.close();
+                    } catch (final IOException e) {
+                        // Ignore
+                    }
                 }
             }
+            fileChannel = null;
             raf = null;
             nestedJarHandler.markSliceAsClosed(this);
         }

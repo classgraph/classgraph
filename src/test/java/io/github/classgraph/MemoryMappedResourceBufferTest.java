@@ -15,8 +15,6 @@ import java.util.zip.ZipOutputStream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import nonapi.io.github.classgraph.utils.VersionFinder;
-
 /**
  * When memory mapping is enabled, the mapping covers the whole jarfile, and an entry starts partway into it. The
  * {@link ByteBuffer} returned by {@link Resource#read()} has to cover the entry and nothing else.
@@ -62,9 +60,8 @@ public class MemoryMappedResourceBufferTest {
             try {
                 final ByteBuffer byteBuffer = resource.read();
                 // The buffer of a resource of a mapped jarfile aliases the mapping, so it is direct; the buffer
-                // of a resource of an unmapped jarfile holds a copy of the resource on the heap. A file is only
-                // memory-mapped on JDK 22 or later, whatever enableMemoryMapping() asks for
-                assertThat(byteBuffer.isDirect()).isEqualTo(VersionFinder.JAVA_MAJOR_VERSION >= 22);
+                // of a resource of an unmapped jarfile holds a copy of the resource on the heap
+                assertThat(byteBuffer.isDirect()).isTrue();
                 assertThat(byteBuffer.position()).isZero();
                 assertThat(byteBuffer.capacity()).isEqualTo(CONTENTS.length);
                 assertThat(byteBuffer.remaining()).isEqualTo(CONTENTS.length);

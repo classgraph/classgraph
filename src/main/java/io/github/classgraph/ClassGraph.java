@@ -1472,8 +1472,10 @@ public class ClassGraph {
      * faster for large classpaths consisting of many large jarfiles, but uses up virtual memory space.
      *
      * <p>
-     * Files are only ever memory-mapped on JDK 22 or later, whatever this is set to, since that is the first
-     * release in which a mapping can be unmapped without the risk of crashing a thread that is still reading it.
+     * How a mapping is released depends on the JDK: on JDK 22 or later it is unmapped as soon as the
+     * {@link ScanResult} is closed, by closing the arena the file was mapped in; below that it is unmapped once
+     * the garbage collector finds that nothing can read it any more. Either way, a {@link ByteBuffer} obtained
+     * from {@link Resource#read()} must not be read after the {@link ScanResult} has been closed.
      *
      * @return this (for method chaining).
      */

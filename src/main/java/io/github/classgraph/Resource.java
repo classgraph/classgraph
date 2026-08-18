@@ -262,10 +262,13 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
      *
      * <p>
      * If the resource is stored uncompressed in a jarfile that was memory-mapped (which requires
-     * {@link ClassGraph#enableMemoryMapping()}, and JDK 22 or later), the returned {@link ByteBuffer} is a view of
-     * that mapping, and the mapping is unmapped when the {@link ScanResult} is closed. Reading the buffer after
-     * that throws {@link IllegalStateException}, since the buffer is handed straight to the caller, with nothing
-     * in between to turn the failure into an {@link IOException}.
+     * {@link ClassGraph#enableMemoryMapping()}), the returned {@link ByteBuffer} is a view of that mapping, which
+     * the {@link ScanResult} releases when it is closed, so the buffer must not be read after that. This is the one
+     * place where reading after the close is not reported as an {@link IOException}: the buffer is handed straight
+     * to the caller, with nothing in between to turn the failure into one. What such a read does instead depends
+     * on how the JDK releases the mapping: on JDK 22 or later the file is unmapped as the {@link ScanResult}
+     * closes, and reading the buffer throws {@link IllegalStateException}; below JDK 22 the buffer itself keeps
+     * the mapping alive, so the read quietly returns the file content.
      *
      * @return The allocated or mapped {@link ByteBuffer} for the resource file content.
      * @throws IOException

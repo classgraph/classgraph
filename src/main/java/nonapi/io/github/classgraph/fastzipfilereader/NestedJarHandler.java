@@ -55,6 +55,7 @@ import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -1204,10 +1205,29 @@ public class NestedJarHandler {
             if (tempFiles != null) {
                 final LogNode rmLog = tempFiles.isEmpty() || log == null ? null
                         : log.log("Removing temporary files");
+                final List<File> undeleted = new ArrayList<>();
                 while (!tempFiles.isEmpty()) {
                     for (final File tempFile : new ArrayList<>(tempFiles)) {
                         try {
                             removeTempFile(tempFile);
+                        } catch (IOException | SecurityException e) {
+                            undeleted.add(tempFile);
+                        }
+                    }
+                }
+                if (!undeleted.isEmpty()) {
+                    // Windows refuses to delete a file that is still memory-mapped, and below JDK 22 a mapping
+                    // is released only once the garbage collector finds it unreachable -- which closing the
+                    // slices above has just made it, so ask for a collection and try again. This is the only
+                    // reason to ask, so it is asked for only when a delete has actually failed, rather than on
+                    // every close. If the JVM was started with -XX:+DisableExplicitGC then this is a no-op, and
+                    // the file is left to the File#deleteOnExit() hook that makeTempFile registered.
+                    System.gc();
+                    for (final File tempFile : undeleted) {
+                        try {
+                            // The file is no longer in tempFiles, since removeTempFile removes it before
+                            // attempting the delete, so delete it directly rather than through removeTempFile
+                            Files.delete(tempFile.toPath());
                         } catch (IOException | SecurityException e) {
                             if (rmLog != null) {
                                 rmLog.log("Removing temporary file failed: " + tempFile);

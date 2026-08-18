@@ -257,9 +257,12 @@ public class ScanSpec {
     public int maxBufferedJarRAMSize = 64 * 1024 * 1024;
 
     /**
-     * If true, use a {@link MappedByteBuffer} rather than the {@link FileChannel} API to access file content. Files
-     * are only ever memory-mapped on JDK 22 or later, whatever this is set to, since that is the first release in
-     * which a mapping can be unmapped without the risk of crashing a thread that is still reading it.
+     * If true, use a {@link MappedByteBuffer} rather than the {@link FileChannel} API to access file content.
+     *
+     * <p>
+     * How a mapping is released depends on the JDK: on JDK 22 or later it is unmapped as soon as the
+     * {@link io.github.classgraph.ScanResult} is closed, by closing the arena the file was mapped in; below that
+     * it is unmapped once the garbage collector finds that nothing can read it any more.
      */
     public boolean enableMemoryMapping;
 

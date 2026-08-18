@@ -34,6 +34,7 @@ import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.ReadOnlyBufferException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import nonapi.io.github.classgraph.fileslice.FileSlice;
 import nonapi.io.github.classgraph.utils.StringUtils;
@@ -43,11 +44,13 @@ import nonapi.io.github.classgraph.utils.StringUtils;
  * zipfile format.
  *
  * <p>
- * The buffer may be a memory mapping that is unmapped when the {@link io.github.classgraph.ScanResult} is closed,
- * which can happen while this reader is being read from. Reading a buffer that aliases an unmapped file throws
- * {@link IllegalStateException}, which is translated here into {@link IOException}, so that reading a mapped file
- * after the {@link io.github.classgraph.ScanResult} was closed fails the same documented way as reading from a
- * closed {@link java.nio.channels.FileChannel}.
+ * The buffer may be a memory mapping of a file that is released when the {@link io.github.classgraph.ScanResult}
+ * is closed, which can happen while this reader is being read from. Reading a released file fails with an
+ * {@link IOException}, the same documented way as reading from a closed {@link java.nio.channels.FileChannel},
+ * whichever way the JDK releases the mapping: on JDK 22 and later the file is unmapped as the
+ * {@link io.github.classgraph.ScanResult} closes, and reading it throws {@link IllegalStateException}, which is
+ * translated here; below JDK 22 the mapping stays readable until the garbage collector unmaps it, so this reader
+ * is given a flag to check instead.
  */
 public class RandomAccessByteBufferReader implements RandomAccessReader {
     /** The byte buffer. */
@@ -58,6 +61,12 @@ public class RandomAccessByteBufferReader implements RandomAccessReader {
 
     /** The slice length. */
     private final int sliceLength;
+
+    /**
+     * Whether the file this reader's buffer is a view of has been released, or null if the buffer is not a view of
+     * anything that can be released while this reader is alive.
+     */
+    private final AtomicBoolean isReleased;
 
     /**
      * Constructor.
@@ -71,6 +80,25 @@ public class RandomAccessByteBufferReader implements RandomAccessReader {
      */
     public RandomAccessByteBufferReader(final ByteBuffer byteBuffer, final long sliceStartPos,
             final long sliceLength) {
+        this(byteBuffer, sliceStartPos, sliceLength, /* isReleased = */ null);
+    }
+
+    /**
+     * Constructor.
+     *
+     * @param byteBuffer
+     *            the byte buffer
+     * @param sliceStartPos
+     *            the slice start pos
+     * @param sliceLength
+     *            the slice length
+     * @param isReleased
+     *            whether the file the buffer is a view of has been released, or null if it cannot be released
+     *            while this reader is alive
+     */
+    public RandomAccessByteBufferReader(final ByteBuffer byteBuffer, final long sliceStartPos,
+            final long sliceLength, final AtomicBoolean isReleased) {
+        this.isReleased = isReleased;
         this.byteBuffer = byteBuffer.duplicate();
         this.byteBuffer.order(ByteOrder.LITTLE_ENDIAN);
         this.sliceStartPos = (int) sliceStartPos;
@@ -80,17 +108,23 @@ public class RandomAccessByteBufferReader implements RandomAccessReader {
     }
 
     /**
-     * Check that a read stays within the slice, so that it cannot read the bytes that surround the slice in the
-     * buffer. (A zipfile can ask for a read at any offset, since offsets are read from the zipfile itself.)
+     * Check that the file can still be read, and that a read stays within the slice, so that it cannot read the
+     * bytes that surround the slice in the buffer. (A zipfile can ask for a read at any offset, since offsets are
+     * read from the zipfile itself.)
      *
      * @param offset
      *            the offset to read from, relative to the start of the slice
      * @param numBytes
      *            the number of bytes to read
      * @throws IOException
-     *             if the read would run past either end of the slice
+     *             if the file has been released, or the read would run past either end of the slice
      */
-    private void checkInBounds(final long offset, final int numBytes) throws IOException {
+    private void checkReadable(final long offset, final int numBytes) throws IOException {
+        // Below JDK 22 a mapping stays readable until the garbage collector unmaps it, so without this check a
+        // read through a reader that outlived the close would quietly return the file content on those JDKs
+        if (isReleased != null && isReleased.get()) {
+            throw new IOException("Cannot read a file that has been unmapped by closing the ScanResult");
+        }
         // Compare by subtraction rather than addition, so that a large offset plus a large numBytes cannot
         // overflow and slip past the check
         if (offset < 0L || numBytes < 0 || numBytes > sliceLength - offset) {
@@ -116,7 +150,7 @@ public class RandomAccessByteBufferReader implements RandomAccessReader {
         if (numBytes == 0) {
             return 0;
         }
-        checkInBounds(srcOffset, numBytes);
+        checkReadable(srcOffset, numBytes);
         try {
             final int numBytesToRead = Math.max(Math.min(numBytes, dstArr.length - dstArrStart), 0);
             if (numBytesToRead == 0) {
@@ -141,7 +175,7 @@ public class RandomAccessByteBufferReader implements RandomAccessReader {
         if (numBytes == 0) {
             return 0;
         }
-        checkInBounds(srcOffset, numBytes);
+        checkReadable(srcOffset, numBytes);
         try {
             final int numBytesToRead = Math.max(Math.min(numBytes, dstBuf.capacity() - dstBufStart), 0);
             if (numBytesToRead == 0) {
@@ -173,7 +207,7 @@ public class RandomAccessByteBufferReader implements RandomAccessReader {
 
     @Override
     public byte readByte(final long offset) throws IOException {
-        checkInBounds(offset, 1);
+        checkReadable(offset, 1);
         final int idx = (int) (sliceStartPos + offset);
         try {
             return byteBuffer.get(idx);
@@ -195,7 +229,7 @@ public class RandomAccessByteBufferReader implements RandomAccessReader {
 
     @Override
     public short readShort(final long offset) throws IOException {
-        checkInBounds(offset, 2);
+        checkReadable(offset, 2);
         final int idx = (int) (sliceStartPos + offset);
         try {
             return byteBuffer.getShort(idx);
@@ -206,7 +240,7 @@ public class RandomAccessByteBufferReader implements RandomAccessReader {
 
     @Override
     public int readInt(final long offset) throws IOException {
-        checkInBounds(offset, 4);
+        checkReadable(offset, 4);
         final int idx = (int) (sliceStartPos + offset);
         try {
             return byteBuffer.getInt(idx);
@@ -222,7 +256,7 @@ public class RandomAccessByteBufferReader implements RandomAccessReader {
 
     @Override
     public long readLong(final long offset) throws IOException {
-        checkInBounds(offset, 8);
+        checkReadable(offset, 8);
         final int idx = (int) (sliceStartPos + offset);
         try {
             return byteBuffer.getLong(idx);

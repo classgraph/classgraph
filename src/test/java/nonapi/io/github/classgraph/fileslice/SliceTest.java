@@ -2,12 +2,15 @@ package nonapi.io.github.classgraph.fileslice;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.ref.Reference;
+import java.lang.ref.ReferenceQueue;
+import java.lang.ref.WeakReference;
+import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 
@@ -19,7 +22,6 @@ import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
 import nonapi.io.github.classgraph.fileslice.reader.RandomAccessReader;
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
-import nonapi.io.github.classgraph.utils.VersionFinder;
 
 /** Tests for the identity of a {@link Slice}, and for the closing of the slices that a scan left open. */
 public class SliceTest {
@@ -144,11 +146,10 @@ public class SliceTest {
     }
 
     /**
-     * A file is only memory-mapped on JDK 22 or later, whatever the scan spec asks for. Below that the only way to
-     * unmap a file on demand is {@code Unsafe::invokeCleaner}, which frees the address range whether or not
-     * another thread is still reading it, so a thread that reads a mapping the scan has just unmapped takes a
-     * SIGSEGV that kills the JVM. The file is read through the {@link java.io.RandomAccessFile} API instead, which
-     * is slower but cannot crash the JVM.
+     * A file is memory-mapped on every JDK when the scan spec asks for it. On JDK 22 or later the mapping is
+     * unmapped by closing the arena it was made in; below that it is left to the JDK's own cleaner, which unmaps
+     * it once no view of it is reachable any more. What is never called is {@code Unsafe::invokeCleaner}, which
+     * frees the address range whether or not another thread is still reading it.
      *
      * @param tempDir
      *            a temporary directory
@@ -156,13 +157,13 @@ public class SliceTest {
      *             if the file could not be written or opened
      */
     @Test
-    public void aFileIsOnlyMemoryMappedOnJdk22OrLater(@TempDir final File tempDir) throws IOException {
+    public void aFileIsMemoryMappedWhenTheScanSpecAsksForIt(@TempDir final File tempDir) throws IOException {
         final NestedJarHandler nestedJarHandler = memoryMappingNestedJarHandler();
         try {
             final FileSlice slice = new FileSlice(writeFile(tempDir, "mapped.bin"), nestedJarHandler,
                     /* log = */ null);
             // A mapped slice is read from a direct ByteBuffer, an unmapped slice from a heap ByteBuffer
-            assertThat(slice.read().isDirect()).isEqualTo(VersionFinder.JAVA_MAJOR_VERSION >= 22);
+            assertThat(slice.read().isDirect()).isTrue();
             assertThat(slice.load()).containsExactly(CONTENT);
         } finally {
             nestedJarHandler.close(/* log = */ null);
@@ -170,9 +171,11 @@ public class SliceTest {
     }
 
     /**
-     * A reader taken before the slice was closed holds a view of the memory mapping that closing the slice unmaps.
-     * Every other reader reports a read of a file the scan has released as an {@link IOException}, so this one
-     * does too, rather than letting the arena's {@link IllegalStateException} out.
+     * A reader taken before the slice was closed holds a view of the memory mapping that closing the slice
+     * releases. Every other reader reports a read of a file the scan has released as an {@link IOException}, so
+     * this one does too, on every JDK: on JDK 22 or later rather than letting the arena's
+     * {@link IllegalStateException} out, and below JDK 22 rather than quietly returning content from a mapping
+     * that the garbage collector has not got round to unmapping yet.
      *
      * @param tempDir
      *            a temporary directory
@@ -182,7 +185,6 @@ public class SliceTest {
     @Test
     public void readingAMappedSliceAfterItWasClosedThrowsIOException(@TempDir final File tempDir)
             throws IOException {
-        assumeTrue(VersionFinder.JAVA_MAJOR_VERSION >= 22, "files are only memory-mapped on JDK 22 or later");
         final NestedJarHandler nestedJarHandler = memoryMappingNestedJarHandler();
         final FileSlice slice = new FileSlice(writeFile(tempDir, "mapped.bin"), nestedJarHandler, /* log = */ null);
         final RandomAccessReader reader = slice.randomAccessReader();
@@ -200,6 +202,98 @@ public class SliceTest {
                 .hasMessageContaining("unmapped by closing the ScanResult");
         assertThatThrownBy(() -> reader.read(0, new byte[4], 0, 4)).isInstanceOf(IOException.class)
                 .hasMessageContaining("unmapped by closing the ScanResult");
+    }
+
+    /**
+     * A sub-slice of a memory-mapped file reads through the toplevel slice, so closing the toplevel slice stops
+     * the sub-slice from being read too. A reader taken before the close keeps a view of the mapping, and below
+     * JDK 22 that view stays readable until the garbage collector unmaps the file, so only the closed flag stops
+     * it from returning file content.
+     *
+     * @param tempDir
+     *            a temporary directory
+     * @throws IOException
+     *             if the file could not be written, opened or read
+     */
+    @Test
+    public void aSubSliceCannotBeReadAfterTheToplevelSliceWasClosed(@TempDir final File tempDir)
+            throws IOException {
+        final NestedJarHandler nestedJarHandler = memoryMappingNestedJarHandler();
+        final FileSlice slice = new FileSlice(writeFile(tempDir, "mapped.bin"), nestedJarHandler, /* log = */ null);
+        final Slice subSlice = slice.slice(2, 4, /* isDeflatedZipEntry = */ false, /* inflatedLengthHint = */ 0L);
+        final RandomAccessReader reader = subSlice.randomAccessReader();
+        assertThat(new String(subSlice.load(), StandardCharsets.UTF_8)).isEqualTo("2345");
+
+        nestedJarHandler.close(/* log = */ null);
+
+        assertThatThrownBy(() -> reader.readByte(0)).isInstanceOf(IOException.class);
+        assertThatThrownBy(subSlice::load).isInstanceOf(IOException.class);
+        assertThatThrownBy(subSlice::read).isInstanceOf(IOException.class);
+    }
+
+    /**
+     * Closing a slice releases its memory mapping even while a sub-slice of it is still alive. Below JDK 22 a
+     * mapping is unmapped only once the garbage collector finds that nothing can read it any more, so a sub-slice
+     * that kept a duplicate of the mapping would keep the file mapped -- and, on Windows, locked open -- however
+     * long ago it was closed.
+     *
+     * @param tempDir
+     *            a temporary directory
+     * @throws IOException
+     *             if the file could not be written, opened or read
+     * @throws ReflectiveOperationException
+     *             if the mapping could not be read out of the slice
+     */
+    @Test
+    public void closingASliceReleasesItsMappingEvenWhileASubSliceIsAlive(@TempDir final File tempDir)
+            throws IOException, ReflectiveOperationException {
+        final NestedJarHandler nestedJarHandler = memoryMappingNestedJarHandler();
+        final FileSlice slice = new FileSlice(writeFile(tempDir, "mapped.bin"), nestedJarHandler, /* log = */ null);
+        final Slice subSlice = slice.slice(2, 4, /* isDeflatedZipEntry = */ false, /* inflatedLengthHint = */ 0L);
+        // The file really is mapped, so that what is checked below is the release of a mapping, not its absence
+        assertThat(slice.read().isDirect()).isTrue();
+        assertThat(new String(subSlice.load(), StandardCharsets.UTF_8)).isEqualTo("2345");
+
+        // Watch the mapping through a reference queue rather than through WeakReference#get(), which can keep
+        // its referent alive for another collection cycle on a garbage collector that uses load barriers. The
+        // WeakReference has to be kept in a local, since an unreachable WeakReference is never enqueued -- but
+        // keeping the reference does not keep its referent alive, which is the whole point of a weak reference
+        final Field backingByteBuffer = FileSlice.class.getDeclaredField("backingByteBuffer");
+        backingByteBuffer.setAccessible(true);
+        final ReferenceQueue<Object> collected = new ReferenceQueue<>();
+        final WeakReference<Object> mapping = new WeakReference<>(backingByteBuffer.get(slice), collected);
+
+        nestedJarHandler.close(/* log = */ null);
+
+        assertThat(wasCollected(mapping, collected)).isTrue();
+
+        // The sub-slice is used after the check above, which is what keeps it strongly reachable across it: the
+        // point of the check is that a live sub-slice is not what holds the mapping alive
+        assertThatThrownBy(subSlice::load).isInstanceOf(IOException.class);
+    }
+
+    /**
+     * Wait for a weak reference to be enqueued, asking for garbage collection until it is.
+     *
+     * @param reference
+     *            the weak reference to wait for
+     * @param collected
+     *            the queue the weak reference was registered with
+     * @return true if the referent was collected
+     */
+    private static boolean wasCollected(final Reference<?> reference, final ReferenceQueue<?> collected) {
+        for (int i = 0; i < 100; i++) {
+            System.gc();
+            try {
+                if (collected.remove(10) == reference) {
+                    return true;
+                }
+            } catch (final InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return false;
+            }
+        }
+        return false;
     }
 
     /**
