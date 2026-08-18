@@ -22,12 +22,17 @@ import nonapi.io.github.classgraph.utils.VersionFinder;
 
 /**
  * Issue 939: {@code Unsafe::invokeCleaner}, which was used to unmap {@code MappedByteBuffer}s, is terminally
- * deprecated (JDK 24+ warns when it is called, and it will be removed in a future JDK release). On JDK 22+,
- * ClassGraph now allocates and memory-maps {@code ByteBuffer}s using the {@code java.lang.foreign.Arena} API, and
- * frees/unmaps them by closing the arena that created them.
+ * deprecated (JDK 24+ warns when it is called, and it will be removed in a future JDK release), and frees the
+ * memory whether or not another thread is still reading it. On JDK 22+, ClassGraph allocates and memory-maps
+ * {@code ByteBuffer}s using the {@code java.lang.foreign.Arena} API instead, and frees/unmaps them by closing the
+ * arena that created them; below JDK 22 nothing is memory-mapped at all, and files are read through the
+ * {@link java.io.RandomAccessFile} API.
  */
 public class Issue939Test {
-    /** Scanning a jar with memory mapping enabled works on all JDK versions (via an arena on JDK 22+). */
+    /**
+     * Scanning a jar with memory mapping enabled works on all JDK versions (via an arena on JDK 22+, and by
+     * reading through the {@link java.io.RandomAccessFile} API below that).
+     */
     @Test
     public void scanJarWithMemoryMappingEnabled() {
         try (ScanResult scanResult = new ClassGraph().enableClassInfo().enableMemoryMapping()

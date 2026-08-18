@@ -1469,9 +1469,11 @@ public class ClassGraph {
 
     /**
      * If true, use a {@link MappedByteBuffer} rather than the {@link FileChannel} API to open files, which may be
-     * faster for large classpaths consisting of many large jarfiles, but uses up virtual memory space. On JDK
-     * 22+, files are memory-mapped using the {@code java.lang.foreign.Arena} API, so that they can be unmapped
-     * without calling the terminally-deprecated {@code Unsafe::invokeCleaner} method (#939).
+     * faster for large classpaths consisting of many large jarfiles, but uses up virtual memory space.
+     *
+     * <p>
+     * Files are only ever memory-mapped on JDK 22 or later, whatever this is set to, since that is the first
+     * release in which a mapping can be unmapped without the risk of crashing a thread that is still reading it.
      *
      * @return this (for method chaining).
      */

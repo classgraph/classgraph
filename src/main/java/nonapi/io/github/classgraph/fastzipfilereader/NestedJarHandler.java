@@ -515,8 +515,8 @@ public class NestedJarHandler {
      * {@link ScanResult#isClosed()} still reported {@code false} (#916).
      *
      * <p>
-     * If temporary files <i>were</i> created, they back memory-mapped slices of the extracted nested jars, so they
-     * cannot be deleted without closing those slices first -- the whole handler is still torn down in that case.
+     * If temporary files <i>were</i> created, they back open slices of the extracted nested jars, so they cannot
+     * be deleted without closing those slices first -- the whole handler is still torn down in that case.
      *
      * @param log
      *            the log
@@ -1245,15 +1245,5 @@ public class NestedJarHandler {
                 // Ignore
             }
         }
-    }
-
-    /**
-     * Close a direct {@link ByteBuffer}, so that its memory is unmapped without waiting for garbage collection.
-     *
-     * @param backingByteBuffer
-     *            the direct {@link ByteBuffer} to close.
-     */
-    public void closeDirectByteBuffer(final ByteBuffer backingByteBuffer) {
-        FileUtils.closeDirectByteBuffer(backingByteBuffer, reflectionUtils, /* log = */ null);
     }
 }

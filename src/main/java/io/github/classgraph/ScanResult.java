@@ -37,7 +37,6 @@ import java.lang.ref.WeakReference;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -258,11 +257,6 @@ public final class ScanResult implements Closeable {
                 // Unsafe::invokeCleaner (#939) -- warm up the reflective arena code paths
                 FileUtils.allocateDirectByteBufferUsingArena(arena, 32, reflectionUtils);
                 FileUtils.closeArena(arena, reflectionUtils, /* log = */ null);
-            } else {
-                // On JDK less than 22, the only problematic classes are the PrivilegedAction
-                // anonymous inner classes used by FileUtils::closeDirectByteBuffer
-                FileUtils.closeDirectByteBuffer(ByteBuffer.allocateDirect(32), reflectionUtils,
-                        /* log = */ null);
             }
         }
     }

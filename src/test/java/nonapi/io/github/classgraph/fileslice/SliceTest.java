@@ -2,6 +2,7 @@ package nonapi.io.github.classgraph.fileslice;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -15,8 +16,10 @@ import org.junit.jupiter.api.io.TempDir;
 
 import nonapi.io.github.classgraph.concurrency.InterruptionChecker;
 import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
+import nonapi.io.github.classgraph.fileslice.reader.RandomAccessReader;
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
+import nonapi.io.github.classgraph.utils.VersionFinder;
 
 /** Tests for the identity of a {@link Slice}, and for the closing of the slices that a scan left open. */
 public class SliceTest {
@@ -30,6 +33,17 @@ public class SliceTest {
      */
     private static NestedJarHandler nestedJarHandler() {
         return new NestedJarHandler(new ScanSpec(), new InterruptionChecker(), new ReflectionUtils());
+    }
+
+    /**
+     * Create the handler that owns the slices opened during a scan, with memory mapping enabled.
+     *
+     * @return the nested jar handler
+     */
+    private static NestedJarHandler memoryMappingNestedJarHandler() {
+        final ScanSpec scanSpec = new ScanSpec();
+        scanSpec.enableMemoryMapping = true;
+        return new NestedJarHandler(scanSpec, new InterruptionChecker(), new ReflectionUtils());
     }
 
     /**
@@ -127,6 +141,65 @@ public class SliceTest {
         } finally {
             nestedJarHandler.close(/* log = */ null);
         }
+    }
+
+    /**
+     * A file is only memory-mapped on JDK 22 or later, whatever the scan spec asks for. Below that the only way to
+     * unmap a file on demand is {@code Unsafe::invokeCleaner}, which frees the address range whether or not
+     * another thread is still reading it, so a thread that reads a mapping the scan has just unmapped takes a
+     * SIGSEGV that kills the JVM. The file is read through the {@link java.io.RandomAccessFile} API instead, which
+     * is slower but cannot crash the JVM.
+     *
+     * @param tempDir
+     *            a temporary directory
+     * @throws IOException
+     *             if the file could not be written or opened
+     */
+    @Test
+    public void aFileIsOnlyMemoryMappedOnJdk22OrLater(@TempDir final File tempDir) throws IOException {
+        final NestedJarHandler nestedJarHandler = memoryMappingNestedJarHandler();
+        try {
+            final FileSlice slice = new FileSlice(writeFile(tempDir, "mapped.bin"), nestedJarHandler,
+                    /* log = */ null);
+            // A mapped slice is read from a direct ByteBuffer, an unmapped slice from a heap ByteBuffer
+            assertThat(slice.read().isDirect()).isEqualTo(VersionFinder.JAVA_MAJOR_VERSION >= 22);
+            assertThat(slice.load()).containsExactly(CONTENT);
+        } finally {
+            nestedJarHandler.close(/* log = */ null);
+        }
+    }
+
+    /**
+     * A reader taken before the slice was closed holds a view of the memory mapping that closing the slice unmaps.
+     * Every other reader reports a read of a file the scan has released as an {@link IOException}, so this one
+     * does too, rather than letting the arena's {@link IllegalStateException} out.
+     *
+     * @param tempDir
+     *            a temporary directory
+     * @throws IOException
+     *             if the file could not be written, opened or read
+     */
+    @Test
+    public void readingAMappedSliceAfterItWasClosedThrowsIOException(@TempDir final File tempDir)
+            throws IOException {
+        assumeTrue(VersionFinder.JAVA_MAJOR_VERSION >= 22, "files are only memory-mapped on JDK 22 or later");
+        final NestedJarHandler nestedJarHandler = memoryMappingNestedJarHandler();
+        final FileSlice slice = new FileSlice(writeFile(tempDir, "mapped.bin"), nestedJarHandler, /* log = */ null);
+        final RandomAccessReader reader = slice.randomAccessReader();
+        assertThat(reader.readByte(0)).isEqualTo(CONTENT[0]);
+
+        nestedJarHandler.close(/* log = */ null);
+
+        assertThatThrownBy(() -> reader.readByte(0)).isInstanceOf(IOException.class)
+                .hasMessageContaining("unmapped by closing the ScanResult");
+        assertThatThrownBy(() -> reader.readShort(0)).isInstanceOf(IOException.class)
+                .hasMessageContaining("unmapped by closing the ScanResult");
+        assertThatThrownBy(() -> reader.readInt(0)).isInstanceOf(IOException.class)
+                .hasMessageContaining("unmapped by closing the ScanResult");
+        assertThatThrownBy(() -> reader.readLong(0)).isInstanceOf(IOException.class)
+                .hasMessageContaining("unmapped by closing the ScanResult");
+        assertThatThrownBy(() -> reader.read(0, new byte[4], 0, 4)).isInstanceOf(IOException.class)
+                .hasMessageContaining("unmapped by closing the ScanResult");
     }
 
     /**

@@ -256,7 +256,11 @@ public class ScanSpec {
      */
     public int maxBufferedJarRAMSize = 64 * 1024 * 1024;
 
-    /** If true, use a {@link MappedByteBuffer} rather than the {@link FileChannel} API to access file content. */
+    /**
+     * If true, use a {@link MappedByteBuffer} rather than the {@link FileChannel} API to access file content. Files
+     * are only ever memory-mapped on JDK 22 or later, whatever this is set to, since that is the first release in
+     * which a mapping can be unmapped without the risk of crashing a thread that is still reading it.
+     */
     public boolean enableMemoryMapping;
 
     /** If true, all multi-release versions of a resource are found. */
