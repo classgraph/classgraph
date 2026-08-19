@@ -7,7 +7,9 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetAddress;
+import java.net.MalformedURLException;
 import java.net.ServerSocket;
+import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -297,7 +299,20 @@ public class JarURLDownloaderTest {
     @Test
     public void aUrlThatCannotBeParsedIsReported() {
         assertThatThrownBy(() -> JarURLDownloader.downloadJarFromURL("not a url", session, /* log = */ null))
-                .isInstanceOf(IOException.class).hasMessage("Could not parse URL: not a url");
+                .isInstanceOf(IOException.class).hasMessageEndingWith(": not a url")
+                .hasCauseInstanceOf(URISyntaxException.class);
+    }
+
+    /**
+     * The reason a URL could not be opened is reported, so that a URL whose scheme nothing has registered a handler
+     * for says so, rather than only saying that the URL could not be parsed.
+     */
+    @Test
+    public void theReasonAUrlCouldNotBeParsedIsReported() {
+        assertThatThrownBy(
+                () -> JarURLDownloader.downloadJarFromURL("nosuchscheme:/x.jar", session, /* log = */ null))
+                .isInstanceOf(IOException.class).hasMessageContaining("unknown protocol: nosuchscheme")
+                .hasCauseInstanceOf(MalformedURLException.class);
     }
 
     /**
@@ -310,6 +325,6 @@ public class JarURLDownloaderTest {
         final var jarURL = "file:/jars/a jar with spaces.jar";
         assertThatThrownBy(() -> JarURLDownloader.downloadJarFromURL(jarURL, session, /* log = */ null))
                 .isInstanceOf(IOException.class).hasMessageStartingWith("Could not convert URL to URI (")
-                .hasMessageEndingWith(jarURL);
+                .hasMessageEndingWith(jarURL).hasCauseInstanceOf(URISyntaxException.class);
     }
 }

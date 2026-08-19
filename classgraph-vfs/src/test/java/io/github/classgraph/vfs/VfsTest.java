@@ -37,17 +37,17 @@ public class VfsTest {
     private static final String RESOURCE_CONTENT = "vfs-test";
 
     /**
-     * Build a virtual filesystem that allows jarfiles to be opened from URLs with the given schemes, leaving every
+     * Build a virtual filesystem that refuses to fetch jarfiles from URLs with the given schemes, leaving every
      * other option at its default.
      *
      * @param urlSchemes
-     *            the URL schemes to allow.
+     *            the URL schemes to deny.
      * @return the virtual filesystem.
      */
-    private static Vfs vfsWithURLSchemes(final String... urlSchemes) {
+    private static Vfs vfsWithoutURLSchemes(final String... urlSchemes) {
         final var vfsSpec = new VfsSpec();
         for (final var urlScheme : urlSchemes) {
-            vfsSpec.enableURLScheme(urlScheme);
+            vfsSpec.disableURLScheme(urlScheme);
         }
         return new Vfs(vfsSpec);
     }
@@ -1210,11 +1210,11 @@ public class VfsTest {
     /** A string that is not a URL scheme is rejected, rather than being stored where it can never match. */
     @Test
     public void aStringThatIsNotAURLSchemeIsRejected() {
-        vfsWithURLSchemes("https").close();
+        vfsWithoutURLSchemes("https").close();
         // A one-character scheme cannot be told apart from a Windows drive letter
-        assertThatThrownBy(() -> vfsWithURLSchemes("c")).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> vfsWithoutURLSchemes("c")).isInstanceOf(IllegalArgumentException.class);
         // The commonest mistake: including the scheme's trailing ':'
-        assertThatThrownBy(() -> vfsWithURLSchemes("https:")).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> vfsWithoutURLSchemes("https:")).isInstanceOf(IllegalArgumentException.class);
     }
 
     /**
@@ -1295,6 +1295,7 @@ public class VfsTest {
                     .isInstanceOf(NullPointerException.class);
             assertThatThrownBy(() -> vfs.open(new byte[0], null)).isInstanceOf(NullPointerException.class);
             assertThatThrownBy(() -> new VfsSpec().enableURLScheme(null)).isInstanceOf(NullPointerException.class);
+            assertThatThrownBy(() -> new VfsSpec().disableURLScheme(null)).isInstanceOf(NullPointerException.class);
 
             final var root = vfs.open(jarFile.getPath());
             assertThatThrownBy(() -> root.getEntry(null)).isInstanceOf(NullPointerException.class);

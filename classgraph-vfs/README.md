@@ -152,8 +152,10 @@ asks the root for that view, so it throws the same thing at the same point.
   stripped off.
 * **Multi-release jarfiles**, resolved to the newest version of each entry that the running JVM can
   use, or every version if multi-release versions were enabled on the `Vfs`.
-* **Jarfiles at a URL**, if that URL scheme was enabled on the `Vfs`. The file is downloaded
-  in full first, because a zipfile's central directory is at the end.
+* **Jarfiles at a URL**, for any scheme the JVM has a handler for, unless that scheme was denied on
+  the `Vfs`. The file is downloaded in full first, because a zipfile's central directory is at the
+  end. A scheme with a `FileSystemProvider` installed for it is read in place instead, with no copy.
+  See [Custom URL schemes](#custom-url-schemes).
 * **Entry names encoded in IBM Code Page 437**, which the zip specification requires when bit 11 of
   the entry's general purpose bit flag is clear. Windows Explorer and Info-ZIP both write such
   names.
@@ -165,18 +167,18 @@ changed by a method that returns the same `VfsSpec`, so the ones that differ fro
 chained onto the constructor call and the rest left alone:
 
 ```java
-new Vfs(new VfsSpec().enableURLScheme("https").setMaxBufferedJarRAMSize(65536))
+new Vfs(new VfsSpec().disableURLScheme("https").setMaxBufferedJarRAMSize(65536))
 ```
 
 | Setting | Default | Effect |
 | --- | --- | --- |
 | `enableNestedJars()` / `disableNestedJars()` | enabled | Whether `!/` in a path may name a jarfile within a jarfile, rather than only a package root within a jarfile |
 | `enableMultiReleaseVersions()` / `disableMultiReleaseVersions()` | disabled | Whether to report every version of a multi-release jarfile's entries, rather than only the newest version this JVM can run |
-| `enableURLScheme(String)` | none | A URL scheme a jarfile may be opened from, e.g. `"https"`. `file:` and `jar:` are always allowed. Call once per scheme |
+| `disableURLScheme(String)` / `enableURLScheme(String)` | none denied | A URL scheme a jarfile may **not** be opened from, e.g. `"https"`. Every scheme the JVM has a handler for is allowed until it is denied. Denying `file:` or `jar:` has no effect, since both prefixes are stripped before a path is opened. Call once per scheme |
 | `setMaxBufferedJarRAMSize(int)` | 64MB | How many bytes of a jarfile may be held in RAM before it is spilled to a temporary file |
 
 `new Vfs()` uses the default of every setting. Each setting has a matching getter --
-`isNestedJarsEnabled()`, `isMultiReleaseVersionsEnabled()`, `getAllowedURLSchemes()` and
+`isNestedJarsEnabled()`, `isMultiReleaseVersionsEnabled()`, `getDeniedURLSchemes()` and
 `getMaxBufferedJarRAMSize()` -- and `VfsSpec.DEFAULT_ENABLE_NESTED_JARS`,
 `VfsSpec.DEFAULT_ENABLE_MULTI_RELEASE_VERSIONS` and `VfsSpec.DEFAULT_MAX_BUFFERED_JAR_RAM_SIZE` name
 the defaults.
@@ -185,6 +187,66 @@ The `VfsSpec` is held by the `Vfs`, not copied, and each setting is read where i
 setting should be chosen before the `Vfs` opens anything -- a setting changed while entries are
 being read takes effect for some of them and not others. Changing one is safe from any thread: every
 setting is held in a volatile field.
+
+## Custom URL schemes
+
+A path handed to `vfs.open(String)` that starts with a URL scheme is opened as a URL, and a `Vfs`
+opens whatever the JVM can open. There is nothing to register with `classgraph-vfs`: a scheme is
+openable because the JDK ships a handler for it, or because the application registered one through
+one of the two JDK service provider interfaces below.
+
+| Registered as | Registered by | How `classgraph-vfs` reads it |
+| --- | --- | --- |
+| `java.net.URLStreamHandler` | `URL.setURLStreamHandlerFactory(factory)`, a `java.net.spi.URLStreamHandlerProvider` on the module path or in `META-INF/services`, or the `java.protocol.handler.pkgs` system property | The jarfile is downloaded in full through the handler's `URLConnection`, into RAM or a temporary file |
+| `java.nio.file.spi.FileSystemProvider` | A provider on the module path or in `META-INF/services` | `Path.of(uri)` resolves through the provider and the jarfile is read in place, with no copy |
+
+A `FileSystemProvider` wins where both are registered for a scheme: reading in place beats
+downloading. It is tried first, and a `FileSystemNotFoundException` from it is what falls back to
+the download. The two exceptions are `http` and `https`, which are always downloaded, since a URL at
+either is remote by definition.
+
+The JDK ships handlers for `file`, `jar`, `http`, `https`, `ftp`, `mailto`, `jrt` and `jmod`
+(measured on JDK 17 and JDK 26), and installed `FileSystemProvider`s for `file`, `jar` and `jrt`.
+So opening `s3://bucket/lib.jar` works exactly when something in the application has registered an
+`s3` handler or filesystem provider, and fails with the JVM's own report otherwise:
+
+```
+java.io.IOException: Could not open s3://bucket/lib.jar :
+    java.io.IOException: Could not parse URL (java.net.MalformedURLException: unknown protocol: s3): s3://bucket/lib.jar
+```
+
+To keep a jarfile from being fetched over a scheme, name it:
+
+```java
+new Vfs(new VfsSpec().disableURLScheme("https"))
+```
+
+A `Vfs` denies nothing by default. `ClassGraph` and `ClasspathFinder` construct theirs with `http`,
+`https`, `ftp` and `mailto` denied, because a classpath is not always something the caller wrote,
+and those four fetch over a network on any JVM. `enableURLScheme(String)` takes a scheme back off
+that list.
+
+The list is a deny list rather than an allow list because there is no way to build the allow list:
+the JDK offers no way to enumerate the registered schemes. `URL`'s handler table is private, and
+`setAccessible` on it throws `InaccessibleObjectException` on JDK 17 and later, since `java.base`
+does not open `java.net`; `ServiceLoader<URLStreamHandlerProvider>` sees only the providers declared
+in service files, so it misses every handler installed by `URL.setURLStreamHandlerFactory`; and the
+`URLConnection` a handler returns does not say who registered it, because a custom handler that
+delegates to `file:` returns the JDK's own `sun.net.www.protocol.file.FileURLConnection`. Requiring
+each scheme to be enabled would therefore have meant every application that installs a handler also
+naming it here, to no benefit -- installing the handler is already the statement that those URLs are
+meant to be read.
+
+To sidestep URL handling altogether, open a `Path` instead: `vfs.open(Path)` reads through whatever
+filesystem the `Path` belongs to, and never looks at a scheme.
+
+```java
+try (FileSystem fs = FileSystems.newFileSystem(URI.create("s3://bucket"), Map.of());
+        Vfs vfs = new Vfs()) {
+    VfsRoot root = vfs.open(fs.getPath("/lib/library.jar"));
+    System.out.println(root.getEntries().size() + " entries");
+}
+```
 
 ## Concurrency
 
@@ -415,9 +477,8 @@ try (Vfs vfs = new Vfs();
 
 The stream is read into RAM, or spilled to a temporary file if it is larger than the maximum
 buffered jar RAM size. `vfs.open(byte[], String)` does the same for a jarfile you already hold.
-Alternatively, let the library do the fetching: a `Vfs` constructed with
-`new VfsSpec().enableURLScheme("https")` opens the URL directly, with
-`vfs.open("https://.../library.jar")`.
+Alternatively, let the library do the fetching: `vfs.open("https://.../library.jar")` opens the URL
+directly.
 
 ### Read a jarfile nested inside another jarfile
 

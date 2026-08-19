@@ -62,9 +62,8 @@ public class Issue420Test {
 
             try (var childClassLoader = new URLClassLoader(new URL[] { memFsCopyOfJarURL },
                     getClass().getClassLoader())) {
-                final var classGraph = new ClassGraph().enableURLScheme(memFsCopyOfJarURL.getProtocol())
-                        .overrideClassLoaders(childClassLoader).ignoreParentClassLoaders().acceptPackages("mrj")
-                        .enableAllInfo();
+                final var classGraph = new ClassGraph().overrideClassLoaders(childClassLoader)
+                        .ignoreParentClassLoaders().acceptPackages("mrj").enableAllInfo();
                 try (var scanResult = classGraph.scan()) {
                     assertThat(scanResult.getClassInfo("mrj.Cls")).isNotNull();
                 }
@@ -99,9 +98,8 @@ public class Issue420Test {
             final var memFsRootURL = memFsRoot.toUri().toURL();
             try (var childClassLoader = new URLClassLoader(new URL[] { memFsRootURL },
                     getClass().getClassLoader())) {
-                final var classGraph = new ClassGraph().enableURLScheme(memFsRootURL.getProtocol())
-                        .overrideClassLoaders(childClassLoader).ignoreParentClassLoaders()
-                        .acceptPackages(packageName).enableAllInfo();
+                final var classGraph = new ClassGraph().overrideClassLoaders(childClassLoader)
+                        .ignoreParentClassLoaders().acceptPackages(packageName).enableAllInfo();
                 try (var scanResult = classGraph.scan()) {
                     assertThat(scanResult.getClassInfo(classFullyQualifiedName)).isNotNull();
                 }

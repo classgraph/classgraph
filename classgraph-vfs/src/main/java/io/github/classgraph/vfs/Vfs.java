@@ -192,12 +192,13 @@ public class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      * Open a directory or a jarfile named by a path.
      *
      * <p>
-     * The path may name a directory or a jarfile in the local filesystem, or a URL with a scheme that this
-     * {@link Vfs} was constructed with. A jarfile nested within another jarfile is named by separating the
-     * enclosing jarfile from the nested one with {@code "!/"}, to any depth, e.g.
-     * {@code "outer.jar!/lib/inner.jar"}. A trailing {@code "!/"} section that does not name a nested jarfile names
-     * a package root within the jarfile instead, e.g. {@code "spring-boot-app.jar!/BOOT-INF/classes"}, in which
-     * case only the entries under that root are reported, with the root stripped from their names.
+     * The path may name a directory or a jarfile in the local filesystem, or a URL with any scheme the JVM has a
+     * handler for, other than one denied by {@link VfsSpec#disableURLScheme(String)}. A jarfile nested within
+     * another jarfile is named by separating the enclosing jarfile from the nested one with {@code "!/"}, to any
+     * depth, e.g. {@code "outer.jar!/lib/inner.jar"}. A trailing {@code "!/"} section that does not name a nested
+     * jarfile names a package root within the jarfile instead, e.g.
+     * {@code "spring-boot-app.jar!/BOOT-INF/classes"}, in which case only the entries under that root are reported,
+     * with the root stripped from their names.
      *
      * <p>
      * A directory or jarfile is opened once however it is named, so the same {@link VfsRoot} is returned for a
@@ -468,7 +469,8 @@ public class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      *
      * @param uri
      *            the {@link URI} to open. A {@code "jar:"} or {@code "file:"} URI names something in the local
-     *            filesystem; any other scheme has to be one this {@link Vfs} was constructed with.
+     *            filesystem; any other scheme is opened if the JVM has a handler for it and
+     *            {@link VfsSpec#disableURLScheme(String)} has not denied it.
      * @return the opened root.
      * @throws IOException
      *             if the {@link URI} could not be opened or read, or if this {@link Vfs} has been closed.
@@ -483,7 +485,8 @@ public class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      *
      * @param url
      *            the {@link URL} to open. A {@code "jar:"} or {@code "file:"} URL names something in the local
-     *            filesystem; any other scheme has to be one this {@link Vfs} was constructed with.
+     *            filesystem; any other scheme is opened if the JVM has a handler for it and
+     *            {@link VfsSpec#disableURLScheme(String)} has not denied it.
      * @return the opened root.
      * @throws IOException
      *             if the {@link URL} could not be opened or read, or if this {@link Vfs} has been closed.

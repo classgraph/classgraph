@@ -60,6 +60,13 @@ import io.github.classgraph.vfs.VfsSpec;
  * times, and returns a new {@link Classpath} each time.
  */
 public class ClasspathFinder {
+    /**
+     * The URL schemes a jarfile is not fetched from unless asked for. These are the schemes that every JVM can
+     * already fetch over a network, so a classpath element naming one is read from the network by default, which is
+     * not something a classpath walk should do with a path it was merely handed.
+     */
+    private static final String[] DENIED_URL_SCHEMES = { "http", "https", "ftp", "mailto" };
+
     /** Everything except the classloaders and module layers the caller named. */
     private final ClasspathSpec classpathSpec = new ClasspathSpec();
 
@@ -76,9 +83,19 @@ public class ClasspathFinder {
     /** If true, log what is found to the {@code io.github.classgraph.ClassGraph} logger, at {@code INFO} level. */
     private boolean verbose;
 
-    /** Constructor. */
+    /**
+     * Constructor.
+     *
+     * <p>
+     * A classpath is not always something the caller wrote, so the URL schemes that every JVM can fetch over a
+     * network are denied to begin with: a jarfile is not downloaded from an {@code http:}, {@code https:},
+     * {@code ftp:} or {@code mailto:} URL unless {@link #enableURLScheme(String)} asks for it. Every other scheme
+     * is read as found.
+     */
     public ClasspathFinder() {
-        // Intentionally empty
+        for (final String scheme : DENIED_URL_SCHEMES) {
+            vfsSpec.disableURLScheme(scheme);
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -95,20 +112,48 @@ public class ClasspathFinder {
     }
 
     /**
-     * Allow classpath elements to be named by a URL with the given scheme, e.g. {@code "http"}. Only {@code file:}
-     * URLs are allowed by default. A classpath element with a scheme that has not been enabled is still reported,
-     * but the jarfile it names is not read, so the classpath elements that it declares are not found.
+     * Allow a jarfile to be fetched from a classpath element named by a URL with the given scheme, e.g.
+     * {@code "http"}.
+     *
+     * <p>
+     * Only {@code http}, {@code https}, {@code ftp} and {@code mailto} have to be enabled this way -- see
+     * {@link #ClasspathFinder()}. A scheme that the JVM can open only because an application registered a
+     * {@link java.net.URLStreamHandler} or a {@link java.nio.file.spi.FileSystemProvider} for it is already read as
+     * found. Naming one here is still worth doing if classpath elements with that scheme arrive in a
+     * {@code ':'}-separated classpath string such as {@code java.class.path}, since the scheme's own {@code ':'}
+     * would otherwise be read as a separator and split the path element in two.
      *
      * @param scheme
      *            the URL scheme, without the {@code ':'}, e.g. {@code "http"}.
      * @return this (for method chaining).
      * @throws IllegalArgumentException
-     *             if the scheme is empty, contains a {@code ':'}, or is {@code "jrt"} or {@code "file"} (which are
-     *             always handled).
+     *             if the scheme is shorter than two characters (a one-character scheme cannot be told apart from a
+     *             Windows drive letter), or is not a valid URL scheme.
      */
     public ClasspathFinder enableURLScheme(final String scheme) {
         classpathSpec.enableURLScheme(scheme);
         vfsSpec.enableURLScheme(scheme);
+        return this;
+    }
+
+    /**
+     * Refuse to fetch a jarfile from a classpath element named by a URL with the given scheme. The classpath
+     * element is still reported, but the jarfile it names is not read, so the classpath elements that it declares
+     * are not found.
+     *
+     * <p>
+     * {@code http}, {@code https}, {@code ftp} and {@code mailto} are refused already -- see
+     * {@link #ClasspathFinder()}. This adds a scheme to those.
+     *
+     * @param scheme
+     *            the URL scheme, without the {@code ':'}, e.g. {@code "s3"}.
+     * @return this (for method chaining).
+     * @throws IllegalArgumentException
+     *             if the scheme is shorter than two characters (a one-character scheme cannot be told apart from a
+     *             Windows drive letter), or is not a valid URL scheme.
+     */
+    public ClasspathFinder disableURLScheme(final String scheme) {
+        vfsSpec.disableURLScheme(scheme);
         return this;
     }
 

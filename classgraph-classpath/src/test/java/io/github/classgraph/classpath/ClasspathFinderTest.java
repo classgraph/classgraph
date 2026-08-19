@@ -429,6 +429,12 @@ public class ClasspathFinderTest {
                     .find()) {
                 assertThat(classpath.getLocations()).containsExactly(jarURL, declaredURL);
             }
+
+            // Denying the scheme again stops the jarfile from being fetched
+            try (var classpath = new ClasspathFinder().enableURLScheme("http").disableURLScheme("http")
+                    .overrideClasspath((Object) jarURL).find()) {
+                assertThat(classpath.getLocations()).containsExactly(jarURL);
+            }
         } finally {
             server.stop(0);
         }

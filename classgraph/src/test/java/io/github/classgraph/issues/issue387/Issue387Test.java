@@ -59,8 +59,7 @@ class Issue387Test {
         final var customSchemeURL = CustomURLScheme.SCHEME + ":" + filePath;
         final var url = new URL(customSchemeURL);
         final var classLoader = new URLClassLoader(new URL[] { url }, null);
-        try (var scanResult = new ClassGraph().enableURLScheme(CustomURLScheme.SCHEME)
-                .overrideClassLoaders(classLoader).scan()) {
+        try (var scanResult = new ClassGraph().overrideClassLoaders(classLoader).scan()) {
             assertThat(scanResult.getAllResources().getPaths()).containsExactly("level2.jar");
             assertThat(CustomURLScheme.remappedURLs.entrySet().iterator().next())
                     .isEqualTo(new SimpleEntry<>(customSchemeURL, "file:" + filePath));

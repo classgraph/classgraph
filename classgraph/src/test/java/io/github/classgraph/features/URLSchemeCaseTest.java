@@ -10,8 +10,8 @@ import org.junit.jupiter.api.Test;
 import io.github.classgraph.ClassGraph;
 
 /**
- * A URL scheme is case-insensitive, so a classpath element whose scheme is not written in lowercase is scanned by
- * an enabled scheme just the same as one that is.
+ * A URL scheme is case-insensitive, so a classpath string whose scheme is not written in lowercase is split at the
+ * same points as one that is.
  */
 public class URLSchemeCaseTest {
     /** Register the URL stream handler for the custom scheme. */
@@ -20,12 +20,15 @@ public class URLSchemeCaseTest {
         CustomURLScheme.register();
     }
 
-    /** A classpath element whose URL scheme is written in uppercase is scanned by the enabled scheme. */
+    /** A classpath string whose URL scheme is written in uppercase is not split at the scheme's colon. */
     @Test
     public void anUppercaseURLSchemeIsStillTheEnabledScheme() {
         final var filePath = getClass().getClassLoader().getResource("nested-jars-level1.zip").getPath();
         final var upperCaseSchemeURL = CustomURLScheme.SCHEME.toUpperCase(Locale.ROOT) + ":" + filePath;
 
+        // The scheme has to be enabled for a classpath *string*: a classpath string is split on ':' on Unix, so
+        // without this the string would be split at the scheme's own colon. (The scheme does not have to be
+        // enabled to be fetched from -- only http, https, ftp and mailto do)
         try (var scanResult = new ClassGraph().enableURLScheme(CustomURLScheme.SCHEME)
                 .overrideClasspath(upperCaseSchemeURL).scan()) {
             assertThat(scanResult.getAllResources().getPaths()).containsExactly("level2.jar");

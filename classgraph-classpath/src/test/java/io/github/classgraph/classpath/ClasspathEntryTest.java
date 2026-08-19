@@ -19,6 +19,7 @@ import com.google.common.jimfs.Jimfs;
 
 import io.github.classgraph.vfs.Vfs;
 import io.github.classgraph.vfs.VfsEntry;
+import io.github.classgraph.vfs.VfsSpec;
 
 /** Tests for the forms a classpath element can be found in, and for opening it in each of them. */
 public class ClasspathEntryTest {
@@ -132,8 +133,8 @@ public class ClasspathEntryTest {
 
     /**
      * A classpath element found as a {@link Path} in a filesystem other than the default one is opened through that
-     * filesystem. Its location names it, but nothing can be opened by that name, since it is not a path of the
-     * default filesystem -- only the {@link Path} itself reaches it.
+     * filesystem rather than through its location, so it is still reached by a {@link Vfs} that refuses to fetch
+     * anything over its location's URL scheme.
      */
     @Test
     public void aClasspathElementInAnotherFilesystemIsOpenedThroughThatFilesystem() throws IOException {
@@ -146,10 +147,16 @@ public class ClasspathEntryTest {
                 assertThat(entry.getLocation()).isEqualTo(jar.toUri().toString()).startsWith("jimfs://");
                 assertThat(entry.open(classpath.getVfs())).extracting(VfsEntry::getName)
                         .containsExactly(ENTRY_PATH);
-                // The location names the element, but nothing can be reached by that name, so a Vfs that has not
-                // already been handed the Path cannot open it
-                try (var otherVfs = new Vfs()) {
-                    assertThatThrownBy(() -> otherVfs.open(entry.getLocation())).isInstanceOf(IOException.class);
+                try (var denyingVfs = new Vfs(new VfsSpec().disableURLScheme("jimfs"))) {
+                    // Nothing is fetched over a denied scheme, so the location alone does not reach the element
+                    assertThatThrownBy(() -> denyingVfs.open(entry.getLocation())).isInstanceOf(IOException.class);
+                    // Opening the Path reads through its own filesystem, which fetches nothing, so the element is
+                    // still reached -- which is the whole reason the Path is kept, rather than the element being
+                    // flattened to its location and that being parsed back
+                    final var root = entry.open(denyingVfs);
+                    assertThat(root).extracting(VfsEntry::getName).containsExactly(ENTRY_PATH);
+                    // A root that is already open is not fetched again, so the location now names it
+                    assertThat(denyingVfs.open(entry.getLocation())).isSameAs(root);
                 }
             }
         }

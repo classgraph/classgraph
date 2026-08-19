@@ -337,16 +337,16 @@ public class NestedJarHandler {
         // instance, so it must not be released here.
         final boolean ownedUntilHandedOver;
         if (isURL) {
-            // URL schemes are case-insensitive, and are registered in lowercase, so the scheme has to be
-            // lowercased before it is looked up -- otherwise "S3://bucket/x.jar" is rejected as not enabled
-            // even though the "s3" scheme was enabled
+            // URL schemes are case-insensitive, and are denied in lowercase, so the scheme has to be lowercased
+            // before it is looked up -- otherwise "HTTP://host/x.jar" is fetched even though "http" was denied
             final var scheme = nestedJarPath.substring(0, nestedJarPath.indexOf(':')).toLowerCase(Locale.ROOT);
-            if (session.vfsSpec.getAllowedURLSchemes() == null
-                    || !session.vfsSpec.getAllowedURLSchemes().contains(scheme)) {
-                // No URL schemes other than "file:" (with optional "jar:" prefix) allowed (these schemes were
-                // already stripped by FastPathResolver.resolve(nestedJarPathRaw))
-                throw new IOException("Scanning of URL scheme \"" + scheme
-                        + "\" has not been enabled -- cannot scan classpath element: " + nestedJarPath);
+            // Whatever the JVM can open is opened, so only a scheme the caller took away is refused here. A
+            // scheme that nothing has registered a handler for is left to the download below, which reports the
+            // JVM's own reason for not being able to open it. ("file:" and "jar:" never reach here --
+            // FastPathResolver.resolve() has already stripped them)
+            if (session.vfsSpec.getDeniedURLSchemes().contains(scheme)) {
+                throw new IOException("Fetching a jarfile over \"" + scheme
+                        + ":\" is not allowed -- cannot read classpath element: " + nestedJarPath);
             }
 
             // Download jar from URL to a ByteBuffer in RAM, or to a temp file on disk

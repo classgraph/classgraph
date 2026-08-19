@@ -410,8 +410,9 @@ public abstract sealed class ClasspathEntry {
 
         /**
          * Returns this classpath element as a {@link Path}. It may be in a filesystem other than the default one,
-         * in which case only opening the {@link Path} itself reaches it -- its {@link #getLocation()} is the
-         * {@link Path#toUri()} form, which names it but does not open it.
+         * in which case opening the {@link Path} is what reaches it. Its {@link #getLocation()} is the
+         * {@link Path#toUri()} form, which reaches the same element only if that filesystem's provider is installed
+         * and the filesystem is still open, and only if the {@link Vfs} has not denied its URL scheme.
          *
          * @return the path.
          */

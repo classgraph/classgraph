@@ -107,8 +107,9 @@ escape the `try` block.
 
 `entry.open(vfs)` opens the classpath element in whichever form the classloader named it in -- a
 path string, a `File`, a `Path`, a `URL` or a `URI` -- rather than flattening it to `getLocation()`
-and parsing that back. That matters for the forms a location cannot round-trip: a `Path` in a
-filesystem other than the default one is reached only through its own filesystem, and a `URL` keeps
+and parsing that back. That matters for the forms a location does not reliably round-trip: a `Path`
+in a filesystem other than the default one is read through that filesystem, whether or not its
+`toUri()` form resolves back to it and whatever URL schemes are denied, and a `URL` keeps
 the scheme it was found with. `ClasspathEntry` is a sealed type with one subclass per form, so code
 that needs the original object can ask for it:
 
@@ -118,10 +119,19 @@ if (entry instanceof ClasspathEntry.OfURL urlEntry) {
 }
 ```
 
-A classpath entry can also be a URL for something that is not a local file, and `open` will
-throw `IOException` for one of those unless its scheme is allowed. Call
-`new ClasspathFinder().enableURLScheme("https")` before `find()`, which allows the scheme both while
-the classpath is being found and on the `Vfs` that `Classpath.getVfs()` hands back.
+A classpath entry can also be a URL for something that is not a local file. Any scheme the JVM has a
+handler for is opened, including one an application registered itself -- see
+[custom URL schemes](../classgraph-vfs/README.md#custom-url-schemes). The exceptions are the four
+schemes that fetch over a network: `http`, `https`, `ftp` and `mailto` are denied to begin with,
+because a classpath is not always something the caller wrote. An entry with a denied scheme is still
+reported, but `open` throws `IOException` for it, so the elements it declares are not found. Call
+`new ClasspathFinder().enableURLScheme("https")` before `find()` to allow one, which allows it both
+while the classpath is being found and on the `Vfs` that `Classpath.getVfs()` hands back;
+`disableURLScheme(String)` denies a further scheme.
+
+Enabling a scheme is also what keeps a `':'`-separated classpath string from being split at that
+scheme's own colon, so a custom scheme is worth naming for that reason even though it needs no
+enabling to be fetched from.
 
 ### List the modules
 

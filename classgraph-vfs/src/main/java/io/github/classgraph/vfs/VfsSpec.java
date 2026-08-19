@@ -57,7 +57,7 @@ import io.github.classgraph.vfs.internal.zip.LogicalZipFile;
  *
  * <p>
  * Every setting is safe to change from any thread, at any time: each is held in a volatile field, and
- * {@link #enableURLScheme(String)} publishes an unmodifiable set rather than adding to one in place, so a setting
+ * {@link #disableURLScheme(String)} publishes an unmodifiable set rather than adding to one in place, so a setting
  * changed by one thread is seen whole by the threads that read archives, whenever they were started.
  */
 public class VfsSpec {
@@ -77,11 +77,11 @@ public class VfsSpec {
     private volatile boolean multiReleaseVersionsEnabled = DEFAULT_ENABLE_MULTI_RELEASE_VERSIONS;
 
     /**
-     * URL schemes that jarfiles may be downloaded from (not counting the optional "jar:" prefix and/or "file:",
-     * which are automatically allowed). Only ever assigned an unmodifiable set, so that a reader can iterate it
-     * while another thread allows a further scheme.
+     * URL schemes that jarfiles may not be fetched from. Every scheme the JVM has a handler for is allowed unless
+     * it appears here. Only ever assigned an unmodifiable set, so that a reader can iterate it while another thread
+     * denies a further scheme.
      */
-    private volatile Set<String> allowedURLSchemes = Set.of();
+    private volatile Set<String> deniedURLSchemes = Set.of();
 
     /** The maximum size of a jarfile that may be held in RAM rather than spilled to disk, in bytes. */
     private volatile int maxBufferedJarRAMSize = DEFAULT_MAX_BUFFERED_JAR_RAM_SIZE;
@@ -177,10 +177,50 @@ public class VfsSpec {
     }
 
     /**
-     * Allow jarfiles to be downloaded from URLs with the given scheme, as well as read from the local filesystem. A
-     * jarfile read from a URL is downloaded in full before its entries can be read, since a zipfile's central
-     * directory is at the end of the file. The {@code file:} and {@code jar:} schemes are always allowed, and no
-     * other scheme is allowed by default.
+     * Refuse to fetch jarfiles from URLs with the given scheme. Every scheme is allowed by default, so this is only
+     * needed to take one away.
+     *
+     * <p>
+     * A {@link Vfs} opens whatever the JVM can open. A scheme is openable because the JDK ships a
+     * {@link java.net.URLStreamHandler} for it ({@code file}, {@code jar}, {@code http}, {@code https},
+     * {@code ftp}, {@code mailto}, {@code jrt} and {@code jmod}), or because something registered a handler or a
+     * {@link java.nio.file.spi.FileSystemProvider} for it. Denying a scheme is how a caller that reads paths it
+     * does not control keeps a jarfile from being fetched over one -- {@code ClassGraph} denies the four schemes
+     * that fetch over a network ({@code http}, {@code https}, {@code ftp} and {@code mailto}) for exactly that
+     * reason.
+     *
+     * <p>
+     * Denying {@code file:} or {@code jar:} has no effect. A {@code file:} URL names a local file, and a
+     * {@code jar:} URL is only a wrapper around another URL; both prefixes are stripped from a path before it is
+     * opened, so what is checked here is the scheme of the URL inside a {@code jar:} URL, if it still has one.
+     *
+     * @param scheme
+     *            the scheme, e.g. {@code "https"}. The scheme name only, without the trailing {@code ':'}.
+     * @return this (for method chaining).
+     * @throws IllegalArgumentException
+     *             if the scheme is shorter than two characters (a one-character scheme cannot be told apart from a
+     *             Windows drive letter), or is not a valid URL scheme.
+     */
+    public synchronized VfsSpec disableURLScheme(final String scheme) {
+        Assert.notNull(scheme, "scheme");
+        final var normalizedScheme = URLPaths.normalizeURLScheme(scheme);
+        // Copy on write, rather than adding to the set in place, so that a thread reading the set while this one
+        // denies a further scheme sees either the old set or the new one, never a set part-way through an insert
+        final Set<String> updated = new HashSet<>(deniedURLSchemes);
+        updated.add(normalizedScheme);
+        deniedURLSchemes = Collections.unmodifiableSet(updated);
+        return this;
+    }
+
+    /**
+     * Allow jarfiles to be fetched from URLs with the given scheme again, undoing a
+     * {@link #disableURLScheme(String)}. Every scheme is allowed by default, so this is only needed to take back a
+     * scheme that was denied.
+     *
+     * <p>
+     * A jarfile fetched from a URL is downloaded in full before its entries can be read, since a zipfile's central
+     * directory is at the end of the file. A URL whose scheme has a {@link java.nio.file.spi.FileSystemProvider}
+     * installed for it is read in place through that filesystem instead, without being copied.
      *
      * @param scheme
      *            the scheme, e.g. {@code "https"}. The scheme name only, without the trailing {@code ':'}.
@@ -192,23 +232,24 @@ public class VfsSpec {
     public synchronized VfsSpec enableURLScheme(final String scheme) {
         Assert.notNull(scheme, "scheme");
         final var normalizedScheme = URLPaths.normalizeURLScheme(scheme);
-        // Copy on write, rather than adding to the set in place, so that a thread reading the set while this one
-        // allows a further scheme sees either the old set or the new one, never a set part-way through an insert
-        final Set<String> updated = new HashSet<>(allowedURLSchemes);
-        updated.add(normalizedScheme);
-        allowedURLSchemes = Collections.unmodifiableSet(updated);
+        if (!deniedURLSchemes.contains(normalizedScheme)) {
+            return this;
+        }
+        // Copy on write, for the same reason as disableURLScheme()
+        final Set<String> updated = new HashSet<>(deniedURLSchemes);
+        updated.remove(normalizedScheme);
+        deniedURLSchemes = Collections.unmodifiableSet(updated);
         return this;
     }
 
     /**
-     * The URL schemes that jarfiles may be downloaded from, not counting {@code file:} and {@code jar:}, which are
-     * always allowed.
+     * The URL schemes that jarfiles may not be fetched from. Every other scheme the JVM has a handler for is
+     * allowed, as are {@code file:} and {@code jar:}, which denying has no effect on.
      *
-     * @return the allowed schemes, as an unmodifiable set, which is empty if no scheme beyond the two that are
-     *         always allowed has been enabled.
+     * @return the denied schemes, as an unmodifiable set, which is empty if no scheme has been denied.
      */
-    public Set<String> getAllowedURLSchemes() {
-        return allowedURLSchemes;
+    public Set<String> getDeniedURLSchemes() {
+        return deniedURLSchemes;
     }
 
     /**
@@ -305,7 +346,7 @@ public class VfsSpec {
     public String toString() {
         return "VfsSpec(nestedJars: " + nestedJarsEnabled //
                 + "; multiReleaseVersions: " + multiReleaseVersionsEnabled //
-                + "; allowedURLSchemes: " + allowedURLSchemes //
+                + "; deniedURLSchemes: " + deniedURLSchemes //
                 + "; maxBufferedJarRAMSize: " + maxBufferedJarRAMSize //
                 + "; memoryMapFiles: " + memoryMapFiles + ")";
     }
