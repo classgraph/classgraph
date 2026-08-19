@@ -45,6 +45,10 @@ class EquinoxClassLoaderHandler implements ClassLoaderHandler {
     /** Field names. */
     private static final String[] FIELD_NAMES = { "cp", "nestedDirName" };
 
+    /** Constructor. */
+    EquinoxClassLoaderHandler() {
+    }
+
     @Override
     public boolean canHandle(final Class<?> classLoaderClass, final LogNode log) {
         return ClassLoaderFinder.classIsOrExtendsOrImplements(classLoaderClass,

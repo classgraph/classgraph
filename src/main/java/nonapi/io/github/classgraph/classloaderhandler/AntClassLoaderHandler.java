@@ -36,6 +36,9 @@ import nonapi.io.github.classgraph.utils.LogNode;
 
 /** Extract classpath entries from the Ant ClassLoader. */
 class AntClassLoaderHandler implements ClassLoaderHandler {
+    /** Constructor. */
+    AntClassLoaderHandler() {
+    }
 
     @Override
     public boolean canHandle(final Class<?> classLoaderClass, final LogNode log) {

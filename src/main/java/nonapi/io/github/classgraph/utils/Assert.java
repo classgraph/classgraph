@@ -31,6 +31,13 @@ package nonapi.io.github.classgraph.utils;
 /** Assertions. */
 public final class Assert {
     /**
+     * Constructor.
+     */
+    private Assert() {
+        // Cannot be constructed
+    }
+
+    /**
      * Throw {@link IllegalArgumentException} if the class is not an annotation.
      * 
      * @param clazz

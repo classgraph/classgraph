@@ -54,6 +54,10 @@ public abstract class SingletonMap<K, V, E extends Exception> {
     /** The map. */
     private final ConcurrentMap<K, SingletonHolder<V>> map = new ConcurrentHashMap<>();
 
+    /** Constructor. */
+    public SingletonMap() {
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     /** Thrown when {@link SingletonMap#newInstance(Object, LogNode)} returns null. */
@@ -112,6 +116,10 @@ public abstract class SingletonMap<K, V, E extends Exception> {
 
         /** Whether or not the singleton has been initialized (the count will have reached 0 if so). */
         private final CountDownLatch initialized = new CountDownLatch(1);
+
+        /** Constructor. */
+        SingletonHolder() {
+        }
 
         /**
          * Set the singleton value, and decreases the countdown latch to 0.

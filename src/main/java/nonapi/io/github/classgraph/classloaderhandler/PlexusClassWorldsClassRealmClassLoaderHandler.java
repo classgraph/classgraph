@@ -43,6 +43,10 @@ import nonapi.io.github.classgraph.utils.LogNode;
  * @author lukehutch
  */
 class PlexusClassWorldsClassRealmClassLoaderHandler extends URLClassLoaderHandler {
+    /** Constructor. */
+    PlexusClassWorldsClassRealmClassLoaderHandler() {
+    }
+
     @Override
     public boolean canHandle(final Class<?> classLoaderClass, final LogNode log) {
         return ClassLoaderFinder.classIsOrExtendsOrImplements(classLoaderClass,

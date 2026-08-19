@@ -41,6 +41,10 @@ import nonapi.io.github.classgraph.utils.LogNode;
  * them (module scanning uses a different mechanism from classpath scanning).
  */
 class JPMSClassLoaderHandler implements ClassLoaderHandler {
+    /** Constructor. */
+    JPMSClassLoaderHandler() {
+    }
+
     @Override
     public boolean canHandle(final Class<?> classLoaderClass, final LogNode log) {
         return ClassLoaderFinder.classIsOrExtendsOrImplements(classLoaderClass,

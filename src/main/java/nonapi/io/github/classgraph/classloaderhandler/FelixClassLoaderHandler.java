@@ -49,6 +49,10 @@ import nonapi.io.github.classgraph.utils.LogNode;
  * @author elrufaie
  */
 class FelixClassLoaderHandler implements ClassLoaderHandler {
+    /** Constructor. */
+    FelixClassLoaderHandler() {
+    }
+
     @Override
     public boolean canHandle(final Class<?> classLoaderClass, final LogNode log) {
         return ClassLoaderFinder.classIsOrExtendsOrImplements(classLoaderClass,

@@ -43,6 +43,10 @@ import nonapi.io.github.classgraph.utils.LogNode;
  * Fallback ClassLoaderHandler. Tries to get classpath from a range of possible method and field names.
  */
 class FallbackClassLoaderHandler implements ClassLoaderHandler {
+    /** Constructor. */
+    FallbackClassLoaderHandler() {
+    }
+
     @Override
     public boolean canHandle(final Class<?> classLoaderClass, final LogNode log) {
         // This is the fallback handler, it handles anything

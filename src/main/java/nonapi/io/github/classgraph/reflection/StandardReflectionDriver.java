@@ -41,9 +41,24 @@ import java.util.concurrent.Callable;
  * necessary).
  */
 class StandardReflectionDriver extends ReflectionDriver {
+    /** Constructor. */
+    StandardReflectionDriver() {
+    }
+
+    /** {@code AccessibleObject#setAccessible(boolean)}, or null if it is not present in this JDK. */
     private static Method setAccessibleMethod;
+
+    /**
+     * {@code AccessibleObject#trySetAccessible()}, or null if it is not present in this JDK (added in JDK 9).
+     */
     private static Method trySetAccessibleMethod;
+
+    /** {@code java.security.PrivilegedAction}, or null if it is not present in this JDK. */
     private static Class<?> privilegedActionClass;
+
+    /**
+     * {@code AccessController#doPrivileged(PrivilegedAction)}, or null if it is not present in this JDK.
+     */
     private static Method accessControllerDoPrivileged;
 
     static {
@@ -71,9 +86,24 @@ class StandardReflectionDriver extends ReflectionDriver {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /**
+     * Implements {@code java.security.PrivilegedAction} by proxy, so that
+     * {@code AccessController#doPrivileged(PrivilegedAction)} can be invoked reflectively, without a compile-time
+     * reference to either of those deprecated types.
+     *
+     * @param <T>
+     *            the return type of the wrapped {@link Callable}.
+     */
     private static class PrivilegedActionInvocationHandler<T> implements InvocationHandler {
+        /** The {@link Callable} to invoke in the privileged context. */
         private final Callable<T> callable;
 
+        /**
+         * Constructor.
+         *
+         * @param callable
+         *            the {@link Callable} to invoke in the privileged context.
+         */
         public PrivilegedActionInvocationHandler(final Callable<T> callable) {
             this.callable = callable;
         }
@@ -110,6 +140,14 @@ class StandardReflectionDriver extends ReflectionDriver {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /**
+     * Try to make a field, method or constructor accessible, without throwing an exception if this is not
+     * permitted.
+     *
+     * @param obj
+     *            the field, method or constructor.
+     * @return true if the object was made accessible.
+     */
     private static boolean tryMakeAccessible(final AccessibleObject obj) {
         if (trySetAccessibleMethod != null) {
             // JDK 9+

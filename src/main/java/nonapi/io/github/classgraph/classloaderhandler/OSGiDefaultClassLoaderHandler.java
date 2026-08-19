@@ -42,6 +42,10 @@ import nonapi.io.github.classgraph.utils.LogNode;
  * @author lukehutch
  */
 class OSGiDefaultClassLoaderHandler implements ClassLoaderHandler {
+    /** Constructor. */
+    OSGiDefaultClassLoaderHandler() {
+    }
+
     @Override
     public boolean canHandle(final Class<?> classLoaderClass, final LogNode log) {
         return ClassLoaderFinder.classIsOrExtendsOrImplements(classLoaderClass,

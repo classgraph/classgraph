@@ -550,6 +550,9 @@
 								<doclint>all</doclint>
 								<show>private</show>
 								<failOnWarnings>true</failOnWarnings>
+								<sourceFileIncludes>
+									<sourceFileInclude>**/*.java</sourceFileInclude>
+								</sourceFileIncludes>
 								<outputDirectory>${project.build.directory}/doclint-everything</outputDirectory>
 							</configuration>
 						</execution>

@@ -57,6 +57,10 @@ public abstract class Recycler<T, E extends Exception> implements AutoCloseable 
      */
     private volatile boolean forceClosed;
 
+    /** Constructor. */
+    public Recycler() {
+    }
+
     /**
      * Create a new instance. This should either return a non-null instance of type T, or throw an exception of type
      * E.

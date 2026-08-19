@@ -47,6 +47,10 @@ abstract class ScanResultObject {
     /** The class ref, once the class is loaded. */
     protected transient Class<?> classRef;
 
+    /** Constructor. */
+    ScanResultObject() {
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**

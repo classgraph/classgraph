@@ -36,6 +36,10 @@ import nonapi.io.github.classgraph.utils.LogNode;
 
 /** Extract classpath entries from the Weblogic ClassLoaders. */
 class WeblogicClassLoaderHandler implements ClassLoaderHandler {
+    /** Constructor. */
+    WeblogicClassLoaderHandler() {
+    }
+
     @Override
     public boolean canHandle(final Class<?> classLoaderClass, final LogNode log) {
         return ClassLoaderFinder.classIsOrExtendsOrImplements(classLoaderClass,

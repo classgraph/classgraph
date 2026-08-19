@@ -39,17 +39,44 @@ import java.lang.reflect.Method;
  * visibility controls via JNI).
  */
 class NarcissusReflectionDriver extends ReflectionDriver {
+    /** {@code Narcissus#getDeclaredMethods(Class)}. */
     private final Method getDeclaredMethods;
+
+    /** {@code Narcissus#findClass(String)}. */
     private final Method findClass;
+
+    /** {@code Narcissus#getDeclaredConstructors(Class)}. */
     private final Method getDeclaredConstructors;
+
+    /** {@code Narcissus#getDeclaredFields(Class)}. */
     private final Method getDeclaredFields;
+
+    /** {@code Narcissus#getField(Object, Field)}. */
     private final Method getField;
+
+    /** {@code Narcissus#setField(Object, Field, Object)}. */
     private final Method setField;
+
+    /** {@code Narcissus#getStaticField(Field)}. */
     private final Method getStaticField;
+
+    /** {@code Narcissus#setStaticField(Field, Object)}. */
     private final Method setStaticField;
+
+    /** {@code Narcissus#invokeMethod(Object, Method, Object[])}. */
     private final Method invokeMethod;
+
+    /** {@code Narcissus#invokeStaticMethod(Method, Object[])}. */
     private final Method invokeStaticMethod;
 
+    /**
+     * Constructor. Looks up the Narcissus API reflectively, so that ClassGraph has no compile-time or runtime
+     * dependency on Narcissus.
+     *
+     * @throws Exception
+     *             if Narcissus is not on the classpath, or its native library could not be loaded, or its API is
+     *             not the expected shape.
+     */
     NarcissusReflectionDriver() throws Exception {
         // Load Narcissus class via reflection, so that there is no runtime dependency
         final StandardReflectionDriver drv = new StandardReflectionDriver();

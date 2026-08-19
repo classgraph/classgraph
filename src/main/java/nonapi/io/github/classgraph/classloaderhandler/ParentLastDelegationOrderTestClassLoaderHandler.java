@@ -36,6 +36,10 @@ import nonapi.io.github.classgraph.utils.LogNode;
 
 /** ClassLoaderHandler that is used to test PARENT_LAST delegation order. */
 class ParentLastDelegationOrderTestClassLoaderHandler implements ClassLoaderHandler {
+    /** Constructor. */
+    ParentLastDelegationOrderTestClassLoaderHandler() {
+    }
+
     @Override
     public boolean canHandle(final Class<?> classLoaderClass, final LogNode log) {
         return ClassLoaderFinder.classIsOrExtendsOrImplements(classLoaderClass,

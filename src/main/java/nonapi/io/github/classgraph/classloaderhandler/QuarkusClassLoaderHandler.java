@@ -47,22 +47,29 @@ import nonapi.io.github.classgraph.utils.LogNode;
  * Extract classpath entries from the Quarkus ClassLoader.
  */
 class QuarkusClassLoaderHandler implements ClassLoaderHandler {
-    // Classloader until Quarkus 1.2
+    /** The classloader used up to Quarkus 1.2. */
     private static final String RUNTIME_CLASSLOADER = "io.quarkus.runner.RuntimeClassLoader";
 
-    // Classloader since Quarkus 1.3
+    /** The classloader used since Quarkus 1.3. */
     private static final String QUARKUS_CLASSLOADER = "io.quarkus.bootstrap.classloading.QuarkusClassLoader";
 
-    // Classloader since Quarkus 1.13
+    /** The classloader used since Quarkus 1.13. */
     private static final String RUNNER_CLASSLOADER = "io.quarkus.bootstrap.runner.RunnerClassLoader";
 
-    // Class path elements prior to Quarkus 3.11
+    /**
+     * The classpath element classes used prior to Quarkus 3.11, mapped to the name of the field of each that
+     * holds the element's location.
+     */
     private static final Map<String, String> PRE_311_RESOURCE_BASED_ELEMENTS;
     static {
         final Map<String, String> hlp = new HashMap<>();
         hlp.put("io.quarkus.bootstrap.classloading.JarClassPathElement", "file");
         hlp.put("io.quarkus.bootstrap.classloading.DirectoryClassPathElement", "root");
         PRE_311_RESOURCE_BASED_ELEMENTS = Collections.unmodifiableMap(hlp);
+    }
+
+    /** Constructor. */
+    QuarkusClassLoaderHandler() {
     }
 
     @Override

@@ -44,6 +44,10 @@ public class InterruptionChecker {
     private final AtomicReference<ExecutionException> thrownExecutionException = //
             new AtomicReference<>();
 
+    /** Constructor. */
+    public InterruptionChecker() {
+    }
+
     /** Interrupt all threads that share this InterruptionChecker. */
     public void interrupt() {
         interrupted.set(true);

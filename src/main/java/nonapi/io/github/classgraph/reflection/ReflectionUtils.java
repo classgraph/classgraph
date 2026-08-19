@@ -41,7 +41,12 @@ import io.github.classgraph.ClassGraph.CircumventEncapsulationMethod;
 public final class ReflectionUtils {
     /** The reflection driver to use. */
     public ReflectionDriver reflectionDriver;
+    /** {@code java.security.PrivilegedAction}, or null if it is not present in this JDK. */
     private Class<?> privilegedActionClass;
+
+    /**
+     * {@code AccessController#doPrivileged(PrivilegedAction)}, or null if it is not present in this JDK.
+     */
     private Method accessControllerDoPrivileged;
 
     /** Call this if you change the value of {@link ClassGraph#CIRCUMVENT_ENCAPSULATION}. */
@@ -436,9 +441,24 @@ public final class ReflectionUtils {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /**
+     * Implements {@code java.security.PrivilegedAction} by proxy, so that
+     * {@code AccessController#doPrivileged(PrivilegedAction)} can be invoked reflectively, without a compile-time
+     * reference to either of those deprecated types.
+     *
+     * @param <T>
+     *            the return type of the wrapped {@link Callable}.
+     */
     private static class PrivilegedActionInvocationHandler<T> implements InvocationHandler {
+        /** The {@link Callable} to invoke in the privileged context. */
         private final Callable<T> callable;
 
+        /**
+         * Constructor.
+         *
+         * @param callable
+         *            the {@link Callable} to invoke in the privileged context.
+         */
         public PrivilegedActionInvocationHandler(final Callable<T> callable) {
             this.callable = callable;
         }

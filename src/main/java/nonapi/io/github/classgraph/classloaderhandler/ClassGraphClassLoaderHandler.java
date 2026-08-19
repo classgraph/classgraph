@@ -42,6 +42,10 @@ import nonapi.io.github.classgraph.utils.LogNode;
  * share a single classloader (#485).
  */
 class ClassGraphClassLoaderHandler implements ClassLoaderHandler {
+    /** Constructor. */
+    ClassGraphClassLoaderHandler() {
+    }
+
     @Override
     public boolean canHandle(final Class<?> classLoaderClass, final LogNode log) {
         final boolean matches = ClassLoaderFinder.classIsOrExtendsOrImplements(classLoaderClass,

@@ -704,10 +704,25 @@ public class NestedJarHandler {
         }
     }
 
+    /**
+     * A {@link URLConnection} that can be closed, so that it does not hold an HTTP connection or a jar open past
+     * the point where it is needed.
+     */
     private static class CloseableUrlConnection implements AutoCloseable {
+        /** The connection. */
         public final URLConnection conn;
+
+        /** The connection, if it is an {@link HttpURLConnection}, otherwise null. */
         public final HttpURLConnection httpConn;
 
+        /**
+         * Constructor.
+         *
+         * @param url
+         *            the URL to open a connection to.
+         * @throws IOException
+         *             if the connection could not be opened.
+         */
         public CloseableUrlConnection(final URL url) throws IOException {
             conn = url.openConnection();
             // A "jar:" URL connection would otherwise put the jar it names into the JVM-wide jar file cache,
@@ -745,6 +760,10 @@ public class NestedJarHandler {
          * Create a new {@link Inflater} instance with the "nowrap" option (which is needed for zipfile entries).
          */
         private final Inflater inflater = new Inflater(/* nowrap = */ true);
+
+        /** Constructor. */
+        RecyclableInflater() {
+        }
 
         /**
          * Get the {@link Inflater} instance.

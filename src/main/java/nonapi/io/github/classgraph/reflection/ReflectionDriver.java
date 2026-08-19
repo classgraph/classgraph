@@ -46,6 +46,11 @@ import nonapi.io.github.classgraph.utils.LogNode;
 
 /** Reflection driver */
 abstract class ReflectionDriver {
+    /**
+     * Caches the methods and fields of each class that has been reflected on. No driver's
+     * {@link #getDeclaredMethods(Class)} or {@link #getDeclaredFields(Class)} reflects on a class through this
+     * cache, so building an entry can never recursively update the map.
+     */
     private final SingletonMap<Class<?>, ClassMemberCache, Exception> classToClassMemberCache //
             = new SingletonMap<Class<?>, ClassMemberCache, Exception>() {
                 @Override
@@ -55,7 +60,10 @@ abstract class ReflectionDriver {
                 }
             };
 
+    /** {@code AccessibleObject#isAccessible()}, or null if it is not present in this JDK. */
     private static Method isAccessibleMethod;
+
+    /** {@code AccessibleObject#canAccess(Object)}, or null if it is not present in this JDK (added in JDK 9). */
     private static Method canAccessMethod;
 
     static {
@@ -74,11 +82,26 @@ abstract class ReflectionDriver {
         }
     }
 
+    /** Constructor. */
+    ReflectionDriver() {
+    }
+
     /** Caches class members. */
     public class ClassMemberCache {
+        /** The methods of the class and its superclasses, indexed by method name. */
         private final Map<String, List<Method>> methodNameToMethods = new HashMap<>();
+
+        /** The fields of the class and its superclasses, indexed by field name. */
         private final Map<String, Field> fieldNameToField = new HashMap<>();
 
+        /**
+         * Constructor.
+         *
+         * @param cls
+         *            the class to cache the members of.
+         * @throws Exception
+         *             if the members of the class could not be read.
+         */
         private ClassMemberCache(final Class<?> cls) throws Exception {
             // Iterate from class to its superclasses, and find initial interfaces to start traversing from
             final Set<Class<?>> visited = new HashSet<>();
@@ -123,6 +146,12 @@ abstract class ReflectionDriver {
             }
         }
 
+        /**
+         * Add a method to the cache. Methods are not masked by name, since methods can be overloaded.
+         *
+         * @param method
+         *            the method to cache.
+         */
         private void cacheMethod(final Method method) {
             List<Method> methodsForName = methodNameToMethods.get(method.getName());
             if (methodsForName == null) {
@@ -131,6 +160,12 @@ abstract class ReflectionDriver {
             methodsForName.add(method);
         }
 
+        /**
+         * Add a field to the cache.
+         *
+         * @param field
+         *            the field to cache.
+         */
         private void cacheField(final Field field) {
             // Only put a field name to field mapping if it is absent, so that subclasses mask fields 
             // of the same name in superclasses

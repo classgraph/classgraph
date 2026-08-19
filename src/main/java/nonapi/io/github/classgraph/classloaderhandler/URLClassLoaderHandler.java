@@ -39,6 +39,10 @@ import nonapi.io.github.classgraph.utils.LogNode;
 
 /** ClassLoaderHandler that is able to extract the URLs from a URLClassLoader. */
 class URLClassLoaderHandler implements ClassLoaderHandler {
+    /** Constructor. */
+    URLClassLoaderHandler() {
+    }
+
     @Override
     public boolean canHandle(final Class<?> classLoaderClass, final LogNode log) {
         return ClassLoaderFinder.classIsOrExtendsOrImplements(classLoaderClass, "java.net.URLClassLoader");

@@ -36,6 +36,10 @@ import nonapi.io.github.classgraph.utils.LogNode;
 
 /** ClassLoaderHandler that is able to extract the URLs from a CxfContainerClassLoader. */
 class CxfContainerClassLoaderHandler implements ClassLoaderHandler {
+    /** Constructor. */
+    CxfContainerClassLoaderHandler() {
+    }
+
     @Override
     public boolean canHandle(final Class<?> classLoaderClass, final LogNode log) {
         return ClassLoaderFinder.classIsOrExtendsOrImplements(classLoaderClass,

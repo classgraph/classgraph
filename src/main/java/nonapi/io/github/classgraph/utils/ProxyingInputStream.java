@@ -38,17 +38,31 @@ import java.lang.reflect.Method;
  * methods added in later JDKs by reflection.
  */
 public class ProxyingInputStream extends InputStream {
+    /** The wrapped {@link InputStream}. */
     private InputStream inputStream;
 
+    /** {@code InputStream#readAllBytes()}, or null if it is not present in this JDK (added in JDK 9). */
     private static Method readAllBytes;
+
+    /** {@code InputStream#readNBytes(int)}, or null if it is not present in this JDK (added in JDK 11). */
     private static Method readNBytes1;
+
+    /**
+     * {@code InputStream#readNBytes(byte[], int, int)}, or null if it is not present in this JDK (added in JDK 9).
+     */
     private static Method readNBytes3;
+
+    /** {@code InputStream#skipNBytes(long)}, or null if it is not present in this JDK (added in JDK 12). */
     private static Method skipNBytes;
+
+    /**
+     * {@code InputStream#transferTo(OutputStream)}, or null if it is not present in this JDK (added in JDK 9).
+     */
     private static Method transferTo;
 
     static {
-        // Use reflection for InputStream methods not present in JDK 8. (readAllBytes, readNBytes and transferTo
-        // were added in JDK 9, and skipNBytes in JDK 12.)
+        // Use reflection for InputStream methods not present in JDK 8. (readAllBytes, readNBytes(byte[], int, int)
+        // and transferTo were added in JDK 9, readNBytes(int) in JDK 11, and skipNBytes in JDK 12.)
         // TODO Switch to direct method calls once JDK 12 is required, and add back missing @Override annotations
         try {
             readAllBytes = InputStream.class.getDeclaredMethod("readAllBytes");
@@ -78,8 +92,7 @@ public class ProxyingInputStream extends InputStream {
     }
 
     /**
-     * A proxying {@link InputStream} implementation that compiles for JDK 7 but can support the methods added in
-     * JDK 8 by reflection.
+     * Constructor.
      *
      * @param inputStream
      *            the {@link InputStream} to wrap.

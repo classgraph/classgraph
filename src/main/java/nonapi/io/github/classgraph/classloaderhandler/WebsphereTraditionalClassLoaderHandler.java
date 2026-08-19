@@ -40,6 +40,10 @@ import nonapi.io.github.classgraph.utils.LogNode;
  * @author lukehutch
  */
 class WebsphereTraditionalClassLoaderHandler implements ClassLoaderHandler {
+    /** Constructor. */
+    WebsphereTraditionalClassLoaderHandler() {
+    }
+
     @Override
     public boolean canHandle(final Class<?> classLoaderClass, final LogNode log) {
         return ClassLoaderFinder.classIsOrExtendsOrImplements(classLoaderClass,

@@ -37,6 +37,10 @@ import nonapi.io.github.classgraph.utils.VersionFinder;
 
 /** Extract classpath entries from the Uno-Jar's JarClassLoader and One-Jar's JarClassLoader. */
 class UnoOneJarClassLoaderHandler implements ClassLoaderHandler {
+    /** Constructor. */
+    UnoOneJarClassLoaderHandler() {
+    }
+
     @Override
     public boolean canHandle(final Class<?> classLoaderClass, final LogNode log) {
         return ClassLoaderFinder.classIsOrExtendsOrImplements(classLoaderClass,
