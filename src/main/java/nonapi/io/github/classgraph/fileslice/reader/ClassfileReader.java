@@ -54,7 +54,12 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
     /** The underlying resource to close when {@link ClassfileReader#close()} is called. */
     private Resource resourceToClose;
 
-    /** If slice is deflated, a wrapper for {@link InflateInputStream}. */
+    /**
+     * The stream the content is read through: either the stream that the {@link Slice} opened, which inflates the
+     * slice if it is a deflated zip entry, or a stream that the caller opened and passed in. Null if the content is
+     * read through {@link #randomAccessReader} or straight out of an {@link ArraySlice}'s array, and null once this
+     * reader has been closed.
+     */
     private InputStream inflaterInputStream;
 
     /**
