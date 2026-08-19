@@ -51,7 +51,7 @@ public class FastZipEntryLargeExtraFieldTest {
         return extra;
     }
 
-    /** A jar entry preceded by a >32KB extra field must still be readable. */
+    /** A jar entry preceded by a &gt;32KB extra field must still be readable. */
     @Test
     public void entryWithExtraFieldLongerThanShortMaxValue(@TempDir final File tempDir) throws IOException {
         final File jarFile = new File(tempDir, "large-extra-field.jar");

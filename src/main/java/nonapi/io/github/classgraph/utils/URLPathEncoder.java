@@ -75,7 +75,16 @@ public final class URLPathEncoder {
         // Cannot be constructed
     }
 
-    /** Unescape chars in a URL. URLDecoder.decode is broken: https://bugs.openjdk.java.net/browse/JDK-8179507 */
+    /**
+     * Unescape chars in a URL. URLDecoder.decode is broken: https://bugs.openjdk.java.net/browse/JDK-8179507
+     *
+     * @param str
+     *            the string to unescape
+     * @param isQuery
+     *            true if the string comes from the query section of a URL, where '+' means space
+     * @param buf
+     *            the buffer to write the unescaped UTF-8 bytes to
+     */
     private static void unescapeChars(final String str, final boolean isQuery, final ByteArrayOutputStream buf) {
         if (str.isEmpty()) {
             return;

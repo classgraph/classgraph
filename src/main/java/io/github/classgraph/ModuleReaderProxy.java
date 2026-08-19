@@ -53,10 +53,13 @@ public class ModuleReaderProxy implements Closeable {
      * of them set and the other still null. (#913)
      */
     private static final class Collectors {
-        /** Class<Collector> collectorClass = Class.forName("java.util.stream.Collector"); */
+        /** The {@code java.util.stream.Collector} class, or null if it could not be resolved. */
         private final Class<?> collectorClass;
 
-        /** Collector<Object, ?, List<Object>> collectorsToList = Collectors.toList(); */
+        /**
+         * The {@code Collector<Object, ?, List<Object>>} returned by {@code Collectors.toList()}, or null if it
+         * could not be resolved.
+         */
         private final Object collectorsToList;
 
         /**

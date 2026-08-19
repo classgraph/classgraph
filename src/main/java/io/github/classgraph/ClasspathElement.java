@@ -204,7 +204,12 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Used to set the ScanResult after the scan is complete. */
+    /**
+     * Used to set the {@link ScanResult} after the scan is complete.
+     *
+     * @param scanResult
+     *            the {@link ScanResult}
+     */
     void setScanResult(final ScanResult scanResult) {
         this.scanResult = scanResult;
     }
@@ -709,8 +714,9 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      *
      * @param relativePath
      *            The relative path of the {@link Resource} to return. Path should have already be sanitized by
-     *            calling {@link FileUtils#sanitizeEntryPath(String, boolean)}, or by providing a path that is
-     *            already sanitized (i.e. doesn't start or end with "/", doesn't contain "/../" or "/./", etc.).
+     *            calling {@link FileUtils#sanitizeEntryPath(String, boolean, boolean)}, or by providing a path
+     *            that is already sanitized (i.e. doesn't start or end with "/", doesn't contain "/../" or
+     *            "/./", etc.).
      * @return The {@link Resource} for the given relative path, or null if relativePath does not exist in this
      *         classpath element.
      */

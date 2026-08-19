@@ -302,6 +302,7 @@ public final class VersionFinder {
      * 
      * @return DocumentBuilderFactory
      * @throws ParserConfigurationException
+     *             if a requested feature could not be set on the factory
      */
     private static DocumentBuilderFactory getSecureDocumentBuilderFactory() throws ParserConfigurationException {
         final DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
@@ -325,6 +326,7 @@ public final class VersionFinder {
      * 
      * @return XPathFactory
      * @throws XPathFactoryConfigurationException
+     *             if secure processing could not be enabled on the factory
      */
     private static XPathFactory getSecureXPathFactory() throws XPathFactoryConfigurationException {
         final XPathFactory xPathFactory = XPathFactory.newInstance();

@@ -129,7 +129,7 @@ public final class FastPathResolver {
     }
 
     /**
-     * Unescape runs of percent encoding, e.g. "%20%43%20" -> " + "
+     * Unescape runs of percent encoding, e.g. "%20%2B%20" -&gt; " + "
      *
      * @param path
      *            the path

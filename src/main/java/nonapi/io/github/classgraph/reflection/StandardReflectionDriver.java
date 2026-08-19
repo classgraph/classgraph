@@ -87,6 +87,14 @@ class StandardReflectionDriver extends ReflectionDriver {
     /**
      * Call a method in the AccessController.doPrivileged(PrivilegedAction) context, using reflection, if possible
      * (AccessController is deprecated in JDK 17).
+     *
+     * @param <T>
+     *            the return type of the callable
+     * @param callable
+     *            the callable to invoke
+     * @return the value returned by the callable
+     * @throws Throwable
+     *             if the callable threw, or if it could not be invoked
      */
     @SuppressWarnings("unchecked")
     private <T> T doPrivileged(final Callable<T> callable) throws Throwable {

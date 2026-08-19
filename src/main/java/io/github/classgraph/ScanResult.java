@@ -239,6 +239,9 @@ public final class ScanResult implements Closeable {
 
     /**
      * Static initialization (warm up classloading), called when the ClassGraph class is initialized.
+     *
+     * @param reflectionUtils
+     *            the {@link ReflectionUtils} instance to preload the classes with
      */
     static void init(final ReflectionUtils reflectionUtils) {
         if (!initialized.getAndSet(true)) {

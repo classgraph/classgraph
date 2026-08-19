@@ -55,7 +55,7 @@ public class MethodInfoTest {
      * The Class X.
      */
     public static class X extends Exception {
-        /***/
+        /** serialVersionUID. */
         private static final long serialVersionUID = 1L;
 
         /**

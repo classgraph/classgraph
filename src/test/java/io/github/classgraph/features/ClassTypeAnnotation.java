@@ -13,68 +13,75 @@ import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
 
 /**
- * Test
+ * Test that a type annotation on a superclass or interface reference is rendered on the type it annotates,
+ * not on the enclosing class.
  */
 class ClassTypeAnnotation {
-    /***/
+    /** A type-use annotation, applied to the superclass reference of the fixture classes below. */
     @Retention(RetentionPolicy.RUNTIME)
     @Target(value = { ElementType.TYPE_USE, ElementType.TYPE })
     private static @interface P {
     }
 
-    /***/
+    /** A type-use annotation, applied to the first interface reference of the fixture classes below. */
     @Retention(RetentionPolicy.RUNTIME)
     @Target(value = { ElementType.TYPE_USE, ElementType.TYPE })
     private static @interface Q {
     }
 
-    /***/
+    /** A type-use annotation, applied to the second interface reference of the fixture classes below. */
     @Retention(RetentionPolicy.RUNTIME)
     @Target(value = { ElementType.TYPE_USE, ElementType.TYPE })
     private static @interface R {
     }
 
-    /***/
+    /** The superclass that the fixture classes extend. */
     private static class Z {
     }
 
-    /***/
+    /** An interface that the fixture classes implement. */
     private static interface A {
     }
 
-    /***/
+    /** A second interface that the fixture classes implement. */
     private static interface B {
     }
 
-    /***/
+    /** A third interface, reached only through {@link BSubC} rather than implemented directly. */
     private static interface C {
     }
 
-    /***/
+    /** An interface extending {@link C}, so that {@link J} reaches an interface it does not implement directly. */
     private static interface BSubC extends C {
     }
 
-    /***/
+    /**
+     * A generic class with an annotated superclass and two annotated interfaces, so that
+     * {@code getTypeSignature()} has a generic signature to render.
+     */
     private static class E<T> extends @P Z implements @Q A, @R B {
     }
 
-    /***/
+    /** As {@link E}, but not generic, so the type descriptor rather than the type signature is rendered. */
     private static class F extends @P Z implements @Q A, @R B {
     }
 
-    /***/
+    /** As {@link F}, but with the two interfaces in the opposite order. */
     private static class G extends @P Z implements @Q B, @R A {
     }
 
-    /***/
+    /** A class with an annotated superclass and no interfaces. */
     private static class H extends @P Z {
     }
 
-    /***/
+    /** A class with annotated interfaces and no explicit superclass. */
     private static class I implements @Q B, @R A {
     }
 
-    /***/
+    /**
+     * A class whose first interface extends another interface, so that only the directly implemented
+     * interfaces, and not {@link C}, may appear in the synthesized type descriptor.
+     */
     private static class J implements @Q BSubC, @R A {
     }
 

@@ -43,11 +43,13 @@ public class Issue350Test {
      * The Class Priv.
      */
     public static class Priv {
-        /** */
+        /** The annotated private field. */
         @SuperclassAnnotation
         private int annotatedPrivateField;
 
-        /** */
+        /**
+         * Annotated private method.
+         */
         @SuperclassAnnotation
         private void annotatedPrivateMethod() {
         }

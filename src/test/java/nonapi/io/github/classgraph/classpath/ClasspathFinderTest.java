@@ -227,6 +227,8 @@ public class ClasspathFinderTest {
      * Get the classpath element that this test class was loaded from.
      *
      * @return the classpath element path.
+     * @throws Exception
+     *             if the location of the classpath element could not be found
      */
     private static Path testClasspathElement() throws Exception {
         return Paths.get(ClasspathFinderTest.class.getProtectionDomain().getCodeSource().getLocation().toURI())
@@ -239,6 +241,8 @@ public class ClasspathFinderTest {
      * compiled against.
      *
      * @return the platform classloader.
+     * @throws Exception
+     *             if the method could not be found or invoked, as on JDK 8
      */
     private static ClassLoader platformClassLoader() throws Exception {
         return (ClassLoader) ClassLoader.class.getMethod("getPlatformClassLoader").invoke(null);

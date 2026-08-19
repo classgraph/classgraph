@@ -146,6 +146,8 @@ abstract class ReflectionDriver {
      * @param className
      *            the class name
      * @return the class reference
+     * @throws Exception
+     *             if the class could not be found or loaded
      */
     abstract Class<?> findClass(final String className) throws Exception;
 
@@ -155,6 +157,8 @@ abstract class ReflectionDriver {
      * @param cls
      *            the class
      * @return the declared methods
+     * @throws Exception
+     *             if the methods could not be read
      */
     abstract Method[] getDeclaredMethods(Class<?> cls) throws Exception;
 
@@ -166,6 +170,8 @@ abstract class ReflectionDriver {
      * @param cls
      *            the class
      * @return the declared constructors
+     * @throws Exception
+     *             if the constructors could not be read
      */
     abstract <T> Constructor<T>[] getDeclaredConstructors(Class<T> cls) throws Exception;
 
@@ -175,6 +181,8 @@ abstract class ReflectionDriver {
      * @param cls
      *            the class
      * @return the declared fields
+     * @throws Exception
+     *             if the fields could not be read
      */
     abstract Field[] getDeclaredFields(Class<?> cls) throws Exception;
 
@@ -186,6 +194,8 @@ abstract class ReflectionDriver {
      * @param field
      *            the non-static field
      * @return the value of the field
+     * @throws Exception
+     *             if the field could not be read
      */
     abstract Object getField(final Object object, final Field field) throws Exception;
 
@@ -198,6 +208,8 @@ abstract class ReflectionDriver {
      *            the non-static field
      * @param value
      *            the value to set
+     * @throws Exception
+     *             if the field could not be written
      */
     abstract void setField(final Object object, final Field field, Object value) throws Exception;
 
@@ -207,6 +219,8 @@ abstract class ReflectionDriver {
      * @param field
      *            the static field
      * @return the static field
+     * @throws Exception
+     *             if the field could not be read
      */
     abstract Object getStaticField(final Field field) throws Exception;
 
@@ -217,6 +231,8 @@ abstract class ReflectionDriver {
      *            the static field
      * @param value
      *            the value to set
+     * @throws Exception
+     *             if the field could not be written
      */
     abstract void setStaticField(final Field field, Object value) throws Exception;
 
@@ -230,6 +246,8 @@ abstract class ReflectionDriver {
      * @param args
      *            the method arguments (or {@code new Object[0]} if there are no args)
      * @return the return value (possibly a boxed value)
+     * @throws Exception
+     *             if the method could not be invoked, or if it threw
      */
     abstract Object invokeMethod(final Object object, final Method method, final Object... args) throws Exception;
 
@@ -241,6 +259,8 @@ abstract class ReflectionDriver {
      * @param args
      *            the method arguments (or {@code new Object[0]} if there are no args)
      * @return the return value (possibly a boxed value)
+     * @throws Exception
+     *             if the method could not be invoked, or if it threw
      */
     abstract Object invokeStaticMethod(final Method method, final Object... args) throws Exception;
 
