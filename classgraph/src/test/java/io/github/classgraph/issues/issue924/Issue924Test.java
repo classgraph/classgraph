@@ -73,7 +73,7 @@ public class Issue924Test {
                     .containsExactlyInAnyOrder(C.class.getName());
             assertThat(scanResult.getAllSubinterfaces(C.class).getNames()).isEmpty();
 
-            // The by-name overload and ClassInfo#getSubinterfaces() give the same answer
+            // The by-name overload and ClassInfo#getAllSubinterfaces() give the same answer
             assertThat(scanResult.getAllSubinterfaces(A.class.getName()).getNames())
                     .containsExactlyInAnyOrder(B.class.getName(), C.class.getName());
             assertThat(scanResult.getClassInfo(A.class.getName()).getAllSubinterfaces().getNames())

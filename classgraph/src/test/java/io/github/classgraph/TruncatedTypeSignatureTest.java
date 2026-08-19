@@ -7,9 +7,10 @@ import org.junit.jupiter.api.Test;
 
 /**
  * A malformed or truncated type signature must be reported as a {@link TypeSignatureParseException}, since that is
- * what the callers of the signature parser catch (e.g. {@code Classfile#getReferencedClassNames}, which logs and
- * skips the offending constant pool entry). A signature ending in '$' or '.' used to make the parser advance to
- * exactly the end of the string, which was wrongly rejected, throwing {@link IllegalArgumentException} instead.
+ * what the callers of the signature parser catch (e.g. {@code Classfile#addClassNamesFromTypeSignatures}, which
+ * logs and skips the offending constant pool entry). A signature ending in '$' or '.' used to make the parser
+ * advance to exactly the end of the string, which was wrongly rejected, throwing {@link IllegalArgumentException}
+ * instead.
  */
 public class TruncatedTypeSignatureTest {
     /**

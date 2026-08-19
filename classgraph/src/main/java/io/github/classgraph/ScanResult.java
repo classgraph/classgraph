@@ -99,8 +99,9 @@ public final class ScanResult implements AutoCloseable {
 
     /**
      * The file, directory and jarfile resources timestamped during a scan, along with their timestamp at the time
-     * of the scan. For jarfiles, the timestamp represents the timestamp of all files within the jar. May be null,
-     * if this ScanResult object is the result of a call to ClassGraph#getUniqueClasspathElementsAsync().
+     * of the scan. For jarfiles, the timestamp represents the timestamp of all files within the jar. Null if this
+     * {@link ScanResult} came from {@code ClassGraph#getClasspathScanResult}, which only determines the classpath
+     * and never scans, so there is nothing to timestamp.
      */
     private @Nullable Map<File, Long> fileToLastModified;
 
