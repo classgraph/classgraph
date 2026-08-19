@@ -180,6 +180,15 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
         return suffixTypeAnnotations;
     }
 
+    /**
+     * Add a type annotation to one of the suffixes (nested inner classes) of this class reference, allocating the
+     * per-suffix annotation lists if this is the first such annotation.
+     *
+     * @param suffixIdx
+     *            the index of the suffix that the annotation applies to
+     * @param annotationInfo
+     *            the type annotation
+     */
     private void addSuffixTypeAnnotation(final int suffixIdx, final AnnotationInfo annotationInfo) {
         if (suffixTypeAnnotations == null) {
             suffixTypeAnnotations = new ArrayList<>(suffixes.size());
@@ -370,6 +379,16 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
                 + 64 * (suffixTypeAnnotations == null ? 0 : suffixTypeAnnotations.hashCode());
     }
 
+    /**
+     * Test whether two class references have the same nested inner class suffixes, with the same suffix type
+     * arguments and suffix type annotations.
+     *
+     * @param a
+     *            the first class reference
+     * @param b
+     *            the second class reference
+     * @return true if the suffixes of the two class references match
+     */
     private static boolean suffixesMatch(final ClassRefTypeSignature a, final ClassRefTypeSignature b) {
         return a.suffixes.equals(b.suffixes) //
                 && a.suffixTypeArguments.equals(b.suffixTypeArguments) //

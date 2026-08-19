@@ -413,6 +413,17 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /**
+     * Append a string representation of the field to a buffer. The modifiers can be omitted, so that the same code
+     * can render a record component, which has the same shape as a field but no modifiers of its own.
+     *
+     * @param includeModifiers
+     *            if true, include the field's modifiers
+     * @param useSimpleNames
+     *            if true, strip the package name from class names
+     * @param buf
+     *            the buffer to append to
+     */
     void toString(final boolean includeModifiers, final boolean useSimpleNames, final StringBuilder buf) {
         if (annotationInfo != null) {
             for (final AnnotationInfo annotation : annotationInfo) {
