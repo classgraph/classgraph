@@ -243,7 +243,9 @@ public class NestedJarHandler {
                         // This path has one or more '!' sections.
                         final String parentPath = nestedJarPath.substring(0, lastPlingIdx);
                         String childPath = nestedJarPath.substring(lastPlingIdx + 1);
-                        // "file.jar!/path" -> "file.jar!path"
+                        // childPath begins with the '/' of the "!/" separator, so strip it,
+                        // along with any trailing '/' and any "." or ".." segments, to leave the
+                        // entry name relative to the root of the parent jarfile
                         childPath = FileUtils.sanitizeEntryPath(childPath, /* removeInitialSlash = */ true,
                                 /* removeFinalSlash = */ true);
 
