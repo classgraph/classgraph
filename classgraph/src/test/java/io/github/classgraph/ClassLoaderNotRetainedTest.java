@@ -56,6 +56,8 @@ public class ClassLoaderNotRetainedTest {
      * @param ref
      *            the reference to wait on.
      * @return true if the referent was collected.
+     * @throws InterruptedException
+     *             if the wait was interrupted.
      */
     private static boolean awaitCollection(final WeakReference<?> ref) throws InterruptedException {
         for (var i = 0; i < 50 && ref.get() != null; i++) {
