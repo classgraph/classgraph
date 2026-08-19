@@ -33,6 +33,27 @@ jobs:
     - name: Build with Maven
       run: ./mvnw --no-transfer-progress -B clean test
 
+  # The formatter is bound to process-sources with the "format" goal, so every build rewrites the
+  # sources in place rather than complaining. That is deliberate, and it keeps the tree formatted
+  # without anyone having to think about it, but it means no build can catch source that was edited
+  # and pushed without being built locally: CI reformats its own checkout, goes green, and the
+  # misformatted version stays in git for the next person to build over. "validate" is the same
+  # check without the rewrite, which is what turns the formatter into a gate. It runs on Linux
+  # only: there is no .gitattributes, so a Windows checkout converts the sources to CRLF and every
+  # file would then fail the <lineEnding>LF</lineEnding> the formatter is configured with.
+  format:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v7
+    - name: Set up JDK
+      uses: actions/setup-java@v5
+      with:
+        distribution: 'zulu'
+        java-version: '17'
+        cache: 'maven'
+    - name: Check formatting
+      run: ./mvnw --no-transfer-progress -B formatter:validate
+
   # Javadoc is checked here rather than by all 30 matrix jobs, under the oldest and the newest JDK
   # the build supports. doclint is configured to fail the build on a warning, so this job goes red
   # for a missing @param or a broken {@link}, and it needs both ends of the range because doclint
