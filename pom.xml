@@ -733,9 +733,8 @@
 						<!-- apidocs directory that attach-javadocs and copy-license-to-javadocs share, and -->
 						<!-- nothing it generates is published. -->
 						<!-- -->
-						<!-- Only main sources are covered. Held to the same standard, the test sources report -->
-						<!-- hundreds of warnings, nearly all of them a test method with a one-line description -->
-						<!-- and no tags, which is fine for a test and generates no Javadoc for anyone. -->
+						<!-- Main sources only. The test sources are checked by doclint-tests below, which leaves -->
+						<!-- out the one doclint group that would be unreasonable to hold a test to. -->
 						<execution>
 							<id>doclint-everything</id>
 							<phase>package</phase>
@@ -758,6 +757,32 @@
 									<sourceFileInclude>**/*.java</sourceFileInclude>
 								</sourceFileIncludes>
 								<outputDirectory>${project.build.directory}/doclint-everything</outputDirectory>
+							</configuration>
+						</execution>
+						<!-- Check the test sources too, but with the "missing" group switched off. Held to the -->
+						<!-- same standard as the main sources, the test sources report over 800 warnings, and -->
+						<!-- almost every one is a test method carrying a one-line description and no tags, which -->
+						<!-- is fine for a test and generates no Javadoc for anyone to read. The rest of doclint -->
+						<!-- is a different matter: it catches a {@link} that does not resolve, a tag that is -->
+						<!-- malformed or names something that is not there, and broken HTML. The test sources -->
+						<!-- have none of those today, so this costs nothing to keep, and comments in tests have -->
+						<!-- gone wrong in exactly those ways before, found only by reading them. -->
+						<!-- Leaving "missing" out matters for a second reason: the test source roots take in -->
+						<!-- the JMH benchmark classes generated under target, which carry no Javadoc at all. -->
+						<execution>
+							<id>doclint-tests</id>
+							<phase>package</phase>
+							<goals>
+								<goal>test-javadoc-no-fork</goal>
+							</goals>
+							<configuration>
+								<show>private</show>
+								<doclint>all,-missing</doclint>
+								<excludePackageNames combine.self="override" />
+								<sourceFileIncludes>
+									<sourceFileInclude>**/*.java</sourceFileInclude>
+								</sourceFileIncludes>
+								<outputDirectory>${project.build.directory}/doclint-tests</outputDirectory>
 							</configuration>
 						</execution>
 					</executions>
