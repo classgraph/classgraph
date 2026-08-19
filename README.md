@@ -109,7 +109,7 @@ above it, so that a project depends only on the part of ClassGraph it uses:
 
 | Artifact | Module | Contents |
 | --- | --- | --- |
-| [`classgraph-base`](classgraph-base/README.md) | `io.github.classgraph.base` | Shared internals; no API of its own |
+| [`classgraph-base`](classgraph-base/README.md) | `io.github.classgraph.base` | Shared internals, and the verbose log |
 | [`classgraph-vfs`](classgraph-vfs/README.md) | `io.github.classgraph.vfs` | [A virtual filesystem over directories, jarfiles and modules](https://github.com/classgraph/classgraph/wiki/Vfs-API) |
 | [`classgraph-classpath`](classgraph-classpath/README.md) | `io.github.classgraph.classpath` | [Finding the classpath and the module path](https://github.com/classgraph/classgraph/wiki/Classpath-API) |
 | [`classgraph`](classgraph/README.md) | `io.github.classgraph` | Scanning, and the class graph API |
