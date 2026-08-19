@@ -722,6 +722,44 @@
 								<outputDirectory>${project.build.directory}</outputDirectory>
 							</configuration>
 						</execution>
+
+						<!-- Run Javadoc a second time over everything the published run does not look at. The -->
+						<!-- settings above enable doclint and make its warnings fatal, but "show=public" and -->
+						<!-- the excluded internal packages mean it never sees a comment on a private, -->
+						<!-- package-private or protected member, nor any comment inside an internal package. -->
+						<!-- That is most of the codebase, and comments there went wrong unnoticed for years. -->
+						<!-- This execution looks at all of it. Its output is thrown away: it writes to its own -->
+						<!-- directory, and uses "javadoc-no-fork" rather than "jar", so it cannot disturb the -->
+						<!-- apidocs directory that attach-javadocs and copy-license-to-javadocs share, and -->
+						<!-- nothing it generates is published. -->
+						<!-- -->
+						<!-- Only main sources are covered. Held to the same standard, the test sources report -->
+						<!-- hundreds of warnings, nearly all of them a test method with a one-line description -->
+						<!-- and no tags, which is fine for a test and generates no Javadoc for anyone. -->
+						<execution>
+							<id>doclint-everything</id>
+							<phase>package</phase>
+							<goals>
+								<goal>javadoc-no-fork</goal>
+							</goals>
+							<configuration>
+								<show>private</show>
+								<!-- Drop the internal-package exclusion that the plugin sets, so that this run -->
+								<!-- covers them too. An empty element on its own does not clear an inherited -->
+								<!-- value; combine.self="override" is what actually replaces it. -->
+								<excludePackageNames combine.self="override" />
+								<!-- Cover every source file, rather than every package the module exports. Left to -->
+								<!-- itself, the plugin hands Javadoc a generated list of the module's exported -->
+								<!-- packages, so a package that no "exports" clause names is never looked at. Several -->
+								<!-- of the internal packages of classgraph-vfs and classgraph-classpath are like this. -->
+								<!-- Naming the source files switches the plugin to listing those instead, which -->
+								<!-- reaches them. -->
+								<sourceFileIncludes>
+									<sourceFileInclude>**/*.java</sourceFileInclude>
+								</sourceFileIncludes>
+								<outputDirectory>${project.build.directory}/doclint-everything</outputDirectory>
+							</configuration>
+						</execution>
 					</executions>
 				</plugin>
 

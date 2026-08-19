@@ -37,30 +37,6 @@
 		<maven.resources.skip>false</maven.resources.skip>
 	</properties>
 
-	<build>
-		<plugins>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-javadoc-plugin</artifactId>
-				<configuration>
-					<!-- Every package in this module is internal, so the parent's exclusion of internal packages
-					     would leave nothing at all to document, and Javadoc fails with "No public or protected
-					     classes found to document" (JDK 17; later JDKs write an empty set of pages instead).
-					     The internal packages are documented here instead, so that the module has a Javadoc jar
-					     to publish, and so that doclint checks the Javadoc of these classes. They are still
-					     absent from the aggregated Javadoc that the documentation site serves, since that
-					     inherits the parent's exclusion, and none of this is public API. -->
-					<excludePackageNames combine.self="override" />
-					<additionalOptions>
-						<!-- Javadoc only documents the exported packages of a module, and this module's packages
-						     are only exported to the other ClassGraph modules -->
-						<additionalOption>--show-packages all</additionalOption>
-					</additionalOptions>
-				</configuration>
-			</plugin>
-		</plugins>
-	</build>
-
 	<!-- Versions are pinned in the parent's dependencyManagement section -->
 	<dependencies>
 		<!-- Optional runtime dependency: if Narcissus is on the classpath, it is used as the reflection driver -->
