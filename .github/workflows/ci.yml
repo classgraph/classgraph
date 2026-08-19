@@ -34,3 +34,25 @@ jobs:
       run: java -version
     - name: Build with Maven
       run: ./mvnw --no-transfer-progress -B clean test
+
+  # The Javadoc gate only runs in the package phase, which the build job above does not
+  # reach. JDK 8 is the JDK releases are built with, and JDK 19 is the newest the enforcer
+  # allows; doclint reports different things on either side of JDK 9, so check both ends.
+  javadoc:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        java: [ '8', '19' ]
+    steps:
+    - uses: actions/checkout@v7
+    - name: Set up JDK
+      uses: actions/setup-java@v5
+      with:
+        distribution: 'zulu'
+        java-version: ${{ matrix.java }}
+        cache: 'maven'
+    - name: print Java version
+      run: java -version
+    - name: Check Javadoc with Maven
+      run: ./mvnw --no-transfer-progress -B clean package -DskipTests

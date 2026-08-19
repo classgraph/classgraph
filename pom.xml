@@ -524,6 +524,35 @@
 								<outputDirectory>${project.build.directory}</outputDirectory>
 							</configuration>
 						</execution>
+						<!-- Check every Javadoc comment in the tree, and fail the build on any that is -->
+						<!-- malformed. attach-javadocs above turns doclint on, but does not make its warnings -->
+						<!-- fatal, and it sets show=public and excludes the nonapi packages, so it never even -->
+						<!-- reads a comment on a private, package-private or protected member, nor any comment -->
+						<!-- in a nonapi package. That is most of the comments here. This execution reads all of -->
+						<!-- them, at private scope and with no package excluded, and fails if any of them warns. -->
+						<!-- -->
+						<!-- Its output is thrown away: it writes to its own directory, and uses javadoc-no-fork -->
+						<!-- rather than jar, so it cannot disturb the apidocs directory that attach-javadocs, -->
+						<!-- copy-license-to-javadocs and add-modular-javadoc share, and nothing it generates is -->
+						<!-- published. -->
+						<!-- -->
+						<!-- Nothing is inherited from attach-javadocs: its settings are execution-level, so they -->
+						<!-- apply to that execution alone, and every setting this run needs is repeated here. -->
+						<execution>
+							<id>doclint-everything</id>
+							<phase>package</phase>
+							<goals>
+								<goal>javadoc-no-fork</goal>
+							</goals>
+							<configuration>
+								<source>8</source>
+								<additionalOptions>${javadoc.html.version}</additionalOptions>
+								<doclint>all</doclint>
+								<show>private</show>
+								<failOnWarnings>true</failOnWarnings>
+								<outputDirectory>${project.build.directory}/doclint-everything</outputDirectory>
+							</configuration>
+						</execution>
 					</executions>
 				</plugin>
 
