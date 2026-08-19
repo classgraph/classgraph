@@ -398,7 +398,8 @@ public class NestedJarHandler {
 
     /**
      * Open a jarfile whose path has one or more {@code '!'} sections, by recursively resolving the path to the left
-     * of the last {@code '!'}, then looking up the path to the right of it within the jarfile that produced.
+     * of the last {@code '!'}, then looking up the path to the right of it within the jarfile that resolving the
+     * left-hand path produced.
      *
      * @param nestedJarPath
      *            the resolved path of the jarfile
@@ -418,7 +419,8 @@ public class NestedJarHandler {
             final @Nullable LogNode log) throws IOException, InterruptedException {
         final var parentPath = nestedJarPath.substring(0, lastPlingIdx);
         var childPath = nestedJarPath.substring(lastPlingIdx + 1);
-        // "file.jar!/path" -> "file.jar!path"
+        // childPath begins with the '/' of the "!/" separator, so strip it, along with any trailing '/'
+        // and any "." or ".." segments, to leave the entry name relative to the root of the parent jarfile
         childPath = PathSyntax.sanitizeEntryPath(childPath, /* removeInitialSlash = */ true,
                 /* removeFinalSlash = */ true);
 

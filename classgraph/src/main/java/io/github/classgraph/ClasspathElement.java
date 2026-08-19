@@ -580,7 +580,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
         // paths occur only between classpath / module path elements, not within, but actually there is no
         // restriction for paths within a zipfile to be unique, and in fact zipfiles in the wild do contain the same
         // classfiles multiple times with the same exact path, e.g.:
-        // xmlbeans-2.6.0.jar!org/apache/xmlbeans/xml/stream/Location.class
+        // xmlbeans-2.6.0.jar!/org/apache/xmlbeans/xml/stream/Location.class
         final List<Resource> acceptedClassfileResourcesFiltered = new ArrayList<>(
                 acceptedClassfileResources.size());
         var foundMasked = false;
