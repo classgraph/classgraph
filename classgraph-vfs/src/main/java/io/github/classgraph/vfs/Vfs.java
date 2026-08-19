@@ -54,7 +54,6 @@ import io.github.classgraph.base.internal.concurrency.SingletonMap.NewInstanceEx
 import io.github.classgraph.base.internal.concurrency.SingletonMap.NullSingletonException;
 import io.github.classgraph.base.internal.path.FastPathResolver;
 import io.github.classgraph.base.internal.path.PathSyntax;
-import io.github.classgraph.base.internal.path.URLPaths;
 import io.github.classgraph.base.internal.utils.Assert;
 import io.github.classgraph.vfs.internal.VfsSession;
 import io.github.classgraph.vfs.internal.zip.NestedJarHandler;
@@ -376,8 +375,7 @@ public class Vfs implements AutoCloseable, Iterable<VfsRoot> {
     private VfsRoot openUncached(final String resolvedPath, final @Nullable LogNode logNode) throws IOException {
         // A path with a "!/" section in it names something within a jarfile, and a path with a URL scheme names a
         // jarfile to download, so neither can be a directory
-        if (PathSyntax.lastIndexOfNestedJarSeparator(resolvedPath) < 0
-                && !URLPaths.URL_SCHEME_PATTERN.matcher(resolvedPath).matches()) {
+        if (PathSyntax.lastIndexOfNestedJarSeparator(resolvedPath) < 0 && !PathSyntax.hasURLScheme(resolvedPath)) {
             Path dir;
             try {
                 dir = Path.of(resolvedPath);

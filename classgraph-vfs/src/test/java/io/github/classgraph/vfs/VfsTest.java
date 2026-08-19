@@ -29,6 +29,8 @@ import java.util.zip.ZipOutputStream;
 import com.google.common.jimfs.Configuration;
 import com.google.common.jimfs.Jimfs;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
 
 /** Tests the public API of the virtual filesystem. */
@@ -617,6 +619,42 @@ public class VfsTest {
         try (var vfs = new Vfs()) {
             assertThatThrownBy(() -> vfs.open(unreadable)).isInstanceOf(IOException.class)
                     .hasMessageContaining("Not a readable directory");
+        }
+    }
+
+    /**
+     * A relative path may begin with something shaped like a URL scheme, since ':' is a legal filename character on
+     * every platform but Windows. Such a path names something on disk, and must not be fetched as a URL.
+     *
+     * @throws IOException
+     *             if the directory or jarfile could not be written.
+     */
+    @Test
+    @DisabledOnOs(value = OS.WINDOWS, disabledReason = "':' is not a legal character in a Windows filename")
+    public void aRelativePathThatLooksLikeAURLIsOpenedFromDisk() throws IOException {
+        // The ':' has to fall in the first segment of a relative path for the path to look like a URL, since a
+        // scheme may not contain a '/'. A relative path is resolved against the working directory, so that is the
+        // only place this directory can go.
+        final var colonDir = new File("cgtest:relpath");
+        final var fileInColonDir = new File(colonDir, "widget.txt");
+        final var jarInColonDir = new File(colonDir, "widget.jar");
+        try {
+            assertThat(colonDir.mkdir()).isTrue();
+            writeDirWithFiles(colonDir, "widget.txt");
+            writeJar(jarInColonDir, "com/xyz/widget.txt");
+
+            try (var vfs = new Vfs()) {
+                // Without the filesystem being tested first, "cgtest:" is read as a URL scheme, and neither of
+                // these is opened from disk at all
+                assertThat(entryContent(vfs.open("cgtest:relpath"), "widget.txt")).isEqualTo(RESOURCE_CONTENT);
+                assertThat(entryContent(vfs.open("cgtest:relpath/widget.jar"), "com/xyz/widget.txt"))
+                        .isEqualTo(RESOURCE_CONTENT);
+            }
+        } finally {
+            // Delete leaves before the directory that holds them
+            for (final var file : new File[] { fileInColonDir, jarInColonDir, colonDir }) {
+                Files.deleteIfExists(file.toPath());
+            }
         }
     }
 

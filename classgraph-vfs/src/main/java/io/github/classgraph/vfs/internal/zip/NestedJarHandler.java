@@ -45,7 +45,6 @@ import io.github.classgraph.base.internal.concurrency.SingletonMap;
 import io.github.classgraph.base.internal.path.FastPathResolver;
 import io.github.classgraph.base.internal.path.FileUtils;
 import io.github.classgraph.base.internal.path.PathSyntax;
-import io.github.classgraph.base.internal.path.URLPaths;
 import io.github.classgraph.vfs.internal.VfsSession;
 import io.github.classgraph.vfs.internal.slice.Slice;
 import org.jspecify.annotations.Nullable;
@@ -329,7 +328,7 @@ public class NestedJarHandler {
             throws IOException, InterruptedException {
         // If the path starts with "http://" or "https://" or any other URI/URL scheme, download the jar to a temp
         // file or to a ByteBuffer in RAM. ("jar:" and "file:" have already been stripped from any URL/URI.)
-        final var isURL = URLPaths.URL_SCHEME_PATTERN.matcher(nestedJarPath).matches();
+        final var isURL = PathSyntax.hasURLScheme(nestedJarPath);
         final PhysicalZipFile physicalZipFile;
         // A downloaded jarfile is not cached, so this method owns it until it has been handed over to the logical
         // zipfile cache, and has to release it if it never gets there. A jarfile opened from a local path comes

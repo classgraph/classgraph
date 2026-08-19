@@ -71,7 +71,6 @@ import io.github.classgraph.base.internal.path.FastPathResolver;
 import io.github.classgraph.base.internal.path.FileUtils;
 import io.github.classgraph.base.internal.path.PathList;
 import io.github.classgraph.base.internal.path.PathSyntax;
-import io.github.classgraph.base.internal.path.URLPaths;
 import io.github.classgraph.base.internal.utils.CollectionUtils;
 import io.github.classgraph.classpath.ClassLoaderHandler;
 import io.github.classgraph.classpath.internal.ClassLoaderAndModuleLayerSpec;
@@ -474,7 +473,7 @@ class Scanner implements Callable<ScanResult> {
 
         // If classpath entry object is a URL-formatted string, convert to (or back to) a URL instance.
         if (classpathEntryObjNormalized instanceof final String classpathEntStr) {
-            final var isURL = URLPaths.URL_SCHEME_PATTERN.matcher(classpathEntStr).matches();
+            final var isURL = PathSyntax.hasURLScheme(classpathEntStr);
             // A '!' is only a nested jar separator if the path before it names an existing jarfile -- it is
             // otherwise a legal filename character, and must not be treated as a separator (#903)
             final var isMultiSection = PathSyntax.indexOfNestedJarSeparator(classpathEntStr) >= 0;
