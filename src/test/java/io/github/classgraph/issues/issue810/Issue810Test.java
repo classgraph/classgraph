@@ -13,7 +13,7 @@ import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
 
 /**
- * The first part of {@link io.github.classgraph.issues.issue673.Issue673Test} failed intermittently, because the
+ * The first part of {@code io.github.classgraph.issues.issue673.Issue673Test} failed intermittently, because the
  * classpath element for {@code b.zip} could be created either by the work unit for the toplevel classpath entry
  * {@code b.zip}, or by the work unit for the {@code Class-Path} manifest entry of {@code a.zip} that also points at
  * {@code b.zip}, whichever won the race to the classpath element singleton map. Only the winner's position in the

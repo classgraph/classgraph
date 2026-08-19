@@ -556,6 +556,35 @@
 								<outputDirectory>${project.build.directory}/doclint-everything</outputDirectory>
 							</configuration>
 						</execution>
+						<!-- Do the same for the test sources, but with the "missing" group switched off. Held to -->
+						<!-- the same standard as the main sources they report over nine hundred warnings, and -->
+						<!-- almost every one is a test method carrying a one-line description and no tags, which -->
+						<!-- is fine for a test and generates no Javadoc for anyone to read. The rest of doclint is -->
+						<!-- a different matter: it catches a {@link} that does not resolve, a tag that is malformed -->
+						<!-- or names something that is not there, and broken HTML. Leaving "missing" out matters -->
+						<!-- for a second reason too: the test source roots take in the JMH benchmark classes -->
+						<!-- generated under target, which carry no Javadoc at all. -->
+						<!--  -->
+						<!-- As above, nothing is inherited, so every setting is repeated. attach-javadocs never -->
+						<!-- reads a test source at all, so this is the only thing checking them. -->
+						<execution>
+							<id>doclint-tests</id>
+							<phase>package</phase>
+							<goals>
+								<goal>test-javadoc-no-fork</goal>
+							</goals>
+							<configuration>
+								<source>8</source>
+								<additionalOptions>${javadoc.html.version}</additionalOptions>
+								<doclint>all,-missing</doclint>
+								<show>private</show>
+								<failOnWarnings>true</failOnWarnings>
+								<sourceFileIncludes>
+									<sourceFileInclude>**/*.java</sourceFileInclude>
+								</sourceFileIncludes>
+								<outputDirectory>${project.build.directory}/doclint-tests</outputDirectory>
+							</configuration>
+						</execution>
 					</executions>
 				</plugin>
 
