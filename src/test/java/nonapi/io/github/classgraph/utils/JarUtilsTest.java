@@ -160,6 +160,65 @@ public class JarUtilsTest {
     }
 
     /**
+     * The {@code "jar:"} URL scheme spells the separator {@code "!/"}, so a '!' with anything else after it is a
+     * filename character, even inside a jarfile's entry names.
+     *
+     * @param tempDir
+     *            a temporary directory to write the jarfile into.
+     * @throws IOException
+     *             if the jarfile could not be written.
+     */
+    // #903
+    @Test
+    public void aPlingNotFollowedBySlashIsNotASeparator(@TempDir final Path tempDir) throws IOException {
+        final String outerJarPath = Files.write(tempDir.resolve("outer.jar"), new byte[] { 'P', 'K' }).toString()
+                .replace(File.separatorChar, '/');
+
+        // "dir!name/x.txt" is one entry name within outer.jar, so the jarfile's own '!' is the only separator
+        final String entryInPlingDir = outerJarPath + "!/dir!name/x.txt";
+        assertThat(JarUtils.indexOfNestedJarSeparator(entryInPlingDir)).isEqualTo(outerJarPath.length());
+        assertThat(JarUtils.lastIndexOfNestedJarSeparator(entryInPlingDir)).isEqualTo(outerJarPath.length());
+
+        // The innermost separator is the last '!' that really is one, not simply the last '!' in the path
+        final String twoDeep = outerJarPath + "!/lib/inner.jar!/dir!name";
+        assertThat(JarUtils.lastIndexOfNestedJarSeparator(twoDeep))
+                .isEqualTo(twoDeep.indexOf("inner.jar") + "inner.jar".length());
+
+        // A '!' at the end of a path is a separator: it is what a trailing "!/" is left as once
+        // FastPathResolver has removed the '/'
+        assertThat(JarUtils.indexOfNestedJarSeparator(outerJarPath + "!")).isEqualTo(outerJarPath.length());
+        assertThat(JarUtils.lastIndexOfNestedJarSeparator(outerJarPath + "!")).isEqualTo(outerJarPath.length());
+    }
+
+    /**
+     * ClassGraph accepts the looser form its own API has always taken as well, where a bare '!' separates -- and
+     * then every '!' from the outermost one onwards is a separator.
+     *
+     * @param tempDir
+     *            a temporary directory to write the jarfile into.
+     * @throws IOException
+     *             if the jarfile could not be written.
+     */
+    // #903
+    @Test
+    public void aBareOutermostPlingMakesEveryLaterPlingASeparator(@TempDir final Path tempDir) throws IOException {
+        final String outerJarPath = Files.write(tempDir.resolve("outer.jar"), new byte[] { 'P', 'K' }).toString()
+                .replace(File.separatorChar, '/');
+
+        final String loose = outerJarPath + "!level2.jar!level3.jar!pkg";
+        assertThat(JarUtils.indexOfNestedJarSeparator(loose)).isEqualTo(outerJarPath.length());
+        assertThat(JarUtils.lastIndexOfNestedJarSeparator(loose)).isEqualTo(loose.lastIndexOf('!'));
+        // Such a path is rewritten into the form that the "jar:" URL scheme requires
+        assertThat(JarUtils.toJarUrlSeparators(loose)).isEqualTo(outerJarPath + "!/level2.jar!/level3.jar!/pkg");
+
+        // A path already in that form keeps every '!' that belongs to an entry name
+        assertThat(JarUtils.toJarUrlSeparators(outerJarPath + "!/dir!name/x.txt"))
+                .isEqualTo(outerJarPath + "!/dir!name/x.txt");
+        // ... and a trailing separator gets back the '/' that FastPathResolver stripped
+        assertThat(JarUtils.toJarUrlSeparators(outerJarPath + "!")).isEqualTo(outerJarPath + "!/");
+    }
+
+    /**
      * A relative path may itself begin with something shaped like a URL scheme, since ':' is a legal filename
      * character on every platform but Windows, and a relative path need not begin with a separator. Such a path
      * names a file or directory, not a URL, and the only way to tell the two apart is to test the filesystem.
@@ -235,5 +294,29 @@ public class JarUtilsTest {
         assertThatThrownBy(() -> JarUtils.classfilePathToClassName("java/lang/.class"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Not the path of a classfile: java/lang/.class");
+    }
+
+    /**
+     * The automatic module name is derived from the jar's leafname: the extension and any version suffix are
+     * dropped, and the remaining non-alphanumeric characters become dots.
+     */
+    @Test
+    public void automaticModuleNamesAreDerivedFromTheJarName() {
+        assertThat(JarUtils.derivedAutomaticModuleName("/a/b/foo.jar")).isEqualTo("foo");
+        assertThat(JarUtils.derivedAutomaticModuleName("foo.jar")).isEqualTo("foo");
+        assertThat(JarUtils.derivedAutomaticModuleName("/a/b/commons-lang3-3.12.0.jar"))
+                .isEqualTo("commons.lang3");
+        assertThat(JarUtils.derivedAutomaticModuleName("/a/b/my_lib.jar")).isEqualTo("my.lib");
+        // Leading, trailing and repeated dots are all collapsed away
+        assertThat(JarUtils.derivedAutomaticModuleName("/a/b/-foo--bar-.jar")).isEqualTo("foo.bar");
+        // A jar nested inside another jar is named after the inner jar
+        assertThat(JarUtils.derivedAutomaticModuleName("/a/outer.jar!/BOOT-INF/lib/inner-1.0.jar"))
+                .isEqualTo("inner");
+        // A package root within a jar is named after the jar that contains it, not after the package root
+        assertThat(JarUtils.derivedAutomaticModuleName("/a/outer.jar!/BOOT-INF/classes")).isEqualTo("outer");
+        // A '!' that is not followed by '/' is part of a name, not a separator, so it ends neither
+        // #903
+        assertThat(JarUtils.derivedAutomaticModuleName("/a/outer.jar!/dir!name/classes")).isEqualTo("outer");
+        assertThat(JarUtils.derivedAutomaticModuleName("/a/outer.jar!/lib/we!rd-1.0.jar")).isEqualTo("we.rd");
     }
 }

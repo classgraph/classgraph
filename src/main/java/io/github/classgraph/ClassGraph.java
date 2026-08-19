@@ -539,9 +539,10 @@ public class ClassGraph {
          *
          * @param classpathElementPathStr
          *            The path string of a classpath element, normalized so that the path separator is '/'. This
-         *            will usually be a file path, but could be a URL, or it could be a path for a nested jar, where
-         *            the paths are separated using '!', in Java convention. "jar:" and/or "file:" will have been
-         *            stripped from the beginning, if they were present in the classpath.
+         *            will usually be a file path, but could be a URL, or it could be a path for a nested jar,
+         *            where the jarfile is separated from the path within it by "!/", as the "jar:" URL scheme
+         *            requires. "jar:" and/or "file:" will have been stripped from the beginning, if they were
+         *            present in the classpath.
          * @return true if the path string passed is a path you want to scan.
          */
         boolean includeClasspathElement(String classpathElementPathStr);

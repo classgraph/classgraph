@@ -252,17 +252,14 @@ public final class URLPathEncoder {
 
             // A '!' is only a nested jar separator if it really separates a jarfile from a path within it -- it is
             // an ordinary filename character otherwise, and a path such as "/dir!bang/x.jar" must not be rewritten
-            // to "/dir!/bang/x.jar", which names a different file and cannot be opened. Everything before the
-            // outermost separator is left exactly as it is; from the separator onwards, every '!' is a separator,
-            // and each needs the '/' after it that the "jar:" URL scheme requires. This is done before the Windows
-            // drive prefix is stripped below, since the separator is found by testing whether the path before the
-            // '!' names a file, which needs the drive letter
+            // to "/dir!/bang/x.jar", which names a different file and cannot be opened. Every separator that is
+            // one has to be spelled "!/" here, since that is what the "jar:" URL scheme requires. This is done
+            // before the Windows drive prefix is stripped below, since the separator is found by testing whether
+            // the path before the '!' names a file, which needs the drive letter
             // #903
-            final int nestedJarSepIdx = JarUtils.indexOfNestedJarSeparator(urlPathNormalized);
-            hasNestedJarSeparator = nestedJarSepIdx >= 0;
+            hasNestedJarSeparator = JarUtils.indexOfNestedJarSeparator(urlPathNormalized) >= 0;
             if (hasNestedJarSeparator) {
-                urlPathNormalized = urlPathNormalized.substring(0, nestedJarSepIdx) + urlPathNormalized
-                        .substring(nestedJarSepIdx).replace("/!", "!").replace("!/", "!").replace("!", "!/");
+                urlPathNormalized = JarUtils.toJarUrlSeparators(urlPathNormalized);
             }
 
             // On Windows, remove drive prefix from path, if present (otherwise the ':' after the drive

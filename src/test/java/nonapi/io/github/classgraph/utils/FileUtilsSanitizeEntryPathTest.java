@@ -2,7 +2,13 @@ package nonapi.io.github.classgraph.utils;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 /**
  * Tests for {@link FileUtils#sanitizeEntryPath(String, boolean, boolean)}: {@code "."} and {@code ".."} segments and
@@ -49,6 +55,24 @@ public class FileUtilsSanitizeEntryPathTest {
     public void dotDotCannotEscapeHierarchyRoot() {
         assertThat(sanitize("foo/..")).isEmpty();
         assertThat(sanitize("a/../../b")).isEqualTo("b");
+    }
+
+    /**
+     * A '!' that is not followed by '/' is a filename character rather than a nested jar separator, so normalizing
+     * a path that contains one must not insert a '/' after it -- that names an entry that does not exist.
+     *
+     * @param tempDir
+     *            a temporary directory to write the jarfile into.
+     * @throws IOException
+     *             if the jarfile could not be written.
+     */
+    // #903
+    @Test
+    public void aPlingWithinAnEntryNameIsNotASeparator(@TempDir final Path tempDir) throws IOException {
+        // A '!' only counts as a separator if the path before it names a file, so the jar has to exist on disk
+        final String outerJarPath = Files.write(tempDir.resolve("outer.jar"), new byte[] { 'P', 'K' }).toString()
+                .replace(File.separatorChar, '/');
+        assertThat(sanitize(outerJarPath + "!/dir!name/./x.txt")).isEqualTo(outerJarPath + "!/dir!name/x.txt");
     }
 
     /** A nested jar separator {@code '!'} starts a new hierarchy root, which {@code ".."} may not escape. */

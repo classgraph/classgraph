@@ -308,12 +308,57 @@ public final class JarUtils {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Determine whether the '!' at a given index of a path is a nested jar separator.
+     *
+     * <p>
+     * The {@code "jar:"} URL scheme spells the separator {@code "!/"}: {@link java.net.JarURLConnection} rejects a
+     * URL whose '!' is not followed by '/' when the URL is constructed, before any connection is opened. ClassGraph
+     * accepts the looser form its own API has always taken as well, where a bare '!' separates. Which form a path
+     * is written in is decided by the outermost separator, since that one is identified by testing the filesystem
+     * rather than by syntax: if it is followed by '/', the path is in the scheme's form, and a later '!' separates
+     * only when it is followed by '/' too; if it is a bare '!', every '!' from it onwards separates.
+     *
+     * <p>
+     * A '!' that ends the path counts as followed by '/' either way: it is what a trailing {@code "!/"} is left as
+     * once {@link FastPathResolver} has removed the '/'.
+     *
+     * @param path
+     *            the path.
+     * @param plingIdx
+     *            the index of a '!' character within the path.
+     * @param outermostSepIdx
+     *            the index of the outermost separator, from {@link #indexOfNestedJarSeparator(String)}, or -1 if
+     *            the path has none.
+     * @return true if the '!' at {@code plingIdx} is a nested jar separator.
+     */
+    // #903
+    public static boolean isNestedJarSeparatorAt(final String path, final int plingIdx, final int outermostSepIdx) {
+        if (outermostSepIdx < 0 || plingIdx < outermostSepIdx) {
+            return false;
+        }
+        return !endsSectionOfPath(path, outermostSepIdx) || endsSectionOfPath(path, plingIdx);
+    }
+
+    /**
+     * Determine whether the character at a given index is followed by '/', or is the last in the path.
+     *
+     * @param path
+     *            the path.
+     * @param idx
+     *            the index of a character within the path.
+     * @return true if the character at that index ends a section of the path.
+     */
+    private static boolean endsSectionOfPath(final String path, final int idx) {
+        return idx == path.length() - 1 || path.charAt(idx + 1) == '/';
+    }
+
+    /**
      * Find the index of the outermost nested jar separator ('!') in a path, i.e. the '!' that separates the
      * outermost jarfile from a path nested within it, or -1 if the path contains no nested jar separator.
      *
      * <p>
      * A '!' is not necessarily a separator -- it is a legal character in a file or directory name on every
-     * platform ClassGraph supports, and users do put it in their directory names (#903). The
+     * platform ClassGraph supports, and users do put it in their directory names. The
      * {@link java.net.JarURLConnection} spec defines the separator as {@code "!/"}, and gives no way of escaping a
      * literal '!' other than percent-encoding it as {@code %21} within the inner URL, so the separator cannot be
      * identified by syntax alone: {@code /dir!/x.jar} is ambiguous between a jar {@code x.jar} in a directory named
@@ -321,10 +366,10 @@ public final class JarUtils {
      *
      * <p>
      * That ambiguity is resolved here by testing the filesystem: the outermost '!' separator is the first '!' whose
-     * preceding path names an existing regular file (which must be the outermost jarfile). Every subsequent '!' is
-     * then a separator too, since only the last element of a '!'-delimited path may be a non-jar path. If no '!' is
-     * preceded by an existing file, the path contains no separator, and any '!' in it is a literal filename
-     * character.
+     * preceding path names an existing regular file (which must be the outermost jarfile). If no '!' is preceded by
+     * an existing file, the path contains no separator, and any '!' in it is a literal filename character. Which of
+     * the later '!' characters separate is then decided by how this one is spelled -- see
+     * {@link #isNestedJarSeparatorAt(String, int, int)}.
      *
      * <p>
      * The filesystem cannot be consulted for non-{@code file:} URLs (e.g. {@code http:} jar URLs), so if no '!' is
@@ -366,16 +411,55 @@ public final class JarUtils {
     /**
      * Find the index of the innermost nested jar separator ('!') in a path, or -1 if the path contains no nested
      * jar separator. See {@link #indexOfNestedJarSeparator(String)} for how separators are distinguished from
-     * literal '!' characters in filenames (#903).
+     * literal '!' characters in filenames.
      *
      * @param path
      *            the path, with any {@code "jar:"} and {@code "file:"} scheme prefixes already stripped.
      * @return the index of the innermost nested jar separator, or -1 if there is none.
      */
+    // #903
     public static int lastIndexOfNestedJarSeparator(final String path) {
-        // Every '!' after the outermost separator is also a separator, so if there is an outermost separator,
-        // the last '!' in the path is the innermost separator
-        return indexOfNestedJarSeparator(path) < 0 ? -1 : path.lastIndexOf('!');
+        final int outermostSepIdx = indexOfNestedJarSeparator(path);
+        if (outermostSepIdx < 0) {
+            return -1;
+        }
+        // Only the last element of a '!'-delimited path may be a non-jar path, so each separator after the
+        // outermost one nests a level deeper, and the last of them is the innermost separator
+        for (int plingIdx = path.lastIndexOf('!'); plingIdx > outermostSepIdx; plingIdx = path.lastIndexOf('!',
+                plingIdx - 1)) {
+            if (isNestedJarSeparatorAt(path, plingIdx, outermostSepIdx)) {
+                return plingIdx;
+            }
+        }
+        return outermostSepIdx;
+    }
+
+    /**
+     * Rewrite a path so that every nested jar separator in it is spelled {@code "!/"}, as the {@code "jar:"} URL
+     * scheme requires, leaving any '!' that belongs to a file or entry name as it is.
+     *
+     * @param path
+     *            the path, with any {@code "jar:"} and {@code "file:"} scheme prefixes already stripped.
+     * @return the path, with a '/' added after each separator that lacked one.
+     */
+    // #903
+    public static String toJarUrlSeparators(final String path) {
+        final int outermostSepIdx = indexOfNestedJarSeparator(path);
+        if (outermostSepIdx < 0) {
+            return path;
+        }
+        final int pathLen = path.length();
+        final StringBuilder pathRewritten = new StringBuilder(pathLen + 8);
+        pathRewritten.append(path, 0, outermostSepIdx);
+        for (int i = outermostSepIdx; i < pathLen; i++) {
+            final char c = path.charAt(i);
+            pathRewritten.append(c);
+            if (c == '!' && (i == pathLen - 1 || path.charAt(i + 1) != '/')
+                    && isNestedJarSeparatorAt(path, i, outermostSepIdx)) {
+                pathRewritten.append('/');
+            }
+        }
+        return pathRewritten.toString();
     }
 
     /**
@@ -480,10 +564,12 @@ public final class JarUtils {
      * @return The automatic module name.
      */
     public static String derivedAutomaticModuleName(final String jarPath) {
-        // If jar path does not end in a file extension (with ".jar" most likely), strip off everything after
-        // the last '!', in order to remove package root
+        // If jar path does not end in a file extension (with ".jar" most likely), strip off everything after the
+        // last nested jar separator, in order to remove package root. The path has already been resolved, so every
+        // separator in it is spelled "!/" -- a '!' with anything else after it belongs to a file or entry name
+        // #903
         int endIdx = jarPath.length();
-        final int lastPlingIdx = jarPath.lastIndexOf('!');
+        final int lastPlingIdx = jarPath.lastIndexOf("!/");
         if (lastPlingIdx > 0
                 // If there is no '.' after the last '/' (if any) after the last '!'
                 && jarPath.lastIndexOf('.') <= Math.max(lastPlingIdx, jarPath.lastIndexOf('/'))) {
@@ -491,7 +577,7 @@ public final class JarUtils {
             endIdx = lastPlingIdx;
         }
         // Find the second to last '!' (or -1, if none)
-        final int secondToLastPlingIdx = endIdx == 0 ? -1 : jarPath.lastIndexOf("!", endIdx - 1);
+        final int secondToLastPlingIdx = endIdx == 0 ? -1 : jarPath.lastIndexOf("!/", endIdx - 1);
         // Find last '/' between the second to last and the last '!'
         final int startIdx = Math.max(secondToLastPlingIdx, jarPath.lastIndexOf('/', endIdx - 1)) + 1;
         // Find last '.' after that '/'

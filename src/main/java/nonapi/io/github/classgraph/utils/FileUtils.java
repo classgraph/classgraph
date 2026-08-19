@@ -206,7 +206,8 @@ public final class FileUtils {
             boolean inFirstSection = true;
             for (int i = 0, ii = pathLen + 1; i < ii; i++) {
                 final char c = i == pathLen ? '\0' : path.charAt(i);
-                final boolean isSectionMarker = c == '!' && nestedJarSepIdx >= 0 && i >= nestedJarSepIdx;
+                final boolean isSectionMarker = c == '!'
+                        && JarUtils.isNestedJarSeparatorAt(path, i, nestedJarSepIdx);
                 if (c == '/' || isSectionMarker || c == '\0') {
                     final int segmentLength = i - (lastSepIdx + 1);
                     if (
@@ -241,7 +242,8 @@ public final class FileUtils {
             boolean inFirstSection = true;
             for (int i = 0; i < pathLen + 1; i++) {
                 final char c = i == pathLen ? '\0' : path.charAt(i);
-                final boolean isSectionMarker = c == '!' && nestedJarSepIdx >= 0 && i >= nestedJarSepIdx;
+                final boolean isSectionMarker = c == '!'
+                        && JarUtils.isNestedJarSeparatorAt(path, i, nestedJarSepIdx);
                 if (c == '/' || isSectionMarker || c == '\0') {
                     final int segmentStartIdx = lastSepIdx + 1;
                     final int segmentLen = i - segmentStartIdx;

@@ -96,6 +96,27 @@ public class URLPathEncoderTest {
     }
 
     /**
+     * A '!' within a jarfile's entry names is not a separator either, so no '/' may be inserted after it.
+     *
+     * @param tempDir
+     *            a temporary directory to write the jarfile into.
+     * @throws IOException
+     *             if the jarfile could not be written.
+     */
+    // #903
+    @Test
+    public void bangInAJarEntryNameIsNotASeparator(@TempDir final Path tempDir) throws IOException {
+        final String jarPath = slashes(Files.createFile(tempDir.resolve("x.jar")));
+        final String jarUrl = URLPathEncoder.normalizeURLPath(jarPath);
+        // "dir!name/x.txt" is one entry name within x.jar, so rewriting it to "dir!/name/x.txt" would name an
+        // entry that does not exist
+        assertThat(URLPathEncoder.normalizeURLPath(jarPath + "!/dir!name/x.txt"))
+                .isEqualTo("jar:" + jarUrl + "!/dir!name/x.txt");
+        // A trailing separator names the whole of the jarfile, and needs the '/' that the scheme requires
+        assertThat(URLPathEncoder.normalizeURLPath(jarPath + "!")).isEqualTo("jar:" + jarUrl + "!/");
+    }
+
+    /**
      * The path of a file, with the platform's separator turned into the '/' that URLs use.
      *
      * @param path
