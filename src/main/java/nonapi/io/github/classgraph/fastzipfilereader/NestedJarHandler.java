@@ -623,7 +623,10 @@ public class NestedJarHandler {
             try {
                 url = new URI(jarURL).toURL();
             } catch (final MalformedURLException | IllegalArgumentException | URISyntaxException e2) {
-                throw new IOException("Could not parse URL: " + jarURL);
+                // Chain the cause -- for a URL whose scheme nothing has registered a URL stream handler for,
+                // the cause is the JVM's own "unknown protocol" report, which is the whole reason the URL
+                // could not be opened
+                throw new IOException("Could not parse URL: " + jarURL, e2);
             }
         }
 
@@ -642,7 +645,7 @@ public class NestedJarHandler {
                 // Wrap Path in PhysicalZipFile and return it
                 return new PhysicalZipFile(path, this, log);
             } catch (final IllegalArgumentException | SecurityException | URISyntaxException e) {
-                throw new IOException("Could not convert URL to URI (" + e + "): " + url);
+                throw new IOException("Could not convert URL to URI (" + e + "): " + url, e);
             } catch (final FileSystemNotFoundException e) {
                 // Not a custom filesystem
             }
