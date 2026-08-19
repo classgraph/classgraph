@@ -185,7 +185,7 @@ public class NestedJarHandler {
                         // download the jar to a temp file or to a ByteBuffer in RAM. ("jar:" and
                         // "file:"
                         // have already been stripped from any URL/URI.)
-                        final boolean isURL = JarUtils.URL_SCHEME_PATTERN.matcher(nestedJarPath).matches();
+                        final boolean isURL = JarUtils.hasURLScheme(nestedJarPath);
                         PhysicalZipFile physicalZipFile;
                         if (isURL) {
                             // URL schemes are case-insensitive, and are registered in lowercase, so the scheme

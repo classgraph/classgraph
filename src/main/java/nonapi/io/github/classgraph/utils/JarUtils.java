@@ -327,22 +327,23 @@ public final class JarUtils {
      * character.
      *
      * <p>
-     * The filesystem cannot be consulted for non-{@code file:} URLs (e.g. {@code http:} jar URLs), so for those the
-     * old syntactic rule is retained, and the first '!' is taken to be the separator.
+     * The filesystem cannot be consulted for non-{@code file:} URLs (e.g. {@code http:} jar URLs), so if no '!' is
+     * preceded by an existing file and the path has a URL scheme, the old syntactic rule is retained, and the first
+     * '!' is taken to be the separator. The filesystem is tested before the path is read as a URL, and not after,
+     * because a relative path can itself begin with something shaped like a URL scheme: {@code ':'} is a legal
+     * filename character everywhere but Windows, so a directory named {@code foo:bar} cannot be told by syntax from
+     * a URL with the scheme {@code foo}. See {@link #hasURLScheme(String)}.
      *
      * @param path
      *            the path, with any {@code "jar:"} and {@code "file:"} scheme prefixes already stripped.
      * @return the index of the outermost nested jar separator, or -1 if there is none.
      */
     public static int indexOfNestedJarSeparator(final String path) {
-        int plingIdx = path.indexOf('!');
-        if (plingIdx < 0) {
+        final int firstPlingIdx = path.indexOf('!');
+        if (firstPlingIdx < 0) {
             return -1;
         }
-        if (URL_SCHEME_PATTERN.matcher(path).matches()) {
-            // Cannot stat a remote URL -- fall back to the syntactic rule
-            return plingIdx;
-        }
+        int plingIdx = firstPlingIdx;
         while (plingIdx >= 0) {
             // The outermost jarfile has to exist as a regular file for the classpath element to be scannable,
             // so if the path before the '!' names one, this '!' is the outermost separator
@@ -354,7 +355,12 @@ public final class JarUtils {
             }
             plingIdx = path.indexOf('!', plingIdx + 1);
         }
-        return -1;
+        // No prefix of the path names a local file, so either the path has no separator, or its jarfile is remote
+        // and could not be stat-ed however the path is spelled. Test the whole path to tell the two apart: if it
+        // exists locally, it is a path whose every '!' is a literal filename character. Only if nothing local
+        // answers to it is it read as a URL, and the syntactic rule used to find the separator.
+        // (A path that names nothing at all cannot be told from a URL, but it fails to open either way.)
+        return URL_SCHEME_PATTERN.matcher(path).matches() && !new File(path).exists() ? firstPlingIdx : -1;
     }
 
     /**
@@ -370,6 +376,37 @@ public final class JarUtils {
         // Every '!' after the outermost separator is also a separator, so if there is an outermost separator,
         // the last '!' in the path is the innermost separator
         return indexOfNestedJarSeparator(path) < 0 ? -1 : path.lastIndexOf('!');
+    }
+
+    /**
+     * Determine whether a path is a URL, i.e. whether it begins with a URL scheme that names how to fetch it,
+     * rather than naming something in the local filesystem.
+     *
+     * <p>
+     * A URL scheme cannot be recognized by syntax alone. {@code ':'} is a legal filename character on every
+     * platform ClassGraph supports except Windows, and a relative path is not required to begin with a {@code '/'},
+     * so the relative path {@code foo:bar} is spelled exactly like a URL whose scheme is {@code foo}. (An absolute
+     * path is unambiguous, since it begins with a separator, and so is a Windows path, since a drive designation is
+     * a single character and a scheme is at least two.)
+     *
+     * <p>
+     * The ambiguity is resolved the same way {@link #indexOfNestedJarSeparator(String)} resolves the one around
+     * {@code '!'}: by testing the filesystem. A path whose outermost element exists locally names that file or
+     * directory, and is not a URL. Only if nothing exists there is the path read as a URL, which is also the only
+     * case in which the scheme could have been of any use.
+     *
+     * @param path
+     *            the path, with any {@code "jar:"} and {@code "file:"} scheme prefixes already stripped.
+     * @return true if the path is a URL rather than a path into the local filesystem.
+     */
+    public static boolean hasURLScheme(final String path) {
+        if (!URL_SCHEME_PATTERN.matcher(path).matches()) {
+            // Nothing shaped like a scheme at the front, so the filesystem does not need to be consulted at all
+            return false;
+        }
+        // Only the outermost element of the path could carry a scheme, so that is the part to test for existence
+        final int sepIdx = indexOfNestedJarSeparator(path);
+        return !new File(sepIdx < 0 ? path : path.substring(0, sepIdx)).exists();
     }
 
     // -------------------------------------------------------------------------------------------------------------

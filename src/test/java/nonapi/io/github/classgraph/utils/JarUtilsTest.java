@@ -8,8 +8,11 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
 
 import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
@@ -154,6 +157,66 @@ public class JarUtilsTest {
         final String jarWithPlingPath = Files.write(tempDir.resolve("y!z.jar"), new byte[] { 'P', 'K' }).toString()
                 .replace(File.separatorChar, '/');
         assertThat(JarUtils.leafName(jarWithPlingPath)).isEqualTo("y!z.jar");
+    }
+
+    /**
+     * A relative path may itself begin with something shaped like a URL scheme, since ':' is a legal filename
+     * character on every platform but Windows, and a relative path need not begin with a separator. Such a path
+     * names a file or directory, not a URL, and the only way to tell the two apart is to test the filesystem.
+     *
+     * @throws IOException
+     *             if the directories or jarfiles could not be written.
+     */
+    @Test
+    @DisabledOnOs(value = OS.WINDOWS, disabledReason = "':' is not a legal character in a Windows filename")
+    public void aRelativePathThatNamesSomethingIsNotAURL() throws IOException {
+        // The ':' has to fall in the first segment of a relative path for the path to look like a URL, since a
+        // scheme may not contain a '/'. An absolute path always begins with a separator, so it is never ambiguous.
+        // That leaves the working directory, which is what a relative path is resolved against, as the only place
+        // this directory can go.
+        final Path colonDir = Paths.get("cgtest:relpath");
+        final Path jarInColonDir = colonDir.resolve("x.jar");
+        final Path plingDir = colonDir.resolve("dir!name");
+        final Path jarInPlingDir = plingDir.resolve("y.jar");
+        try {
+            Files.createDirectory(colonDir);
+            Files.write(jarInColonDir, new byte[] { 'P', 'K' });
+            Files.createDirectory(plingDir);
+            Files.write(jarInPlingDir, new byte[] { 'P', 'K' });
+
+            // Everything that exists is a path, however much it looks like a URL
+            assertThat(JarUtils.hasURLScheme("cgtest:relpath")).isFalse();
+            assertThat(JarUtils.hasURLScheme("cgtest:relpath/x.jar")).isFalse();
+            // The scheme could only apply to the outermost element, so that is the part that is tested
+            assertThat(JarUtils.hasURLScheme("cgtest:relpath/x.jar!/pkg")).isFalse();
+
+            // A '!' in a directory name is still not a separator when the path also looks like a URL
+            assertThat(JarUtils.indexOfNestedJarSeparator("cgtest:relpath/dir!name/y.jar")).isEqualTo(-1);
+            assertThat(JarUtils.lastIndexOfNestedJarSeparator("cgtest:relpath/dir!name/y.jar")).isEqualTo(-1);
+            // ... but a '!' after that directory's jar is
+            assertThat(JarUtils.indexOfNestedJarSeparator("cgtest:relpath/dir!name/y.jar!/pkg"))
+                    .isEqualTo("cgtest:relpath/dir!name/y.jar".length());
+
+        } finally {
+            // Delete leaves before the directories that hold them
+            for (final Path path : new Path[] { jarInPlingDir, plingDir, jarInColonDir, colonDir }) {
+                Files.deleteIfExists(path);
+            }
+        }
+    }
+
+    /** Nothing in the filesystem answers to a URL, so a URL is read as one. */
+    @Test
+    public void aPathThatNamesNothingLocalIsReadAsAURL() {
+        assertThat(JarUtils.hasURLScheme("http://example.com/x.jar")).isTrue();
+        assertThat(JarUtils.hasURLScheme("s3://bucket/x.jar")).isTrue();
+        // A relative path that names nothing cannot be told from a URL -- but it fails to open either way
+        assertThat(JarUtils.hasURLScheme("cgtest:nothing-is-here")).isTrue();
+        // Nothing shaped like a scheme, so the filesystem is never consulted
+        assertThat(JarUtils.hasURLScheme("/dir/x.jar")).isFalse();
+        assertThat(JarUtils.hasURLScheme("dir/x.jar")).isFalse();
+        // A Windows drive designation is a single character, and a scheme is at least two
+        assertThat(JarUtils.hasURLScheme("C:/dir/x.jar")).isFalse();
     }
 
     /** Classfile paths and class names convert to each other. */
