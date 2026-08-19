@@ -143,6 +143,12 @@ class ClasspathElementZip extends ClasspathElement {
         /** The order of the next child classpath element within this classpath element. */
         private int childClasspathEntryIdx;
 
+        /**
+         * Constructor.
+         *
+         * @param workQueue
+         *            the work queue to add child classpath elements to
+         */
         ChildClasspathElementScheduler(final WorkQueue<ClasspathEntryWorkUnit> workQueue) {
             this.workQueue = workQueue;
             alreadyScheduled.add(rawPath);

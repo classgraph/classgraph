@@ -93,6 +93,12 @@ public final class ClasspathExpander {
         /** The text to log when an entry with this origin is found. */
         private final String logMessage;
 
+        /**
+         * Constructor.
+         *
+         * @param logMessage
+         *            the text to log when an entry with this origin is found
+         */
         ChildEntryOrigin(final String logMessage) {
             this.logMessage = logMessage;
         }

@@ -538,6 +538,11 @@ final class VfsFileSystem extends FileSystem {
 
     /** The single, read-only file store of a {@link VfsFileSystem}. */
     private final class VfsFileStore extends FileStore {
+        /** Constructor. */
+        private VfsFileStore() {
+            // Empty
+        }
+
         @Override
         public String name() {
             return root.getPath();

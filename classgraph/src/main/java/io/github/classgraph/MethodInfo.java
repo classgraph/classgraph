@@ -592,6 +592,8 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
      * parameters the compiler added were added at the beginning of the parameter list, not the end. The padding
      * added at the beginning consists of null entries.
      *
+     * @param <T>
+     *            the element type of the {@code values} array
      * @param values
      *            the values, one per parameter, or null if this source of parameter metadata is not available.
      *            There are never more values than parameters.

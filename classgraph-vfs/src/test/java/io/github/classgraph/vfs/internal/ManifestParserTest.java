@@ -187,8 +187,8 @@ public class ManifestParserTest {
     // Reading a manifest from an InputStream
 
     /**
-     * An {@link InputStream} over a byte array that hands out at most a fixed number of bytes per read, and counts
-     * how many bytes were read from it in total.
+     * An {@link java.io.InputStream} over a byte array that hands out at most a fixed number of bytes per read, and
+     * counts how many bytes were read from it in total.
      */
     private static final class ChunkedInputStream extends ByteArrayInputStream {
         /** The maximum number of bytes to return from a single call to {@link #read(byte[], int, int)}. */
@@ -213,7 +213,7 @@ public class ManifestParserTest {
     }
 
     /**
-     * Parse a manifest written as text, reading it from an {@link InputStream} that hands out at most
+     * Parse a manifest written as text, reading it from an {@link java.io.InputStream} that hands out at most
      * {@code chunkSize} bytes per read.
      *
      * @param manifest

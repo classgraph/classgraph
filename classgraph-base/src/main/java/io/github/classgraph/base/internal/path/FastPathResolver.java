@@ -295,6 +295,11 @@ public final class FastPathResolver {
 
         /** The index of the first character after the prefix. */
         int startIdx;
+
+        /** Constructor. */
+        private ParsedPrefix() {
+            // Empty
+        }
     }
 
     /**
