@@ -428,8 +428,9 @@ public abstract sealed class ClasspathEntry {
 
     /**
      * A classpath element that a classloader named with a {@link URL}, or with a {@link URI} or {@link Path} that
-     * had a URL scheme. A URL scheme other than {@code "jar:"} or {@code "file:"} has to be one the {@link Vfs} was
-     * constructed with before {@link #open(Vfs)} will read it.
+     * had a URL scheme. A {@code "jar:"} or {@code "file:"} URL names something in the local filesystem; with any
+     * other scheme, {@link #open(Vfs)} reads it if the JVM has a handler for that scheme and the {@link Vfs} has
+     * not denied it.
      */
     public static final class OfURL extends ClasspathEntry {
         /** The URL. */
@@ -472,8 +473,8 @@ public abstract sealed class ClasspathEntry {
 
     /**
      * A classpath element that a classloader named with a {@link URI} that had no URL scheme this JVM can parse. A
-     * URI scheme other than {@code "jar:"} or {@code "file:"} has to be one the {@link Vfs} was constructed with
-     * before {@link #open(Vfs)} will read it.
+     * {@code "jar:"} or {@code "file:"} URI names something in the local filesystem; with any other scheme,
+     * {@link #open(Vfs)} reads it if the JVM has a handler for that scheme and the {@link Vfs} has not denied it.
      */
     public static final class OfURI extends ClasspathEntry {
         /** The URI. */

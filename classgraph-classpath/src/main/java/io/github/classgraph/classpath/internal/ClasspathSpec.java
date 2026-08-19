@@ -83,8 +83,10 @@ public class ClasspathSpec {
     public boolean enableSystemJarsAndModules;
 
     /**
-     * URL schemes that are allowed in classpath elements (not counting the optional "jar:" prefix and/or "file:",
-     * which are automatically allowed).
+     * URL schemes that may start a classpath element, so that a {@code ':'}-separated classpath string is not split
+     * at a scheme's own colon. This is a parsing aid, not a permission gate -- whether a jarfile may be fetched
+     * over a scheme is {@link io.github.classgraph.vfs.VfsSpec#disableURLScheme(String)}'s business. {@code "jar:"}
+     * and {@code "file:"} are recognized without being listed here.
      */
     public @Nullable Set<String> allowedURLSchemes;
 
@@ -192,7 +194,8 @@ public class ClasspathSpec {
     }
 
     /**
-     * Allow a specified URL scheme in classpath elements.
+     * Recognize a URL scheme at the start of a classpath element, so that a {@code ':'}-separated classpath string
+     * is not split at that scheme's own colon.
      *
      * @param scheme
      *            the scheme, e.g. "http". The scheme name only, without the trailing {@code ':'}.
