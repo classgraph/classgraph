@@ -168,8 +168,8 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
 
     /**
      * The automatic package root prefixes (e.g. {@code "BOOT-INF/classes/"}) to look for within this classpath
-     * element, as declared by the {@link nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandler} that
-     * found it. Child classpath elements inherit these, since they come from the same classloader.
+     * element, as declared by the {@code ClassLoaderHandler} that found it. Child classpath elements inherit
+     * these, since they come from the same classloader.
      */
     protected final String[] packageRootPrefixes;
 
