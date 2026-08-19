@@ -33,22 +33,29 @@ jobs:
     - name: Build with Maven
       run: ./mvnw --no-transfer-progress -B clean test
 
-  # Javadoc is checked once, rather than by all 30 matrix jobs, and under JDK 17, which is the JDK
-  # the release is built with. doclint is configured to fail the build on a warning, so this job
-  # goes red for a missing @param or a broken {@link}. "package" is what builds the Javadoc jars
-  # that the release publishes, so this checks the same Javadoc run that a release would; the
-  # modules have to be compiled first in any case, since Javadoc reads the module descriptors.
-  # javadoc:aggregate then covers all five modules in one run, which is the only place the
-  # cross-module links resolve, so it is what the documentation site should serve.
+  # Javadoc is checked here rather than by all 30 matrix jobs, under the oldest and the newest JDK
+  # the build supports. doclint is configured to fail the build on a warning, so this job goes red
+  # for a missing @param or a broken {@link}, and it needs both ends of the range because doclint
+  # gains checks as the JDK moves on: the same sources that draw no warning under one release can
+  # draw one under a later one, so a single JDK leaves the rest of the range unchecked. JDK 17 is
+  # also the JDK the release is built with. "package" is what builds the Javadoc jars that the
+  # release publishes, so this checks the same Javadoc run that a release would; the modules have
+  # to be compiled first in any case, since Javadoc reads the module descriptors. javadoc:aggregate
+  # then covers all five modules in one run, which is the only place the cross-module links
+  # resolve, so it is what the documentation site should serve.
   javadoc:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        java: [ '17', '26' ]
     steps:
     - uses: actions/checkout@v7
     - name: Set up JDK
       uses: actions/setup-java@v5
       with:
         distribution: 'zulu'
-        java-version: '17'
+        java-version: ${{ matrix.java }}
         cache: 'maven'
     - name: Check Javadoc
       run: ./mvnw --no-transfer-progress -B clean package -DskipTests javadoc:aggregate
