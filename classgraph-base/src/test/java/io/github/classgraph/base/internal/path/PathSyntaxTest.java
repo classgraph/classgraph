@@ -43,6 +43,58 @@ public class PathSyntaxTest {
     }
 
     /**
+     * The {@code "jar:"} URL scheme spells the separator {@code "!/"}, so a '!' with anything else after it is a
+     * filename character, even inside a jarfile's entry names.
+     */
+    // #903
+    @Test
+    public void aPlingNotFollowedBySlashIsNotASeparator(@TempDir final Path tempDir) throws IOException {
+        final var outerJar = Files.write(tempDir.resolve("outer.jar"), new byte[] { 'P', 'K' });
+        final var outerJarPath = outerJar.toString().replace(File.separatorChar, '/');
+
+        // "dir!name/x.txt" is one entry name within outer.jar, so the jarfile's own '!' is the only separator
+        final var entryInPlingDir = outerJarPath + "!/dir!name/x.txt";
+        assertThat(PathSyntax.indexOfNestedJarSeparator(entryInPlingDir)).isEqualTo(outerJarPath.length());
+        assertThat(PathSyntax.lastIndexOfNestedJarSeparator(entryInPlingDir)).isEqualTo(outerJarPath.length());
+        // ... so sanitizing such a path must not insert a '/' after that '!', which would name a different entry
+        assertThat(PathSyntax.sanitizeEntryPath(outerJarPath + "!/dir!name/./x.txt", false, false))
+                .isEqualTo(entryInPlingDir);
+
+        // The innermost separator is the last '!' that really is one, not simply the last '!' in the path
+        final var twoDeep = outerJarPath + "!/lib/inner.jar!/dir!name";
+        assertThat(PathSyntax.lastIndexOfNestedJarSeparator(twoDeep))
+                .isEqualTo(twoDeep.indexOf("inner.jar") + "inner.jar".length());
+
+        // A '!' at the end of a path is a separator: it is what a trailing "!/" is left as once
+        // FastPathResolver#stripTrailingSeparators has removed the '/'
+        assertThat(PathSyntax.indexOfNestedJarSeparator(outerJarPath + "!")).isEqualTo(outerJarPath.length());
+        assertThat(PathSyntax.lastIndexOfNestedJarSeparator(outerJarPath + "!")).isEqualTo(outerJarPath.length());
+    }
+
+    /**
+     * ClassGraph accepts the looser form its own API has always taken as well, where a bare '!' separates -- and
+     * then every '!' from the outermost one onwards is a separator.
+     */
+    // #903
+    @Test
+    public void aBareOutermostPlingMakesEveryLaterPlingASeparator(@TempDir final Path tempDir) throws IOException {
+        final var outerJar = Files.write(tempDir.resolve("outer.jar"), new byte[] { 'P', 'K' });
+        final var outerJarPath = outerJar.toString().replace(File.separatorChar, '/');
+
+        final var loose = outerJarPath + "!level2.jar!level3.jar!pkg";
+        assertThat(PathSyntax.indexOfNestedJarSeparator(loose)).isEqualTo(outerJarPath.length());
+        assertThat(PathSyntax.lastIndexOfNestedJarSeparator(loose)).isEqualTo(loose.lastIndexOf('!'));
+        // Such a path is rewritten into the form that the "jar:" URL scheme requires
+        assertThat(PathSyntax.toJarUrlSeparators(loose)).isEqualTo(outerJarPath + "!/level2.jar!/level3.jar!/pkg");
+
+        // A path already in that form keeps every '!' that belongs to an entry name
+        assertThat(PathSyntax.toJarUrlSeparators(outerJarPath + "!/dir!name/x.txt"))
+                .isEqualTo(outerJarPath + "!/dir!name/x.txt");
+        // ... and a trailing separator gets back the '/' that FastPathResolver stripped
+        assertThat(PathSyntax.toJarUrlSeparators(outerJarPath + "!")).isEqualTo(outerJarPath + "!/");
+    }
+
+    /**
      * The filesystem cannot be consulted for a remote URL, so the first '!' in one is taken to be the separator.
      */
     @Test

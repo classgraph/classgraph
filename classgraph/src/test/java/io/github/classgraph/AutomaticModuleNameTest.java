@@ -23,5 +23,8 @@ public class AutomaticModuleNameTest {
         assertThat(AutomaticModuleName.derive("/a/outer.jar!/BOOT-INF/lib/inner-1.0.jar")).isEqualTo("inner");
         // A package root within a jar is named after the jar that contains it, not after the package root
         assertThat(AutomaticModuleName.derive("/a/outer.jar!/BOOT-INF/classes")).isEqualTo("outer");
+        // A '!' that is not followed by '/' is part of a name, not a separator, so it ends neither (#903)
+        assertThat(AutomaticModuleName.derive("/a/outer.jar!/dir!name/classes")).isEqualTo("outer");
+        assertThat(AutomaticModuleName.derive("/a/outer.jar!/lib/we!rd-1.0.jar")).isEqualTo("we.rd");
     }
 }

@@ -277,15 +277,12 @@ public final class URLPaths {
 
         // A '!' is only a nested jar separator if it really separates a jarfile from a path within it -- it is an
         // ordinary filename character otherwise, and a path such as "/dir!bang/x.jar" must not be rewritten to
-        // "/dir!/bang/x.jar", which names a different file and cannot be opened. Everything before the outermost
-        // separator is left exactly as it is; from the separator onwards, every '!' is a separator, and each needs
-        // the '/' after it that the "jar:" URL scheme requires
+        // "/dir!/bang/x.jar", which names a different file and cannot be opened. Every separator that is one has to
+        // be spelled "!/" here, since that is what the "jar:" URL scheme requires
         // #903
-        final var nestedJarSepIdx = PathSyntax.indexOfNestedJarSeparator(urlPathNormalized);
-        final var hasNestedJarSeparator = nestedJarSepIdx >= 0;
+        final var hasNestedJarSeparator = PathSyntax.indexOfNestedJarSeparator(urlPathNormalized) >= 0;
         if (hasNestedJarSeparator) {
-            urlPathNormalized = urlPathNormalized.substring(0, nestedJarSepIdx) + urlPathNormalized
-                    .substring(nestedJarSepIdx).replace("/!", "!").replace("!/", "!").replace("!", "!/");
+            urlPathNormalized = PathSyntax.toJarUrlSeparators(urlPathNormalized);
         }
 
         urlPathNormalized = toFileURL(urlPathNormalized);

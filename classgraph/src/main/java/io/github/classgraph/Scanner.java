@@ -478,7 +478,11 @@ class Scanner implements Callable<ScanResult> {
             // otherwise a legal filename character, and must not be treated as a separator (#903)
             final var isMultiSection = PathSyntax.indexOfNestedJarSeparator(classpathEntStr) >= 0;
             if (isURL || isMultiSection) {
-                classpathEntryObjNormalized = normalizeUrlFormattedClasspathEntry(classpathEntStr, isURL,
+                // A "jar:" URL needs every separator spelled "!/". ClassGraph accepts a bare '!' as well, so put
+                // back any '/' that is missing before the string is turned into a URL -- but only after a '!' that
+                // really is a separator, since '!' is also a legal character in a file or entry name (#903)
+                classpathEntryObjNormalized = normalizeUrlFormattedClasspathEntry(
+                        isMultiSection ? PathSyntax.toJarUrlSeparators(classpathEntStr) : classpathEntStr, isURL,
                         isMultiSection);
             }
             // Last-ditch effort -- try to convert String to Path
@@ -543,9 +547,6 @@ class Scanner implements Callable<ScanResult> {
         if (isMultiSection) {
             // Multi-section URL strings that do not already have a URL scheme need to have the "jar:file:" scheme
             classpathEntStr = "jar:" + classpathEntStr;
-            // Also "jar:" URLs need at least one instance of "!/" -- if only "!" is used without a subsequent "/",
-            // replace it
-            classpathEntStr = classpathEntStr.replaceAll("!([^/])", "!/$1");
         }
         try {
             // Convert classpath entry to (or back to) a URL.

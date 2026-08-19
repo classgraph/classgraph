@@ -68,9 +68,11 @@ final class AutomaticModuleName {
      */
     static String derive(final String jarPath) {
         // If jar path does not end in a file extension (with ".jar" most likely), strip off everything after the
-        // last '!', in order to remove package root
+        // last nested jar separator, in order to remove package root. The path has already been resolved, so every
+        // separator in it is spelled "!/" -- a '!' with anything else after it belongs to a file or entry name
+        // (#903)
         var endIdx = jarPath.length();
-        final var lastPlingIdx = jarPath.lastIndexOf('!');
+        final var lastPlingIdx = jarPath.lastIndexOf("!/");
         if (lastPlingIdx > 0
                 // If there is no '.' after the last '/' (if any) after the last '!'
                 && jarPath.lastIndexOf('.') <= Math.max(lastPlingIdx, jarPath.lastIndexOf('/'))) {
@@ -78,7 +80,7 @@ final class AutomaticModuleName {
             endIdx = lastPlingIdx;
         }
         // Find the second to last '!' (or -1, if none)
-        final var secondToLastPlingIdx = endIdx == 0 ? -1 : jarPath.lastIndexOf("!", endIdx - 1);
+        final var secondToLastPlingIdx = endIdx == 0 ? -1 : jarPath.lastIndexOf("!/", endIdx - 1);
         // Find last '/' between the second to last and the last '!'
         final var startIdx = Math.max(secondToLastPlingIdx, jarPath.lastIndexOf('/', endIdx - 1)) + 1;
         // Find last '.' after that '/'

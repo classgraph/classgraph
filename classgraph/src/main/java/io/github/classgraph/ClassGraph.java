@@ -553,9 +553,9 @@ public class ClassGraph {
      * @param classpathElementFilter
      *            The filter to apply to the path string of each discovered classpath element. The path string is
      *            normalized so that the path separator is '/'. It will usually be a file path, but could be a URL,
-     *            or it could be a path for a nested jar, where the paths are separated using '!', in Java
-     *            convention. "jar:" and/or "file:" will have been stripped from the beginning, if they were present
-     *            in the classpath.
+     *            or it could be a path for a nested jar, where the jarfile is separated from the path within it by
+     *            "!/", as the "jar:" URL scheme requires. "jar:" and/or "file:" will have been stripped from the
+     *            beginning, if they were present in the classpath.
      * @return this (for method chaining).
      */
     public ClassGraph filterClasspathElements(final Predicate<String> classpathElementFilter) {

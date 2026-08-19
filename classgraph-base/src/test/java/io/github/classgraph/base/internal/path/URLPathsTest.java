@@ -97,6 +97,22 @@ public class URLPathsTest {
     }
 
     /**
+     * A '!' within a jarfile's entry names is not a separator either, so no '/' may be inserted after it.
+     */
+    // #903
+    @Test
+    public void bangInAJarEntryNameIsNotASeparator(@TempDir final Path tempDir) throws IOException {
+        final var jarPath = slashes(Files.createFile(tempDir.resolve("x.jar")));
+        final var jarUrl = URLPaths.normalizeURLPath(jarPath);
+        // "dir!name/x.txt" is one entry name within x.jar, so rewriting it to "dir!/name/x.txt" would name an
+        // entry that does not exist
+        assertThat(URLPaths.normalizeURLPath(jarPath + "!/dir!name/x.txt"))
+                .isEqualTo("jar:" + jarUrl + "!/dir!name/x.txt");
+        // A trailing separator names the whole of the jarfile, and needs the '/' that the scheme requires
+        assertThat(URLPaths.normalizeURLPath(jarPath + "!")).isEqualTo("jar:" + jarUrl + "!/");
+    }
+
+    /**
      * The path of a file, with the platform's separator turned into the '/' that URLs use.
      *
      * @param path
