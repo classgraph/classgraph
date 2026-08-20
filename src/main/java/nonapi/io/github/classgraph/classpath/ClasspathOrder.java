@@ -71,7 +71,7 @@ public class ClasspathOrder {
     private final List<ClasspathEntry> order = new ArrayList<>();
 
     /** Match URL schemes (must consist of at least two chars, otherwise this is Windows drive letter). */
-    private static final Pattern schemeMatcher = Pattern.compile("^[a-zA-Z][a-zA-Z+\\-.]+:");
+    private static final Pattern schemeMatcher = Pattern.compile("^[a-zA-Z][a-zA-Z0-9+\\-.]+:");
 
     /**
      * The package root prefixes of the {@code ClassLoaderHandler} whose {@code findClasspathOrder} method is

@@ -42,11 +42,18 @@ public class CustomURLScheme {
     /** URL scheme. */
     public static final String SCHEME = "customscheme";
 
+    /**
+     * A URL scheme with a digit in it, which RFC 3986 allows anywhere after the first character. Kept separate from
+     * {@link #SCHEME} so that tests can check that scheme recognition does not stop at the digit.
+     */
+    public static final String SCHEME_WITH_DIGIT = "customscheme9";
+
     /** Any URLs that were remapped. */
     public static Map<String, String> remappedURLs = new HashMap<>();
 
     static {
-        URL.setURLStreamHandlerFactory(protocol -> SCHEME.equals(protocol) ? new URLStreamHandler() {
+        URL.setURLStreamHandlerFactory(
+                protocol -> SCHEME.equals(protocol) || SCHEME_WITH_DIGIT.equals(protocol) ? new URLStreamHandler() {
             @Override
             protected URLConnection openConnection(final URL url) throws IOException {
                 // Record that the URL was remapped, so we know this custom URLStreamHandler was called
