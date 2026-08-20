@@ -123,7 +123,7 @@ To use one of these libraries:
 
 * Upgrade ClassGraph to the latest version
 * Either:
-  1. Add the [Narcissus](https://github.com/toolfactory/narcissus) library to your project as an extra dependency (this includes a native library, and only Linux x86/x64, Windows x86/x64, and Mac OS X x64 are currently supported -- feel free to contribute native code builds for other platforms or architectures).
+  1. Add the [Narcissus](https://github.com/toolfactory/narcissus) library to your project as an extra dependency (this includes a native library, and only Linux x64, Windows x64, macOS x64 and macOS arm64 are currently supported -- feel free to contribute native code builds for other platforms or architectures).
   2. Set `ClassGraph.CIRCUMVENT_ENCAPSULATION = CircumventEncapsulationMethod.NARCISSUS;` before interacting with ClassGraph in any other way (this will load the Narcissus library as ClassGraph's reflection driver).
 * Or:
   1. Add the [JVM-Driver](https://github.com/toolfactory/jvm-driver) library to your project as an extra dependency (this uses only Java code and works to bypass encapsulation without native code for all JDK versions between 8 and 18).
