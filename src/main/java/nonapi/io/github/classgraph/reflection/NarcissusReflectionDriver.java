@@ -132,32 +132,32 @@ class NarcissusReflectionDriver extends ReflectionDriver {
     }
 
     @Override
-    Object getField(final Object object, final Field field) throws Exception {
+    Object getFieldImpl(final Object object, final Field field) throws Exception {
         return getField.invoke(null, object, field);
     }
 
     @Override
-    void setField(final Object object, final Field field, final Object value) throws Exception {
+    void setFieldImpl(final Object object, final Field field, final Object value) throws Exception {
         setField.invoke(null, object, field, value);
     }
 
     @Override
-    Object getStaticField(final Field field) throws Exception {
+    Object getStaticFieldImpl(final Field field) throws Exception {
         return getStaticField.invoke(null, field);
     }
 
     @Override
-    void setStaticField(final Field field, final Object value) throws Exception {
+    void setStaticFieldImpl(final Field field, final Object value) throws Exception {
         setStaticField.invoke(null, field, value);
     }
 
     @Override
-    Object invokeMethod(final Object object, final Method method, final Object... args) throws Exception {
+    Object invokeMethodImpl(final Object object, final Method method, final Object... args) throws Exception {
         return invokeMethod.invoke(null, object, method, args);
     }
 
     @Override
-    Object invokeStaticMethod(final Method method, final Object... args) throws Exception {
+    Object invokeStaticMethodImpl(final Method method, final Object... args) throws Exception {
         return invokeStaticMethod.invoke(null, method, args);
     }
 }

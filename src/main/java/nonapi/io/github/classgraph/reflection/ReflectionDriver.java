@@ -31,7 +31,9 @@ package nonapi.io.github.classgraph.reflection;
 import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.lang.reflect.Member;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -222,7 +224,66 @@ abstract class ReflectionDriver {
     abstract Field[] getDeclaredFields(Class<?> cls) throws Exception;
 
     /**
+     * Check that a field or method is not static, so that it can be passed to an operation that needs an object
+     * instance to act on.
+     *
+     * @param member
+     *            the field or method
+     * @param alternative
+     *            the name of the operation the caller should have used instead
+     * @throws IllegalArgumentException
+     *             if the member is static
+     */
+    private static void checkNotStatic(final Member member, final String alternative)
+            throws IllegalArgumentException {
+        if (Modifier.isStatic(member.getModifiers())) {
+            throw new IllegalArgumentException(member + " is static -- call " + alternative + " instead");
+        }
+    }
+
+    /**
+     * Check that a field or method is static, so that it can be passed to an operation that acts on a class rather
+     * than on an object instance.
+     *
+     * @param member
+     *            the field or method
+     * @param alternative
+     *            the name of the operation the caller should have used instead
+     * @throws IllegalArgumentException
+     *             if the member is not static
+     */
+    private static void checkStatic(final Member member, final String alternative) throws IllegalArgumentException {
+        if (!Modifier.isStatic(member.getModifiers())) {
+            throw new IllegalArgumentException(member + " is not static -- call " + alternative + " instead");
+        }
+    }
+
+    /**
      * Get the value of a non-static field, boxing the value if necessary.
+     *
+     * <p>
+     * The six member-access operations are final, and check that the field or method they are passed is of the
+     * kind they act on before handing it to the driver, so that every driver rejects a mismatched member in the
+     * same way. Without the check the drivers disagree: JNI rejects a static member passed to a non-static
+     * operation, whereas {@link Method#invoke(Object, Object...)} silently ignores the receiver.
+     *
+     * @param object
+     *            the object instance to get the field value from
+     * @param field
+     *            the non-static field
+     * @return the value of the field
+     * @throws IllegalArgumentException
+     *             if the field is static
+     * @throws Exception
+     *             if the field could not be read
+     */
+    final Object getField(final Object object, final Field field) throws Exception {
+        checkNotStatic(field, "getStaticField()");
+        return getFieldImpl(object, field);
+    }
+
+    /**
+     * Get the value of a non-static field that has already been checked not to be static.
      *
      * @param object
      *            the object instance to get the field value from
@@ -232,7 +293,7 @@ abstract class ReflectionDriver {
      * @throws Exception
      *             if the field could not be read
      */
-    abstract Object getField(final Object object, final Field field) throws Exception;
+    abstract Object getFieldImpl(final Object object, final Field field) throws Exception;
 
     /**
      * Set the value of a non-static field, unboxing the value if necessary.
@@ -246,7 +307,24 @@ abstract class ReflectionDriver {
      * @throws Exception
      *             if the field could not be written
      */
-    abstract void setField(final Object object, final Field field, Object value) throws Exception;
+    final void setField(final Object object, final Field field, final Object value) throws Exception {
+        checkNotStatic(field, "setStaticField()");
+        setFieldImpl(object, field, value);
+    }
+
+    /**
+     * Set the value of a non-static field that has already been checked not to be static.
+     *
+     * @param object
+     *            the object instance to set the field value on
+     * @param field
+     *            the non-static field
+     * @param value
+     *            the value to set
+     * @throws Exception
+     *             if the field could not be written
+     */
+    abstract void setFieldImpl(final Object object, final Field field, Object value) throws Exception;
 
     /**
      * Get the value of a static field, boxing the value if necessary.
@@ -257,7 +335,21 @@ abstract class ReflectionDriver {
      * @throws Exception
      *             if the field could not be read
      */
-    abstract Object getStaticField(final Field field) throws Exception;
+    final Object getStaticField(final Field field) throws Exception {
+        checkStatic(field, "getField()");
+        return getStaticFieldImpl(field);
+    }
+
+    /**
+     * Get the value of a static field that has already been checked to be static.
+     *
+     * @param field
+     *            the static field
+     * @return the static field
+     * @throws Exception
+     *             if the field could not be read
+     */
+    abstract Object getStaticFieldImpl(final Field field) throws Exception;
 
     /**
      * Set the value of a static field, unboxing the value if necessary.
@@ -269,7 +361,22 @@ abstract class ReflectionDriver {
      * @throws Exception
      *             if the field could not be written
      */
-    abstract void setStaticField(final Field field, Object value) throws Exception;
+    final void setStaticField(final Field field, final Object value) throws Exception {
+        checkStatic(field, "setField()");
+        setStaticFieldImpl(field, value);
+    }
+
+    /**
+     * Set the value of a static field that has already been checked to be static.
+     *
+     * @param field
+     *            the static field
+     * @param value
+     *            the value to set
+     * @throws Exception
+     *             if the field could not be written
+     */
+    abstract void setStaticFieldImpl(final Field field, Object value) throws Exception;
 
     /**
      * Invoke a non-static method, boxing the result if necessary.
@@ -284,7 +391,26 @@ abstract class ReflectionDriver {
      * @throws Exception
      *             if the method could not be invoked, or if it threw
      */
-    abstract Object invokeMethod(final Object object, final Method method, final Object... args) throws Exception;
+    final Object invokeMethod(final Object object, final Method method, final Object... args) throws Exception {
+        checkNotStatic(method, "invokeStaticMethod()");
+        return invokeMethodImpl(object, method, args);
+    }
+
+    /**
+     * Invoke a non-static method that has already been checked not to be static.
+     *
+     * @param object
+     *            the object instance to invoke the method on
+     * @param method
+     *            the non-static method
+     * @param args
+     *            the method arguments (or {@code new Object[0]} if there are no args)
+     * @return the return value (possibly a boxed value)
+     * @throws Exception
+     *             if the method could not be invoked, or if it threw
+     */
+    abstract Object invokeMethodImpl(final Object object, final Method method, final Object... args)
+            throws Exception;
 
     /**
      * Invoke a static method, boxing the result if necessary.
@@ -297,7 +423,23 @@ abstract class ReflectionDriver {
      * @throws Exception
      *             if the method could not be invoked, or if it threw
      */
-    abstract Object invokeStaticMethod(final Method method, final Object... args) throws Exception;
+    final Object invokeStaticMethod(final Method method, final Object... args) throws Exception {
+        checkStatic(method, "invokeMethod()");
+        return invokeStaticMethodImpl(method, args);
+    }
+
+    /**
+     * Invoke a static method that has already been checked to be static.
+     *
+     * @param method
+     *            the static method
+     * @param args
+     *            the method arguments (or {@code new Object[0]} if there are no args)
+     * @return the return value (possibly a boxed value)
+     * @throws Exception
+     *             if the method could not be invoked, or if it threw
+     */
+    abstract Object invokeStaticMethodImpl(final Method method, final Object... args) throws Exception;
 
     /**
      * Make a field or method accessible.
@@ -310,6 +452,21 @@ abstract class ReflectionDriver {
      * @return true if successful.
      */
     abstract boolean makeAccessible(final Object instance, final AccessibleObject fieldOrMethod);
+
+    /**
+     * Get the instance to check accessibility against for a given field or method: the object instance for a
+     * non-static member, or null for a static member, since {@code AccessibleObject#canAccess(Object)} requires
+     * null for a static member and throws {@link IllegalArgumentException} if it is passed an object instance.
+     * 
+     * @param member
+     *            the field or method.
+     * @param obj
+     *            the object instance, or null.
+     * @return the instance to check accessibility against.
+     */
+    private static Object accessInstance(final Member member, final Object obj) {
+        return Modifier.isStatic(member.getModifiers()) ? null : obj;
+    }
 
     /**
      * Check whether a field or method is accessible.
@@ -345,12 +502,13 @@ abstract class ReflectionDriver {
     }
 
     /**
-     * Get the field of the class that has a given field name.
+     * Get the field of the class that has a given field name, whether static or not.
      * 
      * @param cls
      *            the class.
      * @param obj
-     *            the object instance, or null for a static field.
+     *            the object instance, or null if there is none. This is only used to check accessibility, and is
+     *            ignored if the field turns out to be static.
      * @param fieldName
      *            The name of the field.
      * @return The {@link Field} object for the requested field name (never null).
@@ -360,10 +518,11 @@ abstract class ReflectionDriver {
     protected Field findField(final Class<?> cls, final Object obj, final String fieldName) throws Exception {
         final Field field = classToClassMemberCache.get(cls, /* log = */ null).fieldNameToField.get(fieldName);
         if (field != null) {
-            if (!isAccessible(obj, field)) {
+            final Object accessInstance = accessInstance(field, obj);
+            if (!isAccessible(accessInstance, field)) {
                 // If field was found but is not accessible, try making it accessible and then returning it
                 // (may result in a reflective access warning on stderr)
-                makeAccessible(obj, field);
+                makeAccessible(accessInstance, field);
             }
             return field;
         }
@@ -379,37 +538,24 @@ abstract class ReflectionDriver {
      *            The name of the field.
      * @return The {@link Field} object for the requested field name (never null).
      * @throws Exception
-     *             if the field could not be found
+     *             if the field could not be found, or is not static
      */
     protected Field findStaticField(final Class<?> cls, final String fieldName) throws Exception {
-        return findField(cls, null, fieldName);
-    }
-
-    /**
-     * Get the non-static field of the class that has a given field name.
-     * 
-     * @param obj
-     *            the object instance, or null for a static field.
-     * @param fieldName
-     *            The name of the field.
-     * @return The {@link Field} object for the requested field name (never null).
-     * @throws Exception
-     *             if the field could not be found
-     */
-    protected Field findInstanceField(final Object obj, final String fieldName) throws Exception {
-        if (obj == null) {
-            throw new IllegalArgumentException("obj cannot be null");
+        final Field field = findField(cls, null, fieldName);
+        if (!Modifier.isStatic(field.getModifiers())) {
+            throw new NoSuchFieldException("Field " + cls.getName() + "." + fieldName + " is not static");
         }
-        return findField(obj.getClass(), obj, fieldName);
+        return field;
     }
 
     /**
-     * Get a method by name and parameter types.
+     * Get a method by name and parameter types, whether static or not.
      * 
      * @param cls
      *            the class.
      * @param obj
-     *            the object instance, or null for a static method.
+     *            the object instance, or null if there is none. This is only used to check accessibility, and is
+     *            ignored if the method turns out to be static.
      * @param methodName
      *            The name of the method.
      * @param paramTypes
@@ -428,7 +574,7 @@ abstract class ReflectionDriver {
             for (final Method method : methodsForName) {
                 if (Arrays.equals(method.getParameterTypes(), paramTypes)) {
                     found = true;
-                    if (isAccessible(obj, method)) {
+                    if (isAccessible(accessInstance(method, obj), method)) {
                         return method;
                     }
                 }
@@ -437,7 +583,8 @@ abstract class ReflectionDriver {
             // (may result in a reflective access warning on stderr)
             if (found) {
                 for (final Method method : methodsForName) {
-                    if (Arrays.equals(method.getParameterTypes(), paramTypes) && makeAccessible(obj, method)) {
+                    if (Arrays.equals(method.getParameterTypes(), paramTypes)
+                            && makeAccessible(accessInstance(method, obj), method)) {
                         return method;
                     }
                 }
@@ -459,31 +606,14 @@ abstract class ReflectionDriver {
      *            The types of the parameters of the method. For primitive-typed parameters, use e.g. Integer.TYPE.
      * @return The {@link Method} object for the matching method (never null).
      * @throws Exception
-     *             if the method could not be found, or could not be made accessible.
+     *             if the method could not be found, could not be made accessible, or is not static.
      */
     protected Method findStaticMethod(final Class<?> cls, final String methodName, final Class<?>... paramTypes)
             throws Exception {
-        return findMethod(cls, null, methodName, paramTypes);
-    }
-
-    /**
-     * Get a non-static method by name and parameter types.
-     * 
-     * @param obj
-     *            the object instance, or null for a static method.
-     * @param methodName
-     *            The name of the method.
-     * @param paramTypes
-     *            The types of the parameters of the method. For primitive-typed parameters, use e.g. Integer.TYPE.
-     * @return The {@link Method} object for the matching method (never null).
-     * @throws Exception
-     *             if the method could not be found, or could not be made accessible.
-     */
-    protected Method findInstanceMethod(final Object obj, final String methodName, final Class<?>... paramTypes)
-            throws Exception {
-        if (obj == null) {
-            throw new IllegalArgumentException("obj cannot be null");
+        final Method method = findMethod(cls, null, methodName, paramTypes);
+        if (!Modifier.isStatic(method.getModifiers())) {
+            throw new NoSuchMethodException("Method " + cls.getName() + "." + methodName + " is not static");
         }
-        return findMethod(obj.getClass(), obj, methodName, paramTypes);
+        return method;
     }
 }

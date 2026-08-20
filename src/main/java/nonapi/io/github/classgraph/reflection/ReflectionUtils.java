@@ -31,6 +31,7 @@ package nonapi.io.github.classgraph.reflection;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.lang.reflect.Proxy;
 import java.util.concurrent.Callable;
 
@@ -73,6 +74,47 @@ public final class ReflectionUtils {
     }
 
     /**
+     * Read a field, whether static or not.
+     * 
+     * <p>
+     * The methods that take an object rather than a class are deliberately indifferent to whether the member they
+     * find is static: {@code FallbackClassLoaderHandler} probes an unrecognized classloader for around forty
+     * speculative field and method names, and cannot know which of them a given classloader implements as a static
+     * member.
+     * 
+     * @param obj
+     *            the object to read the field from, if the field is not static.
+     * @param field
+     *            the field.
+     * @return the field value.
+     * @throws Exception
+     *             if the field could not be read.
+     */
+    private Object read(final Object obj, final Field field) throws Exception {
+        return Modifier.isStatic(field.getModifiers()) ? reflectionDriver.getStaticField(field)
+                : reflectionDriver.getField(obj, field);
+    }
+
+    /**
+     * Invoke a method, whether static or not. See {@link #read(Object, Field)} for why this is indifferent to
+     * whether the method is static.
+     * 
+     * @param obj
+     *            the object to invoke the method on, if the method is not static.
+     * @param method
+     *            the method.
+     * @param args
+     *            the method arguments.
+     * @return the return value of the method.
+     * @throws Exception
+     *             if the method could not be invoked, or if it threw.
+     */
+    private Object invoke(final Object obj, final Method method, final Object... args) throws Exception {
+        return Modifier.isStatic(method.getModifiers()) ? reflectionDriver.invokeStaticMethod(method, args)
+                : reflectionDriver.invokeMethod(obj, method, args);
+    }
+
+    /**
      * Get the value of the field in the class of the given object or any of its superclasses. If an exception is
      * thrown while trying to read the field, and throwException is true, then IllegalArgumentException is thrown
      * wrapping the cause, otherwise this will return null. If passed a null object, returns null unless
@@ -102,7 +144,7 @@ public final class ReflectionUtils {
             }
         }
         try {
-            return reflectionDriver.getField(obj, field);
+            return read(obj, field);
         } catch (final Throwable e) {
             if (throwException) {
                 throw new IllegalArgumentException(
@@ -142,7 +184,7 @@ public final class ReflectionUtils {
             }
         }
         try {
-            return reflectionDriver.getField(obj, reflectionDriver.findInstanceField(obj, fieldName));
+            return read(obj, reflectionDriver.findField(obj.getClass(), obj, fieldName));
         } catch (final Throwable e) {
             if (throwException) {
                 throw new IllegalArgumentException("Can't read field " + obj.getClass().getName() + "." + fieldName,
@@ -221,7 +263,7 @@ public final class ReflectionUtils {
             }
         }
         try {
-            return reflectionDriver.invokeMethod(obj, reflectionDriver.findInstanceMethod(obj, methodName));
+            return invoke(obj, reflectionDriver.findMethod(obj.getClass(), obj, methodName));
         } catch (final Throwable e) {
             if (throwException) {
                 throw new IllegalArgumentException("Method \"" + methodName + "\" could not be invoked", e);
@@ -264,8 +306,7 @@ public final class ReflectionUtils {
             }
         }
         try {
-            return reflectionDriver.invokeMethod(obj, reflectionDriver.findInstanceMethod(obj, methodName, argType),
-                    param);
+            return invoke(obj, reflectionDriver.findMethod(obj.getClass(), obj, methodName, argType), param);
         } catch (final Throwable e) {
             if (throwException) {
                 throw new IllegalArgumentException("Method \"" + methodName + "\" could not be invoked", e);
@@ -309,8 +350,7 @@ public final class ReflectionUtils {
             }
         }
         try {
-            return reflectionDriver.invokeMethod(obj, reflectionDriver.findInstanceMethod(obj, methodName, argTypes),
-                    params);
+            return invoke(obj, reflectionDriver.findMethod(obj.getClass(), obj, methodName, argTypes), params);
         } catch (final Throwable e) {
             if (throwException) {
                 throw new IllegalArgumentException("Method \"" + methodName + "\" could not be invoked", e);

@@ -209,37 +209,37 @@ class StandardReflectionDriver extends ReflectionDriver {
     }
 
     @Override
-    Object getField(final Object object, final Field field) throws Exception {
+    Object getFieldImpl(final Object object, final Field field) throws Exception {
         makeAccessible(object, field);
         return field.get(object);
     }
 
     @Override
-    void setField(final Object object, final Field field, final Object value) throws Exception {
+    void setFieldImpl(final Object object, final Field field, final Object value) throws Exception {
         makeAccessible(object, field);
         field.set(object, value);
     }
 
     @Override
-    Object getStaticField(final Field field) throws Exception {
+    Object getStaticFieldImpl(final Field field) throws Exception {
         makeAccessible(null, field);
         return field.get(null);
     }
 
     @Override
-    void setStaticField(final Field field, final Object value) throws Exception {
+    void setStaticFieldImpl(final Field field, final Object value) throws Exception {
         makeAccessible(null, field);
         field.set(null, value);
     }
 
     @Override
-    Object invokeMethod(final Object object, final Method method, final Object... args) throws Exception {
+    Object invokeMethodImpl(final Object object, final Method method, final Object... args) throws Exception {
         makeAccessible(object, method);
         return method.invoke(object, args);
     }
 
     @Override
-    Object invokeStaticMethod(final Method method, final Object... args) throws Exception {
+    Object invokeStaticMethodImpl(final Method method, final Object... args) throws Exception {
         makeAccessible(null, method);
         return method.invoke(null, args);
     }
