@@ -1313,7 +1313,8 @@ public class NestedJarHandler {
         // threads racing here resolve the same method, so whichever write lands last is equivalent.
         Method runFinalizationMethodCached = runFinalizationMethod;
         if (runFinalizationMethodCached == null) {
-            runFinalizationMethodCached = reflectionUtils.staticMethodForNameOrNull("System", "runFinalization");
+            runFinalizationMethodCached = reflectionUtils.staticMethodForNameOrNull("java.lang.System",
+                    "runFinalization");
             runFinalizationMethod = runFinalizationMethodCached;
         }
         if (runFinalizationMethodCached != null) {
