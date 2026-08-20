@@ -80,7 +80,7 @@ public class DeclaredVsNonDeclaredTest {
      * @param ignoreVisibility
      *            whether or not to ignore method and field visibility
      */
-    private void compareResults(final ClassInfo superClassInfo, final ClassInfo subClassInfo,
+    private static void compareResults(final ClassInfo superClassInfo, final ClassInfo subClassInfo,
             final boolean ignoreVisibility) {
         final Predicate<String> filterOutClassMethods = name -> !"wait".equals(name) && !"equals".equals(name)
                 && !"toString".equals(name) && !"hashCode".equals(name) && !"getClass".equals(name)

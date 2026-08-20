@@ -83,6 +83,9 @@ public class MethodInfoTest {
      *            the varargs
      * @return the int
      */
+    // Has to stay an instance method: the tests assert on the exact rendering of this method's signature,
+    // which would gain a "static" modifier.
+    @SuppressWarnings("static-method")
     @ExternalAnnotation
     public final int publicMethodWithArgs(final String str, final char c, final long j, final float[] f,
             final byte[][] b, final List<Float> l, final X[][][] xArray, final String[]... varargs) {

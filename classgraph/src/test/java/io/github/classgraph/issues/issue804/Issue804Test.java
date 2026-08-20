@@ -44,8 +44,8 @@ public class Issue804Test {
         }
     }
 
-    private Path createSpringBootJarInExampleDirectory(final Path temporaryDirectory, final String directoryName)
-            throws IOException {
+    private static Path createSpringBootJarInExampleDirectory(final Path temporaryDirectory,
+            final String directoryName) throws IOException {
         final var directoryWithSpaces = temporaryDirectory.resolve(directoryName);
         Files.createDirectories(directoryWithSpaces);
         final var nestedJar = directoryWithSpaces.resolve("spring-boot-fully-executable-jar.jar");
@@ -56,7 +56,7 @@ public class Issue804Test {
         return nestedJar;
     }
 
-    private ScanResult scanJar(final Path targetJar) {
+    private static ScanResult scanJar(final Path targetJar) {
         return new ClassGraph().enableClassInfo().overrideClasspath(targetJar.toUri()).scan();
     }
 

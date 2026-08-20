@@ -329,7 +329,7 @@ class Scanner implements Callable<ScanResult> {
      *            the toplevel classpath elts, indexed by order within the toplevel classpath
      * @return the final classpath order, after depth-first traversal of child classpath elements
      */
-    private List<ClasspathElement> findClasspathOrder(final Set<ClasspathElement> toplevelClasspathElts) {
+    private static List<ClasspathElement> findClasspathOrder(final Set<ClasspathElement> toplevelClasspathElts) {
         // Sort toplevel classpath elements into their correct order
         final var toplevelClasspathEltsSorted = CollectionUtils.sortCopy(toplevelClasspathElts);
 
@@ -874,7 +874,7 @@ class Scanner implements Callable<ScanResult> {
      * @param log
      *            the log node, or null to skip logging
      */
-    private void findNestedClasspathElements(final List<SimpleEntry<String, ClasspathElement>> classpathElts,
+    private static void findNestedClasspathElements(final List<SimpleEntry<String, ClasspathElement>> classpathElts,
             final @Nullable LogNode log) {
         // Sort classpath elements into lexicographic order
         CollectionUtils.sortIfNotEmpty(classpathElts,
@@ -1011,7 +1011,7 @@ class Scanner implements Callable<ScanResult> {
      * @param maskLog
      *            the mask log
      */
-    private void maskClassfiles(final List<ClasspathElement> classpathElementOrder,
+    private static void maskClassfiles(final List<ClasspathElement> classpathElementOrder,
             final @Nullable LogNode maskLog) {
         final Set<String> acceptedClasspathRelativePathsFound = new HashSet<>();
         for (var classpathIdx = 0; classpathIdx < classpathElementOrder.size(); classpathIdx++) {

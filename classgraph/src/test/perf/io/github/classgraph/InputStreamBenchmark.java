@@ -151,7 +151,7 @@ public class InputStreamBenchmark {
      * @throws IOException
      *             Signals that an I/O exception has occurred.
      */
-    private void consume(final InputStream is, final Blackhole blackhole) throws IOException {
+    private static void consume(final InputStream is, final Blackhole blackhole) throws IOException {
         final var buffer = new byte[4096];
 
         while (is.read(buffer) != -1) {

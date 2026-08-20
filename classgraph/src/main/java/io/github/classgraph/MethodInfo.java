@@ -270,7 +270,7 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
      *            the number of implicit prefix parameters to strip while decorating (0 for none).
      */
     // #897
-    private void decorateMethodType(final MethodTypeSignature methodType,
+    private static void decorateMethodType(final MethodTypeSignature methodType,
             final List<MethodTypeAnnotationDecorator> decorators, final int numImplicitPrefixParams) {
         final var paramSigs = methodType.getParameterTypeSignatures();
         // Take a copy of the implicit prefix params before removing them -- do not use the live view returned by

@@ -10,8 +10,10 @@ import org.junit.jupiter.api.Test;
 /** Tests for {@link ReflectionUtils}. */
 public class ReflectionUtilsTest {
     /** A superclass, so that the tests can check that inherited members are found. */
-    // The members of this class are read and invoked reflectively, by name, so the compiler cannot see them used
-    @SuppressWarnings("unused")
+    // The members of this class are read and invoked reflectively, by name, so the compiler cannot see them
+    // used, and its instance methods have to stay instance methods for the tests to have anything to invoke
+    // on an object.
+    @SuppressWarnings({ "unused", "static-method" })
     private static class Base {
         /** A private field of the superclass. */
         private final String baseField = "base field";
@@ -27,8 +29,10 @@ public class ReflectionUtilsTest {
     }
 
     /** A class whose private members the tests read and invoke. */
-    // The members of this class are read and invoked reflectively, by name, so the compiler cannot see them used
-    @SuppressWarnings("unused")
+    // The members of this class are read and invoked reflectively, by name, so the compiler cannot see them
+    // used, and its instance methods have to stay instance methods for the tests to have anything to invoke
+    // on an object.
+    @SuppressWarnings({ "unused", "static-method" })
     private static class Sub extends Base {
         /** A private static field. */
         private static final String STATIC_FIELD = "static field";

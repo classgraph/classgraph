@@ -710,7 +710,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      *            the log node to write to
      * @return the new {@link LogNode}
      */
-    protected LogNode log(final int classpathElementIdx, final String msg, final LogNode log) {
+    protected static LogNode log(final int classpathElementIdx, final String msg, final LogNode log) {
         return log.log(String.format(Locale.US, "%07d", classpathElementIdx), msg);
     }
 
@@ -727,7 +727,8 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      *            the log node to write to
      * @return the new {@link LogNode}
      */
-    protected LogNode log(final int classpathElementIdx, final String msg, final Throwable t, final LogNode log) {
+    protected static LogNode log(final int classpathElementIdx, final String msg, final Throwable t,
+            final LogNode log) {
         return log.log(String.format(Locale.US, "%07d", classpathElementIdx), msg, t);
     }
 

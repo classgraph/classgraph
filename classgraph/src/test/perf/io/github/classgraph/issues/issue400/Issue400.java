@@ -25,7 +25,7 @@ public class Issue400 {
      * @see <a href="https://stackoverflow.com/a/42567450/253468">What are Runtime.getRuntime().totalMemory() and
      *      freeMemory()?</a>
      */
-    private long usedRam() {
+    private static long usedRam() {
         final var runtime = Runtime.getRuntime();
         runtime.gc();
         System.runFinalization();
@@ -43,7 +43,7 @@ public class Issue400 {
      *            the jar URLs.
      */
     @SuppressWarnings("null")
-    private void loadsJarWithManyNestedEntriesAndDoesNotUseMuchMemory(final URL... jars) {
+    private static void loadsJarWithManyNestedEntriesAndDoesNotUseMuchMemory(final URL... jars) {
         final var ramAtStart = usedRam();
         long ramAfterScan;
         try (var scanResult = new ClassGraph().overrideClassLoaders(new URLClassLoader(jars))

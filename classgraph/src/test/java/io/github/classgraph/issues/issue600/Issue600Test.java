@@ -50,7 +50,7 @@ class Issue600Test {
         }
     }
 
-    private void assertOpenCloseResources(final ResourceList resources) {
+    private static void assertOpenCloseResources(final ResourceList resources) {
         for (final Resource resource : resources) {
             assertDoesNotThrow((Executable) () -> {
                 try (var input = resource.open()) {
@@ -60,7 +60,7 @@ class Issue600Test {
         }
     }
 
-    private int consume(final InputStream input) throws IOException {
+    private static int consume(final InputStream input) throws IOException {
         final var buffer = new byte[BUFFER_SIZE];
         var totalBytes = 0;
         int bytesRead;
@@ -70,7 +70,7 @@ class Issue600Test {
         return totalBytes;
     }
 
-    private void assertReadCloseResources(final ResourceList resources) {
+    private static void assertReadCloseResources(final ResourceList resources) {
         for (final Resource resource : resources) {
             assertDoesNotThrow((Executable) () -> {
                 final var buffer = resource.read().getByteBuffer();

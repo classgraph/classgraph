@@ -215,7 +215,7 @@ public final class LogNode implements ClassGraphLog {
      * @param buf
      *            the buffer to append to
      */
-    private void appendLine(final String timeStampStr, final int indentLevel, final String line,
+    private static void appendLine(final String timeStampStr, final int indentLevel, final String line,
             final StringBuilder buf) {
         buf.append(timeStampStr);
         buf.append('\t');

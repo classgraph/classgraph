@@ -177,10 +177,16 @@ org.eclipse.jdt.core.compiler.problem.unnecessaryElse=ignore
 # is a measurement question, not something a compiler warning can settle.
 org.eclipse.jdt.core.compiler.problem.autoboxing=ignore
 
-# Whether a private method could be static is not worth 1,181 warnings, and several of the methods it names
-# have to stay instance methods because a test invokes them reflectively.
+# A private or final method that never touches "this" is reported by reportMethodCanBeStatic, and there are
+# few enough of those to keep at zero: the six that are left have to stay instance methods, and say so with
+# @SuppressWarnings("static-method").
+org.eclipse.jdt.core.compiler.problem.reportMethodCanBeStatic=warning
+
+# reportMethodCanBePotentiallyStatic extends the same question to methods a subclass could override, which
+# makes it 1,324 warnings rather than a handful: almost all of them are JUnit test methods, which cannot be
+# static at all, and the rest are base-class methods that exist to be overridden. Turning a method static to
+# silence this one would also stop a subclass overriding it, so it is the wrong question to ask by default.
 org.eclipse.jdt.core.compiler.problem.reportMethodCanBePotentiallyStatic=ignore
-org.eclipse.jdt.core.compiler.problem.reportMethodCanBeStatic=ignore
 
 # A private member reached from a nested class needed a synthetic accessor method before Java 11. Since then
 # nestmates can reach each other directly, so there is nothing left to warn about.
