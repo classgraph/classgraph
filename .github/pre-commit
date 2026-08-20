@@ -1,20 +1,75 @@
 #!/bin/bash
- 
-# Save the file as <git_directory>/.git/hooks/pre-commit and chmod +x
+#
+# Git pre-commit hook: normalize the formatting of the sources about to be committed, then run
+# the tests.
+#
+# Install it with:
+#     ln -s ../../.github/pre-commit .git/hooks/pre-commit
+# A symlink keeps the installed hook in step with this file. Copying it works too, but then it
+# has to be copied again every time this file changes.
 
-CWD=`pwd`
-MAIN_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-ECLIPSE=/opt/eclipse/eclipse
+set -u
 
-# Go to main project dir
-cd $MAIN_DIR/../../
+# Run from the top of the working tree, whatever directory git invoked the hook from. Asking git
+# is what makes this independent of where the hook was installed; computing the path relative to
+# the script only worked while the hook sat in .git/hooks.
+TOP=$(git rev-parse --show-toplevel) || exit 1
+cd "$TOP" || exit 1
 
-# Run maven test
-MVN_RESULT=$(mvn test 2>&1)
-if [ $? -ne 0 ]; then
-  >&2 echo "Unit test failure"
-  cd $CWD
-  exit 1
+# The Java sources this commit is about to record.
+STAGED=$(git diff --cached --name-only --diff-filter=ACM -- '*.java')
+
+# Normalize them. The formatter works over whole source roots rather than a file list, so this
+# covers the tree; anything it rewrites that was not staged simply stays unstaged. The v4 branch
+# has no formatter plugin and one installed hook serves every worktree, so check for the plugin
+# rather than failing there.
+if [ -n "$STAGED" ] && grep -q formatter-maven-plugin pom.xml; then
+
+    # The formatter rewrites whole files, so re-staging a file that was only partly staged would
+    # also commit the part that was deliberately left out. Stop rather than do that. This check
+    # belongs here and not above it: with no formatter to run, a partly staged file is fine.
+    PARTIAL=
+    while IFS= read -r f; do
+        [ -n "$f" ] || continue
+        if [ -n "$(git diff --name-only -- "$f")" ]; then
+            PARTIAL="$PARTIAL  $f
+"
+        fi
+    done <<< "$STAGED"
+    if [ -n "$PARTIAL" ]; then
+        echo "pre-commit: these files are only partly staged, so they cannot be reformatted safely:" >&2
+        printf '%s' "$PARTIAL" >&2
+        echo "Stage each of them in full, or commit them on their own." >&2
+        exit 1
+    fi
+
+    if ! FORMAT_LOG=$(./mvnw -B --no-transfer-progress formatter:format 2>&1); then
+        echo "pre-commit: the formatter failed" >&2
+        echo "$FORMAT_LOG" >&2
+        exit 1
+    fi
+
+    # Re-stage only what was already staged, so formatting cannot sweep anything else in.
+    while IFS= read -r f; do
+        [ -n "$f" ] && [ -e "$f" ] && git add -- "$f"
+    done <<< "$STAGED"
+
+    # git refuses to record an empty commit, but it decides that before the hook runs, so a commit
+    # whose only content was misformatting slips past that check and lands as an empty commit.
+    # Refuse it here instead, which is what git would have done had the source been normalized
+    # before it was staged.
+    if git diff --cached --quiet; then
+        echo "pre-commit: nothing left to commit -- the only staged change was formatting, which the" >&2
+        echo "formatter has now undone. The working tree is normalized." >&2
+        exit 1
+    fi
 fi
 
-cd $CWD
+# Run the tests, and print the output when they fail. The previous version captured that output
+# into a variable and then discarded it, leaving nothing to go on but the words "Unit test
+# failure".
+if ! TEST_LOG=$(./mvnw -B --no-transfer-progress test 2>&1); then
+    echo "pre-commit: unit test failure" >&2
+    echo "$TEST_LOG" >&2
+    exit 1
+fi
