@@ -10,9 +10,12 @@ import org.junit.jupiter.api.Test;
 /** Tests for {@link ReflectionUtils}. */
 public class ReflectionUtilsTest {
     /** A superclass, so that the tests can check that inherited members are found. */
-    // The members of this class are read and invoked reflectively, by name, so the compiler cannot see them
-    // used, and its instance methods have to stay instance methods for the tests to have anything to invoke
-    // on an object.
+    // The members are read and invoked reflectively, by name, so the compiler cannot see them used. baseMethod()
+    // stays an instance method even though it reads no instance state, because it is there to give invokeMethod()
+    // an instance method to invoke: the Narcissus driver rejects a static method passed to invokeMethod, with
+    // "method is static, call invokeStaticMethod() instead", so making it static would not merely weaken the test
+    // but break it. Static methods are covered separately, by Sub.staticNoArgs() and Sub.staticOneArg() invoked
+    // through invokeStaticMethod().
     @SuppressWarnings({ "unused", "static-method" })
     private static class Base {
         /** A private field of the superclass. */
@@ -29,9 +32,7 @@ public class ReflectionUtilsTest {
     }
 
     /** A class whose private members the tests read and invoke. */
-    // The members of this class are read and invoked reflectively, by name, so the compiler cannot see them
-    // used, and its instance methods have to stay instance methods for the tests to have anything to invoke
-    // on an object.
+    // Reflectively accessed, and its instance methods stay instance methods, for the reasons given on Base.
     @SuppressWarnings({ "unused", "static-method" })
     private static class Sub extends Base {
         /** A private static field. */
