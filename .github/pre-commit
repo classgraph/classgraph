@@ -16,8 +16,11 @@ set -u
 TOP=$(git rev-parse --show-toplevel) || exit 1
 cd "$TOP" || exit 1
 
-# The Java sources this commit is about to record.
-STAGED=$(git diff --cached --name-only --diff-filter=ACM -- '*.java')
+# The Java sources this commit is about to record. R is in the filter because a staged rename is
+# reported as R rather than M, and --name-only then gives the new path, which is the one to
+# reformat and re-stage. Without it, a file renamed and reformatted in the same commit is rewritten
+# in the working tree by the next build while the index keeps the unformatted content.
+STAGED=$(git diff --cached --name-only --diff-filter=ACMR -- '*.java')
 
 # Normalize them. The formatter works over whole source roots rather than a file list, so this
 # covers the tree; anything it rewrites that was not staged simply stays unstaged. The v4 branch
