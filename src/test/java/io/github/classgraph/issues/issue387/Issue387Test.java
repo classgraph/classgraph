@@ -33,7 +33,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.util.AbstractMap.SimpleEntry;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -63,8 +62,9 @@ class Issue387Test {
         try (ScanResult scanResult = new ClassGraph().enableURLScheme(CustomURLScheme.SCHEME)
                 .overrideClassLoaders(classLoader).scan()) {
             assertThat(scanResult.getAllResources().getPaths()).containsExactly("level2.jar");
-            assertThat(CustomURLScheme.remappedURLs.entrySet().iterator().next())
-                    .isEqualTo(new SimpleEntry<>(customSchemeURL, "file:" + filePath));
+            // remappedURLs is shared by every test that uses CustomURLScheme, so check for this test's entry
+            // rather than assuming it is the only one
+            assertThat(CustomURLScheme.remappedURLs).containsEntry(customSchemeURL, "file:" + filePath);
         }
     }
 }
