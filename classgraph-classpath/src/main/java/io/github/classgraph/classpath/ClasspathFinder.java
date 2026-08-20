@@ -59,7 +59,7 @@ import io.github.classgraph.vfs.VfsSpec;
  * An instance is not thread-safe while it is being configured, but {@link #find()} may be called any number of
  * times, and returns a new {@link Classpath} each time.
  */
-public class ClasspathFinder {
+public final class ClasspathFinder {
     /**
      * The URL schemes a jarfile is not fetched from unless asked for. These are the schemes that every JVM can
      * already fetch over a network, so a classpath element naming one is read from the network by default, which is

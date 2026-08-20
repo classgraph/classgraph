@@ -52,7 +52,7 @@ import org.jspecify.annotations.Nullable;
  * and {@link #excludeExternalClasses()} — the options that show or hide the contents of a class node have no effect
  * on it.
  */
-public class GraphVizDotFileOptions {
+public final class GraphVizDotFileOptions {
     /** The GraphViz layout width, in inches. */
     float sizeX = 10.5f;
 

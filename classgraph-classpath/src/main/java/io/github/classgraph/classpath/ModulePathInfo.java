@@ -44,7 +44,7 @@ import io.github.classgraph.base.internal.utils.StringUtils;
  * commandline arguments -- in particular this does not include classpath elements from the traditional classpath,
  * or system modules.
  */
-public class ModulePathInfo {
+public final class ModulePathInfo {
     /** The module path provided by the {@code --module-path} or {@code -p} switch. */
     private final Set<String> modulePath = new LinkedHashSet<>();
 

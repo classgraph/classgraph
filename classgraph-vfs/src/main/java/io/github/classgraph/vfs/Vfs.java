@@ -103,7 +103,7 @@ import org.jspecify.annotations.Nullable;
  * {@code open} method, or an {@link IllegalStateException} from {@link #verbose()}, rather than a root backed by
  * storage that is being released.
  */
-public class Vfs implements AutoCloseable, Iterable<VfsRoot> {
+public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
     /**
      * The session that owns the resources the opened roots are backed by, and that tracks whether this is closed.
      */

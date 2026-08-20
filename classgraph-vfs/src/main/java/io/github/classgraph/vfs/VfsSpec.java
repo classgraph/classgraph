@@ -60,7 +60,7 @@ import io.github.classgraph.vfs.internal.zip.LogicalZipFile;
  * {@link #disableURLScheme(String)} publishes an unmodifiable set rather than adding to one in place, so a setting
  * changed by one thread is seen whole by the threads that read archives, whenever they were started.
  */
-public class VfsSpec {
+public final class VfsSpec {
     /** The default value of {@link #isNestedJarsEnabled()}. */
     public static final boolean DEFAULT_ENABLE_NESTED_JARS = true;
 

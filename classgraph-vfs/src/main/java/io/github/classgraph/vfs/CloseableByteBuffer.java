@@ -55,7 +55,7 @@ import org.jspecify.annotations.Nullable;
  * below JDK 22 unmapping frees the address range without marking the buffer, so the read is undefined -- which is
  * why an open wrapper holds the mapping open on those JDK versions until it is closed.
  */
-public class CloseableByteBuffer implements AutoCloseable {
+public final class CloseableByteBuffer implements AutoCloseable {
     /**
      * The wrapped {@link ByteBuffer}, or null once this wrapper has been closed.
      */

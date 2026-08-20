@@ -51,7 +51,7 @@ import io.github.classgraph.vfs.Vfs;
  * Iterating a {@link Classpath} iterates its classpath elements, in the same order as {@link #getEntries()}. The
  * modules are listed separately, by {@link #getModules()}.
  */
-public class Classpath implements AutoCloseable, Iterable<ClasspathEntry> {
+public final class Classpath implements AutoCloseable, Iterable<ClasspathEntry> {
     /** The classpath elements, in the order the classloaders would search them. */
     private final List<ClasspathEntry> entries;
 
