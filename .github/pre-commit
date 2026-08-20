@@ -22,10 +22,11 @@ cd "$TOP" || exit 1
 # in the working tree by the next build while the index keeps the unformatted content.
 STAGED=$(git diff --cached --name-only --diff-filter=ACMR -- '*.java')
 
-# Normalize them. The formatter works over whole source roots rather than a file list, so this
-# covers the tree; anything it rewrites that was not staged simply stays unstaged. The v4 branch
-# has no formatter plugin and one installed hook serves every worktree, so check for the plugin
-# rather than failing there.
+# Normalize them. The plugin does take a -Dformatter.includes list, but its patterns are relative
+# to each module's source roots while git reports paths from the top of the tree, so formatting the
+# whole tree and re-staging only what was staged is the simpler thing to get right; anything it
+# rewrites that was not staged simply stays unstaged. The v4 branch has no formatter plugin and one
+# installed hook serves every worktree, so check for the plugin rather than failing there.
 if [ -n "$STAGED" ] && grep -q formatter-maven-plugin pom.xml; then
 
     # The formatter rewrites whole files, so re-staging a file that was only partly staged would
