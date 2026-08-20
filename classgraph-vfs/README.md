@@ -360,7 +360,7 @@ try (Vfs vfs = new Vfs()) {
 How much a skipped directory skips differs by root, and the difference matters: a directory tree
 skips the whole subtree, because not listing it is the entire saving, whereas a jarfile or a module
 already has its entry list in hand, so only that directory's own entries are skipped and the
-directories below it are still offered. That is deliberate — a caller that strips a package root
+directories below it are still offered. That is deliberate -- a caller that strips a package root
 prefix such as `BOOT-INF/classes/` from the names before judging them would otherwise prune
 `BOOT-INF/` and lose everything under it.
 
@@ -395,7 +395,7 @@ try (Vfs vfs = new Vfs()) {
 `getEntry` returns null if there is no *readable* entry with that name: for a directory the name may
 not exist, may name a directory rather than a file, may name a file the process has no permission to
 read, or may point outside the root once `..` sections are resolved; for a jarfile or a module it may
-not exist, or may be an entry this root does not report — an encrypted entry, an entry stored with an
+not exist, or may be an entry this root does not report -- an encrypted entry, an entry stored with an
 unsupported compression method, or an entry hidden by a newer multi-release version of itself. Null
 does not say which, so test for the file directly if the difference matters.
 
@@ -408,7 +408,7 @@ following the link changes the path by more than the case of its characters, whi
 that tells a folded name from a followed link.
 
 When the case should be ignored instead, `getEntryCaseInsensitive` returns the first entry whose name
-matches with the case of both ignored, and `getEntriesCaseInsensitive` returns all of them — a root
+matches with the case of both ignored, and `getEntriesCaseInsensitive` returns all of them -- a root
 can hold several, since a zipfile is free to store both `META-INF/MANIFEST.MF` and
 `meta-inf/manifest.mf`, and a case-sensitive filesystem is free to hold both as files. Both behave
 the same way on every operating system and for every kind of root, and the entries they return carry
@@ -469,7 +469,7 @@ All four throw `IOException` if the entry cannot be read, or if the `Vfs` has be
 
 ```java
 try (Vfs vfs = new Vfs();
-        InputStream inputStream = URI.create(url).toURL().openStream()) {
+        InputStream inputStream = URI.create("https://example.com/library.jar").toURL().openStream()) {
     VfsRoot root = vfs.open(inputStream, "downloaded.jar");
     System.out.println(root.getEntries().size() + " entries");
 }
@@ -544,7 +544,7 @@ try (Vfs vfs = new Vfs()) {
 }
 ```
 
-Only the main section of `META-INF/MANIFEST.MF` is read — the sections after it describe individual
+Only the main section of `META-INF/MANIFEST.MF` is read -- the sections after it describe individual
 entries of the jarfile rather than the jarfile as a whole. Attribute names are case insensitive, and
 a value split across several lines is joined back together. Both methods return null if the root has
 no manifest, and the manifest is read once and then cached.

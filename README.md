@@ -78,7 +78,7 @@ ClassGraph provides a number of important capabilities to the JVM ecosystem:
 * ClassGraph reads the classfile bytecode format directly, so it can read all information about classes without loading or initializing them.
 * ClassGraph is fully compatible with the JPMS module system (Project Jigsaw / JDK 9+), i.e. it can scan both the traditional classpath and the module path. ClassGraph requires JDK 17 or newer.
 * ClassGraph scans the classpath or module path using [carefully optimized multithreaded code](https://github.com/classgraph/classgraph/wiki/How-fast-is-ClassGraph) for the shortest possible scan times, and it runs as close as possible to I/O bandwidth limits, even on a fast SSD.
-* ClassGraph handles more [classpath specification mechanisms](https://github.com/classgraph/classgraph/wiki/Classpath-specification-mechanisms) found in the wild than any other classpath scanner, making code that depends upon ClassGraph maximally portable.
+* ClassGraph handles more [classpath specification mechanisms](https://github.com/classgraph/classgraph/wiki/Classpath-Specification-Mechanisms) found in the wild than any other classpath scanner, making code that depends upon ClassGraph maximally portable.
 * ClassGraph can scan the classpath and module path either at runtime or [at build time](https://github.com/classgraph/classgraph/wiki/Build-Time-Scanning) (e.g. to implement annotation processing for Android).
 * ClassGraph can [find classes that are duplicated or defined more than once in the classpath or module path](https://github.com/classgraph/classgraph/wiki/Code-examples#find-all-duplicate-class-definitions-in-the-classpath-or-module-path), which can help find the cause of strange class resolution behaviors.
 * ClassGraph can [create GraphViz visualizations of the class graph structure](https://github.com/classgraph/classgraph/wiki/GraphViz-API), which can help with code understanding: (click to enlarge; [see graph legend here](https://github.com/classgraph/classgraph/blob/ed02ae909247589640f7a31d623ef3be7c6d857c/classgraph-viz/src/test/java/com/xyz/classgraph-fig-legend.png))
@@ -137,13 +137,13 @@ The fix is to add [Narcissus](https://github.com/toolfactory/narcissus) to your 
 <dependency>
     <groupId>io.github.toolfactory</groupId>
     <artifactId>narcissus</artifactId>
-    <version>1.0.11</version>
+    <version>1.0.12</version>
 </dependency>
 ```
 
 There is nothing else to configure. ClassGraph looks for Narcissus on the classpath and module path when it starts up, and uses it as its reflection driver if it is there, so that it can read the classpath from private fields and methods of classloaders. Narcissus reads fields and invokes methods through JNI, which is not subject to Java's visibility and access checks or to strong encapsulation.
 
-Narcissus includes a native library, and currently only Linux x86/x64, Windows x86/x64, and Mac OS X x64 are supported -- feel free to contribute native code builds for other platforms or architectures. If Narcissus is present but its native library will not load, ClassGraph prints a message to `System.err` and falls back to standard reflection.
+Narcissus includes a native library, and currently only Linux x64, Windows x64, macOS x64 and macOS arm64 are supported -- feel free to contribute native code builds for other platforms or architectures. If Narcissus is present but its native library will not load, ClassGraph prints a message to `System.err` and falls back to standard reflection.
 
 **To clarify, you only need to add Narcissus if ClassGraph cannot find the classpath elements from your classloader, due to the enforcement of strong encapsulation, or if it is problematic that you are getting reflection access warnings on the console.**
 
@@ -166,7 +166,7 @@ export JAVA_HOME=/usr/java/default   # Or similar -- Maven needs JAVA_HOME
 ./mvnw -Dmaven.test.skip=true package
 ```
 
-This will allow you to build a local SNAPSHOT jar for each of the five modules, in that module's `target/` directory. Alternatively, use `./mvnw -Dmaven.test.skip=true install` to build the SNAPSHOT jars and then copy them into your local repository, so that you can use them in your Maven projects. Note that may need to do `./mvnw dependency:resolve` in your project if you overwrite an older snapshot with a newer one.
+This will allow you to build a local SNAPSHOT jar for each of the five modules, in that module's `target/` directory. Alternatively, use `./mvnw -Dmaven.test.skip=true install` to build the SNAPSHOT jars and then copy them into your local repository, so that you can use them in your Maven projects. Note that you may need to do `./mvnw dependency:resolve` in your project if you overwrite an older snapshot with a newer one.
 
 `./mvnw -U` updates from remote repositories and may overwrite your local artifact. But you can always change the `artifactId` or the `groupId` of your local ClassGraph build to place your local build artifact in another location within your local repository.
 
