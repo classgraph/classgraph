@@ -11,11 +11,9 @@ import org.junit.jupiter.api.Test;
 public class ReflectionUtilsTest {
     /** A superclass, so that the tests can check that inherited members are found. */
     // The members are read and invoked reflectively, by name, so the compiler cannot see them used. baseMethod()
-    // stays an instance method even though it reads no instance state, because it is there to give invokeMethod()
-    // an instance method to invoke: the Narcissus driver rejects a static method passed to invokeMethod, with
-    // "method is static, call invokeStaticMethod() instead", so making it static would not merely weaken the test
-    // but break it. Static methods are covered separately, by Sub.staticNoArgs() and Sub.staticOneArg() invoked
-    // through invokeStaticMethod().
+    // stays an instance method even though it reads no instance state, because that is what it is for: the fixture
+    // needs a member of each kind, so that the tests can check that the non-static and static paths through
+    // ReflectionUtils are both taken. Making it static would silently move it to the other path.
     @SuppressWarnings({ "unused", "static-method" })
     private static class Base {
         /** A private field of the superclass. */
@@ -32,7 +30,7 @@ public class ReflectionUtilsTest {
     }
 
     /** A class whose private members the tests read and invoke. */
-    // Reflectively accessed, and its instance methods stay instance methods, for the reasons given on Base.
+    // Reflectively accessed, and its instance methods stay instance methods, for the reason given on Base.
     @SuppressWarnings({ "unused", "static-method" })
     private static class Sub extends Base {
         /** A private static field. */
@@ -125,6 +123,43 @@ public class ReflectionUtilsTest {
     @Test
     public void staticFieldValuesAreReadByName() {
         assertThat(ReflectionUtils.getStaticFieldVal(true, Sub.class, "STATIC_FIELD")).isEqualTo("static field");
+    }
+
+    /**
+     * A static member is reached through the entry points that take an object, since a caller probing an unknown
+     * class by name cannot know which of its members that class happens to have made static.
+     *
+     * @throws NoSuchFieldException
+     *             if the fixture field could not be found.
+     */
+    @Test
+    public void staticMembersAreReachedThroughTheObjectEntryPoints() throws NoSuchFieldException {
+        final var obj = new Sub();
+        assertThat(ReflectionUtils.getFieldVal(true, obj, "STATIC_FIELD")).isEqualTo("static field");
+        assertThat(ReflectionUtils.getFieldVal(true, obj, Sub.class.getDeclaredField("STATIC_FIELD")))
+                .isEqualTo("static field");
+        assertThat(ReflectionUtils.invokeMethod(true, obj, "staticNoArgs")).isEqualTo("static no args");
+        assertThat(ReflectionUtils.invokeMethod(true, obj, "staticOneArg", String.class, "x"))
+                .isEqualTo("static one arg: x");
+        assertThat(ReflectionUtils.invokeMethod(true, obj, "staticOneArg", new Class<?>[] { String.class },
+                new Object[] { "x" })).isEqualTo("static one arg: x");
+    }
+
+    /**
+     * The entry points that take a class rather than an object are strict: a non-static member is not a static
+     * member of the class, so looking one up fails in the same way as a member that does not exist at all.
+     */
+    @Test
+    public void theStaticEntryPointsDoNotReachANonStaticMember() {
+        assertThat(ReflectionUtils.getStaticFieldVal(false, Sub.class, "instanceField")).isNull();
+        assertThatThrownBy(() -> ReflectionUtils.getStaticFieldVal(true, Sub.class, "instanceField"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Can't read field " + Sub.class.getName() + ".instanceField");
+
+        assertThat(ReflectionUtils.invokeStaticMethod(false, Sub.class, "noArgs")).isNull();
+        assertThatThrownBy(() -> ReflectionUtils.invokeStaticMethod(true, Sub.class, "noArgs"))
+                .isInstanceOf(IllegalArgumentException.class).hasMessage("Method \"noArgs\" could not be invoked");
+        assertThat(ReflectionUtils.invokeStaticMethod(false, Sub.class, "oneArg", String.class, "x")).isNull();
     }
 
     /**
