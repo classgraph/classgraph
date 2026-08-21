@@ -113,7 +113,8 @@ public class ClassGraph {
      *
      * <p>
      * Narcissus uses JNI to circumvent encapsulation and field/method access controls. Narcissus employs a native
-     * code library, and is currently only compiled for Linux x86/x64, Windows x86/x64, and Mac OS X x64 bit.
+     * code library, and is currently only compiled for Linux x64, Linux arm64, Windows x64, macOS x64 and macOS
+     * arm64.
      */
     public static CircumventEncapsulationMethod CIRCUMVENT_ENCAPSULATION = CircumventEncapsulationMethod.NONE;
 
