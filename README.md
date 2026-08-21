@@ -137,7 +137,7 @@ The fix is to add [Narcissus](https://github.com/toolfactory/narcissus) to your 
 <dependency>
     <groupId>io.github.toolfactory</groupId>
     <artifactId>narcissus</artifactId>
-    <version>1.0.12</version>
+    <version>1.0.13</version>
 </dependency>
 ```
 
