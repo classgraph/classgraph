@@ -143,7 +143,7 @@ The fix is to add [Narcissus](https://github.com/toolfactory/narcissus) to your 
 
 There is nothing else to configure. ClassGraph looks for Narcissus on the classpath and module path when it starts up, and uses it as its reflection driver if it is there, so that it can read the classpath from private fields and methods of classloaders. Narcissus reads fields and invokes methods through JNI, which is not subject to Java's visibility and access checks or to strong encapsulation.
 
-Narcissus includes a native library, and currently only Linux x64, Windows x64, macOS x64 and macOS arm64 are supported -- feel free to contribute native code builds for other platforms or architectures. If Narcissus is present but its native library will not load, ClassGraph prints a message to `System.err` and falls back to standard reflection.
+Narcissus includes a native library, and currently only Linux x64, Linux arm64, Windows x64, macOS x64 and macOS arm64 are supported -- feel free to contribute native code builds for other platforms or architectures. If Narcissus is present but its native library will not load, ClassGraph prints a message to `System.err` and falls back to standard reflection.
 
 **To clarify, you only need to add Narcissus if ClassGraph cannot find the classpath elements from your classloader, due to the enforcement of strong encapsulation, or if it is problematic that you are getting reflection access warnings on the console.**
 
