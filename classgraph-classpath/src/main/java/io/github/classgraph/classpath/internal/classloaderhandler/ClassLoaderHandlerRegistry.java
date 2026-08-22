@@ -39,6 +39,16 @@ import org.jspecify.annotations.Nullable;
 /** The registry for ClassLoaderHandler classes. */
 public final class ClassLoaderHandlerRegistry {
     /**
+     * The handler for {@link java.net.URLClassLoader}. It is in {@link #CLASS_LOADER_HANDLERS} like any other
+     * built-in handler, and is also named here, because it is used a second way: the caller runs it on any
+     * {@link java.net.URLClassLoader} whose handlers do not read the classloader's URLs themselves, so that a
+     * handler for a subclass of {@link java.net.URLClassLoader} cannot lose the URLs the classloader really loads
+     * from. See {@link ClassLoaderHandlerRegistryEntry#readsURLClassLoaderURLs()}.
+     */
+    public static final ClassLoaderHandlerRegistryEntry URL_CLASS_LOADER_HANDLER = new ClassLoaderHandlerRegistryEntry(
+            new URLClassLoaderHandler());
+
+    /**
      * The built-in {@link ClassLoaderHandler}s. If a {@link ClassLoaderHandler} is added to ClassGraph, it should
      * be added to this list.
      *
@@ -66,8 +76,7 @@ public final class ClassLoaderHandlerRegistry {
             new ClassLoaderHandlerRegistryEntry(new QuarkusClassLoaderHandler()),
             new ClassLoaderHandlerRegistryEntry(new SpringBootRestartClassLoaderHandler()),
             new ClassLoaderHandlerRegistryEntry(new TomcatWebappClassLoaderBaseHandler()),
-            new ClassLoaderHandlerRegistryEntry(new UnoOneJarClassLoaderHandler()),
-            new ClassLoaderHandlerRegistryEntry(new URLClassLoaderHandler()),
+            new ClassLoaderHandlerRegistryEntry(new UnoOneJarClassLoaderHandler()), URL_CLASS_LOADER_HANDLER,
             new ClassLoaderHandlerRegistryEntry(new WeblogicClassLoaderHandler()),
             new ClassLoaderHandlerRegistryEntry(new WebsphereLibertyClassLoaderHandler()),
             new ClassLoaderHandlerRegistryEntry(new WebsphereTraditionalClassLoaderHandler()));
@@ -143,6 +152,18 @@ public final class ClassLoaderHandlerRegistry {
          */
         public boolean canHandle(final Class<?> classLoader, final @Nullable ClassGraphLog log) {
             return classLoaderHandler.canHandle(classLoader, log);
+        }
+
+        /**
+         * Whether the associated {@link ClassLoaderHandler} reads the URLs of a {@link java.net.URLClassLoader}
+         * itself, which is true of the handler for {@link java.net.URLClassLoader} and of the handlers for its
+         * subclasses, since those extend it. A handler that reads the URLs itself, and overrides the reading to
+         * suppress it, is taken at its word: {@link #URL_CLASS_LOADER_HANDLER} is not run alongside it.
+         *
+         * @return true if the {@link ClassLoaderHandler} reads the URLs of a {@link java.net.URLClassLoader}.
+         */
+        public boolean readsURLClassLoaderURLs() {
+            return classLoaderHandler instanceof URLClassLoaderHandler;
         }
 
         /**

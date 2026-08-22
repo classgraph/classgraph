@@ -247,11 +247,12 @@ public class RegisteredClassLoaderHandlerTest {
 
     /**
      * When two handlers can handle the same classloader, only the one that handles the most specific classloader
-     * class runs. A handler written for a subclass of {@link URLClassLoader} knows where that subclass really loads
-     * from, so the built-in {@code URLClassLoaderHandler}, which does not, must not run alongside it.
+     * class runs, so a handler written for a subclass of {@link URLClassLoader}, which knows where that subclass
+     * really loads from, decides where the classpath entries go. The URLs of the classloader are still read
+     * afterwards, since they are the paths the classloader really loads from either way.
      */
     @Test
-    public void aMoreSpecificHandlerSuppressesAMoreGeneralOne(@TempDir final Path tempDir) throws Exception {
+    public void aMoreSpecificHandlerPlacesTheClasspathEntriesFirst(@TempDir final Path tempDir) throws Exception {
         final var urlDir = classesDir(tempDir, "url");
         final var handlerDir = classesDir(tempDir, "handler");
         final var classLoader = new SubURLClassLoader(new URL[] { urlDir.toUri().toURL() });
@@ -259,10 +260,56 @@ public class RegisteredClassLoaderHandlerTest {
         // Without the registered handler, the built-in URLClassLoaderHandler reads the classloader's URLs
         assertThat(find(new ClasspathFinder().overrideClassLoaders(classLoader))).containsExactly(urlDir);
 
-        // With it, the built-in handler is suppressed, so the classloader's URLs are not read
+        // With it, the registered handler's entry comes first, and the classloader's own URLs follow it
         assertThat(find(new ClasspathFinder().overrideClassLoaders(classLoader)
                 .registerClassLoaderHandler(new FixedEntryHandler(SubURLClassLoader.class, handlerDir))))
+                .containsExactly(handlerDir, urlDir);
+    }
+
+    /**
+     * A handler for a subclass of {@link URLClassLoader} does not have to read the URLs of the classloader itself:
+     * whatever handlers run for a {@link URLClassLoader}, its URLs are read unless one of them reads them already.
+     * Otherwise naming a classloader class in {@code canHandle} would silently turn off the reading of the URLs of
+     * every classloader of that class, which is a way to lose classpath entries without any sign that they were
+     * there.
+     */
+    @Test
+    public void theURLsOfAURLClassLoaderAreReadWhicheverHandlerRuns(@TempDir final Path tempDir) throws Exception {
+        final var urlDir = classesDir(tempDir, "url");
+        final var handlerDir = classesDir(tempDir, "handler");
+
+        // A handler that adds no entries at all still leaves the classloader's URLs to be read
+        final var readsNothing = new FixedEntryHandler(SubURLClassLoader.class, handlerDir) {
+            @Override
+            public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
+                    final @Nullable ClassGraphLog log) {
+                // Add no classpath entries
+            }
+        };
+        assertThat(find(new ClasspathFinder()
+                .overrideClassLoaders(new SubURLClassLoader(new URL[] { urlDir.toUri().toURL() }))
+                .registerClassLoaderHandler(readsNothing))).containsExactly(urlDir);
+
+        // A classloader that is not a URLClassLoader has no URLs to read, so only the handler's entry is found
+        assertThat(find(new ClasspathFinder().overrideClassLoaders(new UnknownClassLoader(urlDir.toString()))
+                .registerClassLoaderHandler(new FixedEntryHandler(UnknownClassLoader.class, handlerDir))))
                 .containsExactly(handlerDir);
+    }
+
+    /**
+     * The URLs of a {@link URLClassLoader} are read once, not once per handler that ran for the classloader.
+     */
+    @Test
+    public void theURLsOfAURLClassLoaderAreNotReadTwice(@TempDir final Path tempDir) throws Exception {
+        final var dirA = classesDir(tempDir, "a");
+        final var dirB = classesDir(tempDir, "b");
+        final var classLoader = new URLClassLoader(new URL[] { dirA.toUri().toURL(), dirB.toUri().toURL() },
+                /* parent = */ null);
+
+        // The registered handler reverses the URLs, and the built-in handler is equally specific, so it also runs
+        // and reads the URLs; if the URLs were then read a third time, the reversed order would not survive
+        assertThat(find(new ClasspathFinder().overrideClassLoaders(classLoader)
+                .registerClassLoaderHandler(new ReversingURLClassLoaderHandler()))).containsExactly(dirB, dirA);
     }
 
     /**
@@ -292,11 +339,11 @@ public class RegisteredClassLoaderHandlerTest {
         final var classLoader = new SubURLClassLoader(new URL[] { urlDir.toUri().toURL() });
 
         // The registered handler for SubURLClassLoader is more specific than the registered handler for
-        // URLClassLoader, but both were registered, so both run. The built-in URLClassLoaderHandler is the only
-        // handler suppressed, so the classloader's own URLs are not in the result.
+        // URLClassLoader, but both were registered, so both run, followed by the reading of the classloader's own
+        // URLs, which neither of them does
         assertThat(find(new ClasspathFinder().overrideClassLoaders(classLoader)
                 .registerClassLoaderHandler(new FixedEntryHandler(URLClassLoader.class, generalDir))
                 .registerClassLoaderHandler(new FixedEntryHandler(SubURLClassLoader.class, specificDir))))
-                .containsExactly(generalDir, specificDir);
+                .containsExactly(generalDir, specificDir, urlDir);
     }
 }
