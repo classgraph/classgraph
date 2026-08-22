@@ -81,12 +81,16 @@ abstract class ReflectionDriver {
             final LinkedList<Class<?>> interfaceQueue = new LinkedList<>();
             for (Class<?> c = cls; c != null; c = c.getSuperclass()) {
                 try {
-                    // Cache any declared methods and fields
-                    for (final Method m : getDeclaredMethods(c)) {
-                        cacheMethod(m);
-                    }
+                    // Cache declared fields. Don't cache declared methods of interfaces here -- every interface
+                    // reached from this class is queued below, and its methods are cached exactly once when it is
+                    // dequeued, whereas this loop would visit an interface that is its starting point twice.
                     for (final Field f : getDeclaredFields(c)) {
                         cacheField(f);
+                    }
+                    if (!c.isInterface()) {
+                        for (final Method m : getDeclaredMethods(c)) {
+                            cacheMethod(m);
+                        }
                     }
                     // Find interfaces and superinterfaces implemented by this class or its superclasses
                     if (c.isInterface() && visited.add(c)) {
