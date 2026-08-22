@@ -1111,26 +1111,18 @@ class Classfile {
     }
 
     /**
-     * Convert the class name stored in a {@code CONSTANT_Class} entry into a type descriptor. The name in a
-     * {@code CONSTANT_Class} entry is a binary class name (e.g. "java/lang/String"), except for array types (e.g.
-     * "[Ljava/lang/String;") and primitives and void (e.g. "I", "V"), which are already type descriptors.
+     * Convert the class name stored in a {@code CONSTANT_Class} entry into a type descriptor. Per JVMS 4.4.1, the
+     * name in a {@code CONSTANT_Class} entry is a binary class name (e.g. "java/lang/String"), except for array
+     * types, where it is the descriptor of the array type (e.g. "[Ljava/lang/String;"). Primitive types and void
+     * cannot be named by a {@code CONSTANT_Class} entry, so a name of "I" is the class {@code I}, not {@code int}.
      *
      * @param constantPoolClassName
      *            the class name from a {@code CONSTANT_Class} entry
      * @return the type descriptor of the referenced type
      */
     private static String constantPoolClassNameToTypeDescriptor(final String constantPoolClassName) {
-        if (constantPoolClassName.isEmpty()) {
-            return constantPoolClassName;
-        }
-        switch (constantPoolClassName.charAt(0)) {
-        case 'B', 'C', 'D', 'F', 'I', 'J', 'S', 'Z', 'V', '[':
-            // Already a type descriptor
-            return constantPoolClassName;
-        default:
-            // A binary class name; wrap it in a class type descriptor
-            return "L" + constantPoolClassName + ";";
-        }
+        // An array type is already a type descriptor; a binary class name has to be wrapped in one
+        return constantPoolClassName.startsWith("[") ? constantPoolClassName : "L" + constantPoolClassName + ";";
     }
 
     // -------------------------------------------------------------------------------------------------------------
