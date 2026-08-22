@@ -1546,7 +1546,11 @@ class Classfile {
                                             attributeNameCpIdx, "RuntimeInvisibleTypeAnnotations")))) {
                         final int annotationCount = reader.readUnsignedShort();
                         if (annotationCount > 0) {
-                            fieldTypeAnnotationDecorators = new ArrayList<>();
+                            // Both the runtime visible and the runtime invisible type annotations attribute may
+                            // be present, so add to the list rather than replacing it
+                            if (fieldTypeAnnotationDecorators == null) {
+                                fieldTypeAnnotationDecorators = new ArrayList<>();
+                            }
                             for (int m = 0; m < annotationCount; m++) {
                                 final int targetType = reader.readUnsignedByte();
                                 // 0x13 is the only target_type that JVMS 26 table 4.7.20-A permits in
@@ -1694,7 +1698,11 @@ class Classfile {
                                             attributeNameCpIdx, "RuntimeInvisibleTypeAnnotations")))) {
                         final int annotationCount = reader.readUnsignedShort();
                         if (annotationCount > 0) {
-                            methodTypeAnnotationDecorators = new ArrayList<>(annotationCount);
+                            // Both the runtime visible and the runtime invisible type annotations attribute may
+                            // be present, so add to the list rather than replacing it
+                            if (methodTypeAnnotationDecorators == null) {
+                                methodTypeAnnotationDecorators = new ArrayList<>(annotationCount);
+                            }
                             for (int m = 0; m < annotationCount; m++) {
                                 final int targetType = reader.readUnsignedByte();
                                 final int typeParameterIndex;
@@ -1964,7 +1972,11 @@ class Classfile {
                                     attributeNameCpIdx, "RuntimeInvisibleTypeAnnotations")))) {
                 final int annotationCount = reader.readUnsignedShort();
                 if (annotationCount > 0) {
-                    classTypeAnnotationDecorators = new ArrayList<>(annotationCount);
+                    // Both the runtime visible and the runtime invisible type annotations attribute may be
+                    // present, so add to the list rather than replacing it
+                    if (classTypeAnnotationDecorators == null) {
+                        classTypeAnnotationDecorators = new ArrayList<>(annotationCount);
+                    }
                     for (int m = 0; m < annotationCount; m++) {
                         final int targetType = reader.readUnsignedByte();
                         final int typeParameterIndex;
