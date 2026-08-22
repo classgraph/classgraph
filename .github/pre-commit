@@ -16,6 +16,42 @@ set -u
 TOP=$(git rev-parse --show-toplevel) || exit 1
 cd "$TOP" || exit 1
 
+# Run maven, showing what it is doing while it does it. The formatter takes a couple of seconds and
+# the tests take about a minute, and a hook that prints nothing at all while it works cannot be told
+# apart from one that has hung, so stream a line per module and a dot per test class as they go. The
+# full output is still held back, because it is only worth reading when the run fails: it goes to a
+# file, and the caller prints that file if the run fails. MVN_SECONDS is how long the run took.
+MVN_LOG=$(mktemp) || exit 1
+trap 'rm -f "$MVN_LOG"' EXIT
+
+run_maven() {
+    local start=$SECONDS
+    ./mvnw -B --no-transfer-progress "$@" 2>&1 | tee "$MVN_LOG" | awk '
+        # "[INFO] Building <name> <version> [n/m]", where the [n/m] is absent in a single-module
+        # build, which is what the v4 branch is.
+        /^\[INFO\] Building / {
+            if (open) printf "\n";
+            idx = ""; last = NF - 1;
+            if ($NF ~ /^\[[0-9]+\/[0-9]+\]$/) { idx = $NF " "; last = NF - 2 }
+            name = "";
+            for (i = 3; i <= last; i++) name = name (i > 3 ? " " : "") $i;
+            printf "  %s%s ", idx, name;
+            open = 1; col = 0; fflush();
+        }
+        # One dot per test class. The core module has a couple of hundred of them, so wrap the
+        # dots rather than let the terminal wrap them at whatever width it happens to be.
+        /^\[INFO\] Running / {
+            if (col == 50) { printf "\n        "; col = 0 }
+            printf "."; col++; fflush();
+        }
+        END { if (open) printf "\n" }
+    ' >&2
+    # Read straight off the pipeline: any command in between would overwrite PIPESTATUS.
+    local status=${PIPESTATUS[0]}
+    MVN_SECONDS=$((SECONDS - start))
+    return "$status"
+}
+
 # The Java sources this commit is about to record. R is in the filter because a staged rename is
 # reported as R rather than M, and --name-only then gives the new path, which is the one to
 # reformat and re-stage. Without it, a file renamed and reformatted in the same commit is rewritten
@@ -47,9 +83,10 @@ if [ -n "$STAGED" ] && grep -q formatter-maven-plugin pom.xml; then
         exit 1
     fi
 
-    if ! FORMAT_LOG=$(./mvnw -B --no-transfer-progress formatter:format 2>&1); then
+    echo "pre-commit: normalizing the formatting of the sources" >&2
+    if ! run_maven formatter:format; then
         echo "pre-commit: the formatter failed" >&2
-        echo "$FORMAT_LOG" >&2
+        cat "$MVN_LOG" >&2
         exit 1
     fi
 
@@ -69,11 +106,12 @@ if [ -n "$STAGED" ] && grep -q formatter-maven-plugin pom.xml; then
     fi
 fi
 
-# Run the tests, and print the output when they fail. The previous version captured that output
-# into a variable and then discarded it, leaving nothing to go on but the words "Unit test
-# failure".
-if ! TEST_LOG=$(./mvnw -B --no-transfer-progress test 2>&1); then
+# Run the tests, and print the output when they fail. An earlier version captured that output and
+# then discarded it, leaving nothing to go on but the words "Unit test failure".
+echo "pre-commit: running the tests -- this is the slow part of a commit" >&2
+if ! run_maven test; then
     echo "pre-commit: unit test failure" >&2
-    echo "$TEST_LOG" >&2
+    cat "$MVN_LOG" >&2
     exit 1
 fi
+echo "pre-commit: tests passed in ${MVN_SECONDS}s" >&2
