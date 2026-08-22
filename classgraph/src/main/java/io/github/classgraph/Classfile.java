@@ -1080,10 +1080,16 @@ class Classfile {
                     getConstantPoolString(reader().readUnsignedShort()), "annotation enum constant name");
             yield new AnnotationEnumValue(annotationClassName, annotationConstName);
         }
-        case 'c' ->
-            // Return type is AnnotationClassRef (for class references in annotations)
-            new AnnotationClassRef(requireConstantPoolString(getConstantPoolString(reader().readUnsignedShort()),
-                    "annotation class reference"));
+        case 'c' -> {
+            // Return type is AnnotationClassRef (for class references in annotations). The JVMS says the
+            // class_info_index of a tag 'c' entry refers to a CONSTANT_Class entry, but javac writes the type
+            // descriptor directly as a UTF8 constant (e.g. "Ljava/lang/String;"), so handle both encodings.
+            final var classInfoIdx = reader().readUnsignedShort();
+            final var rawStr = requireConstantPoolString(getConstantPoolString(classInfoIdx),
+                    "annotation class reference");
+            yield new AnnotationClassRef(
+                    entryTag[classInfoIdx] == 1 ? rawStr : constantPoolClassNameToTypeDescriptor(rawStr));
+        }
         case '@' ->
             // Complex (nested) annotation. Return type is AnnotationInfo.
             readAnnotation();
@@ -1102,6 +1108,29 @@ class Classfile {
                     + ((char) tag) + "': element size unknown, cannot continue reading class. "
                     + "Please report this at https://github.com/classgraph/classgraph/issues");
         };
+    }
+
+    /**
+     * Convert the class name stored in a {@code CONSTANT_Class} entry into a type descriptor. The name in a
+     * {@code CONSTANT_Class} entry is a binary class name (e.g. "java/lang/String"), except for array types (e.g.
+     * "[Ljava/lang/String;") and primitives and void (e.g. "I", "V"), which are already type descriptors.
+     *
+     * @param constantPoolClassName
+     *            the class name from a {@code CONSTANT_Class} entry
+     * @return the type descriptor of the referenced type
+     */
+    private static String constantPoolClassNameToTypeDescriptor(final String constantPoolClassName) {
+        if (constantPoolClassName.isEmpty()) {
+            return constantPoolClassName;
+        }
+        switch (constantPoolClassName.charAt(0)) {
+        case 'B', 'C', 'D', 'F', 'I', 'J', 'S', 'Z', 'V', '[':
+            // Already a type descriptor
+            return constantPoolClassName;
+        default:
+            // A binary class name; wrap it in a class type descriptor
+            return "L" + constantPoolClassName + ";";
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -1726,8 +1755,14 @@ class Classfile {
                 fieldAnnotationInfo = readAnnotations(fieldAnnotationInfo);
             } else if (isTypeAnnotationsAttribute(attributeNameCpIdx)) {
                 final var decorators = readFieldTypeAnnotationDecorators();
+                // Merge with the decorators of the other of the runtime visible/invisible type annotations
+                // attributes, either or both of which may be present
                 if (decorators != null) {
-                    fieldTypeAnnotationDecorators = decorators;
+                    if (fieldTypeAnnotationDecorators == null) {
+                        fieldTypeAnnotationDecorators = decorators;
+                    } else {
+                        fieldTypeAnnotationDecorators.addAll(decorators);
+                    }
                 }
             } else {
                 // No match, just skip attribute
@@ -1858,8 +1893,14 @@ class Classfile {
                 methodParameterAnnotations = readMethodParameterAnnotations(methodParameterAnnotations);
             } else if (isTypeAnnotationsAttribute(attributeNameCpIdx)) {
                 final var decorators = readMethodTypeAnnotationDecorators();
+                // Merge with the decorators of the other of the runtime visible/invisible type annotations
+                // attributes, either or both of which may be present
                 if (decorators != null) {
-                    methodTypeAnnotationDecorators = decorators;
+                    if (methodTypeAnnotationDecorators == null) {
+                        methodTypeAnnotationDecorators = decorators;
+                    } else {
+                        methodTypeAnnotationDecorators.addAll(decorators);
+                    }
                 }
             } else if (constantPoolStringEquals(attributeNameCpIdx, "MethodParameters")) {
                 // Read method parameters. For Java, these are only produced in JDK8+, and only if the commandline
@@ -2203,8 +2244,14 @@ class Classfile {
                 classAnnotations = readAnnotations(classAnnotations);
             } else if (isTypeAnnotationsAttribute(attributeNameCpIdx)) {
                 final var decorators = readClassTypeAnnotationDecorators();
+                // Merge with the decorators of the other of the runtime visible/invisible type annotations
+                // attributes, either or both of which may be present
                 if (decorators != null) {
-                    classTypeAnnotationDecorators = decorators;
+                    if (classTypeAnnotationDecorators == null) {
+                        classTypeAnnotationDecorators = decorators;
+                    } else {
+                        classTypeAnnotationDecorators.addAll(decorators);
+                    }
                 }
             } else if (constantPoolStringEquals(attributeNameCpIdx, "Record")) {
                 isRecord = true;
