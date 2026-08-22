@@ -39,17 +39,27 @@ import org.jspecify.annotations.Nullable;
 /** The registry for ClassLoaderHandler classes. */
 public final class ClassLoaderHandlerRegistry {
     /**
-     * Default ClassLoaderHandlers. If a ClassLoaderHandler is added to ClassGraph, it should be added to this list.
+     * The built-in {@link ClassLoaderHandler}s. If a {@link ClassLoaderHandler} is added to ClassGraph, it should
+     * be added to this list.
+     *
+     * <p>
+     * The order of this list does not affect the result of a scan: when several handlers can handle the same
+     * classloader, the caller keeps only the ones that handle the most specific classloader class, so a handler for
+     * a subclass of {@link java.net.URLClassLoader} always wins over the handler for
+     * {@link java.net.URLClassLoader} itself. The list is therefore kept in alphabetical order, which is the
+     * easiest order to check a handler's presence in.
+     *
+     * <p>
+     * {@code FallbackClassLoaderHandler} is not in this list -- it is registered separately as
+     * {@link #FALLBACK_HANDLER}, since it is only used when no other handler can handle a classloader.
      */
     public static final List<ClassLoaderHandlerRegistryEntry> CLASS_LOADER_HANDLERS = List.of(
-            // ClassLoaderHandlers for other ClassLoaders that are handled by ClassGraph
             new ClassLoaderHandlerRegistryEntry(new AntClassLoaderHandler()),
             new ClassLoaderHandlerRegistryEntry(new CxfContainerClassLoaderHandler()),
             new ClassLoaderHandlerRegistryEntry(new EquinoxClassLoaderHandler()),
             new ClassLoaderHandlerRegistryEntry(new EquinoxContextFinderClassLoaderHandler()),
             new ClassLoaderHandlerRegistryEntry(new FelixClassLoaderHandler()),
             new ClassLoaderHandlerRegistryEntry(new JBossClassLoaderHandler()),
-            // JPMS support (this handler does nothing, since modules are handled separately)
             new ClassLoaderHandlerRegistryEntry(new JPMSClassLoaderHandler()),
             new ClassLoaderHandlerRegistryEntry(new OSGiDefaultClassLoaderHandler()),
             new ClassLoaderHandlerRegistryEntry(new PlexusClassWorldsClassRealmClassLoaderHandler()),
@@ -57,15 +67,10 @@ public final class ClassLoaderHandlerRegistry {
             new ClassLoaderHandlerRegistryEntry(new SpringBootRestartClassLoaderHandler()),
             new ClassLoaderHandlerRegistryEntry(new TomcatWebappClassLoaderBaseHandler()),
             new ClassLoaderHandlerRegistryEntry(new UnoOneJarClassLoaderHandler()),
+            new ClassLoaderHandlerRegistryEntry(new URLClassLoaderHandler()),
             new ClassLoaderHandlerRegistryEntry(new WeblogicClassLoaderHandler()),
             new ClassLoaderHandlerRegistryEntry(new WebsphereLibertyClassLoaderHandler()),
-            new ClassLoaderHandlerRegistryEntry(new WebsphereTraditionalClassLoaderHandler()),
-            // URLClassLoader support (should be last, so that subclasses of URLClassLoader are handled by more
-            // specific handlers above)
-            new ClassLoaderHandlerRegistryEntry(new URLClassLoaderHandler())
-
-    // FallbackClassLoaderHandler.class is registered separately below
-    );
+            new ClassLoaderHandlerRegistryEntry(new WebsphereTraditionalClassLoaderHandler()));
 
     /** Fallback ClassLoaderHandler. */
     public static final ClassLoaderHandlerRegistryEntry FALLBACK_HANDLER = new ClassLoaderHandlerRegistryEntry(

@@ -93,6 +93,19 @@ class ClassLoaderHandlerRegistryTest {
         }
     }
 
+    /**
+     * The built-in handlers are listed in alphabetical order. Their order does not affect the result of a scan --
+     * when several handlers can handle the same classloader, only the ones that handle the most specific
+     * classloader class are used -- so alphabetical order is simply the order that makes a handler easiest to find
+     * in the list, and to check the presence of.
+     */
+    @Test
+    void theBuiltInHandlersAreInAlphabeticalOrder() {
+        assertThat(ClassLoaderHandlerRegistry.CLASS_LOADER_HANDLERS.stream()
+                .map(entry -> entry.classLoaderHandler.getClass().getSimpleName()).toList())
+                .isSortedAccordingTo(String.CASE_INSENSITIVE_ORDER);
+    }
+
     /** An Uno-Jar or One-JAR executable jar puts the jar it launches in {@code "main/"} and its deps in "lib/". */
     @Test
     void unoOneJarDeclaresItsLaunchedJarAndLibDirs() {

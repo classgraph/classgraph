@@ -196,7 +196,9 @@ to skip the module path entirely.
 
 Check first whether you need to: a `URLClassLoader` subclass is read automatically, and only needs a
 handler of its own if it searches its classpath in a different order, as Spring Boot's restart
-classloader does.
+classloader does. Writing one is not free either -- a handler that names a subclass of
+`URLClassLoader` *replaces* the built-in `URLClassLoader` handler for that subclass rather than
+running alongside it, so it has to add the classloader's own URLs itself.
 
 Otherwise, implement `ClassLoaderHandler` and register it. This is the extension point that lets
 ClassGraph support a container it has never seen:
@@ -246,6 +248,15 @@ the order the classloader would search it. A handler must be stateless,
 since one instance handles every classloader in every scan, and scans can run concurrently; state
 belonging to a single scan goes in the `ClasspathOrder` that is passed in. The same handler can be
 registered with the scanner via `new ClassGraph().registerClassLoaderHandler(...)`.
+
+When more than one handler can handle the same classloader, only the handlers that name the most
+specific classloader class are used, so a handler written for a subclass never has a handler for one
+of its superclasses running alongside it and placing the same classloaders in a different order.
+A handler you registered is never dropped this way, even when a built-in handler names a more
+specific class, since you registered it in order to have it run. The handlers that are kept run in
+turn, the ones you registered first, and a classloader or classpath entry that has already been
+placed keeps the position the first handler to place it gave it. Nothing depends on the order the
+built-in handlers are registered in.
 
 Two more methods say what to look for *within* each classpath element the handler contributes, and
 both default to the layouts that any classloader can be handed: `getPackageRootPrefixes()` to

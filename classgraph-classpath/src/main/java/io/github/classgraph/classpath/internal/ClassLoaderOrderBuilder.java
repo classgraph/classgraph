@@ -120,24 +120,92 @@ public class ClassLoaderOrderBuilder implements ClassLoaderOrder {
      */
     private List<ClassLoaderHandlerRegistryEntry> getClassLoaderHandlerRegistryEntries(
             final ClassLoader classLoader, final @Nullable ClassGraphLog log) {
+        final var classLoaderClass = classLoader.getClass();
         final List<ClassLoaderHandlerRegistryEntry> ents = new ArrayList<>();
         // The user's handlers are offered the classloader before the built-in handlers are, so that a user handler
         // can override a built-in one
         for (final ClassLoaderHandlerRegistryEntry ent : userClassLoaderHandlers) {
-            if (ent.canHandle(classLoader.getClass(), log)) {
+            if (ent.canHandle(classLoaderClass, log)) {
                 ents.add(ent);
             }
         }
+        final var numUserHandlers = ents.size();
         for (final ClassLoaderHandlerRegistryEntry ent : ClassLoaderHandlerRegistry.CLASS_LOADER_HANDLERS) {
-            if (ent.canHandle(classLoader.getClass(), log)) {
+            if (ent.canHandle(classLoaderClass, log)) {
                 // This ClassLoaderHandler can handle the ClassLoader class, or one of its superclasses
                 ents.add(ent);
             }
         }
         if (ents.isEmpty()) {
             ents.add(ClassLoaderHandlerRegistry.FALLBACK_HANDLER);
+        } else if (ents.size() > 1) {
+            return dropMoreGeneralHandlers(ents, numUserHandlers, classLoaderClass, log);
         }
         return ents;
+    }
+
+    /**
+     * Drop each built-in handler that only handles the classloader because it handles a superclass of it, when
+     * another handler handles a more specific class in the same hierarchy.
+     *
+     * <p>
+     * A handler declares the classloader class it handles by returning true from
+     * {@code ClassLoaderHandler#canHandle(Class, ClassGraphLog)} for that class and for every subclass of it, so
+     * the most distant ancestor of the classloader that a handler still returns true for is the class the handler
+     * was written against, and a handler whose class is further up the hierarchy is the more general of the two.
+     * Only the least general handlers are kept: a handler written for a subclass of {@link java.net.URLClassLoader}
+     * knows how that subclass really delegates and where it really keeps its classpath entries, so it must not have
+     * a general {@code URLClassLoader} handler running alongside it and placing the same classloaders in a
+     * different order. This is what makes the order the built-in handlers are registered in irrelevant.
+     *
+     * <p>
+     * Handlers the user registered are never dropped, since the user registered them for this exact purpose;
+     * dropping one would silently turn off something the caller explicitly asked for.
+     *
+     * @param ents
+     *            the registry entries that can handle the classloader, user-registered ones first, in the order
+     *            they should run in. Must contain at least two entries.
+     * @param numUserHandlers
+     *            the number of user-registered entries at the head of {@code ents}.
+     * @param classLoaderClass
+     *            the class of the classloader being handled.
+     * @param log
+     *            the log node, or null to skip logging
+     * @return the entries to run, in the order they were given in.
+     */
+    private static List<ClassLoaderHandlerRegistryEntry> dropMoreGeneralHandlers(
+            final List<ClassLoaderHandlerRegistryEntry> ents, final int numUserHandlers,
+            final Class<?> classLoaderClass, final @Nullable ClassGraphLog log) {
+        // The classloader class, then each of its superclasses in turn, so that a larger index is more general
+        final List<Class<?>> classHierarchy = new ArrayList<>();
+        for (var cls = classLoaderClass; cls != null; cls = cls.getSuperclass()) {
+            classHierarchy.add(cls);
+        }
+        // Find the index in that hierarchy of the most distant ancestor each handler still handles
+        final var generality = new int[ents.size()];
+        var leastGeneral = Integer.MAX_VALUE;
+        for (var i = 0; i < ents.size(); i++) {
+            // Index 0 does not need testing -- every handler in ents already handles the classloader class itself
+            for (var j = classHierarchy.size() - 1; j > 0; j--) {
+                // Don't log the probing calls, since they say nothing about the classloader being handled
+                if (ents.get(i).canHandle(classHierarchy.get(j), /* log = */ null)) {
+                    generality[i] = j;
+                    break;
+                }
+            }
+            leastGeneral = Math.min(leastGeneral, generality[i]);
+        }
+        final List<ClassLoaderHandlerRegistryEntry> leastGeneralEnts = new ArrayList<>(ents.size());
+        for (var i = 0; i < ents.size(); i++) {
+            if (i < numUserHandlers || generality[i] == leastGeneral) {
+                leastGeneralEnts.add(ents.get(i));
+            } else if (log != null) {
+                log.log("Not using ClassLoaderHandler " + ents.get(i).getHandlerName() + ", since it handles "
+                        + classHierarchy.get(generality[i]).getName() + ", and another handler handles the more "
+                        + "specific class " + classHierarchy.get(leastGeneral).getName());
+            }
+        }
+        return leastGeneralEnts;
     }
 
     /**
@@ -189,11 +257,11 @@ public class ClassLoaderOrderBuilder implements ClassLoaderOrder {
         }
         // Don't delegate to a classloader twice
         if (delegatedTo.add(classLoader)) {
-            // Recurse to get delegation order. When more than one handler can handle this classloader, they are
-            // called in ClassLoaderHandlerRegistry order, which lists the container-specific handlers before the
-            // general ones, so a handler that knows the container's real delegation order gets to place the parent
-            // and child classloaders first; the handlers that run after it can only add classloaders that the
-            // earlier handler did not already place.
+            // Recurse to get delegation order. Only the handlers that handle the most specific classloader class
+            // are called, so a handler that knows this classloader's real delegation order is not competing with a
+            // general handler that would place the parent and child classloaders in a different order. When
+            // several equally specific handlers remain, they are called in the order they were registered in, and
+            // the ones that run later can only add classloaders that an earlier one did not already place.
             for (final ClassLoaderHandlerRegistryEntry entry : getClassLoaderHandlerRegistryEntries(classLoader,
                     /* Don't log twice -- also logged by the add method */ null)) {
                 entry.findClassLoaderOrder(classLoader, this, log);

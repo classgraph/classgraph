@@ -39,6 +39,11 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * ClassLoaderHandler that is able to extract the URLs from a URLClassLoader.
+ *
+ * <p>
+ * A handler for a {@link java.net.URLClassLoader} subclass extends this one and overrides only what its subclass
+ * does differently, since only the handler that handles the most specific classloader class is used, so a subclass
+ * handler cannot rely on this handler also running.
  */
 class URLClassLoaderHandler implements ClassLoaderHandler {
     /** Constructor. */
@@ -61,12 +66,15 @@ class URLClassLoaderHandler implements ClassLoaderHandler {
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
             final @Nullable ClassGraphLog log) {
         // Call the public getURLs() method rather than reading the URLClassPath's `path` field that backs it, since
-        // a subclass may override getURLs() to return something else
-        final var urls = ((URLClassLoader) classLoader).getURLs();
-        if (urls != null) {
-            for (final URL url : urls) {
-                if (url != null) {
-                    classpathOrder.addClasspathEntry(url, classLoader, log);
+        // a subclass may override getURLs() to return something else. Subclasses of this handler match a
+        // classloader class of their own rather than java.net.URLClassLoader, so check the type before casting.
+        if (classLoader instanceof final URLClassLoader urlClassLoader) {
+            final var urls = urlClassLoader.getURLs();
+            if (urls != null) {
+                for (final URL url : urls) {
+                    if (url != null) {
+                        classpathOrder.addClasspathEntry(url, classLoader, log);
+                    }
                 }
             }
         }

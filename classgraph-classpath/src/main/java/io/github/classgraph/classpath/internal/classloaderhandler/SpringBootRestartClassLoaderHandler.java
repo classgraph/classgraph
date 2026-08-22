@@ -29,9 +29,7 @@
 package io.github.classgraph.classpath.internal.classloaderhandler;
 
 import io.github.classgraph.base.ClassGraphLog;
-import io.github.classgraph.classpath.ClassLoaderHandler;
 import io.github.classgraph.classpath.ClassLoaderOrder;
-import io.github.classgraph.classpath.ClasspathOrder;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -41,7 +39,7 @@ import org.jspecify.annotations.Nullable;
  * to be changed during development). Therefore the handler for that class loader also has to delegate in
  * parent-last order.
  */
-class SpringBootRestartClassLoaderHandler implements ClassLoaderHandler {
+class SpringBootRestartClassLoaderHandler extends URLClassLoaderHandler {
     /** Constructor. */
     SpringBootRestartClassLoaderHandler() {
     }
@@ -52,40 +50,20 @@ class SpringBootRestartClassLoaderHandler implements ClassLoaderHandler {
                 "org.springframework.boot.devtools.restart.classloader.RestartClassLoader");
     }
 
+    // #267, #268
     @Override
     public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
             final @Nullable ClassGraphLog log) {
-        // The Restart classloader is a parent-last classloader, so add the Restart classloader itself to the
-        // classloader order first
+        // The Restart classloader sits in front of its parent and shades the directories it watches for changes.
+        // Those classes are reachable through the parent too, but they have to be loaded from the Restart
+        // classloader, so the Restart classloader itself is added to the classloader order first ...
         classLoaderOrder.add(classLoader, log);
 
-        // Delegate to the parent of the RestartClassLoader
+        // ... and its parent is delegated to afterwards, so that the parent is searched last
         classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true, log);
     }
 
-    /**
-     * Find the classpath entries for the associated {@link ClassLoader}.
-     *
-     * Spring Boot's RestartClassLoader sits in front of the parent class loader and watches a given set of
-     * directories for changes. While those classes are reachable from the parent class loader directly, they should
-     * always be loaded through direct access from the RestartClassLoader until it's completely turned off by means
-     * of Spring Boot Developer tools.
-     *
-     * The RestartClassLoader shades only the project classes and additional directories that are configurable, so
-     * itself needs access to parent, but last.
-     *
-     * @param classLoader
-     *            the {@link ClassLoader} to find the classpath entries order for.
-     * @param classpathOrder
-     *            a {@link ClasspathOrder} object to update.
-     * @param log
-     *            the log node, or null to skip logging
-     */
-    // #267, #268
-    @Override
-    public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
-            final @Nullable ClassGraphLog log) {
-        // The Restart classloader doesn't itself store any URLs
-    }
+    // findClasspathOrder() is inherited from URLClassLoaderHandler, since RestartClassLoader extends
+    // URLClassLoader, and is constructed with the URLs of the directories it shades
 
 }

@@ -39,7 +39,7 @@ import io.github.classgraph.classpath.ClasspathOrder;
 import org.jspecify.annotations.Nullable;
 
 /** Extract classpath entries from the Tomcat/Catalina WebappClassLoaderBase. */
-class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
+class TomcatWebappClassLoaderBaseHandler extends URLClassLoaderHandler {
     /**
      * The package root prefixes of a servlet container, which serves a webapp's own classes from the war layout,
      * and the container's shared classes from a {@code "classes/"} dir of its own
@@ -147,9 +147,9 @@ class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
                 }
             }
         }
-        // This may or may not duplicate the above
-        final var urls = ReflectionUtils.invokeMethod(false, classLoader, "getURLs");
-        classpathOrder.addClasspathEntryObject(urls, classLoader, log);
+        // WebappClassLoaderBase extends URLClassLoader, so add the URLs it holds as a URLClassLoader too. This
+        // may or may not duplicate the resources above -- duplicate classpath entries are dropped.
+        super.findClasspathOrder(classLoader, classpathOrder, log);
     }
 
     /**

@@ -85,6 +85,66 @@ public class RegisteredClassLoaderHandlerTest {
     }
 
     /**
+     * A subclass of {@link URLClassLoader}, so that a handler written for it is more specific than the built-in
+     * handler for {@link URLClassLoader}.
+     */
+    private static class SubURLClassLoader extends URLClassLoader {
+        /**
+         * Constructor.
+         *
+         * @param urls
+         *            the URLs this classloader loads from.
+         */
+        SubURLClassLoader(final URL[] urls) {
+            // Use the bootstrap classloader as the parent, so that the classpath of the classloader that loaded
+            // this test does not end up in the result
+            super(urls, /* parent = */ null);
+        }
+    }
+
+    /**
+     * A {@link ClassLoaderHandler} for a given classloader class that adds one fixed classpath entry of its own, so
+     * that the entries in the result show which handlers ran.
+     */
+    private static class FixedEntryHandler implements ClassLoaderHandler {
+        /** The name of the classloader class this handler handles. */
+        private final String classLoaderClassName;
+
+        /** The one classpath entry this handler adds. */
+        private final Path classpathEntry;
+
+        /**
+         * Constructor.
+         *
+         * @param classLoaderClass
+         *            the classloader class this handler handles.
+         * @param classpathEntry
+         *            the one classpath entry this handler adds.
+         */
+        FixedEntryHandler(final Class<?> classLoaderClass, final Path classpathEntry) {
+            this.classLoaderClassName = classLoaderClass.getName();
+            this.classpathEntry = classpathEntry;
+        }
+
+        @Override
+        public boolean canHandle(final Class<?> classLoaderClass, final @Nullable ClassGraphLog log) {
+            return classIsOrExtendsOrImplements(classLoaderClass, classLoaderClassName);
+        }
+
+        @Override
+        public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
+                final @Nullable ClassGraphLog log) {
+            classLoaderOrder.add(classLoader, log);
+        }
+
+        @Override
+        public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
+                final @Nullable ClassGraphLog log) {
+            classpathOrder.addClasspathEntry(classpathEntry.toString(), classLoader, log);
+        }
+    }
+
+    /**
      * Create a directory that can be used as a classpath entry.
      *
      * @param tempDir
@@ -183,5 +243,60 @@ public class RegisteredClassLoaderHandlerTest {
         // The registered handler runs first, so its reversed order is the one that survives
         assertThat(find(new ClasspathFinder().overrideClassLoaders(classLoader)
                 .registerClassLoaderHandler(new ReversingURLClassLoaderHandler()))).containsExactly(dirB, dirA);
+    }
+
+    /**
+     * When two handlers can handle the same classloader, only the one that handles the most specific classloader
+     * class runs. A handler written for a subclass of {@link URLClassLoader} knows where that subclass really loads
+     * from, so the built-in {@code URLClassLoaderHandler}, which does not, must not run alongside it.
+     */
+    @Test
+    public void aMoreSpecificHandlerSuppressesAMoreGeneralOne(@TempDir final Path tempDir) throws Exception {
+        final var urlDir = classesDir(tempDir, "url");
+        final var handlerDir = classesDir(tempDir, "handler");
+        final var classLoader = new SubURLClassLoader(new URL[] { urlDir.toUri().toURL() });
+
+        // Without the registered handler, the built-in URLClassLoaderHandler reads the classloader's URLs
+        assertThat(find(new ClasspathFinder().overrideClassLoaders(classLoader))).containsExactly(urlDir);
+
+        // With it, the built-in handler is suppressed, so the classloader's URLs are not read
+        assertThat(find(new ClasspathFinder().overrideClassLoaders(classLoader)
+                .registerClassLoaderHandler(new FixedEntryHandler(SubURLClassLoader.class, handlerDir))))
+                .containsExactly(handlerDir);
+    }
+
+    /**
+     * Two handlers that handle the same classloader class are equally specific, so neither suppresses the other and
+     * both run, the registered handler first.
+     */
+    @Test
+    public void equallySpecificHandlersAllRun(@TempDir final Path tempDir) throws Exception {
+        final var urlDir = classesDir(tempDir, "url");
+        final var handlerDir = classesDir(tempDir, "handler");
+        final var classLoader = new URLClassLoader(new URL[] { urlDir.toUri().toURL() }, /* parent = */ null);
+
+        assertThat(find(new ClasspathFinder().overrideClassLoaders(classLoader)
+                .registerClassLoaderHandler(new FixedEntryHandler(URLClassLoader.class, handlerDir))))
+                .containsExactly(handlerDir, urlDir);
+    }
+
+    /**
+     * A registered handler is never suppressed by a more specific handler, since the caller registered it in order
+     * to have it run. Only built-in handlers are suppressed.
+     */
+    @Test
+    public void aRegisteredHandlerIsNeverSuppressed(@TempDir final Path tempDir) throws Exception {
+        final var urlDir = classesDir(tempDir, "url");
+        final var generalDir = classesDir(tempDir, "general");
+        final var specificDir = classesDir(tempDir, "specific");
+        final var classLoader = new SubURLClassLoader(new URL[] { urlDir.toUri().toURL() });
+
+        // The registered handler for SubURLClassLoader is more specific than the registered handler for
+        // URLClassLoader, but both were registered, so both run. The built-in URLClassLoaderHandler is the only
+        // handler suppressed, so the classloader's own URLs are not in the result.
+        assertThat(find(new ClasspathFinder().overrideClassLoaders(classLoader)
+                .registerClassLoaderHandler(new FixedEntryHandler(URLClassLoader.class, generalDir))
+                .registerClassLoaderHandler(new FixedEntryHandler(SubURLClassLoader.class, specificDir))))
+                .containsExactly(generalDir, specificDir);
     }
 }
