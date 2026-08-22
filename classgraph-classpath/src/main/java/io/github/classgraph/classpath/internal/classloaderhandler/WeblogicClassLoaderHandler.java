@@ -48,9 +48,10 @@ class WeblogicClassLoaderHandler implements ClassLoaderHandler {
                 || classIsOrExtendsOrImplements(classLoaderClass,
                         "weblogic.utils.classloaders.FilteringClassLoader")
                 // The two JSP classloaders below cannot be tested without a WebLogic install, so it is not known
-                // whether they expose the same two methods. Listing them anyway costs nothing: findClasspathOrder
-                // looks the methods up reflectively without throwing, so a name that is not present simply adds no
-                // classpath entries, and every other handler that matches the classloader still runs.
+                // whether they expose the same two methods. findClasspathOrder looks the methods up reflectively
+                // without throwing, so a name that is not present simply adds no classpath entries. Naming them
+                // does make this the handler used for them, in place of a handler for any superclass they have, so
+                // if either turns out to expose its classpath some other way, it has to be read here.
                 || classIsOrExtendsOrImplements(classLoaderClass, "weblogic.servlet.jsp.JspClassLoader")
                 || classIsOrExtendsOrImplements(classLoaderClass, "weblogic.servlet.jsp.TagFileClassLoader");
     }

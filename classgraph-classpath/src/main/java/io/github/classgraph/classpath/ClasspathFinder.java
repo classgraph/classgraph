@@ -296,9 +296,12 @@ public final class ClasspathFinder {
      * <p>
      * There are built-in handlers for the classloaders of the common application servers, build tools and
      * frameworks, so this is only needed for a classloader that none of those handle. Registered handlers are
-     * offered each classloader before the built-in handlers are, in the order they were registered, so a registered
-     * handler can also override a built-in one: the built-in handlers still run afterwards, but a classloader or
-     * classpath entry that has already been placed keeps the position the registered handler gave it.
+     * offered each classloader before the built-in handlers are, in the order they were registered, and are never
+     * dropped, so a registered handler can also override a built-in one. Of the built-in handlers, only those that
+     * name the most specific classloader class are used, so a handler for a subclass of
+     * {@link java.net.URLClassLoader} takes the place of the built-in {@code URLClassLoader} handler rather than
+     * running alongside it, and has to add the classloader's own URLs itself. A classloader or classpath entry that
+     * has already been placed keeps the position the first handler to place it gave it.
      *
      * @param classLoaderHandler
      *            the {@link ClassLoaderHandler} to register.

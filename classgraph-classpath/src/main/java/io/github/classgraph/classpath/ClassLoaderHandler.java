@@ -43,9 +43,16 @@ import org.jspecify.annotations.Nullable;
  * ClassGraph ships with handlers for the classloaders of the common application servers, build tools and
  * frameworks. Write one of these only for a classloader that none of those handle, then register it with
  * {@code ClassGraph#registerClassLoaderHandler(ClassLoaderHandler)} before scanning. A registered handler is
- * offered every classloader before the built-in handlers are, so it can also override a built-in handler: the
- * built-in handlers still run afterwards, but a classloader or classpath entry that has already been placed keeps
- * the position the registered handler gave it.
+ * offered every classloader before the built-in handlers are, and is never dropped, so it can also override a
+ * built-in handler.
+ *
+ * <p>
+ * When more than one handler can handle the same classloader, only the handlers that name the most specific
+ * classloader class are used, so a handler written for a subclass of {@link java.net.URLClassLoader} takes the
+ * place of the built-in {@code URLClassLoader} handler rather than running alongside it, and has to add the
+ * classloader's own URLs itself. The handlers that are kept run in turn, the registered ones first, and a
+ * classloader or classpath entry that has already been placed keeps the position the first handler to place it gave
+ * it.
  *
  * <p>
  * Implementations must be stateless: a single instance handles every classloader in every scan, and scans can run
