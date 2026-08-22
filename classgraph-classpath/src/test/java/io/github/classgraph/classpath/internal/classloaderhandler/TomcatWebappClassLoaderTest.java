@@ -206,6 +206,26 @@ public class TomcatWebappClassLoaderTest {
     }
 
     /**
+     * {@code WebappClassLoaderBase} extends {@link URLClassLoader}, so it can load from URLs that no
+     * {@code WebResourceSet} of the webapp serves. Those URLs are on the classpath as well as the resource sets --
+     * the handler for a subclass of {@link URLClassLoader} reads what the subclass adds, and the URLs too.
+     *
+     * @param tempDir
+     *            a temporary directory to create the webapp in.
+     * @throws IOException
+     *             if the webapp could not be created.
+     */
+    @Test
+    public void theUrlsOfTheWebappClassLoaderAreOnTheClasspathToo(@TempDir final Path tempDir) throws IOException {
+        final var classesDir = Files.createDirectories(tempDir.resolve("webapp/WEB-INF/classes"));
+        final var urlDir = Files.createDirectories(tempDir.resolve("url"));
+        final var root = new StandardRoot().addResourceSets(new DirResourceSet(classesDir.toFile(), "/"));
+        final var urls = new URL[] { urlDir.toUri().toURL() };
+        assertThat(locations(new WebappClassLoaderBase(root, urls, /* parent = */ null)))
+                .containsExactly(location(classesDir), location(urlDir));
+    }
+
+    /**
      * The base URLs of the webapp are on the classpath too.
      *
      * @param tempDir

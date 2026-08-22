@@ -28,7 +28,6 @@
  */
 package io.github.classgraph.classpath.internal;
 
-import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map.Entry;
@@ -365,8 +364,7 @@ public class ClassLoaderProbe {
                 .getClassLoaderOrder()) {
             final var classLoader = ent.getKey();
             var classpathEntriesWereAdded = false;
-            for (final ClassLoaderHandlerRegistryEntry classLoaderHandlerRegistryEntry : //
-            classpathHandlersFor(classLoader, ent.getValue())) {
+            for (final ClassLoaderHandlerRegistryEntry classLoaderHandlerRegistryEntry : ent.getValue()) {
                 if (classpathSpec.ignoreParentClassLoaders && allParentClassLoaders.contains(classLoader)) {
                     if (classloaderURLLog != null) {
                         classloaderURLLog.log("Ignoring parent classloader " + classLoader
@@ -399,40 +397,6 @@ public class ClassLoaderProbe {
             }
         }
         return finalClassLoaderOrder.toArray(ClassLoader[]::new);
-    }
-
-    /**
-     * The handlers to read the classpath entries of a classloader with.
-     *
-     * <p>
-     * Only the handlers that handle the most specific classloader class are selected for a classloader, so a
-     * handler written for a subclass of {@link URLClassLoader} runs in place of the general handler for
-     * {@link URLClassLoader}, rather than alongside it. That is what keeps the delegation order the selected
-     * handlers place the classloaders in from competing with the order the general handler would place them in. The
-     * URLs of a {@link URLClassLoader} are a different matter: they are the paths the classloader really loads
-     * from, so they are still read, by appending the general handler here when none of the selected handlers reads
-     * them itself. Only its classpath entries are added this way, after the entries the selected handlers added;
-     * the delegation order stays entirely with the selected handlers.
-     *
-     * @param classLoader
-     *            the classloader whose classpath entries are about to be read.
-     * @param handlers
-     *            the handlers selected for the classloader.
-     * @return the handlers to read the classpath entries with.
-     */
-    private static List<ClassLoaderHandlerRegistryEntry> classpathHandlersFor(final ClassLoader classLoader,
-            final List<ClassLoaderHandlerRegistryEntry> handlers) {
-        if (!(classLoader instanceof URLClassLoader)) {
-            return handlers;
-        }
-        for (final ClassLoaderHandlerRegistryEntry handler : handlers) {
-            if (handler.readsURLClassLoaderURLs()) {
-                return handlers;
-            }
-        }
-        final List<ClassLoaderHandlerRegistryEntry> handlersWithURLHandler = new ArrayList<>(handlers);
-        handlersWithURLHandler.add(ClassLoaderHandlerRegistry.URL_CLASS_LOADER_HANDLER);
-        return handlersWithURLHandler;
     }
 
     /**
