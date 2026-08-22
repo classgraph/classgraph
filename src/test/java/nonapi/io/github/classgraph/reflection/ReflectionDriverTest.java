@@ -56,6 +56,26 @@ public class ReflectionDriverTest {
         }
     }
 
+    /** An interface with a constant and a default method, to be reached through an implementing class. */
+    @SuppressWarnings("unused")
+    private interface Constants {
+        /** A constant, which is implicitly static and final. */
+        String INTERFACE_CONSTANT = "interface constant";
+
+        /**
+         * A default method.
+         *
+         * @return a marker string.
+         */
+        default String defaultMethod() {
+            return "default method";
+        }
+    }
+
+    /** A class that reaches {@link Constants} through the interface it implements. */
+    private static class Implementor implements Constants {
+    }
+
     /** An operation on a driver, which may fail. */
     @FunctionalInterface
     private interface DriverOp {
@@ -250,6 +270,70 @@ public class ReflectionDriverTest {
         assertThat(driver.findField(Fixture.class, obj, "instanceField").getName()).isEqualTo("instanceField");
         assertThat(driver.findMethod(Fixture.class, obj, "staticMethod").getName()).isEqualTo("staticMethod");
         assertThat(driver.findMethod(Fixture.class, obj, "instanceMethod").getName()).isEqualTo("instanceMethod");
+    }
+
+    /**
+     * Constants and default methods of an implemented interface are found through the implementing class.
+     *
+     * @param driver
+     *            the driver under test.
+     * @throws Exception
+     *             if a lookup that was expected to succeed failed.
+     */
+    @ParameterizedTest
+    @MethodSource("drivers")
+    void interfaceMembersAreFoundThroughImplementingClass(final ReflectionDriver driver) throws Exception {
+        assertThat(driver.findStaticField(Implementor.class, "INTERFACE_CONSTANT").getName())
+                .isEqualTo("INTERFACE_CONSTANT");
+        assertThat(driver.findMethod(Implementor.class, new Implementor(), "defaultMethod").getName())
+                .isEqualTo("defaultMethod");
+    }
+
+    /**
+     * Members of an interface are found when the interface itself is the class being reflected on.
+     *
+     * @param driver
+     *            the driver under test.
+     * @throws Exception
+     *             if a lookup that was expected to succeed failed.
+     */
+    @ParameterizedTest
+    @MethodSource("drivers")
+    void interfaceMembersAreFoundThroughInterfaceItself(final ReflectionDriver driver) throws Exception {
+        assertThat(driver.findStaticField(Constants.class, "INTERFACE_CONSTANT").getName())
+                .isEqualTo("INTERFACE_CONSTANT");
+        assertThat(driver.findMethod(Constants.class, null, "defaultMethod").getName()).isEqualTo("defaultMethod");
+    }
+
+    /**
+     * If the fields of a class cannot be read, its methods are still cached, and vice versa.
+     *
+     * @throws Exception
+     *             if a lookup that was expected to succeed failed.
+     */
+    @Test
+    void unreadableMembersOfOneKindDoNotHideTheOther() throws Exception {
+        final Fixture obj = new Fixture();
+
+        final ReflectionDriver noFields = new StandardReflectionDriver() {
+            @Override
+            Field[] getDeclaredFields(final Class<?> cls) throws Exception {
+                throw new SecurityException("Cannot read the fields of " + cls.getName());
+            }
+        };
+        assertThat(noFields.findMethod(Fixture.class, obj, "instanceMethod").getName()).isEqualTo("instanceMethod");
+        assertThatThrownBy(() -> noFields.findField(Fixture.class, obj, "instanceField"))
+                .isInstanceOf(NoSuchFieldException.class);
+
+        final ReflectionDriver noMethods = new StandardReflectionDriver() {
+            @Override
+            Method[] getDeclaredMethods(final Class<?> cls) throws Exception {
+                throw new SecurityException("Cannot read the methods of " + cls.getName());
+            }
+        };
+        assertThat(noMethods.findField(Fixture.class, obj, "instanceField").getName()).isEqualTo("instanceField");
+        assertThatThrownBy(() -> noMethods.findMethod(Fixture.class, obj, "instanceMethod"))
+                .isInstanceOf(NoSuchMethodException.class);
     }
 
     /**

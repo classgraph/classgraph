@@ -90,10 +90,10 @@ abstract class ReflectionDriver {
 
     /** Caches class members. */
     public class ClassMemberCache {
-        /** The methods of the class and its superclasses, indexed by method name. */
+        /** The methods of the class, its superclasses and its interfaces, indexed by method name. */
         private final Map<String, List<Method>> methodNameToMethods = new HashMap<>();
 
-        /** The fields of the class and its superclasses, indexed by field name. */
+        /** The fields of the class, its superclasses and its interfaces, indexed by field name. */
         private final Map<String, Field> fieldNameToField = new HashMap<>();
 
         /**
@@ -109,42 +109,55 @@ abstract class ReflectionDriver {
             final Set<Class<?>> visited = new HashSet<>();
             final LinkedList<Class<?>> interfaceQueue = new LinkedList<Class<?>>();
             for (Class<?> c = cls; c != null; c = c.getSuperclass()) {
-                try {
-                    // Cache any declared methods and fields
-                    for (final Method m : getDeclaredMethods(c)) {
-                        cacheMethod(m);
-                    }
-                    for (final Field f : getDeclaredFields(c)) {
-                        cacheField(f);
-                    }
-                    // Find interfaces and superinterfaces implemented by this class or its superclasses
-                    if (c.isInterface() && visited.add(c)) {
+                // The starting class can itself be an interface. Don't cache its members here -- it is queued
+                // below like any other interface, and its members are cached when it is dequeued.
+                if (c.isInterface()) {
+                    if (visited.add(c)) {
                         interfaceQueue.add(c);
                     }
-                    for (final Class<?> iface : c.getInterfaces()) {
-                        if (visited.add(iface)) {
-                            interfaceQueue.add(iface);
-                        }
+                } else {
+                    cacheMembers(c);
+                }
+                // Find interfaces and superinterfaces implemented by this class or its superclasses
+                for (final Class<?> iface : c.getInterfaces()) {
+                    if (visited.add(iface)) {
+                        interfaceQueue.add(iface);
                     }
-                } catch (final Exception e) {
-                    // Skip
                 }
             }
-            // Traverse through interfaces looking for default methods
+            // Traverse through interfaces, looking for default methods and constants
             while (!interfaceQueue.isEmpty()) {
                 final Class<?> iface = interfaceQueue.remove();
-                try {
-                    for (final Method m : getDeclaredMethods(iface)) {
-                        cacheMethod(m);
-                    }
-                } catch (final Exception e) {
-                    // Skip
-                }
+                cacheMembers(iface);
                 for (final Class<?> superIface : iface.getInterfaces()) {
                     if (visited.add(superIface)) {
                         interfaceQueue.add(superIface);
                     }
                 }
+            }
+        }
+
+        /**
+         * Cache the declared methods and fields of a class or interface. Methods and fields are read separately,
+         * so that if one of the two cannot be read, the other is still cached.
+         *
+         * @param cls
+         *            the class or interface to cache the declared members of.
+         */
+        private void cacheMembers(final Class<?> cls) {
+            try {
+                for (final Method m : getDeclaredMethods(cls)) {
+                    cacheMethod(m);
+                }
+            } catch (final Exception e) {
+                // Skip
+            }
+            try {
+                for (final Field f : getDeclaredFields(cls)) {
+                    cacheField(f);
+                }
+            } catch (final Exception e) {
+                // Skip
             }
         }
 
@@ -169,8 +182,9 @@ abstract class ReflectionDriver {
          *            the field to cache.
          */
         private void cacheField(final Field field) {
-            // Only put a field name to field mapping if it is absent, so that subclasses mask fields 
-            // of the same name in superclasses
+            // Only put a field name to field mapping if it is absent, so that subclasses mask fields of
+            // the same name in superclasses, and classes mask constants of the same name in the interfaces they
+            // implement
             if (!fieldNameToField.containsKey(field.getName())) {
                 fieldNameToField.put(field.getName(), field);
             }
