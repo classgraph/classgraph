@@ -44,24 +44,22 @@ public final class ClassLoaderHandlerRegistry {
     public static final List<ClassLoaderHandlerRegistryEntry> CLASS_LOADER_HANDLERS = List.of(
             // ClassLoaderHandlers for other ClassLoaders that are handled by ClassGraph
             new ClassLoaderHandlerRegistryEntry(new AntClassLoaderHandler()),
+            new ClassLoaderHandlerRegistryEntry(new CxfContainerClassLoaderHandler()),
             new ClassLoaderHandlerRegistryEntry(new EquinoxClassLoaderHandler()),
             new ClassLoaderHandlerRegistryEntry(new EquinoxContextFinderClassLoaderHandler()),
             new ClassLoaderHandlerRegistryEntry(new FelixClassLoaderHandler()),
             new ClassLoaderHandlerRegistryEntry(new JBossClassLoaderHandler()),
+            // JPMS support (this handler does nothing, since modules are handled separately)
+            new ClassLoaderHandlerRegistryEntry(new JPMSClassLoaderHandler()),
+            new ClassLoaderHandlerRegistryEntry(new OSGiDefaultClassLoaderHandler()),
+            new ClassLoaderHandlerRegistryEntry(new PlexusClassWorldsClassRealmClassLoaderHandler()),
+            new ClassLoaderHandlerRegistryEntry(new QuarkusClassLoaderHandler()),
+            new ClassLoaderHandlerRegistryEntry(new SpringBootRestartClassLoaderHandler()),
+            new ClassLoaderHandlerRegistryEntry(new TomcatWebappClassLoaderBaseHandler()),
+            new ClassLoaderHandlerRegistryEntry(new UnoOneJarClassLoaderHandler()),
             new ClassLoaderHandlerRegistryEntry(new WeblogicClassLoaderHandler()),
             new ClassLoaderHandlerRegistryEntry(new WebsphereLibertyClassLoaderHandler()),
             new ClassLoaderHandlerRegistryEntry(new WebsphereTraditionalClassLoaderHandler()),
-            new ClassLoaderHandlerRegistryEntry(new OSGiDefaultClassLoaderHandler()),
-            new ClassLoaderHandlerRegistryEntry(new SpringBootRestartClassLoaderHandler()),
-            new ClassLoaderHandlerRegistryEntry(new TomcatWebappClassLoaderBaseHandler()),
-            new ClassLoaderHandlerRegistryEntry(new CxfContainerClassLoaderHandler()),
-            new ClassLoaderHandlerRegistryEntry(new PlexusClassWorldsClassRealmClassLoaderHandler()),
-            new ClassLoaderHandlerRegistryEntry(new QuarkusClassLoaderHandler()),
-            new ClassLoaderHandlerRegistryEntry(new UnoOneJarClassLoaderHandler()),
-
-            // JPMS support (this handler does nothing, since modules are handled separately)
-            new ClassLoaderHandlerRegistryEntry(new JPMSClassLoaderHandler()),
-
             // URLClassLoader support (should be last, so that subclasses of URLClassLoader are handled by more
             // specific handlers above)
             new ClassLoaderHandlerRegistryEntry(new URLClassLoaderHandler())
