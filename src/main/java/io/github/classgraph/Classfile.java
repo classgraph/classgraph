@@ -991,9 +991,13 @@ class Classfile {
             return new AnnotationEnumValue(annotationClassName, annotationConstName);
         }
         case 'c':
-            // Return type is AnnotationClassRef (for class references in annotations)
-            final String classRefTypeDescriptor = getConstantPoolString(reader.readUnsignedShort());
-            return new AnnotationClassRef(classRefTypeDescriptor);
+            // Return type is AnnotationClassRef (for class references in annotations). The JVMS says the
+            // class_info_index of a tag 'c' entry refers to a CONSTANT_Class entry, but javac writes the type
+            // descriptor directly as a UTF8 constant (e.g. "Ljava/lang/String;"), so handle both encodings.
+            final int classRefCpIdx = reader.readUnsignedShort();
+            final String classRefStr = getConstantPoolString(classRefCpIdx);
+            return new AnnotationClassRef(classRefStr == null || entryTag[classRefCpIdx] == 1 ? classRefStr
+                    : constantPoolClassNameToTypeDescriptor(classRefStr));
         case '@':
             // Complex (nested) annotation. Return type is AnnotationInfo.
             return readAnnotation();
@@ -1011,6 +1015,21 @@ class Classfile {
                     + ((char) tag) + "': element size unknown, cannot continue reading class. "
                     + "Please report this at https://github.com/classgraph/classgraph/issues");
         }
+    }
+
+    /**
+     * Convert the class name stored in a {@code CONSTANT_Class} entry into a type descriptor. Per JVMS 4.4.1, the
+     * name in a {@code CONSTANT_Class} entry is a binary class name (e.g. "java/lang/String"), except for array
+     * types, where it is the descriptor of the array type (e.g. "[Ljava/lang/String;"). Primitive types and void
+     * cannot be named by a {@code CONSTANT_Class} entry, so a name of "I" is the class {@code I}, not {@code int}.
+     *
+     * @param constantPoolClassName
+     *            the class name from a {@code CONSTANT_Class} entry
+     * @return the type descriptor of the referenced type
+     */
+    private static String constantPoolClassNameToTypeDescriptor(final String constantPoolClassName) {
+        // An array type is already a type descriptor; a binary class name has to be wrapped in one
+        return constantPoolClassName.startsWith("[") ? constantPoolClassName : "L" + constantPoolClassName + ";";
     }
 
     // -------------------------------------------------------------------------------------------------------------
