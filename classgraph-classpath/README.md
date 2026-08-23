@@ -73,8 +73,9 @@ succeed. A path is given in canonical form, spelled the way the file is stored: 
 resolved, and on a filesystem that ignores case, so is the case of each name. That is also what
 decides whether two entries are the same, so a file that two classloaders reach by different paths
 is listed once, at the first position it is reached at. `getPackageRootPrefixes()` lists the
-prefixes to strip from entry names within that element, e.g. `BOOT-INF/classes` for a Spring Boot
-jarfile; it is empty for an ordinary jarfile.
+prefixes to strip from entry names within that element, e.g. `WEB-INF/classes` for a Tomcat webapp
+classloader; it is empty for a classloader that loads classes only from the classpath elements it
+was given, which is almost all of them.
 
 An entry that names a file or directory the filesystem says is not there, or that cannot be read, is
 left out of the classpath rather than listed and then failed on, since it can contribute no class.
@@ -258,20 +259,21 @@ turn, the ones you registered first, and a classloader or classpath entry that h
 placed keeps the position the first handler to place it gave it. Nothing depends on the order the
 built-in handlers are registered in.
 
-Two more methods say what to look for *within* each classpath element the handler contributes, and
-both default to the layouts that any classloader can be handed: `getPackageRootPrefixes()` to
-`classes/`, `test-classes/`, `BOOT-INF/classes/` and `WEB-INF/classes/`, and `getLibDirPrefixes()`
-to `BOOT-INF/lib/`, `WEB-INF/lib/` and `WEB-INF/lib-provided/`. Override either one to add a dir
-that is specific to your container, keeping the defaults with `ClassLoaderHandler.prefixesPlus(...)`:
+Two more methods say what to look for *within* each classpath element the handler contributes:
+`getPackageRootPrefixes()` names the directories the classloader may root the package hierarchy at,
+and `getLibDirPrefixes()` names the directories it loads jarfiles from without listing them as
+classpath elements. Both default to none, since a classloader normally loads classes only from the
+classpath elements it was given -- `URLClassLoader` has no automatic package roots or lib dirs at
+all. Override one only if your classloader's own code goes looking in a directory of a fixed name:
 
 ```java
 @Override
 public List<String> getLibDirPrefixes() {
-    return ClassLoaderHandler.prefixesPlus(ARCHIVE_LIB_DIR_PREFIXES, "my-container-lib/");
+    return List.of("my-container-lib/");
 }
 ```
 
-Add a prefix only if the classloader really can produce classpath elements in that layout.
+Declare a prefix only if the classloader really does look there.
 `BOOT-INF` and `WEB-INF` are unambiguous, because a hyphen is not legal in a Java identifier, so a
 directory with one of those names cannot be a package; an ordinary name like `classes/` or `lib/`
 can be, and declaring one wrongly either hides a real package or puts jarfiles that are only
