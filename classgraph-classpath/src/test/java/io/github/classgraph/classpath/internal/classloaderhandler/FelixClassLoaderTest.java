@@ -8,11 +8,15 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 import org.apache.felix.framework.BundleRevisionImpl;
 import org.apache.felix.framework.BundleWiringImpl;
 import org.apache.felix.framework.BundleWiringImpl.BundleClassLoader;
 import org.apache.felix.framework.cache.Content;
+import org.apache.felix.framework.cache.ContentDirectoryContent;
+import org.apache.felix.framework.util.MultiReleaseContent;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -69,6 +73,48 @@ public class FelixClassLoaderTest {
                 .embedding(new Content(embeddedJar.toFile()));
         assertThat(locations(new BundleClassLoader(new BundleWiringImpl(revision))))
                 .containsExactly(location(bundleJar), location(embeddedJar));
+    }
+
+    /**
+     * A {@code Bundle-ClassPath} entry can name a directory inside the bundle jar rather than an embedded jar. It
+     * is on the classpath as that directory within the jar, since the directory has no file of its own on disk.
+     *
+     * @param tempDir
+     *            a temporary directory to create the bundle in.
+     * @throws IOException
+     *             if the bundle could not be created.
+     */
+    @Test
+    public void aDirectoryInsideTheBundleJarIsOnTheClasspathAsAPathWithinTheJar(@TempDir final Path tempDir)
+            throws IOException {
+        final var bundleJar = tempDir.resolve("bundle.jar");
+        try (var zipOutputStream = new ZipOutputStream(Files.newOutputStream(bundleJar))) {
+            zipOutputStream.putNextEntry(new ZipEntry("embedded/"));
+            zipOutputStream.closeEntry();
+        }
+        final var bundleContent = new Content(bundleJar.toFile());
+        final var revision = new BundleRevisionImpl(bundleContent)
+                .embedding(new ContentDirectoryContent(bundleContent, "embedded"));
+        assertThat(locations(new BundleClassLoader(new BundleWiringImpl(revision))))
+                .containsExactly(location(bundleJar), location(bundleJar) + "!/embedded");
+    }
+
+    /**
+     * Felix wraps the contents of a multi-release bundle in a {@code MultiReleaseContent}, which has no file of its
+     * own. The bundle is on the classpath as the file of the content that the wrapper serves.
+     *
+     * @param tempDir
+     *            a temporary directory to create the bundle in.
+     * @throws IOException
+     *             if the bundle could not be created.
+     */
+    @Test
+    public void aMultiReleaseBundleIsOnTheClasspathAsTheJarItsWrapperServes(@TempDir final Path tempDir)
+            throws IOException {
+        final var bundleJar = Files.createFile(tempDir.resolve("bundle.jar"));
+        final var revision = new BundleRevisionImpl(new MultiReleaseContent(new Content(bundleJar.toFile())));
+        assertThat(locations(new BundleClassLoader(new BundleWiringImpl(revision))))
+                .containsExactly(location(bundleJar));
     }
 
     /**

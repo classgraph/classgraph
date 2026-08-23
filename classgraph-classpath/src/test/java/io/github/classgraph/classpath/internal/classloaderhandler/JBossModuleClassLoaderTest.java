@@ -9,6 +9,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
+import org.jboss.modules.FilteredResourceLoader;
 import org.jboss.modules.JarFileResourceLoader;
 import org.jboss.modules.Module;
 import org.jboss.modules.ModuleClassLoader;
@@ -180,5 +181,22 @@ public class JBossModuleClassLoaderTest {
         final var root = new VirtualFile(contents.toFile(), /* name = */ null).mountedFrom(jar.toFile());
         assertThat(locations(moduleWithResourceLoaders(new PathResourceLoader(root))))
                 .containsExactly(location(contents), location(jar));
+    }
+
+    /**
+     * A resource loader that wraps another one has neither a root nor a jarfile of its own, so it is on the
+     * classpath as the location of the resource loader it delegates to.
+     *
+     * @param tempDir
+     *            a temporary directory to create the module in.
+     * @throws IOException
+     *             if the module could not be created.
+     */
+    @Test
+    public void aResourceLoaderThatWrapsAnotherOneIsOnTheClasspathAsTheLocationItDelegatesTo(
+            @TempDir final Path tempDir) throws IOException {
+        final var jar = Files.createFile(tempDir.resolve("filtered.jar"));
+        assertThat(locations(moduleWithResourceLoaders(new FilteredResourceLoader(jar.toUri()))))
+                .containsExactly(location(jar));
     }
 }

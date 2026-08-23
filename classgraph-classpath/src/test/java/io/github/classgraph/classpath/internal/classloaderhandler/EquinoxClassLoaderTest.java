@@ -22,6 +22,7 @@ import org.eclipse.osgi.internal.loader.classpath.ClasspathManager;
 import org.eclipse.osgi.internal.loader.classpath.FragmentClasspath;
 import org.eclipse.osgi.storage.Storage;
 import org.eclipse.osgi.storage.bundlefile.BundleFile;
+import org.eclipse.osgi.storage.bundlefile.BundleFileWrapper;
 import org.eclipse.osgi.storage.bundlefile.DirBundleFile;
 import org.eclipse.osgi.storage.bundlefile.NestedDirBundleFile;
 import org.eclipse.osgi.storage.bundlefile.ZipBundleFile;
@@ -139,6 +140,26 @@ public class EquinoxClassLoaderTest {
                 .followedBy(new DirBundleFile(sibling.toFile()));
         final var classLoader = new EquinoxClassLoader(new ClasspathManager(new ClasspathEntry(bundleFile)));
         assertThat(locations(classLoader)).containsExactly(location(outer), location(inner), location(sibling));
+    }
+
+    /**
+     * A framework extension can install a hook that wraps a bundle file in a {@code BundleFileWrapper}. The wrapper
+     * copies only the base file of the bundle file it wraps, so the bundle file it delegates to has to be read as
+     * well, or the classpath element within the bundle would be lost.
+     *
+     * @param tempDir
+     *            a temporary directory to create the bundle in.
+     * @throws IOException
+     *             if the bundle could not be created.
+     */
+    @Test
+    public void theBundleFileThatAWrapperDelegatesToIsOnTheClasspath(@TempDir final Path tempDir)
+            throws IOException {
+        final var bundleDir = Files.createDirectory(tempDir.resolve("bundle"));
+        final var classesDir = Files.createDirectory(bundleDir.resolve("bin"));
+        final var wrapper = new BundleFileWrapper(new DirBundleFile(bundleDir.toFile()).serving("bin"));
+        final var classLoader = new EquinoxClassLoader(new ClasspathManager(new ClasspathEntry(wrapper)));
+        assertThat(locations(classLoader)).containsExactly(location(bundleDir), location(classesDir));
     }
 
     /**

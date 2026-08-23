@@ -13,6 +13,7 @@ import org.eclipse.osgi.internal.baseadaptor.BundleFile;
 import org.eclipse.osgi.internal.baseadaptor.ClasspathEntry;
 import org.eclipse.osgi.internal.baseadaptor.ClasspathManager;
 import org.eclipse.osgi.internal.baseadaptor.DefaultClassLoader;
+import org.eclipse.osgi.internal.baseadaptor.FragmentClasspath;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -74,6 +75,65 @@ public class OSGiDefaultClassLoaderTest {
         final var classesDir = Files.createDirectory(tempDir.resolve("bin"));
         assertThat(locations(bundleWithClasspathEntries(entryReadFrom(bundleJar), entryReadFrom(classesDir))))
                 .containsExactly(location(bundleJar), location(classesDir));
+    }
+
+    /**
+     * A classpath entry that serves only a subdirectory of the bundle, which is what a {@code Bundle-ClassPath}
+     * entry of {@code "bin/"} produces, puts that subdirectory on the classpath rather than the whole bundle.
+     *
+     * @param tempDir
+     *            a temporary directory to create the bundle in.
+     * @throws IOException
+     *             if the bundle could not be created.
+     */
+    @Test
+    public void theSubdirectoryOfTheBundleThatAClasspathEntryServesIsOnTheClasspath(@TempDir final Path tempDir)
+            throws IOException {
+        final var bundleDir = Files.createDirectory(tempDir.resolve("bundle"));
+        final var classesDir = Files.createDirectory(bundleDir.resolve("bin"));
+        final var entry = new ClasspathEntry(new BundleFile(bundleDir.toFile()).serving("bin"));
+        assertThat(locations(bundleWithClasspathEntries(entry))).containsExactly(location(classesDir));
+    }
+
+    /**
+     * A framework extension can replace a bundle file with a chain of wrappers around it. Every bundle file in the
+     * chain is on the classpath, since only the innermost one knows which subdirectory of the bundle is served.
+     *
+     * @param tempDir
+     *            a temporary directory to create the bundle in.
+     * @throws IOException
+     *             if the bundle could not be created.
+     */
+    @Test
+    public void theBundleFilesThatAWrapperChainWrapsAreOnTheClasspath(@TempDir final Path tempDir)
+            throws IOException {
+        final var bundleDir = Files.createDirectory(tempDir.resolve("bundle"));
+        final var classesDir = Files.createDirectory(bundleDir.resolve("bin"));
+        final var wrappedJar = Files.createFile(tempDir.resolve("wrapped.jar"));
+        final var chain = new BundleFile(/* baseFile = */ null)
+                .wrapping(new BundleFile(bundleDir.toFile()).serving("bin"))
+                .followedBy(new BundleFile(wrappedJar.toFile()));
+        assertThat(locations(bundleWithClasspathEntries(new ClasspathEntry(chain))))
+                .containsExactly(location(classesDir), location(wrappedJar));
+    }
+
+    /**
+     * The classpath entries contributed by the bundle's fragments are on the classpath, after the bundle's own.
+     *
+     * @param tempDir
+     *            a temporary directory to create the bundle in.
+     * @throws IOException
+     *             if the bundle could not be created.
+     */
+    @Test
+    public void theClasspathEntriesOfTheBundlesFragmentsAreOnTheClasspath(@TempDir final Path tempDir)
+            throws IOException {
+        final var bundleJar = Files.createFile(tempDir.resolve("bundle.jar"));
+        final var fragmentJar = Files.createFile(tempDir.resolve("fragment.jar"));
+        final var classpathManager = new ClasspathManager(entryReadFrom(bundleJar))
+                .withFragments(new FragmentClasspath(entryReadFrom(fragmentJar)));
+        assertThat(locations(new DefaultClassLoader(classpathManager))).containsExactly(location(bundleJar),
+                location(fragmentJar));
     }
 
     /**

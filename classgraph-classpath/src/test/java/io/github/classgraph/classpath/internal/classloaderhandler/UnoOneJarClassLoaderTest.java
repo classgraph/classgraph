@@ -24,8 +24,8 @@ import io.github.classgraph.classpath.ClasspathFinder;
  */
 public class UnoOneJarClassLoaderTest {
     /** The system properties that Uno-Jar and One-Jar name their classpath in. */
-    private static final List<String> CLASSPATH_PROPERTIES = List.of("uno-jar.jar.path", "one-jar.jar.path",
-            "one-jar.class.path");
+    private static final List<String> CLASSPATH_PROPERTIES = List.of("uno-jar.jar.path", "uno-jar.class.path",
+            "one-jar.jar.path", "one-jar.class.path");
 
     /** The values that the classpath properties had before the test, so that they can be restored after it. */
     private final Map<String, String> propertyValuesBeforeTest = new LinkedHashMap<>();
@@ -113,6 +113,25 @@ public class UnoOneJarClassLoaderTest {
         final var appJar = Files.createFile(tempDir.resolve("app.jar"));
         System.setProperty("one-jar.jar.path", appJar.toString());
         assertThat(locations(new com.simontuffs.onejar.JarClassLoader())).containsExactly(location(appJar));
+    }
+
+    /**
+     * Uno-Jar takes extra classpath entries on the command line, separated by {@code '|'} rather than by the
+     * platform's path separator. All of them are on the classpath.
+     *
+     * @param tempDir
+     *            a temporary directory to create the application in.
+     * @throws IOException
+     *             if the application could not be created.
+     */
+    @Test
+    public void theExtraClasspathEntriesOfAnUnoJarApplicationAreOnTheClasspath(@TempDir final Path tempDir)
+            throws IOException {
+        final var libJar = Files.createFile(tempDir.resolve("lib.jar"));
+        final var classesDir = Files.createDirectory(tempDir.resolve("classes"));
+        System.setProperty("uno-jar.class.path", libJar + "|" + classesDir);
+        assertThat(locations(new com.needhamsoftware.unojar.JarClassLoader(/* oneJarPath = */ null)))
+                .containsExactly(location(libJar), location(classesDir));
     }
 
     /**

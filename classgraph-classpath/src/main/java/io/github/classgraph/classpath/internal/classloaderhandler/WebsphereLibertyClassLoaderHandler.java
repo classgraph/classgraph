@@ -71,11 +71,44 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
                 || classIsOrExtendsOrImplements(classLoaderClass, IBM_THREAD_CONTEXT_CLASS_LOADER);
     }
 
+    /**
+     * Delegate to every classloader held in one of the delegate-classloader fields of a Liberty classloader. The
+     * field holds an {@link Iterable} of classloaders, or null if this classloader has no delegates of that kind.
+     *
+     * @param classLoader
+     *            the classloader
+     * @param fieldName
+     *            the name of the field holding the delegate classloaders
+     * @param classLoaderOrder
+     *            the classloader order
+     * @param log
+     *            the log node, or null to skip logging
+     */
+    private static void delegateToAll(final ClassLoader classLoader, final String fieldName,
+            final ClassLoaderOrder classLoaderOrder, final @Nullable ClassGraphLog log) {
+        final var delegates = ReflectionUtils.getFieldVal(false, classLoader, fieldName);
+        if (delegates instanceof Iterable) {
+            for (final Object delegate : (Iterable<?>) delegates) {
+                if (delegate instanceof ClassLoader) {
+                    classLoaderOrder.delegateTo((ClassLoader) delegate, /* isParent = */ false, log);
+                }
+            }
+        }
+    }
+
     @Override
     public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
             final @Nullable ClassGraphLog log) {
         classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true, log);
+        // An AppClassLoader holds the classloaders of the libraries it delegates to, split by the precedence
+        // configured for each library: "beforeApp" libraries are searched before the application's own classpath,
+        // "afterApp" libraries after it
+        delegateToAll(classLoader, "beforeAppDelegateLoaders", classLoaderOrder, log);
         classLoaderOrder.add(classLoader, log);
+        delegateToAll(classLoader, "afterAppDelegateLoaders", classLoaderOrder, log);
+        // A ThreadContextClassLoader extends UnifiedClassLoader, which searches its parent, then in turn each of
+        // the classloaders in "followOnClassLoaders"
+        delegateToAll(classLoader, "followOnClassLoaders", classLoaderOrder, log);
     }
 
     /**

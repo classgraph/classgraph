@@ -198,6 +198,50 @@ public class WebsphereLibertyClassLoaderTest {
     }
 
     /**
+     * An application delegates to the classloaders of the libraries it is configured to use, and the precedence
+     * configured for each library decides whether it is searched before or after the application's own classpath.
+     *
+     * @param tempDir
+     *            a temporary directory to create the application in.
+     * @throws IOException
+     *             if the application could not be created.
+     */
+    @Test
+    public void theClasspathsOfTheLibrariesTheApplicationDelegatesToAreOnTheClasspathInPrecedenceOrder(
+            @TempDir final Path tempDir) throws IOException {
+        final var beforeDir = Files.createDirectory(tempDir.resolve("before"));
+        final var appDir = Files.createDirectory(tempDir.resolve("app"));
+        final var afterDir = Files.createDirectory(tempDir.resolve("after"));
+        final var classLoader = new AppClassLoader(new SmartClassPath(List.of(url(appDir))), /* parent = */ null)
+                .delegatingBeforeAppTo(
+                        new AppClassLoader(new SmartClassPath(List.of(url(beforeDir))), /* parent = */ null))
+                .delegatingAfterAppTo(
+                        new AppClassLoader(new SmartClassPath(List.of(url(afterDir))), /* parent = */ null));
+        assertThat(locations(classLoader)).containsExactly(location(beforeDir), location(appDir),
+                location(afterDir));
+    }
+
+    /**
+     * A thread context classloader searches the classloaders it is chained to after its own, so their classpaths
+     * are on the classpath too.
+     *
+     * @param tempDir
+     *            a temporary directory to create the application in.
+     * @throws IOException
+     *             if the application could not be created.
+     */
+    @Test
+    public void theClasspathsOfTheClassLoadersAThreadContextClassLoaderFallsThroughToAreOnTheClasspath(
+            @TempDir final Path tempDir) throws IOException {
+        final var appDir = Files.createDirectory(tempDir.resolve("app"));
+        final var followOnDir = Files.createDirectory(tempDir.resolve("follow-on"));
+        final var appLoader = new AppClassLoader(new SmartClassPath(List.of(url(appDir))), /* parent = */ null);
+        final var followOn = new AppClassLoader(new SmartClassPath(List.of(url(followOnDir))), /* parent = */ null);
+        assertThat(locations(new ThreadContextClassLoader(appLoader, /* parent = */ null).followedBy(followOn)))
+                .containsExactly(location(appDir), location(followOnDir));
+    }
+
+    /**
      * An application classloader with no classpath at all does not fail the scan.
      */
     @Test

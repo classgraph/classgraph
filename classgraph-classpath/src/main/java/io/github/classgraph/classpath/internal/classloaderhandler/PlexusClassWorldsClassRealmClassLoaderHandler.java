@@ -98,7 +98,7 @@ class PlexusClassWorldsClassRealmClassLoaderHandler extends URLClassLoaderHandle
 
         // From ClassRealm#loadClassFromParent -- N.B. we are ignoring parentImports, which is used to filter a
         // class name before deciding whether or not to call the parent classloader (so ClassGraph will be able to
-        // load classes by name that are not imported from the parent classloader).
+        // find classes that are not loaded by the parent classloader).
         final var parentClassLoader = (ClassLoader) ReflectionUtils.invokeMethod(false, classLoader,
                 "getParentClassLoader");
         classLoaderOrder.delegateTo(parentClassLoader, /* isParent = */ true, log);

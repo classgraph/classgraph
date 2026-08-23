@@ -30,17 +30,20 @@ package io.github.classgraph.classpath.internal.classloaderhandler;
 
 import io.github.classgraph.base.ClassGraphLog;
 import io.github.classgraph.base.internal.reflection.ReflectionUtils;
-import io.github.classgraph.classpath.ClassLoaderHandler;
-import io.github.classgraph.classpath.ClassLoaderOrder;
 import io.github.classgraph.classpath.ClasspathOrder;
 import org.jspecify.annotations.Nullable;
 
 /**
  * Handle the WebSphere traditional ClassLoaders.
  *
+ * <p>
+ * {@code com.ibm.ws.bootstrap.ExtClassLoader} extends {@link java.net.URLClassLoader} -- its {@code findClass()}
+ * calls {@code super.findClass()} -- so its URLs are read as well as the classpath string that all of these
+ * classloaders expose.
+ *
  * @author Luke Hutchison
  */
-class WebsphereTraditionalClassLoaderHandler implements ClassLoaderHandler {
+class WebsphereTraditionalClassLoaderHandler extends URLClassLoaderHandler {
     /** Constructor. */
     WebsphereTraditionalClassLoaderHandler() {
     }
@@ -53,17 +56,12 @@ class WebsphereTraditionalClassLoaderHandler implements ClassLoaderHandler {
     }
 
     @Override
-    public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
-            final @Nullable ClassGraphLog log) {
-        classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true, log);
-        classLoaderOrder.add(classLoader, log);
-    }
-
-    @Override
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
             final @Nullable ClassGraphLog log) {
         final var classpath = (String) ReflectionUtils.invokeMethod(false, classLoader, "getClassPath");
         classpathOrder.addClasspathPathStr(classpath, classLoader, log);
+        // ExtClassLoader is a URLClassLoader, so add its URLs too
+        super.findClasspathOrder(classLoader, classpathOrder, log);
     }
 
 }

@@ -3,7 +3,6 @@ package org.apache.felix.framework;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.felix.framework.cache.Content;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -13,10 +12,13 @@ import org.jspecify.annotations.Nullable;
  */
 public class BundleRevisionImpl {
     /** The bundle's own contents. */
-    private final @Nullable Content content;
+    private final @Nullable Object content;
 
-    /** The bundle's own contents, followed by the contents embedded in the bundle. */
-    private final List<Content> contentPath = new ArrayList<>();
+    /**
+     * The bundle's own contents, followed by the contents embedded in the bundle. Not typed as {@code Content},
+     * because Felix puts contents of several unrelated types on the content path.
+     */
+    private final List<Object> contentPath = new ArrayList<>();
 
     /**
      * Constructor.
@@ -24,7 +26,7 @@ public class BundleRevisionImpl {
      * @param content
      *            the bundle's own contents, or null if the bundle has none.
      */
-    public BundleRevisionImpl(final @Nullable Content content) {
+    public BundleRevisionImpl(final @Nullable Object content) {
         this.content = content;
         if (content != null) {
             contentPath.add(content);
@@ -38,7 +40,7 @@ public class BundleRevisionImpl {
      *            the embedded contents.
      * @return this, for chaining.
      */
-    public BundleRevisionImpl embedding(final Content embedded) {
+    public BundleRevisionImpl embedding(final Object embedded) {
         contentPath.add(embedded);
         return this;
     }
@@ -48,7 +50,7 @@ public class BundleRevisionImpl {
      *
      * @return the contents, or null if the bundle has none.
      */
-    public @Nullable Content getContent() {
+    public @Nullable Object getContent() {
         return content;
     }
 
@@ -57,7 +59,7 @@ public class BundleRevisionImpl {
      *
      * @return the content path.
      */
-    public List<Content> getContentPath() {
+    public List<Object> getContentPath() {
         return contentPath;
     }
 }

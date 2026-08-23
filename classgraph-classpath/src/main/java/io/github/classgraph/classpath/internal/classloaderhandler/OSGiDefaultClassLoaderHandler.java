@@ -28,8 +28,6 @@
  */
 package io.github.classgraph.classpath.internal.classloaderhandler;
 
-import java.io.File;
-
 import io.github.classgraph.base.ClassGraphLog;
 import io.github.classgraph.base.internal.reflection.ReflectionUtils;
 import io.github.classgraph.classpath.ClassLoaderOrder;
@@ -62,17 +60,15 @@ class OSGiDefaultClassLoaderHandler implements OSGiClassLoaderHandler {
     @Override
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
             final @Nullable ClassGraphLog log) {
-        final var classpathManager = ReflectionUtils.invokeMethod(false, classLoader, "getClasspathManager");
-        final var entries = (Object[]) ReflectionUtils.getFieldVal(false, classpathManager, "entries");
-        if (entries != null) {
-            for (final Object entry : entries) {
-                final var bundleFile = ReflectionUtils.invokeMethod(false, entry, "getBundleFile");
-                final var baseFile = (File) ReflectionUtils.invokeMethod(false, bundleFile, "getBaseFile");
-                if (baseFile != null) {
-                    classpathOrder.addClasspathEntry(baseFile.getPath(), classLoader, log);
-                }
-            }
+        // type ClasspathManager
+        var classpathManager = ReflectionUtils.invokeMethod(false, classLoader, "getClasspathManager");
+        if (classpathManager == null) {
+            classpathManager = ReflectionUtils.getFieldVal(false, classLoader, "manager");
         }
+        // The bundle file of a classpath entry can be a nested dir or a wrapper chain, exactly as in newer versions
+        // of Equinox, so the same traversal is needed here -- reading only the base file of each entry would lose
+        // the sub-path within the bundle, and the entries of the bundle's fragments entirely
+        OSGiClassLoaderHandler.addClasspathManagerEntries(classpathManager, classLoader, classpathOrder, log);
     }
 
 }

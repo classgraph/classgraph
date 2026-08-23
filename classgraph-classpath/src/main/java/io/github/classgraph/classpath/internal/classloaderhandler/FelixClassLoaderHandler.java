@@ -74,8 +74,28 @@ class FelixClassLoaderHandler implements OSGiClassLoaderHandler {
      *            the content object
      * @return the content location, or null if it could not be determined
      */
-    private static @Nullable File getContentLocation(final Object content) {
-        return (File) ReflectionUtils.invokeMethod(false, content, "getFile");
+    private static @Nullable String getContentLocation(final Object content) {
+        final var file = (File) ReflectionUtils.invokeMethod(false, content, "getFile");
+        if (file != null) {
+            return file.getPath();
+        }
+        // A Content with no file of its own delegates to the Content held in its "m_content" field: a
+        // MultiReleaseContent serves the whole of the Content it wraps, and a ContentDirectoryContent serves only
+        // the "m_rootPath" subdirectory of it.
+        final var outerContent = ReflectionUtils.getFieldVal(false, content, "m_content");
+        if (outerContent == null) {
+            return null;
+        }
+        final var outerLocation = getContentLocation(outerContent);
+        final var rootPath = (String) ReflectionUtils.getFieldVal(false, content, "m_rootPath");
+        if (outerLocation == null || rootPath == null) {
+            return outerLocation;
+        }
+        // A ContentDirectoryContent is only ever created for a directory entry of a jarfile Content, by
+        // JarContent#getEntryAsContent, so the subdirectory is always a path within an archive. Its constructor
+        // appends a "/" to the Bundle-ClassPath entry if it has none, which has to come back off again.
+        return outerLocation + "!/"
+                + (rootPath.endsWith("/") ? rootPath.substring(0, rootPath.length() - 1) : rootPath);
     }
 
     /**
