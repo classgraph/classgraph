@@ -72,16 +72,21 @@ public class Issue420Test {
     }
 
     /**
-     * Test accessing a package hierarchy in Jimfs.
+     * Write a class into a package hierarchy in Jimfs, then scan a directory of that filesystem.
      *
      * @param packageRootPrefix
-     *            The package root prefix.
+     *            The directory the package hierarchy is written beneath, relative to the root of the filesystem.
+     * @param dirToScan
+     *            The directory to hand to the classloader as a classpath element, relative to the root of the
+     *            filesystem.
+     * @return whether the class was found.
      * @throws IOException
      *             If an I/O exception occurred.
      * @throws URISyntaxException
      *             If a URI is bad.
      */
-    private void testDir(final String packageRootPrefix) throws IOException, URISyntaxException {
+    private boolean classIsFound(final String packageRootPrefix, final String dirToScan)
+            throws IOException, URISyntaxException {
         try (var memFs = Jimfs.newFileSystem()) {
             final var packageName = "io.github.classgraph.issues.issue146";
             final var className = "CompiledWithJDK8";
@@ -94,14 +99,13 @@ public class Issue420Test {
             final var memFsFilePath = memFs.getPath(memFsDirPath + "/" + className + ".class");
             final var memFsCopyOfClassFile = Files.copy(jarPath, memFsFilePath);
             assertThat(Files.exists(memFsCopyOfClassFile));
-            final var memFsRoot = memFs.getPath("");
-            final var memFsRootURL = memFsRoot.toUri().toURL();
-            try (var childClassLoader = new URLClassLoader(new URL[] { memFsRootURL },
+            final var memFsDirToScanURL = memFs.getPath(dirToScan).toUri().toURL();
+            try (var childClassLoader = new URLClassLoader(new URL[] { memFsDirToScanURL },
                     getClass().getClassLoader())) {
                 final var classGraph = new ClassGraph().overrideClassLoaders(childClassLoader)
                         .ignoreParentClassLoaders().acceptPackages(packageName).enableAllInfo();
                 try (var scanResult = classGraph.scan()) {
-                    assertThat(scanResult.getClassInfo(classFullyQualifiedName)).isNotNull();
+                    return scanResult.getClassInfo(classFullyQualifiedName) != null;
                 }
             }
         }
@@ -117,12 +121,14 @@ public class Issue420Test {
      */
     @Test
     public void testScanningDirBackedByFileSystem() throws IOException, URISyntaxException {
-        testDir("");
+        assertThat(classIsFound("", "")).isTrue();
     }
 
     /**
-     * Test accessing a package hierarchy rooted at "work/classes/" (i.e. with an automatically-detected package
-     * root) in Jimfs.
+     * Test accessing a package hierarchy rooted at "work/classes/" in Jimfs. A {@link URLClassLoader} loads classes
+     * only from the directories it was given, so the package hierarchy is only scannable when the classloader is
+     * given "work/classes/" itself -- a directory named "classes" that turns up inside a classpath element is a
+     * package, not a package root.
      *
      * @throws IOException
      *             If an I/O exception occurred.
@@ -131,6 +137,7 @@ public class Issue420Test {
      */
     @Test
     public void testScanningDirBackedByFileSystemWithPackageRoot() throws IOException, URISyntaxException {
-        testDir("classes/");
+        assertThat(classIsFound("classes/", "classes")).isTrue();
+        assertThat(classIsFound("classes/", "")).isFalse();
     }
 }

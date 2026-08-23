@@ -7,6 +7,8 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
@@ -450,13 +452,19 @@ public class ResourceTest {
         }
     }
 
-    /** A resource inside a jar has a {@code "jar:...!/"} URI, and a path relative to the package root. */
+    /**
+     * A resource inside a jar has a {@code "jar:...!/"} URI, and a path relative to the package root. The classpath
+     * element is the jarfile, and the package root within it is found because the classloader declares it as an
+     * automatic package root.
+     */
     @Test
     public void aResourceInAJarHasAJarURI() throws IOException {
         final var jarURL = ResourceTest.class.getClassLoader().getResource(JAR_NAME);
         assertThat(jarURL).isNotNull();
-        try (var scanResult = new ClassGraph().acceptPathsNonRecursive("hello")
-                .overrideClasspath("jar:" + jarURL + "!/BOOT-INF/classes").scan()) {
+        try (var classLoader = new URLClassLoader(new URL[] { jarURL }, /* parent = */ null);
+                var scanResult = new ClassGraph().acceptPathsNonRecursive("hello").overrideClassLoaders(classLoader)
+                        .registerClassLoaderHandler(new PackageRootClassLoaderHandler("BOOT-INF/classes/"))
+                        .scan()) {
             final var resource = resource(scanResult, "hello/HelloController.class");
             // getPath() is relative to the package root, getPathRelativeToClasspathElement() to the jar root
             assertThat(resource.getPath()).isEqualTo("hello/HelloController.class");

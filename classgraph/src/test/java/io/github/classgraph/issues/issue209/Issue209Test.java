@@ -31,7 +31,6 @@ package io.github.classgraph.issues.issue209;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
-import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.List;
 
@@ -41,7 +40,11 @@ import io.github.classgraph.ClassGraph;
 
 public class Issue209Test {
     /**
-     * Test spring boot jar with lib jars.
+     * The three parts of a Spring Boot jar -- the launcher's own classes at the root, the application's classes
+     * under {@code BOOT-INF/classes}, and the application's dependencies under {@code BOOT-INF/lib} -- are all
+     * scannable, and the classfile of each is readable, including the ones in a jar nested within the Spring Boot
+     * jar. The Spring Boot launcher gives its classloader a URL for each of those parts; here they are named on an
+     * overridden classpath instead, since a plain {@link URLClassLoader} handed the jar loads only from its root.
      */
     @Test
     public void testSpringBootJarWithLibJars() throws IOException {
@@ -52,11 +55,12 @@ public class Issue209Test {
                 "com.foo.externalApp.ExternalAppApplication", "com.foo.externalApp.SomeClass",
                 // Test reading from /BOOT-INF/lib/*.jar
                 "issue209lib.Issue209Lib");
-        try (var classLoader = new URLClassLoader(
-                new URL[] { Issue209Test.class.getClassLoader().getResource("issue209.jar") });
-                var result = new ClassGraph()
-                        .acceptPackages("org.springframework.boot.loader.util", "com.foo", "issue209lib") //
-                        .overrideClassLoaders(classLoader).scan()) {
+        final var jarURL = Issue209Test.class.getClassLoader().getResource("issue209.jar");
+        try (var result = new ClassGraph()
+                .acceptPackages("org.springframework.boot.loader.util", "com.foo", "issue209lib") //
+                .overrideClasspath(List.of(jarURL.toString(), jarURL + "!/BOOT-INF/classes",
+                        jarURL + "!/BOOT-INF/lib/issue209lib.jar"))
+                .scan()) {
             assertThat(result.getAllClasses().getNames()).hasSameElementsAs(classNames);
             // The classfile of each class must be readable, including the classfile of the class that is in a jar
             // nested within the Spring Boot jar

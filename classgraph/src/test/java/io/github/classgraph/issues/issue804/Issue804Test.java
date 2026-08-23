@@ -56,8 +56,18 @@ public class Issue804Test {
         return nestedJar;
     }
 
+    /**
+     * Scan the jarfile nested within the Spring Boot jarfile that {@link #NESTED_EXAMPLE_CLASS} is in. The nested
+     * jarfile has to be named explicitly, since no classloader is involved in finding an overridden classpath, and
+     * so nothing knows that a Spring Boot jarfile keeps its dependencies in "BOOT-INF/lib".
+     *
+     * @param targetJar
+     *            the Spring Boot jarfile.
+     * @return the scan result.
+     */
     private static ScanResult scanJar(final Path targetJar) {
-        return new ClassGraph().enableClassInfo().overrideClasspath(targetJar.toUri()).scan();
+        return new ClassGraph().enableClassInfo()
+                .overrideClasspath(targetJar.toUri() + "!/BOOT-INF/lib/spring-core-4.3.13.RELEASE.jar").scan();
     }
 
 }

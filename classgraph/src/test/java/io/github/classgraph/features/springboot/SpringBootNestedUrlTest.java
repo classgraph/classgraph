@@ -106,17 +106,17 @@ public class SpringBootNestedUrlTest {
         assertThat(FastPathResolver.resolve("nested:" + jarRawPath)).isEqualTo(jarPath);
     }
 
-    /** A classpath element given as a Spring Boot {@code "nested:"} URL should be scanned. */
+    /**
+     * A classpath element given as a Spring Boot {@code "nested:"} URL should be scanned. The Spring Boot launcher
+     * gives its classloader one {@code "nested:"} URL for {@code BOOT-INF/classes/} and one for each jarfile in
+     * {@code BOOT-INF/lib/}, so each is a classpath element of its own.
+     */
     @Test
     public void nestedUrlClasspathElementIsScanned() {
         try (var scanResult = new ClassGraph()
                 .overrideClasspath(List.of("jar:nested:" + jarRawPath + "/!BOOT-INF/classes/!/")).enableClassInfo()
                 .scan()) {
-            // Both classes are found, not just the one in BOOT-INF/classes/, because ClassGraph already treats
-            // "BOOT-INF/classes/" as a package root and "BOOT-INF/lib/" as a library directory within a Spring Boot
-            // executable jar, so the whole application is scanned. That matches what its classloader can load.
-            assertThat(scanResult.getAllClasses().getNames()).containsExactlyInAnyOrder(AppWidget.class.getName(),
-                    LibWidget.class.getName());
+            assertThat(scanResult.getAllClasses().getNames()).containsExactly(AppWidget.class.getName());
         }
         try (var scanResult = new ClassGraph()
                 .overrideClasspath(List.of("jar:nested:" + jarRawPath + "/!BOOT-INF/lib/mylib.jar!/"))

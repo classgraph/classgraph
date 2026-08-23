@@ -152,8 +152,9 @@ public class Issue929Test {
     }
 
     /**
-     * A directory named {@code classes} that really is a package root (the Ant layout) must still be treated as a
-     * package root, otherwise the classes beneath it are given an extra {@code classes.} package prefix.
+     * A directory named {@code classes} that really is a package root (the Ant layout) is a package root only when
+     * it is named as a classpath element. No classloader loads classes from a {@code classes} directory it was
+     * never given, so a {@code classes} directory that turns up inside a classpath element is a package.
      *
      * @param tempDir
      *            the temp dir.
@@ -161,14 +162,18 @@ public class Issue929Test {
      *             if the classfiles could not be written.
      */
     @Test
-    public void packageRootNamedClassesIsStillAPackageRoot(@TempDir final File tempDir) throws IOException {
-        // The class name is "com.xyz.Beta", but the classfile is at "classes/com/xyz/Beta.class", so "classes/" is
-        // a package root, not a package
+    public void anAntPackageRootIsOnlyAPackageRootWhenItIsNamed(@TempDir final File tempDir) throws IOException {
+        // The class name is "com.xyz.Beta", and the classfile is at "classes/com/xyz/Beta.class", so "classes/" is
+        // the package root of the Ant project
         final var dir = buildDir(new File(tempDir, "antproject"),
                 new String[] { "classes/com/xyz/Beta.class", "com.xyz.Beta" });
-        try (var scanResult = new ClassGraph() //
-                .overrideClasspath(dir) //
-                .enableClassInfo() //
+        // The Ant project directory itself is not a package root, so the classfile is beneath a package named
+        // "classes", and the class it declares does not match the path it is at
+        try (var scanResult = new ClassGraph().overrideClasspath(dir).enableClassInfo().scan()) {
+            assertThat(scanResult.getAllClasses().getNames()).isEmpty();
+        }
+        // Naming the package root gives the class its real name
+        try (var scanResult = new ClassGraph().overrideClasspath(new File(dir, "classes")).enableClassInfo()
                 .scan()) {
             assertThat(scanResult.getAllClasses().getNames()).containsExactly("com.xyz.Beta");
         }
@@ -183,13 +188,14 @@ public class Issue929Test {
      *             if the jar could not be written.
      */
     @Test
-    public void packageRootNamedClassesInJarIsStillAPackageRoot(@TempDir final File tempDir) throws IOException {
+    public void anAntPackageRootInAJarIsOnlyAPackageRootWhenItIsNamed(@TempDir final File tempDir)
+            throws IOException {
         final var jarFile = buildJar(new File(tempDir, "issue929-antproject.jar"),
                 new String[] { "classes/com/xyz/Beta.class", "com.xyz.Beta" });
-        try (var scanResult = new ClassGraph() //
-                .overrideClasspath(jarFile) //
-                .enableClassInfo() //
-                .scan()) {
+        try (var scanResult = new ClassGraph().overrideClasspath(jarFile).enableClassInfo().scan()) {
+            assertThat(scanResult.getAllClasses().getNames()).isEmpty();
+        }
+        try (var scanResult = new ClassGraph().overrideClasspath(jarFile + "!/classes").enableClassInfo().scan()) {
             assertThat(scanResult.getAllClasses().getNames()).containsExactly("com.xyz.Beta");
         }
     }

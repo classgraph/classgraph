@@ -75,17 +75,17 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
 
     /**
      * The package root prefixes of the {@code ClassLoaderHandler} whose {@code findClasspathOrder} method is
-     * currently being called, or the default prefixes if classpath entries are not currently being obtained from a
+     * currently being called, or no prefixes at all if classpath entries are not currently being obtained from a
      * {@code ClassLoaderHandler} (e.g. for {@code java.class.path} entries, or an overridden classpath).
      */
-    private List<String> currPackageRootPrefixes = ClassLoaderHandler.DEFAULT_PACKAGE_ROOT_PREFIXES;
+    private List<String> currPackageRootPrefixes = ClassLoaderHandler.NO_PACKAGE_ROOT_PREFIXES;
 
     /**
      * The lib dirs of the {@code ClassLoaderHandler} whose {@code findClasspathOrder} method is currently being
-     * called, or the default lib dirs if classpath entries are not currently being obtained from a
+     * called, or no lib dirs at all if classpath entries are not currently being obtained from a
      * {@code ClassLoaderHandler} (e.g. for {@code java.class.path} entries, or an overridden classpath).
      */
-    private List<String> currLibDirPrefixes = ClassLoaderHandler.ARCHIVE_LIB_DIR_PREFIXES;
+    private List<String> currLibDirPrefixes = ClassLoaderHandler.NO_LIB_DIR_PREFIXES;
 
     /** The keys that {@link #claimOncePerScan(String)} has already been called with. */
     private final Set<String> claimedOncePerScan = new HashSet<>();
@@ -222,11 +222,10 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
      * entry records the package roots of the classloader it was obtained from.
      *
      * @param packageRootPrefixes
-     *            the package root prefixes, or null to reset to the default prefixes.
+     *            the package root prefixes, or null to reset to no prefixes at all.
      */
     public void setPackageRootPrefixes(final @Nullable List<String> packageRootPrefixes) {
-        this.currPackageRootPrefixes = packageRootPrefixes == null
-                ? ClassLoaderHandler.DEFAULT_PACKAGE_ROOT_PREFIXES
+        this.currPackageRootPrefixes = packageRootPrefixes == null ? ClassLoaderHandler.NO_PACKAGE_ROOT_PREFIXES
                 : packageRootPrefixes;
     }
 
@@ -236,11 +235,10 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
      * lib dirs of the classloader it was obtained from.
      *
      * @param libDirPrefixes
-     *            the lib dir prefixes, or null to reset to the default lib dirs.
+     *            the lib dir prefixes, or null to reset to no lib dirs at all.
      */
     public void setLibDirPrefixes(final @Nullable List<String> libDirPrefixes) {
-        this.currLibDirPrefixes = libDirPrefixes == null ? ClassLoaderHandler.ARCHIVE_LIB_DIR_PREFIXES
-                : libDirPrefixes;
+        this.currLibDirPrefixes = libDirPrefixes == null ? ClassLoaderHandler.NO_LIB_DIR_PREFIXES : libDirPrefixes;
     }
 
     /**

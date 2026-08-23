@@ -53,29 +53,10 @@ class HiddenClasspathEntryTest {
      *             if the jar could not be written.
      */
     private static File buildResourceJar(final File dir, final String jarName) throws IOException {
-        return buildResourceJar(dir, jarName, /* packageRootPrefix = */ "");
-    }
-
-    /**
-     * Build a jar containing only the resource at {@link #RESOURCE_PATH}, beneath the given package root.
-     *
-     * @param dir
-     *            the directory to create the jar in.
-     * @param jarName
-     *            the name of the jar.
-     * @param packageRootPrefix
-     *            the package root to put the resource beneath, ending in a slash, or the empty string to put it at
-     *            the root of the jar.
-     * @return the jar file.
-     * @throws IOException
-     *             if the jar could not be written.
-     */
-    private static File buildResourceJar(final File dir, final String jarName, final String packageRootPrefix)
-            throws IOException {
         final var jarFile = new File(dir, jarName);
         try (var outputStream = Files.newOutputStream(jarFile.toPath());
                 var zipOutputStream = new ZipOutputStream(outputStream)) {
-            zipOutputStream.putNextEntry(new ZipEntry(packageRootPrefix + RESOURCE_PATH));
+            zipOutputStream.putNextEntry(new ZipEntry(RESOURCE_PATH));
             zipOutputStream.write("appended".getBytes(StandardCharsets.UTF_8));
             zipOutputStream.closeEntry();
         }
@@ -156,34 +137,6 @@ class HiddenClasspathEntryTest {
     @Test
     void jarAppendedBySystemClassLoaderSearchIsScanned(@TempDir final File tempDir) throws Exception {
         final var appendedJarFile = buildResourceJar(tempDir, "agent-appended.jar");
-        final var agentJarFile = buildAgentJar(tempDir);
-        final var output = runChildJvm(List.of("-javaagent:" + agentJarFile + "=" + appendedJarFile));
-        assertThat(output).as("Child JVM output:%n%s", output).contains("FOUND=true");
-    }
-
-    /**
-     * A Spring-Boot executable jar appended to the system classloader's search path has its
-     * {@code "BOOT-INF/classes/"} package root stripped, just as it would if it were listed in
-     * {@code java.class.path}.
-     *
-     * <p>
-     * Such a jar is an ordinary classpath entry that happens to be reachable only through the system classloader's
-     * internal {@code URLClassPath}, since
-     * {@code Instrumentation#appendToSystemClassLoaderSearch(java.util.jar.JarFile)} lists it nowhere else. The
-     * handler for the system classloader also handles modules, which have no package root, so it once declared no
-     * package roots at all, and the classes of a jar reached only this way were left buried under
-     * {@code "BOOT-INF/classes/"}.
-     *
-     * @param tempDir
-     *            the temp dir.
-     * @throws Exception
-     *             if the test jars could not be created, or the child JVM could not be run.
-     */
-    // #117
-    @Test
-    void packageRootOfJarAppendedBySystemClassLoaderSearchIsStripped(@TempDir final File tempDir) throws Exception {
-        final var appendedJarFile = buildResourceJar(tempDir, "agent-appended-spring-boot.jar",
-                "BOOT-INF/classes/");
         final var agentJarFile = buildAgentJar(tempDir);
         final var output = runChildJvm(List.of("-javaagent:" + agentJarFile + "=" + appendedJarFile));
         assertThat(output).as("Child JVM output:%n%s", output).contains("FOUND=true");

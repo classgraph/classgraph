@@ -105,17 +105,14 @@ public class Issue925Test {
     }
 
     /**
-     * A classpath element given as a Tomcat {@code "war:"} URL should be scanned.
+     * A classpath element given as a Tomcat {@code "war:"} URL should be scanned. Each of the two parts of the
+     * webapp is a classpath element of its own, exactly as a Tomcat webapp classloader reports them.
      */
     @Test
     public void warUrlClasspathElementIsScanned() {
         try (var scanResult = new ClassGraph().overrideClasspath("war:" + warUrl + "*/WEB-INF/classes/")
                 .enableClassInfo().scan()) {
-            // Both classes are found, not just the one in WEB-INF/classes/, because ClassGraph already treats
-            // "WEB-INF/classes/" as a package root and "WEB-INF/lib/" as a library directory within a WAR file, so
-            // the whole webapp is scanned. That matches what the webapp's classloader can load.
-            assertThat(scanResult.getAllClasses().getNames()).containsExactlyInAnyOrder(Widget.class.getName(),
-                    LibWidget.class.getName());
+            assertThat(scanResult.getAllClasses().getNames()).containsExactly(Widget.class.getName());
         }
         try (var scanResult = new ClassGraph().overrideClasspath("war:" + warUrl + "*/WEB-INF/lib/mylib.jar")
                 .enableClassInfo().scan()) {
@@ -124,15 +121,14 @@ public class Issue925Test {
     }
 
     /**
-     * Scanning the WAR file itself should find both the classes in {@code WEB-INF/classes/} and the classes in the
-     * jarfiles in {@code WEB-INF/lib/}, which is the classpath element that Tomcat's main resource set yields for a
-     * non-exploded WAR.
+     * The WAR file itself contains no classes at its root: a webapp's classes are all beneath {@code WEB-INF/}, and
+     * an overridden classpath is scanned exactly as it is written, with no classloader involved to say that a WAR
+     * file's classes live under {@code WEB-INF/classes/} and {@code WEB-INF/lib/}.
      */
     @Test
-    public void warFileClasspathElementIsScanned() {
+    public void theWarFileItselfContainsNoClassesAtItsRoot() {
         try (var scanResult = new ClassGraph().overrideClasspath(war.getPath()).enableClassInfo().scan()) {
-            assertThat(scanResult.getAllClasses().getNames()).containsExactlyInAnyOrder(Widget.class.getName(),
-                    LibWidget.class.getName());
+            assertThat(scanResult.getAllClasses().getNames()).isEmpty();
         }
     }
 }

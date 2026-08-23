@@ -10,13 +10,18 @@ import io.github.classgraph.ClassGraph;
 
 public class Issue766Test {
 
+    /**
+     * The three URL spellings of the same jarfile name the same classpath element. The package root within the
+     * jarfile has to be named explicitly, since no classloader is involved in finding an overridden classpath, and
+     * so nothing knows that this jarfile's classes live under "classes/".
+     */
     @Test
     public void testURLs() {
         final var url = Issue766Test.class.getResource("/issue766/ProjectWithAnnotations.iar");
 
-        final var fileUrl = "file:" + url.getPath();
-        final var jarFileUrl = "jar:file:" + url.getPath();
-        final var jarUrl = "jar:///" + url.getPath();
+        final var fileUrl = "file:" + url.getPath() + "!/classes";
+        final var jarFileUrl = "jar:file:" + url.getPath() + "!/classes";
+        final var jarUrl = "jar:///" + url.getPath() + "!/classes";
 
         assertThat(scan("javax.annotation.ManagedBean", fileUrl)).containsOnly("ch.ivyteam.test.MyManagedBean");
         assertThat(scan("javax.annotation.ManagedBean", jarFileUrl)).containsOnly("ch.ivyteam.test.MyManagedBean");

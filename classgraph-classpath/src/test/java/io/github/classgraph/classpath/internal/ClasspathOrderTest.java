@@ -150,6 +150,7 @@ public class ClasspathOrderTest {
     @Test
     public void automaticPackageRootSuffixesAreStripped(@TempDir final Path tempDir) throws IOException {
         final var jar = createFile(tempDir.resolve("x.jar"));
+        classpathOrder.setPackageRootPrefixes(List.of("BOOT-INF/classes/"));
         assertThat(classpathOrder.addClasspathEntry(jar + "!/BOOT-INF/classes", null, null)).isTrue();
         // The same jar without the package root suffix is now a duplicate
         assertThat(classpathOrder.addClasspathEntry(jar, null, null)).isFalse();
@@ -157,8 +158,19 @@ public class ClasspathOrderTest {
     }
 
     /**
+     * A dir that no classloader declares as an automatic package root is not stripped from the end of a classpath
+     * entry, so the entry is scanned as the package root the caller named.
+     */
+    @Test
+    public void undeclaredPackageRootSuffixesAreNotStripped(@TempDir final Path tempDir) throws IOException {
+        final var jar = createFile(tempDir.resolve("x.jar"));
+        assertThat(classpathOrder.addClasspathEntry(jar + "!/BOOT-INF/classes", null, null)).isTrue();
+        assertThat(entryObjects()).containsExactly(jar + "!/BOOT-INF/classes");
+    }
+
+    /**
      * Each classpath entry records the package root prefixes of the classloader it was found by, and passing null
-     * resets them to the default prefixes for the entries added after that.
+     * resets them to no prefixes at all for the entries added after that.
      */
     @Test
     public void packageRootPrefixesAreRecordedOnEachEntry(@TempDir final Path tempDir) throws IOException {
@@ -170,8 +182,7 @@ public class ClasspathOrderTest {
 
         assertThat(classpathOrder.getOrder()).hasSize(2);
         assertThat(classpathOrder.getOrder().get(0).packageRootPrefixes).isSameAs(customPrefixes);
-        assertThat(classpathOrder.getOrder().get(1).packageRootPrefixes).containsExactly("classes/",
-                "test-classes/", "BOOT-INF/classes/", "WEB-INF/classes/");
+        assertThat(classpathOrder.getOrder().get(1).packageRootPrefixes).isEmpty();
         // The prefixes in force when the entry was added decide which suffix is stripped from it
         final var jar = createFile(tempDir.resolve("c.jar"));
         classpathOrder.setPackageRootPrefixes(customPrefixes);
@@ -181,7 +192,7 @@ public class ClasspathOrderTest {
 
     /**
      * Each classpath entry records the lib dir prefixes of the classloader it was found by, and passing null resets
-     * them to the archive lib dirs for the entries added after that.
+     * them to no lib dirs at all for the entries added after that.
      */
     @Test
     public void libDirPrefixesAreRecordedOnEachEntry(@TempDir final Path tempDir) throws IOException {
@@ -193,8 +204,7 @@ public class ClasspathOrderTest {
 
         assertThat(classpathOrder.getOrder()).hasSize(2);
         assertThat(classpathOrder.getOrder().get(0).libDirPrefixes).isSameAs(customPrefixes);
-        assertThat(classpathOrder.getOrder().get(1).libDirPrefixes).containsExactly("BOOT-INF/lib/", "WEB-INF/lib/",
-                "WEB-INF/lib-provided/");
+        assertThat(classpathOrder.getOrder().get(1).libDirPrefixes).isEmpty();
     }
 
     /** A directory with a "/*" suffix is expanded into one classpath entry per file in the directory. */

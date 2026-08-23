@@ -30,7 +30,6 @@ package io.github.classgraph.classpath.internal.classloaderhandler;
 
 import java.lang.reflect.Array;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
 import io.github.classgraph.base.ClassGraphLog;
@@ -41,20 +40,8 @@ import org.jspecify.annotations.Nullable;
 
 /** A {@link ClassLoaderHandler} for the classloader of an OSGi bundle. */
 interface OSGiClassLoaderHandler extends ClassLoaderHandler {
-    /**
-     * The lib dirs of an OSGi bundle. An OSGi bundle names the jarfiles it loads from in its
-     * {@code Bundle-ClassPath} manifest attribute, and by convention puts them in {@code "META-INF/lib/"}. A web
-     * application bundle is a war, so it uses the war layout.
-     */
-    List<String> OSGI_LIB_DIR_PREFIXES = ClassLoaderHandler.prefixesPlus(ARCHIVE_LIB_DIR_PREFIXES, "META-INF/lib/");
-
     /** The fields of a {@code BundleFile} that hold a sub-path within the bundle's base file. */
     String[] BUNDLE_FILE_SUBPATH_FIELD_NAMES = { "cp", "nestedDirName" };
-
-    @Override
-    default List<String> getLibDirPrefixes() {
-        return OSGI_LIB_DIR_PREFIXES;
-    }
 
     /**
      * Return true if a {@code BundleFile} is an instance of the named Equinox {@code bundlefile} class. Equinox

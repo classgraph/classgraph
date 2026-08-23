@@ -43,11 +43,12 @@ import org.jspecify.annotations.Nullable;
  */
 class UnoOneJarClassLoaderHandler implements ClassLoaderHandler {
     /**
-     * The lib dirs of an Uno-Jar or One-JAR executable jarfile, which puts the jarfile it launches in
-     * {@code "main/"}, and the jarfiles that jarfile depends upon in {@code "lib/"}.
+     * The lib dirs of an Uno-Jar or One-JAR executable jarfile. {@code JarClassLoader} loads classes from every
+     * jarfile it finds under its {@code MAIN_PREFIX} ({@code "main/"}), which holds the jarfile it launches, and
+     * under its {@code LIB_PREFIX} ({@code "lib/"}), which holds the jarfiles that jarfile depends upon. (Its third
+     * dir, {@code "binlib/"}, holds native libraries, not classes.)
      */
-    private static final List<String> UNO_ONE_JAR_LIB_DIR_PREFIXES = ClassLoaderHandler
-            .prefixesPlus(ARCHIVE_LIB_DIR_PREFIXES, "lib/", "main/");
+    private static final List<String> UNO_ONE_JAR_LIB_DIR_PREFIXES = List.of("lib/", "main/");
 
     /** Constructor. */
     UnoOneJarClassLoaderHandler() {

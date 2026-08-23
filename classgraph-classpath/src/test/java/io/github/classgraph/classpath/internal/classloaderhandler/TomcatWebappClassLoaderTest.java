@@ -87,11 +87,10 @@ public class TomcatWebappClassLoaderTest {
     }
 
     /**
-     * Tomcat serves classes from {@code WEB-INF/classes} within a webapp and from {@code classes} within
-     * {@code $CATALINA_BASE}, and does not always list those directories as classpath elements, so they are looked
-     * for within every classpath element obtained from this classloader. A webapp can also deploy a Spring-Boot
-     * executable jar, so {@code BOOT-INF/classes} is looked for too, but {@code test-classes} is not, since Tomcat
-     * has no such directory.
+     * Catalina serves a webapp's own classes from {@code WEB-INF/classes} within the webapp's directory or war, and
+     * does not list that directory as a classpath element of its own, so it is looked for within every classpath
+     * element obtained from this classloader. No other directory is: {@code StandardRoot} mounts the webapp's own
+     * classes at that one fixed path.
      *
      * @param tempDir
      *            a temporary directory to create the webapp in.
@@ -103,9 +102,8 @@ public class TomcatWebappClassLoaderTest {
             throws IOException {
         final var webappDir = Files.createDirectories(tempDir.resolve("webapp"));
         final var root = new StandardRoot().addResourceSets(new DirResourceSet(webappDir.toFile(), "/"));
-        assertThat(entries(new WebappClassLoaderBase(root, /* parent = */ null)))
-                .allSatisfy(entry -> assertThat(entry.getPackageRootPrefixes()).containsExactly("BOOT-INF/classes/",
-                        "WEB-INF/classes/", "classes/"));
+        assertThat(entries(new WebappClassLoaderBase(root, /* parent = */ null))).allSatisfy(
+                entry -> assertThat(entry.getPackageRootPrefixes()).containsExactly("WEB-INF/classes/"));
     }
 
     /**

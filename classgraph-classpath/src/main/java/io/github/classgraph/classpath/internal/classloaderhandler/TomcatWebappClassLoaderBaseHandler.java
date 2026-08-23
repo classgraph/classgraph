@@ -33,7 +33,6 @@ import java.util.List;
 
 import io.github.classgraph.base.ClassGraphLog;
 import io.github.classgraph.base.internal.reflection.ReflectionUtils;
-import io.github.classgraph.classpath.ClassLoaderHandler;
 import io.github.classgraph.classpath.ClassLoaderOrder;
 import io.github.classgraph.classpath.ClasspathOrder;
 import org.jspecify.annotations.Nullable;
@@ -41,19 +40,19 @@ import org.jspecify.annotations.Nullable;
 /** Extract classpath entries from the Tomcat/Catalina WebappClassLoaderBase. */
 class TomcatWebappClassLoaderBaseHandler extends URLClassLoaderHandler {
     /**
-     * The package root prefixes of a servlet container, which serves a webapp's own classes from the war layout,
-     * and the container's shared classes from a {@code "classes/"} dir of its own
-     * ({@code $CATALINA_BASE/classes/}).
+     * The dir a webapp's own classes are served from. Catalina mounts it at a fixed location within the webapp's
+     * main resource set, which is the webapp's directory or war file: {@code StandardRoot#getClassLoaderResource}
+     * looks up every class under {@code "/WEB-INF/classes"}, so the webapp's directory or war is on the classpath
+     * with that dir as an automatic package root.
      */
-    private static final List<String> SERVLET_CONTAINER_PACKAGE_ROOT_PREFIXES = ClassLoaderHandler
-            .prefixesPlus(ARCHIVE_PACKAGE_ROOT_PREFIXES, "classes/");
+    private static final List<String> WEBAPP_PACKAGE_ROOT_PREFIXES = List.of("WEB-INF/classes/");
 
     /**
-     * The lib dirs of a servlet container, which serves a webapp's own jarfiles from the war layout, and the
-     * container's shared jarfiles from a {@code "lib/"} dir of its own ({@code $CATALINA_BASE/lib/}).
+     * The dir a webapp's own jarfiles are served from. {@code StandardRoot#processWebInfLib} lists
+     * {@code "/WEB-INF/lib"} at startup and mounts every {@code .jar} it finds there, so those jarfiles are on the
+     * classpath even though the webapp never lists them.
      */
-    private static final List<String> SERVLET_CONTAINER_LIB_DIR_PREFIXES = ClassLoaderHandler
-            .prefixesPlus(ARCHIVE_LIB_DIR_PREFIXES, "lib/");
+    private static final List<String> WEBAPP_LIB_DIR_PREFIXES = List.of("WEB-INF/lib/");
 
     /** Constructor. */
     TomcatWebappClassLoaderBaseHandler() {
@@ -61,12 +60,12 @@ class TomcatWebappClassLoaderBaseHandler extends URLClassLoaderHandler {
 
     @Override
     public List<String> getPackageRootPrefixes() {
-        return SERVLET_CONTAINER_PACKAGE_ROOT_PREFIXES;
+        return WEBAPP_PACKAGE_ROOT_PREFIXES;
     }
 
     @Override
     public List<String> getLibDirPrefixes() {
-        return SERVLET_CONTAINER_LIB_DIR_PREFIXES;
+        return WEBAPP_LIB_DIR_PREFIXES;
     }
 
     @Override

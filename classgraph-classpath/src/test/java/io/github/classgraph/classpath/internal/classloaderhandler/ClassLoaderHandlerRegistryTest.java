@@ -2,7 +2,6 @@ package io.github.classgraph.classpath.internal.classloaderhandler;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.List;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
@@ -53,17 +52,24 @@ class ClassLoaderHandlerRegistryTest {
     }
 
     /**
-     * Every handler looks in the package roots and lib dirs of the packaged-archive layouts, since any classloader
-     * can be handed a Spring-Boot jarfile or a war.
+     * A handler declares a package root or lib dir only if the classloader it handles goes looking for classes or
+     * jarfiles in a dir of that name that was never listed as a classpath element. Every other classloader loads
+     * only from the classpath elements it was given, as {@link java.net.URLClassLoader} does, so its handler
+     * declares nothing.
      *
      * @param entry
      *            the registry entry.
      */
     @ParameterizedTest
     @MethodSource("registryEntries")
-    void everyHandlerLooksInTheArchivePackageRootsAndLibDirs(final ClassLoaderHandlerRegistryEntry entry) {
-        assertThat(entry.getPackageRootPrefixes()).containsAll(ClassLoaderHandler.ARCHIVE_PACKAGE_ROOT_PREFIXES);
-        assertThat(entry.getLibDirPrefixes()).containsAll(ClassLoaderHandler.ARCHIVE_LIB_DIR_PREFIXES);
+    void onlyTheHandlersOfClassLoadersThatLookInFixedDirsDeclarePrefixes(
+            final ClassLoaderHandlerRegistryEntry entry) {
+        final var handlerClass = entry.classLoaderHandler.getClass();
+        if (handlerClass != TomcatWebappClassLoaderBaseHandler.class
+                && handlerClass != UnoOneJarClassLoaderHandler.class) {
+            assertThat(entry.getPackageRootPrefixes()).as(handlerClass.getSimpleName()).isEmpty();
+            assertThat(entry.getLibDirPrefixes()).as(handlerClass.getSimpleName()).isEmpty();
+        }
     }
 
     /** Every prefix ends in a slash, so that it cannot match a prefix of a longer directory name. */
@@ -74,23 +80,12 @@ class ClassLoaderHandlerRegistryTest {
                 .allMatch(prefix -> prefix.endsWith("/")));
     }
 
-    /** A servlet container serves shared classes and jarfiles from dirs of its own, alongside the war layout. */
+    /** Catalina serves a webapp's own classes and jarfiles from the two fixed dirs of the war layout. */
     @Test
-    void tomcatDeclaresItsOwnSharedClassesAndLibDirs() {
+    void tomcatDeclaresTheWebappClassesAndLibDirs() {
         final var entry = entryOf(TomcatWebappClassLoaderBaseHandler.class);
-        assertThat(entry.getPackageRootPrefixes()).contains("classes/");
-        assertThat(entry.getLibDirPrefixes()).contains("lib/");
-    }
-
-    /** An OSGi bundle puts the jarfiles named by its {@code Bundle-ClassPath} in {@code "META-INF/lib/"}. */
-    @Test
-    void everyOSGiHandlerDeclaresTheOSGiLibDir() {
-        for (final var handlerClass : List.of(EquinoxClassLoaderHandler.class,
-                EquinoxContextFinderClassLoaderHandler.class, FelixClassLoaderHandler.class,
-                OSGiDefaultClassLoaderHandler.class)) {
-            assertThat(entryOf(handlerClass).getLibDirPrefixes()).as(handlerClass.getSimpleName())
-                    .contains("META-INF/lib/");
-        }
+        assertThat(entry.getPackageRootPrefixes()).containsExactly("WEB-INF/classes/");
+        assertThat(entry.getLibDirPrefixes()).containsExactly("WEB-INF/lib/");
     }
 
     /**

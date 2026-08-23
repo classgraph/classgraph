@@ -9,6 +9,8 @@ import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -21,9 +23,11 @@ import java.util.zip.ZipOutputStream;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.jspecify.annotations.Nullable;
 
 import com.sun.net.httpserver.HttpServer;
 
+import io.github.classgraph.base.ClassGraphLog;
 import io.github.classgraph.vfs.Vfs;
 import io.github.classgraph.vfs.VfsEntry;
 
@@ -37,7 +41,11 @@ public class ClasspathFinderTest {
         }
     }
 
-    /** Every entry records the classloader it was found through, and the package roots to look for within it. */
+    /**
+     * Every entry records the classloader it was found through, and the package roots to look for within it. The
+     * classloaders of the JVM running the tests load only from the classpath elements they were given, so none of
+     * their entries has a package root to look for.
+     */
     @Test
     public void entriesRecordTheirClassLoaderAndPackageRoots() {
         try (var classpath = new ClasspathFinder().find()) {
@@ -45,7 +53,7 @@ public class ClasspathFinderTest {
             assertThat(entries).isNotEmpty();
             for (final ClasspathEntry entry : entries) {
                 assertThat(entry.getLocation()).isNotEmpty();
-                assertThat(entry.getPackageRootPrefixes()).isNotEmpty();
+                assertThat(entry.getPackageRootPrefixes()).isEmpty();
                 assertThat(entry.toString()).startsWith(entry.getLocation());
             }
         }
@@ -310,19 +318,70 @@ public class ClasspathFinderTest {
     }
 
     /**
-     * The jarfiles in the automatic lib dirs of a classpath element are part of the classpath, whether the element
-     * is a jarfile or a directory. Not every classloader lists them as classpath elements of their own.
+     * The jarfiles in the lib dirs a classloader declares are part of the classpath, whether the classpath element
+     * that contains them is a jarfile or a directory, since the classloader that declared the lib dir does not list
+     * them as classpath elements of their own.
      */
     @Test
     public void libDirJarsAreAddedToTheClasspath(@TempDir final Path tempDir) throws IOException {
         final var dir = Files.createDirectory(tempDir.resolve("exploded"));
-        // "BOOT-INF/lib/" is looked in whatever classloader found the classpath element, since it can only ever be a
-        // Spring Boot lib dir -- a lib dir named "lib/" is only looked in by the classloaders that support it
         final var libJar = writeJarWithEntry(dir.resolve("BOOT-INF").resolve("lib").resolve("in-lib-dir.jar"),
                 "resource.txt");
-        try (var classpath = new ClasspathFinder().overrideClasspath((Object) dir.toFile()).find()) {
+        final var classLoader = new URLClassLoader(new URL[] { dir.toUri().toURL() }, /* parent = */ null);
+        try (var classpath = new ClasspathFinder().overrideClassLoaders(classLoader)
+                .registerClassLoaderHandler(libDirHandler("BOOT-INF/lib/")).find()) {
             assertThat(classpath.getLocations()).containsExactly(location(dir.toFile()), location(libJar));
         }
+    }
+
+    /**
+     * A classpath element that no classloader was involved in finding has no lib dirs, since a lib dir is only
+     * searched because the classloader that declared it loads from the jarfiles it holds. An overridden classpath
+     * is therefore reported without the jarfiles in any directory within it, whatever that directory is called.
+     */
+    @Test
+    public void libDirJarsAreNotAddedToAnOverriddenClasspath(@TempDir final Path tempDir) throws IOException {
+        final var dir = Files.createDirectory(tempDir.resolve("exploded"));
+        writeJarWithEntry(dir.resolve("BOOT-INF").resolve("lib").resolve("in-lib-dir.jar"), "resource.txt");
+        try (var classpath = new ClasspathFinder().overrideClasspath((Object) dir.toFile()).find()) {
+            assertThat(classpath.getLocations()).containsExactly(location(dir.toFile()));
+        }
+    }
+
+    /**
+     * A {@link ClassLoaderHandler} for {@link URLClassLoader} that declares the given lib dirs, so that a test can
+     * exercise a lib dir without needing a real classloader that has one.
+     *
+     * @param libDirPrefixes
+     *            the lib dir prefixes to declare.
+     * @return the handler.
+     */
+    private static ClassLoaderHandler libDirHandler(final String... libDirPrefixes) {
+        return new ClassLoaderHandler() {
+            @Override
+            public boolean canHandle(final Class<?> classLoaderClass, final @Nullable ClassGraphLog log) {
+                return classIsOrExtendsOrImplements(classLoaderClass, URLClassLoader.class.getName());
+            }
+
+            @Override
+            public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
+                    final @Nullable ClassGraphLog log) {
+                classLoaderOrder.add(classLoader, log);
+            }
+
+            @Override
+            public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
+                    final @Nullable ClassGraphLog log) {
+                for (final URL url : ((URLClassLoader) classLoader).getURLs()) {
+                    classpathOrder.addClasspathEntry(url, classLoader, log);
+                }
+            }
+
+            @Override
+            public List<String> getLibDirPrefixes() {
+                return List.of(libDirPrefixes);
+            }
+        };
     }
 
     /**
