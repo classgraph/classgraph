@@ -75,10 +75,30 @@ class FelixClassLoaderHandler implements ClassLoaderHandler {
      *            the content object
      * @param reflectionUtils
      *            the reflection utils instance
-     * @return the content location
+     * @return the content location, or null if it could not be determined
      */
-    private static File getContentLocation(final Object content, final ReflectionUtils reflectionUtils) {
-        return (File) reflectionUtils.invokeMethod(false, content, "getFile");
+    private static String getContentLocation(final Object content, final ReflectionUtils reflectionUtils) {
+        final File file = (File) reflectionUtils.invokeMethod(false, content, "getFile");
+        if (file != null) {
+            return file.getPath();
+        }
+        // A Content with no file of its own delegates to the Content held in its "m_content" field: a
+        // MultiReleaseContent serves the whole of the Content it wraps, and a ContentDirectoryContent serves only
+        // the "m_rootPath" subdirectory of it.
+        final Object outerContent = reflectionUtils.getFieldVal(false, content, "m_content");
+        if (outerContent == null) {
+            return null;
+        }
+        final String outerLocation = getContentLocation(outerContent, reflectionUtils);
+        final String rootPath = (String) reflectionUtils.getFieldVal(false, content, "m_rootPath");
+        if (outerLocation == null || rootPath == null) {
+            return outerLocation;
+        }
+        // A ContentDirectoryContent is only ever created for a directory entry of a jarfile Content, by
+        // JarContent#getEntryAsContent, so the subdirectory is always a path within an archive. Its constructor
+        // appends a "/" to the Bundle-ClassPath entry if it has none, which has to come back off again.
+        return outerLocation + "!/"
+                + (rootPath.endsWith("/") ? rootPath.substring(0, rootPath.length() - 1) : rootPath);
     }
 
     /**
@@ -107,7 +127,7 @@ class FelixClassLoaderHandler implements ClassLoaderHandler {
         final Object revision = classpathOrderOut.reflectionUtils.invokeMethod(false, bundleWiring, "getRevision");
         // Get the contents
         final Object content = classpathOrderOut.reflectionUtils.invokeMethod(false, revision, "getContent");
-        final File location = content != null ? getContentLocation(content, classpathOrderOut.reflectionUtils)
+        final String location = content != null ? getContentLocation(content, classpathOrderOut.reflectionUtils)
                 : null;
         if (location != null) {
             // Add the bundle object
@@ -119,7 +139,7 @@ class FelixClassLoaderHandler implements ClassLoaderHandler {
             if (embeddedContent != null) {
                 for (final Object embedded : embeddedContent) {
                     if (embedded != content) {
-                        final File embeddedLocation = embedded != null
+                        final String embeddedLocation = embedded != null
                                 ? getContentLocation(embedded, classpathOrderOut.reflectionUtils)
                                 : null;
                         if (embeddedLocation != null) {

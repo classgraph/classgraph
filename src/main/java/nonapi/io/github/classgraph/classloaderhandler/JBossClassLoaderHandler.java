@@ -91,13 +91,21 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
         // PathResourceLoader has root field, which is a Path object
         final Object root = classpathOrderOut.reflectionUtils.getFieldVal(false, resourceLoader, "root");
 
-        classpathOrderOut.addClasspathEntry(loadJarPathFromClassicVFS(root, classpathOrderOut), classLoader,
-                scanSpec, log);
-        classpathOrderOut.addClasspathEntry(loadJarPathFromNewVFS(root, classpathOrderOut), classLoader, scanSpec,
-                log);
-        classpathOrderOut.addClasspathEntry(
+        boolean foundClasspathEntry = classpathOrderOut
+                .addClasspathEntry(loadJarPathFromClassicVFS(root, classpathOrderOut), classLoader, scanSpec, log);
+        foundClasspathEntry |= classpathOrderOut.addClasspathEntry(loadJarPathFromNewVFS(root, classpathOrderOut),
+                classLoader, scanSpec, log);
+        foundClasspathEntry |= classpathOrderOut.addClasspathEntry(
                 classpathOrderOut.reflectionUtils.getFieldVal(false, resourceLoader, "fileOfJar"), classLoader,
                 scanSpec, log);
+
+        if (!foundClasspathEntry) {
+            // A ResourceLoader that wraps another one, e.g. FilteredResourceLoader, has none of the above fields --
+            // the only thing it exposes is the location of the loader it delegates to. (type URI)
+            classpathOrderOut.addClasspathEntry(
+                    classpathOrderOut.reflectionUtils.invokeMethod(false, resourceLoader, "getLocation"),
+                    classLoader, scanSpec, log);
+        }
     }
 
     /**

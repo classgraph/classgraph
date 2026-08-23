@@ -78,13 +78,15 @@ class EquinoxClassLoaderHandler implements ClassLoaderHandler {
      * @param log
      *            the log
      */
-    private static void addBundleFile(final Object bundlefile, final Set<Object> path,
-            final ClassLoader classLoader, final ClasspathOrder classpathOrderOut, final ScanSpec scanSpec,
-            final LogNode log) {
+    static void addBundleFile(final Object bundlefile, final Set<Object> path, final ClassLoader classLoader,
+            final ClasspathOrder classpathOrderOut, final ScanSpec scanSpec, final LogNode log) {
         // Don't get stuck in infinite loop
         if (bundlefile != null && path.add(bundlefile)) {
             // type File
-            final Object baseFile = classpathOrderOut.reflectionUtils.getFieldVal(false, bundlefile, "basefile");
+            Object baseFile = classpathOrderOut.reflectionUtils.getFieldVal(false, bundlefile, "basefile");
+            if (baseFile == null) {
+                baseFile = classpathOrderOut.reflectionUtils.invokeMethod(false, bundlefile, "getBaseFile");
+            }
             if (baseFile != null) {
                 boolean foundClassPathElement = false;
                 for (final String fieldName : FIELD_NAMES) {
@@ -95,13 +97,11 @@ class EquinoxClassLoaderHandler implements ClassLoaderHandler {
                         // We found the base file and a classpath element, e.g. "bin/"
                         Object base = baseFile;
                         String sep = "/";
-                        if (bundlefile.getClass().getName()
-                                .equals("org.eclipse.osgi.storage.bundlefile.NestedDirBundleFile")) {
+                        if (isBundleFileClass(bundlefile, "NestedDirBundleFile")) {
                             // Handle nested ZipBundleFile with "!/" separator
                             final Object baseBundleFile = classpathOrderOut.reflectionUtils.getFieldVal(false,
                                     bundlefile, "baseBundleFile");
-                            if (baseBundleFile != null && baseBundleFile.getClass().getName()
-                                    .equals("org.eclipse.osgi.storage.bundlefile.ZipBundleFile")) {
+                            if (baseBundleFile != null && isBundleFileClass(baseBundleFile, "ZipBundleFile")) {
                                 base = baseBundleFile;
                                 sep = "!/";
                             }
@@ -121,7 +121,28 @@ class EquinoxClassLoaderHandler implements ClassLoaderHandler {
                     classLoader, classpathOrderOut, scanSpec, log);
             addBundleFile(classpathOrderOut.reflectionUtils.getFieldVal(false, bundlefile, "next"), path,
                     classLoader, classpathOrderOut, scanSpec, log);
+            // A framework extension can install a ClassLoaderHook that replaces a bundle file with a
+            // BundleFileWrapper around it (Storage#wrapBundleFile). The wrapper copies only the "basefile" field of
+            // the bundle file it wraps, not its "cp" or "nestedDirName", so without following the delegate held in
+            // the wrapper's "bundleFile" field, the sub-path within the bundle would be lost.
+            addBundleFile(classpathOrderOut.reflectionUtils.getFieldVal(false, bundlefile, "bundleFile"), path,
+                    classLoader, classpathOrderOut, scanSpec, log);
         }
+    }
+
+    /**
+     * Test whether a bundle file is of the named {@code BundleFile} class. The name is matched by suffix, since
+     * these classes moved from {@code org.eclipse.osgi.baseadaptor.bundlefile} to
+     * {@code org.eclipse.osgi.storage.bundlefile} in Equinox 3.9.
+     *
+     * @param bundlefile
+     *            the bundle file
+     * @param className
+     *            the simple name of the {@code BundleFile} class
+     * @return true if the bundle file is of that class
+     */
+    private static boolean isBundleFileClass(final Object bundlefile, final String className) {
+        return bundlefile.getClass().getName().endsWith(".bundlefile." + className);
     }
 
     /**
@@ -147,8 +168,40 @@ class EquinoxClassLoaderHandler implements ClassLoaderHandler {
                 // type ClasspathEntry
                 final Object entry = Array.get(entries, i);
                 // type BundleFile
-                final Object bundlefile = classpathOrderOut.reflectionUtils.getFieldVal(false, entry, "bundlefile");
+                Object bundlefile = classpathOrderOut.reflectionUtils.getFieldVal(false, entry, "bundlefile");
+                if (bundlefile == null) {
+                    bundlefile = classpathOrderOut.reflectionUtils.invokeMethod(false, entry, "getBundleFile");
+                }
                 addBundleFile(bundlefile, new HashSet<>(), classLoader, classpathOrderOut, scanSpec, log);
+            }
+        }
+    }
+
+    /**
+     * Add the classpath entries of a {@code ClasspathManager}, and of each of the bundle's fragments.
+     *
+     * @param manager
+     *            the classpath manager
+     * @param classLoader
+     *            the class loader
+     * @param classpathOrderOut
+     *            the classpath order out
+     * @param scanSpec
+     *            the scan spec
+     * @param log
+     *            the log
+     */
+    static void addClasspathManagerEntries(final Object manager, final ClassLoader classLoader,
+            final ClasspathOrder classpathOrderOut, final ScanSpec scanSpec, final LogNode log) {
+        addClasspathEntries(manager, classLoader, classpathOrderOut, scanSpec, log);
+
+        // type FragmentClasspath[]
+        final Object fragments = classpathOrderOut.reflectionUtils.getFieldVal(false, manager, "fragments");
+        if (fragments != null) {
+            for (int f = 0, fragLength = Array.getLength(fragments); f < fragLength; f++) {
+                // type FragmentClasspath
+                final Object fragment = Array.get(fragments, f);
+                addClasspathEntries(fragment, classLoader, classpathOrderOut, scanSpec, log);
             }
         }
     }
@@ -157,18 +210,12 @@ class EquinoxClassLoaderHandler implements ClassLoaderHandler {
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
             final ScanSpec scanSpec, final LogNode log) {
         // type ClasspathManager
-        final Object manager = classpathOrder.reflectionUtils.getFieldVal(false, classLoader, "manager");
-        addClasspathEntries(manager, classLoader, classpathOrder, scanSpec, log);
-
-        // type FragmentClasspath[]
-        final Object fragments = classpathOrder.reflectionUtils.getFieldVal(false, manager, "fragments");
-        if (fragments != null) {
-            for (int f = 0, fragLength = Array.getLength(fragments); f < fragLength; f++) {
-                // type FragmentClasspath
-                final Object fragment = Array.get(fragments, f);
-                addClasspathEntries(fragment, classLoader, classpathOrder, scanSpec, log);
-            }
+        Object manager = classpathOrder.reflectionUtils.invokeMethod(false, classLoader, "getClasspathManager");
+        if (manager == null) {
+            manager = classpathOrder.reflectionUtils.getFieldVal(false, classLoader, "manager");
         }
+        addClasspathManagerEntries(manager, classLoader, classpathOrder, scanSpec, log);
+
         // Only read system bundles once per scan (all bundles should give the same results for this).
         if (classpathOrder.tryAddEquinoxSystemBundles()) {
             // type BundleLoader

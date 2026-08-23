@@ -72,6 +72,13 @@ class UnoOneJarClassLoaderHandler implements ClassLoaderHandler {
         final String unoJarJarPath = VersionFinder.getProperty("uno-jar.jar.path");
         classpathOrder.addClasspathEntry(unoJarJarPath, classLoader, scanSpec, log);
 
+        // If this property is defined, additional classpath entries were specified on the commandline, with '|'
+        // as a separator
+        final String unoJarClassPath = VersionFinder.getProperty("uno-jar.class.path");
+        if (unoJarClassPath != null) {
+            classpathOrder.addClasspathEntryObject(unoJarClassPath.split("\\|"), classLoader, scanSpec, log);
+        }
+
         // For One-Jar:
 
         // If this property is defined, One-Jar jar path was specified on commandline. Otherwise, jar path

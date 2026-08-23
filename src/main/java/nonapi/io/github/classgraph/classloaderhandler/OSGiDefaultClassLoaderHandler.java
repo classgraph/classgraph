@@ -28,8 +28,6 @@
  */
 package nonapi.io.github.classgraph.classloaderhandler;
 
-import java.io.File;
-
 import nonapi.io.github.classgraph.classpath.ClassLoaderFinder;
 import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
@@ -62,21 +60,17 @@ class OSGiDefaultClassLoaderHandler implements ClassLoaderHandler {
     @Override
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
             final ScanSpec scanSpec, final LogNode log) {
-        final Object classpathManager = classpathOrder.reflectionUtils.invokeMethod(false, classLoader,
+        // type ClasspathManager
+        Object classpathManager = classpathOrder.reflectionUtils.invokeMethod(false, classLoader,
                 "getClasspathManager");
-        final Object[] entries = (Object[]) classpathOrder.reflectionUtils.getFieldVal(false, classpathManager,
-                "entries");
-        if (entries != null) {
-            for (final Object entry : entries) {
-                final Object bundleFile = classpathOrder.reflectionUtils.invokeMethod(false, entry,
-                        "getBundleFile");
-                final File baseFile = (File) classpathOrder.reflectionUtils.invokeMethod(false, bundleFile,
-                        "getBaseFile");
-                if (baseFile != null) {
-                    classpathOrder.addClasspathEntry(baseFile.getPath(), classLoader, scanSpec, log);
-                }
-            }
+        if (classpathManager == null) {
+            classpathManager = classpathOrder.reflectionUtils.getFieldVal(false, classLoader, "manager");
         }
+        // The bundle file of a classpath entry can be a nested dir or a wrapper chain, exactly as in newer versions
+        // of Equinox, so the same traversal is needed here -- reading only the base file of each entry would lose
+        // the sub-path within the bundle, and the entries of the bundle's fragments entirely
+        EquinoxClassLoaderHandler.addClasspathManagerEntries(classpathManager, classLoader, classpathOrder,
+                scanSpec, log);
     }
 
     /**
