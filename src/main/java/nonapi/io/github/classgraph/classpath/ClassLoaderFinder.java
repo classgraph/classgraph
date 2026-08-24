@@ -28,10 +28,17 @@
  */
 package nonapi.io.github.classgraph.classpath;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
 
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
+import nonapi.io.github.classgraph.utils.CollectionUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
 
 /** A class to find the unique ordered classpath elements. */
@@ -80,11 +87,29 @@ public class ClassLoaderFinder {
         return false;
     }
 
+    /**
+     * Get the number of classloaders in the delegation chain of a classloader, including the classloader itself.
+     *
+     * @param classLoader
+     *            The classloader.
+     * @return The number of classloaders from the given classloader up to and including the last non-bootstrap
+     *         classloader in its parent chain.
+     */
+    private static int delegationDepth(final ClassLoader classLoader) {
+        // Guard against a classloader whose parent chain is cyclic, rather than looping forever
+        final Set<ClassLoader> seen = Collections.newSetFromMap(new IdentityHashMap<ClassLoader, Boolean>());
+        int depth = 0;
+        for (ClassLoader cl = classLoader; cl != null && seen.add(cl); cl = cl.getParent()) {
+            depth++;
+        }
+        return depth;
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**
      * A class to find the unique ordered classpath elements.
-     * 
+     *
      * @param scanSpec
      *            The scan spec, or null if none available.
      * @param reflectionUtils
@@ -110,9 +135,11 @@ public class ClassLoaderFinder {
                 classLoadersUnique.add(threadClassLoader);
             }
 
-            // Get classloader for this class, which will generally be the classloader of the class that
-            // called ClassGraph (the classloader of the caller is used by Class.forName(className), when
-            // no classloader is provided)
+            // Get the classloader of ClassGraph itself. This is the classloader that can resolve every class
+            // that ClassGraph can resolve by name, so anything it can see is worth scanning. (It is not
+            // necessarily the classloader of the caller -- when ClassGraph is deployed in a container's shared
+            // library directory, the caller is loaded by a descendant of this classloader. The caller's own
+            // classloader is found from the call stack, below.)
             final ClassLoader currClassClassLoader = getClass().getClassLoader();
             if (currClassClassLoader != null) {
                 classLoadersUnique.add(currClassClassLoader);
@@ -132,11 +159,14 @@ public class ClassLoaderFinder {
             // by the application classloader), there is no point adding it here. Modules are scanned
             // directly anyway, so we don't need to get module path entries from the platform classloader. 
 
-            // Find classloaders for classes on callstack, in case any were missed
+            // Find classloaders for classes on callstack, in case any were missed. The call stack is read
+            // innermost frame first, so the immediate caller's classloader is preferred over the classloader of
+            // the code that called it -- Class.forName(className) resolves against the classloader of its
+            // immediate caller.
             try {
                 final Class<?>[] callStack = new CallStackReader(reflectionUtils).getClassContext(log);
-                for (int i = callStack.length - 1; i >= 0; --i) {
-                    final ClassLoader callerClassLoader = callStack[i].getClassLoader();
+                for (final Class<?> callStackClass : callStack) {
+                    final ClassLoader callerClassLoader = callStackClass.getClassLoader();
                     if (callerClassLoader != null) {
                         classLoadersUnique.add(callerClassLoader);
                     }
@@ -146,6 +176,28 @@ public class ClassLoaderFinder {
                     log.log("Could not get call stack", e);
                 }
             }
+
+            // Sort the classloaders so that a classloader is always ordered before its own ancestors, keeping
+            // the preference order above between classloaders that are unrelated to each other (List#sort is
+            // stable).
+            //
+            // Only the position of the first classloader of a delegation chain to be reached is decided here:
+            // once a classloader is reached, its ClassLoaderHandler decides where its ancestors' classpath
+            // elements go relative to its own, by delegating to its parent before or after adding itself. If an
+            // ancestor were left ahead of its own descendant in this list, it would be pinned in front of the
+            // descendant before the descendant's handler ever ran, which silently converts parent-last
+            // delegation (the default for Tomcat's WebappClassLoader and for Spring Boot DevTools'
+            // RestartClassLoader) into parent-first delegation, inverting the class masking order. Sorting by
+            // descending delegation depth cannot place an ancestor first, since an ancestor is always strictly
+            // shallower than its descendants.
+            final List<ClassLoader> sortedClassLoaders = new ArrayList<>(classLoadersUnique);
+            CollectionUtils.sortIfNotEmpty(sortedClassLoaders, new Comparator<ClassLoader>() {
+                @Override
+                public int compare(final ClassLoader cl0, final ClassLoader cl1) {
+                    return delegationDepth(cl1) - delegationDepth(cl0);
+                }
+            });
+            classLoadersUnique = new LinkedHashSet<>(sortedClassLoaders);
 
             // Add any custom-added classloaders after system/context/module classloaders
             if (scanSpec.addedClassLoaders != null) {
