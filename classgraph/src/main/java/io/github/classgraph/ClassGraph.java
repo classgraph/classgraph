@@ -449,15 +449,46 @@ public class ClassGraph {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Scan the classpath elements declared by the ClassLoaders found in the current runtime environment: the
-     * context ClassLoader of the calling thread, the ClassLoader of the caller's own class, the system ClassLoader,
-     * the ClassLoaders of the classes on the call stack, and the parents of all of those, in the order in which
-     * they would be asked to load a class.
+     * Scan every classpath element of every ClassLoader that can be found in the current runtime environment.
+     *
+     * <p>
+     * A ClassLoader is found if it is any of the following:
+     *
+     * <ul>
+     * <li>the context ClassLoader of the calling thread, as returned by {@link Thread#getContextClassLoader()
+     * Thread.currentThread().getContextClassLoader()};</li>
+     * <li>the ClassLoader that loaded ClassGraph itself;</li>
+     * <li>the system ClassLoader, as returned by {@link ClassLoader#getSystemClassLoader()} -- this is the
+     * application ClassLoader, unless the JVM was launched with {@code -Djava.system.class.loader};</li>
+     * <li>the ClassLoader of the class in any frame of the current call stack, so that the ClassLoader of the code
+     * that called ClassGraph is scanned even when it is none of the above; or</li>
+     * <li>an ancestor of any of those, reached through {@link ClassLoader#getParent()}.</li>
+     * </ul>
+     *
+     * <p>
+     * Every classpath element that every one of those ClassLoaders loads classes from is scanned, whether or not
+     * the ClassLoader exposes it publicly -- see
+     * <a href="https://github.com/classgraph/classgraph/wiki/Classpath-Specification-Mechanisms">Classpath
+     * specification mechanisms</a> for how each supported ClassLoader is read. Classpath elements are scanned in
+     * the order in which the ClassLoaders that declared them would be asked to load a class, so a class that
+     * appears on the classpath more than once is reported from the copy the JVM would actually load. Each classpath
+     * element is scanned only once, however many of the ClassLoaders declare it.
      *
      * <p>
      * The application ClassLoader is normally one of them, so its own classpath entries -- the ones that the
      * {@code java.class.path} system property lists -- are scanned too, at the position the application ClassLoader
      * takes in that order.
+     *
+     * <p>
+     * This method takes no arguments, because it scans what is in the environment. To scan specific ClassLoaders or
+     * specific classpath elements instead, call {@link #enableClassLoaders(ClassLoader...)} or
+     * {@link #enableClasspathEntries(Object...)} and do not call this method. Calling both scans the environment as
+     * well as what you named.
+     *
+     * <p>
+     * This method does not enable the scanning of modules. Classes in modules are reached by
+     * {@link #enableModules()}, {@link #enableSystemModules()}, {@link #enableNonSystemModules()} or
+     * {@link #enableModuleLayers(ModuleLayer...)}, and modules are always scanned before the classpath.
      *
      * @return this (for method chaining).
      */

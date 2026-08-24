@@ -46,7 +46,7 @@ finds nothing. The methods that say *where* to look come in pairs:
 
 | No arguments: find what is in the environment | Varargs: use exactly what is named |
 | --- | --- |
-| `enableClasspath()` -- the classpath of every classloader that can be found, including `java.class.path` | `enableClassLoaders(ClassLoader...)`, `enableClasspathEntries(Object...)` |
+| `enableClasspath()` -- every classpath element of every classloader that can be found -- the thread context classloader, the system classloader, the classloader of the class in any frame of the call stack, and the ancestors of all of those, including `java.class.path` | `enableClassLoaders(ClassLoader...)`, `enableClasspathEntries(Object...)` |
 | `enableModules()`, `enableSystemModules()`, `enableNonSystemModules()` -- the module layers that are visible to the caller | `enableModuleLayers(ModuleLayer...)` |
 
 Call the no-argument method to find what the running application can see. Call only the varargs

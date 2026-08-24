@@ -167,15 +167,46 @@ public final class ClasspathFinder {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Search the classloaders found in the environment for classpath elements: the context classloader of the
-     * calling thread, the classloader of the caller's own class, the system classloader, the classloaders of the
-     * classes on the call stack, and the parents of all of those, in the order in which they would be asked to load
-     * a class.
+     * Find every classpath element of every classloader that can be found in the current runtime environment.
+     *
+     * <p>
+     * A classloader is found if it is any of the following:
+     *
+     * <ul>
+     * <li>the context classloader of the calling thread, as returned by {@link Thread#getContextClassLoader()
+     * Thread.currentThread().getContextClassLoader()};</li>
+     * <li>the classloader that loaded ClassGraph itself;</li>
+     * <li>the system classloader, as returned by {@link ClassLoader#getSystemClassLoader()} -- this is the
+     * application classloader, unless the JVM was launched with {@code -Djava.system.class.loader};</li>
+     * <li>the classloader of the class in any frame of the current call stack, so that the classloader of the code
+     * that called ClassGraph is searched even when it is none of the above; or</li>
+     * <li>an ancestor of any of those, reached through {@link ClassLoader#getParent()}.</li>
+     * </ul>
+     *
+     * <p>
+     * Every classpath element that every one of those classloaders loads classes from is found, whether or not the
+     * classloader exposes it publicly -- see
+     * <a href="https://github.com/classgraph/classgraph/wiki/Classpath-Specification-Mechanisms">Classpath
+     * specification mechanisms</a> for how each supported classloader is read. Classpath elements are returned in
+     * the order in which the classloaders that declared them would be asked to load a class, so a classpath element
+     * that appears more than once is reported at the position the JVM would actually load it from, and each
+     * classpath element is reported only once, however many of the classloaders declare it.
      *
      * <p>
      * The application classloader is normally one of them, so its own classpath entries -- the ones that the
-     * {@code java.class.path} system property lists -- are searched too, at the position the application
-     * classloader takes in that order.
+     * {@code java.class.path} system property lists -- are found too, at the position the application classloader
+     * takes in that order.
+     *
+     * <p>
+     * This method takes no arguments, because it searches what is in the environment. To search specific
+     * classloaders or specific classpath elements instead, call {@link #enableClassLoaders(ClassLoader...)} or
+     * {@link #enableClasspathEntries(Object...)} and do not call this method. Calling both searches the environment
+     * as well as what you named.
+     *
+     * <p>
+     * This method does not enable the module path. Modules are found by {@link #enableModules()},
+     * {@link #enableSystemModules()}, {@link #enableNonSystemModules()} or
+     * {@link #enableModuleLayers(ModuleLayer...)}, and modules always precede the classpath.
      *
      * @return this (for method chaining).
      */
