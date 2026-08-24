@@ -13,13 +13,13 @@ public class Issue348Test {
     /** Test for wildcarded jars. */
     @Test
     public void testWildcard() {
-        try (var scanResult1 = new ClassGraph().acceptPathsNonRecursive("").scan()) {
+        try (var scanResult1 = new ClassGraph().enableClasspath().acceptPathsNonRecursive("").scan()) {
             // Find all resources within classpath elements with ".jar" extension
             final var jarResourceUris = scanResult1.getResourcesWithExtension("jar").stream()
                     .map(r -> r.getURI().toString().replace(":///", ":/").replace("://", ":/")).toList();
             assertThat(jarResourceUris).isNotEmpty();
 
-            try (var scanResult2 = new ClassGraph().overrideClasspath(jarResourceUris).acceptJars("issue*.jar")
+            try (var scanResult2 = new ClassGraph().enableClasspathEntries(jarResourceUris).acceptJars("issue*.jar")
                     .scan()) {
                 // Find all classpath element URIs for non-nested jars
                 final var cpUris = scanResult2.getClasspathURIs().stream().map(URI::toString)

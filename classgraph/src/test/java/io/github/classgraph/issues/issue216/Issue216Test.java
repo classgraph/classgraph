@@ -43,8 +43,8 @@ public class Issue216Test {
      */
     @Test
     public void testSpringBootJarWithLibJars() {
-        try (var result = new ClassGraph().acceptPackages(Issue216Test.class.getPackage().getName()).enableAllInfo()
-                .scan()) {
+        try (var result = new ClassGraph().enableClasspath()
+                .acceptPackages(Issue216Test.class.getPackage().getName()).enableAllInfo().scan()) {
             assertThat(result.getAllClasses().filter(ci -> ci.hasAnnotation(Entity.class)).getNames())
                     .containsOnly(Issue216Test.class.getName());
         }

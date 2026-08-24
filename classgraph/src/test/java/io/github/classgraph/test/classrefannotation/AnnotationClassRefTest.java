@@ -74,8 +74,9 @@ public class AnnotationClassRefTest {
      */
     @Test
     public void testClassRefAnnotation() {
-        try (var scanResult = new ClassGraph().acceptPackages(AnnotationClassRefTest.class.getPackage().getName())
-                .enableMethodInfo().enableAnnotationInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath()
+                .acceptPackages(AnnotationClassRefTest.class.getPackage().getName()).enableMethodInfo()
+                .enableAnnotationInfo().scan()) {
             final var testClasses = scanResult.getClassesWithMethodAnnotation(ClassRefAnnotation.class);
             assertThat(testClasses.size()).isEqualTo(1);
             final var testClass = testClasses.get(0);

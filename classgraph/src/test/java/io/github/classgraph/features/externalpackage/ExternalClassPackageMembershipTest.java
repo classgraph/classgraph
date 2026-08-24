@@ -21,7 +21,7 @@ public class ExternalClassPackageMembershipTest {
     /** Only the accepted package is scanned; its classes' external superclass is read but not listed. */
     @Test
     public void externalClassIsNotListedAsAPackageMember() {
-        try (var scanResult = new ClassGraph().acceptPackages(ACCEPTED_PACKAGE).scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath().acceptPackages(ACCEPTED_PACKAGE).scan()) {
             // The external superclass was read -- it is reachable as a superclass
             assertThat(scanResult.getClassInfo(AcceptedSubclass.class.getName()).getSuperclass().getName())
                     .isEqualTo(ExternalSuperclass.class.getName());
@@ -39,7 +39,8 @@ public class ExternalClassPackageMembershipTest {
     /** With external classes enabled, the external superclass is a member of its package like any other class. */
     @Test
     public void externalClassIsListedAsAPackageMemberIfEnabled() {
-        try (var scanResult = new ClassGraph().acceptPackages(ACCEPTED_PACKAGE).enableExternalClasses().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath().acceptPackages(ACCEPTED_PACKAGE)
+                .enableExternalClasses().scan()) {
             assertThat(scanResult.getAllClasses().getNames()).contains(ExternalSuperclass.class.getName());
             assertThat(scanResult.getPackageInfo(EXTERNAL_PACKAGE).getClassInfo().getNames())
                     .containsExactly(ExternalSuperclass.class.getName());
@@ -55,8 +56,8 @@ public class ExternalClassPackageMembershipTest {
      */
     @Test
     public void externalClassIsNotListedAsAModuleMember() {
-        try (var scanResult = new ClassGraph().acceptClasses("java.util.ArrayList").enableSystemJarsAndModules()
-                .scan()) {
+        try (var scanResult = new ClassGraph().acceptClasses("java.util.ArrayList").enableSystemJars()
+                .enableSystemModules().scan()) {
             assertThat(scanResult.getClassInfo("java.util.AbstractList")).isNotNull();
             assertThat(scanResult.getModuleInfo("java.base").getClassInfo().getNames())
                     .containsExactly("java.util.ArrayList");

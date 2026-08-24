@@ -27,7 +27,7 @@ public class Issue329Test {
     /** Test. */
     @Test
     public void test() {
-        try (var scanResult = new ClassGraph().enableAllInfo().enableInterClassDependencies()
+        try (var scanResult = new ClassGraph().enableClasspath().enableAllInfo().enableInterClassDependencies()
                 .enableExternalClasses().acceptClasses(Foo.class.getName()).scan()) {
             final var classInfo = scanResult.getClassInfo(Foo.class.getName());
             assertThat(classInfo.getClassDependencies().getNames()).containsOnly(Issue329Test.class.getName(),

@@ -33,11 +33,11 @@ class Issue810Test {
         // A toplevel classpath entry must take precedence over a Class-Path manifest entry that references the same
         // jar, so b.zip must be ordered first, even though a.zip's manifest also references it
         for (var i = 0; i < 20; i++) {
-            try (var scanResult = new ClassGraph().overrideClasspath(bURL, aURL).scan()) {
+            try (var scanResult = new ClassGraph().enableClasspathEntries(bURL, aURL).scan()) {
                 final var order = scanResult.getClasspathFiles().stream().map(File::getName).toList();
                 assertThat(order).isEqualTo(List.of("b.zip", "c.zip", "a.zip"));
             }
-            try (var scanResult = new ClassGraph().overrideClasspath(aURL, bURL).scan()) {
+            try (var scanResult = new ClassGraph().enableClasspathEntries(aURL, bURL).scan()) {
                 final var order = scanResult.getClasspathFiles().stream().map(File::getName).toList();
                 assertThat(order).isEqualTo(List.of("a.zip", "b.zip", "c.zip"));
             }

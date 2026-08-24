@@ -12,7 +12,7 @@ import io.github.classgraph.ClassGraph;
 public class Issue289Test {
     @Test
     public void issue289() {
-        try (var scanResult = new ClassGraph().overrideClassLoaders(
+        try (var scanResult = new ClassGraph().enableClassLoaders(
                 new URLClassLoader(new URL[] { Issue289Test.class.getClassLoader().getResource("zip64.zip") }))
                 .scan()) {
             for (var i = 0; i < 90000; i++) {

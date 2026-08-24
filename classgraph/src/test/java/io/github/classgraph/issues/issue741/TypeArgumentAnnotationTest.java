@@ -41,7 +41,7 @@ public class TypeArgumentAnnotationTest {
 
     @Test
     void typeArgumentAnnotation() {
-        try (var scanResult = new ClassGraph()
+        try (var scanResult = new ClassGraph().enableClasspath()
                 .acceptPackages(TypeArgumentAnnotationTest.class.getPackage().getName()).enableAllInfo().scan()) {
             final var cls = scanResult.getClassInfo(TypeArgumentAnnotationTest.class.getName());
             final var method = cls.getMethodInfo().get("setValueList").get(0);

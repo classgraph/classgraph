@@ -43,7 +43,8 @@ prerequisite is missing: `generate`/`write` need `enableClassInfo()`, and the
 ### Graph the classes in a package
 
 ```java
-try (ScanResult scanResult = new ClassGraph().enableAllInfo().acceptPackages("com.xyz").scan()) {
+try (ScanResult scanResult = new ClassGraph().enableNonSystemModules().enableClasspath()
+        .enableAllInfo().acceptPackages("com.xyz").scan()) {
     GraphVizDotFile.write(scanResult, scanResult.getAllClasses(), Path.of("classgraph.dot"));
 }
 ```
@@ -64,7 +65,8 @@ The second argument is any `ClassInfoList`, so the graph can be narrowed to what
 returns rather than everything that was scanned:
 
 ```java
-try (ScanResult scanResult = new ClassGraph().enableAllInfo().acceptPackages("com.xyz").scan()) {
+try (ScanResult scanResult = new ClassGraph().enableNonSystemModules().enableClasspath()
+        .enableAllInfo().acceptPackages("com.xyz").scan()) {
     ClassInfoList widgets = scanResult.getAllSubclasses("com.xyz.Widget");
     GraphVizDotFile.write(scanResult, widgets, Path.of("widgets.dot"));
 }
@@ -73,7 +75,7 @@ try (ScanResult scanResult = new ClassGraph().enableAllInfo().acceptPackages("co
 ### Graph inter-class dependencies
 
 ```java
-try (ScanResult scanResult = new ClassGraph()
+try (ScanResult scanResult = new ClassGraph().enableNonSystemModules().enableClasspath()
         .enableClassInfo().enableInterClassDependencies().acceptPackages("com.xyz").scan()) {
     GraphVizDotFile.writeFromInterClassDependencies(
             scanResult, scanResult.getAllClasses(), Path.of("dependencies.dot"));
@@ -96,7 +98,8 @@ GraphVizDotFileOptions options = new GraphVizDotFileOptions()
         .hideAnnotations()            // no annotation nodes
         .useFullyQualifiedNames();    // com.xyz.Widget rather than Widget
 
-try (ScanResult scanResult = new ClassGraph().enableAllInfo().acceptPackages("com.xyz").scan()) {
+try (ScanResult scanResult = new ClassGraph().enableNonSystemModules().enableClasspath()
+        .enableAllInfo().acceptPackages("com.xyz").scan()) {
     GraphVizDotFile.write(scanResult, scanResult.getAllClasses(), Path.of("overview.dot"), options);
 }
 ```
@@ -113,7 +116,8 @@ to whichever setting is wanted: each `hide...()` has a matching `show...()`, and
 ### Get the .dot source instead of a file
 
 ```java
-try (ScanResult scanResult = new ClassGraph().enableAllInfo().acceptPackages("com.xyz").scan()) {
+try (ScanResult scanResult = new ClassGraph().enableNonSystemModules().enableClasspath()
+        .enableAllInfo().acceptPackages("com.xyz").scan()) {
     String dot = GraphVizDotFile.generate(scanResult, scanResult.getAllClasses());
     // ... feed to a GraphViz binding, or to `dot` on stdin
 }

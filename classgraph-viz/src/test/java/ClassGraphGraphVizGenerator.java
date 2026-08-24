@@ -18,7 +18,7 @@ public class ClassGraphGraphVizGenerator {
      *             Signals that an I/O exception has occurred.
      */
     public static void main(final String[] args) throws IOException {
-        try (var scanResult = new ClassGraph() //
+        try (var scanResult = new ClassGraph().enableClasspath() //
                 .acceptPackagesNonRecursive("io.github.classgraph") //
                 .enableMethodInfo() //
                 .ignoreMethodVisibility() //

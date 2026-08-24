@@ -53,7 +53,7 @@ public class Issue100Test {
         // Class issue100.Test with field "a" should mask class of same name with field "b", because "...a.jar" is
         // earlier in classpath than "...b.jar"
         final ArrayList<String> fieldNames1 = new ArrayList<>();
-        try (var scanResult = new ClassGraph().overrideClassLoaders(overrideClassLoader).acceptPackages("issue100")
+        try (var scanResult = new ClassGraph().enableClassLoaders(overrideClassLoader).acceptPackages("issue100")
                 .rejectJars(bJarName).enableFieldInfo().scan()) {
             for (final ClassInfo ci : scanResult.getAllClasses()) {
                 for (final FieldInfo f : ci.getFieldInfo()) {
@@ -69,7 +69,7 @@ public class Issue100Test {
         // the classpath (or in this case, the classloaders), we should only see field "b" in "...b.jar" (which is
         // what we actually see through scanning the accepted jar, "bJarName").
         final ArrayList<String> fieldNames2 = new ArrayList<>();
-        try (var scanResult = new ClassGraph().overrideClassLoaders(overrideClassLoader).acceptPackages("issue100")
+        try (var scanResult = new ClassGraph().enableClassLoaders(overrideClassLoader).acceptPackages("issue100")
                 .acceptJars(bJarName).enableFieldInfo().scan()) {
             for (final ClassInfo ci : scanResult.getAllClasses()) {
                 for (final FieldInfo f : ci.getFieldInfo()) {

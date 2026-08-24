@@ -123,8 +123,8 @@ public class Issue704Test {
 
         try (var classLoader = new URLClassLoader(new URL[] { jarFile.toURI().toURL() }, /* parent = */ null);
                 var scanResult = new ClassGraph() //
-                        .addModuleLayer(moduleLayer) //
-                        .addClassLoader(classLoader) //
+                        .enableModuleLayers(moduleLayer) //
+                        .enableClassLoaders(classLoader) //
                         .acceptPaths("stuff") //
                         .scan()) {
             final var uris = scanResult.getAllResources().getURIs();
@@ -165,8 +165,8 @@ public class Issue704Test {
 
         try (var classLoader = new URLClassLoader(new URL[] { jarFile.toURI().toURL() }, /* parent = */ null);
                 var scanResult = new ClassGraph() //
-                        .addModuleLayer(moduleLayer) //
-                        .addClassLoader(classLoader) //
+                        .enableModuleLayers(moduleLayer) //
+                        .enableClassLoaders(classLoader) //
                         .acceptPaths("stuff") //
                         .scan()) {
             assertThat(scanResult.getAllResources().getURIs()).hasSize(1);
@@ -198,8 +198,8 @@ public class Issue704Test {
 
         try (var classLoader = new URLClassLoader(new URL[] { jarFile.toURI().toURL() }, /* parent = */ null);
                 var scanResult = new ClassGraph() //
-                        .addModuleLayer(moduleLayer) //
-                        .addClassLoader(classLoader) //
+                        .enableModuleLayers(moduleLayer) //
+                        .enableClassLoaders(classLoader) //
                         .acceptPaths("stuff") //
                         .scan()) {
             assertThat(scanResult.getAllResources().getURIs()).hasSize(1);
@@ -227,8 +227,8 @@ public class Issue704Test {
 
         try (var classLoader = new URLClassLoader(new URL[] { jarFile.toURI().toURL() }, /* parent = */ null);
                 var scanResult = new ClassGraph() //
-                        .addModuleLayer(moduleLayer) //
-                        .addClassLoader(classLoader) //
+                        .enableModuleLayers(moduleLayer) //
+                        .enableClassLoaders(classLoader) //
                         .acceptPaths("stuff") //
                         .scan()) {
             assertThat(scanResult.getAllResources().getURIs()).hasSize(1);
@@ -258,8 +258,8 @@ public class Issue704Test {
         try (var classLoader = new URLClassLoader(new URL[] { classpathJarFile.toURI().toURL() },
                 /* parent = */ null);
                 var scanResult = new ClassGraph() //
-                        .addModuleLayer(moduleLayer) //
-                        .addClassLoader(classLoader) //
+                        .enableModuleLayers(moduleLayer) //
+                        .enableClassLoaders(classLoader) //
                         .acceptPaths("stuff") //
                         .scan()) {
             final var uriStrs = scanResult.getAllResources().getURIs().stream().map(URI::toString).toList();

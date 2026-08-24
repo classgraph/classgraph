@@ -28,7 +28,7 @@ public class WeblogicClassLoaderTest {
      * @return the classpath element locations.
      */
     private static List<String> locations(final ClassLoader classLoader) {
-        try (var classpath = new ClasspathFinder().overrideClassLoaders(classLoader).find()) {
+        try (var classpath = new ClasspathFinder().enableClassLoaders(classLoader).find()) {
             return classpath.getLocations();
         }
     }

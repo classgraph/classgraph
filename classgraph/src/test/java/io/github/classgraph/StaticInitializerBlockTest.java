@@ -30,8 +30,8 @@ public class StaticInitializerBlockTest {
      * @return the scan result
      */
     private static ScanResult scan() {
-        return new ClassGraph().acceptClasses(HasStaticInitializer.class.getName()).enableMethodInfo()
-                .ignoreMethodVisibility().scan();
+        return new ClassGraph().enableClasspath().acceptClasses(HasStaticInitializer.class.getName())
+                .enableMethodInfo().ignoreMethodVisibility().scan();
     }
 
     /** None of the kind-based method queries return the static initializer block. */

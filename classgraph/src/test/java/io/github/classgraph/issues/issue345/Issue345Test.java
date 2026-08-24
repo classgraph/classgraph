@@ -28,8 +28,8 @@ public class Issue345Test {
      */
     @Test
     public void withIgnoreClassVisibility() {
-        try (var scanResult = new ClassGraph().acceptClasses(Super.class.getName(), Sub.class.getName())
-                .ignoreClassVisibility().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath()
+                .acceptClasses(Super.class.getName(), Sub.class.getName()).ignoreClassVisibility().scan()) {
             final var subClassInfo = scanResult.getClassInfo(Sub.class.getName());
             assertThat(subClassInfo).isNotNull();
             assertThat(subClassInfo.getResource()).isNotNull();
@@ -45,7 +45,8 @@ public class Issue345Test {
      */
     @Test
     public void withoutIgnoreClassVisibility() {
-        try (var scanResult = new ClassGraph().acceptClasses(Super.class.getName(), Sub.class.getName()).scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath()
+                .acceptClasses(Super.class.getName(), Sub.class.getName()).scan()) {
             final var subClassInfo = scanResult.getClassInfo(Sub.class.getName());
             assertThat(subClassInfo).isNotNull();
             assertThat(subClassInfo.getResource()).isNotNull();
@@ -60,7 +61,8 @@ public class Issue345Test {
      */
     @Test
     public void testExtensionToParent() {
-        try (var scanResult = new ClassGraph().acceptClasses(Sub.class.getName()).ignoreClassVisibility().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath().acceptClasses(Sub.class.getName())
+                .ignoreClassVisibility().scan()) {
             final var superClassInfo = scanResult.getClassInfo(Super.class.getName());
             assertThat(superClassInfo).isNotNull();
             assertThat(superClassInfo.getResource()).isNotNull();
@@ -72,8 +74,8 @@ public class Issue345Test {
      */
     @Test
     public void testExtensionToOuterClass() {
-        try (var scanResult = new ClassGraph().acceptClasses(Super.class.getName()).ignoreClassVisibility()
-                .scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath().acceptClasses(Super.class.getName())
+                .ignoreClassVisibility().scan()) {
             final var outerClassInfo = scanResult.getClassInfo(Issue345Test.class.getName());
             assertThat(outerClassInfo).isNotNull();
             assertThat(outerClassInfo.getResource()).isNotNull();
@@ -85,8 +87,8 @@ public class Issue345Test {
      */
     @Test
     public void testNonExtensionToInnerClass() {
-        try (var scanResult = new ClassGraph().acceptClasses(Issue345Test.class.getName()).ignoreClassVisibility()
-                .scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath().acceptClasses(Issue345Test.class.getName())
+                .ignoreClassVisibility().scan()) {
             final var innerClassInfo = scanResult.getClassInfo(Super.class.getName());
             assertThat(innerClassInfo).isNotNull();
             assertThat(innerClassInfo.getResource()).isNull();
@@ -100,12 +102,13 @@ public class Issue345Test {
     public void issue345b() {
         // Find URL of this class' classpath element
         URL classpathURL;
-        try (var scanResult = new ClassGraph().acceptClasses(Issue345Test.class.getName()).scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath().acceptClasses(Issue345Test.class.getName())
+                .scan()) {
             classpathURL = scanResult.getClassInfo(Issue345Test.class.getName()).getClasspathElementURL();
         }
         // Use this to create an override URLClassLoader
         try (var scanResult = new ClassGraph().enableClassInfo()
-                .overrideClassLoaders(new URLClassLoader(new URL[] { classpathURL })).ignoreParentClassLoaders()
+                .enableClassLoaders(new URLClassLoader(new URL[] { classpathURL })).ignoreParentClassLoaders()
                 .scan()) {
             // Assert that this class is found in its own classloader
             assertThat(scanResult.getClassInfo(Issue345Test.class.getName())).isNotNull();
@@ -137,7 +140,7 @@ public class Issue345Test {
      */
     @Test
     public void issue345c() {
-        try (var scanResult = new ClassGraph().enableClassInfo()
+        try (var scanResult = new ClassGraph().enableClasspath().enableClassInfo()
                 .acceptPackages(Issue345Test.class.getPackage().getName()).ignoreClassVisibility().scan()) {
             final var ciA = scanResult.getClassInfo(A.class.getName());
             assertThat(ciA.getModifiersString()).isEqualTo("private static");

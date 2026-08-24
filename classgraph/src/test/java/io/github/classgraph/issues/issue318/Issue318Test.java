@@ -71,8 +71,9 @@ public class Issue318Test {
 
     @Test
     public void issue318() {
-        try (var scanResult = new ClassGraph().acceptPackages(Issue318Test.class.getPackage().getName())
-                .enableAnnotationInfo().enableClassInfo().ignoreClassVisibility() //
+        try (var scanResult = new ClassGraph().enableClasspath()
+                .acceptPackages(Issue318Test.class.getPackage().getName()).enableAnnotationInfo().enableClassInfo()
+                .ignoreClassVisibility() //
                 // .verbose() //
                 .scan()) {
             assertThat(scanResult.getClassesWithAnnotation(MyAnn.class).getNames()).containsOnly(

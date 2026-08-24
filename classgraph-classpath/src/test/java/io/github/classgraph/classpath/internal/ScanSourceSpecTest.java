@@ -24,7 +24,7 @@ import io.github.classgraph.classpath.ClasspathFinder;
  * Tests the classloaders and module layers that the caller can ask to be scanned, either in addition to or instead
  * of the ones found in the environment.
  */
-public class ClassLoaderAndModuleLayerSpecTest {
+public class ScanSourceSpecTest {
     /**
      * Build a jar containing a single resource, so that it is a valid archive that can be read both as a classpath
      * element and as an automatic module.
@@ -76,12 +76,11 @@ public class ClassLoaderAndModuleLayerSpecTest {
         final var configuration = bootLayer.configuration().resolve(finder, java.lang.module.ModuleFinder.of(),
                 Set.of(moduleName));
         return ModuleLayer.defineModulesWithOneLoader(configuration, List.of(bootLayer),
-                ClassLoaderAndModuleLayerSpecTest.class.getClassLoader()).layer();
+                ScanSourceSpecTest.class.getClassLoader()).layer();
     }
 
     /**
-     * The names of the modules that are not part of the runtime image, which are the modules a caller adds or
-     * overrides.
+     * The names of the modules that are not part of the runtime image, which are the modules a caller names.
      *
      * @param classpathFinder
      *            the configured classpath finder.
@@ -109,8 +108,8 @@ public class ClassLoaderAndModuleLayerSpecTest {
     // -----------------------------------------------------------------------------------------------------------
 
     /**
-     * An added classloader is searched as well as the classloaders found in the environment, so the rest of the
-     * classpath is still found.
+     * A named classloader is searched as well as the classloaders found in the environment, if the classpath is
+     * enabled too, so the rest of the classpath is still found.
      *
      * @param tempDir
      *            a temporary directory to create the jar in.
@@ -118,19 +117,20 @@ public class ClassLoaderAndModuleLayerSpecTest {
      *             if the jar could not be created.
      */
     @Test
-    public void anAddedClassLoaderIsSearchedAsWellAsTheOnesFoundInTheEnvironment(@TempDir final Path tempDir)
+    public void aNamedClassLoaderIsSearchedAsWellAsTheOnesFoundInTheEnvironment(@TempDir final Path tempDir)
             throws IOException {
         final var addedJar = buildJar(tempDir, "added");
         try (var classLoader = classLoaderFor(addedJar)) {
-            final var locations = locations(new ClasspathFinder().addClassLoader(classLoader));
+            final var locations = locations(
+                    new ClasspathFinder().enableClasspath().enableClassLoaders(classLoader));
             assertThat(locations).contains(location(addedJar));
             assertThat(locations).as("the rest of the classpath is still present").hasSizeGreaterThan(1);
         }
     }
 
     /**
-     * Overriding the classloaders replaces the ones found in the environment, so nothing but the overriding
-     * classloaders' classpath elements is found -- in particular, {@code java.class.path} is ignored.
+     * Naming a classloader without also enabling the classpath searches only that classloader, so nothing but its
+     * classpath elements is found -- in particular, {@code java.class.path} is ignored.
      *
      * @param tempDir
      *            a temporary directory to create the jar in.
@@ -138,18 +138,17 @@ public class ClassLoaderAndModuleLayerSpecTest {
      *             if the jar could not be created.
      */
     @Test
-    public void overridingTheClassLoadersReplacesTheOnesFoundInTheEnvironment(@TempDir final Path tempDir)
+    public void onlyTheNamedClassLoadersAreSearchedIfTheClasspathIsNotEnabled(@TempDir final Path tempDir)
             throws IOException {
-        final var overrideJar = buildJar(tempDir, "override");
-        try (var classLoader = classLoaderFor(overrideJar)) {
-            assertThat(locations(new ClasspathFinder().overrideClassLoaders(classLoader)))
-                    .containsExactly(location(overrideJar));
+        final var namedJar = buildJar(tempDir, "named");
+        try (var classLoader = classLoaderFor(namedJar)) {
+            assertThat(locations(new ClasspathFinder().enableClassLoaders(classLoader)))
+                    .containsExactly(location(namedJar));
         }
     }
 
     /**
-     * A classloader added before the classloaders are overridden is discarded, because overriding replaces
-     * everything that was requested before it.
+     * All the named classloaders are searched, in the order they were given.
      *
      * @param tempDir
      *            a temporary directory to create the jars in.
@@ -157,37 +156,38 @@ public class ClassLoaderAndModuleLayerSpecTest {
      *             if the jars could not be created.
      */
     @Test
-    public void aClassLoaderAddedBeforeTheClassLoadersAreOverriddenIsDiscarded(@TempDir final Path tempDir)
-            throws IOException {
-        final var addedJar = buildJar(tempDir, "added");
-        final var overrideJar = buildJar(tempDir, "override");
-        try (var addedClassLoader = classLoaderFor(addedJar);
-                var overrideClassLoader = classLoaderFor(overrideJar)) {
-            assertThat(locations(new ClasspathFinder().addClassLoader(addedClassLoader)
-                    .overrideClassLoaders(overrideClassLoader))).containsExactly(location(overrideJar));
-        }
-    }
-
-    /**
-     * All the overriding classloaders are searched, in the order they were given.
-     *
-     * @param tempDir
-     *            a temporary directory to create the jars in.
-     * @throws IOException
-     *             if the jars could not be created.
-     */
-    @Test
-    public void allTheOverridingClassLoadersAreSearchedInOrder(@TempDir final Path tempDir) throws IOException {
+    public void allTheNamedClassLoadersAreSearchedInOrder(@TempDir final Path tempDir) throws IOException {
         final var firstJar = buildJar(tempDir, "first");
         final var secondJar = buildJar(tempDir, "second");
         try (var firstClassLoader = classLoaderFor(firstJar); var secondClassLoader = classLoaderFor(secondJar)) {
-            assertThat(locations(new ClasspathFinder().overrideClassLoaders(firstClassLoader, secondClassLoader)))
+            assertThat(locations(new ClasspathFinder().enableClassLoaders(firstClassLoader, secondClassLoader)))
                     .containsExactly(location(firstJar), location(secondJar));
         }
     }
 
     /**
-     * An added module layer is searched as well as the module layers that are visible to the caller.
+     * Classloaders named by separate calls are searched in the order the calls were made in, so that the fluent
+     * order decides which copy of a duplicated class would be loaded.
+     *
+     * @param tempDir
+     *            a temporary directory to create the jars in.
+     * @throws IOException
+     *             if the jars could not be created.
+     */
+    @Test
+    public void classLoadersNamedBySeparateCallsAreSearchedInOrder(@TempDir final Path tempDir) throws IOException {
+        final var firstJar = buildJar(tempDir, "first");
+        final var secondJar = buildJar(tempDir, "second");
+        try (var firstClassLoader = classLoaderFor(firstJar); var secondClassLoader = classLoaderFor(secondJar)) {
+            assertThat(locations(new ClasspathFinder().enableClassLoaders(firstClassLoader)
+                    .enableClassLoaders(secondClassLoader)))
+                    .containsExactly(location(firstJar), location(secondJar));
+        }
+    }
+
+    /**
+     * A named module layer is searched as well as the module layers that are visible to the caller, if the detected
+     * modules are enabled too.
      *
      * @param tempDir
      *            a temporary directory to create the jar in.
@@ -195,15 +195,16 @@ public class ClassLoaderAndModuleLayerSpecTest {
      *             if the jar could not be created.
      */
     @Test
-    public void anAddedModuleLayerIsSearchedAsWellAsTheVisibleOnes(@TempDir final Path tempDir) throws IOException {
+    public void aNamedModuleLayerIsSearchedAsWellAsTheVisibleOnes(@TempDir final Path tempDir) throws IOException {
         final var addedJar = buildJar(tempDir, "addedmodule");
-        assertThat(nonSystemModuleNames(new ClasspathFinder().addModuleLayer(moduleLayerFor(addedJar))))
+        assertThat(nonSystemModuleNames(
+                new ClasspathFinder().enableNonSystemModules().enableModuleLayers(moduleLayerFor(addedJar))))
                 .contains("addedmodule");
     }
 
     /**
-     * Overriding the module layers replaces the ones that are visible to the caller, so only the modules of the
-     * overriding layers are found.
+     * Naming a module layer without also enabling the detected modules searches only that layer, so only its
+     * modules are found.
      *
      * @param tempDir
      *            a temporary directory to create the jars in.
@@ -211,15 +212,15 @@ public class ClassLoaderAndModuleLayerSpecTest {
      *             if the jars could not be created.
      */
     @Test
-    public void overridingTheModuleLayersReplacesTheVisibleOnes(@TempDir final Path tempDir) throws IOException {
-        final var overrideJar = buildJar(tempDir, "overridemodule");
-        assertThat(nonSystemModuleNames(new ClasspathFinder().overrideModuleLayers(moduleLayerFor(overrideJar))))
-                .containsExactly("overridemodule");
+    public void onlyTheNamedModuleLayersAreSearchedIfTheDetectedOnesAreNotEnabled(@TempDir final Path tempDir)
+            throws IOException {
+        final var namedJar = buildJar(tempDir, "namedmodule");
+        assertThat(nonSystemModuleNames(new ClasspathFinder().enableModuleLayers(moduleLayerFor(namedJar))))
+                .containsExactly("namedmodule");
     }
 
     /**
-     * A module layer added before the module layers are overridden is discarded, because overriding replaces
-     * everything that was requested before it.
+     * Module layers named by separate calls are all searched.
      *
      * @param tempDir
      *            a temporary directory to create the jars in.
@@ -227,34 +228,36 @@ public class ClassLoaderAndModuleLayerSpecTest {
      *             if the jars could not be created.
      */
     @Test
-    public void aModuleLayerAddedBeforeTheModuleLayersAreOverriddenIsDiscarded(@TempDir final Path tempDir)
-            throws IOException {
-        final var addedJar = buildJar(tempDir, "addedmodule");
-        final var overrideJar = buildJar(tempDir, "overridemodule");
-        assertThat(nonSystemModuleNames(new ClasspathFinder().addModuleLayer(moduleLayerFor(addedJar))
-                .overrideModuleLayers(moduleLayerFor(overrideJar)))).containsExactly("overridemodule");
+    public void moduleLayersNamedBySeparateCallsAreAllSearched(@TempDir final Path tempDir) throws IOException {
+        final var firstJar = buildJar(tempDir, "firstmodule");
+        final var secondJar = buildJar(tempDir, "secondmodule");
+        assertThat(nonSystemModuleNames(new ClasspathFinder().enableModuleLayers(moduleLayerFor(firstJar))
+                .enableModuleLayers(moduleLayerFor(secondJar))))
+                .containsExactlyInAnyOrder("firstmodule", "secondmodule");
     }
 
     /** A null classloader or module layer is rejected, rather than silently ignored or scanned as null. */
     @Test
     public void aNullClassLoaderOrModuleLayerIsRejected() {
         final var classpathFinder = new ClasspathFinder();
-        assertThatThrownBy(() -> classpathFinder.addClassLoader(null)).isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> classpathFinder.overrideClassLoaders(new ClassLoader[] { null }))
+        assertThatThrownBy(() -> classpathFinder.enableClassLoaders((ClassLoader[]) null))
                 .isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> classpathFinder.addModuleLayer(null)).isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> classpathFinder.overrideModuleLayers(new ModuleLayer[] { null }))
+        assertThatThrownBy(() -> classpathFinder.enableClassLoaders(new ClassLoader[] { null }))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> classpathFinder.enableModuleLayers((ModuleLayer[]) null))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> classpathFinder.enableModuleLayers(new ModuleLayer[] { null }))
                 .isInstanceOf(NullPointerException.class);
     }
 
     /**
-     * Overriding with nothing at all is rejected, since it would otherwise silently mean "scan nothing", which is
-     * never what the caller meant.
+     * Naming nothing at all is rejected, since it would otherwise silently mean "scan nothing", which is never what
+     * the caller meant.
      */
     @Test
-    public void overridingWithNothingAtAllIsRejected() {
+    public void namingNothingAtAllIsRejected() {
         final var classpathFinder = new ClasspathFinder();
-        assertThatThrownBy(classpathFinder::overrideClassLoaders).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(classpathFinder::overrideModuleLayers).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(classpathFinder::enableClassLoaders).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(classpathFinder::enableModuleLayers).isInstanceOf(IllegalArgumentException.class);
     }
 }

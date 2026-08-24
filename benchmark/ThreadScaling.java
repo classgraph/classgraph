@@ -56,7 +56,7 @@ public class ThreadScaling {
      * @return the elapsed time in milliseconds
      */
     private static long time(final String classpath, final boolean memoryMapping, final int numThreads) {
-        final ClassGraph classGraph = new ClassGraph().overrideClasspath(classpath).enableAllInfo();
+        final ClassGraph classGraph = new ClassGraph().enableClasspathEntries(classpath).enableAllInfo();
         setMemoryMapping(classGraph, memoryMapping);
         final long startTime = System.nanoTime();
         try (ScanResult scanResult = classGraph.scan(numThreads)) {

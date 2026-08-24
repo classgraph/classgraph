@@ -74,7 +74,8 @@ public class Issue141Test {
         // Not a classfile at all -- it does not even start with the 0xCAFEBABE magic number
         Files.write(pkgDir.resolve("Bad.class"), "This is not a classfile".getBytes(StandardCharsets.UTF_8));
 
-        try (var scanResult = new ClassGraph().overrideClasspath(tempDir.toString()).enableClassInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspathEntries(tempDir.toString()).enableClassInfo()
+                .scan()) {
             assertThat(scanResult.getAllClasses().getNames()).containsExactly(Good.class.getName());
         }
     }

@@ -52,7 +52,7 @@ public class ClassesWithAnnotationsTest {
     /** Scan the test classes. */
     @BeforeAll
     static void scan() {
-        scanResult = new ClassGraph()
+        scanResult = new ClassGraph().enableClasspath()
                 .acceptClasses(Alpha.class.getName(), Beta.class.getName(), Unused.class.getName(),
                         OnlyAlpha.class.getName(), OnlyBeta.class.getName(), Both.class.getName())
                 .enableAnnotationInfo().scan();

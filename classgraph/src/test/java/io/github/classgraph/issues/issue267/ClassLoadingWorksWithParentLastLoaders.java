@@ -56,7 +56,7 @@ public class ClassLoadingWorksWithParentLastLoaders {
                 .isEqualTo(expectedClassLoader);
         assertThat(a.getClass().getClassLoader().getClass().getSimpleName()).isEqualTo(expectedClassLoader);
 
-        final var classGraph = new ClassGraph().acceptPackages("com.xyz.meta").enableAllInfo()
+        final var classGraph = new ClassGraph().enableClasspath().acceptPackages("com.xyz.meta").enableAllInfo()
                 .registerClassLoaderHandler(new FakeRestartClassLoaderHandler());
 
         // ClassGraph is in that setup not part of the RestartClass loader. That one takes by default only URLs from

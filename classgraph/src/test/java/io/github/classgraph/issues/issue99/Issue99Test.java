@@ -44,7 +44,7 @@ public class Issue99Test {
      */
     @Test
     public void testWithoutReject() {
-        try (var scanResult = new ClassGraph().overrideClasspath(jarPath).enableClassInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspathEntries(jarPath).enableClassInfo().scan()) {
             assertThat(scanResult.getAllClasses().getNames()).containsOnly("com.test.Test");
         }
     }
@@ -54,8 +54,8 @@ public class Issue99Test {
      */
     @Test
     public void testWithReject() {
-        try (var scanResult = new ClassGraph().overrideClasspath(jarPath).rejectJars("level3.jar").enableClassInfo()
-                .scan()) {
+        try (var scanResult = new ClassGraph().enableClasspathEntries(jarPath).rejectJars("level3.jar")
+                .enableClassInfo().scan()) {
             assertThat(scanResult.getAllClasses().getNames()).isEmpty();
         }
     }

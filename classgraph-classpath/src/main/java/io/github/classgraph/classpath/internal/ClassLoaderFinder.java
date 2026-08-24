@@ -33,7 +33,7 @@ import java.util.LinkedHashSet;
 import io.github.classgraph.base.LogNode;
 import org.jspecify.annotations.Nullable;
 
-/** A class to find the unique ordered classpath elements. */
+/** A class to find the classloaders that are present in the environment. */
 public class ClassLoaderFinder {
     /** The context class loaders. */
     private final ClassLoader[] contextClassLoaders;
@@ -52,28 +52,17 @@ public class ClassLoaderFinder {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * A class to find the unique ordered classpath elements.
+     * Find the classloaders that are present in the environment.
      *
-     * @param classLoaderAndModuleLayerSpec
-     *            The classloaders and module layers the caller asked to be scanned.
      * @param log
      *            The log.
      */
-    ClassLoaderFinder(final ClassLoaderAndModuleLayerSpec classLoaderAndModuleLayerSpec,
-            final @Nullable LogNode log) {
-        final LinkedHashSet<ClassLoader> classLoadersUnique;
-        final @Nullable LogNode classLoadersFoundLog;
-        if (classLoaderAndModuleLayerSpec.overrideClassLoaders == null) {
-            classLoadersUnique = findDefaultClassLoaders(classLoaderAndModuleLayerSpec);
-            classLoadersFoundLog = log == null ? null : log.log("Found ClassLoaders:");
-        } else {
-            // ClassLoaders were overridden
-            classLoadersUnique = new LinkedHashSet<>(classLoaderAndModuleLayerSpec.overrideClassLoaders);
-            classLoadersFoundLog = log == null ? null : log.log("Override ClassLoaders:");
-        }
+    ClassLoaderFinder(final @Nullable LogNode log) {
+        final var classLoadersUnique = findDefaultClassLoaders();
 
         // Log all identified ClassLoaders
-        if (classLoadersFoundLog != null) {
+        if (log != null) {
+            final var classLoadersFoundLog = log.log("Found ClassLoaders:");
             for (final ClassLoader classLoader : classLoadersUnique) {
                 classLoadersFoundLog.log(classLoader.getClass().getName());
             }
@@ -83,19 +72,16 @@ public class ClassLoaderFinder {
     }
 
     /**
-     * Find the classloaders to scan when the classloaders have not been overridden by the scan spec.
+     * Find the classloaders that are present in the environment.
      *
      * <p>
      * There's some advice here about choosing the best or the right classloader, but it is not complete (e.g. it
      * doesn't cover parent delegation modes):
      * http://www.javaworld.com/article/2077344/core-java/find-a-way-out-of-the-classloader-maze.html?page=2
      *
-     * @param classLoaderAndModuleLayerSpec
-     *            The classloaders and module layers the caller asked to be scanned.
-     * @return The classloaders, in the order they should be scanned in.
+     * @return The classloaders, in the order they should be searched in.
      */
-    private static LinkedHashSet<ClassLoader> findDefaultClassLoaders(
-            final ClassLoaderAndModuleLayerSpec classLoaderAndModuleLayerSpec) {
+    private static LinkedHashSet<ClassLoader> findDefaultClassLoaders() {
         final LinkedHashSet<ClassLoader> classLoadersUnique = new LinkedHashSet<>();
 
         // Get thread context classloader (this is the first classloader to try, since a context classloader can
@@ -138,10 +124,6 @@ public class ClassLoaderFinder {
             }
         }
 
-        // Add any custom-added classloaders after system/context/module classloaders
-        if (classLoaderAndModuleLayerSpec.addedClassLoaders != null) {
-            classLoadersUnique.addAll(classLoaderAndModuleLayerSpec.addedClassLoaders);
-        }
         return classLoadersUnique;
     }
 }

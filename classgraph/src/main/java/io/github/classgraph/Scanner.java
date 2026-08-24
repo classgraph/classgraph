@@ -73,7 +73,7 @@ import io.github.classgraph.base.internal.path.PathList;
 import io.github.classgraph.base.internal.path.PathSyntax;
 import io.github.classgraph.base.internal.utils.CollectionUtils;
 import io.github.classgraph.classpath.ClassLoaderHandler;
-import io.github.classgraph.classpath.internal.ClassLoaderAndModuleLayerSpec;
+import io.github.classgraph.classpath.internal.ScanSourceSpec;
 import io.github.classgraph.classpath.internal.ClassLoaderProbe;
 import io.github.classgraph.vfs.Vfs;
 import org.jspecify.annotations.Nullable;
@@ -134,8 +134,8 @@ class Scanner implements Callable<ScanResult> {
      *            If true, performing a scan. If false, only fetching the classpath.
      * @param scanSpec
      *            the scan spec
-     * @param classLoaderAndModuleLayerSpec
-     *            the classloaders and module layers the caller asked to be scanned
+     * @param scanSourceSpec
+     *            the places that classpath elements and modules are looked for
      * @param executorService
      *            the executor service
      * @param numParallelTasks
@@ -147,8 +147,7 @@ class Scanner implements Callable<ScanResult> {
      * @param topLevelLog
      *            the log
      */
-    Scanner(final boolean performScan, final ScanSpec scanSpec,
-            final ClassLoaderAndModuleLayerSpec classLoaderAndModuleLayerSpec,
+    Scanner(final boolean performScan, final ScanSpec scanSpec, final ScanSourceSpec scanSourceSpec,
             final ExecutorService executorService, final int numParallelTasks,
             final @Nullable Consumer<ScanResult> scanResultProcessor,
             final @Nullable Consumer<Throwable> failureHandler, final @Nullable LogNode topLevelLog) {
@@ -156,7 +155,7 @@ class Scanner implements Callable<ScanResult> {
         this.performScan = performScan;
         scanSpec.sortPrefixes();
         scanSpec.log(topLevelLog);
-        classLoaderAndModuleLayerSpec.log(topLevelLog);
+        scanSourceSpec.log(topLevelLog);
         if (topLevelLog != null) {
             if (scanSpec.packagePrefixAcceptReject.isSpecificallyAccepted("")) {
                 topLevelLog.log("Note: There is no need to accept the root package (\"\") -- not accepting "
@@ -189,28 +188,38 @@ class Scanner implements Callable<ScanResult> {
             // to find the classpath, and those must not be kept alive for the duration of the scan. It is the last
             // thing in a scan to hold a classloader at all -- from here on, only the string form of each
             // classloader is kept
-            final var classLoaderProbe = new ClassLoaderProbe(scanSpec.classpathSpec, classLoaderAndModuleLayerSpec,
+            final var classLoaderProbe = new ClassLoaderProbe(scanSpec.classpathSpec, scanSourceSpec,
                     classLoaderProbeLog);
 
             this.moduleOrder = new ArrayList<>();
             final List<ModuleReference> unscannedModuleReferences = new ArrayList<>();
 
-            // Check if modules should be scanned
-            String defaultClassLoaderStr = null;
+            // Add modules to start of classpath order, before traditional classpath
+            final var defaultClassLoaderStr = Objects.toString(classLoaderProbe.getDefaultClassLoader(), null);
             final var moduleFinder = classLoaderProbe.getModuleFinder();
             if (moduleFinder != null) {
-                // Add modules to start of classpath order, before traditional classpath
-                final var classLoaderOrderRespectingParentDelegation = classLoaderProbe
-                        .getClassLoaderOrderRespectingParentDelegation();
-                defaultClassLoaderStr = Objects.toString(classLoaderOrderRespectingParentDelegation != null
-                        && classLoaderOrderRespectingParentDelegation.length != 0
-                                ? classLoaderOrderRespectingParentDelegation[0]
-                                : null,
-                        null);
                 addModules(moduleFinder.getSystemModuleReferences(), /* isSystemModules = */ true,
                         defaultClassLoaderStr, unscannedModuleReferences, classLoaderProbeLog);
                 addModules(moduleFinder.getNonSystemModuleReferences(), /* isSystemModules = */ false,
                         defaultClassLoaderStr, unscannedModuleReferences, classLoaderProbeLog);
+            } else {
+                // No module source was enabled, so no modules were looked for, and none are scanned -- but the
+                // classfile of a class in a module of the boot layer can still be read, in order to complete the
+                // class graph above an accepted class (#902), e.g. so that java.lang.Object is still found at the
+                // top of every superclass chain
+                for (final var resolvedModule : ModuleLayer.boot().configuration().modules()) {
+                    final var moduleReference = resolvedModule.reference();
+                    if (!scanSpec.classpathSpec.moduleAcceptReject
+                            .isRejected(moduleReference.descriptor().name())) {
+                        unscannedModuleReferences.add(moduleReference);
+                    }
+                }
+                if (classLoaderProbeLog != null) {
+                    classLoaderProbeLog.log("No module source was enabled, so no module is scanned, but the "
+                            + "classfiles of the " + unscannedModuleReferences.size()
+                            + " modules of the boot layer can still be read, in order to complete the class graph "
+                            + "above an accepted class");
+                }
             }
             this.unscannedModules = new UnscannedModules(unscannedModuleReferences, defaultClassLoaderStr, vfs,
                     scanSpec);
@@ -256,12 +265,13 @@ class Scanner implements Callable<ScanResult> {
         }
         for (final ModuleReference moduleReference : moduleReferences) {
             final var moduleName = moduleReference.descriptor().name();
-            // If scanning of system modules is enabled, system modules follow the same accept/reject rule as any
-            // other module, so rejecting one system module leaves the rest scannable (#658). Otherwise only
-            // specifically accepted system modules are scanned.
-            final var isAccepted = isSystemModules && !scanSpec.classpathSpec.enableSystemJarsAndModules
-                    ? scanSpec.classpathSpec.moduleAcceptReject.isSpecificallyAcceptedAndNotRejected(moduleName)
-                    : scanSpec.classpathSpec.moduleAcceptReject.isAcceptedAndNotRejected(moduleName);
+            // A module of a kind that is not being scanned is only listed, so that the classfile of a class in it
+            // can still be read to complete the class graph above an accepted class (#902). A module of a kind that
+            // is being scanned follows the accept/reject rule, so rejecting one module leaves the rest scannable
+            // (#658).
+            final var isAccepted = (isSystemModules ? scanSpec.classpathSpec.scanSystemModules
+                    : scanSpec.classpathSpec.scanNonSystemModules)
+                    && scanSpec.classpathSpec.moduleAcceptReject.isAcceptedAndNotRejected(moduleName);
             if (isAccepted) {
                 // Create a new ClasspathElementModule
                 final var classpathElementModule = new ClasspathElementModule(moduleReference, vfs,

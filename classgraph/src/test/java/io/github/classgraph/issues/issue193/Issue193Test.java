@@ -59,7 +59,7 @@ public class Issue193Test {
         try (var classLoader = new URLClassLoader(new URL[] { resolvedFile.toURI().toURL() }, null);
                 var scanResult = new ClassGraph() //
                         .acceptPackages("scala.collection.immutable") //
-                        .overrideClassLoaders(classLoader) //
+                        .enableClassLoaders(classLoader) //
                         .scan()) {
             final var classes = scanResult //
                     .getAllClasses() //

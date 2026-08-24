@@ -58,7 +58,7 @@ public class Issue495Test {
                 var scanResult = new ClassGraph() //
                         .enableClassInfo().enableInterClassDependencies() //
                         .acceptPackages("scalapackage") //
-                        .overrideClassLoaders(classLoader) //
+                        .enableClassLoaders(classLoader) //
                         .scan()) {
             final var allClasses = scanResult.getAllClasses();
             assertThat(allClasses.getNames()).containsOnly("scalapackage.ScalaClass");

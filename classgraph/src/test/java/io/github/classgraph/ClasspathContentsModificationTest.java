@@ -45,7 +45,7 @@ public class ClasspathContentsModificationTest {
      */
     private static ScanResult scanDir(final Path dir) throws IOException {
         Files.setLastModifiedTime(dir, FileTime.fromMillis(System.currentTimeMillis() - 600_000L));
-        return new ClassGraph().overrideClasspath(dir).scan();
+        return new ClassGraph().enableClasspathEntries(dir).scan();
     }
 
     /**
@@ -150,7 +150,7 @@ public class ClasspathContentsModificationTest {
         writeFile(tempDir.resolve("unscanned.txt"), System.currentTimeMillis() - 60_000L);
 
         try (var executorService = new AutoCloseableExecutorService(ClassGraph.DEFAULT_NUM_WORKER_THREADS);
-                var scanResult = new ClassGraph().overrideClasspath(tempDir)
+                var scanResult = new ClassGraph().enableClasspathEntries(tempDir)
                         .getClasspathScanResult(executorService)) {
             // The classpath element is canonicalized by the scan, so compare against the canonical temp dir
             assertThat(scanResult.getClasspathFiles()).containsExactly(tempDir.toRealPath().toFile());

@@ -36,8 +36,8 @@ public class Issue902Test {
      */
     @Test
     public void interfaceOfSystemSuperclassIsFound() {
-        try (var scanResult = new ClassGraph().acceptPackages(Issue902Test.class.getPackage().getName())
-                .enableClassInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath()
+                .acceptPackages(Issue902Test.class.getPackage().getName()).enableClassInfo().scan()) {
             final var throughAcceptedSuperclass = scanResult.getClassInfo(RunnableImplementation.class.getName());
             assertThat(throughAcceptedSuperclass.implementsInterface(Runnable.class)).isTrue();
 
@@ -54,8 +54,8 @@ public class Issue902Test {
      */
     @Test
     public void systemSuperclassChainIsCompleted() {
-        try (var scanResult = new ClassGraph().acceptPackages(Issue902Test.class.getPackage().getName())
-                .enableClassInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath()
+                .acceptPackages(Issue902Test.class.getPackage().getName()).enableClassInfo().scan()) {
             final var timerTask = scanResult.getClassInfo(TimerTask.class.getName());
             assertThat(timerTask).isNotNull();
             assertThat(timerTask.getAllSuperclasses().getNames()).containsExactly("java.lang.Object");
@@ -69,8 +69,8 @@ public class Issue902Test {
      */
     @Test
     public void systemClassesAreNotAddedToTheScanResult() {
-        try (var scanResult = new ClassGraph().acceptPackages(Issue902Test.class.getPackage().getName())
-                .enableClassInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath()
+                .acceptPackages(Issue902Test.class.getPackage().getName()).enableClassInfo().scan()) {
             assertThat(scanResult.getAllClasses().getNames()).doesNotContain(TimerTask.class.getName());
             assertThat(scanResult.getModuleInfo().getNames()).doesNotContain("java.base");
             assertThat(scanResult.getPackageInfo().getNames()).doesNotContain("java.util");

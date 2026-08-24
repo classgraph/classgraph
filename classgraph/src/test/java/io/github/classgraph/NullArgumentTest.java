@@ -31,8 +31,8 @@ class NullArgumentTest {
     /** Scan the ClassGraph API package itself. */
     @BeforeAll
     static void scan() {
-        scanResult = new ClassGraph().acceptPackages(NullArgumentTest.class.getPackage().getName()).enableAllInfo()
-                .scan();
+        scanResult = new ClassGraph().enableClasspath()
+                .acceptPackages(NullArgumentTest.class.getPackage().getName()).enableAllInfo().scan();
     }
 
     /** Close the scan result. */
@@ -56,12 +56,10 @@ class NullArgumentTest {
     @Test
     void classGraphSingleValueArgs() {
         final var classGraph = new ClassGraph();
-        rejectsNull(() -> classGraph.overrideClasspath((String) null));
-        rejectsNull(() -> classGraph.overrideClasspath((Iterable<?>) null));
+        rejectsNull(() -> classGraph.enableClasspathEntries((String) null));
+        rejectsNull(() -> classGraph.enableClasspathEntries((Iterable<?>) null));
         rejectsNull(() -> classGraph.filterClasspathElements(null));
         rejectsNull(() -> classGraph.filterClasspathElementsByURL(null));
-        rejectsNull(() -> classGraph.addClassLoader(null));
-        rejectsNull(() -> classGraph.addModuleLayer(null));
         // Previously reported the misleading "URL schemes must contain at least two characters"
         rejectsNull(() -> classGraph.enableURLScheme(null));
         rejectsNull(() -> classGraph.disableURLScheme(null));
@@ -74,6 +72,10 @@ class NullArgumentTest {
     @Test
     void classGraphVarargsArgs() {
         final var classGraph = new ClassGraph();
+        rejectsNull(() -> classGraph.enableClassLoaders((ClassLoader[]) null));
+        rejectsNull(() -> classGraph.enableClassLoaders(new ClassLoader[] { null }));
+        rejectsNull(() -> classGraph.enableModuleLayers((ModuleLayer[]) null));
+        rejectsNull(() -> classGraph.enableModuleLayers(new ModuleLayer[] { null }));
         rejectsNull(() -> classGraph.acceptPackages((String[]) null));
         rejectsNull(() -> classGraph.acceptPackages((String) null));
         rejectsNull(() -> classGraph.acceptPackages("com.example", null));
@@ -82,14 +84,15 @@ class NullArgumentTest {
         rejectsNull(() -> classGraph.acceptPaths((String) null));
         rejectsNull(() -> classGraph.acceptJars((String) null));
         rejectsNull(() -> classGraph.acceptModules((String) null));
-        rejectsNull(() -> classGraph.overrideClasspath((Object[]) null));
-        rejectsNull(() -> classGraph.overrideClassLoaders((ClassLoader) null));
+        rejectsNull(() -> classGraph.enableClasspathEntries((Object[]) null));
+        rejectsNull(() -> classGraph.enableClassLoaders((ClassLoader) null));
     }
 
     /** Null scan callbacks are rejected. */
     @Test
     void scanCallbacks() {
-        final var classGraph = new ClassGraph().acceptPackages("io.github.classgraph.nonexistent");
+        final var classGraph = new ClassGraph().enableClasspath()
+                .acceptPackages("io.github.classgraph.nonexistent");
         final ExecutorService executorService = Executors.newFixedThreadPool(1);
         try {
             rejectsNull(() -> classGraph.scanAsync(null, 1, ScanResult::close, Throwable::printStackTrace));

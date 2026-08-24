@@ -68,7 +68,8 @@ public class FieldInfoTest {
      */
     @Test
     public void fieldInfoNotEnabled() {
-        try (var scanResult = new ClassGraph().acceptPackages(FieldInfoTest.class.getPackage().getName()).scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath()
+                .acceptPackages(FieldInfoTest.class.getPackage().getName()).scan()) {
             Assertions.assertThrows(IllegalStateException.class,
                     () -> scanResult.getClassInfo(FieldInfoTest.class.getName()).getFieldInfo());
         }
@@ -79,9 +80,9 @@ public class FieldInfoTest {
      */
     @Test
     public void testGetFieldInfo() {
-        try (var scanResult = new ClassGraph().acceptPackages(FieldInfoTest.class.getPackage().getName())
-                .enableFieldInfo().enableStaticFinalFieldConstantInitializerValues().enableAnnotationInfo()
-                .scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath()
+                .acceptPackages(FieldInfoTest.class.getPackage().getName()).enableFieldInfo()
+                .enableStaticFinalFieldConstantInitializerValues().enableAnnotationInfo().scan()) {
             final var fieldInfoStrs = scanResult.getClassInfo(FieldInfoTest.class.getName()).getFieldInfo()
                     .getAsStrings();
             assertThat(fieldInfoStrs).containsOnly(
@@ -97,9 +98,10 @@ public class FieldInfoTest {
      */
     @Test
     public void testGetFieldInfoIgnoringVisibility() {
-        try (var scanResult = new ClassGraph().acceptPackages(FieldInfoTest.class.getPackage().getName())
-                .enableFieldInfo().enableStaticFinalFieldConstantInitializerValues().enableAnnotationInfo()
-                .ignoreFieldVisibility().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath()
+                .acceptPackages(FieldInfoTest.class.getPackage().getName()).enableFieldInfo()
+                .enableStaticFinalFieldConstantInitializerValues().enableAnnotationInfo().ignoreFieldVisibility()
+                .scan()) {
             final var fieldInfoStrs = scanResult.getClassInfo(FieldInfoTest.class.getName()).getFieldInfo()
                     .getAsStrings();
             assertThat(fieldInfoStrs).containsOnly(

@@ -40,7 +40,7 @@ public class Issue46Test {
         final var jarPath = "jar:file://"
                 + Issue46Test.class.getClassLoader().getResource("nested-jars-level1.zip").getPath()
                 + "!/level2.jar!/level3.jar!/classpath1/classpath2";
-        try (var scanResult = new ClassGraph().overrideClasspath(jarPath).enableClassInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspathEntries(jarPath).enableClassInfo().scan()) {
             assertThat(scanResult.getAllClasses().getNames()).containsOnly("com.test.Test");
         }
     }

@@ -64,7 +64,8 @@ public class Issue463Test {
      */
     @Test
     public void downwardQueriesReturnOnlyAcceptedClasses() {
-        try (var scanResult = new ClassGraph().acceptClasses(Leaf.class.getName()).enableAllInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath().acceptClasses(Leaf.class.getName()).enableAllInfo()
+                .scan()) {
             // Upwards: what Leaf's own classfile chain declares, external classes included
             assertThat(scanResult.getAllSuperclasses(Leaf.class).getNames()).contains(Mid.class.getName(),
                     Base.class.getName());
@@ -83,7 +84,7 @@ public class Issue463Test {
      */
     @Test
     public void downwardQueriesReturnExternalClassesIfEnabled() {
-        try (var scanResult = new ClassGraph().acceptClasses(Leaf.class.getName()).enableAllInfo()
+        try (var scanResult = new ClassGraph().enableClasspath().acceptClasses(Leaf.class.getName()).enableAllInfo()
                 .enableExternalClasses().scan()) {
             assertThat(scanResult.getAllSubclasses(Base.class).getNames()).containsOnly(Mid.class.getName(),
                     Leaf.class.getName());
@@ -101,7 +102,8 @@ public class Issue463Test {
      */
     @Test
     public void acceptedClassesReachableOnlyThroughExternalClassesAreFound() {
-        try (var scanResult = new ClassGraph().acceptClasses(Leaf.class.getName()).enableAllInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath().acceptClasses(Leaf.class.getName()).enableAllInfo()
+                .scan()) {
             assertThat(scanResult.getClassesWithAnnotation(InheritedAnn.class).getNames())
                     .containsOnly(Leaf.class.getName());
             assertThat(scanResult.getClassesWithFieldAnnotation(MetaAnn.class).getNames())

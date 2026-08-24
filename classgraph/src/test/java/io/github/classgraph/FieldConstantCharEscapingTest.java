@@ -25,7 +25,7 @@ public class FieldConstantCharEscapingTest {
      */
     @Test
     public void charConstantsAreEscaped() {
-        try (var scanResult = new ClassGraph()
+        try (var scanResult = new ClassGraph().enableClasspath()
                 .acceptPackagesNonRecursive(FieldConstantCharEscapingTest.class.getPackage().getName())
                 .enableFieldInfo().enableStaticFinalFieldConstantInitializerValues().scan()) {
             final var constants = scanResult.getClassInfo(Constants.class.getName());

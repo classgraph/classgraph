@@ -114,12 +114,12 @@ public class SpringBootNestedUrlTest {
     @Test
     public void nestedUrlClasspathElementIsScanned() {
         try (var scanResult = new ClassGraph()
-                .overrideClasspath(List.of("jar:nested:" + jarRawPath + "/!BOOT-INF/classes/!/")).enableClassInfo()
-                .scan()) {
+                .enableClasspathEntries(List.of("jar:nested:" + jarRawPath + "/!BOOT-INF/classes/!/"))
+                .enableClassInfo().scan()) {
             assertThat(scanResult.getAllClasses().getNames()).containsExactly(AppWidget.class.getName());
         }
         try (var scanResult = new ClassGraph()
-                .overrideClasspath(List.of("jar:nested:" + jarRawPath + "/!BOOT-INF/lib/mylib.jar!/"))
+                .enableClasspathEntries(List.of("jar:nested:" + jarRawPath + "/!BOOT-INF/lib/mylib.jar!/"))
                 .enableClassInfo().scan()) {
             assertThat(scanResult.getAllClasses().getNames()).containsExactly(LibWidget.class.getName());
         }

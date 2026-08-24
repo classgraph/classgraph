@@ -39,7 +39,7 @@ public class TypeParameterAnnotationTest {
 
     @Test
     void typeParameterAnnotation() {
-        try (var scanResult = new ClassGraph()
+        try (var scanResult = new ClassGraph().enableClasspath()
                 .acceptPackages(TypeParameterAnnotationTest.class.getPackage().getName()).enableAllInfo().scan()) {
             final var cls = scanResult.getClassInfo(TypeParameterAnnotationTest.class.getName());
             final var method = cls.getMethodInfo().get("setValue").get(0);

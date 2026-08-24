@@ -33,7 +33,8 @@ public class Issue74Test {
 
     @Test
     public void issue74() {
-        try (var scanResult = new ClassGraph().acceptPackages(Issue74Test.class.getPackage().getName()).scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath()
+                .acceptPackages(Issue74Test.class.getPackage().getName()).scan()) {
             assertThat(scanResult.getAllClassesImplementing(Function.class).getNames()).containsOnly(
                     FunctionAdapter.class.getName(), ImplementsFunction.class.getName(),
                     ExtendsFunctionAdapter.class.getName());

@@ -72,7 +72,8 @@ public final class Main {
      */
     public static void main(final String[] args) throws Exception {
         // Scanning this module requires the module path to be read, and the module to be opened to ClassGraph.
-        try (ScanResult scanResult = new ClassGraph().enableAllInfo().acceptPackages("jpmsconsumer").scan()) {
+        try (ScanResult scanResult = new ClassGraph().enableClasspath().enableAllInfo()
+                .acceptPackages("jpmsconsumer").scan()) {
             check("the module's own classes are scanned",
                     scanResult.getAllClasses().getNames().contains("jpmsconsumer.Main"));
             check("a nested class in the module is scanned",
@@ -80,7 +81,7 @@ public final class Main {
         }
 
         // Resources have to be read out of the jars that are on the module path, not just classes.
-        try (ScanResult scanResult = new ClassGraph().acceptPaths("META-INF").scan()) {
+        try (ScanResult scanResult = new ClassGraph().enableClasspath().acceptPaths("META-INF").scan()) {
             final Resource manifest = scanResult.getResourcesWithLeafName("MANIFEST.MF").stream().findFirst()
                     .orElse(null);
             check("a manifest is found on the module path", manifest != null);
@@ -89,12 +90,12 @@ public final class Main {
         }
 
         // System modules are read out of the jrt filesystem, which is a different VFS root kind again.
-        try (ScanResult scanResult = new ClassGraph().acceptPackages("java.util.function").enableClassInfo()
-                .scan()) {
+        try (ScanResult scanResult = new ClassGraph().enableClasspath().acceptPackages("java.util.function")
+                .enableClassInfo().scan()) {
             check("system modules are skipped unless they are asked for",
                     scanResult.getClassInfo("java.util.function.Function") == null);
         }
-        try (ScanResult scanResult = new ClassGraph().enableSystemJarsAndModules()
+        try (ScanResult scanResult = new ClassGraph().enableSystemJars().enableSystemModules()
                 .acceptPackages("java.util.function").scan()) {
             final ClassInfo function = scanResult.getClassInfo("java.util.function.Function");
             check("a system module is scanned when it is asked for", function != null);

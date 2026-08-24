@@ -37,8 +37,8 @@ public class PackageInfoTest {
     /** Scan the fixture packages twice. */
     @BeforeAll
     static void scanFixturePackages() {
-        scanResult = new ClassGraph().acceptPackages(ROOT).scan();
-        secondScanResult = new ClassGraph().acceptPackages(ROOT).scan();
+        scanResult = new ClassGraph().enableClasspath().acceptPackages(ROOT).scan();
+        secondScanResult = new ClassGraph().enableClasspath().acceptPackages(ROOT).scan();
     }
 
     /** Close both scans. */

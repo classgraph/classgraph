@@ -118,7 +118,8 @@ public class MethodInfoTest {
     @Test
     public void methodInfoNotEnabled() {
         // .enableSaveMethodInfo() not called
-        try (var scanResult = new ClassGraph().acceptPackages(MethodInfoTest.class.getPackage().getName()).scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath()
+                .acceptPackages(MethodInfoTest.class.getPackage().getName()).scan()) {
             Assertions.assertThrows(IllegalStateException.class,
                     () -> scanResult.getClassInfo(MethodInfoTest.class.getName()).getMethodInfo());
         }
@@ -129,8 +130,9 @@ public class MethodInfoTest {
      */
     @Test
     public void testGetMethodInfo() {
-        try (var scanResult = new ClassGraph().acceptPackages(MethodInfoTest.class.getPackage().getName())
-                .enableClassInfo().enableMethodInfo().enableAnnotationInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath()
+                .acceptPackages(MethodInfoTest.class.getPackage().getName()).enableClassInfo().enableMethodInfo()
+                .enableAnnotationInfo().scan()) {
             assertThat(scanResult.getClassInfo(MethodInfoTest.class.getName()).getMethodInfo()
                     .filter(methodInfo -> !"$closeResource".equals(methodInfo.getName())
                             && !"lambda$0".equals(methodInfo.getName()) && !methodInfo.isSynthetic())
@@ -157,8 +159,8 @@ public class MethodInfoTest {
      */
     @Test
     public void testGetConstructorInfo() {
-        try (var scanResult = new ClassGraph().acceptPackages(MethodInfoTest.class.getPackage().getName())
-                .enableMethodInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath()
+                .acceptPackages(MethodInfoTest.class.getPackage().getName()).enableMethodInfo().scan()) {
             assertThat(scanResult.getClassInfo(MethodInfoTest.class.getName()).getConstructorInfo().getAsStrings())
                     .containsOnly("public " + MethodInfoTest.class.getName() + "()");
         }
@@ -169,8 +171,9 @@ public class MethodInfoTest {
      */
     @Test
     public void testGetMethodInfoIgnoringVisibility() {
-        try (var scanResult = new ClassGraph().acceptPackages(MethodInfoTest.class.getPackage().getName())
-                .enableClassInfo().enableMethodInfo().enableAnnotationInfo().ignoreMethodVisibility().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath()
+                .acceptPackages(MethodInfoTest.class.getPackage().getName()).enableClassInfo().enableMethodInfo()
+                .enableAnnotationInfo().ignoreMethodVisibility().scan()) {
             assertThat(scanResult.getClassInfo(MethodInfoTest.class.getName()).getMethodInfo()
                     .filter(methodInfo -> !"$closeResource".equals(methodInfo.getName())
                             && !"lambda$0".equals(methodInfo.getName()) && !methodInfo.isSynthetic())
@@ -197,8 +200,9 @@ public class MethodInfoTest {
     // #344
     @Test
     public void testArrayTypedMethodParams() {
-        try (var scanResult = new ClassGraph().acceptPackages(MethodInfoTest.class.getPackage().getName())
-                .enableClassInfo().enableMethodInfo().enableAnnotationInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath()
+                .acceptPackages(MethodInfoTest.class.getPackage().getName()).enableClassInfo().enableMethodInfo()
+                .enableAnnotationInfo().scan()) {
             final var mi = scanResult.getClassInfo(MethodInfoTest.class.getName()).getMethodInfo()
                     .getSingleMethod("publicMethodWithArgs");
             assertThat(mi).isNotNull();
@@ -237,8 +241,9 @@ public class MethodInfoTest {
 
     @Test
     public void testGetThrownExceptions() {
-        try (var scanResult = new ClassGraph().acceptPackages(MethodInfoTest.class.getPackage().getName())
-                .enableClassInfo().enableMethodInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath()
+                .acceptPackages(MethodInfoTest.class.getPackage().getName()).enableClassInfo().enableMethodInfo()
+                .scan()) {
             var mi = scanResult.getClassInfo(MethodInfoTest.class.getName()).getMethodInfo()
                     .getSingleMethod("throwsException");
             assertThat(mi.getThrownExceptions()).hasSize(1);

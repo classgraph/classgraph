@@ -40,7 +40,7 @@ public class ResourceTest {
      * @return the scan result.
      */
     private static ScanResult scanTestResourcesDir() {
-        return new ClassGraph().acceptPathsNonRecursive("").scan();
+        return new ClassGraph().enableClasspath().acceptPathsNonRecursive("").scan();
     }
 
     /**
@@ -203,7 +203,7 @@ public class ResourceTest {
             zipOut.closeEntry();
         }
 
-        try (var scanResult = new ClassGraph().acceptPathsNonRecursive("").overrideClasspath(jarPath).scan()) {
+        try (var scanResult = new ClassGraph().acceptPathsNonRecursive("").enableClasspathEntries(jarPath).scan()) {
             for (final String entryName : new String[] { "deflated.txt", "stored.txt" }) {
                 final var forOpen = resource(scanResult, entryName);
                 try (var inputStream = forOpen.open()) {
@@ -264,7 +264,7 @@ public class ResourceTest {
             zipOut.closeEntry();
         }
 
-        final var classGraph = new ClassGraph().acceptPathsNonRecursive("").overrideClasspath(jarPath);
+        final var classGraph = new ClassGraph().acceptPathsNonRecursive("").enableClasspathEntries(jarPath);
         // Files are memory-mapped on Windows only, so the platform's choice is overridden here to exercise the
         // mapping path whatever platform this test runs on
         VfsSpecAccess.vfsSpecOf(classGraph).setMemoryMappingFiles(true);
@@ -371,7 +371,7 @@ public class ResourceTest {
     @Test
     public void aResourceThatCouldNotBeOpenedIsLeftClosed(@TempDir final Path tempDir) throws IOException {
         final var file = Files.writeString(tempDir.resolve("deleted.txt"), TEXT_FILE_CONTENT);
-        try (var scanResult = new ClassGraph().acceptPathsNonRecursive("").overrideClasspath(tempDir).scan()) {
+        try (var scanResult = new ClassGraph().acceptPathsNonRecursive("").enableClasspathEntries(tempDir).scan()) {
             final var resource = resource(scanResult, "deleted.txt");
             Files.delete(file);
             // The file is gone, so every attempt to read the resource fails with an IOException, and each attempt
@@ -444,7 +444,7 @@ public class ResourceTest {
             Files.writeString(entry, TEXT_FILE_CONTENT);
             Files.setPosixFilePermissions(entry, permissions);
         }
-        try (var scanResult = new ClassGraph().acceptPathsNonRecursive("").overrideClasspath(zipPath).scan()) {
+        try (var scanResult = new ClassGraph().acceptPathsNonRecursive("").enableClasspathEntries(zipPath).scan()) {
             assertThat(resource(scanResult, "withPermissions.txt").getPosixFilePermissions())
                     .isEqualTo(permissions);
         }
@@ -460,7 +460,7 @@ public class ResourceTest {
         final var jarURL = ResourceTest.class.getClassLoader().getResource(JAR_NAME);
         assertThat(jarURL).isNotNull();
         try (var scanResult = new ClassGraph().acceptPathsNonRecursive("hello")
-                .overrideClasspath(jarURL + "!/BOOT-INF/classes").scan()) {
+                .enableClasspathEntries(jarURL + "!/BOOT-INF/classes").scan()) {
             final var resource = resource(scanResult, "hello/HelloController.class");
             assertThat(resource.getPath()).isEqualTo("hello/HelloController.class");
             assertThat(resource.getPathRelativeToClasspathElement()).isEqualTo("hello/HelloController.class");
@@ -488,7 +488,7 @@ public class ResourceTest {
      */
     @Test
     public void aResourceInASystemModuleHasAJrtURI() throws IOException {
-        try (var scanResult = new ClassGraph().enableSystemJarsAndModules()
+        try (var scanResult = new ClassGraph().enableSystemJars().enableSystemModules()
                 .acceptPathsNonRecursive("java/util/function").scan()) {
             final var resource = resource(scanResult, "java/util/function/Function.class");
             assertThat(resource.getModuleReference()).isNotNull();

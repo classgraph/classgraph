@@ -42,7 +42,7 @@ public class GenericClassSimpleNamesTest {
      */
     @Test
     public void genericClassUsesSimpleNamesThroughout() {
-        try (var scanResult = new ClassGraph()
+        try (var scanResult = new ClassGraph().enableClasspath()
                 .acceptPackagesNonRecursive(GenericClassSimpleNamesTest.class.getPackage().getName())
                 .enableAllInfo().scan()) {
             final var generic = scanResult.getClassInfo(Generic.class.getName());

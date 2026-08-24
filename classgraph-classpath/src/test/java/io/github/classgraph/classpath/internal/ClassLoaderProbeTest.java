@@ -3,6 +3,7 @@ package io.github.classgraph.classpath.internal;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.net.URL;
@@ -20,24 +21,35 @@ import io.github.classgraph.base.LogNode;
 public class ClassLoaderProbeTest {
 
     /**
-     * Test that {@link ClasspathSpec#enableSystemJarsAndModules}, {@link ClasspathSpec#ignoreParentClassLoaders},
-     * and {@link ClasspathSpec#overrideClasspath} work in combination:
+     * A {@link ClasspathSpec} that scans the system modules and the system jars.
+     *
+     * @return the spec.
+     */
+    private static ClasspathSpec systemModuleSpec() {
+        final var classpathSpec = new ClasspathSpec();
+        classpathSpec.scanSystemModules = true;
+        classpathSpec.enableSystemJars = true;
+        classpathSpec.ignoreParentClassLoaders = true;
+        return classpathSpec;
+    }
+
+    /**
+     * Test that {@link ClasspathSpec#scanSystemModules}, {@link ClasspathSpec#ignoreParentClassLoaders} and
+     * {@link ScanSourceSpec#enableClasspathEntries} work in combination:
      * <p>
-     * Only the system modules and the override classpath should be found.
+     * Only the system modules and the given classpath entries should be found.
      */
     @Test
-    public void testOverrideClasspathAndEnableSystemModules(@TempDir final Path tmpDir) throws Exception {
+    public void testNamedClasspathEntriesAndEnableSystemModules(@TempDir final Path tmpDir) throws Exception {
         // Arrange
         final var classesDir = tmpDir.toAbsolutePath().normalize().toRealPath();
-        final var classpathSpec = new ClasspathSpec();
-        classpathSpec.enableSystemJarsAndModules = true;
-        classpathSpec.ignoreParentClassLoaders = true;
-        classpathSpec.overrideClasspath = List.of(classesDir);
-        final var classLoaderAndModuleLayerSpec = new ClassLoaderAndModuleLayerSpec();
+        final var classpathSpec = systemModuleSpec();
+        final var scanSourceSpec = new ScanSourceSpec();
+        scanSourceSpec.enableDetectedModuleLayers();
+        scanSourceSpec.enableClasspathEntries(List.of(classesDir));
 
         // Act
-        final var classLoaderProbe = new ClassLoaderProbe(classpathSpec, classLoaderAndModuleLayerSpec,
-                new LogNode());
+        final var classLoaderProbe = new ClassLoaderProbe(classpathSpec, scanSourceSpec, new LogNode());
         final var moduleFinder = classLoaderProbe.getModuleFinder();
 
         // Assert
@@ -45,34 +57,28 @@ public class ClassLoaderProbeTest {
         assertFalse(moduleFinder.getSystemModuleReferences().isEmpty(),
                 "ModuleFinder should have found system modules");
 
-        final Set<Path> paths = new TreeSet<>();
-        for (final String path : classLoaderProbe.getClasspathOrder().getClasspathEntryUniqueLocations()) {
-            paths.add(Path.of(path));
-        }
+        final var paths = resolvedPaths(classLoaderProbe);
         assertTrue(paths.remove(classesDir), "Classpath should have contained " + classesDir + ": " + paths);
         assertEquals(0, paths.size(), "Classpath should have no other entries: " + paths);
     }
 
     /**
-     * Test that {@link ClasspathSpec#enableSystemJarsAndModules}, {@link ClasspathSpec#ignoreParentClassLoaders},
-     * and {@link ClassLoaderAndModuleLayerSpec#overrideClassLoaders} work in combination:
+     * Test that {@link ClasspathSpec#scanSystemModules}, {@link ClasspathSpec#ignoreParentClassLoaders} and
+     * {@link ScanSourceSpec#enableClassLoaders} work in combination:
      * <p>
-     * Only the system modules and the override classloaders should be found.
+     * Only the system modules and the given classloaders should be found.
      */
     @Test
-    public void testOverrideClassLoaderAndEnableSystemModules(@TempDir final Path tmpDir) throws Exception {
+    public void testNamedClassLoadersAndEnableSystemModules(@TempDir final Path tmpDir) throws Exception {
         // Arrange
         final var classesDir = tmpDir.toAbsolutePath().normalize().toRealPath();
-        final var classpathSpec = new ClasspathSpec();
-        classpathSpec.enableSystemJarsAndModules = true;
-        classpathSpec.ignoreParentClassLoaders = true;
-        final var classLoaderAndModuleLayerSpec = new ClassLoaderAndModuleLayerSpec();
-        classLoaderAndModuleLayerSpec
-                .overrideClassLoaders(new URLClassLoader(new URL[] { classesDir.toUri().toURL() }));
+        final var classpathSpec = systemModuleSpec();
+        final var scanSourceSpec = new ScanSourceSpec();
+        scanSourceSpec.enableDetectedModuleLayers();
+        scanSourceSpec.enableClassLoaders(new URLClassLoader(new URL[] { classesDir.toUri().toURL() }));
 
         // Act
-        final var classLoaderProbe = new ClassLoaderProbe(classpathSpec, classLoaderAndModuleLayerSpec,
-                new LogNode());
+        final var classLoaderProbe = new ClassLoaderProbe(classpathSpec, scanSourceSpec, new LogNode());
         final var moduleFinder = classLoaderProbe.getModuleFinder();
 
         // Assert
@@ -80,10 +86,7 @@ public class ClassLoaderProbeTest {
         assertFalse(moduleFinder.getSystemModuleReferences().isEmpty(),
                 "ModuleFinder should have found system modules");
 
-        final Set<Path> paths = new TreeSet<>();
-        for (final String path : classLoaderProbe.getClasspathOrder().getClasspathEntryUniqueLocations()) {
-            paths.add(Path.of(path));
-        }
+        final var paths = resolvedPaths(classLoaderProbe);
         assertTrue(paths.remove(classesDir), "Classpath should have contained " + classesDir + ": " + paths);
         assertEquals(0, paths.size(), "Classpath should have no other entries: " + paths);
     }
@@ -117,63 +120,37 @@ public class ClassLoaderProbeTest {
     }
 
     /**
-     * The application classloader does not expose the locations it loads from, so passing it to
-     * {@code overrideClassLoaders()} must scan the two things it does load from: the {@code java.class.path}
-     * classpath, and the non-system modules.
+     * The application classloader does not expose the locations it loads from, so {@code java.class.path} stands in
+     * for them: naming the application classloader must find the classpath elements on {@code java.class.path}.
      */
     @Test
-    public void applicationClassLoaderOverrideScansClasspathAndNonSystemModules() throws Exception {
-        final var classpathSpec = new ClasspathSpec();
-        final var classLoaderAndModuleLayerSpec = new ClassLoaderAndModuleLayerSpec();
-        classLoaderAndModuleLayerSpec.overrideClassLoaders(ClassLoader.getSystemClassLoader());
+    public void applicationClassLoaderScansJavaClassPath() throws Exception {
+        final var scanSourceSpec = new ScanSourceSpec();
+        scanSourceSpec.enableClassLoaders(ClassLoader.getSystemClassLoader());
 
-        final var classLoaderProbe = new ClassLoaderProbe(classpathSpec, classLoaderAndModuleLayerSpec,
-                new LogNode());
+        final var classLoaderProbe = new ClassLoaderProbe(new ClasspathSpec(), scanSourceSpec, new LogNode());
 
         assertTrue(resolvedPaths(classLoaderProbe).contains(testClasspathElement()),
                 "java.class.path should have been scanned");
-        final var moduleFinder = classLoaderProbe.getModuleFinder();
-        assertNotNull(moduleFinder, "Modules should have been searched for");
-        assertNotNull(moduleFinder.getNonSystemModuleReferences(), "Non-system modules should have been scanned");
     }
 
     /**
-     * The platform classloader loads only system modules, so passing it to {@code overrideClassLoaders()} must scan
-     * the system modules, and must not scan the {@code java.class.path} classpath, which the platform classloader
-     * cannot load from.
+     * The platform classloader loads only system modules, so naming it must not find the {@code java.class.path}
+     * classpath, which the platform classloader cannot load from. Modules are only searched for when a module
+     * source is enabled, so naming a classloader does not enable them.
      */
     @Test
-    public void platformClassLoaderOverrideDoesNotScanClasspath() throws Exception {
+    public void platformClassLoaderDoesNotScanClasspath() throws Exception {
         final var classpathSpec = new ClasspathSpec();
-        final var classLoaderAndModuleLayerSpec = new ClassLoaderAndModuleLayerSpec();
-        classLoaderAndModuleLayerSpec.overrideClassLoaders(ClassLoader.getPlatformClassLoader());
+        classpathSpec.ignoreParentClassLoaders = true;
+        final var scanSourceSpec = new ScanSourceSpec();
+        scanSourceSpec.enableClassLoaders(ClassLoader.getPlatformClassLoader());
 
-        final var classLoaderProbe = new ClassLoaderProbe(classpathSpec, classLoaderAndModuleLayerSpec,
-                new LogNode());
+        final var classLoaderProbe = new ClassLoaderProbe(classpathSpec, scanSourceSpec, new LogNode());
 
-        final var moduleFinder = classLoaderProbe.getModuleFinder();
-        assertNotNull(moduleFinder, "Modules should have been searched for");
-        assertFalse(moduleFinder.getSystemModuleReferences().isEmpty(), "System modules should have been scanned");
+        assertNull(classLoaderProbe.getModuleFinder(), "Modules should not have been searched for");
         final var paths = resolvedPaths(classLoaderProbe);
         assertFalse(paths.contains(testClasspathElement()),
                 "java.class.path should not have been scanned: " + paths);
-    }
-
-    /**
-     * The platform classloader is mapped to the scanning mechanism that can reach its classes whether it is passed
-     * to {@code overrideClassLoaders()} or to {@code addClassLoader()}.
-     */
-    @Test
-    public void addedPlatformClassLoaderEnablesSystemJarsAndModules() {
-        final var classpathSpec = new ClasspathSpec();
-        final var classLoaderAndModuleLayerSpec = new ClassLoaderAndModuleLayerSpec();
-        classLoaderAndModuleLayerSpec.addClassLoader(ClassLoader.getPlatformClassLoader());
-
-        final var classLoaderProbe = new ClassLoaderProbe(classpathSpec, classLoaderAndModuleLayerSpec,
-                new LogNode());
-
-        final var moduleFinder = classLoaderProbe.getModuleFinder();
-        assertNotNull(moduleFinder, "Modules should have been searched for");
-        assertFalse(moduleFinder.getSystemModuleReferences().isEmpty(), "System modules should have been scanned");
     }
 }

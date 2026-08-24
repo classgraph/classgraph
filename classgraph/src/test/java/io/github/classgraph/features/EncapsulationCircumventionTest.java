@@ -17,7 +17,7 @@ class EncapsulationCircumventionTest {
     void narcissusIsUsedWhenItIsAvailable() {
         assertThat(ReflectionUtils.getStaticFieldVal(true, ReflectionUtils.class, "REFLECTION_DRIVER").getClass()
                 .getSimpleName()).isEqualTo("NarcissusReflectionDriver");
-        try (var scanResult = new ClassGraph()
+        try (var scanResult = new ClassGraph().enableClasspath()
                 .acceptPackages(EncapsulationCircumventionTest.class.getPackage().getName()).enableAllInfo()
                 .scan()) {
             assertThat(scanResult.getAllClasses().getNames()).isNotEmpty();

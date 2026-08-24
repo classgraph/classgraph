@@ -48,8 +48,8 @@ public class Issue884Test {
      */
     @Test
     public void globRejectIsRecursiveWhenEnumeratingFlatly() {
-        try (var scanResult = new ClassGraph().enableSystemJarsAndModules().acceptPackages("javax.swing")
-                .rejectPackages("javax.swing.*").scan()) {
+        try (var scanResult = new ClassGraph().enableSystemJars().enableSystemModules()
+                .acceptPackages("javax.swing").rejectPackages("javax.swing.*").scan()) {
             final TreeSet<String> packageNames = new TreeSet<>();
             for (final ClassInfo classInfo : scanResult.getAllClasses()) {
                 packageNames.add(classInfo.getPackageName());

@@ -51,12 +51,14 @@ public class Issue303Test {
         final List<String> packageClassNamesNonRecursive0;
         final List<String> packageClassNamesNonRecursive1;
         final List<String> packageClassNamesNonRecursive2;
-        try (var scanResult = new ClassGraph().acceptPackages(PACKAGE_NAME).enableAllInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath().acceptPackages(PACKAGE_NAME).enableAllInfo()
+                .scan()) {
             packageClassNamesRecursive = scanResult.getPackageInfo(PACKAGE_NAME).getClassInfoRecursive().getNames();
             packageClassNamesNonRecursive0 = scanResult.getPackageInfo(PACKAGE_NAME).getClassInfo().getNames();
             allClassNamesRecursive = scanResult.getAllClasses().getNames();
         }
-        try (var scanResult = new ClassGraph().acceptPackagesNonRecursive(PACKAGE_NAME).enableAllInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath().acceptPackagesNonRecursive(PACKAGE_NAME)
+                .enableAllInfo().scan()) {
             packageClassNamesNonRecursive1 = scanResult.getPackageInfo(PACKAGE_NAME).getClassInfoRecursive()
                     .getNames();
             packageClassNamesNonRecursive2 = scanResult.getPackageInfo(PACKAGE_NAME).getClassInfo().getNames();

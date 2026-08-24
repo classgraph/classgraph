@@ -118,11 +118,11 @@ public class Issue925Test {
      */
     @Test
     public void warUrlClasspathElementIsScanned() {
-        try (var scanResult = new ClassGraph().overrideClasspath("war:" + warUrl + "*/WEB-INF/classes/")
+        try (var scanResult = new ClassGraph().enableClasspathEntries("war:" + warUrl + "*/WEB-INF/classes/")
                 .enableClassInfo().scan()) {
             assertThat(scanResult.getAllClasses().getNames()).containsExactly(Widget.class.getName());
         }
-        try (var scanResult = new ClassGraph().overrideClasspath("war:" + warUrl + "*/WEB-INF/lib/mylib.jar")
+        try (var scanResult = new ClassGraph().enableClasspathEntries("war:" + warUrl + "*/WEB-INF/lib/mylib.jar")
                 .enableClassInfo().scan()) {
             assertThat(scanResult.getAllClasses().getNames()).containsExactly(LibWidget.class.getName());
         }
@@ -135,7 +135,7 @@ public class Issue925Test {
      */
     @Test
     public void theWarFileItselfContainsNoClassesAtItsRoot() {
-        try (var scanResult = new ClassGraph().overrideClasspath(war.getPath()).enableClassInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspathEntries(war.getPath()).enableClassInfo().scan()) {
             assertThat(scanResult.getAllClasses().getNames()).isEmpty();
         }
     }
@@ -154,7 +154,7 @@ public class Issue925Test {
     @Test
     public void aClassLoaderCanDeclareAPackageRootAndALibDirWithinAClasspathElement() throws IOException {
         try (var classLoader = new WarClassLoader(war.toURI().toURL());
-                var scanResult = new ClassGraph().overrideClassLoaders(classLoader)
+                var scanResult = new ClassGraph().enableClassLoaders(classLoader)
                         .registerClassLoaderHandler(new WarClassLoaderHandler()).enableClassInfo().scan()) {
             assertThat(scanResult.getAllClasses().getNames()).containsExactlyInAnyOrder(Widget.class.getName(),
                     LibWidget.class.getName());

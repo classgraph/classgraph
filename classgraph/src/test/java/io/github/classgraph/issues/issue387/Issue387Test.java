@@ -58,7 +58,7 @@ class Issue387Test {
         final var customSchemeURL = CustomURLScheme.SCHEME + ":" + filePath;
         final var url = new URL(customSchemeURL);
         final var classLoader = new URLClassLoader(new URL[] { url }, null);
-        try (var scanResult = new ClassGraph().overrideClassLoaders(classLoader).scan()) {
+        try (var scanResult = new ClassGraph().enableClassLoaders(classLoader).scan()) {
             assertThat(scanResult.getAllResources().getPaths()).containsExactly("level2.jar");
             // remappedURLs is shared by every test that uses CustomURLScheme, so check for this test's entry
             // rather than assuming it is the only one

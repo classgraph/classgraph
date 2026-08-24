@@ -57,7 +57,7 @@ public class ClassfileExtensionCaseTest {
     public void classfileInADirectoryIsScanned(final String extension, @TempDir final Path tempDir)
             throws IOException {
         final var dir = makeClassfileDir(tempDir, extension);
-        try (var scanResult = new ClassGraph().overrideClasspath(dir).enableClassInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspathEntries(dir).enableClassInfo().scan()) {
             assertThat(scanResult.getAllClasses().getNames()).containsExactly(CLASS_NAME);
             assertThat(scanResult.getAllResources().classFilesOnly().getPaths())
                     .containsExactly(CLASSFILE_PATH_NO_EXTENSION + extension);
@@ -78,7 +78,7 @@ public class ClassfileExtensionCaseTest {
     @MethodSource("extensions")
     public void classfileInAJarIsScanned(final String extension, @TempDir final Path tempDir) throws IOException {
         final var jar = makeJar(tempDir, CLASSFILE_PATH_NO_EXTENSION + extension);
-        try (var scanResult = new ClassGraph().overrideClasspath(jar).enableClassInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspathEntries(jar).enableClassInfo().scan()) {
             assertThat(scanResult.getAllClasses().getNames()).containsExactly(CLASS_NAME);
             assertThat(scanResult.getAllResources().classFilesOnly().getPaths())
                     .containsExactly(CLASSFILE_PATH_NO_EXTENSION + extension);
@@ -102,12 +102,12 @@ public class ClassfileExtensionCaseTest {
     public void classAcceptedOrRejectedByNameMatchesTheClassfile(final String extension,
             @TempDir final Path tempDir) throws IOException {
         final var dir = makeClassfileDir(tempDir, extension);
-        try (var scanResult = new ClassGraph().overrideClasspath(dir).enableClassInfo().acceptClasses(CLASS_NAME)
-                .scan()) {
+        try (var scanResult = new ClassGraph().enableClasspathEntries(dir).enableClassInfo()
+                .acceptClasses(CLASS_NAME).scan()) {
             assertThat(scanResult.getAllClasses().getNames()).containsExactly(CLASS_NAME);
         }
-        try (var scanResult = new ClassGraph().overrideClasspath(dir).enableClassInfo().rejectClasses(CLASS_NAME)
-                .scan()) {
+        try (var scanResult = new ClassGraph().enableClasspathEntries(dir).enableClassInfo()
+                .rejectClasses(CLASS_NAME).scan()) {
             assertThat(scanResult.getAllClasses().getNames()).isEmpty();
         }
     }
@@ -125,7 +125,7 @@ public class ClassfileExtensionCaseTest {
     @Test
     public void twoSpellingsOfOneClassfileInAJarAreMasked(@TempDir final Path tempDir) throws IOException {
         final var jar = makeJar(tempDir, CLASSFILE_PATH, CLASSFILE_PATH_NO_EXTENSION + ".CLASS");
-        try (var scanResult = new ClassGraph().overrideClasspath(jar).enableClassInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspathEntries(jar).enableClassInfo().scan()) {
             assertThat(scanResult.getAllClasses().getNames()).containsExactly(CLASS_NAME);
         }
     }
@@ -142,7 +142,7 @@ public class ClassfileExtensionCaseTest {
     @Test
     public void aFileNamedOnlyDotClassIsAResource(@TempDir final Path tempDir) throws IOException {
         final var jar = makeJar(tempDir, "pkg/.class");
-        try (var scanResult = new ClassGraph().overrideClasspath(jar).enableClassInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspathEntries(jar).enableClassInfo().scan()) {
             assertThat(scanResult.getAllClasses().getNames()).isEmpty();
             assertThat(scanResult.getAllResources().getPaths()).containsExactly("pkg/.class");
             assertThat(scanResult.getAllResources().classFilesOnly()).isEmpty();

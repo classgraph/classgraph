@@ -70,7 +70,7 @@ public class SymlinkedClasspathEntryTest {
         final var expectedResource = expectedDir.equals(realClassesDir.toRealPath()) ? "in-real.txt"
                 : "beside-link.txt";
 
-        try (var scanResult = new ClassGraph().overrideClasspath(classpathEntry.toString()).scan()) {
+        try (var scanResult = new ClassGraph().enableClasspathEntries(classpathEntry.toString()).scan()) {
             assertThat(scanResult.getAllResources().getPaths()).containsExactly(expectedResource);
             assertThat(scanResult.getClasspathFiles()).containsExactly(expectedDir.toFile());
         }

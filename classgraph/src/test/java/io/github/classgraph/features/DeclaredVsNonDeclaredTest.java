@@ -123,7 +123,7 @@ public class DeclaredVsNonDeclaredTest {
      */
     @Test
     public void declaredVsNonDeclaredMethods() {
-        try (var scanResult = new ClassGraph().enableAllInfo()
+        try (var scanResult = new ClassGraph().enableClasspath().enableAllInfo()
                 .acceptPackages(DeclaredVsNonDeclaredTest.class.getPackage().getName()).scan()) {
             final var A = scanResult.getClassInfo(A.class.getName());
             final var B = scanResult.getClassInfo(B.class.getName());
@@ -144,7 +144,7 @@ public class DeclaredVsNonDeclaredTest {
      */
     @Test
     public void annotationInfosShouldBeAbleToDifferentiateBetweenDirectAndReachable() {
-        try (var scanResult = new ClassGraph().enableAllInfo()
+        try (var scanResult = new ClassGraph().enableClasspath().enableAllInfo()
                 .acceptPackages(DeclaredVsNonDeclaredTest.class.getPackage().getName()).scan()) {
             final var A = scanResult.getClassInfo(A.class.getName());
             final var B = scanResult.getClassInfo(B.class.getName());
@@ -185,7 +185,7 @@ public class DeclaredVsNonDeclaredTest {
      */
     @Test
     public void annotationsShouldBeAbleToDifferentiateBetweenDirectAndReachable() {
-        try (var scanResult = new ClassGraph().enableAllInfo()
+        try (var scanResult = new ClassGraph().enableClasspath().enableAllInfo()
                 .acceptPackages(DeclaredVsNonDeclaredTest.class.getPackage().getName()).scan()) {
             final var A = scanResult.getClassInfo(A.class.getName());
             final var B = scanResult.getClassInfo(B.class.getName());

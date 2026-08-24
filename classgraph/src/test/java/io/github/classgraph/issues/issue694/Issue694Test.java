@@ -24,8 +24,8 @@ public class Issue694Test {
     void methodWithParam() {
         final List<String> foundMethodDescriptors = new ArrayList<>();
         final List<String> foundMethodInfo = new ArrayList<>();
-        try (var scan = new ClassGraph().acceptClasses(Issue694Test.class.getName()).enableAnnotationInfo()
-                .enableMethodInfo().scan()) {
+        try (var scan = new ClassGraph().enableClasspath().acceptClasses(Issue694Test.class.getName())
+                .enableAnnotationInfo().enableMethodInfo().scan()) {
             for (final ClassInfo info : scan.getAllStandardClasses()) {
                 for (final MethodInfo methodInfo : info.getDeclaredMethodInfo()) {
                     foundMethodInfo.add(methodInfo.toString());

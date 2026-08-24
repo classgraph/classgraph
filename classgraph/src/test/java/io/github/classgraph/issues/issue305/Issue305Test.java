@@ -48,7 +48,7 @@ public class Issue305Test {
 
         // The scan is run for the log output it produces, and its result is not read
         new ClassGraph()
-                .overrideClassLoaders(new URLClassLoader(new URL[] {
+                .enableClassLoaders(new URLClassLoader(new URL[] {
                         Issue305Test.class.getClassLoader().getResource("class-path-manifest-entry.jar") }))
                 // This .verbose() is needed (stderr is captured)
                 .verbose().scan().close();

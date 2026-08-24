@@ -33,7 +33,8 @@ public class Issue870Test {
      * @return the names of all classes found
      */
     private static List<String> scan(final String... acceptedPackages) {
-        try (var scanResult = new ClassGraph().enableClassInfo().acceptPackages(acceptedPackages).scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath().enableClassInfo().acceptPackages(acceptedPackages)
+                .scan()) {
             return scanResult.getAllClasses().getNames();
         }
     }
@@ -131,7 +132,7 @@ public class Issue870Test {
     /** Reject criteria support globs too, and are likewise recursive. */
     @Test
     public void globRejectIsRecursive() {
-        try (var scanResult = new ClassGraph().enableClassInfo().acceptPackages(PKG)
+        try (var scanResult = new ClassGraph().enableClasspath().enableClassInfo().acceptPackages(PKG)
                 .rejectPackages(PKG + ".*.domain").scan()) {
             assertThat(scanResult.getAllClasses().getNames()).contains(OTHER_THING).doesNotContain(ALPHA_THING,
                     BETA_THING, SUB_THING);

@@ -46,8 +46,9 @@ public class MethodAnnotationTest {
      */
     @Test
     public void testGetNamesOfClassesWithMethodAnnotation() {
-        try (var scanResult = new ClassGraph().acceptPackages(MethodAnnotationTest.class.getPackage().getName())
-                .enableClassInfo().enableMethodInfo().enableAnnotationInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath()
+                .acceptPackages(MethodAnnotationTest.class.getPackage().getName()).enableClassInfo()
+                .enableMethodInfo().enableAnnotationInfo().scan()) {
             final var testClasses = scanResult.getClassesWithMethodAnnotation(ExternalAnnotation.class).getNames();
             assertThat(testClasses).isEmpty();
         }
@@ -58,8 +59,9 @@ public class MethodAnnotationTest {
      */
     @Test
     public void testGetNamesOfClassesWithMethodAnnotationIgnoringVisibility() {
-        try (var scanResult = new ClassGraph().acceptPackages(MethodAnnotationTest.class.getPackage().getName())
-                .enableClassInfo().enableMethodInfo().enableAnnotationInfo().ignoreMethodVisibility().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath()
+                .acceptPackages(MethodAnnotationTest.class.getPackage().getName()).enableClassInfo()
+                .enableMethodInfo().enableAnnotationInfo().ignoreMethodVisibility().scan()) {
             final var classesWithMethodAnnotation = scanResult
                     .getClassesWithMethodAnnotation(ExternalAnnotation.class);
             final var testClasses = classesWithMethodAnnotation.getNames();

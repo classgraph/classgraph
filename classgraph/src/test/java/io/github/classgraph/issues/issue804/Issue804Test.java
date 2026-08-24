@@ -67,7 +67,7 @@ public class Issue804Test {
      */
     private static ScanResult scanJar(final Path targetJar) {
         return new ClassGraph().enableClassInfo()
-                .overrideClasspath(targetJar.toUri() + "!/BOOT-INF/lib/spring-core-4.3.13.RELEASE.jar").scan();
+                .enableClasspathEntries(targetJar.toUri() + "!/BOOT-INF/lib/spring-core-4.3.13.RELEASE.jar").scan();
     }
 
 }

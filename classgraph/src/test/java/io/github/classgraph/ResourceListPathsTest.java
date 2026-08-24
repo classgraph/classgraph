@@ -18,7 +18,7 @@ public class ResourceListPathsTest {
     @Test
     public void pathsRelativeToClasspathElementRetainTheVersionPrefix() {
         final var jarURL = ResourceListPathsTest.class.getClassLoader().getResource("multi-release-jar.jar");
-        try (var scanResult = new ClassGraph().acceptPackages("mrj").overrideClasspath(jarURL).scan()) {
+        try (var scanResult = new ClassGraph().acceptPackages("mrj").enableClasspathEntries(jarURL).scan()) {
             final var resources = scanResult.getAllResources();
             assertThat(resources.getPaths()).containsExactly("mrj/Cls.class");
             assertThat(resources.getPathsRelativeToClasspathElement())

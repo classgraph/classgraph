@@ -39,12 +39,28 @@ built its own classpath afterwards. This library asks the classloaders themselve
 * **Classloader delegation order**, so entries come back in the order a classloader would actually
   search them -- which is what decides which copy of a duplicated class wins.
 
+## Say what to find
+
+Nothing is looked for unless it is enabled, so a `ClasspathFinder` with no `enable` method called
+finds nothing. The methods that say *where* to look come in pairs:
+
+| No arguments: find what is in the environment | Varargs: use exactly what is named |
+| --- | --- |
+| `enableClasspath()` -- the classpath of every classloader that can be found, including `java.class.path` | `enableClassLoaders(ClassLoader...)`, `enableClasspathEntries(Object...)` |
+| `enableModules()`, `enableSystemModules()`, `enableNonSystemModules()` -- the module layers that are visible to the caller | `enableModuleLayers(ModuleLayer...)` |
+
+Call the no-argument method to find what the running application can see. Call only the varargs
+method to use *just* what you name, and nothing from the environment. Calling both uses the
+environment as well as what you named. Each call adds to the end of the list, so classpath sources
+are searched in the order the calls were made, and modules always come first, since that is the
+order in which the JVM resolves a class.
+
 ## Recipes
 
 ### Print the classpath
 
 ```java
-try (Classpath classpath = new ClasspathFinder().find()) {
+try (Classpath classpath = new ClasspathFinder().enableClasspath().find()) {
     classpath.getLocations().forEach(System.out::println);
 }
 ```
@@ -56,7 +72,7 @@ nested jarfiles.
 ### Look at where each entry came from
 
 ```java
-try (Classpath classpath = new ClasspathFinder().find()) {
+try (Classpath classpath = new ClasspathFinder().enableClasspath().find()) {
     for (ClasspathEntry entry : classpath) {
         System.out.println(entry.getLocation()
                 + "  [classloader: " + entry.getClassLoaderName() + "]"
@@ -85,7 +101,7 @@ left out of the classpath rather than listed and then failed on, since it can co
 Combining this library with [`classgraph-vfs`](../classgraph-vfs):
 
 ```java
-try (Classpath classpath = new ClasspathFinder().find()) {
+try (Classpath classpath = new ClasspathFinder().enableClasspath().find()) {
     // The virtual filesystem that the classpath was read through
     Vfs vfs = classpath.getVfs();
     for (ClasspathEntry entry : classpath) {
@@ -126,7 +142,7 @@ handler for is opened, including one an application registered itself -- see
 schemes that fetch over a network: `http`, `https`, `ftp` and `mailto` are denied to begin with,
 because a classpath is not always something the caller wrote. An entry with a denied scheme is still
 reported, but `open` throws `IOException` for it, so the elements it declares are not found. Call
-`new ClasspathFinder().enableURLScheme("https")` before `find()` to allow one, which allows it both
+`new ClasspathFinder().enableClasspath().enableURLScheme("https")` before `find()` to allow one, which allows it both
 while the classpath is being found and on the `Vfs` that `Classpath.getVfs()` hands back;
 `disableURLScheme(String)` denies a further scheme.
 
@@ -137,7 +153,7 @@ enabling to be fetched from.
 ### List the modules
 
 ```java
-try (Classpath classpath = new ClasspathFinder().find()) {
+try (Classpath classpath = new ClasspathFinder().enableNonSystemModules().find()) {
     for (ModuleReference module : classpath.getNonSystemModules()) {
         System.out.println(module.descriptor().name());
     }
@@ -146,11 +162,13 @@ try (Classpath classpath = new ClasspathFinder().find()) {
 
 Modules are a separate list from the classpath entries: `getModules()` returns all of them,
 `getSystemModules()` the ones from the JDK itself, and `getNonSystemModules()` the rest. Iterating
-the `Classpath` alone will not see them. A module's contents are read through the same virtual
+the `Classpath` alone will not see them. All three lists are empty unless a module source was
+enabled: `enableNonSystemModules()`, `enableSystemModules()`, `enableModules()` for both kinds, or
+`enableModuleLayers(...)` for a layer of your own. A module's contents are read through the same virtual
 filesystem as a classpath element:
 
 ```java
-try (Classpath classpath = new ClasspathFinder().find()) {
+try (Classpath classpath = new ClasspathFinder().enableNonSystemModules().find()) {
     Vfs vfs = classpath.getVfs();
     for (ModuleReference module : classpath.getNonSystemModules()) {
         for (VfsEntry resource : vfs.open(module)) {
@@ -163,7 +181,7 @@ try (Classpath classpath = new ClasspathFinder().find()) {
 ### Read the module path settings
 
 ```java
-try (Classpath classpath = new ClasspathFinder().find()) {
+try (Classpath classpath = new ClasspathFinder().enableNonSystemModules().find()) {
     ModulePathInfo modulePathInfo = classpath.getModulePathInfo();
     System.out.println("--module-path:  " + modulePathInfo.getModulePath());
     System.out.println("--add-modules:  " + modulePathInfo.getAddModules());
@@ -174,24 +192,24 @@ try (Classpath classpath = new ClasspathFinder().find()) {
 }
 ```
 
-### Scan a classpath of your own choosing
+### Use a classpath of your own choosing
 
 ```java
 try (Classpath classpath = new ClasspathFinder()
-        .overrideClasspath(Path.of("/path/to/a.jar"), Path.of("/path/to/classes"))
+        .enableClasspathEntries(Path.of("/path/to/a.jar"), Path.of("/path/to/classes"))
         .find()) {
     classpath.getLocations().forEach(System.out::println);
 }
 ```
 
-The varargs and `Iterable` overloads take one classpath entry per element. A `String`, `File`,
-`Path`, `URL` or `URI` is kept in that form, and is what `entry.open(vfs)` later opens; anything
-else is read by its `toString()`. The `String` overload instead takes a whole path and splits it on
-the platform's path separator. Related switches:
-`overrideClassLoaders(...)` and `addClassLoader(...)` to control which
-classloaders are consulted, `ignoreParentClassLoaders()` to stop at the given one,
-`overrideModuleLayers(...)` and `addModuleLayer(...)` for JPMS layers, and `disableModuleScanning()`
-to skip the module path entirely.
+Since `enableClasspath()` was not called, nothing from the environment is included: the result is
+exactly the two entries named, in that order. The varargs and `Iterable` overloads take one
+classpath entry per element. A `String`, `File`, `Path`, `URL` or `URI` is kept in that form, and is
+what `entry.open(vfs)` later opens; anything else is read by its `toString()`. The `String` overload
+instead takes a whole path and splits it on the platform's path separator. Related switches:
+`enableClassLoaders(...)` to name the classloaders to read the classpath from,
+`ignoreParentClassLoaders()` to stop at the given one, and `enableModuleLayers(...)` to name JPMS
+layers.
 
 ### Teach it about a classloader it does not know
 
@@ -234,7 +252,7 @@ default. Pass it straight through to the methods that take one, as above -- ever
 accepts null -- and null-check it before calling it yourself.
 
 ```java
-try (Classpath classpath = new ClasspathFinder()
+try (Classpath classpath = new ClasspathFinder().enableClasspath()
         .registerClassLoaderHandler(new MyClassLoaderHandler())
         .find()) {
     classpath.getLocations().forEach(System.out::println);
@@ -285,7 +303,7 @@ ClassGraph, registered alongside the built-in handlers in `ClassLoaderHandlerReg
 ### Work out why an entry is or is not on the classpath
 
 ```java
-try (Classpath classpath = new ClasspathFinder().verbose().find()) {
+try (Classpath classpath = new ClasspathFinder().verbose().enableClasspath().find()) {
     classpath.getLocations().forEach(System.out::println);
 }
 ```

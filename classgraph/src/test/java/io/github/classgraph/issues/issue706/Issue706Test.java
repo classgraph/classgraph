@@ -18,8 +18,8 @@ public class Issue706Test {
 
     @Test
     void genericSuperclass() {
-        try (var scanResult = new ClassGraph().acceptPackages(Issue706Test.class.getPackage().getName())
-                .enableClassInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath()
+                .acceptPackages(Issue706Test.class.getPackage().getName()).enableClassInfo().scan()) {
             final var bypassCls = scanResult.getClassInfo(GenericBypass.class.getName());
             final var superclassArg = bypassCls.getTypeSignature().getSuperclassSignature().getSuffixTypeArguments()
                     .get(0).get(0);

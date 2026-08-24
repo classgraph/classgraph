@@ -37,16 +37,18 @@ class URLSchemeDenyTest {
     /** The schemes that every JVM can fetch over a network are denied by the constructor. */
     @Test
     void theNetworkSchemesAreDeniedByDefault() {
-        assertThat(new ClassGraph().scanSpec.vfsSpec.getDeniedURLSchemes()).containsExactlyInAnyOrder("http",
-                "https", "ftp", "mailto");
+        assertThat(new ClassGraph().enableClasspath().scanSpec.vfsSpec.getDeniedURLSchemes())
+                .containsExactlyInAnyOrder("http", "https", "ftp", "mailto");
     }
 
     /** Enabling a network scheme takes it back off the denied list. */
     @Test
     void enablingANetworkSchemeUndoesTheDefault() {
-        assertThat(new ClassGraph().enableURLScheme("https").scanSpec.vfsSpec.getDeniedURLSchemes())
+        assertThat(
+                new ClassGraph().enableClasspath().enableURLScheme("https").scanSpec.vfsSpec.getDeniedURLSchemes())
                 .containsExactlyInAnyOrder("http", "ftp", "mailto");
-        assertThat(new ClassGraph().enableRemoteJarScanning().scanSpec.vfsSpec.getDeniedURLSchemes())
+        assertThat(
+                new ClassGraph().enableClasspath().enableRemoteJarScanning().scanSpec.vfsSpec.getDeniedURLSchemes())
                 .containsExactlyInAnyOrder("ftp", "mailto");
     }
 
@@ -58,7 +60,7 @@ class URLSchemeDenyTest {
      */
     @Test
     void aCustomURLSchemeIsScannedWithoutBeingEnabled() throws MalformedURLException {
-        try (var scanResult = new ClassGraph().overrideClasspath((Object) customSchemeJarURL()).scan()) {
+        try (var scanResult = new ClassGraph().enableClasspathEntries((Object) customSchemeJarURL()).scan()) {
             assertThat(scanResult.getAllResources().getPaths()).containsExactly("level2.jar");
         }
     }
@@ -72,7 +74,7 @@ class URLSchemeDenyTest {
     @Test
     void aDeniedURLSchemeIsNotFetched() throws MalformedURLException {
         try (var scanResult = new ClassGraph().disableURLScheme(CustomURLScheme.SCHEME)
-                .overrideClasspath((Object) customSchemeJarURL()).scan()) {
+                .enableClasspathEntries((Object) customSchemeJarURL()).scan()) {
             assertThat(scanResult.getAllResources().getPaths()).isEmpty();
         }
     }

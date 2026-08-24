@@ -25,7 +25,7 @@ public class RecordTest {
     @Test
     public void recordJar() throws Exception {
         try (var classLoader = new URLClassLoader(new URL[] { jarURL });
-                var scanResult = new ClassGraph().overrideClassLoaders(classLoader).acceptPackages("pkg")
+                var scanResult = new ClassGraph().enableClassLoaders(classLoader).acceptPackages("pkg")
                         .enableAllInfo().scan()) {
             final var classInfoList = scanResult.getAllRecords();
             assertThat(classInfoList.getNames()).containsExactly("pkg.Record");

@@ -19,7 +19,8 @@ public class NestedClasspathRootTest {
     /** A package root within a jar should be scanned only by the nested classpath element. */
     @Test
     void packageRootNestedWithinJar() {
-        try (var scanResult = new ClassGraph().overrideClasspath(JAR + File.pathSeparator + JAR + "!/pkg").scan()) {
+        try (var scanResult = new ClassGraph().enableClasspathEntries(JAR + File.pathSeparator + JAR + "!/pkg")
+                .scan()) {
             assertThat(scanResult.getAllResources().getPaths()).containsExactlyInAnyOrder("Record.class",
                     "Record.java");
         }
@@ -29,7 +30,7 @@ public class NestedClasspathRootTest {
     @Test
     void dirNestedWithinDir() {
         try (var scanResult = new ClassGraph()
-                .overrideClasspath("src/test/resources" + File.pathSeparator + "src/test/resources/issue673")
+                .enableClasspathEntries("src/test/resources" + File.pathSeparator + "src/test/resources/issue673")
                 .scan()) {
             assertThat(scanResult.getAllResources().getPaths()).contains("a.zip").doesNotContain("issue673/a.zip");
         }

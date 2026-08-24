@@ -33,6 +33,8 @@ ClassGraph has the ability to "invert" the Java class and/or reflection API, or 
 
 ### Examples
 
+Nothing is scanned until you say what to scan, so every scan starts by enabling at least one source of classes -- the classpath, the modules, or specific classloaders, module layers or classpath entries. See [what gets scanned](#what-gets-scanned) below.
+
 The following code prints the name of all classes in the package `com.xyz` or its subpackages, anywhere on the classpath or module path, that are annotated with an annotation of the form `@com.xyz.Route("/pages/home.html")`, along with the annotation parameter value. This is accomplished without loading or initializing any of the scanned classes.
 
 ```java
@@ -40,10 +42,12 @@ String pkg = "com.xyz";
 String routeAnnotation = pkg + ".Route";
 try (ScanResult scanResult =
         new ClassGraph()
-            .verbose()               // Log to stderr
-            .enableAllInfo()         // Scan classes, methods, fields, annotations
-            .acceptPackages(pkg)     // Scan com.xyz and subpackages (omit to scan all packages)
-            .scan()) {               // Start the scan
+            .verbose()                    // Log to stderr
+            .enableNonSystemModules()     // Scan the module path
+            .enableClasspath()            // Scan the classpath
+            .enableAllInfo()              // Scan classes, methods, fields, annotations
+            .acceptPackages(pkg)          // Scan com.xyz and subpackages (omit to scan all packages)
+            .scan()) {                    // Start the scan
     for (ClassInfo routeClassInfo : scanResult.getClassesWithAnnotation(routeAnnotation)) {
         AnnotationInfo routeAnnotationInfo = routeClassInfo.getAllAnnotationInfo(routeAnnotation);
         List<AnnotationParameterValue> routeParamVals = routeAnnotationInfo.getParameterValues();
@@ -60,7 +64,8 @@ The following code finds all JSON files in `META-INF/config` in all ClassLoaders
 // The enclosing method must declare "throws IOException", since forEachByteArray throws it
 // if a resource cannot be read. Call forEachByteArrayIgnoringIOException instead to skip
 // unreadable resources silently.
-try (ScanResult scanResult = new ClassGraph().acceptPathsNonRecursive("META-INF/config").scan()) {
+try (ScanResult scanResult = new ClassGraph().enableNonSystemModules().enableClasspath()
+        .acceptPathsNonRecursive("META-INF/config").scan()) {
     scanResult.getResourcesWithExtension("json")
               .forEachByteArray((Resource res, byte[] content) -> {
                   readJson(res.getPath(), new String(content, StandardCharsets.UTF_8));
@@ -69,6 +74,28 @@ try (ScanResult scanResult = new ClassGraph().acceptPathsNonRecursive("META-INF/
 ```
 
 See the [code examples](https://github.com/classgraph/classgraph/wiki/Code-examples) page for more examples of how to use the ClassGraph API.
+
+### What gets scanned
+
+Nothing is scanned unless it is enabled, so a scan with no `enable` method called finds nothing at all. The methods that say *where* to scan come in pairs:
+
+| No arguments: scan what is in the environment | Varargs: scan exactly what is named |
+| --- | --- |
+| `enableClasspath()` -- the classpath of every classloader that can be found, including `java.class.path` | `enableClassLoaders(ClassLoader...)`, `enableClasspathEntries(Object...)` |
+| `enableModules()`, `enableSystemModules()`, `enableNonSystemModules()` -- the module layers that are visible to the caller | `enableModuleLayers(ModuleLayer...)` |
+
+Call the no-argument method to scan what the running application can see. Call only the varargs method to scan *just* what you name, and nothing from the environment -- that is how a scan is confined to a single classloader, module layer or jarfile. Calling both scans the environment as well as what you named. Each call adds to the end of the list, so classpath sources are scanned in the order the calls were made, and modules are always scanned before any of them, since that is the order in which the JVM resolves a class.
+
+```java
+// Scan the running application: its module path, then its classpath
+new ClassGraph().enableNonSystemModules().enableClasspath().acceptPackages("com.xyz").scan();
+
+// Scan one jarfile and nothing else
+new ClassGraph().enableClasspathEntries("/path/to/plugin.jar").scan();
+
+// Scan one classloader and nothing else
+new ClassGraph().enableClassLoaders(pluginClassLoader).ignoreParentClassLoaders().scan();
+```
 
 ### Capabilities
 

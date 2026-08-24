@@ -28,14 +28,14 @@ public class GlobTest {
 
     /** Scan with the given class name globs, and return the class names found. */
     private static Iterable<String> classesMatching(final String... classNameGlobs) {
-        try (var scanResult = new ClassGraph().acceptClasses(classNameGlobs).scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath().acceptClasses(classNameGlobs).scan()) {
             return scanResult.getAllClasses().getNames();
         }
     }
 
     /** Scan {@code /globtest}, and return the resource paths matching a wildcard. */
     private static Iterable<String> resourcesMatching(final String wildcard) {
-        try (var scanResult = new ClassGraph().acceptPaths("globtest").scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath().acceptPaths("globtest").scan()) {
             return scanResult.getResourcesMatchingWildcard(wildcard).getPaths();
         }
     }

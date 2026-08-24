@@ -130,7 +130,8 @@ public class EqualsAndHashCodeTest {
      * @return the scan result.
      */
     private static ScanResult scan() {
-        return new ClassGraph().acceptPackages(EqualsAndHashCodeTest.class.getPackageName()).enableAllInfo().scan();
+        return new ClassGraph().enableClasspath().acceptPackages(EqualsAndHashCodeTest.class.getPackageName())
+                .enableAllInfo().scan();
     }
 
     /** Scan the test classes twice. */

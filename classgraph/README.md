@@ -41,6 +41,27 @@ extracting anything to disk.
 Nothing a scan produces holds a classloader: `ScanResult`, `ClassInfo` and `Resource` describe what
 was found, and loading a class is left to you, with a classloader you hold.
 
+## Say what to scan
+
+Nothing is scanned unless it is enabled, so a scan with no `enable` method called finds nothing.
+The methods that say *where* to scan come in pairs:
+
+| No arguments: scan what is in the environment | Varargs: scan exactly what is named |
+| --- | --- |
+| `enableClasspath()` -- the classpath of every classloader that can be found, including `java.class.path` | `enableClassLoaders(ClassLoader...)`, `enableClasspathEntries(Object...)` |
+| `enableModules()`, `enableSystemModules()`, `enableNonSystemModules()` -- the module layers that are visible to the caller | `enableModuleLayers(ModuleLayer...)` |
+
+Call the no-argument method to scan what the running application can see. Call only the varargs
+method to scan *just* what you name, and nothing from the environment. Calling both scans the
+environment as well as what you named. Each call adds to the end of the list, so classpath sources
+are scanned in the order the calls were made, and modules are always scanned first, since that is
+the order in which the JVM resolves a class.
+
+`ignoreParentClassLoaders()` and `ignoreParentModuleLayers()` narrow what is reached from an enabled
+source; `disableJarScanning()` and `disableDirScanning()` narrow what kind of classpath element is
+read. After a scan, `ScanResult.getClasspathURIs()` and `ScanResult.getModuleReferences()` report
+exactly what was scanned.
+
 ## Recipes
 
 Every scan follows the same shape: configure a `ClassGraph`, call `scan()`, query the `ScanResult`,
@@ -50,7 +71,8 @@ close it. A `ScanResult` holds the file handles and memory mappings taken during
 ### Find every subclass of a class
 
 ```java
-try (ScanResult scanResult = new ClassGraph().enableClassInfo().acceptPackages("com.xyz").scan()) {
+try (ScanResult scanResult = new ClassGraph().enableNonSystemModules().enableClasspath()
+        .enableClassInfo().acceptPackages("com.xyz").scan()) {
     for (ClassInfo subclass : scanResult.getAllSubclasses(Widget.class)) {
         System.out.println(subclass.getName());
     }
@@ -66,7 +88,7 @@ subtree. Both have a `String` overload, for when the superclass itself should no
 
 ```java
 try (URLClassLoader classLoader = new URLClassLoader(urls);
-        ScanResult scanResult = new ClassGraph().overrideClassLoaders(classLoader)
+        ScanResult scanResult = new ClassGraph().enableClassLoaders(classLoader)
                 .enableClassInfo().acceptPackages("com.xyz").scan()) {
     for (ClassInfo classInfo : scanResult.getAllClassesImplementing(Plugin.class)) {
         Class<?> cls = Class.forName(classInfo.getName(), /* initialize = */ false, classLoader);
@@ -76,13 +98,17 @@ try (URLClassLoader classLoader = new URLClassLoader(urls);
 }
 ```
 
+Naming a classloader, without also calling `enableClasspath()`, confines the scan to that
+classloader and its parents -- nothing from the surrounding application is scanned. Add
+`ignoreParentClassLoaders()` to confine it to that classloader alone.
+
 `Class.forName` is the point at which a class is actually loaded -- everything before it is
 classfile parsing only. Hold the classloader you scanned with, and load through it.
 
 ### Find classes by annotation, and read the annotation's parameters
 
 ```java
-try (ScanResult scanResult = new ClassGraph()
+try (ScanResult scanResult = new ClassGraph().enableNonSystemModules().enableClasspath()
         .enableClassInfo().enableAnnotationInfo().acceptPackages("com.xyz").scan()) {
     for (ClassInfo routeClass : scanResult.getClassesWithAnnotation("com.xyz.Route")) {
         AnnotationInfo route = routeClass.getAllAnnotationInfo("com.xyz.Route");
@@ -100,7 +126,7 @@ them.
 ### Find annotated methods
 
 ```java
-try (ScanResult scanResult = new ClassGraph()
+try (ScanResult scanResult = new ClassGraph().enableNonSystemModules().enableClasspath()
         .enableMethodInfo().enableAnnotationInfo().acceptPackages("com.xyz").scan()) {
     for (ClassInfo classInfo : scanResult.getClassesWithMethodAnnotation("com.xyz.Handler")) {
         for (MethodInfo method : classInfo.getMethodInfoWithAnnotation("com.xyz.Handler")) {
@@ -118,7 +144,8 @@ wasteful in production.
 ### Find resources, not classes
 
 ```java
-try (ScanResult scanResult = new ClassGraph().acceptPaths("templates").scan()) {
+try (ScanResult scanResult = new ClassGraph().enableNonSystemModules().enableClasspath()
+        .acceptPaths("templates").scan()) {
     for (Resource resource : scanResult.getResourcesWithExtension("html")) {
         System.out.println(resource.getPath() + " in " + resource.getClasspathElementURI());
         System.out.println(resource.loadAsString());
@@ -141,19 +168,21 @@ If all you want is to list the files in a jarfile, with no scan at all, use
 
 ```java
 try (ScanResult scanResult = new ClassGraph()
-        .enableClassInfo().enableSystemJarsAndModules().scan()) {
+        .enableClassInfo().enableSystemJars().enableModules().scan()) {
     for (ModuleInfo moduleInfo : scanResult.getModuleInfo()) {
         System.out.println(moduleInfo.getName() + ": " + moduleInfo.getClassInfo().size() + " classes");
     }
 }
 ```
 
-System jars and modules are skipped by default, since almost no scan wants the JDK's own classes.
+`enableModules()` enables both the system modules and the non-system modules; `enableSystemJars()`
+additionally allows the JDK's own jarfiles to be scanned if any are on the classpath. Neither is
+enabled by `enableNonSystemModules()`, since almost no scan wants the JDK's own classes.
 
 ### Read an enum's constants without loading it
 
 ```java
-try (ScanResult scanResult = new ClassGraph()
+try (ScanResult scanResult = new ClassGraph().enableNonSystemModules().enableClasspath()
         .enableClassInfo().enableFieldInfo().acceptPackages("com.xyz").scan()) {
     ClassInfo enumInfo = scanResult.getClassInfo("com.xyz.Color");
     if (enumInfo != null && enumInfo.isEnum()) {
@@ -176,7 +205,8 @@ and read it back at runtime. This is also how ClassGraph is used with Android an
 ### Work out why a class is not found
 
 ```java
-try (ScanResult scanResult = new ClassGraph().verbose().enableClassInfo().scan()) {
+try (ScanResult scanResult = new ClassGraph().verbose().enableNonSystemModules().enableClasspath()
+        .enableClassInfo().scan()) {
     // ...
 }
 ```

@@ -32,8 +32,8 @@ public class EnumTest {
     /** Test regular enum */
     @Test
     public void enumWithoutMethod() throws Exception {
-        try (var scanResult = new ClassGraph().acceptClasses(MyEnumWithoutMethod.class.getName()).enableAllInfo()
-                .scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath().acceptClasses(MyEnumWithoutMethod.class.getName())
+                .enableAllInfo().scan()) {
             assertThat(scanResult.getAllEnums()).hasSize(1);
             final var myEnum = scanResult.getAllEnums().get(0);
             assertThat(myEnum.getName()).isEqualTo(MyEnumWithoutMethod.class.getName());
@@ -44,8 +44,8 @@ public class EnumTest {
     /** Test enum with method */
     @Test
     public void enumWithMethod() throws Exception {
-        try (var scanResult = new ClassGraph().acceptClasses(EnumWithMethod.class.getName()).enableAllInfo()
-                .scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath().acceptClasses(EnumWithMethod.class.getName())
+                .enableAllInfo().scan()) {
             assertThat(scanResult.getAllEnums()).hasSize(1);
             final var myEnum = scanResult.getAllEnums().get(0);
             assertThat(myEnum.getName()).isEqualTo(EnumWithMethod.class.getName());

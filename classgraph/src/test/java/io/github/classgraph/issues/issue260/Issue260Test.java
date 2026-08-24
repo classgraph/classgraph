@@ -38,7 +38,8 @@ public class Issue260Test {
     @Test
     public void issue260Test() {
         // Scanning this package used to throw. The scan result itself is not read.
-        assertThatCode(() -> new ClassGraph().acceptPackages(Issue260Test.class.getPackage().getName())
-                .enableAllInfo().scan().close()).doesNotThrowAnyException();
+        assertThatCode(() -> new ClassGraph().enableClasspath()
+                .acceptPackages(Issue260Test.class.getPackage().getName()).enableAllInfo().scan().close())
+                .doesNotThrowAnyException();
     }
 }

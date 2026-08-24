@@ -41,7 +41,7 @@ public class Issue897EcjEnumTest {
      */
     @Test
     public void annotationOnEcjEnumConstructor() {
-        try (var scanResult = new ClassGraph().acceptPackages(FIXTURE_PKG) //
+        try (var scanResult = new ClassGraph().enableClasspath().acceptPackages(FIXTURE_PKG) //
                 .ignoreClassVisibility().ignoreMethodVisibility() // the enum constructor is private
                 .enableMethodInfo().enableAnnotationInfo().scan()) {
             final var classInfo = scanResult.getClassInfo(ENUM_CLASS);

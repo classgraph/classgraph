@@ -13,7 +13,7 @@ public class Issue739Test {
     void wildcardPathSupport() {
         final var relPath = "src/test/resources/";
         final HashSet<String> paths = new HashSet<>();
-        try (var scanResult = new ClassGraph().overrideClasspath(relPath + "*").scan()) {
+        try (var scanResult = new ClassGraph().enableClasspathEntries(relPath + "*").scan()) {
             scanResult.getAllResources().forEach(r -> {
                 final var path = r.toString();
                 final var idx = path.indexOf(relPath);

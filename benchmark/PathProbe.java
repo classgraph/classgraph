@@ -196,7 +196,7 @@ public class PathProbe {
                     () -> Files.isDirectory(Path.of(resolved)) ? "yes" : "no: " + resolved);
             // A resource URL handed back by ClassGraph must be readable again
             check("resource URL round-trips  " + dirName, () -> {
-                try (ScanResult scanResult = new ClassGraph().overrideClasspath(jar.toString()).scan()) {
+                try (ScanResult scanResult = new ClassGraph().enableClasspathEntries(jar.toString()).scan()) {
                     final List<io.github.classgraph.Resource> resources = scanResult
                             .getResourcesWithExtension("class");
                     if (resources.isEmpty()) {
@@ -219,7 +219,7 @@ public class PathProbe {
      * @return "yes", or "no" plus what was found instead
      */
     private static String scanFinds(final String classpathElement) {
-        try (ScanResult scanResult = new ClassGraph().overrideClasspath(classpathElement).enableClassInfo()
+        try (ScanResult scanResult = new ClassGraph().enableClasspathEntries(classpathElement).enableClassInfo()
                 .scan()) {
             return scanResult.getClassInfo("probepkg.Probe") != null ? "yes"
                     : "no: found " + scanResult.getAllClasses().getNames();

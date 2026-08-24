@@ -36,8 +36,8 @@ public class DuplicateClasspathEntryTest {
         final var jarPath = jarPath();
         final var jarURI = jarPath.toUri();
         try (var scanResult = new ClassGraph()
-                .overrideClasspath(jarPath.toString(), jarURI.toString(), "jar:" + jarURI + "!/").enableClassInfo()
-                .scan()) {
+                .enableClasspathEntries(jarPath.toString(), jarURI.toString(), "jar:" + jarURI + "!/")
+                .enableClassInfo().scan()) {
             assertThat(scanResult.getClasspathURIs()).hasSize(1);
             // The class in the jar is found once, rather than masking copies of itself
             assertThat(scanResult.getAllClasses().getNames()).containsExactly("pkg.Record");
@@ -61,7 +61,7 @@ public class DuplicateClasspathEntryTest {
         Files.writeString(dir.resolve("resource.txt"), "contents");
 
         try (var scanResult = new ClassGraph()
-                .overrideClasspath(dir.toString(), dir.toUri().toString(), dir + java.io.File.separator,
+                .enableClasspathEntries(dir.toString(), dir.toUri().toString(), dir + java.io.File.separator,
                         dir.getParent() + java.io.File.separator + "." + java.io.File.separator + "classes")
                 .scan()) {
             assertThat(scanResult.getClasspathURIs()).hasSize(1);

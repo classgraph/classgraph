@@ -40,7 +40,8 @@ public class Issue107Test {
     @Test
     public void issue107Test() {
         // Package annotations should have "package-info" as their class name
-        try (var scanResult = new ClassGraph().acceptPackages("io.github.classgraph").enableAnnotationInfo()
+        try (var scanResult = new ClassGraph().enableClasspath().acceptPackages("io.github.classgraph")
+                .enableAnnotationInfo()
                 // package-info is a non-public class
                 .ignoreClassVisibility() //
                 .scan()) {

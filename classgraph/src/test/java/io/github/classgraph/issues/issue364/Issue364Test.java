@@ -54,7 +54,7 @@ public class Issue364Test {
         final var aJarURL = classLoader.getResource(aJarName);
 
         try (var overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
-                var result = new ClassGraph().overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders()
+                var result = new ClassGraph().enableClassLoaders(overrideClassLoader).ignoreParentClassLoaders()
                         .scan()) {
             assertThat(result.getResourcesWithPath("META-INF/resources/webjars/permissions-jar/1.0.0/bin/all")
                     .get(0).getLastModifiedMillis()).isEqualTo(1434543812000L);
@@ -100,7 +100,7 @@ public class Issue364Test {
         final var aJarURL = classLoader.getResource(aJarName);
 
         try (var overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
-                var result = new ClassGraph().overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders()
+                var result = new ClassGraph().enableClassLoaders(overrideClassLoader).ignoreParentClassLoaders()
                         .scan()) {
             assertThat(result.getResourcesWithPath("META-INF/resources/webjars/permissions-jar/1.0.0/bin/all")
                     .get(0).getLastModifiedMillis()).isEqualTo(1434507812000L);

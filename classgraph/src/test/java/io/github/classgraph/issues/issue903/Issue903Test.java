@@ -53,8 +53,8 @@ class Issue903Test {
         // symlink on macOS ("/var" -> "/private/var") and through an 8.3 short name on Windows ("C:\Users\RUNNER~1"
         // -> "C:\Users\runneradmin"), so compare canonical paths
         final var classpathEltCanonical = classpathElt.getCanonicalFile();
-        try (var scanResult = new ClassGraph().overrideClasspath(classpathElt.getPath()).acceptPaths("issue903")
-                .scan()) {
+        try (var scanResult = new ClassGraph().enableClasspathEntries(classpathElt.getPath())
+                .acceptPaths("issue903").scan()) {
             assertThat(scanResult.getClasspathFiles()).containsExactly(classpathEltCanonical);
             return scanResult.getAllResources().getPaths();
         }
@@ -111,7 +111,7 @@ class Issue903Test {
             zip.write(innerJarBytes);
             zip.closeEntry();
         }
-        try (var scanResult = new ClassGraph().overrideClasspath(outerJar.getPath() + "!/lib/inner.jar")
+        try (var scanResult = new ClassGraph().enableClasspathEntries(outerJar.getPath() + "!/lib/inner.jar")
                 .acceptPaths("issue903").scan()) {
             assertThat(scanResult.getAllResources().getPaths()).containsExactly(RESOURCE_PATH);
         }
@@ -134,7 +134,7 @@ class Issue903Test {
             zip.closeEntry();
         }
         try (var scanResult = new ClassGraph()
-                .overrideClasspath("jar:jar:file:" + outerWar.getPath() + "!/WEB-INF/lib/inner.jar!/")
+                .enableClasspathEntries("jar:jar:file:" + outerWar.getPath() + "!/WEB-INF/lib/inner.jar!/")
                 .acceptPaths("issue903").scan()) {
             assertThat(scanResult.getAllResources().getPaths()).containsExactly(RESOURCE_PATH);
         }

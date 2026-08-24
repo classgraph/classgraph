@@ -30,7 +30,7 @@ public class URLSchemeCaseTest {
         // without this the string would be split at the scheme's own colon. (The scheme does not have to be
         // enabled to be fetched from -- only http, https, ftp and mailto do)
         try (var scanResult = new ClassGraph().enableURLScheme(CustomURLScheme.SCHEME)
-                .overrideClasspath(upperCaseSchemeURL).scan()) {
+                .enableClasspathEntries(upperCaseSchemeURL).scan()) {
             assertThat(scanResult.getAllResources().getPaths()).containsExactly("level2.jar");
         }
     }

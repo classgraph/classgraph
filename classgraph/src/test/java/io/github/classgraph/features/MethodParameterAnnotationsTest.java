@@ -60,7 +60,7 @@ public class MethodParameterAnnotationsTest {
      */
     @Test
     public void annotationEquality() {
-        try (var scanResult = new ClassGraph()
+        try (var scanResult = new ClassGraph().enableClasspath()
                 .acceptPackages(MethodParameterAnnotationsTest.class.getPackage().getName()).enableAllInfo()
                 .scan()) {
             assertThat(scanResult.getClassInfo(Y.class.getName()).getMethodParameterAnnotations().getNames())

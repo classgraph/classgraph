@@ -18,8 +18,8 @@ public class MethodOverrideOrderTest {
 
     @BeforeAll
     public static void setup() {
-        scanResult = new ClassGraph().acceptPackages(MethodOverrideOrderTest.class.getPackage().getName())
-                .enableMethodInfo().scan();
+        scanResult = new ClassGraph().enableClasspath()
+                .acceptPackages(MethodOverrideOrderTest.class.getPackage().getName()).enableMethodInfo().scan();
     }
 
     @AfterAll

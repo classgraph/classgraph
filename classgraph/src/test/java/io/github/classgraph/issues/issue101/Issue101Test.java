@@ -40,8 +40,8 @@ public class Issue101Test {
      */
     @Test
     public void nonInheritedAnnotation() {
-        try (var scanResult = new ClassGraph().acceptPackages(Issue101Test.class.getPackage().getName())
-                .enableAllInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath()
+                .acceptPackages(Issue101Test.class.getPackage().getName()).enableAllInfo().scan()) {
             assertThat(scanResult.getClassesWithAnnotation(NonInheritedAnnotation.class).getNames())
                     .containsOnly(AnnotatedClass.class.getName());
         }
@@ -52,8 +52,8 @@ public class Issue101Test {
      */
     @Test
     public void inheritedMetaAnnotation() {
-        try (var scanResult = new ClassGraph().acceptPackages(Issue101Test.class.getPackage().getName())
-                .enableAllInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath()
+                .acceptPackages(Issue101Test.class.getPackage().getName()).enableAllInfo().scan()) {
             assertThat(scanResult.getClassesWithAnnotation(InheritedMetaAnnotation.class).getStandardClasses()
                     .getNames()).containsOnly(AnnotatedClass.class.getName(), NonAnnotatedSubclass.class.getName());
         }
@@ -64,8 +64,8 @@ public class Issue101Test {
      */
     @Test
     public void inheritedAnnotation() {
-        try (var scanResult = new ClassGraph().acceptPackages(Issue101Test.class.getPackage().getName())
-                .enableAllInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath()
+                .acceptPackages(Issue101Test.class.getPackage().getName()).enableAllInfo().scan()) {
             assertThat(scanResult.getClassesWithAnnotation(InheritedAnnotation.class).getNames()).containsOnly(
                     AnnotatedClass.class.getName(), NonAnnotatedSubclass.class.getName(),
                     AnnotatedInterface.class.getName());

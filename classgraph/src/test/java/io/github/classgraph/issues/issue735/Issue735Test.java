@@ -33,8 +33,9 @@ public class Issue735Test {
 
     @Test
     void genericSuperclass() {
-        try (var scanResult = new ClassGraph().acceptPackages(Issue735Test.class.getPackage().getName())
-                .enableAllInfo().ignoreClassVisibility().ignoreMethodVisibility().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath()
+                .acceptPackages(Issue735Test.class.getPackage().getName()).enableAllInfo().ignoreClassVisibility()
+                .ignoreMethodVisibility().scan()) {
             final var ci1 = scanResult.getClassInfo(Derived1.class.getName());
             assertThat(ci1.getMethodInfo().get(0).getTypeSignatureOrTypeDescriptor().getResultType().toString())
                     .isEqualTo(String.class.getName());
@@ -182,8 +183,8 @@ public class Issue735Test {
 
     @BeforeAll
     static void scan() {
-        scanResult = new ClassGraph().acceptPackages(Issue735Test.class.getPackage().getName()).enableAllInfo()
-                .ignoreClassVisibility().ignoreMethodVisibility().ignoreFieldVisibility().scan();
+        scanResult = new ClassGraph().enableClasspath().acceptPackages(Issue735Test.class.getPackage().getName())
+                .enableAllInfo().ignoreClassVisibility().ignoreMethodVisibility().ignoreFieldVisibility().scan();
     }
 
     @AfterAll

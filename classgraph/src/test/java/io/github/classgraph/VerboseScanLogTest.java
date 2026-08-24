@@ -90,7 +90,7 @@ public class VerboseScanLogTest {
         final var useParentHandlers = LOGGER.getUseParentHandlers();
         LOGGER.setUseParentHandlers(false);
         LOGGER.addHandler(handler);
-        try (var scanResult = new ClassGraph()
+        try (var scanResult = new ClassGraph().enableClasspath()
                 .acceptClasses(Tagged.class.getName(), Marker.class.getName(), Base.class.getName(),
                         Container.class.getName())
                 .enableAllInfo().enableInterClassDependencies().verbose().scan()) {

@@ -94,8 +94,8 @@ public class ClassInfoPredicatesTest {
     /** Scan the test classes. */
     @BeforeAll
     static void scanTestClasses() {
-        scanResult = new ClassGraph().acceptPackages(ClassInfoPredicatesTest.class.getPackageName()).enableAllInfo()
-                .scan();
+        scanResult = new ClassGraph().enableClasspath()
+                .acceptPackages(ClassInfoPredicatesTest.class.getPackageName()).enableAllInfo().scan();
     }
 
     /** Close the scan result. */

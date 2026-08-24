@@ -723,7 +723,7 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
     /**
      * Add classpath entries, separated by the system path separator character.
      *
-     * @param overrideClasspath
+     * @param classpathEntries
      *            a list of delimited path {@link String}, {@link URL}, {@link URI} or {@link File} objects.
      * @param classLoader
      *            the ClassLoader that this classpath was obtained from.
@@ -732,12 +732,12 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
      * @return true (and add the classpath element) if pathElement is not null or empty, otherwise return false.
      */
     @Override
-    public boolean addClasspathEntries(final @Nullable List<Object> overrideClasspath,
+    public boolean addClasspathEntries(final @Nullable List<Object> classpathEntries,
             final @Nullable ClassLoader classLoader, final @Nullable ClassGraphLog log) {
-        if (overrideClasspath == null || overrideClasspath.isEmpty()) {
+        if (classpathEntries == null || classpathEntries.isEmpty()) {
             return false;
         } else {
-            for (final Object pathElement : overrideClasspath) {
+            for (final Object pathElement : classpathEntries) {
                 addClasspathEntry(pathElement, classLoader, log);
             }
             return true;

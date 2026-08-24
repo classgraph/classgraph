@@ -95,8 +95,9 @@ public class Issue897Test {
         // Scan this package non-recursively, so that the nested-class relationship between Issue897Test and Inner2
         // can be resolved when placing the type annotation (which carries an INNER_TYPE type path), without pulling
         // in the compiler-specific fixture sub-packages (ecjenum, fieldcrash).
-        try (var scanResult = new ClassGraph().acceptPackagesNonRecursive(Issue897Test.class.getPackage().getName())
-                .ignoreClassVisibility().enableMethodInfo().enableAnnotationInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath()
+                .acceptPackagesNonRecursive(Issue897Test.class.getPackage().getName()).ignoreClassVisibility()
+                .enableMethodInfo().enableAnnotationInfo().scan()) {
             final var classInfo = scanResult.getClassInfo(Inner1.class.getName());
             final var methodInfo = classInfo.getDeclaredConstructorInfo().get(0);
 
@@ -128,8 +129,9 @@ public class Issue897Test {
      */
     @Test
     public void annotationOnGenericInnerClassConstructor() {
-        try (var scanResult = new ClassGraph().acceptPackagesNonRecursive(Issue897Test.class.getPackage().getName())
-                .ignoreClassVisibility().enableMethodInfo().enableAnnotationInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath()
+                .acceptPackagesNonRecursive(Issue897Test.class.getPackage().getName()).ignoreClassVisibility()
+                .enableMethodInfo().enableAnnotationInfo().scan()) {
             final var classInfo = scanResult.getClassInfo(Inner3.class.getName());
             final var methodInfo = classInfo.getDeclaredConstructorInfo().get(0);
 

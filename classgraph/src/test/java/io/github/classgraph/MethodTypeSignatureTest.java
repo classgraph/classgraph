@@ -77,7 +77,7 @@ public class MethodTypeSignatureTest {
      * @return the scan result.
      */
     private static ScanResult scanFixture() {
-        return new ClassGraph().acceptClasses(Methods.class.getName()).enableMethodInfo().scan();
+        return new ClassGraph().enableClasspath().acceptClasses(Methods.class.getName()).enableMethodInfo().scan();
     }
 
     /**
@@ -209,8 +209,8 @@ public class MethodTypeSignatureTest {
      */
     @Test
     public void theClassesNamedInAMethodSignatureAreDependenciesOfTheDeclaringClass() {
-        try (var scanResult = new ClassGraph().acceptClasses(Methods.class.getName()).enableMethodInfo()
-                .enableInterClassDependencies().enableExternalClasses().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath().acceptClasses(Methods.class.getName())
+                .enableMethodInfo().enableInterClassDependencies().enableExternalClasses().scan()) {
             final var classInfo = scanResult.getClassInfo(Methods.class.getName());
             // Type parameter bounds and type arguments are erased from a method's type descriptor, and the classes
             // they name are not in the constant pool either unless the method body happens to use them, so these

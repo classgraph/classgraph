@@ -15,8 +15,8 @@ import io.github.classgraph.test.typeannotation.internal.UsesExternalTypeAnnotat
 public class ExternalAnnotationInfoAccessorsTest {
     /** Open a scan that reads the annotated class but not the annotation class. */
     private static ScanResult scan() {
-        return new ClassGraph().acceptPackages(UsesExternalTypeAnnotation.class.getPackage().getName())
-                .enableAllInfo().scan();
+        return new ClassGraph().enableClasspath()
+                .acceptPackages(UsesExternalTypeAnnotation.class.getPackage().getName()).enableAllInfo().scan();
     }
 
     /** Return the {@link AnnotationInfo} of the type annotation on the field's type. */

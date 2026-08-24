@@ -55,7 +55,7 @@ public class ArrayClassNameTest {
     /** The array class name drops type annotations and type arguments. */
     @Test
     public void arrayClassNameIsAClassName() {
-        try (var scanResult = new ClassGraph()
+        try (var scanResult = new ClassGraph().enableClasspath()
                 .acceptPackagesNonRecursive(ArrayClassNameTest.class.getPackage().getName()).enableAllInfo()
                 .scan()) {
             final var holder = scanResult.getClassInfo(Holder.class.getName());
@@ -81,7 +81,7 @@ public class ArrayClassNameTest {
      */
     @Test
     public void anArrayClassReportsItsTypeSignatureInJvmNotation() {
-        try (var scanResult = new ClassGraph()
+        try (var scanResult = new ClassGraph().enableClasspath()
                 .acceptPackagesNonRecursive(ArrayClassNameTest.class.getPackage().getName()).enableAllInfo()
                 .scan()) {
             final var primitive = arrayType(scanResult, "primitiveArray").getArrayClassInfo();

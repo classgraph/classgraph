@@ -79,7 +79,7 @@ public class GraphVizDotFileOptionsTest {
      * @return the .dot file contents.
      */
     private static String classGraph(final GraphVizDotFileOptions options) {
-        try (var scanResult = new ClassGraph().acceptClasses(GraphClassAnnotation.class.getName(),
+        try (var scanResult = new ClassGraph().enableClasspath().acceptClasses(GraphClassAnnotation.class.getName(),
                 GraphType.class.getName(), GraphNode.class.getName()).enableAllInfo().scan()) {
             return GraphVizDotFile.generate(scanResult, scanResult.getAllClasses(), options);
         }
@@ -94,7 +94,7 @@ public class GraphVizDotFileOptionsTest {
      * @return the .dot file contents.
      */
     private static String dependencyGraph(final GraphVizDotFileOptions options) {
-        try (var scanResult = new ClassGraph()
+        try (var scanResult = new ClassGraph().enableClasspath()
                 .acceptClasses(GraphClassAnnotation.class.getName(), GraphType.class.getName(),
                         GraphNode.class.getName())
                 .enableAllInfo().enableInterClassDependencies().enableExternalClasses().scan()) {

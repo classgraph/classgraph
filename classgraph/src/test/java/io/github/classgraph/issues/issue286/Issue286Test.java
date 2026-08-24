@@ -43,6 +43,7 @@ public class Issue286Test {
         final var jarURL = getClass().getClassLoader().getResource("issue286.jar");
         assertThat(jarURL).isNotNull();
         // Scanning this jarfile used to take far longer than the timeout above. The scan result is not read.
-        assertThatCode(() -> new ClassGraph().overrideClasspath(jarURL).scan().close()).doesNotThrowAnyException();
+        assertThatCode(() -> new ClassGraph().enableClasspathEntries(jarURL).scan().close())
+                .doesNotThrowAnyException();
     }
 }

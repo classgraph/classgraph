@@ -44,7 +44,7 @@ public class Issue151Test {
     public void issue151Test() {
         // Scans io.github.classgraph.issues.issue146.CompiledWithJDK8, which is in src/test/resources
         final var pkg = Issue151Test.class.getPackage().getName();
-        try (var scanResult = new ClassGraph().acceptPackages(pkg) //
+        try (var scanResult = new ClassGraph().enableClasspath().acceptPackages(pkg) //
                 .enableMethodInfo() //
                 .enableAnnotationInfo() //
                 .scan()) {

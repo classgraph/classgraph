@@ -143,8 +143,8 @@ class TypeAnnotationTest {
     /** Test field type annotations. */
     @Test
     void typeAnnotations() {
-        try (var scanResult = new ClassGraph().acceptPackages(TypeAnnotationTest.class.getPackage().getName())
-                .enableAllInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath()
+                .acceptPackages(TypeAnnotationTest.class.getPackage().getName()).enableAllInfo().scan()) {
             final var classInfo = scanResult.getClassInfo(TypeAnnotationTest.class.getName());
 
             final var mapField = classInfo.getFieldInfo("map");

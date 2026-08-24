@@ -29,7 +29,8 @@ public class Issue310Test {
     /** Read the constant initializer value of each double constant. */
     @Test
     public void doubleConstantInitializerValues() {
-        try (var scanResult = new ClassGraph().acceptClasses(Issue310Test.class.getName()).enableAllInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath().acceptClasses(Issue310Test.class.getName())
+                .enableAllInfo().scan()) {
             final var classInfo = scanResult.getClassInfo(Issue310Test.class.getName());
             assertThat(classInfo).isNotNull();
             assertThat(classInfo.getFieldInfo("A").getConstantInitializerValue()).isEqualTo(3.0);

@@ -19,7 +19,7 @@ public class Issue171Test {
         final var jarURL = Issue171Test.class.getClassLoader().getResource("spring-boot-fully-executable-jar.jar");
 
         try (var scanResult = new ClassGraph().acceptPackagesNonRecursive("hello", "org.springframework.boot")
-                .overrideClasspath(List.of("jar:" + jarURL + "!/BOOT-INF/classes",
+                .enableClasspathEntries(List.of("jar:" + jarURL + "!/BOOT-INF/classes",
                         "jar:" + jarURL + "!/BOOT-INF/lib/spring-boot-1.5.9.RELEASE.jar")) //
                 .scan()) {
             final var classNames = scanResult.getAllClasses().getNames();
@@ -33,7 +33,7 @@ public class Issue171Test {
         final var jarURL = Issue171Test.class.getClassLoader().getResource("spring-boot-fully-executable-jar.jar");
 
         try (var scanResult = new ClassGraph().acceptPackagesNonRecursive("hello", "org.springframework.boot")
-                .overrideClasspath("jar:" + jarURL + "!/BOOT-INF/classes") //
+                .enableClasspathEntries("jar:" + jarURL + "!/BOOT-INF/classes") //
                 .scan()) {
             assertThat(scanResult.getAllClasses().getNames()).containsExactlyInAnyOrder("hello.HelloController",
                     "hello.Application");

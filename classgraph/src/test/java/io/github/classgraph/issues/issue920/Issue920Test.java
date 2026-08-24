@@ -17,7 +17,7 @@ import io.github.classgraph.MethodInfo;
 public class Issue920Test {
     @Test
     void test() {
-        final var constructors = new ClassGraph().enableAnnotationInfo().enableSystemJarsAndModules()
+        final var constructors = new ClassGraph().enableAnnotationInfo().enableSystemJars().enableSystemModules()
                 .enableClassInfo().enableMethodInfo().scan().getClassInfo("java.io.ObjectOutputStream")
                 .getConstructorInfo();
         for (final MethodInfo constructor : constructors) {

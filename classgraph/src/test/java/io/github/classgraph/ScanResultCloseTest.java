@@ -20,8 +20,8 @@ public class ScanResultCloseTest {
      * @return the scan result.
      */
     private static ScanResult scan() {
-        return new ClassGraph().acceptPackages(ScanResultCloseTest.class.getPackageName()).enableClassInfo()
-                .enableMethodInfo().scan();
+        return new ClassGraph().enableClasspath().acceptPackages(ScanResultCloseTest.class.getPackageName())
+                .enableClassInfo().enableMethodInfo().scan();
     }
 
     /** A {@link ScanResult} reports whether it has been closed, and closing it twice is not an error. */
@@ -81,8 +81,8 @@ public class ScanResultCloseTest {
     public void closingAResourceStreamAfterTheScanResultDoesNotThrow() throws Exception {
         final InputStream inputStream;
         // A jarfile, so that the classfile is deflated and reading it needs an inflater
-        try (var scanResult = new ClassGraph().overrideClasspath("src/test/resources/record.jar").enableClassInfo()
-                .scan()) {
+        try (var scanResult = new ClassGraph().enableClasspathEntries("src/test/resources/record.jar")
+                .enableClassInfo().scan()) {
             // close() closes the resources that the ScanResult cached for itself, but the classfile resource is
             // only cached if the resource list was fetched, and this scan never fetches it
             final var classfileResource = scanResult.getAllClasses().get(0).getResource();

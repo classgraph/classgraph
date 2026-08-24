@@ -15,7 +15,7 @@ public class GetResourcesWithPathSanitizationTest {
      */
     @Test
     public void pathNormalizingToRootMatchesNothing() {
-        try (var scanResult = new ClassGraph()
+        try (var scanResult = new ClassGraph().enableClasspath()
                 .acceptPackages(GetResourcesWithPathSanitizationTest.class.getPackage().getName()).scan()) {
             for (final String path : new String[] { "/..", "/.", "/../..", "//..", "/a/.." }) {
                 assertThat(scanResult.getResourcesWithPath(path)).isEmpty();

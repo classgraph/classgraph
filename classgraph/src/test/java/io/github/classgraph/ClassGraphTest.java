@@ -175,11 +175,11 @@ public class ClassGraphTest {
     @Test
     public void verboseLoggingIsWrittenToTheLogger() {
         final var quiet = captureLog(
-                () -> new ClassGraph().verbose(false).overrideClasspath(markerDir.toString()).scan().close());
+                () -> new ClassGraph().verbose(false).enableClasspathEntries(markerDir.toString()).scan().close());
         assertThat(quiet).isEmpty();
 
         final var verbose = captureLog(
-                () -> new ClassGraph().verbose(true).overrideClasspath(markerDir.toString()).scan().close());
+                () -> new ClassGraph().verbose(true).enableClasspathEntries(markerDir.toString()).scan().close());
         assertThat(verbose).hasSize(1);
         assertThat(verbose.get(0)).contains("ClassGraph version").contains("marker.txt");
     }
@@ -189,7 +189,7 @@ public class ClassGraphTest {
     public void realtimeLoggingWritesEntriesAsTheyAreCreated() {
         try {
             final var messages = captureLog(() -> new ClassGraph().enableRealtimeLogging()
-                    .overrideClasspath(markerDir.toString()).scan().close());
+                    .enableClasspathEntries(markerDir.toString()).scan().close());
             // Every log entry is written twice: once in realtime, and once in the tree flushed at the end of the
             // scan
             assertThat(messages).hasSizeGreaterThan(1);
@@ -203,37 +203,37 @@ public class ClassGraphTest {
     /** Jar scanning and directory scanning can each be disabled without affecting the other. */
     @Test
     public void jarAndDirScanningCanBeDisabledIndependently() {
-        try (var scanResult = new ClassGraph().overrideClasspath(classesDir.toString(), jarFile.toString())
+        try (var scanResult = new ClassGraph().enableClasspathEntries(classesDir.toString(), jarFile.toString())
                 .acceptPackages(PACKAGE_NAME).scan()) {
             assertThat(scanResult.getAllClasses().getNames()).containsExactlyInAnyOrder(PACKAGE_NAME + ".InDir",
                     PACKAGE_NAME + ".RejectMe", PACKAGE_NAME + ".InJar");
         }
-        try (var scanResult = new ClassGraph().overrideClasspath(classesDir.toString(), jarFile.toString())
+        try (var scanResult = new ClassGraph().enableClasspathEntries(classesDir.toString(), jarFile.toString())
                 .acceptPackages(PACKAGE_NAME).disableJarScanning().scan()) {
             assertThat(scanResult.getAllClasses().getNames()).containsExactlyInAnyOrder(PACKAGE_NAME + ".InDir",
                     PACKAGE_NAME + ".RejectMe");
         }
-        try (var scanResult = new ClassGraph().overrideClasspath(classesDir.toString(), jarFile.toString())
+        try (var scanResult = new ClassGraph().enableClasspathEntries(classesDir.toString(), jarFile.toString())
                 .acceptPackages(PACKAGE_NAME).disableDirScanning().scan()) {
             assertThat(scanResult.getAllClasses().getNames()).containsExactly(PACKAGE_NAME + ".InJar");
         }
     }
 
-    /** Module scanning can be disabled, which leaves an accepted module visible but unscanned. */
+    /** A module is not scanned, and is not even looked for, unless a module source is enabled. */
     @Test
-    public void moduleScanningCanBeDisabled() {
-        try (var scanResult = new ClassGraph().enableSystemJarsAndModules().acceptModules("java.base")
+    public void modulesAreNotScannedUnlessEnabled() {
+        try (var scanResult = new ClassGraph().enableSystemJars().enableSystemModules().acceptModules("java.base")
                 .acceptPackages("java.time.chrono").disableJarScanning().disableDirScanning().scan()) {
             assertThat(scanResult.getAllClasses().getNames()).contains("java.time.chrono.JapaneseEra");
-        }
-        try (var scanResult = new ClassGraph().enableSystemJarsAndModules().acceptModules("java.base")
-                .acceptPackages("java.time.chrono").disableJarScanning().disableDirScanning()
-                .disableModuleScanning().scan()) {
-            assertThat(scanResult.getAllClasses()).isEmpty();
-            // The module is still listed as visible, it is simply not scanned
             assertThat(scanResult.getModuleReferences())
                     .extracting(moduleReference -> moduleReference.descriptor().name())
                     .containsExactly("java.base");
+        }
+        // Without enableSystemModules(), no module is looked for, so none is scanned or even listed
+        try (var scanResult = new ClassGraph().enableSystemJars().acceptModules("java.base")
+                .acceptPackages("java.time.chrono").disableJarScanning().disableDirScanning().scan()) {
+            assertThat(scanResult.getAllClasses()).isEmpty();
+            assertThat(scanResult.getModuleReferences()).isEmpty();
         }
     }
 
@@ -244,13 +244,13 @@ public class ClassGraphTest {
      */
     @Test
     public void aSinglePathIsOneClasspathEntry() throws IOException {
-        try (var scanResult = new ClassGraph().overrideClasspath(markerDir).scan()) {
+        try (var scanResult = new ClassGraph().enableClasspathEntries(markerDir).scan()) {
             assertThat(scanResult.getAllResources().getPaths()).containsExactly("marker.txt");
         }
         // A list of Paths is still one classpath entry per element. Classpath entries are canonicalized, so the
         // expected paths have to be canonicalized too -- on macOS the temp directory is reached through the symlink
         // /var -> /private/var, and on Windows through an 8.3 short name (C:\Users\RUNNER~1).
-        try (var scanResult = new ClassGraph().overrideClasspath(List.of(markerDir, classesDir)).scan()) {
+        try (var scanResult = new ClassGraph().enableClasspathEntries(List.of(markerDir, classesDir)).scan()) {
             assertThat(scanResult.getClasspathFiles()).containsExactly(markerDir.toRealPath().toFile(),
                     classesDir.toRealPath().toFile());
         }
@@ -260,7 +260,7 @@ public class ClassGraphTest {
     @Test
     public void classpathElementsCanBeFilteredByPath() {
         final var paths = new ArrayList<String>();
-        try (var scanResult = new ClassGraph().overrideClasspath(classesDir.toString(), markerDir.toString())
+        try (var scanResult = new ClassGraph().enableClasspathEntries(classesDir.toString(), markerDir.toString())
                 .filterClasspathElements(path -> {
                     paths.add(path);
                     return path.endsWith("/marker");
@@ -286,7 +286,7 @@ public class ClassGraphTest {
     @Test
     public void classpathElementsCanBeFilteredByURL() {
         final var urls = new ArrayList<URL>();
-        try (var scanResult = new ClassGraph().overrideClasspath(classesDir.toString(), markerDir.toString())
+        try (var scanResult = new ClassGraph().enableClasspathEntries(classesDir.toString(), markerDir.toString())
                 .filterClasspathElementsByURL(url -> {
                     urls.add(url);
                     return url.toString().endsWith("/marker/");
@@ -309,7 +309,7 @@ public class ClassGraphTest {
         };
         final var customURL = new URL("cgtest", "host", -1, "/lib.jar", handler);
         final var urls = new ArrayList<URL>();
-        try (var scanResult = new ClassGraph().overrideClasspath(customURL, markerDir.toString())
+        try (var scanResult = new ClassGraph().enableClasspathEntries(customURL, markerDir.toString())
                 .filterClasspathElementsByURL(url -> {
                     urls.add(url);
                     return !"cgtest".equals(url.getProtocol());
@@ -323,11 +323,11 @@ public class ClassGraphTest {
     /** Classpath elements can be selected by the resources they contain. */
     @Test
     public void classpathElementsCanBeSelectedByTheResourcesTheyContain() {
-        try (var scanResult = new ClassGraph().overrideClasspath(classesDir.toString(), markerDir.toString())
+        try (var scanResult = new ClassGraph().enableClasspathEntries(classesDir.toString(), markerDir.toString())
                 .acceptClasspathElementsContainingResourcePath("marker.txt").scan()) {
             assertThat(scanResult.getAllResources().getPaths()).containsExactly("marker.txt");
         }
-        try (var scanResult = new ClassGraph().overrideClasspath(classesDir.toString(), markerDir.toString())
+        try (var scanResult = new ClassGraph().enableClasspathEntries(classesDir.toString(), markerDir.toString())
                 .rejectClasspathElementsContainingResourcePath("marker.txt").scan()) {
             assertThat(scanResult.getAllResources().getPaths()).containsExactlyInAnyOrder(
                     "com/xyz/cgfixture/InDir.class", "com/xyz/cgfixture/RejectMe.class", "res/indir.txt");
@@ -340,14 +340,14 @@ public class ClassGraphTest {
     @Test
     public void classpathElementsContainingARejectedResourceAreNotScanned() {
         // classesDir contains res/indir.txt, so none of classesDir is scanned, but the jar still is
-        try (var scanResult = new ClassGraph().overrideClasspath(classesDir.toString(), jarFile.toString())
+        try (var scanResult = new ClassGraph().enableClasspathEntries(classesDir.toString(), jarFile.toString())
                 .rejectClasspathElementsContainingResourcePath("res/indir.txt").scan()) {
             assertThat(scanResult.getAllResources().getPaths()).containsExactlyInAnyOrder("res/injar.txt",
                     "com/xyz/cgfixture/InJar.class");
             assertThat(scanResult.getClasspathURIs()).doesNotContain(classesDir.toUri());
         }
         // Both classpath elements contain a classfile under com/, so neither is scanned
-        try (var scanResult = new ClassGraph().overrideClasspath(classesDir.toString(), jarFile.toString())
+        try (var scanResult = new ClassGraph().enableClasspathEntries(classesDir.toString(), jarFile.toString())
                 .rejectClasspathElementsContainingResourcePath("com/**").scan()) {
             assertThat(scanResult.getAllResources()).isEmpty();
             assertThat(scanResult.getClasspathURIs()).isEmpty();
@@ -357,17 +357,18 @@ public class ClassGraphTest {
     /** Paths can be rejected, but rejecting the package root would leave nothing to scan. */
     @Test
     public void pathsCanBeRejected() {
-        try (var scanResult = new ClassGraph().overrideClasspath(classesDir.toString(), jarFile.toString())
+        try (var scanResult = new ClassGraph().enableClasspathEntries(classesDir.toString(), jarFile.toString())
                 .acceptPaths("res").rejectPaths("res/**").scan()) {
             assertThat(scanResult.getAllResources()).isEmpty();
         }
-        try (var scanResult = new ClassGraph().overrideClasspath(classesDir.toString(), jarFile.toString())
+        try (var scanResult = new ClassGraph().enableClasspathEntries(classesDir.toString(), jarFile.toString())
                 .acceptPaths("res").scan()) {
             assertThat(scanResult.getAllResources().getPaths()).containsExactlyInAnyOrder("res/indir.txt",
                     "res/injar.txt");
         }
         for (final var rootPath : new String[] { "", "/", "/**" }) {
-            assertThatIllegalArgumentException().isThrownBy(() -> new ClassGraph().rejectPaths(rootPath))
+            assertThatIllegalArgumentException()
+                    .isThrownBy(() -> new ClassGraph().enableClasspath().rejectPaths(rootPath))
                     .withMessageContaining("will cause nothing to be scanned");
         }
     }
@@ -375,8 +376,8 @@ public class ClassGraphTest {
     /** Individual classes can be rejected, even if the package that contains them is accepted. */
     @Test
     public void classesCanBeRejected() {
-        try (var scanResult = new ClassGraph().overrideClasspath(classesDir.toString()).acceptPackages(PACKAGE_NAME)
-                .rejectClasses(PACKAGE_NAME + ".RejectMe").scan()) {
+        try (var scanResult = new ClassGraph().enableClasspathEntries(classesDir.toString())
+                .acceptPackages(PACKAGE_NAME).rejectClasses(PACKAGE_NAME + ".RejectMe").scan()) {
             assertThat(scanResult.getAllClasses().getNames()).containsExactly(PACKAGE_NAME + ".InDir");
         }
     }
@@ -384,7 +385,7 @@ public class ClassGraphTest {
     /** The classpath can be listed without running a scan. */
     @Test
     public void theClasspathCanBeListedWithoutScanning() throws IOException {
-        final var classGraph = new ClassGraph().overrideClasspath(classesDir.toString(), jarFile.toString());
+        final var classGraph = new ClassGraph().enableClasspathEntries(classesDir.toString(), jarFile.toString());
 
         // ClassGraph canonicalizes a classpath element, so the listed paths are the real paths, which differ from
         // the paths the temp directory was handed out as on macOS (/var is a symlink to /private/var) and on
@@ -407,7 +408,7 @@ public class ClassGraphTest {
         final var realClassesDir = classesDir.toRealPath();
         final var realJarFile = jarFile.toRealPath();
 
-        try (var scanResult = new ClassGraph().overrideClasspath(classesDir.toString(), jarFile.toString())
+        try (var scanResult = new ClassGraph().enableClasspathEntries(classesDir.toString(), jarFile.toString())
                 .scan()) {
             assertThat(scanResult.getClasspathFiles()).containsExactly(realClassesDir.toFile(),
                     realJarFile.toFile());
@@ -442,7 +443,7 @@ public class ClassGraphTest {
             jarOut.closeEntry();
         }
 
-        final var classGraph = new ClassGraph().overrideClasspath(manifestJarFile.toString());
+        final var classGraph = new ClassGraph().enableClasspathEntries(manifestJarFile.toString());
         // The manifest has not been read yet, so nothing from it has been added to the module path info
         assertThat(classGraph.getModulePathInfo().getAddExports())
                 .doesNotContain("com.xyz.first/com.xyz.pkg1=ALL-UNNAMED");
@@ -459,16 +460,16 @@ public class ClassGraphTest {
     /** The visible modules can be listed without running a scan. */
     @Test
     public void theVisibleModulesCanBeListed() {
-        assertThat(new ClassGraph().enableSystemJarsAndModules().getModuleReferences())
+        assertThat(new ClassGraph().enableSystemJars().enableSystemModules().getModuleReferences())
                 .extracting(moduleReference -> moduleReference.descriptor().name()).contains("java.base");
     }
 
     /** The module layers to scan can be overridden. */
     @Test
     public void moduleLayersCanBeOverridden() {
-        try (var scanResult = new ClassGraph().overrideModuleLayers(ModuleLayer.boot()).ignoreParentModuleLayers()
-                .enableSystemJarsAndModules().acceptModules("java.base").acceptPackages("java.time.chrono")
-                .disableJarScanning().disableDirScanning().scan()) {
+        try (var scanResult = new ClassGraph().enableModuleLayers(ModuleLayer.boot()).ignoreParentModuleLayers()
+                .enableSystemJars().enableSystemModules().acceptModules("java.base")
+                .acceptPackages("java.time.chrono").disableJarScanning().disableDirScanning().scan()) {
             assertThat(scanResult.getAllClasses().getNames()).contains("java.time.chrono.JapaneseEra");
         }
     }
@@ -478,11 +479,11 @@ public class ClassGraphTest {
     public void aScanCanBeRunOnACallerSuppliedExecutorService() throws InterruptedException, ExecutionException {
         final var executorService = Executors.newFixedThreadPool(3);
         try {
-            try (var scanResult = new ClassGraph().overrideClasspath(classesDir.toString())
+            try (var scanResult = new ClassGraph().enableClasspathEntries(classesDir.toString())
                     .acceptPackages(PACKAGE_NAME).scan(executorService, 3)) {
                 assertThat(scanResult.getAllClasses().getNames()).contains(PACKAGE_NAME + ".InDir");
             }
-            try (var scanResult = new ClassGraph().overrideClasspath(classesDir.toString())
+            try (var scanResult = new ClassGraph().enableClasspathEntries(classesDir.toString())
                     .acceptPackages(PACKAGE_NAME).scanAsync(executorService, 3).get()) {
                 assertThat(scanResult.getAllClasses().getNames()).contains(PACKAGE_NAME + ".InDir");
             }
@@ -499,7 +500,7 @@ public class ClassGraphTest {
         final var done = new CountDownLatch(1);
         final var executorService = Executors.newFixedThreadPool(3);
         try {
-            new ClassGraph().overrideClasspath(classesDir.toString()).acceptPackages(PACKAGE_NAME)
+            new ClassGraph().enableClasspathEntries(classesDir.toString()).acceptPackages(PACKAGE_NAME)
                     .scanAsync(executorService, 3, scanResult -> {
                         try (scanResult) {
                             classNames.set(scanResult.getAllClasses().getNames());
@@ -524,7 +525,7 @@ public class ClassGraphTest {
         final var done = new CountDownLatch(1);
         final var executorService = Executors.newFixedThreadPool(3);
         try {
-            new ClassGraph().overrideClasspath(classesDir.toString()).filterClasspathElements(path -> {
+            new ClassGraph().enableClasspathEntries(classesDir.toString()).filterClasspathElements(path -> {
                 throw new IllegalStateException("classpath element filter failed");
             }).scanAsync(executorService, 3, scanResult -> {
                 scanResult.close();
@@ -557,7 +558,7 @@ public class ClassGraphTest {
         final var done = new CountDownLatch(1);
         final var executorService = Executors.newFixedThreadPool(3);
         try {
-            new ClassGraph().overrideClasspath(classesDir.toString()).acceptPackages(PACKAGE_NAME)
+            new ClassGraph().enableClasspathEntries(classesDir.toString()).acceptPackages(PACKAGE_NAME)
                     .scanAsync(executorService, 3, scanResult -> {
                         scanResultRef.set(scanResult);
                         throw new AssertionError("scan result processor failed");
@@ -582,7 +583,7 @@ public class ClassGraphTest {
         assertThat(jarURL).isNotNull();
         final var nestedJarPath = "jar:file://" + jarURL.getPath()
                 + "!/level2.jar!/level3.jar!/classpath1/classpath2";
-        try (var scanResult = new ClassGraph().overrideClasspath(nestedJarPath).setMaxBufferedJarRAMSize(0)
+        try (var scanResult = new ClassGraph().enableClasspathEntries(nestedJarPath).setMaxBufferedJarRAMSize(0)
                 .enableClassInfo().scan()) {
             assertThat(scanResult.getAllClasses().getNames()).containsExactly("com.test.Test");
         }

@@ -38,7 +38,7 @@ public class Issue166Test {
     @Test
     public void issue166Test() {
         final var jarURL = Issue166Test.class.getClassLoader().getResource("issue166-jar-without-extension");
-        try (var scanResult = new ClassGraph().overrideClasspath(jarURL).scan()) {
+        try (var scanResult = new ClassGraph().enableClasspathEntries(jarURL).scan()) {
             assertThat(scanResult.getAllResources().getPaths()).containsOnly("Issue166.txt");
         }
     }
@@ -49,7 +49,7 @@ public class Issue166Test {
     @Test
     public void testNonJarFileOnClasspath() {
         final var nonJarURL = Issue166Test.class.getClassLoader().getResource("file-content-test.txt");
-        try (var scanResult = new ClassGraph().overrideClasspath(nonJarURL).scan()) {
+        try (var scanResult = new ClassGraph().enableClasspathEntries(nonJarURL).scan()) {
             assertThat(scanResult.getAllResources().getPaths()).isEmpty();
         }
     }
@@ -61,7 +61,7 @@ public class Issue166Test {
     public void testNonExistentJarFileOnClasspath() {
         final var nonJarURL = Issue166Test.class.getClassLoader().getResource("file-content-test.txt");
         final var nonExistentURL = nonJarURL.toString() + "-file-that-does-not-exist";
-        try (var scanResult = new ClassGraph().overrideClasspath(nonExistentURL).scan()) {
+        try (var scanResult = new ClassGraph().enableClasspathEntries(nonExistentURL).scan()) {
             assertThat(scanResult.getAllResources().getPaths()).isEmpty();
         }
     }

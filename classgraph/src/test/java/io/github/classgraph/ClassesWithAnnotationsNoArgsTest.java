@@ -16,8 +16,8 @@ public class ClassesWithAnnotationsNoArgsTest {
      */
     @Test
     public void noAnnotationNamesReturnsEmptyList() {
-        try (var scanResult = new ClassGraph().acceptPackages("io.github.classgraph.test.accepted")
-                .enableAnnotationInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath()
+                .acceptPackages("io.github.classgraph.test.accepted").enableAnnotationInfo().scan()) {
             assertThat(scanResult.getClassesWithAllAnnotations(new String[0])).isEmpty();
             assertThat(scanResult.getClassesWithAnyAnnotation(new String[0])).isEmpty();
         }

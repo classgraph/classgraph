@@ -135,9 +135,9 @@ public class GraphVizDotFileTest {
      * @return the {@link ClassGraph} to scan with.
      */
     private static ClassGraph scanFixture() {
-        return new ClassGraph().acceptClasses(Base.class.getName(), Marker.class.getName(), Derived.class.getName(),
-                Escaped.class.getName(), Location.class.getName(), Indexed.class.getName(), Cached.class.getName(),
-                Deprecated2.class.getName(), NotBlank.class.getName());
+        return new ClassGraph().enableClasspath().acceptClasses(Base.class.getName(), Marker.class.getName(),
+                Derived.class.getName(), Escaped.class.getName(), Location.class.getName(), Indexed.class.getName(),
+                Cached.class.getName(), Deprecated2.class.getName(), NotBlank.class.getName());
     }
 
     /** Scan the fixture classes. */
@@ -377,7 +377,8 @@ public class GraphVizDotFileTest {
     public void theScanMustHaveCollectedWhatTheGraphShows() {
         final var classes = scanResult.getAllClasses();
         // Accepting classes or packages would enable class info, so a resource path is accepted instead
-        try (var withoutClassInfo = new ClassGraph().acceptPaths("io/github/classgraph/viz").scan()) {
+        try (var withoutClassInfo = new ClassGraph().enableClasspath().acceptPaths("io/github/classgraph/viz")
+                .scan()) {
             assertThatThrownBy(() -> GraphVizDotFile.generate(withoutClassInfo, classes))
                     .isInstanceOf(IllegalStateException.class).hasMessageContaining("enableClassInfo");
         }

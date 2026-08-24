@@ -52,7 +52,7 @@ public class ClasspathEntryTest {
      * @return the classpath.
      */
     private static Classpath findClasspath(final Object classpathElement) {
-        return new ClasspathFinder().overrideClasspath(classpathElement).find();
+        return new ClasspathFinder().enableClasspathEntries(classpathElement).find();
     }
 
     /**
@@ -191,7 +191,7 @@ public class ClasspathEntryTest {
     public void aClasspathIteratesItsClasspathElements(@TempDir final Path tempDir) throws IOException {
         final var first = writeJar(tempDir.resolve("first.jar"));
         final var second = writeJar(tempDir.resolve("second.jar"));
-        try (var classpath = new ClasspathFinder().overrideClasspath(first, second).find()) {
+        try (var classpath = new ClasspathFinder().enableClasspathEntries(first, second).find()) {
             assertThat(classpath).containsExactlyElementsOf(classpath.getEntries())
                     .extracting(ClasspathEntry::getLocation).containsExactly(location(first), location(second));
         }

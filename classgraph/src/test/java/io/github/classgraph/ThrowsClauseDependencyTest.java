@@ -38,7 +38,7 @@ public class ThrowsClauseDependencyTest {
      */
     @Test
     public void throwsClauseIsInterClassDependency() {
-        try (var scanResult = new ClassGraph()
+        try (var scanResult = new ClassGraph().enableClasspath()
                 .acceptClasses(ClassWithThrowingMethod.class.getName(), ThrownException.class.getName())
                 .enableMethodInfo().enableInterClassDependencies().scan()) {
             final var classInfo = scanResult.getClassInfo(ClassWithThrowingMethod.class.getName());

@@ -46,7 +46,7 @@ public class Issue400 {
     private static void loadsJarWithManyNestedEntriesAndDoesNotUseMuchMemory(final URL... jars) {
         final var ramAtStart = usedRam();
         long ramAfterScan;
-        try (var scanResult = new ClassGraph().overrideClassLoaders(new URLClassLoader(jars))
+        try (var scanResult = new ClassGraph().enableClassLoaders(new URLClassLoader(jars))
                 .ignoreParentClassLoaders().enableAllInfo().scan()) {
             ramAfterScan = usedRam();
             // There are no classes in any of the JARs.

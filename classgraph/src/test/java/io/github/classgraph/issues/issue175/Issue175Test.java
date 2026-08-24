@@ -52,12 +52,12 @@ public class Issue175Test {
         final var overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
 
         try (var result = new ClassGraph().acceptPackages("net.corda.core.contracts") //
-                .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().ignoreMethodVisibility()
+                .enableClassLoaders(overrideClassLoader).ignoreParentClassLoaders().ignoreMethodVisibility()
                 .ignoreFieldVisibility().enableMethodInfo().enableFieldInfo().scan()) {
             final List<String> methods = new ArrayList<>();
             for (final String className : result.getAllClasses().getNames()) {
                 final var classInfo = result.getClassInfo(className);
-                for (final MethodInfo method : classInfo.getMethodAndConstructorInfo()) {
+                for (final MethodInfo method : classInfo.getDeclaredMethodAndConstructorInfo()) {
                     methods.add(method.toString());
                 }
             }
@@ -79,11 +79,11 @@ public class Issue175Test {
         final var overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
 
         try (var result = new ClassGraph().acceptPackages("net.corda.core") //
-                .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableAllInfo().scan()) {
+                .enableClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableAllInfo().scan()) {
             final List<String> methods = new ArrayList<>();
             for (final String className : result.getAllClasses().getNames()) {
                 final var classInfo = result.getClassInfo(className);
-                for (final MethodInfo method : classInfo.getMethodAndConstructorInfo()) {
+                for (final MethodInfo method : classInfo.getDeclaredMethodAndConstructorInfo()) {
                     methods.add(method.toString());
                 }
             }
@@ -104,11 +104,11 @@ public class Issue175Test {
         final var overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
 
         try (var result = new ClassGraph().acceptPackages("net.corda.core") //
-                .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableAllInfo().scan()) {
+                .enableClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableAllInfo().scan()) {
             final List<String> methods = new ArrayList<>();
             for (final String className : result.getAllClasses().getNames()) {
                 final var classInfo = result.getClassInfo(className);
-                for (final MethodInfo method : classInfo.getMethodAndConstructorInfo()) {
+                for (final MethodInfo method : classInfo.getDeclaredMethodAndConstructorInfo()) {
                     methods.add(method.toString());
                 }
             }
@@ -131,11 +131,11 @@ public class Issue175Test {
         final var overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
 
         try (var result = new ClassGraph().acceptPackages("net.corda.core.contracts") //
-                .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableAllInfo().scan()) {
+                .enableClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableAllInfo().scan()) {
             final List<String> methods = new ArrayList<>();
             for (final String className : result.getAllClasses().getNames()) {
                 final var classInfo = result.getClassInfo(className);
-                for (final MethodInfo method : classInfo.getMethodAndConstructorInfo()) {
+                for (final MethodInfo method : classInfo.getDeclaredMethodAndConstructorInfo()) {
                     methods.add(method.toString());
                 }
             }
@@ -165,11 +165,11 @@ public class Issue175Test {
         final var overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
 
         try (var result = new ClassGraph().acceptPackages("net.corda.testing.node") //
-                .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableAllInfo().scan()) {
+                .enableClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableAllInfo().scan()) {
             final List<String> methods = new ArrayList<>();
             for (final String className : result.getAllClasses().getNames()) {
                 final var classInfo = result.getClassInfo(className);
-                for (final MethodInfo method : classInfo.getMethodAndConstructorInfo()) {
+                for (final MethodInfo method : classInfo.getDeclaredMethodAndConstructorInfo()) {
                     methods.add(method.toString());
                 }
             }
@@ -227,11 +227,11 @@ public class Issue175Test {
         final var overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
 
         try (var result = new ClassGraph().acceptPackages("net.corda.core.node.services.vault") //
-                .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableAllInfo().scan()) {
+                .enableClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableAllInfo().scan()) {
             final List<String> methods = new ArrayList<>();
             for (final String className : result.getAllClasses().getNames()) {
                 final var classInfo = result.getClassInfo(className);
-                for (final MethodInfo method : classInfo.getMethodAndConstructorInfo()) {
+                for (final MethodInfo method : classInfo.getDeclaredMethodAndConstructorInfo()) {
                     methods.add(method.toString());
                 }
             }
@@ -254,11 +254,11 @@ public class Issue175Test {
         final var overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
 
         try (var result = new ClassGraph().acceptPackages("net.corda.client.jackson") //
-                .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableAllInfo().scan()) {
+                .enableClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableAllInfo().scan()) {
             final List<String> methods = new ArrayList<>();
             for (final String className : result.getAllClasses().getNames()) {
                 final var classInfo = result.getClassInfo(className);
-                for (final MethodInfo method : classInfo.getMethodAndConstructorInfo()) {
+                for (final MethodInfo method : classInfo.getDeclaredMethodAndConstructorInfo()) {
                     methods.add(method.toString());
                 }
             }
@@ -290,11 +290,11 @@ public class Issue175Test {
         final var overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
 
         try (var result = new ClassGraph().acceptPackages("net.corda.core.node.services.vault") //
-                .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableAllInfo().scan()) {
+                .enableClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableAllInfo().scan()) {
             final List<String> methods = new ArrayList<>();
             for (final String className : result.getAllClasses().getNames()) {
                 final var classInfo = result.getClassInfo(className);
-                for (final MethodInfo method : classInfo.getMethodAndConstructorInfo()) {
+                for (final MethodInfo method : classInfo.getDeclaredMethodAndConstructorInfo()) {
                     methods.add(method.toString());
                 }
             }
@@ -314,11 +314,11 @@ public class Issue175Test {
         final var overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
 
         try (var result = new ClassGraph().acceptPackages("net.corda.client.jackson") //
-                .overrideClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableAllInfo().scan()) {
+                .enableClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableAllInfo().scan()) {
             final List<String> methods = new ArrayList<>();
             for (final String className : result.getAllClasses().getNames()) {
                 final var classInfo = result.getClassInfo(className);
-                for (final MethodInfo method : classInfo.getMethodAndConstructorInfo()) {
+                for (final MethodInfo method : classInfo.getDeclaredMethodAndConstructorInfo()) {
                     methods.add(method.toString());
                 }
             }

@@ -36,7 +36,7 @@ public class AnnotationDefaultValuesTest {
      */
     @Test
     public void defaultParameterValues() {
-        try (var scanResult = new ClassGraph()
+        try (var scanResult = new ClassGraph().enableClasspath()
                 .acceptPackages(AnnotationDefaultValuesTest.class.getPackage().getName()).enableAllInfo().scan()) {
             final var classInfo = scanResult.getClassInfo(MyClass.class.getName());
             assertThat(classInfo).isNotNull();

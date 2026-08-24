@@ -33,7 +33,8 @@ public class Issue940Test {
      * @return the names of all classes found
      */
     private static List<String> scan(final String... acceptedPackages) {
-        try (var scanResult = new ClassGraph().enableClassInfo().acceptPackages(acceptedPackages).scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath().enableClassInfo().acceptPackages(acceptedPackages)
+                .scan()) {
             return scanResult.getAllClasses().getNames();
         }
     }
@@ -82,7 +83,7 @@ public class Issue940Test {
      */
     @Test
     public void doubleGlobRejectSpansSegments() {
-        try (var scanResult = new ClassGraph().enableClassInfo().acceptPackages(PKG)
+        try (var scanResult = new ClassGraph().enableClasspath().enableClassInfo().acceptPackages(PKG)
                 .rejectPackages(PKG + ".**.schema").scan()) {
             assertThat(scanResult.getAllClasses().getNames()).contains(NON_SCHEMA_THING)
                     .doesNotContain(API_BASE_SCHEMA_THING, OTHER_SCHEMA_THING, TOP_LEVEL_SCHEMA_THING);
@@ -121,7 +122,7 @@ public class Issue940Test {
     @Test
     public void midPathDoubleGlobSpansSegments() {
         final var pkgPath = PKG.replace('.', '/');
-        try (var scanResult = new ClassGraph().acceptPaths(pkgPath + "/**/schema").scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath().acceptPaths(pkgPath + "/**/schema").scan()) {
             assertThat(scanResult.getAllResources().getPaths())
                     .contains(pkgPath + "/api/base/schema/ApiBaseSchemaThing.class",
                             pkgPath + "/other/schema/OtherSchemaThing.class",

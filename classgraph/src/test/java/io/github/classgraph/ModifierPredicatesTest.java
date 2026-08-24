@@ -123,8 +123,8 @@ public class ModifierPredicatesTest {
     /** Scan this test's own package, with nothing ignored because of its visibility. */
     @BeforeAll
     static void scan() {
-        scanResult = new ClassGraph().acceptClasses(ModifierPredicatesTest.class.getName() + "$*").enableAllInfo()
-                .scan();
+        scanResult = new ClassGraph().enableClasspath().acceptClasses(ModifierPredicatesTest.class.getName() + "$*")
+                .enableAllInfo().scan();
     }
 
     /** Close the scan result. */
@@ -266,7 +266,7 @@ public class ModifierPredicatesTest {
         assertThat(compiler.run(null, null, null, "--release", "11", "-nowarn", "-d", tempDir.toString(),
                 sourceFile.toString())).as("javac exit code").isZero();
 
-        try (var strictScanResult = new ClassGraph().overrideClasspath(tempDir.toString()).enableMethodInfo()
+        try (var strictScanResult = new ClassGraph().enableClasspathEntries(tempDir.toString()).enableMethodInfo()
                 .scan()) {
             final var half = strictScanResult.getClassInfo("Strict").getMethodInfo().getSingleMethod("half");
             assertThat(half.isStrict()).isTrue();

@@ -121,7 +121,7 @@ public class Issue929Test {
                 new String[] { "classes/AlphaImpl.class", "classes.AlphaImpl" },
                 new String[] { "test/Alpha.class", "test.Alpha" });
         try (var scanResult = new ClassGraph() //
-                .overrideClasspath(dir) //
+                .enableClasspathEntries(dir) //
                 .enableClassInfo() //
                 .scan()) {
             assertThat(scanResult.getAllClasses().getNames()).containsExactlyInAnyOrder("classes.AlphaImpl",
@@ -143,7 +143,7 @@ public class Issue929Test {
                 new String[] { "classes/AlphaImpl.class", "classes.AlphaImpl" },
                 new String[] { "test/Alpha.class", "test.Alpha" });
         try (var scanResult = new ClassGraph() //
-                .overrideClasspath(jarFile) //
+                .enableClasspathEntries(jarFile) //
                 .enableClassInfo() //
                 .scan()) {
             assertThat(scanResult.getAllClasses().getNames()).containsExactlyInAnyOrder("classes.AlphaImpl",
@@ -169,11 +169,11 @@ public class Issue929Test {
                 new String[] { "classes/com/xyz/Beta.class", "com.xyz.Beta" });
         // The Ant project directory itself is not a package root, so the classfile is beneath a package named
         // "classes", and the class it declares does not match the path it is at
-        try (var scanResult = new ClassGraph().overrideClasspath(dir).enableClassInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspathEntries(dir).enableClassInfo().scan()) {
             assertThat(scanResult.getAllClasses().getNames()).isEmpty();
         }
         // Naming the package root gives the class its real name
-        try (var scanResult = new ClassGraph().overrideClasspath(new File(dir, "classes")).enableClassInfo()
+        try (var scanResult = new ClassGraph().enableClasspathEntries(new File(dir, "classes")).enableClassInfo()
                 .scan()) {
             assertThat(scanResult.getAllClasses().getNames()).containsExactly("com.xyz.Beta");
         }
@@ -192,10 +192,11 @@ public class Issue929Test {
             throws IOException {
         final var jarFile = buildJar(new File(tempDir, "issue929-antproject.jar"),
                 new String[] { "classes/com/xyz/Beta.class", "com.xyz.Beta" });
-        try (var scanResult = new ClassGraph().overrideClasspath(jarFile).enableClassInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspathEntries(jarFile).enableClassInfo().scan()) {
             assertThat(scanResult.getAllClasses().getNames()).isEmpty();
         }
-        try (var scanResult = new ClassGraph().overrideClasspath(jarFile + "!/classes").enableClassInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspathEntries(jarFile + "!/classes").enableClassInfo()
+                .scan()) {
             assertThat(scanResult.getAllClasses().getNames()).containsExactly("com.xyz.Beta");
         }
     }

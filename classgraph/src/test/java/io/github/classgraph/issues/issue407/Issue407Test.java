@@ -60,7 +60,7 @@ public class Issue407Test {
         try (var classLoader = new URLClassLoader(new URL[] { resolvedFile.toURI().toURL() }, null);
                 var scanResult = new ClassGraph() //
                         .acceptPackages("com.google.thirdparty.publicsuffix") //
-                        .overrideClassLoaders(classLoader) //
+                        .enableClassLoaders(classLoader) //
                         .scan()) {
             final var classNames = scanResult //
                     .getAllClasses() //

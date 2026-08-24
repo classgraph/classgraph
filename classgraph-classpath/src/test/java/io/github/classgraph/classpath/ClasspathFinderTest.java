@@ -36,7 +36,7 @@ public class ClasspathFinderTest {
     /** The classpath of the JVM running the tests contains the directory the test classes were compiled to. */
     @Test
     public void theEnvironmentClasspathIsFound() {
-        try (var classpath = new ClasspathFinder().find()) {
+        try (var classpath = new ClasspathFinder().enableClasspath().find()) {
             assertThat(classpath.getLocations()).anyMatch(location -> location.endsWith("/target/test-classes"));
         }
     }
@@ -48,7 +48,7 @@ public class ClasspathFinderTest {
      */
     @Test
     public void entriesRecordTheirClassLoaderAndPackageRoots() {
-        try (var classpath = new ClasspathFinder().find()) {
+        try (var classpath = new ClasspathFinder().enableClasspath().find()) {
             final var entries = classpath.getEntries();
             assertThat(entries).isNotEmpty();
             for (final ClasspathEntry entry : entries) {
@@ -64,7 +64,8 @@ public class ClasspathFinderTest {
     public void anOverriddenClasspathIsUsedInsteadOfTheEnvironment(@TempDir final Path tempDir) throws IOException {
         final var first = writeJarWithManifest(tempDir.resolve("first.jar"));
         final var second = writeJarWithManifest(tempDir.resolve("second.jar"));
-        try (var classpath = new ClasspathFinder().overrideClasspath(first + File.pathSeparator + second).find()) {
+        try (var classpath = new ClasspathFinder().enableClasspathEntries(first + File.pathSeparator + second)
+                .find()) {
             assertThat(classpath.getLocations()).containsExactly(location(first), location(second));
             // Modules are not scanned when the classpath is overridden
             assertThat(classpath.getModules()).isEmpty();
@@ -76,14 +77,14 @@ public class ClasspathFinderTest {
     public void theClasspathCanBeOverriddenWithIndividualElements(@TempDir final Path tempDir) throws IOException {
         final var jar = writeJarWithManifest(tempDir.resolve("only.jar"));
         final var expected = List.of(location(jar));
-        try (var classpath = new ClasspathFinder().overrideClasspath((Object) jar).find()) {
+        try (var classpath = new ClasspathFinder().enableClasspathEntries((Object) jar).find()) {
             assertThat(classpath.getLocations()).isEqualTo(expected);
         }
-        try (var classpath = new ClasspathFinder().overrideClasspath(List.of(jar)).find()) {
+        try (var classpath = new ClasspathFinder().enableClasspathEntries(List.of(jar)).find()) {
             assertThat(classpath.getLocations()).isEqualTo(expected);
         }
         // A single Path is one classpath entry, not a sequence of its name elements
-        try (var classpath = new ClasspathFinder().overrideClasspath(jar.toPath()).find()) {
+        try (var classpath = new ClasspathFinder().enableClasspathEntries(jar.toPath()).find()) {
             assertThat(classpath.getLocations()).isEqualTo(expected);
         }
     }
@@ -91,28 +92,28 @@ public class ClasspathFinderTest {
     /** An empty classpath override is a caller error, rather than a silent scan of nothing. */
     @Test
     public void anEmptyClasspathOverrideIsRejected() {
-        assertThatThrownBy(() -> new ClasspathFinder().overrideClasspath(""))
+        assertThatThrownBy(() -> new ClasspathFinder().enableClasspathEntries(""))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new ClasspathFinder().overrideClasspath(new Object[0]))
+        assertThatThrownBy(() -> new ClasspathFinder().enableClasspathEntries(new Object[0]))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new ClasspathFinder().overrideClasspath(List.of()))
+        assertThatThrownBy(() -> new ClasspathFinder().enableClasspathEntries(List.of()))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new ClasspathFinder().overrideClassLoaders())
+        assertThatThrownBy(() -> new ClasspathFinder().enableClassLoaders())
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     /** A classloader is passed to {@code overrideClassLoaders}, not to {@code overrideClasspath}. */
     @Test
     public void aClassLoaderIsNotAClasspathElement() {
-        assertThatThrownBy(
-                () -> new ClasspathFinder().overrideClasspath((Object) ClasspathFinderTest.class.getClassLoader()))
+        assertThatThrownBy(() -> new ClasspathFinder()
+                .enableClasspathEntries((Object) ClasspathFinderTest.class.getClassLoader()))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     /** The modules the JVM can see are found, and split into the JDK's own modules and everything else. */
     @Test
     public void theModulesAreFoundAndSplitIntoSystemAndNonSystem() {
-        final var classpath = new ClasspathFinder().find();
+        final var classpath = new ClasspathFinder().enableModules().find();
         assertThat(classpath.getSystemModules()).anyMatch(module -> "java.base".equals(module.descriptor().name()));
         assertThat(classpath.getNonSystemModules())
                 .noneMatch(module -> module.descriptor().name().startsWith("java."));
@@ -122,16 +123,16 @@ public class ClasspathFinderTest {
                 .hasSize(classpath.getSystemModules().size() + classpath.getNonSystemModules().size());
     }
 
-    /** Module finding can be switched off altogether. */
+    /** Modules are not looked for unless a module source is enabled. */
     @Test
-    public void moduleFindingCanBeDisabled() {
-        assertThat(new ClasspathFinder().disableModuleScanning().find().getModules()).isEmpty();
+    public void modulesAreNotFoundUnlessEnabled() {
+        assertThat(new ClasspathFinder().enableClasspath().find().getModules()).isEmpty();
     }
 
     /** The module path switches the JVM was launched with are reachable from the result. */
     @Test
     public void theModulePathInfoIsReachable() {
-        assertThat(new ClasspathFinder().find().getModulePathInfo()).isNotNull();
+        assertThat(new ClasspathFinder().enableClasspath().find().getModulePathInfo()).isNotNull();
     }
 
     /**
@@ -143,7 +144,7 @@ public class ClasspathFinderTest {
     public void theVfsTheClasspathWasReadThroughIsReachable(@TempDir final Path tempDir) throws IOException {
         final var jar = writeJarWithEntry(tempDir.resolve("lib.jar"), "com/xyz/Widget.class");
         final Vfs vfs;
-        try (var classpath = new ClasspathFinder().overrideClasspath((Object) jar).find()) {
+        try (var classpath = new ClasspathFinder().enableClasspathEntries((Object) jar).find()) {
             vfs = classpath.getVfs();
             final var location = classpath.getLocations().get(0);
             final var root = vfs.open(location);
@@ -160,7 +161,7 @@ public class ClasspathFinderTest {
     @Test
     public void theClassPathPrintsOneEntryPerLine(@TempDir final Path tempDir) throws IOException {
         final var jar = writeJarWithManifest(tempDir.resolve("only.jar"));
-        try (var classpath = new ClasspathFinder().overrideClasspath((Object) jar).find()) {
+        try (var classpath = new ClasspathFinder().enableClasspathEntries((Object) jar).find()) {
             assertThat(classpath).hasToString(location(jar) + "\n");
         }
     }
@@ -224,7 +225,7 @@ public class ClasspathFinderTest {
         final var middle = writeJarWithManifest(tempDir.resolve("middle.jar"), "Class-Path", "last.jar");
         final var first = writeJarWithManifest(tempDir.resolve("first.jar"), "Class-Path", "middle.jar");
         final var other = writeJarWithManifest(tempDir.resolve("other.jar"));
-        try (var classpath = new ClasspathFinder().overrideClasspath(first, other).find()) {
+        try (var classpath = new ClasspathFinder().enableClasspathEntries(first, other).find()) {
             assertThat(classpath.getLocations()).containsExactly(location(first), location(middle), location(last),
                     location(other));
         }
@@ -250,7 +251,8 @@ public class ClasspathFinderTest {
             return;
         }
         final var namesAnotherViaLink = linkedDir.resolve("names-another.jar").toFile();
-        try (var classpath = new ClasspathFinder().overrideClasspath(namesAnotherViaLink, namesAnother).find()) {
+        try (var classpath = new ClasspathFinder().enableClasspathEntries(namesAnotherViaLink, namesAnother)
+                .find()) {
             // The jarfile reached through the symlink and the same jarfile reached directly are one element, and the
             // jarfile named by its manifest is reported the same way
             assertThat(classpath.getLocations()).containsExactly(location(namesAnother), location(named));
@@ -270,7 +272,7 @@ public class ClasspathFinderTest {
         if (!lowercased.exists()) {
             abort("The filesystem does not ignore case");
         }
-        try (var classpath = new ClasspathFinder().overrideClasspath(lowercased, jar).find()) {
+        try (var classpath = new ClasspathFinder().enableClasspathEntries(lowercased, jar).find()) {
             assertThat(classpath.getLocations()).containsExactly(location(jar));
             // The name the file is stored with is reported, not the name it was asked for
             assertThat(classpath.getLocations().get(0)).endsWith("/MixedCase.jar");
@@ -288,7 +290,7 @@ public class ClasspathFinderTest {
         final var namesShared = writeJarWithManifest(tempDir.resolve("names-shared.jar"), "Class-Path",
                 "shared.jar");
         final var last = writeJarWithManifest(tempDir.resolve("last.jar"));
-        try (var classpath = new ClasspathFinder().overrideClasspath(namesShared, last, shared).find()) {
+        try (var classpath = new ClasspathFinder().enableClasspathEntries(namesShared, last, shared).find()) {
             assertThat(classpath.getLocations()).containsExactly(location(namesShared), location(shared),
                     location(last));
         }
@@ -298,7 +300,7 @@ public class ClasspathFinderTest {
     @Test
     public void aJarThatNamesItselfDoesNotLoop(@TempDir final Path tempDir) throws IOException {
         final var self = writeJarWithManifest(tempDir.resolve("self.jar"), "Class-Path", "self.jar");
-        try (var classpath = new ClasspathFinder().overrideClasspath((Object) self).find()) {
+        try (var classpath = new ClasspathFinder().enableClasspathEntries((Object) self).find()) {
             assertThat(classpath.getLocations()).containsExactly(location(self));
         }
     }
@@ -311,7 +313,7 @@ public class ClasspathFinderTest {
     public void bundleClassPathEntriesAreAddedToTheClasspath(@TempDir final Path tempDir) throws IOException {
         final var bundle = writeJarWithManifest(tempDir.resolve("bundle.jar"), "Bundle-ClassPath",
                 ".,embedded.jar");
-        try (var classpath = new ClasspathFinder().overrideClasspath((Object) bundle).find()) {
+        try (var classpath = new ClasspathFinder().enableClasspathEntries((Object) bundle).find()) {
             assertThat(classpath.getLocations()).containsExactly(location(bundle),
                     location(bundle) + "!/embedded.jar");
         }
@@ -328,7 +330,7 @@ public class ClasspathFinderTest {
         final var libJar = writeJarWithEntry(dir.resolve("BOOT-INF").resolve("lib").resolve("in-lib-dir.jar"),
                 "resource.txt");
         final var classLoader = new URLClassLoader(new URL[] { dir.toUri().toURL() }, /* parent = */ null);
-        try (var classpath = new ClasspathFinder().overrideClassLoaders(classLoader)
+        try (var classpath = new ClasspathFinder().enableClassLoaders(classLoader)
                 .registerClassLoaderHandler(libDirHandler("BOOT-INF/lib/")).find()) {
             assertThat(classpath.getLocations()).containsExactly(location(dir.toFile()), location(libJar));
         }
@@ -343,7 +345,7 @@ public class ClasspathFinderTest {
     public void libDirJarsAreNotAddedToAnOverriddenClasspath(@TempDir final Path tempDir) throws IOException {
         final var dir = Files.createDirectory(tempDir.resolve("exploded"));
         writeJarWithEntry(dir.resolve("BOOT-INF").resolve("lib").resolve("in-lib-dir.jar"), "resource.txt");
-        try (var classpath = new ClasspathFinder().overrideClasspath((Object) dir.toFile()).find()) {
+        try (var classpath = new ClasspathFinder().enableClasspathEntries((Object) dir.toFile()).find()) {
             assertThat(classpath.getLocations()).containsExactly(location(dir.toFile()));
         }
     }
@@ -391,7 +393,7 @@ public class ClasspathFinderTest {
     @Test
     public void aClasspathElementThatCannotBeOpenedIsStillReported(@TempDir final Path tempDir) throws IOException {
         final var notAJar = Files.writeString(tempDir.resolve("not-a-jar.jar"), "this is not a zipfile").toFile();
-        try (var classpath = new ClasspathFinder().overrideClasspath((Object) notAJar).find()) {
+        try (var classpath = new ClasspathFinder().enableClasspathEntries((Object) notAJar).find()) {
             assertThat(classpath.getLocations()).containsExactly(location(notAJar));
         }
     }
@@ -404,7 +406,7 @@ public class ClasspathFinderTest {
     public void aClasspathElementThatIsNotThereIsSkipped(@TempDir final Path tempDir) throws IOException {
         final var present = writeJarWithManifest(tempDir.resolve("present.jar"));
         final var missing = tempDir.resolve("missing.jar").toFile();
-        try (var classpath = new ClasspathFinder().overrideClasspath(present, missing).find()) {
+        try (var classpath = new ClasspathFinder().enableClasspathEntries(present, missing).find()) {
             assertThat(classpath.getLocations()).containsExactly(location(present));
         }
     }
@@ -428,7 +430,7 @@ public class ClasspathFinderTest {
             abort("A file with no permissions can still be read");
             return;
         }
-        try (var classpath = new ClasspathFinder().overrideClasspath(present, unreadable).find()) {
+        try (var classpath = new ClasspathFinder().enableClasspathEntries(present, unreadable).find()) {
             assertThat(classpath.getLocations()).containsExactly(location(present));
         }
     }
@@ -479,19 +481,19 @@ public class ClasspathFinderTest {
             final var declaredURL = jarURL.replace("served.jar", "declared.jar");
 
             // The scheme has not been enabled, so the jarfile is not fetched and its manifest is not read
-            try (var classpath = new ClasspathFinder().overrideClasspath((Object) jarURL).find()) {
+            try (var classpath = new ClasspathFinder().enableClasspathEntries((Object) jarURL).find()) {
                 assertThat(classpath.getLocations()).containsExactly(jarURL);
             }
 
             // With the scheme enabled, the jarfile is fetched, and the element its manifest declares is found too
-            try (var classpath = new ClasspathFinder().enableURLScheme("http").overrideClasspath((Object) jarURL)
-                    .find()) {
+            try (var classpath = new ClasspathFinder().enableURLScheme("http")
+                    .enableClasspathEntries((Object) jarURL).find()) {
                 assertThat(classpath.getLocations()).containsExactly(jarURL, declaredURL);
             }
 
             // Denying the scheme again stops the jarfile from being fetched
             try (var classpath = new ClasspathFinder().enableURLScheme("http").disableURLScheme("http")
-                    .overrideClasspath((Object) jarURL).find()) {
+                    .enableClasspathEntries((Object) jarURL).find()) {
                 assertThat(classpath.getLocations()).containsExactly(jarURL);
             }
         } finally {
@@ -503,7 +505,7 @@ public class ClasspathFinderTest {
     @Test
     public void theClassPathCanBeClosedTwice(@TempDir final Path tempDir) throws IOException {
         final var jar = writeJarWithManifest(tempDir.resolve("closed-twice.jar"));
-        final var classpath = new ClasspathFinder().overrideClasspath((Object) jar).find();
+        final var classpath = new ClasspathFinder().enableClasspathEntries((Object) jar).find();
         classpath.close();
         classpath.close();
         // The classpath elements can still be read after the jarfiles have been closed

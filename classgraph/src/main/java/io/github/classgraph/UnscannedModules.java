@@ -49,9 +49,9 @@ import org.jspecify.annotations.Nullable;
  * Scanning is extended upwards from an accepted class to its superclasses, interfaces and annotations, so that the
  * part of the class graph above an accepted class is complete. The classfiles of those classes are looked for in
  * the classpath elements that are being scanned, but system modules are not scanned unless
- * {@link ClassGraph#enableSystemJarsAndModules()} is called, so a class hierarchy that passes through a class in a
- * system module (e.g. through {@code java.util.TimerTask}, which implements {@link Runnable}) would otherwise stop
- * at that class.
+ * {@link ClassGraph#enableSystemModules()} is called, so a class hierarchy that passes through a class in a system
+ * module (e.g. through {@code java.util.TimerTask}, which implements {@link Runnable}) would otherwise stop at that
+ * class.
  *
  * <p>
  * Only rejecting a module prevents its classfiles from being read this way, matching how accept/reject criteria are
@@ -121,7 +121,7 @@ class UnscannedModules {
      */
     synchronized @Nullable ClassfileScanWorkUnit findClassfile(final String className, final String classfilePath,
             final @Nullable LogNode log) throws InterruptedException {
-        if (!scanSpec.classpathSpec.scanModules || unscannedModules.isEmpty()) {
+        if (unscannedModules.isEmpty()) {
             return null;
         }
         // A class can only be in the module that contains its package (a package is not allowed to be split across

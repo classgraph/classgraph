@@ -39,8 +39,8 @@ public class Issue924Test {
      */
     @Test
     public void getClassesImplementingIncludesSubinterfaces() {
-        try (var scanResult = new ClassGraph().acceptPackages(Issue924Test.class.getPackage().getName())
-                .enableAllInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath()
+                .acceptPackages(Issue924Test.class.getPackage().getName()).enableAllInfo().scan()) {
             final var implementingA = scanResult.getAllClassesImplementing(A.class);
 
             // Both the subinterfaces and the implementing classes are present
@@ -64,8 +64,8 @@ public class Issue924Test {
      */
     @Test
     public void getSubinterfacesReturnsOnlySubinterfaces() {
-        try (var scanResult = new ClassGraph().acceptPackages(Issue924Test.class.getPackage().getName())
-                .enableAllInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath()
+                .acceptPackages(Issue924Test.class.getPackage().getName()).enableAllInfo().scan()) {
             // Transitive: C extends B extends A
             assertThat(scanResult.getAllSubinterfaces(A.class).getNames())
                     .containsExactlyInAnyOrder(B.class.getName(), C.class.getName());

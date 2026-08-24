@@ -12,7 +12,7 @@ class Issue854Test {
     void getFullyQualifiedClassName() {
         final var mainClassLoader = Issue854Test.class.getClassLoader();
         try (var scanResult = new ClassGraph().enableClassInfo().enableAnnotationInfo().ignoreClassVisibility()
-                .ignoreFieldVisibility().ignoreMethodVisibility().overrideClassLoaders(mainClassLoader)
+                .ignoreFieldVisibility().ignoreMethodVisibility().enableClassLoaders(mainClassLoader)
                 .acceptPackages("com.google.common.collect").scan()) {
 
             final var anonymousClass = "com.google.common.collect.TreeRangeMap$SubRangeMap$1";

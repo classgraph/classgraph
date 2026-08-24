@@ -69,16 +69,18 @@ public class Issue350Test {
     /** Test finding subclasses of classes with annotated methods or fields. */
     @Test
     public void test() {
-        try (var scanResult = new ClassGraph().acceptPackages(Issue350Test.class.getPackage().getName())
-                .enableClassInfo().enableFieldInfo().enableMethodInfo().enableAnnotationInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath()
+                .acceptPackages(Issue350Test.class.getPackage().getName()).enableClassInfo().enableFieldInfo()
+                .enableMethodInfo().enableAnnotationInfo().scan()) {
             assertThat(scanResult.getClassesWithFieldAnnotation(SuperclassAnnotation.class).getNames())
                     .containsOnly(Pub.class.getName(), PubSub.class.getName());
             assertThat(scanResult.getClassesWithMethodAnnotation(SuperclassAnnotation.class).getNames())
                     .containsOnly(Pub.class.getName(), PubSub.class.getName());
         }
-        try (var scanResult = new ClassGraph().acceptPackages(Issue350Test.class.getPackage().getName())
-                .enableClassInfo().enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
-                .ignoreFieldVisibility().ignoreMethodVisibility().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath()
+                .acceptPackages(Issue350Test.class.getPackage().getName()).enableClassInfo().enableFieldInfo()
+                .enableMethodInfo().enableAnnotationInfo().ignoreFieldVisibility().ignoreMethodVisibility()
+                .scan()) {
             assertThat(scanResult.getClassesWithFieldAnnotation(SuperclassAnnotation.class).getNames())
                     .containsOnly(Pub.class.getName(), PubSub.class.getName(), Priv.class.getName());
             assertThat(scanResult.getClassesWithMethodAnnotation(SuperclassAnnotation.class).getNames())

@@ -59,7 +59,7 @@ public class Issue148Test {
 
         final var pkg = Issue148Test.class.getPackage().getName();
         final var buf = new StringBuilder();
-        try (var scanResult = new ClassGraph().acceptPackages(pkg).enableAllInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath().acceptPackages(pkg).enableAllInfo().scan()) {
             for (final ClassInfo ci : scanResult.getAllClasses()) {
                 buf.append(ci.getName()).append("|");
                 buf.append(ci.isInnerClass()).append(" ").append(ci.isAnonymousInnerClass()).append(" ")

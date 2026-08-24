@@ -42,8 +42,8 @@ public class ExternalAnnotationArrayValueTest {
                 }
             }
 
-            try (var scanResult = new ClassGraph().overrideClasspath(tempDir.toFile().getPath()).enableAllInfo()
-                    .scan()) {
+            try (var scanResult = new ClassGraph().enableClasspathEntries(tempDir.toFile().getPath())
+                    .enableAllInfo().scan()) {
                 final var classInfo = scanResult.getClassInfo(ExternalAnnotationArrayValueTest.class.getName());
                 assertThat(classInfo).isNotNull();
 

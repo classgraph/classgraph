@@ -58,7 +58,7 @@ public class Issue209Test {
         final var jarURL = Issue209Test.class.getClassLoader().getResource("issue209.jar");
         try (var result = new ClassGraph()
                 .acceptPackages("org.springframework.boot.loader.util", "com.foo", "issue209lib") //
-                .overrideClasspath(List.of(jarURL.toString(), jarURL + "!/BOOT-INF/classes",
+                .enableClasspathEntries(List.of(jarURL.toString(), jarURL + "!/BOOT-INF/classes",
                         jarURL + "!/BOOT-INF/lib/issue209lib.jar"))
                 .scan()) {
             assertThat(result.getAllClasses().getNames()).hasSameElementsAs(classNames);

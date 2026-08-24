@@ -72,7 +72,7 @@ public class Issue128Test {
         // empty scan is not yet evidence of anything -- ask a second time before looking into why
         for (var attempt = 0; attempt < 2; attempt++) {
             try (var scanResult = new ClassGraph()
-                    .overrideClassLoaders(new URLClassLoader(new URL[] { jarURL }, null)).enableRemoteJarScanning()
+                    .enableClassLoaders(new URLClassLoader(new URL[] { jarURL }, null)).enableRemoteJarScanning()
                     .scan()) {
                 final var filesInsideLevel3 = scanResult.getAllResources().getPaths();
                 if (!filesInsideLevel3.isEmpty()) {

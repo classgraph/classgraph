@@ -53,8 +53,8 @@ class MetaAnnotationTest {
      */
     @BeforeAll
     static void setUp() {
-        scanResult = new ClassGraph().acceptPackages("com.xyz.meta").enableClassInfo().enableAnnotationInfo()
-                .scan();
+        scanResult = new ClassGraph().enableClasspath().acceptPackages("com.xyz.meta").enableClassInfo()
+                .enableAnnotationInfo().scan();
     }
 
     /**

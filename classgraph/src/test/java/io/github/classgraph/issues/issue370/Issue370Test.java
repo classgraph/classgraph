@@ -46,7 +46,7 @@ public class Issue370Test {
      */
     @Test
     public void issue370Test() {
-        try (var scanResult = new ClassGraph().enableAllInfo()
+        try (var scanResult = new ClassGraph().enableClasspath().enableAllInfo()
                 .acceptPackages(ClassWithAnnotation.class.getPackage().getName()).scan()) {
             final var clazzInfo = scanResult.getClassInfo(ClassWithAnnotation.class.getName());
             assertThat(clazzInfo).isNotNull();

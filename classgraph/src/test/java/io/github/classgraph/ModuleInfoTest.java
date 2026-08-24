@@ -102,7 +102,7 @@ public class ModuleInfoTest {
      * @return the scan result.
      */
     private static ScanResult scan(final boolean enableAnnotationInfo) {
-        final var classGraph = new ClassGraph().overrideClasspath(moduleDir.toString()).enableClassInfo();
+        final var classGraph = new ClassGraph().enableClasspathEntries(moduleDir.toString()).enableClassInfo();
         return (enableAnnotationInfo ? classGraph.enableAnnotationInfo() : classGraph).scan();
     }
 
@@ -221,7 +221,7 @@ public class ModuleInfoTest {
      */
     @Test
     public void aModuleOnTheModulePathCarriesAModuleReference() {
-        try (var scanResult = new ClassGraph().enableSystemJarsAndModules().enableClassInfo()
+        try (var scanResult = new ClassGraph().enableSystemJars().enableSystemModules().enableClassInfo()
                 .acceptPackagesNonRecursive("java.util.function").scan()) {
             final var moduleInfo = scanResult.getModuleInfo("java.base");
             assertThat(moduleInfo).as("ModuleInfo for java.base").isNotNull();
@@ -237,7 +237,7 @@ public class ModuleInfoTest {
     /** The modules found by a scan are listed in name order. */
     @Test
     public void theModulesOfAScanAreListedInNameOrder() {
-        try (var scanResult = new ClassGraph().enableSystemJarsAndModules().enableClassInfo()
+        try (var scanResult = new ClassGraph().enableSystemJars().enableSystemModules().enableClassInfo()
                 .acceptPackagesNonRecursive("javax.xml.parsers", "java.sql", "java.util.function").scan()) {
             assertThat(scanResult.getModuleInfo().getNames()).contains("java.base", "java.sql", "java.xml")
                     .isSorted();

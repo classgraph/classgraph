@@ -58,7 +58,7 @@ public class Issue468Test {
         if (url == null) {
             throw new FileNotFoundException();
         }
-        scan(new ClassGraph().acceptPackagesNonRecursive("").overrideClasspath(url));
+        scan(new ClassGraph().acceptPackagesNonRecursive("").enableClasspathEntries(url));
     }
 
     /**
@@ -74,8 +74,8 @@ public class Issue468Test {
             throw new FileNotFoundException();
         }
         final var urlStr = url.toString();
-        scan(new ClassGraph().acceptPackagesNonRecursive("").overrideClasspath(urlStr));
+        scan(new ClassGraph().acceptPackagesNonRecursive("").enableClasspathEntries(urlStr));
         assertThat(urlStr).startsWith("file:");
-        scan(new ClassGraph().acceptPackagesNonRecursive("").overrideClasspath(urlStr.substring(5)));
+        scan(new ClassGraph().acceptPackagesNonRecursive("").enableClasspathEntries(urlStr.substring(5)));
     }
 }

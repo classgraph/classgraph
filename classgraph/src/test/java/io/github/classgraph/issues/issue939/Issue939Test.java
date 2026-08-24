@@ -84,7 +84,7 @@ public class Issue939Test {
     public void scanJarWithMemoryMapping() {
         final var classGraph = new ClassGraph().enableClassInfo()
                 .acceptPackages("org.springframework.boot.loader.util")
-                .overrideClasspath(Issue939Test.class.getClassLoader().getResource("issue209.jar"));
+                .enableClasspathEntries(Issue939Test.class.getClassLoader().getResource("issue209.jar"));
         // Files are memory-mapped on Windows only, so the platform's choice is overridden here to exercise the
         // mapping path whatever platform this test runs on
         VfsSpecAccess.vfsSpecOf(classGraph).setMemoryMappingFiles(true);
@@ -114,7 +114,7 @@ public class Issue939Test {
         final var jarPath = tempDir.resolve("mapped-jar-entry.jar");
         writeJarWithAStoredEntry(jarPath);
 
-        final var classGraph = new ClassGraph().acceptPathsNonRecursive("").overrideClasspath(jarPath);
+        final var classGraph = new ClassGraph().acceptPathsNonRecursive("").enableClasspathEntries(jarPath);
         // Files are memory-mapped on Windows only, so the platform's choice is overridden here to exercise the
         // mapping path whatever platform this test runs on
         VfsSpecAccess.vfsSpecOf(classGraph).setMemoryMappingFiles(true);
@@ -150,7 +150,7 @@ public class Issue939Test {
         final var jarPath = tempDir.resolve("deleted-after-the-scan.jar");
         writeJarWithAStoredEntry(jarPath);
 
-        final var classGraph = new ClassGraph().acceptPathsNonRecursive("").overrideClasspath(jarPath);
+        final var classGraph = new ClassGraph().acceptPathsNonRecursive("").enableClasspathEntries(jarPath);
         // Files are memory-mapped on Windows only, so the platform's choice is overridden here to exercise the
         // mapping path whatever platform this test runs on
         VfsSpecAccess.vfsSpecOf(classGraph).setMemoryMappingFiles(true);

@@ -90,8 +90,8 @@ public class Issue914Test {
      * @return the scan result.
      */
     private static ScanResult scan() {
-        return new ClassGraph().acceptPackages(Issue914Test.class.getPackage().getName()).enableMethodInfo()
-                .enableFieldInfo().enableAnnotationInfo().scan();
+        return new ClassGraph().enableClasspath().acceptPackages(Issue914Test.class.getPackage().getName())
+                .enableMethodInfo().enableFieldInfo().enableAnnotationInfo().scan();
     }
 
     /**
@@ -198,8 +198,9 @@ public class Issue914Test {
      */
     @Test
     public void annotationInfoMustBeEnabled() {
-        try (var scanResult = new ClassGraph().acceptPackages(Issue914Test.class.getPackage().getName())
-                .enableMethodInfo().enableFieldInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath()
+                .acceptPackages(Issue914Test.class.getPackage().getName()).enableMethodInfo().enableFieldInfo()
+                .scan()) {
             final var sub = scanResult.getClassInfo(Sub.class.getName());
             assertThatThrownBy(() -> sub.getMethodInfoWithAnnotation(MARKER))
                     .isInstanceOf(IllegalStateException.class);

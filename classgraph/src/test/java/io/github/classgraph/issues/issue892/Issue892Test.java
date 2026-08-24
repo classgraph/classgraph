@@ -95,7 +95,7 @@ class Issue892Test {
         try (var classLoader = new OpaqueClassLoader(jarFile.toURI().toURL())) {
             // Only scan the opaque classloader, so that the class can only be found within the jar it serves, and
             // not in the directory of test classes that it was copied from
-            try (var scanResult = new ClassGraph().overrideClassLoaders(classLoader).enableClassInfo().scan()) {
+            try (var scanResult = new ClassGraph().enableClassLoaders(classLoader).enableClassInfo().scan()) {
                 assertThat(scanResult.getAllClasses().getNames()).contains(ClassInProbedJar.class.getName());
                 // Compare by filename, since the canonical form of the temp directory is platform-dependent (a
                 // symlink on macOS, an 8.3 short name on Windows)

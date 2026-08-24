@@ -107,14 +107,6 @@ class ClasspathElementModule extends ClasspathElement {
 
     @Override
     void open(final @Nullable WorkQueue<ClasspathEntryWorkUnit> workQueueIgnored, final @Nullable LogNode log) {
-        if (!scanSpec.classpathSpec.scanModules) {
-            if (log != null) {
-                log(classpathElementIdx, "Skipping module, since module scanning is disabled: " + getModuleName(),
-                        log);
-            }
-            skipClasspathElement = true;
-            return;
-        }
         try {
             moduleRoot = vfs.open(moduleReference);
         } catch (final IOException e) {

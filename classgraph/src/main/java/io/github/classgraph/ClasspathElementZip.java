@@ -272,7 +272,7 @@ class ClasspathElementZip extends ClasspathElement {
                 packageRootPrefix = packageRoot + "/";
             }
 
-            if (!scanSpec.classpathSpec.enableSystemJarsAndModules && isJREJar(root)) {
+            if (!scanSpec.classpathSpec.enableSystemJars && isJREJar(root)) {
                 // Found a rejected JRE jar that was not caught by filtering for rt.jar in ClassLoaderProbe
                 if (log != null) {
                     log.log("Ignoring JRE jar: " + rawPath);

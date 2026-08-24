@@ -40,7 +40,7 @@ public class Issue246Test {
      */
     @Test
     public void testMethodParameterAnnotations() {
-        try (var scanResult = new ClassGraph() //
+        try (var scanResult = new ClassGraph().enableClasspath() //
                 .acceptClasses(Issue246Test.class.getName()) //
                 .enableAllInfo() //
                 .scan()) {

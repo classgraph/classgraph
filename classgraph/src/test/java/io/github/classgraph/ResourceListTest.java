@@ -66,7 +66,7 @@ public class ResourceListTest {
      * @return the scan result.
      */
     private static ScanResult scanFixtureDir() {
-        return new ClassGraph().overrideClasspath(fixtureDir.toString()).scan();
+        return new ClassGraph().enableClasspathEntries(fixtureDir.toString()).scan();
     }
 
     /** A {@link ResourceList} can be built from an existing collection of resources. */
@@ -183,8 +183,8 @@ public class ResourceListTest {
     /** Two classpath elements that contain the same resource path produce a duplicate path entry. */
     @Test
     public void resourcesWithTheSamePathInDifferentClasspathElementsAreDuplicates() {
-        try (var scanResult = new ClassGraph().overrideClasspath(fixtureDir.toString(), collidingDir.toString())
-                .scan()) {
+        try (var scanResult = new ClassGraph()
+                .enableClasspathEntries(fixtureDir.toString(), collidingDir.toString()).scan()) {
             final var duplicatePaths = scanResult.getAllResources().findDuplicatePaths();
             assertThat(duplicatePaths).hasSize(1);
             assertThat(duplicatePaths.get(0).getKey()).isEqualTo("a.txt");

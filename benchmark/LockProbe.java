@@ -16,7 +16,7 @@ public class LockProbe {
             final Path jar = dir.resolve("probe.jar");
             Files.copy(Path.of(args[0]), jar);
 
-            final ClassGraph classGraph = new ClassGraph().overrideClasspath(jar.toString()).enableClassInfo();
+            final ClassGraph classGraph = new ClassGraph().enableClasspathEntries(jar.toString()).enableClassInfo();
             setMemoryMapping(classGraph, memoryMapping);
             final ScanResult scanResult = classGraph.scan();
             System.out.printf("memoryMapping=%-5s  classes=%d%n", memoryMapping, scanResult.getAllClasses().size());

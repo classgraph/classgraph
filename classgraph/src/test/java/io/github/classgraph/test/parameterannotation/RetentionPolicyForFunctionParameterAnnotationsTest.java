@@ -87,7 +87,7 @@ public class RetentionPolicyForFunctionParameterAnnotationsTest {
      */
     @BeforeAll
     public static void beforeClass() {
-        scanResult = new ClassGraph()
+        scanResult = new ClassGraph().enableClasspath()
                 .acceptPackages(RetentionPolicyForFunctionParameterAnnotationsTest.class.getPackage().getName())
                 .enableAllInfo().scan();
         classInfo = scanResult.getClassInfo(RetentionPolicyForFunctionParameterAnnotationsTest.class.getName());

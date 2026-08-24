@@ -36,7 +36,7 @@ public class TomcatWebappClassLoaderTest {
      * @return the classpath entries.
      */
     private static List<ClasspathEntry> entries(final ClassLoader classLoader) {
-        try (var classpath = new ClasspathFinder().overrideClassLoaders(classLoader).find()) {
+        try (var classpath = new ClasspathFinder().enableClassLoaders(classLoader).find()) {
             return classpath.getEntries();
         }
     }

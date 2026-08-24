@@ -17,8 +17,8 @@ class URLSchemeDigitTest {
         CustomURLScheme.register();
         final var filePath = URLSchemeDigitTest.class.getClassLoader().getResource("nested-jars-level1.zip")
                 .getPath();
-        try (var scanResult = new ClassGraph().overrideClasspath(CustomURLScheme.SCHEME_WITH_DIGIT + ":" + filePath)
-                .scan()) {
+        try (var scanResult = new ClassGraph()
+                .enableClasspathEntries(CustomURLScheme.SCHEME_WITH_DIGIT + ":" + filePath).scan()) {
             assertThat(scanResult.getAllResources().getPaths()).containsExactly("level2.jar");
         }
     }

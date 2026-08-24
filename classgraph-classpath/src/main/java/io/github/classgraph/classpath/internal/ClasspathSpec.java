@@ -28,11 +28,8 @@
  */
 package io.github.classgraph.classpath.internal;
 
-import java.io.File;
 import java.lang.reflect.Field;
-import java.net.URI;
 import java.net.URL;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -65,22 +62,31 @@ public class ClasspathSpec {
     private final List<AcceptReject> acceptRejects = new ArrayList<>();
 
     /** Module accept/reject criteria (with separator '.'). */
-    // N.B. this is read here, and not just by the scanner, because the module path is searched if any module is
-    // specifically accepted, even when system jars and modules are not otherwise scanned.
     public final AcceptRejectWholeString moduleAcceptReject = register(new AcceptRejectWholeString('.'));
 
     /**
-     * If true, search the module path.
+     * If true, scan the system modules ({@code java.*}, {@code jdk.*}, {@code javafx.*}, {@code oracle.*}) found in
+     * the module layers that are searched.
+     *
+     * <p>
+     * System modules are always <i>listed</i> when a module layer is searched, whether or not this is true, since
+     * the classfile of a class in a system module that is not being scanned may still have to be read in order to
+     * complete the class graph above an accepted class (#902).
+     */
+    public boolean scanSystemModules;
+
+    /**
+     * If true, scan the non-system modules found in the module layers that are searched.
      *
      * <p>
      * There are no corresponding settings for jarfiles and directories: the classpath finder always reports every
      * classpath element it finds, and it is the scanner that decides whether to open a given element. The module
      * path is different, because it has to be enumerated through a separate API, which can be skipped entirely.
      */
-    public boolean scanModules = true;
+    public boolean scanNonSystemModules;
 
-    /** If true, system packages and modules (java.*, jre.*, etc.) should be searched. */
-    public boolean enableSystemJarsAndModules;
+    /** If true, scan the JRE's own {@code lib} and {@code ext} jars when they are found on the classpath. */
+    public boolean enableSystemJars;
 
     /**
      * URL schemes that may start a classpath element, so that a {@code ':'}-separated classpath string is not split
@@ -92,15 +98,9 @@ public class ClasspathSpec {
 
     // -----------------------------------------------------------------------------------------------------------
 
-    // N.B. the classloaders and module layers to search are deliberately not held here, but in
-    // ClassLoaderAndModuleLayerSpec, since a ScanResult holds its ClasspathSpec, and a scan must not keep a
-    // classloader alive after it has finished with it
-
-    /**
-     * If non-null, specifies a list of classpath elements (String, {@link URL} or {@link URI} to use to override
-     * the default classpath.
-     */
-    public @Nullable List<Object> overrideClasspath;
+    // N.B. the places to look for classpath elements and modules are deliberately not held here, but in
+    // ScanSourceSpec, since a ScanResult holds its ClasspathSpec, and a scan must not keep a classloader or a
+    // module layer alive after it has finished with it
 
     /** If non-null, a list of filters to apply to classpath element path strings. */
     public @Nullable List<Predicate<String>> classpathElementPathFilters;
@@ -133,33 +133,6 @@ public class ClasspathSpec {
     }
 
     // -----------------------------------------------------------------------------------------------------------
-
-    /**
-     * Override the automatically-detected classpath with a custom path. You can specify multiple elements in
-     * separate calls, and if this method is called even once, the default classpath will be overridden, such that
-     * nothing but the provided classpath will be searched, i.e. causes ClassLoaders to be ignored, as well as the
-     * java.class.path system property.
-     *
-     * @param overrideClasspathElement
-     *            The classpath element to add as an override to the default classpath.
-     */
-    public void addClasspathOverride(final Object overrideClasspathElement) {
-        if (this.overrideClasspath == null) {
-            this.overrideClasspath = new ArrayList<>();
-        }
-        if (overrideClasspathElement instanceof ClassLoader) {
-            throw new IllegalArgumentException(
-                    "Need to pass ClassLoader instances to overrideClassLoaders, not overrideClasspath");
-        }
-        // A classpath element of a type the classpath order understands is kept as it is, so that the filesystem of
-        // a Path and the scheme of a URL or URI are not lost. Anything else is read by its string form, which is
-        // taken now rather than at scan time, so that a mutable object cannot change what it names in between
-        this.overrideClasspath
-                .add(overrideClasspathElement instanceof String || overrideClasspathElement instanceof URL
-                        || overrideClasspathElement instanceof URI || overrideClasspathElement instanceof File
-                        || overrideClasspathElement instanceof Path ? overrideClasspathElement
-                                : overrideClasspathElement.toString());
-    }
 
     /**
      * Add a classpath element path filter. The provided filter should return true if the path string passed to it

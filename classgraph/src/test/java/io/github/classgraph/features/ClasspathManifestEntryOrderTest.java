@@ -119,7 +119,7 @@ class ClasspathManifestEntryOrderTest {
      * @return the name of the field.
      */
     private static String fieldNameOfScannedClass(final Object... classpathElements) {
-        try (var scanResult = new ClassGraph().overrideClasspath(classpathElements).acceptPackages("issue100")
+        try (var scanResult = new ClassGraph().enableClasspathEntries(classpathElements).acceptPackages("issue100")
                 .enableFieldInfo().scan()) {
             return scanResult.getClassInfo("issue100.Test").getFieldInfo().get(0).getName();
         }

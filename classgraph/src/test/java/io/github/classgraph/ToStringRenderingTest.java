@@ -101,8 +101,9 @@ public class ToStringRenderingTest {
 
     /** Scan this test's own package. */
     private static ScanResult scan() {
-        return new ClassGraph().acceptPackagesNonRecursive(ToStringRenderingTest.class.getPackage().getName())
-                .enableAllInfo().scan();
+        return new ClassGraph().enableClasspath()
+                .acceptPackagesNonRecursive(ToStringRenderingTest.class.getPackage().getName()).enableAllInfo()
+                .scan();
     }
 
     /** Annotation parameter values are rendered in the Java source syntax for their type. */
@@ -190,7 +191,7 @@ public class ToStringRenderingTest {
     /** A {@link ModuleInfo} names itself as a module, as {@link Module#toString()} does. */
     @Test
     public void moduleInfoNamesItselfAsAModule() {
-        try (var scanResult = new ClassGraph().enableSystemJarsAndModules().acceptModules("java.base")
+        try (var scanResult = new ClassGraph().enableSystemJars().enableSystemModules().acceptModules("java.base")
                 .acceptPackagesNonRecursive("java.lang").scan()) {
             assertThat(scanResult.getModuleInfo("java.base")).hasToString("module java.base");
         }

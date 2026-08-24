@@ -48,7 +48,7 @@ public class DefaultPackageTest {
      */
     @Test
     public void scan() {
-        try (var scanResult = new ClassGraph().acceptPackagesNonRecursive("").scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath().acceptPackagesNonRecursive("").scan()) {
             final var allClasses = scanResult.getAllClasses().getNames();
             assertThat(allClasses).contains(DefaultPackageTest.class.getName());
             assertThat(allClasses).contains(ClassInDefaultPackage.class.getName());
@@ -64,7 +64,7 @@ public class DefaultPackageTest {
      */
     @Test
     public void scanWithAccept() {
-        try (var scanResult = new ClassGraph().acceptPackages(ACCEPT_PACKAGE).scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath().acceptPackages(ACCEPT_PACKAGE).scan()) {
             final var allClasses = scanResult.getAllClasses().getNames();
             assertThat(allClasses).doesNotContain(DefaultPackageTest.class.getName());
             assertThat(allClasses).contains(RejectedSub.class.getName());

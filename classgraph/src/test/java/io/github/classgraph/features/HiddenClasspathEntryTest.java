@@ -208,7 +208,7 @@ class HiddenClasspathEntryTest {
                     "Could not reach the URLClassPath internals");
             // The jar is in no system property and is not returned by getURLs(), so this is the only way to find it
             assertThat(classLoader.getURLs()).isEmpty();
-            try (var scanResult = new ClassGraph().overrideClassLoaders(classLoader).acceptPaths(RESOURCE_DIR)
+            try (var scanResult = new ClassGraph().enableClassLoaders(classLoader).acceptPaths(RESOURCE_DIR)
                     .scan()) {
                 assertThat(scanResult.getResourcesWithPath(RESOURCE_PATH)).isNotEmpty();
             }

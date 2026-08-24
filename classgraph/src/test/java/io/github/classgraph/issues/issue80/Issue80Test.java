@@ -9,7 +9,7 @@ import io.github.classgraph.ClassGraph;
 public class Issue80Test {
     @Test
     public void issue80() {
-        try (var scanResult = new ClassGraph().enableSystemJarsAndModules().enableClassInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableSystemJars().enableSystemModules().enableClassInfo().scan()) {
             assertThat(scanResult.getAllStandardClasses().getNames()).contains("java.util.ArrayList");
         }
     }

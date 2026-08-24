@@ -104,7 +104,7 @@ public class SyntheticClassRefEncodingTest {
     @Test
     public void bothEncodingsOfClassRefElementValuesResolve(@TempDir final File tempDir) throws IOException {
         Files.write(new File(tempDir, "Synthetic.class").toPath(), classfileBytes());
-        try (var scanResult = new ClassGraph().overrideClasspath(tempDir).enableAnnotationInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspathEntries(tempDir).enableAnnotationInfo().scan()) {
             final var classInfo = scanResult.getClassInfo("Synthetic");
             assertThat(classInfo).isNotNull();
             final var annotations = classInfo.getAllAnnotationInfo();

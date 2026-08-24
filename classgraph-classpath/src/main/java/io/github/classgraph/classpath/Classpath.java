@@ -85,10 +85,10 @@ public final class Classpath implements AutoCloseable, Iterable<ClasspathEntry> 
         this.vfs = vfs;
 
         final var moduleFinder = classLoaderProbe.getModuleFinder();
-        final var systemModulesTmp = moduleFinder == null ? null : moduleFinder.getSystemModuleReferences();
-        final var nonSystemModulesTmp = moduleFinder == null ? null : moduleFinder.getNonSystemModuleReferences();
-        this.systemModules = systemModulesTmp == null ? List.of() : List.copyOf(systemModulesTmp);
-        this.nonSystemModules = nonSystemModulesTmp == null ? List.of() : List.copyOf(nonSystemModulesTmp);
+        this.systemModules = moduleFinder == null ? List.of()
+                : List.copyOf(moduleFinder.getSystemModuleReferences());
+        this.nonSystemModules = moduleFinder == null ? List.of()
+                : List.copyOf(moduleFinder.getNonSystemModuleReferences());
 
         this.modulePathInfo = modulePathInfo;
     }
@@ -142,8 +142,10 @@ public final class Classpath implements AutoCloseable, Iterable<ClasspathEntry> 
     /**
      * Returns the modules that this JVM can see, system modules first, each group in name order. Modules are listed
      * whether or not they are on the module path -- the system modules and the automatic modules created for jars
-     * on the classpath are included. The list is empty if {@link ClasspathFinder#disableModuleScanning()} was
-     * called, or if the classpath was overridden.
+     * on the classpath are included. The list is empty unless a module source was enabled, using
+     * {@link ClasspathFinder#enableModules()}, {@link ClasspathFinder#enableSystemModules()},
+     * {@link ClasspathFinder#enableNonSystemModules()} or
+     * {@link ClasspathFinder#enableModuleLayers(ModuleLayer...)}.
      *
      * @return the modules, as an unmodifiable list.
      */

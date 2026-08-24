@@ -41,8 +41,9 @@ public class Issue791Test {
      */
     @Test
     public void nestedClassAccessLevelIsNotContaminatedByClassfileAccessFlags() {
-        try (var scanResult = new ClassGraph().acceptPackages(Issue791Test.class.getPackage().getName())
-                .ignoreClassVisibility().enableAllInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath()
+                .acceptPackages(Issue791Test.class.getPackage().getName()).ignoreClassVisibility().enableAllInfo()
+                .scan()) {
 
             final var publicSubclass = scanResult.getClassInfo(DummyPublicSubclass.class.getName());
             assertThat(publicSubclass.getModifiers() & ACCESS_LEVEL_MODIFIERS).isEqualTo(Modifier.PUBLIC);
@@ -85,8 +86,9 @@ public class Issue791Test {
      */
     @Test
     public void accSuperIsMaskedOutOfGetModifiers() {
-        try (var scanResult = new ClassGraph().acceptPackages(Issue791Test.class.getPackage().getName())
-                .ignoreClassVisibility().enableAllInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath()
+                .acceptPackages(Issue791Test.class.getPackage().getName()).ignoreClassVisibility().enableAllInfo()
+                .scan()) {
 
             final Class<?>[] classes = { Issue791Test.class, DummyPublicSubclass.class,
                     DummyProtectedSubclass.class, DummyPrivateSubclass.class, DummyPackagePrivateSubclass.class };
@@ -113,8 +115,9 @@ public class Issue791Test {
      */
     @Test
     public void modifiersStrIsUnaffected() {
-        try (var scanResult = new ClassGraph().acceptPackages(Issue791Test.class.getPackage().getName())
-                .ignoreClassVisibility().enableAllInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath()
+                .acceptPackages(Issue791Test.class.getPackage().getName()).ignoreClassVisibility().enableAllInfo()
+                .scan()) {
             assertThat(scanResult.getClassInfo(DummyProtectedSubclass.class.getName()).getModifiersString())
                     .isEqualTo("protected static");
             assertThat(scanResult.getClassInfo(Issue791Test.class.getName()).getModifiersString())
@@ -125,8 +128,9 @@ public class Issue791Test {
     /** A top-level class's access level should be unaffected. */
     @Test
     public void topLevelClassAccessLevelIsUnchanged() {
-        try (var scanResult = new ClassGraph().acceptPackages(Issue791Test.class.getPackage().getName())
-                .ignoreClassVisibility().enableAllInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath()
+                .acceptPackages(Issue791Test.class.getPackage().getName()).ignoreClassVisibility().enableAllInfo()
+                .scan()) {
             final var topLevel = scanResult.getClassInfo(Issue791Test.class.getName());
             assertThat(topLevel.getModifiers() & ACCESS_LEVEL_MODIFIERS).isEqualTo(Modifier.PUBLIC);
             assertThat(topLevel.isPublic()).isTrue();

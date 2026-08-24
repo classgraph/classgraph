@@ -22,7 +22,7 @@ public class Issue916Test {
     @Test
     public void resourcesAreStillReadableAfterRemoveTemporaryFilesAfterScan() throws Exception {
         final var jarURL = Issue916Test.class.getResource("/issue286.jar");
-        try (var scanResult = new ClassGraph().overrideClasspath(jarURL).enableClassInfo()
+        try (var scanResult = new ClassGraph().enableClasspathEntries(jarURL).enableClassInfo()
                 .removeTemporaryFilesAfterScan().scan()) {
             assertThat(scanResult.isClosed()).isFalse();
             assertThat(scanResult.getAllResources()).isNotEmpty();
@@ -39,7 +39,7 @@ public class Issue916Test {
     @Test
     public void resourcesAreReadableWithoutTheFlag() throws Exception {
         final var jarURL = Issue916Test.class.getResource("/issue286.jar");
-        try (var scanResult = new ClassGraph().overrideClasspath(jarURL).enableClassInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspathEntries(jarURL).enableClassInfo().scan()) {
             for (final Resource resource : scanResult.getAllResources()) {
                 assertThat(resource.load()).isNotNull();
             }

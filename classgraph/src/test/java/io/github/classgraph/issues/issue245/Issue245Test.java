@@ -45,7 +45,7 @@ public class Issue245Test {
         final var jarURL = classLoader.getResource(jarName);
 
         try (var scanResult = new ClassGraph() //
-                .overrideClasspath(jarURL.toString() + "!/META-INF/maven") //
+                .enableClasspathEntries(jarURL.toString() + "!/META-INF/maven") //
                 .acceptPaths("org.springframework/gs-spring-boot") //
                 .disableNestedJarScanning() //
                 .scan()) {

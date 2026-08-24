@@ -15,7 +15,8 @@ class TestGetUniqueClasspathElements {
      */
     @Test
     void testGetUniqueClasspathElements() {
-        final var classpathElements = new ClassGraph().acceptPackages("com.xyz").getClasspathFiles();
+        final var classpathElements = new ClassGraph().enableClasspath().acceptPackages("com.xyz")
+                .getClasspathFiles();
         assertThat(classpathElements).isNotEmpty();
     }
 }

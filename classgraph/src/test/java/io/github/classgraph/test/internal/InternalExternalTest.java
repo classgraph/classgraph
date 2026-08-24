@@ -18,8 +18,8 @@ public class InternalExternalTest {
      */
     @Test
     public void testAcceptingExternalClasses() {
-        try (var scanResult = new ClassGraph().acceptPackages(InternalExternalTest.class.getPackage().getName(),
-                ExternalAnnotation.class.getName()).scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath().acceptPackages(
+                InternalExternalTest.class.getPackage().getName(), ExternalAnnotation.class.getName()).scan()) {
             assertThat(scanResult.getAllStandardClasses().getNames()).containsOnly(
                     InternalExternalTest.class.getName(), InternalExtendsExternal.class.getName(),
                     InternalImplementsExternal.class.getName(), InternalAnnotatedByExternal.class.getName());
@@ -31,8 +31,10 @@ public class InternalExternalTest {
      */
     @Test
     public void testEnableExternalClasses() {
-        try (var scanResult = new ClassGraph().acceptPackages(InternalExternalTest.class.getPackage().getName(),
-                ExternalAnnotation.class.getName()).enableExternalClasses().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath()
+                .acceptPackages(InternalExternalTest.class.getPackage().getName(),
+                        ExternalAnnotation.class.getName())
+                .enableExternalClasses().scan()) {
             assertThat(scanResult.getAllStandardClasses().getNames()).containsOnly(
                     ExternalSuperclass.class.getName(), InternalExternalTest.class.getName(),
                     InternalExtendsExternal.class.getName(), InternalImplementsExternal.class.getName(),
@@ -45,8 +47,10 @@ public class InternalExternalTest {
      */
     @Test
     public void testAcceptingExternalClassesWithoutEnablingExternalClasses() {
-        try (var scanResult = new ClassGraph().acceptPackages(InternalExternalTest.class.getPackage().getName(),
-                ExternalAnnotation.class.getName()).enableAllInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath()
+                .acceptPackages(InternalExternalTest.class.getPackage().getName(),
+                        ExternalAnnotation.class.getName())
+                .enableAllInfo().scan()) {
             assertThat(scanResult.getAllStandardClasses().getNames()).containsOnly(
                     InternalExternalTest.class.getName(), InternalExtendsExternal.class.getName(),
                     InternalImplementsExternal.class.getName(), InternalAnnotatedByExternal.class.getName());
@@ -66,8 +70,8 @@ public class InternalExternalTest {
      */
     @Test
     public void testIncludeReferencedClasses() {
-        try (var scanResult = new ClassGraph().acceptPackages(InternalExternalTest.class.getPackage().getName())
-                .enableAllInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath()
+                .acceptPackages(InternalExternalTest.class.getPackage().getName()).enableAllInfo().scan()) {
             assertThat(scanResult.getAllStandardClasses().getNames())
                     .doesNotContain(ExternalSuperclass.class.getName());
             assertThat(scanResult.getAllSubclasses(ExternalSuperclass.class).getNames())

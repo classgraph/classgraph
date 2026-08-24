@@ -35,6 +35,7 @@ import java.net.URI;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CancellationException;
@@ -55,7 +56,7 @@ import io.github.classgraph.base.internal.utils.Assert;
 import io.github.classgraph.base.internal.utils.VersionFinder;
 import io.github.classgraph.classpath.ClassLoaderHandler;
 import io.github.classgraph.classpath.ModulePathInfo;
-import io.github.classgraph.classpath.internal.ClassLoaderAndModuleLayerSpec;
+import io.github.classgraph.classpath.internal.ScanSourceSpec;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -63,20 +64,27 @@ import org.jspecify.annotations.Nullable;
  * module path by parsing the classfile binary format directly rather than by using reflection.
  *
  * <p>
- * By default, ClassGraph scans the classpath and module path of the current runtime environment: the classpath
- * elements it can obtain from the visible {@link ClassLoader} instances and from {@code java.class.path}, together
- * with the non-system modules in the visible {@link ModuleLayer} instances. The JDK's own system modules and
- * packages are not scanned unless {@link #enableSystemJarsAndModules()} is called, or the platform classloader is
- * named explicitly via {@link #overrideClassLoaders(ClassLoader...)} or {@link #addClassLoader(ClassLoader)}.
+ * Nothing is scanned until it is enabled, so at least one of the {@code enable} methods has to be called for
+ * anything to be found:
+ *
+ * <pre>
+ * new ClassGraph().enableNonSystemModules().enableClasspath().acceptPackages("com.xyz").scan()
+ * </pre>
  *
  * <p>
- * To scan something other than the current environment, replace what is scanned with
- * {@link #overrideClasspath(Object...)}, {@link #overrideClassLoaders(ClassLoader...)} or
- * {@link #overrideModuleLayers(ModuleLayer...)}, and narrow which mechanisms contribute classpath elements with
- * {@link #ignoreParentClassLoaders()}, {@link #ignoreParentModuleLayers()}, {@link #disableModuleScanning()},
- * {@link #disableJarScanning()} and {@link #disableDirScanning()}. After a scan,
- * {@link ScanResult#getClasspathURIs()} and {@link ScanResult#getModuleReferences()} report exactly which classpath
- * elements and modules were scanned.
+ * The methods that say where to scan come in pairs: the method with no arguments enables the sources found in the
+ * current runtime environment ({@link #enableClasspath()}, {@link #enableModules()},
+ * {@link #enableSystemModules()}, {@link #enableNonSystemModules()}), and the method that takes varargs enables
+ * exactly the sources it is given ({@link #enableClassLoaders(ClassLoader...)},
+ * {@link #enableModuleLayers(ModuleLayer...)}, {@link #enableClasspathEntries(Object...)}). Calling only the
+ * varargs method scans only what it names, which is how the environment's own sources are left out.
+ *
+ * <p>
+ * The classpath sources are scanned in the order they were enabled in, and the modules are scanned before all of
+ * them, since that is the order in which the JVM resolves a class. Narrow what is reached from an enabled source
+ * with {@link #ignoreParentClassLoaders()}, {@link #ignoreParentModuleLayers()}, {@link #disableJarScanning()} and
+ * {@link #disableDirScanning()}. After a scan, {@link ScanResult#getClasspathURIs()} and
+ * {@link ScanResult#getModuleReferences()} report exactly which classpath elements and modules were scanned.
  *
  * <p>
  * Documentation: <a href= "https://github.com/classgraph/classgraph/wiki">
@@ -87,11 +95,11 @@ public class ClassGraph {
     ScanSpec scanSpec = new ScanSpec();
 
     /**
-     * The classloaders and module layers to scan, if the caller named any. Held separately from the
-     * {@link ScanSpec}, so that a {@link ScanResult} cannot keep a classloader alive (a {@link ScanResult} holds
-     * its {@link ScanSpec}, but never this).
+     * The places that classpath elements and modules are looked for. Held separately from the {@link ScanSpec}, so
+     * that a {@link ScanResult} cannot keep a classloader or a module layer alive (a {@link ScanResult} holds its
+     * {@link ScanSpec}, but never this).
      */
-    final ClassLoaderAndModuleLayerSpec classLoaderAndModuleLayerSpec = new ClassLoaderAndModuleLayerSpec();
+    final ScanSourceSpec scanSourceSpec = new ScanSourceSpec();
 
     /**
      * The default number of worker threads to use while scanning. This number gave the best results on a relatively
@@ -403,16 +411,6 @@ public class ClassGraph {
         return this;
     }
 
-    /**
-     * Disables the scanning of modules.
-     *
-     * @return this (for method chaining).
-     */
-    public ClassGraph disableModuleScanning() {
-        scanSpec.classpathSpec.scanModules = false;
-        return this;
-    }
-
     // -------------------------------------------------------------------------------------------------------------
 
     /**
@@ -451,36 +449,68 @@ public class ClassGraph {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Override the automatically-detected classpath with a custom path, with path elements separated by
-     * File.pathSeparatorChar. Causes system ClassLoaders and the java.class.path system property to be ignored.
-     * Also causes modules not to be scanned.
+     * Scan the classpath elements declared by the ClassLoaders found in the current runtime environment: the
+     * context ClassLoader of the calling thread, the ClassLoader of the caller's own class, the system ClassLoader,
+     * the ClassLoaders of the classes on the call stack, and the parents of all of those, in the order in which
+     * they would be asked to load a class.
      *
      * <p>
-     * If this method is called, nothing but the provided classpath will be scanned, i.e. this causes ClassLoaders
-     * to be ignored, as well as the java.class.path system property.
+     * The application ClassLoader is normally one of them, so its own classpath entries -- the ones that the
+     * {@code java.class.path} system property lists -- are scanned too, at the position the application ClassLoader
+     * takes in that order.
      *
-     * @param overrideClasspath
-     *            The custom classpath to use for scanning, with path elements separated by
-     *            {@link java.io.File#pathSeparatorChar}.
      * @return this (for method chaining).
-     * @throws IllegalArgumentException
-     *             if {@code overrideClasspath} is empty.
      */
-    public ClassGraph overrideClasspath(final String overrideClasspath) {
-        Assert.notNull(overrideClasspath, "overrideClasspath");
-        if (overrideClasspath.isEmpty()) {
-            throw new IllegalArgumentException("Can't override classpath with an empty path");
-        }
-        for (final String classpathElement : PathList.split(overrideClasspath,
-                scanSpec.classpathSpec.allowedURLSchemes)) {
-            scanSpec.classpathSpec.addClasspathOverride(classpathElement);
-        }
+    public ClassGraph enableClasspath() {
+        scanSourceSpec.enableClasspath();
         return this;
     }
 
     /**
-     * Override the automatically-detected classpath with a custom path. Causes system ClassLoaders and the
-     * java.class.path system property to be ignored. Also causes modules not to be scanned.
+     * Scan the classpath elements declared by the given ClassLoaders, and by their parents, rather than by the
+     * ClassLoaders found in the current runtime environment. Call {@link #enableClasspath()} as well to scan both.
+     *
+     * <p>
+     * You may want to use this together with {@link #ignoreParentClassLoaders()}, so that classpath entries are
+     * obtained only from the ClassLoaders you passed in, and not from their parent ClassLoaders.
+     *
+     * <p>
+     * The JDK's own application and platform ClassLoaders do not expose the locations they load classes from, so
+     * they cannot be scanned as ClassLoaders. The application ClassLoader's own classpath entries are still found,
+     * since its handler falls back to the {@code java.class.path} system property, but the platform ClassLoader
+     * loads only from the system modules, so {@link #enableSystemModules()} is what reaches its classes.
+     *
+     * @param classLoaders
+     *            The ClassLoaders to scan.
+     * @return this (for method chaining).
+     * @throws IllegalArgumentException
+     *             if no ClassLoader is given.
+     */
+    public ClassGraph enableClassLoaders(final ClassLoader... classLoaders) {
+        scanSourceSpec.enableClassLoaders(classLoaders);
+        return this;
+    }
+
+    /**
+     * Scan the given classpath, with path elements separated by {@link java.io.File#pathSeparatorChar}. No
+     * ClassLoader is asked for it, so nothing else is scanned unless it is enabled as well.
+     *
+     * @param classpath
+     *            The classpath to scan, with path elements separated by {@link java.io.File#pathSeparatorChar}.
+     * @return this (for method chaining).
+     * @throws IllegalArgumentException
+     *             if {@code classpath} is empty.
+     */
+    public ClassGraph enableClasspathEntries(final String classpath) {
+        Assert.notNull(classpath, "classpath");
+        scanSourceSpec.enableClasspathEntries(
+                List.of(PathList.split(classpath, scanSpec.classpathSpec.allowedURLSchemes)));
+        return this;
+    }
+
+    /**
+     * Scan the given classpath entries. No ClassLoader is asked for them, so nothing else is scanned unless it is
+     * enabled as well.
      *
      * <p>
      * Works for Iterables of any type whose toString() method resolves to a classpath element string, e.g. String,
@@ -490,56 +520,49 @@ public class ClassGraph {
      * <p>
      * A single {@link Path} is treated as one classpath entry, not as a sequence of its name elements.
      *
-     * @param overrideClasspathElements
+     * @param classpathElements
      *            The classpath entries to scan, one entry per element.
      * @return this (for method chaining).
      * @throws IllegalArgumentException
-     *             if {@code overrideClasspathElements} is empty, or if any element is a {@link ClassLoader} (pass
-     *             those to {@link #overrideClassLoaders(ClassLoader...)} instead).
+     *             if {@code classpathElements} is empty, or if any element is a {@link ClassLoader} (pass those to
+     *             {@link #enableClassLoaders(ClassLoader...)} instead).
      */
-    public ClassGraph overrideClasspath(final Iterable<?> overrideClasspathElements) {
-        Assert.notNull(overrideClasspathElements, "overrideClasspathElements");
-        if (overrideClasspathElements instanceof Path) {
+    public ClassGraph enableClasspathEntries(final Iterable<?> classpathElements) {
+        Assert.notNull(classpathElements, "classpathElements");
+        if (classpathElements instanceof Path) {
             // A Path is an Iterable of its own name elements, so passing a single Path binds to this overload
             // rather than to the Object... overload. The name elements of a path are never classpath entries in
             // their own right, so a Path is added as a single classpath entry.
-            scanSpec.classpathSpec.addClasspathOverride(overrideClasspathElements);
+            scanSourceSpec.enableClasspathEntries(List.of(classpathElements));
             return this;
         }
-        if (!overrideClasspathElements.iterator().hasNext()) {
-            throw new IllegalArgumentException("Can't override classpath with an empty path");
+        final List<Object> classpathElementList = new ArrayList<>();
+        for (final Object classpathElement : classpathElements) {
+            classpathElementList.add(classpathElement);
         }
-        for (final Object classpathElement : overrideClasspathElements) {
-            Assert.notNull(classpathElement, "overrideClasspathElements element");
-            scanSpec.classpathSpec.addClasspathOverride(classpathElement);
-        }
+        scanSourceSpec.enableClasspathEntries(classpathElementList);
         return this;
     }
 
     /**
-     * Override the automatically-detected classpath with a custom path. Causes system ClassLoaders and the
-     * java.class.path system property to be ignored. Also causes modules not to be scanned.
+     * Scan the given classpath entries. No ClassLoader is asked for them, so nothing else is scanned unless it is
+     * enabled as well.
      *
      * <p>
      * Works for arrays of any member type whose toString() method resolves to a classpath element string, e.g.
      * String, File or Path. Each element is one classpath entry, and is not split on
      * {@link java.io.File#pathSeparatorChar} -- pass the {@link String} overload for a path that needs splitting.
      *
-     * @param overrideClasspathElements
+     * @param classpathElements
      *            The classpath entries to scan, one entry per element.
      * @return this (for method chaining).
      * @throws IllegalArgumentException
-     *             if {@code overrideClasspathElements} is empty, or if any element is a {@link ClassLoader} (pass
-     *             those to {@link #overrideClassLoaders(ClassLoader...)} instead).
+     *             if {@code classpathElements} is empty, or if any element is a {@link ClassLoader} (pass those to
+     *             {@link #enableClassLoaders(ClassLoader...)} instead).
      */
-    public ClassGraph overrideClasspath(final Object... overrideClasspathElements) {
-        Assert.notNullElements(overrideClasspathElements, "overrideClasspathElements");
-        if (overrideClasspathElements.length == 0) {
-            throw new IllegalArgumentException("Can't override classpath with an empty path");
-        }
-        for (final Object classpathElement : overrideClasspathElements) {
-            scanSpec.classpathSpec.addClasspathOverride(classpathElement);
-        }
+    public ClassGraph enableClasspathEntries(final Object... classpathElements) {
+        Assert.notNullElements(classpathElements, "classpathElements");
+        scanSourceSpec.enableClasspathEntries(List.of(classpathElements));
         return this;
     }
 
@@ -582,61 +605,6 @@ public class ClassGraph {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Add a ClassLoader to the list of ClassLoaders to scan.
-     *
-     * <p>
-     * This call is ignored if {@link #overrideClasspath(String)} is also called, or if this method is called before
-     * {@link #overrideClassLoaders(ClassLoader...)}.
-     *
-     * <p>
-     * If the JDK's own application or platform ClassLoader is passed in, the scanning mechanism that can reach the
-     * classes it loads is enabled instead -- see {@link #overrideClassLoaders(ClassLoader...)}.
-     *
-     * @param classLoader
-     *            The additional ClassLoader to scan.
-     * @return this (for method chaining).
-     */
-    public ClassGraph addClassLoader(final ClassLoader classLoader) {
-        Assert.notNull(classLoader, "classLoader");
-        classLoaderAndModuleLayerSpec.addClassLoader(classLoader);
-        return this;
-    }
-
-    /**
-     * Completely override (and ignore) the automatically-detected ClassLoaders, scanning only what the given
-     * ClassLoaders can load. Neither the {@code java.class.path} classpath nor the modules are scanned, unless one
-     * of the given ClassLoaders loads from them (see below).
-     *
-     * <p>
-     * Note that you may want to use this together with {@link #ignoreParentClassLoaders()}, so that classpath
-     * entries are obtained from only the ClassLoaders you passed in, and not from their parent ClassLoaders.
-     *
-     * <p>
-     * The JDK's own application and platform ClassLoaders do not expose the locations they load classes from, so
-     * they cannot be scanned as ClassLoaders. If one of them is passed in -- e.g. the value returned by
-     * {@link ClassLoader#getSystemClassLoader()} or by {@link Thread#getContextClassLoader()} -- then the scanning
-     * mechanism that can reach the classes it loads is used instead:
-     * <ul>
-     * <li>for the application ClassLoader, the {@code java.class.path} classpath and the non-system modules are
-     * scanned;</li>
-     * <li>for the platform ClassLoader, the system modules are scanned, as if {@link #enableSystemJarsAndModules()}
-     * had been called.</li>
-     * </ul>
-     *
-     * <p>
-     * This call is ignored if {@link #overrideClasspath(String)} is called.
-     *
-     * @param overrideClassLoaders
-     *            The ClassLoaders to scan instead of the automatically-detected ClassLoaders.
-     * @return this (for method chaining).
-     */
-    public ClassGraph overrideClassLoaders(final ClassLoader... overrideClassLoaders) {
-        Assert.notNullElements(overrideClassLoaders, "overrideClassLoaders");
-        classLoaderAndModuleLayerSpec.overrideClassLoaders(overrideClassLoaders);
-        return this;
-    }
-
-    /**
      * Ignore parent classloaders (i.e. only obtain paths to scan from classloaders that are not the parent of
      * another classloader).
      *
@@ -674,35 +642,55 @@ public class ClassGraph {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Add a ModuleLayer to the list of ModuleLayers to scan. Use this method if you define your own ModuleLayer,
-     * but the scanning code is not running within that custom ModuleLayer.
+     * Scan the system modules ({@code java.*}, {@code jdk.*}, {@code javafx.*}, {@code oracle.*}) of the
+     * ModuleLayers that are visible from the caller: the layers of the classes on the call stack, and the boot
+     * layer.
      *
-     * <p>
-     * This call is ignored if it is called before {@link #overrideModuleLayers(ModuleLayer...)}.
-     *
-     * @param moduleLayer
-     *            The additional ModuleLayer to scan.
      * @return this (for method chaining).
      */
-    public ClassGraph addModuleLayer(final ModuleLayer moduleLayer) {
-        Assert.notNull(moduleLayer, "moduleLayer");
-        classLoaderAndModuleLayerSpec.addModuleLayer(moduleLayer);
+    public ClassGraph enableSystemModules() {
+        scanSourceSpec.enableDetectedModuleLayers();
+        scanSpec.classpathSpec.scanSystemModules = true;
         return this;
     }
 
     /**
-     * Completely override (and ignore) the visible ModuleLayers, and instead scan the requested ModuleLayers.
+     * Scan the non-system modules of the ModuleLayers that are visible from the caller: the layers of the classes
+     * on the call stack, and the boot layer.
      *
-     * <p>
-     * This call is ignored if overrideClasspath() is called.
-     *
-     * @param overrideModuleLayers
-     *            The ModuleLayers to scan instead of the automatically-detected ModuleLayers.
      * @return this (for method chaining).
      */
-    public ClassGraph overrideModuleLayers(final ModuleLayer... overrideModuleLayers) {
-        Assert.notNullElements(overrideModuleLayers, "overrideModuleLayers");
-        classLoaderAndModuleLayerSpec.overrideModuleLayers(overrideModuleLayers);
+    public ClassGraph enableNonSystemModules() {
+        scanSourceSpec.enableDetectedModuleLayers();
+        scanSpec.classpathSpec.scanNonSystemModules = true;
+        return this;
+    }
+
+    /**
+     * Scan the modules of both kinds, system and non-system, of the ModuleLayers that are visible from the caller:
+     * the layers of the classes on the call stack, and the boot layer.
+     *
+     * @return this (for method chaining).
+     */
+    public ClassGraph enableModules() {
+        return enableSystemModules().enableNonSystemModules();
+    }
+
+    /**
+     * Scan the non-system modules of the given ModuleLayers, and of their parent layers, rather than of the
+     * ModuleLayers that are visible from the caller. Use this method if you define your own ModuleLayer, but the
+     * scanning code is not running within it. Call {@link #enableModules()} as well to scan both, or
+     * {@link #enableSystemModules()} as well to scan the system modules of the given layers too.
+     *
+     * @param moduleLayers
+     *            The ModuleLayers to scan.
+     * @return this (for method chaining).
+     * @throws IllegalArgumentException
+     *             if no ModuleLayer is given.
+     */
+    public ClassGraph enableModuleLayers(final ModuleLayer... moduleLayers) {
+        scanSourceSpec.enableModuleLayers(moduleLayers);
+        scanSpec.classpathSpec.scanNonSystemModules = true;
         return this;
     }
 
@@ -1055,9 +1043,9 @@ public class ClassGraph {
      * (any jars and directories on the classpath are still scanned, unless they are excluded by other criteria).
      *
      * <p>
-     * A system module (e.g. {@code "java.base"} or {@code "jdk.compiler"}) that is accepted by name is scanned even
-     * if {@link #enableSystemJarsAndModules()} was not called -- that method is only needed in order to scan
-     * <i>all</i> system modules.
+     * This narrows what is scanned; it does not enable the scanning of modules. Call {@link #enableModules()},
+     * {@link #enableSystemModules()}, {@link #enableNonSystemModules()} or
+     * {@link #enableModuleLayers(ModuleLayer...)} to say which modules are looked for in the first place.
      *
      * @param moduleNames
      *            The names of the modules that should be scanned. May contain glob wildcards, where {@code '*'}
@@ -1083,7 +1071,7 @@ public class ClassGraph {
      *            The names of the modules that should not be scanned. May contain glob wildcards, where {@code '*'}
      *            matches within a single module name segment, {@code "**"} matches zero or more whole segments, and
      *            {@code '?'} matches one character. Rejecting a system module leaves the other system modules
-     *            scannable, if {@link #enableSystemJarsAndModules()} was called.
+     *            scannable, if {@link #enableSystemModules()} was called.
      * @return this (for method chaining).
      */
     // #658
@@ -1207,21 +1195,20 @@ public class ClassGraph {
     }
 
     /**
-     * Enables the scanning of system packages ({@code "java.*"}, {@code "javax.*"}, {@code "javafx.*"},
-     * {@code "jdk.*"}, {@code "oracle.*"}, {@code "sun.*"}) -- these are not scanned by default for speed.
+     * Enables the scanning of the JRE's own {@code lib} and {@code ext} jars when they are found on the classpath.
+     * These are skipped by default for speed, since they hold the system classes of a pre-modular JRE.
      *
      * <p>
-     * This is only needed in order to scan <i>all</i> system modules: an individual system module can be scanned by
-     * accepting it by name with {@link #acceptModules(String...)}.
+     * This is about jars, not modules: call {@link #enableSystemModules()} to scan the system modules.
      *
      * <p>
      * N.B. Automatically calls {@link #enableClassInfo()}.
      *
      * @return this (for method chaining).
      */
-    public ClassGraph enableSystemJarsAndModules() {
+    public ClassGraph enableSystemJars() {
         enableClassInfo();
-        scanSpec.classpathSpec.enableSystemJarsAndModules = true;
+        scanSpec.classpathSpec.enableSystemJars = true;
         return this;
     }
 
@@ -1281,7 +1268,7 @@ public class ClassGraph {
         // enableAnnotationInfo is true, which this method has just disabled, so setting it would have no effect
         // on this scan, but would remain set if the caller subsequently re-enabled annotation info
         scanSpec.enableExternalClasses = false;
-        scanSpec.classpathSpec.enableSystemJarsAndModules = false;
+        scanSpec.classpathSpec.enableSystemJars = false;
         return this;
     }
 
@@ -1331,8 +1318,8 @@ public class ClassGraph {
         executorService.execute(() -> {
             try {
                 // Call scanner, but ignore the returned ScanResult
-                new Scanner(/* performScan = */ true, scanSpec, classLoaderAndModuleLayerSpec, executorService,
-                        numParallelTasks, scanResultProcessor, failureHandler, topLevelLog).call();
+                new Scanner(/* performScan = */ true, scanSpec, scanSourceSpec, executorService, numParallelTasks,
+                        scanResultProcessor, failureHandler, topLevelLog).call();
             } catch (final Throwable t) {
                 // Call failure handler. Anything thrown before the Scanner starts running the scan (e.g. by a
                 // user-supplied classpath element filter, which the Scanner constructor calls) has to be caught
@@ -1360,9 +1347,8 @@ public class ClassGraph {
      */
     private Future<ScanResult> scanAsync(final boolean performScan, final ExecutorService executorService,
             final int numParallelTasks) {
-        return executorService.submit(
-                new Scanner(performScan, scanSpec, classLoaderAndModuleLayerSpec, executorService, numParallelTasks,
-                        /* scanResultProcessor = */ null, /* failureHandler = */ null, topLevelLog));
+        return executorService.submit(new Scanner(performScan, scanSpec, scanSourceSpec, executorService,
+                numParallelTasks, /* scanResultProcessor = */ null, /* failureHandler = */ null, topLevelLog));
     }
 
     /**

@@ -66,8 +66,8 @@ public class Issue431Test {
     /** Read the constant initializer value of a field of each primitive type. */
     @Test
     public void primitiveConstantInitializerValues() {
-        try (var scanResult = new ClassGraph().acceptPackages(Issue431Test.class.getPackage().getName())
-                .enableAllInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath()
+                .acceptPackages(Issue431Test.class.getPackage().getName()).enableAllInfo().scan()) {
             final var classInfo = scanResult.getClassInfo(X.class.getName());
             assertThat(classInfo).isNotNull();
             assertThat(classInfo.getFieldInfo("a").getConstantInitializerValue()).isEqualTo(Integer.MAX_VALUE);

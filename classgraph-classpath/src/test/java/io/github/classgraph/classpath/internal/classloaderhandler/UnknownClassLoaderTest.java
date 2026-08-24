@@ -148,7 +148,7 @@ public class UnknownClassLoaderTest {
      * @return the classpath element locations.
      */
     private static List<String> locations(final ClassLoader classLoader) {
-        try (var classpath = new ClasspathFinder().overrideClassLoaders(classLoader).find()) {
+        try (var classpath = new ClasspathFinder().enableClassLoaders(classLoader).find()) {
             return classpath.getLocations();
         }
     }
@@ -274,7 +274,7 @@ public class UnknownClassLoaderTest {
                 parentURL);
         final var classLoader = new ResourceServingClassLoader(parent).serving("META-INF/MANIFEST.MF",
                 urlWithinJar(appJar, "META-INF/MANIFEST.MF"), parentURL);
-        try (var classpath = new ClasspathFinder().overrideClassLoaders(classLoader).ignoreParentClassLoaders()
+        try (var classpath = new ClasspathFinder().enableClassLoaders(classLoader).ignoreParentClassLoaders()
                 .find()) {
             assertThat(classpath.getLocations()).containsExactly(location(appJar));
         }

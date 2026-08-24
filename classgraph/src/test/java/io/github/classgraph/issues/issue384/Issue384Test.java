@@ -56,7 +56,7 @@ class Issue384Test {
         final var filePath = Issue384Test.class.getClassLoader().getResource("nested-jars-level1.zip").getPath();
         final var customSchemeURL = CustomURLScheme.SCHEME + ":" + filePath;
         final var url = new URL(customSchemeURL);
-        try (var scanResult = new ClassGraph().overrideClasspath(url).scan()) {
+        try (var scanResult = new ClassGraph().enableClasspathEntries(url).scan()) {
             assertThat(scanResult.getAllResources().getPaths()).containsExactly("level2.jar");
             // remappedURLs is shared by every test that uses CustomURLScheme, so check for this test's entry
             // rather than assuming it is the only one

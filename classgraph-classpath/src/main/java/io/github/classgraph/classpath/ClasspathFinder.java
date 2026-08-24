@@ -36,9 +36,9 @@ import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
 import io.github.classgraph.base.internal.path.PathList;
 import io.github.classgraph.base.internal.utils.Assert;
-import io.github.classgraph.classpath.internal.ClassLoaderAndModuleLayerSpec;
 import io.github.classgraph.classpath.internal.ClassLoaderProbe;
 import io.github.classgraph.classpath.internal.ClasspathSpec;
+import io.github.classgraph.classpath.internal.ScanSourceSpec;
 import io.github.classgraph.vfs.Vfs;
 import io.github.classgraph.vfs.VfsSpec;
 
@@ -47,13 +47,20 @@ import io.github.classgraph.vfs.VfsSpec;
  * including the locations that a container's custom classloaders load from.
  *
  * <pre>
- * Classpath classpath = new ClasspathFinder().find();
+ * Classpath classpath = new ClasspathFinder().enableModules().enableClasspath().find();
  * </pre>
  *
  * <p>
- * By default, the classloaders found in the environment are searched: the context classloader of the calling
- * thread, the classloader of the caller's own class, the system classloader, and their parents, in the order in
- * which they would be asked to load a class. The methods of this class narrow or widen that search.
+ * Nothing is searched until it is enabled, so at least one of the {@code enable} methods has to be called for
+ * anything to be found. They come in pairs: the method with no arguments enables the sources found in the
+ * environment ({@link #enableClasspath()}, {@link #enableModules()}), and the method that takes varargs enables
+ * exactly the sources it is given ({@link #enableClassLoaders(ClassLoader...)},
+ * {@link #enableModuleLayers(ModuleLayer...)}, {@link #enableClasspathEntries(Object...)}). Calling only the
+ * varargs method searches only what it names, which is how the environment's own sources are left out.
+ *
+ * <p>
+ * The classpath sources are searched in the order they were enabled in, and the modules are searched before all of
+ * them, since that is the order in which the JVM resolves a class.
  *
  * <p>
  * An instance is not thread-safe while it is being configured, but {@link #find()} may be called any number of
@@ -67,18 +74,18 @@ public final class ClasspathFinder {
      */
     private static final String[] DENIED_URL_SCHEMES = { "http", "https", "ftp", "mailto" };
 
-    /** Everything except the classloaders and module layers the caller named. */
+    /** Everything except the places that classpath elements and modules are looked for. */
     private final ClasspathSpec classpathSpec = new ClasspathSpec();
 
     /** How the jarfiles on the classpath are read, in order to find the classpath elements they declare. */
     private final VfsSpec vfsSpec = new VfsSpec();
 
     /**
-     * The classloaders and module layers the caller named. These are held separately from the {@link ClasspathSpec}
-     * so that they can be dropped as soon as the classpath has been found, rather than being kept alive by the
-     * {@link Classpath}.
+     * The places that classpath elements and modules are looked for. These are held separately from the
+     * {@link ClasspathSpec} so that they can be dropped as soon as the classpath has been found, rather than being
+     * kept alive by the {@link Classpath}.
      */
-    private final ClassLoaderAndModuleLayerSpec classLoaderAndModuleLayerSpec = new ClassLoaderAndModuleLayerSpec();
+    private final ScanSourceSpec scanSourceSpec = new ScanSourceSpec();
 
     /** If true, log what is found to the {@code io.github.classgraph.ClassGraph} logger, at {@code INFO} level. */
     private boolean verbose;
@@ -160,9 +167,41 @@ public final class ClasspathFinder {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Search the given classpath instead of the one the environment declares, with the elements separated by
-     * {@link java.io.File#pathSeparatorChar}. The classloaders, the {@code java.class.path} system property and the
-     * modules are all ignored.
+     * Search the classloaders found in the environment for classpath elements: the context classloader of the
+     * calling thread, the classloader of the caller's own class, the system classloader, the classloaders of the
+     * classes on the call stack, and the parents of all of those, in the order in which they would be asked to load
+     * a class.
+     *
+     * <p>
+     * The application classloader is normally one of them, so its own classpath entries -- the ones that the
+     * {@code java.class.path} system property lists -- are searched too, at the position the application
+     * classloader takes in that order.
+     *
+     * @return this (for method chaining).
+     */
+    public ClasspathFinder enableClasspath() {
+        scanSourceSpec.enableClasspath();
+        return this;
+    }
+
+    /**
+     * Search the given classloaders for classpath elements, and their parents, rather than the classloaders found
+     * in the environment. Call {@link #enableClasspath()} as well to search both.
+     *
+     * @param classLoaders
+     *            the classloaders to search.
+     * @return this (for method chaining).
+     * @throws IllegalArgumentException
+     *             if no classloader is given.
+     */
+    public ClasspathFinder enableClassLoaders(final ClassLoader... classLoaders) {
+        scanSourceSpec.enableClassLoaders(classLoaders);
+        return this;
+    }
+
+    /**
+     * Search the given classpath, with the elements separated by {@link java.io.File#pathSeparatorChar}. No
+     * classloader is asked for it, so nothing else is searched unless it is enabled as well.
      *
      * @param classpath
      *            the classpath to search, with elements separated by {@link java.io.File#pathSeparatorChar}.
@@ -170,20 +209,15 @@ public final class ClasspathFinder {
      * @throws IllegalArgumentException
      *             if {@code classpath} is empty.
      */
-    public ClasspathFinder overrideClasspath(final String classpath) {
+    public ClasspathFinder enableClasspathEntries(final String classpath) {
         Assert.notNull(classpath, "classpath");
-        if (classpath.isEmpty()) {
-            throw new IllegalArgumentException("Can't override classpath with an empty path");
-        }
-        for (final String classpathElement : PathList.split(classpath, classpathSpec.allowedURLSchemes)) {
-            classpathSpec.addClasspathOverride(classpathElement);
-        }
+        scanSourceSpec.enableClasspathEntries(List.of(PathList.split(classpath, classpathSpec.allowedURLSchemes)));
         return this;
     }
 
     /**
-     * Search the given classpath elements instead of the ones the environment declares. The classloaders, the
-     * {@code java.class.path} system property and the modules are all ignored.
+     * Search the given classpath elements. No classloader is asked for them, so nothing else is searched unless it
+     * is enabled as well.
      *
      * <p>
      * Each element is one classpath entry, and is not split on {@link java.io.File#pathSeparatorChar} -- pass the
@@ -196,22 +230,17 @@ public final class ClasspathFinder {
      * @return this (for method chaining).
      * @throws IllegalArgumentException
      *             if {@code classpathElements} is empty, or if any element is a {@link ClassLoader} (pass those to
-     *             {@link #overrideClassLoaders(ClassLoader...)} instead).
+     *             {@link #enableClassLoaders(ClassLoader...)} instead).
      */
-    public ClasspathFinder overrideClasspath(final Object... classpathElements) {
+    public ClasspathFinder enableClasspathEntries(final Object... classpathElements) {
         Assert.notNullElements(classpathElements, "classpathElements");
-        if (classpathElements.length == 0) {
-            throw new IllegalArgumentException("Can't override classpath with an empty path");
-        }
-        for (final Object classpathElement : classpathElements) {
-            classpathSpec.addClasspathOverride(classpathElement);
-        }
+        scanSourceSpec.enableClasspathEntries(List.of(classpathElements));
         return this;
     }
 
     /**
-     * Search the given classpath elements instead of the ones the environment declares. The classloaders, the
-     * {@code java.class.path} system property and the modules are all ignored.
+     * Search the given classpath elements. No classloader is asked for them, so nothing else is searched unless it
+     * is enabled as well.
      *
      * <p>
      * Each element is one classpath entry, and is not split on {@link java.io.File#pathSeparatorChar} -- pass the
@@ -227,54 +256,22 @@ public final class ClasspathFinder {
      * @return this (for method chaining).
      * @throws IllegalArgumentException
      *             if {@code classpathElements} is empty, or if any element is a {@link ClassLoader} (pass those to
-     *             {@link #overrideClassLoaders(ClassLoader...)} instead).
+     *             {@link #enableClassLoaders(ClassLoader...)} instead).
      */
-    public ClasspathFinder overrideClasspath(final Iterable<?> classpathElements) {
+    public ClasspathFinder enableClasspathEntries(final Iterable<?> classpathElements) {
         Assert.notNull(classpathElements, "classpathElements");
         if (classpathElements instanceof Path) {
             // A Path is an Iterable of its own name elements, so passing a single Path binds to this overload
             // rather than to the Object... overload. The name elements of a path are never classpath entries in
             // their own right, so a Path is added as a single classpath entry.
-            classpathSpec.addClasspathOverride(classpathElements);
+            scanSourceSpec.enableClasspathEntries(List.of(classpathElements));
             return this;
         }
-        if (!classpathElements.iterator().hasNext()) {
-            throw new IllegalArgumentException("Can't override classpath with an empty path");
-        }
+        final List<Object> classpathElementList = new ArrayList<>();
         for (final Object classpathElement : classpathElements) {
-            Assert.notNull(classpathElement, "classpathElements element");
-            classpathSpec.addClasspathOverride(classpathElement);
+            classpathElementList.add(classpathElement);
         }
-        return this;
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Search the given classloaders instead of the ones found in the environment. This also causes the
-     * {@code java.class.path} system property to be ignored.
-     *
-     * @param classLoaders
-     *            the classloaders to search.
-     * @return this (for method chaining).
-     * @throws IllegalArgumentException
-     *             if no classloader is given.
-     */
-    public ClasspathFinder overrideClassLoaders(final ClassLoader... classLoaders) {
-        classLoaderAndModuleLayerSpec.overrideClassLoaders(classLoaders);
-        return this;
-    }
-
-    /**
-     * Search the given classloader as well as the ones found in the environment. This can only widen what is
-     * searched, never narrow it, and has no effect if the classpath is overridden.
-     *
-     * @param classLoader
-     *            the extra classloader to search.
-     * @return this (for method chaining).
-     */
-    public ClasspathFinder addClassLoader(final ClassLoader classLoader) {
-        classLoaderAndModuleLayerSpec.addClassLoader(classLoader);
+        scanSourceSpec.enableClasspathEntries(classpathElementList);
         return this;
     }
 
@@ -316,8 +313,44 @@ public final class ClasspathFinder {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Search the given module layers instead of the ones that are visible from the caller. Use this if the code
-     * calling this library does not itself run within the module layer whose modules are wanted.
+     * Search the module layers that are visible from the caller -- the layers of the classes on the call stack, and
+     * the boot layer -- for the system modules ({@code java.*}, {@code jdk.*}, {@code javafx.*}, {@code oracle.*}).
+     *
+     * @return this (for method chaining).
+     */
+    public ClasspathFinder enableSystemModules() {
+        scanSourceSpec.enableDetectedModuleLayers();
+        classpathSpec.scanSystemModules = true;
+        return this;
+    }
+
+    /**
+     * Search the module layers that are visible from the caller -- the layers of the classes on the call stack, and
+     * the boot layer -- for the non-system modules.
+     *
+     * @return this (for method chaining).
+     */
+    public ClasspathFinder enableNonSystemModules() {
+        scanSourceSpec.enableDetectedModuleLayers();
+        classpathSpec.scanNonSystemModules = true;
+        return this;
+    }
+
+    /**
+     * Search the module layers that are visible from the caller -- the layers of the classes on the call stack, and
+     * the boot layer -- for modules of both kinds, system and non-system.
+     *
+     * @return this (for method chaining).
+     */
+    public ClasspathFinder enableModules() {
+        return enableSystemModules().enableNonSystemModules();
+    }
+
+    /**
+     * Search the given module layers, and their parent layers, for non-system modules, rather than the module
+     * layers that are visible from the caller. Use this if the code calling this library does not itself run within
+     * the module layer whose modules are wanted. Call {@link #enableModules()} as well to search both, or
+     * {@link #enableSystemModules()} as well to find the system modules of the given layers too.
      *
      * @param moduleLayers
      *            the module layers to search.
@@ -325,32 +358,9 @@ public final class ClasspathFinder {
      * @throws IllegalArgumentException
      *             if no module layer is given.
      */
-    public ClasspathFinder overrideModuleLayers(final ModuleLayer... moduleLayers) {
-        classLoaderAndModuleLayerSpec.overrideModuleLayers(moduleLayers);
-        return this;
-    }
-
-    /**
-     * Search the given module layer as well as the ones that are visible from the caller. Use this if you define
-     * your own module layer, but the code calling this library does not run within it.
-     *
-     * @param moduleLayer
-     *            the extra module layer to search.
-     * @return this (for method chaining).
-     */
-    public ClasspathFinder addModuleLayer(final ModuleLayer moduleLayer) {
-        classLoaderAndModuleLayerSpec.addModuleLayer(moduleLayer);
-        return this;
-    }
-
-    /**
-     * Do not look for modules at all, so that {@link Classpath#getModules()} is empty and only the classpath
-     * elements are reported.
-     *
-     * @return this (for method chaining).
-     */
-    public ClasspathFinder disableModuleScanning() {
-        classpathSpec.scanModules = false;
+    public ClasspathFinder enableModuleLayers(final ModuleLayer... moduleLayers) {
+        scanSourceSpec.enableModuleLayers(moduleLayers);
+        classpathSpec.scanNonSystemModules = true;
         return this;
     }
 
@@ -376,7 +386,7 @@ public final class ClasspathFinder {
     public Classpath find() {
         final var log = verbose ? new LogNode() : null;
         try {
-            final var classLoaderProbe = new ClassLoaderProbe(classpathSpec, classLoaderAndModuleLayerSpec, log);
+            final var classLoaderProbe = new ClassLoaderProbe(classpathSpec, scanSourceSpec, log);
 
             // The classpath elements that the classloaders declared
             final List<ClasspathEntry> classLoaderEntries = new ArrayList<>();

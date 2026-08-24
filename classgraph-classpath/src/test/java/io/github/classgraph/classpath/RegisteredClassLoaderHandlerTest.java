@@ -168,7 +168,7 @@ public class RegisteredClassLoaderHandlerTest {
      * @return the classpath entry paths, in classpath order.
      */
     private static List<Path> find(final ClasspathFinder classpathFinder) {
-        try (var classpath = classpathFinder.disableModuleScanning().find()) {
+        try (var classpath = classpathFinder.find()) {
             return classpath.getLocations().stream().map(Path::of).toList();
         }
     }
@@ -183,9 +183,9 @@ public class RegisteredClassLoaderHandlerTest {
         final var classesDir = classesDir(tempDir, "classes");
         final var classLoader = new UnknownClassLoader(classesDir.toString());
 
-        assertThat(find(new ClasspathFinder().overrideClassLoaders(classLoader))).doesNotContain(classesDir);
+        assertThat(find(new ClasspathFinder().enableClassLoaders(classLoader))).doesNotContain(classesDir);
 
-        assertThat(find(new ClasspathFinder().overrideClassLoaders(classLoader)
+        assertThat(find(new ClasspathFinder().enableClassLoaders(classLoader)
                 .registerClassLoaderHandler(new UnknownClassLoaderHandler()))).containsExactly(classesDir);
     }
 
@@ -212,9 +212,8 @@ public class RegisteredClassLoaderHandlerTest {
             }
         };
 
-        try (var classpath = new ClasspathFinder()
-                .overrideClassLoaders(new UnknownClassLoader(classesDir.toString()))
-                .registerClassLoaderHandler(handler).disableModuleScanning().find()) {
+        try (var classpath = new ClasspathFinder().enableClassLoaders(new UnknownClassLoader(classesDir.toString()))
+                .registerClassLoaderHandler(handler).find()) {
             final var entry = classpath.getEntries().get(0);
             packageRootPrefixes.add("surprise/classes/");
             libDirPrefixes.clear();
@@ -238,10 +237,10 @@ public class RegisteredClassLoaderHandlerTest {
                 /* parent = */ null);
 
         // The built-in URLClassLoaderHandler adds the URLs in declaration order
-        assertThat(find(new ClasspathFinder().overrideClassLoaders(classLoader))).containsExactly(dirA, dirB);
+        assertThat(find(new ClasspathFinder().enableClassLoaders(classLoader))).containsExactly(dirA, dirB);
 
         // The registered handler runs first, so its reversed order is the one that survives
-        assertThat(find(new ClasspathFinder().overrideClassLoaders(classLoader)
+        assertThat(find(new ClasspathFinder().enableClassLoaders(classLoader)
                 .registerClassLoaderHandler(new ReversingURLClassLoaderHandler()))).containsExactly(dirB, dirA);
     }
 
@@ -257,10 +256,10 @@ public class RegisteredClassLoaderHandlerTest {
         final var classLoader = new SubURLClassLoader(new URL[] { urlDir.toUri().toURL() });
 
         // Without the registered handler, the built-in URLClassLoaderHandler reads the classloader's URLs
-        assertThat(find(new ClasspathFinder().overrideClassLoaders(classLoader))).containsExactly(urlDir);
+        assertThat(find(new ClasspathFinder().enableClassLoaders(classLoader))).containsExactly(urlDir);
 
         // With it, the built-in handler is suppressed, so the classloader's URLs are not read
-        assertThat(find(new ClasspathFinder().overrideClassLoaders(classLoader)
+        assertThat(find(new ClasspathFinder().enableClassLoaders(classLoader)
                 .registerClassLoaderHandler(new FixedEntryHandler(SubURLClassLoader.class, handlerDir))))
                 .containsExactly(handlerDir);
     }
@@ -275,7 +274,7 @@ public class RegisteredClassLoaderHandlerTest {
         final var handlerDir = classesDir(tempDir, "handler");
         final var classLoader = new URLClassLoader(new URL[] { urlDir.toUri().toURL() }, /* parent = */ null);
 
-        assertThat(find(new ClasspathFinder().overrideClassLoaders(classLoader)
+        assertThat(find(new ClasspathFinder().enableClassLoaders(classLoader)
                 .registerClassLoaderHandler(new FixedEntryHandler(URLClassLoader.class, handlerDir))))
                 .containsExactly(handlerDir, urlDir);
     }
@@ -294,7 +293,7 @@ public class RegisteredClassLoaderHandlerTest {
         // The registered handler for SubURLClassLoader is more specific than the registered handler for
         // URLClassLoader, but both were registered, so both run. The built-in URLClassLoaderHandler is the only
         // handler suppressed, so the classloader's own URLs are not in the result.
-        assertThat(find(new ClasspathFinder().overrideClassLoaders(classLoader)
+        assertThat(find(new ClasspathFinder().enableClassLoaders(classLoader)
                 .registerClassLoaderHandler(new FixedEntryHandler(URLClassLoader.class, generalDir))
                 .registerClassLoaderHandler(new FixedEntryHandler(SubURLClassLoader.class, specificDir))))
                 .containsExactly(generalDir, specificDir);

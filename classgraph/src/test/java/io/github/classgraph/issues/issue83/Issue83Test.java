@@ -19,8 +19,8 @@ public class Issue83Test {
     @Test
     public void jarAccept() {
         assertThat(jarPathURL).isNotNull();
-        try (var scanResult = new ClassGraph().overrideClasspath(jarPathURL).acceptJars("nested-jars-level1.zip")
-                .scan()) {
+        try (var scanResult = new ClassGraph().enableClasspathEntries(jarPathURL)
+                .acceptJars("nested-jars-level1.zip").scan()) {
             final var paths = scanResult.getAllResources().stream().map(Resource::getPath).toList();
             assertThat(paths).contains("level2.jar");
         }
@@ -32,8 +32,8 @@ public class Issue83Test {
     @Test
     public void jarReject() {
         assertThat(jarPathURL).isNotNull();
-        try (var scanResult = new ClassGraph().overrideClasspath(jarPathURL).rejectJars("nested-jars-level1.zip")
-                .scan()) {
+        try (var scanResult = new ClassGraph().enableClasspathEntries(jarPathURL)
+                .rejectJars("nested-jars-level1.zip").scan()) {
             final var paths = scanResult.getAllResources().stream().map(Resource::getPath).toList();
             assertThat(paths).doesNotContain("level2.jar");
         }

@@ -103,7 +103,8 @@ public class Issue559Test {
      * @return a scan result for this test's package
      */
     private static ScanResult scan() {
-        return new ClassGraph().acceptPackages(Issue559Test.class.getPackage().getName()).enableAllInfo().scan();
+        return new ClassGraph().enableClasspath().acceptPackages(Issue559Test.class.getPackage().getName())
+                .enableAllInfo().scan();
     }
 
     /** An annotation directly present on a class wins over its own meta-annotation. */

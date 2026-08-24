@@ -19,7 +19,8 @@ public final class HiddenClasspathEntryScanner {
      *            ignored.
      */
     public static void main(final String[] args) {
-        try (var scanResult = new ClassGraph().acceptPaths(HiddenClasspathEntryTest.RESOURCE_DIR).scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath().acceptPaths(HiddenClasspathEntryTest.RESOURCE_DIR)
+                .scan()) {
             System.out.println(
                     "FOUND=" + !scanResult.getResourcesWithPath(HiddenClasspathEntryTest.RESOURCE_PATH).isEmpty());
         }

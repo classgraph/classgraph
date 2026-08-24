@@ -3828,6 +3828,16 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                 annotation.toString(useSimpleNames, buf);
             }
         }
+        if (!initialBufEmpty) {
+            // In an extends/implements clause, only the name of the class is rendered: its modifiers, its class
+            // type, its type parameters, its record parameters and its own supertypes all belong to its own
+            // declaration, not to the declaration of the class that extends or implements it
+            if (buf.charAt(buf.length() - 1) != ' ' && buf.charAt(buf.length() - 1) != '(') {
+                buf.append(' ');
+            }
+            buf.append(useSimpleNames ? ClassInfo.getSimpleName(name) : name);
+            return;
+        }
         ClassTypeSignature typeSig = null;
         try {
             typeSig = getTypeSignature();
@@ -3847,14 +3857,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             if (buf.length() > 0 && buf.charAt(buf.length() - 1) != ' ' && buf.charAt(buf.length() - 1) != '(') {
                 buf.append(' ');
             }
-            // Don't put class type in extends/implements clauses
-            if (initialBufEmpty) {
-                buf.append(isRecord() ? "record " //
-                        : isEnum() ? "enum " //
-                                : isAnnotation() ? "@interface " //
-                                        : isInterface() ? "interface " //
-                                                : "class ");
-            }
+            buf.append(isRecord() ? "record " //
+                    : isEnum() ? "enum " //
+                            : isAnnotation() ? "@interface " //
+                                    : isInterface() ? "interface " //
+                                            : "class ");
             buf.append(useSimpleNames ? ClassInfo.getSimpleName(name) : name);
             if (isRecord) {
                 // Add params, if this is a record class

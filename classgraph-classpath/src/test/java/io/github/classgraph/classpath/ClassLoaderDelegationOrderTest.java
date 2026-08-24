@@ -64,7 +64,7 @@ public class ClassLoaderDelegationOrderTest {
         // URLClassLoader delegates to its parent first, so the parent's directory masks the child's
         try (var parent = new URLClassLoader(new URL[] { parentDir.toUri().toURL() }, /* parent = */ null);
                 var child = new URLClassLoader(new URL[] { childDir.toUri().toURL() }, parent);
-                var classpath = new ClasspathFinder().overrideClassLoaders(child).find()) {
+                var classpath = new ClasspathFinder().enableClassLoaders(child).find()) {
             assertThat(classpath.getLocations()).containsExactly(location(parentDir), location(childDir));
         }
     }
@@ -92,7 +92,7 @@ public class ClassLoaderDelegationOrderTest {
         // classloader's entries must precede the child's
         try (var child = new URLClassLoader(new URL[] { childDir.toUri().toURL() },
                 ClassLoader.getSystemClassLoader());
-                var classpath = new ClasspathFinder().addClassLoader(child).find()) {
+                var classpath = new ClasspathFinder().enableClassLoaders(child).find()) {
             assertThat(classpath.getLocations()).endsWith(location(childDir));
         }
     }
@@ -108,7 +108,7 @@ public class ClassLoaderDelegationOrderTest {
      */
     @Test
     public void ignoringParentClassLoadersKeepsTheApplicationClassLoadersOwnEntries() throws IOException {
-        try (var classpath = new ClasspathFinder().ignoreParentClassLoaders().find()) {
+        try (var classpath = new ClasspathFinder().enableClasspath().ignoreParentClassLoaders().find()) {
             // This test class is loaded from a java.class.path entry, so that entry must have been searched
             assertThat(classpath.getLocations()).isNotEmpty();
             assertThat(String.join(File.pathSeparator, classpath.getLocations())).contains("classgraph-classpath");

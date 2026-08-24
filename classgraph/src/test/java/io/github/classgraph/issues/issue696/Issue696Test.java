@@ -34,8 +34,9 @@ public class Issue696Test {
 
     @Test
     void genericSuperclass() {
-        try (var scanResult = new ClassGraph().acceptPackages(Issue696Test.class.getPackage().getName())
-                .enableMethodInfo().enableAnnotationInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath()
+                .acceptPackages(Issue696Test.class.getPackage().getName()).enableMethodInfo().enableAnnotationInfo()
+                .scan()) {
             final var dynamic = scanResult.getClassInfo(Dynamic.class.getName());
             final var paramInfo = dynamic.getConstructorInfo().get(0).getParameterInfo();
             // Inner classes have an initial "mandated" param

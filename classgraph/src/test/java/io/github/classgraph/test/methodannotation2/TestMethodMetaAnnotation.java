@@ -102,8 +102,9 @@ public class TestMethodMetaAnnotation {
     @Test
     @ExternalAnnotation
     public void testMetaAnnotation() {
-        try (var scanResult = new ClassGraph().acceptPackages(TestMethodMetaAnnotation.class.getPackage().getName())
-                .enableAnnotationInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath()
+                .acceptPackages(TestMethodMetaAnnotation.class.getPackage().getName()).enableAnnotationInfo()
+                .scan()) {
             final var testClasses = scanResult.getClassesWithAnnotation(MetaAnnotation.class).getNames();
             assertThat(testClasses).containsOnly(MethodAnnotation.class.getName(), ClassAnnotation.class.getName(),
                     MetaAnnotatedClass.class.getName());
@@ -116,8 +117,9 @@ public class TestMethodMetaAnnotation {
     @Test
     @ExternalAnnotation
     public void testMetaAnnotationStandardClassesOnly() {
-        try (var scanResult = new ClassGraph().acceptPackages(TestMethodMetaAnnotation.class.getPackage().getName())
-                .enableAnnotationInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath()
+                .acceptPackages(TestMethodMetaAnnotation.class.getPackage().getName()).enableAnnotationInfo()
+                .scan()) {
             final var testClasses = scanResult.getClassesWithAnnotation(MetaAnnotation.class).getStandardClasses()
                     .getNames();
             assertThat(testClasses).containsOnly(MetaAnnotatedClass.class.getName());
@@ -130,8 +132,9 @@ public class TestMethodMetaAnnotation {
     @Test
     @ExternalAnnotation
     public void testMethodMetaAnnotation() {
-        try (var scanResult = new ClassGraph().acceptPackages(TestMethodMetaAnnotation.class.getPackage().getName())
-                .enableMethodInfo().enableAnnotationInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath()
+                .acceptPackages(TestMethodMetaAnnotation.class.getPackage().getName()).enableMethodInfo()
+                .enableAnnotationInfo().scan()) {
             final var testClasses = scanResult.getClassesWithMethodAnnotation(MetaAnnotation.class).getNames();
             assertThat(testClasses).containsOnly(ClassWithMetaAnnotatedMethod.class.getName());
         }

@@ -88,14 +88,14 @@ public class AwkwardPathNamesTest {
         // An accept criterion matches the leafname of the jar, which used to end at the first '!' in the path, so a
         // jar below a directory whose name contains a '!' was matched by its directory's name and silently skipped
         // #903
-        try (var scanResult = new ClassGraph().overrideClasspath(jar.toString()).enableClassInfo()
+        try (var scanResult = new ClassGraph().enableClasspathEntries(jar.toString()).enableClassInfo()
                 .acceptJars("probe.jar").scan()) {
             assertThat(scanResult.getAllClasses().getNames()).as("accepting probe.jar in %s", dirName)
                     .containsExactly(CLASS_NAME);
         }
 
         // The URL of a resource within the jar has to name something that can be read back
-        try (var scanResult = new ClassGraph().overrideClasspath(jar.toString()).scan()) {
+        try (var scanResult = new ClassGraph().enableClasspathEntries(jar.toString()).scan()) {
             final var resource = scanResult.getResourcesWithExtension("class").get(0);
             final var connection = resource.getURL().openConnection();
             // The JDK caches the JarFile behind a "jar:" URL, and a cached JarFile is never closed, which would
@@ -114,7 +114,7 @@ public class AwkwardPathNamesTest {
      *            the classpath element to scan.
      */
     private static void assertThatScanFindsTheClass(final String classpathElement) {
-        try (var scanResult = new ClassGraph().overrideClasspath(classpathElement).enableClassInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspathEntries(classpathElement).enableClassInfo().scan()) {
             assertThat(scanResult.getAllClasses().getNames()).as("scanning %s", classpathElement)
                     .containsExactly(CLASS_NAME);
         }

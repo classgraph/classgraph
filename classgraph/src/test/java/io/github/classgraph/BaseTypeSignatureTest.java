@@ -103,8 +103,8 @@ public class BaseTypeSignatureTest {
         assertThat(intSignature.equalsIgnoringTypeParams(new BaseTypeSignature('J'))).isFalse();
         assertThat(intSignature.equalsIgnoringTypeParams(null)).isFalse();
 
-        try (var scanResult = new ClassGraph().acceptClasses(AnnotatedPrimitives.class.getName()).enableAllInfo()
-                .scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath().acceptClasses(AnnotatedPrimitives.class.getName())
+                .enableAllInfo().scan()) {
             final var annotatedInt = scanResult.getClassInfo(AnnotatedPrimitives.class.getName())
                     .getFieldInfo("annotatedField").getTypeSignatureOrTypeDescriptor();
             // The type annotation is part of the identity of the type, but not of the type ignoring type params
@@ -117,8 +117,8 @@ public class BaseTypeSignatureTest {
     // #419: a base type does not hold onto the ScanResult, so that closing the scan can free it
     @Test
     public void typeAnnotationsAreShownBeforeTheTypeName() {
-        try (var scanResult = new ClassGraph().acceptClasses(AnnotatedPrimitives.class.getName()).enableAllInfo()
-                .scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath().acceptClasses(AnnotatedPrimitives.class.getName())
+                .enableAllInfo().scan()) {
             final var classInfo = scanResult.getClassInfo(AnnotatedPrimitives.class.getName());
             final var annotation = "@" + NonNegative.class.getName();
             final var fieldType = classInfo.getFieldInfo("annotatedField").getTypeSignatureOrTypeDescriptor();

@@ -115,8 +115,8 @@ public class ReturnedListsAreUnmodifiableTest {
     public void everyReturnedCollectionIsUnmodifiable() {
         final var modifiableCollections = new TreeSet<String>();
         var numCollectionsChecked = 0;
-        try (var scanResult = new ClassGraph().acceptPackages(ClassWithMembers.class.getPackage().getName())
-                .enableAllInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath()
+                .acceptPackages(ClassWithMembers.class.getPackage().getName()).enableAllInfo().scan()) {
             for (final Object object : scanResultObjects(scanResult)) {
                 for (final Method method : object.getClass().getMethods()) {
                     final Class<?> returnType = method.getReturnType();
@@ -172,8 +172,8 @@ public class ReturnedListsAreUnmodifiableTest {
     /** A list that the user constructs behaves like an ordinary list, with every mutating method working. */
     @Test
     public void everyMutatorWorksOnAUserConstructedList() {
-        try (var scanResult = new ClassGraph().acceptPackages(ClassWithMembers.class.getPackage().getName())
-                .enableAllInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath()
+                .acceptPackages(ClassWithMembers.class.getPackage().getName()).enableAllInfo().scan()) {
             final var classes = List.copyOf(scanResult.getAllClasses());
             assertThat(classes).hasSizeGreaterThan(1);
             final var classInfoList = new ClassInfoList(classes);
@@ -198,8 +198,8 @@ public class ReturnedListsAreUnmodifiableTest {
     /** The other mutating methods on a returned list should be rejected too, not just {@code add}. */
     @Test
     public void allMutatorsAreRejectedOnReturnedLists() {
-        try (var scanResult = new ClassGraph().acceptPackages(ClassWithMembers.class.getPackage().getName())
-                .enableAllInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath()
+                .acceptPackages(ClassWithMembers.class.getPackage().getName()).enableAllInfo().scan()) {
             final ClassInfoList classInfoList = scanResult.getAllClasses();
             assertThat(classInfoList).hasSizeGreaterThan(1);
 
@@ -226,8 +226,8 @@ public class ReturnedListsAreUnmodifiableTest {
      */
     @Test
     public void noOpMutatorsAreRejectedOnReturnedLists() {
-        try (var scanResult = new ClassGraph().acceptPackages(ClassWithMembers.class.getPackage().getName())
-                .enableAllInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath()
+                .acceptPackages(ClassWithMembers.class.getPackage().getName()).enableAllInfo().scan()) {
             // An empty returned list: every mutator is a no-op on it, but must still be rejected
             final ClassInfoList emptyList = scanResult.getAllClasses().filter(ci -> false);
             assertThat(emptyList).isEmpty();
@@ -256,8 +256,8 @@ public class ReturnedListsAreUnmodifiableTest {
     @Test
     public void parameterizedAccessorsReturnUnmodifiableLists() {
         final String classfilePath = ClassWithMembers.class.getName().replace('.', '/') + ".class";
-        try (var scanResult = new ClassGraph().acceptPackages(ClassWithMembers.class.getPackage().getName())
-                .enableAllInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath()
+                .acceptPackages(ClassWithMembers.class.getPackage().getName()).enableAllInfo().scan()) {
             final ClassInfo classInfo = scanResult.getClassInfo(ClassWithMembers.class.getName());
             assertThat(classInfo).isNotNull();
 

@@ -56,7 +56,8 @@ public class ClasspathElementModuleTest {
      * @return the scan result.
      */
     private static ScanResult scanSystemModulePackage() {
-        return new ClassGraph().enableSystemJarsAndModules().acceptPathsNonRecursive(PACKAGE_PATH).scan();
+        return new ClassGraph().enableSystemJars().enableSystemModules().acceptPathsNonRecursive(PACKAGE_PATH)
+                .scan();
     }
 
     /**
@@ -216,7 +217,7 @@ public class ClasspathElementModuleTest {
             zipOutputStream.closeEntry();
         }
 
-        try (var scanResult = new ClassGraph().overrideModuleLayers(moduleLayerFor(jar)).ignoreParentModuleLayers()
+        try (var scanResult = new ClassGraph().enableModuleLayers(moduleLayerFor(jar)).ignoreParentModuleLayers()
                 .acceptPaths("modulescan").scan()) {
             final var resource = resource(scanResult, resourcePath);
             assertThat(resource.loadAsString()).isEqualTo(content);
@@ -227,11 +228,10 @@ public class ClasspathElementModuleTest {
         }
     }
 
-    /** Nothing is scanned from the module path when module scanning is disabled. */
+    /** Nothing is scanned from the module path unless a module source is enabled. */
     @Test
-    public void nothingIsScannedFromAModuleWhenModuleScanningIsDisabled() {
-        try (var scanResult = new ClassGraph().enableSystemJarsAndModules().disableModuleScanning()
-                .acceptPathsNonRecursive(PACKAGE_PATH).scan()) {
+    public void nothingIsScannedFromAModuleUnlessModulesAreEnabled() {
+        try (var scanResult = new ClassGraph().enableSystemJars().acceptPathsNonRecursive(PACKAGE_PATH).scan()) {
             assertThat(scanResult.getResourcesWithPath(CLASSFILE_PATH)).isEmpty();
         }
     }

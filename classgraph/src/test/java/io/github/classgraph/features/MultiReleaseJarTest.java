@@ -29,7 +29,7 @@ public class MultiReleaseJarTest {
     @Test
     public void multiReleaseJar() throws Exception {
         try (var classLoader = new URLClassLoader(new URL[] { jarURL });
-                var scanResult = new ClassGraph().overrideClassLoaders(classLoader).enableAllInfo().scan()) {
+                var scanResult = new ClassGraph().enableClassLoaders(classLoader).enableAllInfo().scan()) {
             final var classInfo = scanResult.getClassInfo("mrj.Cls");
             assertThat(classInfo).isNotNull();
             final var classfileResource = classInfo.getResource();
@@ -59,7 +59,7 @@ public class MultiReleaseJarTest {
     @Test
     public void multiReleaseVersioningOfResources() throws Exception {
         try (var classLoader = new URLClassLoader(new URL[] { jarURL });
-                var scanResult = new ClassGraph().overrideClassLoaders(classLoader).acceptPaths("nonexistent_path")
+                var scanResult = new ClassGraph().enableClassLoaders(classLoader).acceptPaths("nonexistent_path")
                         .scan()) {
             assertThat(scanResult.getResourcesWithPath("mrj/Cls.class")).isEmpty();
             assertThat(scanResult.getResourcesWithPathIgnoringAccept("mrj/Cls.class")).isNotEmpty();
@@ -75,7 +75,7 @@ public class MultiReleaseJarTest {
     @Test
     public void enableMultiReleaseVersions() throws Exception {
         try (var classLoader = new URLClassLoader(new URL[] { jarURL });
-                var scanResult = new ClassGraph().overrideClassLoaders(classLoader).enableMultiReleaseVersions()
+                var scanResult = new ClassGraph().enableClassLoaders(classLoader).enableMultiReleaseVersions()
                         .scan()) {
             final var java8ClassResource = scanResult.getResourcesWithPath("mrj/Cls.class");
             assertThat(java8ClassResource).hasSize(1);
@@ -103,7 +103,7 @@ public class MultiReleaseJarTest {
     @Test
     public void enableMultiReleaseVersionsWithClassInfo() throws Exception {
         try (var classLoader = new URLClassLoader(new URL[] { jarURL });
-                var scanResult = new ClassGraph().overrideClassLoaders(classLoader).enableAllInfo()
+                var scanResult = new ClassGraph().enableClassLoaders(classLoader).enableAllInfo()
                         .enableMultiReleaseVersions().scan()) {
             final var java8ClassResource = scanResult.getResourcesWithPath("mrj/Cls.class");
             assertThat(java8ClassResource).hasSize(1);
@@ -128,8 +128,9 @@ public class MultiReleaseJarTest {
      */
     @Test
     public void enableAllInfoAfterEnableMultiReleaseVersions() {
-        try (var scanResult = new ClassGraph().acceptPackages(MultiReleaseJarTest.class.getPackage().getName())
-                .enableMultiReleaseVersions().enableAllInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath()
+                .acceptPackages(MultiReleaseJarTest.class.getPackage().getName()).enableMultiReleaseVersions()
+                .enableAllInfo().scan()) {
             assertThat(scanResult.getClassesWithAnnotation(ClassRetained.class).getNames())
                     .containsOnly(ClassRetainedAnnotated.class.getName());
         }

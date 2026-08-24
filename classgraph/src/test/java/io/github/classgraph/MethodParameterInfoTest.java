@@ -131,7 +131,7 @@ public class MethodParameterInfoTest {
      * @return the scan result.
      */
     private static ScanResult scanFixture(final boolean enableAnnotationInfo) {
-        final var classGraph = new ClassGraph().enableMethodInfo().ignoreMethodVisibility()
+        final var classGraph = new ClassGraph().enableClasspath().enableMethodInfo().ignoreMethodVisibility()
                 .acceptClasses(Fixture.class.getName(), Fixture.Inner.class.getName(), Fixture.Enm.class.getName());
         return (enableAnnotationInfo ? classGraph.enableAnnotationInfo() : classGraph).scan();
     }
@@ -322,7 +322,7 @@ public class MethodParameterInfoTest {
      */
     @Test
     public void aClassCompiledWithoutParameterNamesHasUnnamedParameters() {
-        try (var scanResult = new ClassGraph().enableMethodInfo().overrideClasspath(noParamNamesDir.toString())
+        try (var scanResult = new ClassGraph().enableMethodInfo().enableClasspathEntries(noParamNamesDir.toString())
                 .acceptClasses(NO_PARAM_NAMES_CLASS).scan()) {
             final var classInfo = scanResult.getClassInfo(NO_PARAM_NAMES_CLASS);
             assertThat(classInfo).isNotNull();

@@ -28,23 +28,23 @@ public class Issue352Test {
         assertThat(resolvedFile).isFile();
 
         // Test that module-info.class is not included in resource list if the root package ("") is not accepted
-        try (var scanResult = new ClassGraph().overrideClasspath(resolvedFile).acceptPackagesNonRecursive("")
+        try (var scanResult = new ClassGraph().enableClasspathEntries(resolvedFile).acceptPackagesNonRecursive("")
                 .enableClassInfo().scan()) {
             assertThat(scanResult.getAllResources().getPaths()).contains("module-info.class");
         }
-        try (var scanResult = new ClassGraph().overrideClasspath(resolvedFile).acceptPackages("com.sun.istack")
+        try (var scanResult = new ClassGraph().enableClasspathEntries(resolvedFile).acceptPackages("com.sun.istack")
                 .enableClassInfo().scan()) {
             assertThat(scanResult.getAllResources().getPaths()).doesNotContain("module-info.class");
         }
 
         // Test that package-info.class is only included in resource list for accepted packages
         final var pkgInfoPath = Issue107Test.class.getPackage().getName().replace('.', '/') + "/package-info.class";
-        try (var scanResult = new ClassGraph().acceptPackages(Issue107Test.class.getPackage().getName())
-                .enableClassInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath()
+                .acceptPackages(Issue107Test.class.getPackage().getName()).enableClassInfo().scan()) {
             assertThat(scanResult.getAllResources().getPaths()).contains(pkgInfoPath);
         }
-        try (var scanResult = new ClassGraph().acceptPackages(Issue352Test.class.getPackage().getName())
-                .enableClassInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath()
+                .acceptPackages(Issue352Test.class.getPackage().getName()).enableClassInfo().scan()) {
             assertThat(scanResult.getAllResources().getPaths()).doesNotContain(pkgInfoPath);
         }
     }

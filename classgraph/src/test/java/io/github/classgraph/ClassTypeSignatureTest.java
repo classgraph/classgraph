@@ -46,8 +46,8 @@ public class ClassTypeSignatureTest {
      * @return the scan result.
      */
     private static ScanResult scanFixture() {
-        return new ClassGraph().acceptClasses(Base.class.getName(), Iface.class.getName(), Sub.class.getName(),
-                NonGeneric.class.getName()).scan();
+        return new ClassGraph().enableClasspath().acceptClasses(Base.class.getName(), Iface.class.getName(),
+                Sub.class.getName(), NonGeneric.class.getName()).scan();
     }
 
     /**
@@ -169,7 +169,7 @@ public class ClassTypeSignatureTest {
         final var resourceURL = ClassTypeSignatureTest.class.getClassLoader().getResource("scalapackage.zip");
         assertThat(resourceURL).isNotNull();
         try (var classLoader = new URLClassLoader(new URL[] { resourceURL }, null);
-                var scanResult = new ClassGraph().acceptPackages("scalapackage").overrideClassLoaders(classLoader)
+                var scanResult = new ClassGraph().acceptPackages("scalapackage").enableClassLoaders(classLoader)
                         .scan()) {
             final var typeSig = scanResult.getClassInfo("scalapackage.ScalaClass").getTypeSignature();
             assertThat(typeSig).isNotNull();

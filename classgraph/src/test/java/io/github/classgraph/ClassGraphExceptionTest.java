@@ -43,7 +43,7 @@ public class ClassGraphExceptionTest {
             }
         };
         try {
-            assertThatThrownBy(() -> new ClassGraph().scan(executorService, 1))
+            assertThatThrownBy(() -> new ClassGraph().enableClasspath().scan(executorService, 1))
                     .isInstanceOf(ClassGraphException.class).hasMessage("Scan interrupted")
                     .hasCauseInstanceOf(InterruptedException.class);
             // Thread.interrupted() both reports and clears the status, so this also stops the interruption leaking

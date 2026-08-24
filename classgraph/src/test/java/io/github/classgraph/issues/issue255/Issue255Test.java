@@ -49,7 +49,7 @@ public class Issue255Test {
         final var dirPath = Issue255Test.class.getClassLoader().getResource("issue255").getPath()
                 + "/test%20percent%20encoding";
 
-        try (var scanResult = new ClassGraph().overrideClasspath(dirPath).scan()) {
+        try (var scanResult = new ClassGraph().enableClasspathEntries(dirPath).scan()) {
             final var resources = scanResult.getAllResources();
             assertThat(resources.size()).isEqualTo(1);
             resources.forEachByteArray(

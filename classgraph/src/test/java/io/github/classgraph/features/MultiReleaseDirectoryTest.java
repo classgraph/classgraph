@@ -56,7 +56,7 @@ public class MultiReleaseDirectoryTest {
      */
     private static String readResource(final Path dir, final String path, final boolean enableMultiReleaseVersions)
             throws IOException {
-        final var classGraph = new ClassGraph().overrideClasspath(dir.toString());
+        final var classGraph = new ClassGraph().enableClasspathEntries(dir.toString());
         if (enableMultiReleaseVersions) {
             classGraph.enableMultiReleaseVersions();
         }

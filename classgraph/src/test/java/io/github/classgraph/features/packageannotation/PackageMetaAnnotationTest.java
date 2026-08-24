@@ -19,7 +19,7 @@ public class PackageMetaAnnotationTest {
     @Test
     public void packageMetaAnnotationsAreResolved() {
         final var packageName = PackageMetaAnnotationTest.class.getPackage().getName();
-        try (var scanResult = new ClassGraph().acceptPackages(packageName).enableAnnotationInfo()
+        try (var scanResult = new ClassGraph().enableClasspath().acceptPackages(packageName).enableAnnotationInfo()
                 // package-info is a non-public class
                 .ignoreClassVisibility().scan()) {
             final var packageInfo = Objects.requireNonNull(scanResult.getPackageInfo(packageName));
@@ -46,7 +46,8 @@ public class PackageMetaAnnotationTest {
     @Test
     public void annotationInfoMustBeEnabled() {
         final var packageName = PackageMetaAnnotationTest.class.getPackage().getName();
-        try (var scanResult = new ClassGraph().acceptPackages(packageName).ignoreClassVisibility().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath().acceptPackages(packageName).ignoreClassVisibility()
+                .scan()) {
             final var packageInfo = Objects.requireNonNull(scanResult.getPackageInfo(packageName));
 
             assertThatThrownBy(packageInfo::getAllAnnotationInfo).isInstanceOf(IllegalStateException.class)

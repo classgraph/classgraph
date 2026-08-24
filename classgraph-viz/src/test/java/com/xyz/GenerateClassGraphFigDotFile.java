@@ -15,7 +15,7 @@ public class GenerateClassGraphFigDotFile {
      *            the arguments
      */
     public static void main(final String[] args) {
-        try (var scanResult = new ClassGraph() //
+        try (var scanResult = new ClassGraph().enableClasspath() //
                 .acceptPackages("com.xyz.fig") //
                 .ignoreFieldVisibility() //
                 .enableFieldInfo() //

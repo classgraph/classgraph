@@ -83,7 +83,7 @@ public class ClassLoaderNotRetainedTest {
 
         // The ClassGraph instance is not stored in a local either, since it holds the supplied classloader for as
         // long as it is alive, so that the same instance can be scanned with more than once
-        final var scanResult = new ClassGraph().overrideClassLoaders(classLoader).ignoreParentClassLoaders()
+        final var scanResult = new ClassGraph().enableClassLoaders(classLoader).ignoreParentClassLoaders()
                 .acceptPackages(SCANNED_PACKAGE).scan();
         try {
             final var classInfo = scanResult.getClassInfo(SCANNED_CLASS_NAME);

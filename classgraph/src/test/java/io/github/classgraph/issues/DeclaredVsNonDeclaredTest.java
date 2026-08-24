@@ -187,7 +187,7 @@ public class DeclaredVsNonDeclaredTest {
      */
     @Test
     public void publicDeclaredVsNonDeclared() {
-        try (var scanResult = new ClassGraph().enableClassInfo() //
+        try (var scanResult = new ClassGraph().enableClasspath().enableClassInfo() //
                 .enableMethodInfo() //
                 .enableFieldInfo() //
                 .acceptPackages(DeclaredVsNonDeclaredTest.class.getPackage().getName()).scan()) {
@@ -203,7 +203,7 @@ public class DeclaredVsNonDeclaredTest {
      */
     @Test
     public void publicAndPrivateDeclaredVsNonDeclared() {
-        try (var scanResult = new ClassGraph().enableClassInfo() //
+        try (var scanResult = new ClassGraph().enableClasspath().enableClassInfo() //
                 .enableMethodInfo().ignoreMethodVisibility() //
                 .enableFieldInfo().ignoreFieldVisibility() //
                 .acceptPackages(DeclaredVsNonDeclaredTest.class.getPackage().getName()).scan()) {

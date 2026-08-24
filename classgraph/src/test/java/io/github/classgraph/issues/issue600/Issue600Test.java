@@ -19,7 +19,7 @@ class Issue600Test {
     private static final int BUFFER_SIZE = 8192;
     private static final int EOF = -1;
 
-    private final ClassGraph classGraph = new ClassGraph().enableClassInfo()
+    private final ClassGraph classGraph = new ClassGraph().enableClasspath().enableClassInfo()
             .acceptPackages(getClass().getPackage().getName());
 
     @Test

@@ -9,7 +9,8 @@ import io.github.classgraph.ClassGraph;
 public class Issue78Test {
     @Test
     public void issue78() {
-        try (var scanResult = new ClassGraph().acceptClasses(Issue78Test.class.getName()).scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath().acceptClasses(Issue78Test.class.getName())
+                .scan()) {
             assertThat(scanResult.getAllClasses().getNames()).containsOnly(Issue78Test.class.getName());
         }
     }
