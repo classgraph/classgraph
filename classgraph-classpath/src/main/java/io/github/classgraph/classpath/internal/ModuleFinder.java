@@ -107,16 +107,24 @@ public class ModuleFinder {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Recursively append a layer and its ancestors to the layer order, parents before children, skipping any layer
-     * that is already in the order.
+     * Recursively append a layer and then its ancestors to the layer order, skipping any layer that is already in
+     * the order.
      *
      * <p>
-     * A layer's classloaders delegate to the classloaders of its parent layers, so a parent layer's modules are
-     * searched before a child layer's, exactly as a parent classloader's classpath entries are searched before a
-     * child classloader's. Appending each layer only after its parents have been appended produces that order, and
-     * the shared {@code layerVisited} set makes it independent of which layers the caller happened to name: a layer
-     * lands in the same position whether it was named directly or reached through a child's
-     * {@link ModuleLayer#parents()}.
+     * A layer's own modules are searched before its parent layers' modules, which is the reverse of the classloader
+     * axis, where a parent classloader is searched before its children. The classloader that
+     * {@link ModuleLayer#defineModulesWithOneLoader} creates is a {@code jdk.internal.loader.Loader}, and its
+     * {@code loadClass} looks the package up in {@code localPackageToModule} -- the modules defined to that loader,
+     * i.e. this layer's own -- and only if that misses does it consult {@code remotePackageToLoader} (the parent
+     * layers' modules) and then the parent classloader. This is observable: a child layer may define a module with
+     * the same name as one in a parent layer, and the child layer's loader then resolves the shared package to the
+     * child's copy. So the layer is appended before its parents are.
+     *
+     * <p>
+     * The shared {@code layerVisited} set keeps a layer from being appended twice when the caller names both a
+     * layer and one of its ancestors. A layer named directly still takes the position its own name gives it, which
+     * is what naming it asks for; it is only reached indirectly, through {@link ModuleLayer#parents()}, if the
+     * caller did not name it.
      *
      * <p>
      * (The JDK (as of 10.0.0.1) uses a broken (non-topological) DFS ordering for layer resolution in
@@ -135,12 +143,12 @@ public class ModuleFinder {
     private static void findLayerOrder(final ModuleLayer layer, final Set<ModuleLayer> layerVisited,
             final Set<ModuleLayer> parentLayers, final List<ModuleLayer> layerOrderOut) {
         if (layerVisited.add(layer)) {
+            layerOrderOut.add(layer);
             final var parents = layer.parents();
             parentLayers.addAll(parents);
             for (final ModuleLayer parent : parents) {
                 findLayerOrder(parent, layerVisited, parentLayers, layerOrderOut);
             }
-            layerOrderOut.add(layer);
         }
     }
 
@@ -196,8 +204,7 @@ public class ModuleFinder {
             for (final ResolvedModule module : layer.configuration().modules()) {
                 final var moduleReference = module.reference();
                 // A module that is resolved in more than one layer is only listed once, in the first layer that
-                // resolves it, which is the ancestral layer closest to the root, since a child layer's
-                // classloaders delegate to its parents'
+                // resolves it, which is the layer whose loader would reach it first
                 if (addedModules.add(moduleReference)) {
                     modulesInLayer.add(moduleReference);
                 }

@@ -18,18 +18,19 @@ import org.junit.jupiter.api.io.TempDir;
 import io.github.classgraph.base.LogNode;
 
 /**
- * A module layer's classloaders delegate to the classloaders of its parent layers, so a parent layer's modules are
- * searched before a child layer's. The layer order must reflect that, and must not depend on which of the layers
- * the caller happened to name -- naming a child layer reaches its parent through {@link ModuleLayer#parents()}, and
- * the parent must land in the same position either way.
+ * A module layer's own modules are searched before its parent layers' modules: the
+ * {@code jdk.internal.loader.Loader} that a layer creates looks a package up in the modules defined to itself
+ * before consulting the parent layers' modules or its parent classloader. The layer order must mirror that, so a
+ * child layer's modules are listed before its parents'. A layer must also be listed only once, however many of the
+ * layers in a chain the caller names.
  */
 public class ModuleFinderLayerOrderTest {
 
-    /** The name of the automatic module in the parent layer. Sorts <i>after</i> the child module's name. */
-    private static final String PARENT_MODULE = "cgzparentmod";
+    /** The name of the automatic module in the parent layer. Sorts <i>before</i> the child module's name. */
+    private static final String PARENT_MODULE = "cgaparentmod";
 
-    /** The name of the automatic module in the child layer. Sorts <i>before</i> the parent module's name. */
-    private static final String CHILD_MODULE = "cgachildmod";
+    /** The name of the automatic module in the child layer. Sorts <i>after</i> the parent module's name. */
+    private static final String CHILD_MODULE = "cgzchildmod";
 
     /**
      * Build a jar that resolves as an automatic module of the given name. The jar contains a single resource, since
@@ -97,8 +98,8 @@ public class ModuleFinderLayerOrderTest {
     }
 
     /**
-     * The parent layer's module must be listed before the child layer's, whichever of the two layers is named, and
-     * whether or not the redundant parent layer is named alongside the child.
+     * A child layer's modules must be listed before its parent layer's, since that is the order in which the child
+     * layer's loader searches them. Naming the parent layer redundantly alongside the child must not list it twice.
      *
      * @param tempDir
      *            the temp dir.
@@ -106,16 +107,34 @@ public class ModuleFinderLayerOrderTest {
      *             if the test jars or module layers could not be created.
      */
     @Test
-    public void parentLayerModulesAreListedBeforeChildLayerModules(@TempDir final File tempDir) throws Exception {
+    public void childLayerModulesAreListedBeforeParentLayerModules(@TempDir final File tempDir) throws Exception {
         final var parentJar = buildAutomaticModuleJar(tempDir, PARENT_MODULE);
         final var childJar = buildAutomaticModuleJar(tempDir, CHILD_MODULE);
         final var parentLayer = defineModuleLayer(parentJar, PARENT_MODULE, ModuleLayer.boot());
         final var childLayer = defineModuleLayer(childJar, CHILD_MODULE, parentLayer);
 
         // The parent layer is reached through the child layer's parents, so naming the child alone is enough
-        assertThat(nonSystemModuleNames(childLayer)).containsExactly(PARENT_MODULE, CHILD_MODULE);
-        // Naming the parent as well must not move it -- it is already in the order, at the same position
-        assertThat(nonSystemModuleNames(childLayer, parentLayer)).containsExactly(PARENT_MODULE, CHILD_MODULE);
+        assertThat(nonSystemModuleNames(childLayer)).containsExactly(CHILD_MODULE, PARENT_MODULE);
+        // Naming the parent as well must not list it twice, nor move the child
+        assertThat(nonSystemModuleNames(childLayer, parentLayer)).containsExactly(CHILD_MODULE, PARENT_MODULE);
+    }
+
+    /**
+     * A layer that the caller names takes the position its own name gives it: naming the parent layer first asks
+     * for its modules to be searched first, and that is not overridden by the child layer's delegation order.
+     *
+     * @param tempDir
+     *            the temp dir.
+     * @throws Exception
+     *             if the test jars or module layers could not be created.
+     */
+    @Test
+    public void aNamedLayerKeepsThePositionItsOwnNameGivesIt(@TempDir final File tempDir) throws Exception {
+        final var parentJar = buildAutomaticModuleJar(tempDir, PARENT_MODULE);
+        final var childJar = buildAutomaticModuleJar(tempDir, CHILD_MODULE);
+        final var parentLayer = defineModuleLayer(parentJar, PARENT_MODULE, ModuleLayer.boot());
+        final var childLayer = defineModuleLayer(childJar, CHILD_MODULE, parentLayer);
+
         assertThat(nonSystemModuleNames(parentLayer, childLayer)).containsExactly(PARENT_MODULE, CHILD_MODULE);
     }
 }
