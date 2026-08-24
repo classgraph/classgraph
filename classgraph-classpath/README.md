@@ -301,6 +301,13 @@ classpath comes back empty and the same code worked on JDK 15 or earlier, that i
 fixes are to add `io.github.toolfactory:narcissus` to the classpath (an optional dependency of
 `classgraph-base` that reads fields natively), or to open the relevant module with `--add-opens`.
 
+Both of those are workarounds applied at the wrong end. The real fix is to ask the maintainers of
+the classloader to expose its full classpath through a public method or field, and it is worth
+asking: the JDK is progressively restricting the use of JNI, and the warning printed when a native
+library is loaded without `--enable-native-access` is scheduled to become a hard error, at which
+point Narcissus will not load unless the JVM is launched with that flag. Once that happens, neither
+workaround works out of the box, and only a public accessor on the classloader does.
+
 ## License
 
 MIT. See [LICENSE-ClassGraph.txt](../LICENSE-ClassGraph.txt).

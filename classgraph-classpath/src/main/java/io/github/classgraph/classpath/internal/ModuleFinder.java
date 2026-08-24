@@ -31,10 +31,8 @@ package io.github.classgraph.classpath.internal;
 import java.lang.module.ModuleReference;
 import java.lang.module.ResolvedModule;
 import java.net.URI;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.Deque;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -109,7 +107,16 @@ public class ModuleFinder {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Recursively find the topological sort order of ancestral layers.
+     * Recursively append a layer and its ancestors to the layer order, parents before children, skipping any layer
+     * that is already in the order.
+     *
+     * <p>
+     * A layer's classloaders delegate to the classloaders of its parent layers, so a parent layer's modules are
+     * searched before a child layer's, exactly as a parent classloader's classpath entries are searched before a
+     * child classloader's. Appending each layer only after its parents have been appended produces that order, and
+     * the shared {@code layerVisited} set makes it independent of which layers the caller happened to name: a layer
+     * lands in the same position whether it was named directly or reached through a child's
+     * {@link ModuleLayer#parents()}.
      *
      * <p>
      * (The JDK (as of 10.0.0.1) uses a broken (non-topological) DFS ordering for layer resolution in
@@ -119,21 +126,21 @@ public class ModuleFinder {
      * @param layer
      *            the layer
      * @param layerVisited
-     *            layer visited
+     *            the layers already appended to {@code layerOrderOut}, shared across all the top-level layers
      * @param parentLayers
      *            the parent layers
      * @param layerOrderOut
      *            the layer order
      */
     private static void findLayerOrder(final ModuleLayer layer, final Set<ModuleLayer> layerVisited,
-            final Set<ModuleLayer> parentLayers, final Deque<ModuleLayer> layerOrderOut) {
+            final Set<ModuleLayer> parentLayers, final List<ModuleLayer> layerOrderOut) {
         if (layerVisited.add(layer)) {
             final var parents = layer.parents();
             parentLayers.addAll(parents);
             for (final ModuleLayer parent : parents) {
                 findLayerOrder(parent, layerVisited, parentLayers, layerOrderOut);
             }
-            layerOrderOut.push(layer);
+            layerOrderOut.add(layer);
         }
     }
 
@@ -155,14 +162,15 @@ public class ModuleFinder {
         }
 
         // Traverse the layer DAG to find the layer resolution order
-        final Deque<ModuleLayer> layerOrder = new ArrayDeque<>();
+        final List<ModuleLayer> layerOrder = new ArrayList<>();
         final Set<ModuleLayer> parentLayers = new HashSet<>();
+        final Set<ModuleLayer> layerVisited = new HashSet<>();
         for (final ModuleLayer layer : layers) {
-            findLayerOrder(layer, /* layerVisited = */ new HashSet<>(), parentLayers, layerOrder);
+            findLayerOrder(layer, layerVisited, parentLayers, layerOrder);
         }
         if (classLoaderAndModuleLayerSpec.addedModuleLayers != null) {
             for (final ModuleLayer layer : classLoaderAndModuleLayerSpec.addedModuleLayers) {
-                findLayerOrder(layer, /* layerVisited = */ new HashSet<>(), parentLayers, layerOrder);
+                findLayerOrder(layer, layerVisited, parentLayers, layerOrder);
             }
         }
 
@@ -187,8 +195,9 @@ public class ModuleFinder {
             final List<ModuleReference> modulesInLayer = new ArrayList<>();
             for (final ResolvedModule module : layer.configuration().modules()) {
                 final var moduleReference = module.reference();
-                // A module that is resolved in more than one layer is only listed once, in the first layer
-                // that resolves it
+                // A module that is resolved in more than one layer is only listed once, in the first layer that
+                // resolves it, which is the ancestral layer closest to the root, since a child layer's
+                // classloaders delegate to its parents'
                 if (addedModules.add(moduleReference)) {
                     modulesInLayer.add(moduleReference);
                 }
