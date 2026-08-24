@@ -102,7 +102,7 @@ public class ClasspathFinderTest {
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
-    /** A classloader is passed to {@code overrideClassLoaders}, not to {@code overrideClasspath}. */
+    /** A classloader is passed to {@code enableClassLoaders}, not to {@code enableClasspathEntries}. */
     @Test
     public void aClassLoaderIsNotAClasspathElement() {
         assertThatThrownBy(() -> new ClasspathFinder()

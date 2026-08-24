@@ -68,7 +68,7 @@ public class ClassLoaderNotRetainedTest {
     }
 
     /**
-     * A classloader passed to {@code overrideClassLoaders()} must be collectable once the caller drops it, even
+     * A classloader passed to {@code enableClassLoaders()} must be collectable once the caller drops it, even
      * though the {@link ScanResult} and a {@link ClassInfo} object from the scan are still held.
      */
     @Test

@@ -10,7 +10,7 @@ import io.github.classgraph.ClassGraph;
 
 /**
  * Test that the hierarchy above an accepted class is completed from classfiles in system modules, without having to
- * call {@link ClassGraph#enableSystemJarsAndModules()}.
+ * call {@link ClassGraph#enableSystemModules()}, and indeed without any module source being enabled at all.
  */
 public class Issue902Test {
     /** Implements an interface directly. */

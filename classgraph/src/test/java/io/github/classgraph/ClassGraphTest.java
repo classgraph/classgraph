@@ -239,8 +239,8 @@ public class ClassGraphTest {
 
     /**
      * A {@link Path} is an {@link Iterable} of its own name elements, so a single {@link Path} is passed to the
-     * {@code Iterable<?>} overload of {@code overrideClasspath()}, rather than to the {@code Object...} overload.
-     * It must still be treated as one classpath entry.
+     * {@code Iterable<?>} overload of {@code enableClasspathEntries()}, rather than to the {@code Object...}
+     * overload. It must still be treated as one classpath entry.
      */
     @Test
     public void aSinglePathIsOneClasspathEntry() throws IOException {
