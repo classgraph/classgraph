@@ -30,6 +30,7 @@ package io.github.classgraph.classpath.internal.classloaderhandler;
 
 import io.github.classgraph.base.ClassGraphLog;
 import io.github.classgraph.base.internal.reflection.ReflectionUtils;
+import io.github.classgraph.base.internal.utils.VersionFinder;
 import io.github.classgraph.classpath.ClassLoaderHandler;
 import io.github.classgraph.classpath.ClassLoaderOrder;
 import io.github.classgraph.classpath.ClasspathOrder;
@@ -41,13 +42,16 @@ import org.jspecify.annotations.Nullable;
  * load classes from a {@code jdk.internal.loader.URLClassPath}, which no public API exposes, so that is read here.
  */
 class JPMSClassLoaderHandler implements ClassLoaderHandler {
+    /** The name of the application classloader's class. */
+    private static final String APP_CLASS_LOADER = "jdk.internal.loader.ClassLoaders$AppClassLoader";
+
     /** Constructor. */
     JPMSClassLoaderHandler() {
     }
 
     @Override
     public boolean canHandle(final Class<?> classLoaderClass, final @Nullable ClassGraphLog log) {
-        return classIsOrExtendsOrImplements(classLoaderClass, "jdk.internal.loader.ClassLoaders$AppClassLoader")
+        return classIsOrExtendsOrImplements(classLoaderClass, APP_CLASS_LOADER)
                 || classIsOrExtendsOrImplements(classLoaderClass, "jdk.internal.loader.BuiltinClassLoader");
     }
 
@@ -105,6 +109,23 @@ class JPMSClassLoaderHandler implements ClassLoaderHandler {
         final var ucp = URLClassPathReader.getUcp(classLoader);
         if (ucp != null) {
             URLClassPathReader.addAllClasspathEntries(ucp, classLoader, classpathOrder, log);
+        } else if (APP_CLASS_LOADER.equals(classLoader.getClass().getName())) {
+            // The application classloader's URLClassPath could not be read, so fall back to the java.class.path
+            // system property, which lists the same entries that URLClassPath was constructed from. Only a Java
+            // agent's appended jars are missed, since appendToSystemClassLoaderSearch() does not update the
+            // property (#537).
+            //
+            // This has to happen here rather than after all the classloaders have been visited, because these are
+            // the application classloader's own classpath entries, and so must take the application classloader's
+            // place in the delegation order. Adding them at the end would put them after the entries of every
+            // classloader that delegates to the application classloader, which inverts the masking order: a class
+            // on the application classpath would appear to be masked by a copy in a child classloader, when the
+            // JVM's parent-first delegation loads the application classloader's copy instead.
+            if (log != null) {
+                log.log("Could not read the application classloader's URLClassPath, so getting its classpath "
+                        + "entries from the java.class.path system property instead");
+            }
+            classpathOrder.addClasspathPathStr(VersionFinder.getProperty("java.class.path"), classLoader, log);
         }
     }
 

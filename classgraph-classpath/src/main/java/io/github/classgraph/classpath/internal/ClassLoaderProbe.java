@@ -150,21 +150,13 @@ public class ClassLoaderProbe {
     }
 
     /**
-     * Which of the mechanisms that are not enabled by the scan options have to be used anyway, to reach everything
-     * the named classloaders can load.
+     * Work out whether the non-system modules have to be scanned to reach everything that the classloaders named by
+     * the scan options can load.
      *
-     * @param scanNonSystemModules
-     *            whether the non-system modules should be scanned
-     * @param forceScanJavaClassPath
-     *            whether the {@code java.class.path} classpath has to be scanned even though it would not otherwise
-     *            be, because a named classloader can only be reached that way
-     */
-    // #639, #795
-    private record ScanTargets(boolean scanNonSystemModules, boolean forceScanJavaClassPath) {
-    }
-
-    /**
-     * Work out what has to be scanned to reach everything that the classloaders named by the scan options can load.
+     * <p>
+     * The {@code java.class.path} classpath needs no equivalent treatment: those are the application classloader's
+     * own classpath entries, so its {@code ClassLoaderHandler} adds them whenever the application classloader is in
+     * the delegation order, which is exactly when naming it should cause them to be scanned.
      *
      * @param classpathSpec
      *            the {@link ClasspathSpec}
@@ -172,13 +164,14 @@ public class ClassLoaderProbe {
      *            the classloaders and module layers the caller asked to be scanned
      * @param log
      *            the log node, or null to skip logging
-     * @return what has to be scanned
+     * @return whether the non-system modules have to be scanned
      */
-    private static ScanTargets findScanTargets(final ClasspathSpec classpathSpec,
+    // #639, #795
+    private static boolean findScanNonSystemModules(final ClasspathSpec classpathSpec,
             final ClassLoaderAndModuleLayerSpec classLoaderAndModuleLayerSpec, final @Nullable LogNode log) {
         if (classpathSpec.overrideClasspath != null) {
             // Don't scan non-system modules if classpath is overridden
-            return new ScanTargets(/* scanNonSystemModules = */ false, /* forceScanJavaClassPath = */ false);
+            return false;
         }
         if (classLoaderAndModuleLayerSpec.overrideClassLoaders != null) {
             // If classloaders are overridden, scan only what the named classloaders can load -- so non-system
@@ -190,23 +183,18 @@ public class ClassLoaderProbe {
                     isApplicationClassLoaderNamed = true;
                 }
             }
-            return new ScanTargets(/* scanNonSystemModules = */ isApplicationClassLoaderNamed,
-                    /* forceScanJavaClassPath = */ isApplicationClassLoaderNamed);
+            return isApplicationClassLoaderNamed;
         }
-        // If classloaders are not overridden and classpath is not overridden, only scan non-system modules if
-        // module scanning is enabled
-        var forceScanJavaClassPath = false;
         if (classLoaderAndModuleLayerSpec.addedClassLoaders != null) {
             // The environment classloaders are scanned as well as the added classloaders, so an added classloader
             // can only widen what is scanned, never narrow it
             for (final ClassLoader classLoader : classLoaderAndModuleLayerSpec.addedClassLoaders) {
                 mapSystemClassLoaderToScanningMechanism(classLoader, classpathSpec, "addClassLoader()", log);
-                if (isApplicationClassLoader(classLoader)) {
-                    forceScanJavaClassPath = true;
-                }
             }
         }
-        return new ScanTargets(classpathSpec.scanModules, forceScanJavaClassPath);
+        // If neither the classloaders nor the classpath are overridden, only scan non-system modules if module
+        // scanning is enabled
+        return classpathSpec.scanModules;
     }
 
     /**
@@ -223,7 +211,8 @@ public class ClassLoaderProbe {
             final ClassLoaderAndModuleLayerSpec classLoaderAndModuleLayerSpec, final @Nullable LogNode log) {
         final var classLoaderProbeLog = log == null ? null : log.log("Finding classpath and modules");
 
-        final var scanTargets = findScanTargets(classpathSpec, classLoaderAndModuleLayerSpec, classLoaderProbeLog);
+        final var scanNonSystemModules = findScanNonSystemModules(classpathSpec, classLoaderAndModuleLayerSpec,
+                classLoaderProbeLog);
 
         // Also look for system modules if any module was specifically accepted by name -- a module that was asked
         // for by name is scanned whether or not it is a system module, and only the specifically-accepted system
@@ -233,9 +222,9 @@ public class ClassLoaderProbe {
                 || !classpathSpec.moduleAcceptReject.acceptIsEmpty();
 
         // Only instantiate a module finder if requested
-        moduleFinder = scanTargets.scanNonSystemModules() || scanSystemModules
+        moduleFinder = scanNonSystemModules || scanSystemModules
                 ? new ModuleFinder(CallStackReader.getClassContext(), classpathSpec, classLoaderAndModuleLayerSpec,
-                        scanTargets.scanNonSystemModules(), scanSystemModules, classLoaderProbeLog)
+                        scanNonSystemModules, scanSystemModules, classLoaderProbeLog)
                 : null;
 
         classpathOrder = new ClasspathOrderBuilder(classpathSpec);
@@ -261,14 +250,12 @@ public class ClassLoaderProbe {
                     classLoaderAndModuleLayerSpec, contextClassLoaders, classLoaderProbeLog);
         }
 
-        // Only scan java.class.path if parent classloaders are not ignored, classloaders are not overridden, and
-        // the classpath is not overridden, unless only module scanning was enabled, and an unnamed module layer was
-        // encountered -- in this case, have to forcibly scan java.class.path, since the ModuleLayer API doesn't
-        // allow for the opening of unnamed modules.
-        if (scanTargets.forceScanJavaClassPath()
-                || (!classpathSpec.ignoreParentClassLoaders
-                        && classLoaderAndModuleLayerSpec.overrideClassLoaders == null && overrideClasspath == null)
-                || (moduleFinder != null && moduleFinder.forceScanJavaClassPath())) {
+        // The application classloader's own classpath entries are added by its ClassLoaderHandler, at the position
+        // the application classloader takes in the delegation order. The only case that handler cannot cover is an
+        // unnamed module layer: the ModuleLayer API does not allow an unnamed module to be opened, so the classes
+        // in it can only be reached through java.class.path, whether or not the application classloader is being
+        // scanned. Anything added here that the handler already added is dropped as a duplicate.
+        if (moduleFinder != null && moduleFinder.forceScanJavaClassPath()) {
             addJavaClassPathEntries(classpathSpec, defaultClassLoader, classLoaderProbeLog);
         }
     }
