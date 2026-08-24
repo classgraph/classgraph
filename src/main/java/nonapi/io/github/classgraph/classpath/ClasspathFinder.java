@@ -121,9 +121,6 @@ public class ClasspathFinder {
     public ClasspathFinder(final ScanSpec scanSpec, final ReflectionUtils reflectionUtils, final LogNode log) {
         final LogNode classpathFinderLog = log == null ? null : log.log("Finding classpath and modules");
 
-        // Require scanning traditional classpath if an override classloader is AppClassLoader (#639)
-        boolean forceScanJavaClassPath = false;
-
         // If classloaders are overridden, check if the override classloader(s) is/are JPMS classloaders.
         // If so, need to enable non-system module scanning.
         boolean scanNonSystemModules;
@@ -144,14 +141,14 @@ public class ClasspathFinder {
                 // that classloader loads (#639, #795)
                 if (classLoaderClassName.equals("jdk.internal.loader.ClassLoaders$AppClassLoader")) {
                     // The AppClassLoader loads the classes on the java.class.path classpath, and the
-                    // application's own (non-system) modules
+                    // application's own (non-system) modules. Its own classpath entries are added by its
+                    // ClassLoaderHandler, so only the non-system modules have to be enabled here.
                     if (classpathFinderLog != null) {
                         classpathFinderLog.log("overrideClassLoaders() was called with an instance of "
                                 + classLoaderClassName + ", which does not expose the locations it loads from, "
                                 + "so the `java.class.path` classpath and the non-system modules will be "
                                 + "scanned instead, since these are what it loads from");
                     }
-                    forceScanJavaClassPath = true;
                     scanNonSystemModules = true;
                 } else if (classLoaderClassName
                         .equals("jdk.internal.loader.ClassLoaders$PlatformClassLoader")) {
@@ -311,14 +308,13 @@ public class ClasspathFinder {
             classLoaderOrderRespectingParentDelegation = finalClassLoaderOrder.toArray(new ClassLoader[0]);
         }
 
-        // Only scan java.class.path if parent classloaders are not ignored, classloaders are not overridden,
-        // and the classpath is not overridden, unless only module scanning was enabled, and an unnamed module
-        // layer was encountered -- in this case, have to forcibly scan java.class.path, since the ModuleLayer
-        // API doesn't allow for the opening of unnamed modules.
-        if (forceScanJavaClassPath
-                || (!scanSpec.ignoreParentClassLoaders && scanSpec.overrideClassLoaders == null
-                        && scanSpec.overrideClasspath == null)
-                || (moduleFinder != null && moduleFinder.forceScanJavaClassPath())) {
+        // The application classloader's own classpath entries are added by its ClassLoaderHandler, at the
+        // position the application classloader takes in the delegation order. The only case that handler cannot
+        // cover is an unnamed module layer: the ModuleLayer API does not allow an unnamed module to be opened,
+        // so the classes in it can only be reached through java.class.path, whether or not the application
+        // classloader is being scanned. Anything added here that the handler already added is dropped as a
+        // duplicate.
+        if (moduleFinder != null && moduleFinder.forceScanJavaClassPath()) {
             final String[] pathElements = JarUtils.smartPathSplit(VersionFinder.getProperty("java.class.path"),
                     scanSpec);
             if (pathElements.length > 0) {

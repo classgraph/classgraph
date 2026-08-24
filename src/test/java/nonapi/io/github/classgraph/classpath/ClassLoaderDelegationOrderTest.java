@@ -46,6 +46,53 @@ public class ClassLoaderDelegationOrderTest {
     }
 
     /**
+     * The application classloader's own classpath entries must be placed where the application classloader sits in
+     * the delegation order, not appended after every other classloader's entries.
+     *
+     * <p>
+     * No public API exposes those entries: the application classloader is not a {@link URLClassLoader}, and its
+     * {@code jdk.internal.loader.URLClassPath ucp} field can only be read with {@code --add-opens} or Narcissus, so
+     * the {@code java.class.path} system property normally stands in for it. That property lists the same entries,
+     * but it is a property rather than a classloader, so it is easy to read it at the wrong point.
+     *
+     * @param tempDir
+     *            a temporary directory to create the classpath element in
+     * @throws IOException
+     *             if the classpath element could not be created
+     */
+    @Test
+    public void theApplicationClassLoadersEntriesArePlacedAtItsPositionInTheDelegationOrder(
+            @TempDir final Path tempDir) throws IOException {
+        final Path childDir = Files.createDirectory(tempDir.resolve("child"));
+        // A child of the application classloader delegates to it first, so every one of the application
+        // classloader's entries must precede the child's
+        try (URLClassLoader child = new URLClassLoader(new URL[] { childDir.toUri().toURL() },
+                ClassLoader.getSystemClassLoader())) {
+            assertThat(canonicalFiles(new ClassGraph().addClassLoader(child).getClasspathFiles()))
+                    .endsWith(childDir.toFile().getCanonicalFile());
+        }
+    }
+
+    /**
+     * {@link ClassGraph#ignoreParentClassLoaders()} leaves out only the classpath entries that a <i>parent</i>
+     * classloader declares, so the application classloader's own entries are still searched when it is one of the
+     * classloaders being searched rather than a parent of one -- which is the usual case, since the context
+     * classloader is normally the application classloader.
+     *
+     * @throws IOException
+     *             if the classpath could not be read
+     */
+    @Test
+    public void ignoringParentClassLoadersKeepsTheApplicationClassLoadersOwnEntries() throws IOException {
+        // This test class is loaded from a java.class.path entry, so that entry must have been searched
+        final File thisTestsClasspathElement = new File(
+                ClassLoaderDelegationOrderTest.class.getProtectionDomain().getCodeSource().getLocation().getPath())
+                        .getCanonicalFile();
+        assertThat(canonicalFiles(new ClassGraph().ignoreParentClassLoaders().getClasspathFiles()))
+                .contains(thisTestsClasspathElement);
+    }
+
+    /**
      * Canonicalize files, since classpath elements are reported in canonical form, and a temporary directory is
      * not canonical on every platform (on macOS it is reached through a symlink, and on Windows it can be named by
      * a short path).

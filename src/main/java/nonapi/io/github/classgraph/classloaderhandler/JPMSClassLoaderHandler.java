@@ -35,20 +35,24 @@ import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.LogNode;
+import nonapi.io.github.classgraph.utils.VersionFinder;
 
 /**
- * A placeloader ClassLoaderHandler that matches Java 9+ classloaders, but does not attempt to extract URLs from
- * them (module scanning uses a different mechanism from classpath scanning).
+ * A ClassLoaderHandler that matches the Java 9+ builtin classloaders. Modules are scanned through the JPMS API
+ * rather than as classpath elements, but these classloaders also load classes from a
+ * {@code jdk.internal.loader.URLClassPath}, which no public API exposes, so that is read here.
  */
 class JPMSClassLoaderHandler implements ClassLoaderHandler {
+    /** The name of the application classloader's class. */
+    private static final String APP_CLASS_LOADER = "jdk.internal.loader.ClassLoaders$AppClassLoader";
+
     /** Constructor. */
     JPMSClassLoaderHandler() {
     }
 
     @Override
     public boolean canHandle(final Class<?> classLoaderClass, final LogNode log) {
-        return ClassLoaderFinder.classIsOrExtendsOrImplements(classLoaderClass,
-                "jdk.internal.loader.ClassLoaders$AppClassLoader")
+        return ClassLoaderFinder.classIsOrExtendsOrImplements(classLoaderClass, APP_CLASS_LOADER)
                 || ClassLoaderFinder.classIsOrExtendsOrImplements(classLoaderClass,
                         "jdk.internal.loader.BuiltinClassLoader");
     }
@@ -75,6 +79,24 @@ class JPMSClassLoaderHandler implements ClassLoaderHandler {
         if (ucpVal != null) {
             final URL[] urls = (URL[]) classpathOrder.reflectionUtils.invokeMethod(false, ucpVal, "getURLs");
             classpathOrder.addClasspathEntryObject(urls, classLoader, scanSpec, log);
+        } else if (APP_CLASS_LOADER.equals(classLoader.getClass().getName())) {
+            // The application classloader's `ucp` field could not be read, so fall back to the java.class.path
+            // system property, which lists the same entries that the URLClassPath was constructed from. Only a
+            // Java agent's appended jars are missed, since appendToSystemClassLoaderSearch() does not update the
+            // property (#537).
+            //
+            // This has to happen here rather than after all the classloaders have been visited, because these are
+            // the application classloader's own classpath entries, and so must take the application classloader's
+            // place in the delegation order. Adding them at the end would put them after the entries of every
+            // classloader that delegates to the application classloader, which inverts the masking order: a class
+            // on the application classpath would appear to be masked by a copy in a child classloader, when the
+            // JVM's parent-first delegation loads the application classloader's copy instead.
+            if (log != null) {
+                log.log("Could not read the application classloader's URLClassPath, so getting its classpath "
+                        + "entries from the java.class.path system property instead");
+            }
+            classpathOrder.addClasspathPathStr(VersionFinder.getProperty("java.class.path"), classLoader, scanSpec,
+                    log);
         }
     }
 
