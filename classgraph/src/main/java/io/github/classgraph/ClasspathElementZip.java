@@ -714,6 +714,14 @@ class ClasspathElementZip extends ClasspathElement {
     }
 
     @Override
+    String getResourcePathSeparator() {
+        // A package root named as part of the classpath entry, e.g. "app.jar!/BOOT-INF/classes", is a directory
+        // within the jarfile rather than a jarfile nested inside it, so a resource beneath it is not separated
+        // from it by "!/" -- a URL with two "!/" separators but only one archive in it does not resolve
+        return packageRootPrefix.isEmpty() ? "!/" : "/";
+    }
+
+    @Override
     URI getURI() {
         try {
             return new URI(URLPaths.normalizeURLPath(getZipFilePath()));

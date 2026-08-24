@@ -780,6 +780,18 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
     abstract URI getURI();
 
     /**
+     * Get the separator between the URI of this classpath element and the path of a resource within it. This is
+     * {@code "!/"} for a jarfile, since that is what separates the path of an archive from a path within it, and
+     * {@code "/"} for a classpath element that is a directory, whether a directory on disk or a package root within
+     * a jarfile.
+     *
+     * @return the separator.
+     */
+    String getResourcePathSeparator() {
+        return "!/";
+    }
+
+    /**
      * Get the URI for this classpath element, and the URIs for any automatic nested package prefixes (e.g.
      * "spring-boot.jar/BOOT-INF/classes") within this jarfile.
      *

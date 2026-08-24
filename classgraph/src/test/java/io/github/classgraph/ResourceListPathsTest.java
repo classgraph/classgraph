@@ -2,38 +2,27 @@ package io.github.classgraph;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.io.IOException;
-import java.net.URL;
-import java.net.URLClassLoader;
-
 import org.junit.jupiter.api.Test;
 
 /**
  * {@link ResourceList#getPathsRelativeToClasspathElement()} called {@link Resource#getPath()} rather than
  * {@link Resource#getPathRelativeToClasspathElement()}, so it returned the same paths as
- * {@link ResourceList#getPaths()}, with the package root prefix stripped.
+ * {@link ResourceList#getPaths()}.
  */
 public class ResourceListPathsTest {
     /**
-     * Paths relative to the classpath element retain the package root prefix. The classpath element is the jarfile,
-     * and the package root within it is found because the classloader declares it as an automatic package root.
-     *
-     * @throws IOException
-     *             if the classloader could not be closed.
+     * The two path forms differ for a resource in a versioned section of a multi-release jar: the path is relative
+     * to the package root, with the version prefix dropped, while the path relative to the classpath element is the
+     * name of the entry that was actually read, version prefix and all.
      */
     @Test
-    public void pathsRelativeToClasspathElementRetainPackageRoot() throws IOException {
-        final var jarURL = ResourceListPathsTest.class.getClassLoader()
-                .getResource("spring-boot-fully-executable-jar.jar");
-
-        try (var classLoader = new URLClassLoader(new URL[] { jarURL }, /* parent = */ null);
-                var scanResult = new ClassGraph().acceptPathsNonRecursive("hello").overrideClassLoaders(classLoader)
-                        .registerClassLoaderHandler(new PackageRootClassLoaderHandler("BOOT-INF/classes/"))
-                        .scan()) {
+    public void pathsRelativeToClasspathElementRetainTheVersionPrefix() {
+        final var jarURL = ResourceListPathsTest.class.getClassLoader().getResource("multi-release-jar.jar");
+        try (var scanResult = new ClassGraph().acceptPackages("mrj").overrideClasspath(jarURL).scan()) {
             final var resources = scanResult.getAllResources();
-            assertThat(resources.getPaths()).contains("hello/HelloController.class");
+            assertThat(resources.getPaths()).containsExactly("mrj/Cls.class");
             assertThat(resources.getPathsRelativeToClasspathElement())
-                    .contains("BOOT-INF/classes/hello/HelloController.class");
+                    .containsExactly("META-INF/versions/9/mrj/Cls.class");
         }
     }
 }

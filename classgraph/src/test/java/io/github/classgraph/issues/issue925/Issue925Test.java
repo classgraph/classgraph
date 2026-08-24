@@ -7,6 +7,9 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.net.URL;
+import java.net.URLClassLoader;
+import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -15,7 +18,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import io.github.classgraph.ClassGraph;
+import io.github.classgraph.base.ClassGraphLog;
 import io.github.classgraph.base.internal.path.FastPathResolver;
+import io.github.classgraph.classpath.ClassLoaderHandler;
+import io.github.classgraph.classpath.ClassLoaderOrder;
+import io.github.classgraph.classpath.ClasspathOrder;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Nothing in a webapp deployed to Tomcat as a non-exploded WAR file (i.e. with {@code unpackWARs="false"}) was
@@ -129,6 +137,76 @@ public class Issue925Test {
     public void theWarFileItselfContainsNoClassesAtItsRoot() {
         try (var scanResult = new ClassGraph().overrideClasspath(war.getPath()).enableClassInfo().scan()) {
             assertThat(scanResult.getAllClasses().getNames()).isEmpty();
+        }
+    }
+
+    /**
+     * The same WAR file, reached through a classloader whose {@link ClassLoaderHandler} declares the two places a
+     * servlet container loads a webapp's classes from, is scanned in both of them: {@code WEB-INF/classes/} is
+     * scanned as a package root, and each jarfile in {@code WEB-INF/lib/} is scanned as a classpath element of its
+     * own. This is the scanner's side of the contract that {@link ClassLoaderHandler#getPackageRootPrefixes()} and
+     * {@link ClassLoaderHandler#getLibDirPrefixes()} define; that Tomcat's own handler declares these two prefixes
+     * is tested in {@code classgraph-classpath}.
+     *
+     * @throws IOException
+     *             if the classloader could not be closed.
+     */
+    @Test
+    public void aClassLoaderCanDeclareAPackageRootAndALibDirWithinAClasspathElement() throws IOException {
+        try (var classLoader = new WarClassLoader(war.toURI().toURL());
+                var scanResult = new ClassGraph().overrideClassLoaders(classLoader)
+                        .registerClassLoaderHandler(new WarClassLoaderHandler()).enableClassInfo().scan()) {
+            assertThat(scanResult.getAllClasses().getNames()).containsExactlyInAnyOrder(Widget.class.getName(),
+                    LibWidget.class.getName());
+        }
+    }
+
+    /** A stand-in for a servlet container's classloader, which serves a whole WAR file as one classpath element. */
+    private static final class WarClassLoader extends URLClassLoader {
+        /**
+         * Constructor.
+         *
+         * @param war
+         *            the URL of the WAR file.
+         */
+        WarClassLoader(final URL war) {
+            super(new URL[] { war }, /* parent = */ null);
+        }
+    }
+
+    /** A {@link ClassLoaderHandler} for {@link WarClassLoader}, declaring the two prefixes of a webapp layout. */
+    private static final class WarClassLoaderHandler implements ClassLoaderHandler {
+        /** Constructor. */
+        WarClassLoaderHandler() {
+        }
+
+        @Override
+        public boolean canHandle(final Class<?> classLoaderClass, final @Nullable ClassGraphLog log) {
+            return classLoaderClass == WarClassLoader.class;
+        }
+
+        @Override
+        public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
+                final @Nullable ClassGraphLog log) {
+            classLoaderOrder.add(classLoader, log);
+        }
+
+        @Override
+        public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
+                final @Nullable ClassGraphLog log) {
+            for (final var url : ((WarClassLoader) classLoader).getURLs()) {
+                classpathOrder.addClasspathEntry(url, classLoader, log);
+            }
+        }
+
+        @Override
+        public List<String> getPackageRootPrefixes() {
+            return List.of("WEB-INF/classes/");
+        }
+
+        @Override
+        public List<String> getLibDirPrefixes() {
+            return List.of("WEB-INF/lib/");
         }
     }
 }

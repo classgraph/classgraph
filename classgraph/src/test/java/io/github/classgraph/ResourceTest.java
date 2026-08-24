@@ -7,8 +7,6 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.io.IOException;
 import java.net.URI;
-import java.net.URL;
-import java.net.URLClassLoader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
@@ -453,27 +451,29 @@ public class ResourceTest {
     }
 
     /**
-     * A resource inside a jar has a {@code "jar:...!/"} URI, and a path relative to the package root. The classpath
-     * element is the jarfile, and the package root within it is found because the classloader declares it as an
-     * automatic package root.
+     * A resource inside a jar has a {@code "jar:...!/"} URI. The package root is named as part of the classpath
+     * entry, so the classpath element is the package root within the jarfile, and the resource is addressed
+     * relative to it -- but the file that contains it is still the jarfile.
      */
     @Test
     public void aResourceInAJarHasAJarURI() throws IOException {
         final var jarURL = ResourceTest.class.getClassLoader().getResource(JAR_NAME);
         assertThat(jarURL).isNotNull();
-        try (var classLoader = new URLClassLoader(new URL[] { jarURL }, /* parent = */ null);
-                var scanResult = new ClassGraph().acceptPathsNonRecursive("hello").overrideClassLoaders(classLoader)
-                        .registerClassLoaderHandler(new PackageRootClassLoaderHandler("BOOT-INF/classes/"))
-                        .scan()) {
+        try (var scanResult = new ClassGraph().acceptPathsNonRecursive("hello")
+                .overrideClasspath(jarURL + "!/BOOT-INF/classes").scan()) {
             final var resource = resource(scanResult, "hello/HelloController.class");
-            // getPath() is relative to the package root, getPathRelativeToClasspathElement() to the jar root
             assertThat(resource.getPath()).isEqualTo("hello/HelloController.class");
-            assertThat(resource.getPathRelativeToClasspathElement())
-                    .isEqualTo("BOOT-INF/classes/hello/HelloController.class");
+            assertThat(resource.getPathRelativeToClasspathElement()).isEqualTo("hello/HelloController.class");
             // The URI is formed from the classpath element URI, the "!/" separator, and the path within the jar
             assertThat(resource.getURI().toString()).startsWith("jar:file:")
                     .endsWith(JAR_NAME + "!/BOOT-INF/classes/hello/HelloController.class");
             assertThat(resource.getURL().toString()).isEqualTo(resource.getURI().toString());
+            // The package root is a directory within the jarfile, not a jarfile nested inside it, so there is only
+            // one "!/" in the URL -- and the URL resolves
+            try (var inputStream = resource.getURL().openStream()) {
+                assertThat(inputStream.readAllBytes()).startsWith((byte) 0xCA, (byte) 0xFE, (byte) 0xBA,
+                        (byte) 0xBE);
+            }
             assertThat(resource.getClasspathElementFile().getName()).isEqualTo(JAR_NAME);
             assertThat(resource.getModuleReference()).isNull();
             // A classfile starts with the 0xCAFEBABE magic number
