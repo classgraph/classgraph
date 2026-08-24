@@ -28,7 +28,13 @@
  */
 package io.github.classgraph.classpath.internal;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
 
 import io.github.classgraph.base.LogNode;
 import org.jspecify.annotations.Nullable;
@@ -81,7 +87,7 @@ public class ClassLoaderFinder {
      *
      * @return The classloaders, in the order they should be searched in.
      */
-    private static LinkedHashSet<ClassLoader> findDefaultClassLoaders() {
+    private static List<ClassLoader> findDefaultClassLoaders() {
         final LinkedHashSet<ClassLoader> classLoadersUnique = new LinkedHashSet<>();
 
         // Get thread context classloader (this is the first classloader to try, since a context classloader can
@@ -91,9 +97,11 @@ public class ClassLoaderFinder {
             classLoadersUnique.add(threadClassLoader);
         }
 
-        // Get classloader for this class, which will generally be the classloader of the class that called
-        // ClassGraph (the classloader of the caller is used by Class.forName(className), when no classloader is
-        // provided)
+        // Get the classloader of ClassGraph itself. This is the classloader that can resolve every class that
+        // ClassGraph can resolve by name, so anything it can see is worth scanning. (It is not necessarily the
+        // classloader of the caller -- when ClassGraph is deployed in a container's shared library directory, the
+        // caller is loaded by a descendant of this classloader. The caller's own classloader is found from the
+        // call stack, below.)
         final var currClassClassLoader = ClassLoaderFinder.class.getClassLoader();
         if (currClassClassLoader != null) {
             classLoadersUnique.add(currClassClassLoader);
@@ -116,14 +124,48 @@ public class ClassLoaderFinder {
         // Find classloaders for classes on callstack, in case any were missed
         // (CallStackReader#getClassContext falls back to naming just itself, rather than throwing, if the call
         // stack cannot be read)
+        // Find classloaders for classes on callstack, in case any were missed. The call stack is read innermost
+        // frame first, so the immediate caller's classloader is preferred over the classloader of the code that
+        // called it -- Class.forName(className) resolves against the classloader of its immediate caller.
         final var callStack = CallStackReader.getClassContext();
-        for (var i = callStack.length - 1; i >= 0; --i) {
-            final var callerClassLoader = callStack[i].getClassLoader();
+        for (final var callStackClass : callStack) {
+            final var callerClassLoader = callStackClass.getClassLoader();
             if (callerClassLoader != null) {
                 classLoadersUnique.add(callerClassLoader);
             }
         }
 
-        return classLoadersUnique;
+        // Sort the classloaders so that a classloader is always ordered before its own ancestors, keeping the
+        // preference order above between classloaders that are unrelated to each other (List#sort is stable).
+        //
+        // Only the position of the first classloader of a delegation chain to be reached is decided here: once a
+        // classloader is reached, its ClassLoaderHandler decides where its ancestors' classpath elements go
+        // relative to its own, by delegating to its parent before or after adding itself. If an ancestor were
+        // left ahead of its own descendant in this list, it would be pinned in front of the descendant before
+        // the descendant's handler ever ran, which silently converts parent-last delegation (the default for
+        // Tomcat's WebappClassLoader and for Spring Boot DevTools' RestartClassLoader) into parent-first
+        // delegation, inverting the class masking order. Sorting by descending delegation depth cannot place an
+        // ancestor first, since an ancestor is always strictly shallower than its descendants.
+        final var classLoaders = new ArrayList<>(classLoadersUnique);
+        classLoaders.sort(Comparator.comparingInt(ClassLoaderFinder::delegationDepth).reversed());
+        return classLoaders;
+    }
+
+    /**
+     * Get the number of classloaders in the delegation chain of a classloader, including the classloader itself.
+     *
+     * @param classLoader
+     *            The classloader.
+     * @return The number of classloaders from the given classloader up to and including the last non-bootstrap
+     *         classloader in its parent chain.
+     */
+    private static int delegationDepth(final ClassLoader classLoader) {
+        // Guard against a classloader whose parent chain is cyclic, rather than looping forever
+        final Set<ClassLoader> seen = Collections.newSetFromMap(new IdentityHashMap<>());
+        var depth = 0;
+        for (var cl = classLoader; cl != null && seen.add(cl); cl = cl.getParent()) {
+            depth++;
+        }
+        return depth;
     }
 }
