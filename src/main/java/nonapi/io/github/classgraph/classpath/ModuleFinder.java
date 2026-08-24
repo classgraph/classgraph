@@ -28,10 +28,8 @@
  */
 package nonapi.io.github.classgraph.classpath;
 
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Deque;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -91,8 +89,25 @@ public class ModuleFinder {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Recursively find the topological sort order of ancestral layers.
-     * 
+     * Recursively append a layer and then its ancestors to the layer order, skipping any layer that is already in
+     * the order.
+     *
+     * <p>
+     * A layer's own modules are searched before its parent layers' modules, which is the reverse of the classloader
+     * axis, where a parent classloader is searched before its children. The classloader that
+     * {@code ModuleLayer#defineModulesWithOneLoader} creates is a {@code jdk.internal.loader.Loader}, and its
+     * {@code loadClass} looks the package up in {@code localPackageToModule} -- the modules defined to that loader,
+     * i.e. this layer's own -- and only if that misses does it consult {@code remotePackageToLoader} (the parent
+     * layers' modules) and then the parent classloader. This is observable: a child layer may define a module with
+     * the same name as one in a parent layer, and the child layer's loader then resolves the shared package to the
+     * child's copy. So the layer is appended before its parents are.
+     *
+     * <p>
+     * The shared {@code layerVisited} set keeps a layer from being appended twice when the caller names both a
+     * layer and one of its ancestors. A layer named directly still takes the position its own name gives it, which
+     * is what naming it asks for; it is only reached indirectly, through {@code ModuleLayer#parents()}, if the
+     * caller did not name it.
+     *
      * <p>
      * (The JDK (as of 10.0.0.1) uses a broken (non-topological) DFS ordering for layer resolution in
      * ModuleLayer#layers() and Configuration#configurations() but when I reported this bug on the Jigsaw mailing
@@ -101,7 +116,7 @@ public class ModuleFinder {
      * @param layer
      *            the layer
      * @param layerVisited
-     *            layer visited
+     *            the layers already appended to {@code layerOrderOut}, shared across all the top-level layers
      * @param parentLayers
      *            the parent layers
      * @param layerOrderOut
@@ -110,8 +125,9 @@ public class ModuleFinder {
     private void findLayerOrder(final Object /* ModuleLayer */ layer,
             final Set<Object> /* Set<ModuleLayer> */ layerVisited,
             final Set<Object> /* Set<ModuleLayer> */ parentLayers,
-            final Deque<Object> /* Deque<ModuleLayer> */ layerOrderOut) {
+            final List<Object> /* List<ModuleLayer> */ layerOrderOut) {
         if (layerVisited.add(layer)) {
+            layerOrderOut.add(layer);
             @SuppressWarnings("unchecked")
             final List<Object> /* List<ModuleLayer> */ parents = (List<Object>) reflectionUtils
                     .invokeMethod(/* throwException = */ true, layer, "parents");
@@ -121,7 +137,6 @@ public class ModuleFinder {
                     findLayerOrder(parent, layerVisited, parentLayers, layerOrderOut);
                 }
             }
-            layerOrderOut.push(layer);
         }
     }
 
@@ -142,18 +157,20 @@ public class ModuleFinder {
             return Collections.emptyList();
         }
 
-        // Traverse the layer DAG to find the layer resolution order
-        final Deque<Object> /* Deque<ModuleLayer> */ layerOrder = new ArrayDeque<>();
+        // Traverse the layer DAG to find the layer resolution order. The visited set is shared across all the
+        // top-level layers, so that a layer is listed only once however many of the layers in a chain are named.
+        final List<Object> /* List<ModuleLayer> */ layerOrder = new ArrayList<>();
         final Set<Object> /* Set<ModuleLayer */ parentLayers = new HashSet<>();
+        final Set<Object> /* Set<ModuleLayer> */ layerVisited = new HashSet<>();
         for (final Object layer : layers) {
             if (layer != null) {
-                findLayerOrder(layer, /* layerVisited = */ new HashSet<>(), parentLayers, layerOrder);
+                findLayerOrder(layer, layerVisited, parentLayers, layerOrder);
             }
         }
         if (scanSpec.addedModuleLayers != null) {
             for (final Object layer : scanSpec.addedModuleLayers) {
                 if (layer != null) {
-                    findLayerOrder(layer, /* layerVisited = */ new HashSet<>(), parentLayers, layerOrder);
+                    findLayerOrder(layer, layerVisited, parentLayers, layerOrder);
                 }
             }
         }
