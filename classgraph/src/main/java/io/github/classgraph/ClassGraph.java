@@ -57,6 +57,7 @@ import io.github.classgraph.base.internal.utils.Assert;
 import io.github.classgraph.base.internal.utils.VersionFinder;
 import io.github.classgraph.classpath.ClassLoaderHandler;
 import io.github.classgraph.classpath.ModulePathInfo;
+import io.github.classgraph.classpath.internal.ClassLoadingLockDetector;
 import io.github.classgraph.classpath.internal.ScanSourceSpec;
 import org.jspecify.annotations.Nullable;
 
@@ -1476,8 +1477,8 @@ public class ClassGraph {
             final int numParallelTasks) {
         try {
             final var scanResult = new Scanner(performScan, scanSpec, scanSourceSpec, executorService,
-                    numParallelTasks, /* scanResultProcessor = */ null, /* failureHandler = */ null, topLevelLog)
-                    .call();
+                    numTasksWithoutDeadlockHazard(numParallelTasks), /* scanResultProcessor = */ null,
+                    /* failureHandler = */ null, topLevelLog).call();
             // A Scanner that was given no scan result processor always returns a scan result
             return Objects.requireNonNull(scanResult);
 
@@ -1500,6 +1501,34 @@ public class ClassGraph {
     }
 
     /**
+     * Reduce the number of parallel tasks to 1 if the calling thread is holding a lock that the classloader would
+     * also need in order to load one of ClassGraph's own classes on a worker thread. Loading a class on a worker
+     * thread would then deadlock the scan, and the deadlock cannot be broken, since a thread that is blocked on
+     * class loading cannot be interrupted (#933). Running the whole scan on the calling thread is slower, but it
+     * loads every class the scan needs on the thread that already holds the lock, so it cannot deadlock.
+     *
+     * @param numParallelTasks
+     *            The requested number of parallel tasks.
+     * @return the number of parallel tasks to use.
+     */
+    private int numTasksWithoutDeadlockHazard(final int numParallelTasks) {
+        if (numParallelTasks <= 1) {
+            // The scan already runs entirely on the calling thread
+            return numParallelTasks;
+        }
+        final var frame = ClassLoadingLockDetector.findFrameHoldingClassLoadingLock();
+        if (frame == null) {
+            return numParallelTasks;
+        }
+        if (topLevelLog != null) {
+            topLevelLog.log("The thread that called scan() is holding a class loading lock in " + frame
+                    + ", so loading a class on a worker thread could deadlock the scan (#933) -- running the "
+                    + "whole scan on the calling thread instead of using " + numParallelTasks + " threads");
+        }
+        return 1;
+    }
+
+    /**
      * Scans the classpath with the requested number of threads, blocking until the scan is complete. You should
      * assign the returned {@link ScanResult} in a try-with-resources statement, or manually close it when you are
      * finished with it.
@@ -1508,7 +1537,9 @@ public class ClassGraph {
      * Calling this with a {@code numThreads} of 1 starts no worker threads at all: the whole scan is run on the
      * calling thread, so every class the scan needs is loaded on the calling thread. Use that if the calling thread
      * holds a lock that the classloader also acquires, since loading a class on a worker thread would then deadlock
-     * (#933).
+     * (#933). The two commonest ways to hold such a lock are detected automatically -- calling {@code scan()} from
+     * a static initializer, or from a {@link ClassLoader} that is loading a class -- and the scan then falls back
+     * to running on the calling thread whatever {@code numThreads} says, noting it in the verbose log.
      *
      * @param numThreads
      *            The number of worker threads to start up. If 1, the scan is run entirely on the calling thread.
