@@ -94,9 +94,11 @@ public class ClassLoaderFinder {
     private static List<ClassLoader> findDefaultClassLoaders(final CallStackInfo callStackInfo) {
         final LinkedHashSet<ClassLoader> classLoadersUnique = new LinkedHashSet<>();
 
-        // Get thread context classloader (this is the first classloader to try, since a context classloader can
-        // be set as an override on a per-thread basis)
-        final var threadClassLoader = Thread.currentThread().getContextClassLoader();
+        // Get the context classloader of the thread that asked for the search (this is the first classloader to
+        // try, since a context classloader can be set as an override on a per-thread basis). It is the calling
+        // thread's context classloader that is wanted, not that of the thread this code happens to run on, which
+        // for an asynchronous scan is a worker thread of the ExecutorService.
+        final var threadClassLoader = callStackInfo.getContextClassLoader();
         if (threadClassLoader != null) {
             classLoadersUnique.add(threadClassLoader);
         }

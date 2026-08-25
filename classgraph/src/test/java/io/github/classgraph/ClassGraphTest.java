@@ -7,6 +7,7 @@ import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
+import java.net.URLClassLoader;
 import java.net.URLConnection;
 import java.net.URLStreamHandler;
 import java.nio.charset.StandardCharsets;
@@ -490,6 +491,45 @@ public class ClassGraphTest {
         } finally {
             executorService.shutdown();
         }
+    }
+
+    /**
+     * An asynchronous scan searches the context classloader of the thread that asked for the scan, not that of the
+     * worker thread that the scan happens to run on.
+     */
+    @Test
+    public void anAsyncScanSearchesTheContextClassLoaderOfTheCaller() throws Exception {
+        final var classNames = new AtomicReference<List<String>>();
+        final var failure = new AtomicReference<Throwable>();
+        final var done = new CountDownLatch(1);
+        // Give the worker threads a context classloader that cannot see the fixture, which is what an
+        // ExecutorService supplied by a container looks like
+        final var executorService = Executors.newFixedThreadPool(3, runnable -> {
+            final var thread = new Thread(runnable);
+            thread.setContextClassLoader(ClassLoader.getPlatformClassLoader());
+            return thread;
+        });
+        final var previousContextClassLoader = Thread.currentThread().getContextClassLoader();
+        try (var callerClassLoader = new URLClassLoader(new URL[] { classesDir.toUri().toURL() },
+                /* parent = */ null)) {
+            Thread.currentThread().setContextClassLoader(callerClassLoader);
+            new ClassGraph().enableClasspath().acceptPackages(PACKAGE_NAME).scanAsync(executorService, 3,
+                    scanResult -> {
+                        try (scanResult) {
+                            classNames.set(scanResult.getAllClasses().getNames());
+                        }
+                        done.countDown();
+                    }, throwable -> {
+                        failure.set(throwable);
+                        done.countDown();
+                    });
+            assertThat(done.await(60, TimeUnit.SECONDS)).as("the scan completed").isTrue();
+        } finally {
+            Thread.currentThread().setContextClassLoader(previousContextClassLoader);
+            executorService.shutdown();
+        }
+        assertThat(failure.get()).isNull();
+        assertThat(classNames.get()).contains(PACKAGE_NAME + ".InDir");
     }
 
     /** An asynchronous scan passes its {@link ScanResult} to the scan result processor. */
