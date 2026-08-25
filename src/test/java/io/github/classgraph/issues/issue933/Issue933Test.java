@@ -37,11 +37,13 @@ public class Issue933Test {
     }
 
     /**
-     * Run the scan in the static initializer, recording the verbose log rather than printing it.
+     * Run something that scans, recording the verbose log of the scan rather than printing it.
      *
-     * @return the verbose log of the scan.
+     * @param runnable
+     *            the code to run.
+     * @return the verbose log written while it ran.
      */
-    private static String scanFromAStaticInitializer() {
+    private static String recordVerboseLog(final Runnable runnable) {
         final StringBuilder logged = new StringBuilder();
         final Handler handler = new Handler() {
             @Override
@@ -63,7 +65,7 @@ public class Issue933Test {
         LOGGER.setUseParentHandlers(false);
         LOGGER.addHandler(handler);
         try {
-            ScansFromAStaticInitializer.initialize();
+            runnable.run();
         } finally {
             LOGGER.removeHandler(handler);
             LOGGER.setUseParentHandlers(useParentHandlers);
@@ -71,10 +73,56 @@ public class Issue933Test {
         return logged.toString();
     }
 
+    /**
+     * A classloader that scans while it is loading a class. Most classloaders hold a lock of their own while
+     * loading, and the JVM holds that classloader's loading lock for the name being loaded, so this is the other
+     * way a caller can be holding a lock that the classloader also needs.
+     */
+    private static class ScansWhileLoadingAClass extends ClassLoader {
+        /** The log of the scan run by {@link #loadClass(String, boolean)}. */
+        String scanLog = "";
+
+        ScansWhileLoadingAClass() {
+            super(Issue933Test.class.getClassLoader());
+        }
+
+        @Override
+        protected Class<?> loadClass(final String name, final boolean resolve) throws ClassNotFoundException {
+            if (name.equals(Issue933Test.class.getName())) {
+                scanLog = recordVerboseLog(new Runnable() {
+                    @Override
+                    public void run() {
+                        try (ScanResult scanResult = new ClassGraph()
+                                .acceptPackages(Issue933Test.class.getPackage().getName()).verbose().scan()) {
+                            assertThat(scanResult.getAllResources()).isNotNull();
+                        }
+                    }
+                });
+            }
+            return super.loadClass(name, resolve);
+        }
+    }
+
+    /** A scan started from a classloader that is loading a class runs on the calling thread, and says so. */
+    @Test
+    public void aScanStartedByAClassLoaderThatIsLoadingAClassRunsOnTheCallingThread() throws Exception {
+        final ScansWhileLoadingAClass classLoader = new ScansWhileLoadingAClass();
+        classLoader.loadClass(Issue933Test.class.getName());
+        assertThat(classLoader.scanLog).contains("The thread that called scan() is holding a class loading lock in "
+                + ScansWhileLoadingAClass.class.getName() + ".loadClass");
+        assertThat(classLoader.scanLog).contains("running the whole scan on the calling thread");
+        assertThat(classLoader.scanLog).contains("Number of worker threads: 1");
+    }
+
     /** A scan started from a static initializer runs on the calling thread, and says so in the log. */
     @Test
     public void aScanStartedFromAStaticInitializerRunsOnTheCallingThread() {
-        final String log = scanFromAStaticInitializer();
+        final String log = recordVerboseLog(new Runnable() {
+            @Override
+            public void run() {
+                ScansFromAStaticInitializer.initialize();
+            }
+        });
         assertThat(log).contains("The thread that called scan() is holding a class loading lock in "
                 + ScansFromAStaticInitializer.class.getName() + ".<clinit>");
         assertThat(log).contains("running the whole scan on the calling thread");

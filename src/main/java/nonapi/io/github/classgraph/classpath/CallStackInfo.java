@@ -243,18 +243,21 @@ public class CallStackInfo {
     }
 
     /**
-     * Find the innermost static initializer in the call stack, for the JREs where the call stack is read by a
-     * method that does not give the classes in the stack, only their names.
+     * Find the innermost frame that is holding a class loading lock, for the JREs where the call stack is read by a
+     * method that gives the classes in the stack but not the name of the method in each frame.
      *
      * <p>
-     * Only the static initializer case can be detected this way: a {@link StackTraceElement} names the class that
-     * declares the method, but does not give the {@link Class} itself, and resolving a class by name while a class
-     * loading lock is held is exactly what must not be done here, so there is no way to ask whether the class is a
-     * {@link ClassLoader}.
+     * The method names come from {@link Thread#getStackTrace()}, which gives the name of the class that declares
+     * each method but not the {@link Class} itself, and resolving a class by name while a class loading lock is
+     * held is exactly what must not be done here. The classes that were read from the call stack are used instead:
+     * every class that declares a frame of this stack is one of them, so a frame's class can be identified by
+     * matching its name, without loading anything.
      *
-     * @return the innermost static initializer frame, or null if there is none.
+     * @param callStack
+     *            The classes in the call stack.
+     * @return the innermost frame that is holding a class loading lock, or null if there is none.
      */
-    private static String findStaticInitializerFrame() {
+    private static String findFrameHoldingClassLoadingLock(final Class<?>[] callStack) {
         StackTraceElement[] stackTrace;
         try {
             stackTrace = Thread.currentThread().getStackTrace();
@@ -262,8 +265,17 @@ public class CallStackInfo {
             return null;
         }
         for (final StackTraceElement elt : stackTrace) {
-            if (STATIC_INITIALIZER.equals(elt.getMethodName())) {
+            final String methodName = elt.getMethodName();
+            if (STATIC_INITIALIZER.equals(methodName)) {
                 return elt.toString();
+            }
+            if (CLASS_LOADING_METHODS.contains(methodName)) {
+                for (final Class<?> stackClass : callStack) {
+                    if (stackClass.getName().equals(elt.getClassName())
+                            && ClassLoader.class.isAssignableFrom(stackClass)) {
+                        return elt.toString();
+                    }
+                }
             }
         }
         return null;
@@ -374,9 +386,10 @@ public class CallStackInfo {
         }
 
         // The StackWalker is the only way of reading the stack that gives both the class and the method name of
-        // each frame, so on the JREs that it is not used on, only the static initializer case can be detected
+        // each frame, so on the JREs that it is not used on, the method names have to be read from a second walk
+        // of the stack, and matched up with the classes that were read from the first
         if (!checkedForClassLoadingLock) {
-            frameHoldingClassLoadingLock = findStaticInitializerFrame();
+            frameHoldingClassLoadingLock = findFrameHoldingClassLoadingLock(callStack);
         }
 
         return new CallStackInfo(contextClassLoader, callStack, frameHoldingClassLoadingLock);

@@ -1828,8 +1828,7 @@ public class ClassGraph {
      * holds a lock that the classloader also acquires, since loading a class on a worker thread would then deadlock
      * (#933). The two commonest ways to hold such a lock are detected automatically -- calling {@code scan()}
      * from a static initializer, or from a {@link ClassLoader} that is loading a class -- and the scan then falls
-     * back to running on the calling thread whatever {@code numThreads} says, noting it in the verbose log. (On
-     * Java 8, only the static initializer case can be detected.)
+     * back to running on the calling thread whatever {@code numThreads} says, noting it in the verbose log.
      *
      * @param numThreads
      *            The number of worker threads to start up. If 1, the scan is run entirely on the calling thread.
