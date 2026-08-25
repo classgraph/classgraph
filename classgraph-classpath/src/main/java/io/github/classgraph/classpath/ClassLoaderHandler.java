@@ -90,18 +90,55 @@ public interface ClassLoaderHandler {
      * @return true if cls is, extends, or implements the named class or interface.
      */
     default boolean classIsOrExtendsOrImplements(final @Nullable Class<?> cls, final String className) {
+        return findMatchingClassName(cls, className) != null;
+    }
+
+    /**
+     * Return the first of the given class or interface names that the class is, extends or implements, or null if
+     * it is none of them.
+     *
+     * <p>
+     * Use this rather than a chain of {@link #classIsOrExtendsOrImplements(Class, String)} calls in a handler that
+     * recognizes more than one {@link ClassLoader} class and then has to know which of them it was given, so that
+     * the handler decides what a classloader is in the same way that {@link #canHandle(Class, ClassGraphLog)}
+     * decided that it could handle it. Comparing {@code classLoader.getClass().getName()} against each name instead
+     * misses a subclass of a classloader that {@code canHandle} accepted, and a handler that is chosen but then
+     * handles nothing leaves the classloader's classpath entries out of the scan entirely, since no other handler
+     * is offered the classloader.
+     *
+     * <p>
+     * The class hierarchy is walked once, with every name tested at each class, rather than once per name, and the
+     * hierarchy is walked in most-specific-first order: the class itself, then its superclasses, then its
+     * interfaces. So if the names include both a class and one of its own supertypes, the more specific of the two
+     * is the one that is returned.
+     *
+     * @param cls
+     *            the class to test, or null.
+     * @param classNames
+     *            the names of the classes or interfaces to look for.
+     * @return the first matching name, or null if the class is, extends or implements none of them.
+     */
+    default @Nullable String findMatchingClassName(final @Nullable Class<?> cls, final String... classNames) {
         if (cls == null) {
-            return false;
+            return null;
         }
-        if (cls.getName().equals(className) || classIsOrExtendsOrImplements(cls.getSuperclass(), className)) {
-            return true;
-        }
-        for (final Class<?> iface : cls.getInterfaces()) {
-            if (classIsOrExtendsOrImplements(iface, className)) {
-                return true;
+        final var name = cls.getName();
+        for (final String className : classNames) {
+            if (name.equals(className)) {
+                return className;
             }
         }
-        return false;
+        final var superclassMatch = findMatchingClassName(cls.getSuperclass(), classNames);
+        if (superclassMatch != null) {
+            return superclassMatch;
+        }
+        for (final Class<?> iface : cls.getInterfaces()) {
+            final var interfaceMatch = findMatchingClassName(iface, classNames);
+            if (interfaceMatch != null) {
+                return interfaceMatch;
+            }
+        }
+        return null;
     }
 
     /**

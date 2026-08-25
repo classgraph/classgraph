@@ -108,6 +108,27 @@ public class QuarkusClassLoaderTest {
     }
 
     /**
+     * A subclass of a Quarkus classloader is read the same way as the classloader it extends. The handler accepts a
+     * subclass, and once a handler has been chosen for a classloader no other handler is offered it, so a handler
+     * that recognized a classloader and then read nothing from it would leave that classloader's classpath entries
+     * out of the scan entirely.
+     *
+     * @param tempDir
+     *            a temporary directory to create the application in.
+     * @throws IOException
+     *             if the application could not be created.
+     */
+    @Test
+    public void theClasspathElementsOfASubclassOfAQuarkusClassLoaderAreOnTheClasspath(@TempDir final Path tempDir)
+            throws IOException {
+        final var jar = Files.createFile(tempDir.resolve("app.jar"));
+        final var classLoader = new QuarkusClassLoader() {
+            // A subclass of the Quarkus classloader, which Quarkus itself does not currently have
+        }.serving(new PathTreeClassPathElement(jar));
+        assertThat(locations(classLoader)).containsExactly(location(jar));
+    }
+
+    /**
      * Quarkus renames the fields that the classpath elements are held in between releases, so a classloader that
      * reports no elements at all must not fail the scan.
      */

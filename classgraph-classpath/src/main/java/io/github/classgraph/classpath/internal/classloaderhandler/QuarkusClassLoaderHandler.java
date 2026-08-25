@@ -68,9 +68,26 @@ class QuarkusClassLoaderHandler implements ClassLoaderHandler {
 
     @Override
     public boolean canHandle(final Class<?> classLoaderClass, final @Nullable ClassGraphLog log) {
-        return classIsOrExtendsOrImplements(classLoaderClass, RUNTIME_CLASSLOADER)
-                || classIsOrExtendsOrImplements(classLoaderClass, QUARKUS_CLASSLOADER)
-                || classIsOrExtendsOrImplements(classLoaderClass, RUNNER_CLASSLOADER);
+        return findQuarkusClassLoaderName(classLoaderClass) != null;
+    }
+
+    /**
+     * Find which of the Quarkus classloaders a classloader class is, extends or implements.
+     *
+     * <p>
+     * The three classloaders are unrelated to each other, so at most one of them can match. This is used both to
+     * decide whether this handler can handle a classloader and to decide how to read its classpath entries, so that
+     * a subclass of a Quarkus classloader -- which {@link #canHandle(Class, ClassGraphLog)} accepts -- has its
+     * classpath entries read by the same code as the classloader it extends.
+     *
+     * @param classLoaderClass
+     *            the classloader class.
+     * @return the name of the Quarkus classloader that the class is, extends or implements, or null if it is none
+     *         of them.
+     */
+    private @Nullable String findQuarkusClassLoaderName(final Class<?> classLoaderClass) {
+        return findMatchingClassName(classLoaderClass, RUNTIME_CLASSLOADER, QUARKUS_CLASSLOADER,
+                RUNNER_CLASSLOADER);
     }
 
     @Override
@@ -83,8 +100,9 @@ class QuarkusClassLoaderHandler implements ClassLoaderHandler {
     @Override
     public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
             final @Nullable ClassGraphLog log) {
-
-        final var classLoaderName = classLoader.getClass().getName();
+        // Match the classloader the same way canHandle did, so that a subclass of one of the Quarkus classloaders
+        // is read as the classloader it extends, rather than falling through every branch and adding nothing
+        final var classLoaderName = findQuarkusClassLoaderName(classLoader.getClass());
         if (RUNTIME_CLASSLOADER.equals(classLoaderName)) {
             findClasspathOrderForRuntimeClassloader(classLoader, classpathOrder, log);
         } else if (QUARKUS_CLASSLOADER.equals(classLoaderName)) {

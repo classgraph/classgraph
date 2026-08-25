@@ -110,6 +110,12 @@ class JPMSClassLoaderHandler implements ClassLoaderHandler {
         if (ucp != null) {
             URLClassPathReader.addAllClasspathEntries(ucp, classLoader, classpathOrder, log);
         } else if (APP_CLASS_LOADER.equals(classLoader.getClass().getName())) {
+            // (The name is compared exactly rather than with classIsOrExtendsOrImplements, because
+            // ClassLoaders$AppClassLoader is a private nested class that nothing extends, so there is no subclass
+            // of it that an exact comparison could miss. Every other classloader this handler accepts is a
+            // BuiltinClassLoader that is not the application classloader, and has no java.class.path to fall back
+            // to.)
+            //
             // The application classloader's URLClassPath could not be read, so fall back to the java.class.path
             // system property, which lists the same entries that URLClassPath was constructed from. Only a Java
             // agent's appended jars are missed, since appendToSystemClassLoaderSearch() does not update the

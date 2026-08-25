@@ -13,7 +13,7 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>
  * This class must be in this exact package, with this exact name, because {@code QuarkusClassLoaderHandler}
- * dispatches on the fully-qualified classloader class name.
+ * recognizes the classloader by its fully-qualified class name.
  */
 public class QuarkusClassLoader extends ClassLoader {
     /** The classpath elements, or null if this classloader reports them by priority instead. */
