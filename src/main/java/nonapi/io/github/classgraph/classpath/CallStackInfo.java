@@ -132,6 +132,10 @@ public class CallStackInfo {
 
     /** What one walk of the call stack found. */
     private static class Frames {
+        /** Constructor. */
+        private Frames() {
+        }
+
         /** The classes in the call stack, innermost frame first. */
         private final List<Class<?>> classes = new ArrayList<>();
 
