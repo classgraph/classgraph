@@ -41,6 +41,11 @@ import org.jspecify.annotations.Nullable;
  * @author Luke Hutchison
  */
 class PlexusClassWorldsClassRealmClassLoaderHandler extends URLClassLoaderHandler {
+    /** The {@code Strategy} classes that resolve classes in the realm itself before delegating to the parent. */
+    private static final String[] SELF_FIRST_STRATEGIES = {
+            "org.codehaus.plexus.classworlds.strategy.SelfFirstStrategy",
+            "org.codehaus.plexus.classworlds.strategy.OsgiBundleStrategy" };
+
     /** Constructor. */
     PlexusClassWorldsClassRealmClassLoaderHandler() {
     }
@@ -57,15 +62,11 @@ class PlexusClassWorldsClassRealmClassLoaderHandler extends URLClassLoaderHandle
      *            the ClassRealm instance
      * @return true if classloader uses a parent-first strategy
      */
-    private static boolean isParentFirstStrategy(final ClassLoader classRealmInstance) {
+    private boolean isParentFirstStrategy(final ClassLoader classRealmInstance) {
         final var strategy = ReflectionUtils.getFieldVal(false, classRealmInstance, "strategy");
-        if (strategy != null) {
-            final var strategyClassName = strategy.getClass().getName();
-            if ("org.codehaus.plexus.classworlds.strategy.SelfFirstStrategy".equals(strategyClassName)
-                    || "org.codehaus.plexus.classworlds.strategy.OsgiBundleStrategy".equals(strategyClassName)) {
-                // Strategy is self-first
-                return false;
-            }
+        if (strategy != null && findMatchingClassName(strategy.getClass(), SELF_FIRST_STRATEGIES) != null) {
+            // Strategy is self-first
+            return false;
         }
         // Strategy is org.codehaus.plexus.classworlds.strategy.ParentFirstStrategy (or failed to find strategy)
         return true;

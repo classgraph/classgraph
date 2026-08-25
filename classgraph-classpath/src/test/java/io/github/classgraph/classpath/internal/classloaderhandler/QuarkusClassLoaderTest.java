@@ -129,6 +129,23 @@ public class QuarkusClassLoaderTest {
     }
 
     /**
+     * A subclass of a classpath element is read the same way as the element it extends.
+     *
+     * @param tempDir
+     *            a temporary directory to create the application in.
+     * @throws IOException
+     *             if the application could not be created.
+     */
+    @Test
+    public void aSubclassOfAClasspathElementIsReadTheSameWay(@TempDir final Path tempDir) throws IOException {
+        final var jar = Files.createFile(tempDir.resolve("app.jar"));
+        final var classLoader = new QuarkusClassLoader().serving(new JarClassPathElement(jar.toFile()) {
+            // A subclass of a Quarkus classpath element
+        });
+        assertThat(locations(classLoader)).containsExactly(location(jar));
+    }
+
+    /**
      * Quarkus renames the fields that the classpath elements are held in between releases, so a classloader that
      * reports no elements at all must not fail the scan.
      */
@@ -174,6 +191,23 @@ public class QuarkusClassLoaderTest {
         final var classLoader = new RunnerClassLoader().serving("org/example", appResource, new JarResource(libJar))
                 .serving("org/example/sub", appResource);
         assertThat(locations(classLoader)).containsExactly(location(appJar), location(libJar));
+    }
+
+    /**
+     * A subclass of a fast jar's resource is read the same way as the resource it extends.
+     *
+     * @param tempDir
+     *            a temporary directory to create the application in.
+     * @throws IOException
+     *             if the application could not be created.
+     */
+    @Test
+    public void aSubclassOfAFastJarResourceIsReadTheSameWay(@TempDir final Path tempDir) throws IOException {
+        final var appJar = Files.createFile(tempDir.resolve("app.jar"));
+        final var classLoader = new RunnerClassLoader().serving("org/example", new JarResource(appJar) {
+            // A subclass of a fast jar's resource
+        });
+        assertThat(locations(classLoader)).containsExactly(location(appJar));
     }
 
     /**

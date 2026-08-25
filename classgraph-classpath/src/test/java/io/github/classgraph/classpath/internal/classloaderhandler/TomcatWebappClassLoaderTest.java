@@ -125,6 +125,26 @@ public class TomcatWebappClassLoaderTest {
     }
 
     /**
+     * A subclass of a resource set is read the same way as the resource set it extends, so a resource jar served by
+     * a subclass of {@code JarResourceSet} still goes on the classpath as a path within the jar.
+     *
+     * @param tempDir
+     *            a temporary directory to create the webapp in.
+     * @throws IOException
+     *             if the webapp could not be created.
+     */
+    @Test
+    public void aSubclassOfAResourceSetIsReadTheSameWay(@TempDir final Path tempDir) throws IOException {
+        final var resourceJar = Files.createFile(tempDir.resolve("resources.jar"));
+        final var root = new StandardRoot()
+                .addResourceSets(new JarResourceSet(resourceJar.toUri().toURL().toString(), "/META-INF/resources") {
+                    // A subclass of a Catalina resource set, as a container that embeds Tomcat might have
+                });
+        assertThat(locations(new WebappClassLoaderBase(root, /* parent = */ null)))
+                .containsExactly(location(resourceJar) + "!/META-INF/resources");
+    }
+
+    /**
      * A jarfile nested inside a WAR file goes on the classpath as a path within the WAR.
      *
      * @param tempDir

@@ -62,6 +62,13 @@ class QuarkusClassLoaderHandler implements ClassLoaderHandler {
             "io.quarkus.bootstrap.classloading.JarClassPathElement", "file",
             "io.quarkus.bootstrap.classloading.DirectoryClassPathElement", "root");
 
+    /** The names of {@link #PRE_311_RESOURCE_BASED_ELEMENTS}, as an array, to match an element class against. */
+    private static final String[] PRE_311_RESOURCE_BASED_ELEMENT_NAMES = PRE_311_RESOURCE_BASED_ELEMENTS.keySet()
+            .toArray(new String[0]);
+
+    /** The classpath element class that a {@code RunnerClassLoader} serves the contents of a jarfile from. */
+    private static final String JAR_RESOURCE = "io.quarkus.bootstrap.runner.JarResource";
+
     /** Constructor. */
     QuarkusClassLoaderHandler() {
     }
@@ -122,17 +129,17 @@ class QuarkusClassLoaderHandler implements ClassLoaderHandler {
      * @param log
      *            the log node, or null to skip logging
      */
-    private static void findClasspathOrderForQuarkusClassloader(final ClassLoader classLoader,
+    private void findClasspathOrderForQuarkusClassloader(final ClassLoader classLoader,
             final ClasspathOrder classpathOrder, final @Nullable ClassGraphLog log) {
 
         final var elements = findQuarkusClassLoaderElements(classLoader);
 
         for (final Object element : elements) {
-            final var elementClassName = element.getClass().getName();
-            final var fieldName = PRE_311_RESOURCE_BASED_ELEMENTS.get(elementClassName);
-            if (fieldName != null) {
-                classpathOrder.addClasspathEntry(ReflectionUtils.getFieldVal(false, element, fieldName),
-                        classLoader, log);
+            final var elementClassName = findMatchingClassName(element.getClass(),
+                    PRE_311_RESOURCE_BASED_ELEMENT_NAMES);
+            if (elementClassName != null) {
+                classpathOrder.addClasspathEntry(ReflectionUtils.getFieldVal(false, element,
+                        PRE_311_RESOURCE_BASED_ELEMENTS.get(elementClassName)), classLoader, log);
             } else {
                 final var rootPath = ReflectionUtils.invokeMethod(false, element, "getRoot");
                 if (rootPath instanceof Path) {
@@ -208,7 +215,7 @@ class QuarkusClassLoaderHandler implements ClassLoaderHandler {
      *            the log node, or null to skip logging
      */
     @SuppressWarnings("unchecked")
-    private static void findClasspathOrderForRunnerClassloader(final ClassLoader classLoader,
+    private void findClasspathOrderForRunnerClassloader(final ClassLoader classLoader,
             final ClasspathOrder classpathOrder, final @Nullable ClassGraphLog log) {
         // (getFieldVal returns null if the field is not present -- Quarkus renames these fields between releases,
         // so don't assume the field was found)
@@ -219,8 +226,7 @@ class QuarkusClassLoaderHandler implements ClassLoaderHandler {
         }
         for (final Object[] elementArray : resourceDirectoryMap.values()) {
             for (final Object element : elementArray) {
-                final var elementClassName = element.getClass().getName();
-                if ("io.quarkus.bootstrap.runner.JarResource".equals(elementClassName)) {
+                if (classIsOrExtendsOrImplements(element.getClass(), JAR_RESOURCE)) {
                     classpathOrder.addClasspathEntry(ReflectionUtils.getFieldVal(false, element, "jarPath"),
                             classLoader, log);
                 }

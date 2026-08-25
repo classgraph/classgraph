@@ -118,6 +118,27 @@ public class PlexusClassRealmTest {
     }
 
     /**
+     * A realm whose strategy is a subclass of one of the Plexus strategies loads classes in the same order as the
+     * strategy it extends. Plexus lets a caller supply its own {@code Strategy}, so a strategy class need not be
+     * one of the three that Plexus ships.
+     *
+     * @param tempDir
+     *            a temporary directory to create the jars in.
+     * @throws IOException
+     *             if the jars could not be created.
+     */
+    @Test
+    public void aRealmWithASubclassOfASelfFirstStrategyHasItsOwnJarsFirst(@TempDir final Path tempDir)
+            throws IOException {
+        final var parent = new URLClassLoader(new URL[] { jarUrl(tempDir, "parent.jar") }, null);
+        final var realm = new ClassRealm(jarUrl(tempDir, "plugin.jar")).withStrategy(new SelfFirstStrategy() {
+            // A caller's own strategy, which extends one of the strategies Plexus ships
+        }).withParentRealm(parent);
+        assertThat(locations(realm)).containsExactly(jarLocation(tempDir, "plugin.jar"),
+                jarLocation(tempDir, "parent.jar"));
+    }
+
+    /**
      * A realm whose strategy cannot be read is treated as parent-first, which is Plexus' own default.
      *
      * @param tempDir

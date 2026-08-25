@@ -54,6 +54,13 @@ class TomcatWebappClassLoaderBaseHandler extends URLClassLoaderHandler {
      */
     private static final List<String> WEBAPP_LIB_DIR_PREFIXES = List.of("WEB-INF/lib/");
 
+    /** The TomEE classloader, which has its own delegation rules. */
+    private static final String TOMEE_WEBAPP_CLASS_LOADER = "org.apache.tomee.catalina.TomEEWebappClassLoader";
+
+    /** The {@code WebResourceSet} classes that serve resources from within a jarfile. */
+    private static final String[] JAR_RESOURCE_SETS = { "org.apache.catalina.webresources.JarResourceSet",
+            "org.apache.catalina.webresources.JarWarResourceSet" };
+
     /** Constructor. */
     TomcatWebappClassLoaderBaseHandler() {
     }
@@ -97,7 +104,7 @@ class TomcatWebappClassLoaderBaseHandler extends URLClassLoaderHandler {
             // Use parent-first delegation order
             classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true, log);
         }
-        if ("org.apache.tomee.catalina.TomEEWebappClassLoader".equals(classLoader.getClass().getName())) {
+        if (classIsOrExtendsOrImplements(classLoader.getClass(), TOMEE_WEBAPP_CLASS_LOADER)) {
             // TomEEWebappClassLoader has a lot of complex delegation rules, including classname-specific
             // delegation, which is not supported by the current ClassGraph model, so we just try to approximate the
             // delegation order with a fixed order.
@@ -164,7 +171,7 @@ class TomcatWebappClassLoaderBaseHandler extends URLClassLoaderHandler {
      * @param log
      *            the log.
      */
-    private static void addWebResourceSet(final Object webResourceSet, final ClassLoader classLoader,
+    private void addWebResourceSet(final Object webResourceSet, final ClassLoader classLoader,
             final ClasspathOrder classpathOrder, final @Nullable ClassGraphLog log) {
         // For DirResourceSet
         final var file = (File) ReflectionUtils.invokeMethod(false, webResourceSet, "getFileBase");
@@ -188,11 +195,9 @@ class TomcatWebappClassLoaderBaseHandler extends URLClassLoaderHandler {
             // If archivePath is non-null, this is a jar within a war
             base += "!" + (archivePath.startsWith("/") ? archivePath : "/" + archivePath);
         }
-        final var className = webResourceSet.getClass().getName();
         // (These class names previously had a spurious "java." prefix, so isJar was always false, and the internal
         // path of a resource JAR was appended as a directory path rather than as a path within the JAR)
-        final var isJar = "org.apache.catalina.webresources.JarResourceSet".equals(className)
-                || "org.apache.catalina.webresources.JarWarResourceSet".equals(className);
+        final var isJar = findMatchingClassName(webResourceSet.getClass(), JAR_RESOURCE_SETS) != null;
         // The path within this WebResourceSet where resources will be served from, e.g. for a resource JAR, this
         // would be "META-INF/resources"
         final var internalPath = (String) ReflectionUtils.invokeMethod(false, webResourceSet, "getInternalPath");
