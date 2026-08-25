@@ -68,10 +68,11 @@ public class ClassLoaderFinderOrderTest {
                 // ClassLoaderFinder's constructor is package-private, and this class is loaded by a different
                 // classloader, so it is in a different runtime package and cannot call it directly
                 final Constructor<ClassLoaderFinder> constructor = ClassLoaderFinder.class
-                        .getDeclaredConstructor(ScanSpec.class, ReflectionUtils.class, LogNode.class);
+                        .getDeclaredConstructor(ScanSpec.class, CallStackInfo.class, LogNode.class);
                 constructor.setAccessible(true);
+                // The call stack has to be read here, in the class that the child classloader loaded
                 final ClassLoaderFinder classLoaderFinder = constructor.newInstance(new ScanSpec(),
-                        new ReflectionUtils(), null);
+                        CallStackInfo.read(new ReflectionUtils(), null), null);
                 return Arrays.asList(classLoaderFinder.getContextClassLoaders());
             } catch (final ReflectiveOperationException e) {
                 throw new IllegalArgumentException("Could not call ClassLoaderFinder", e);

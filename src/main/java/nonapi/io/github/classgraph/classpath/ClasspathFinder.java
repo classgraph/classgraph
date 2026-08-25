@@ -111,7 +111,10 @@ public class ClasspathFinder {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * A class to find the unique ordered classpath elements.
+     * A class to find the unique ordered classpath elements, reading what is needed from the current thread. Use
+     * {@link #ClasspathFinder(ScanSpec, CallStackInfo, ReflectionUtils, LogNode)} instead if the thread that asked
+     * for the search has already read that itself, since it is that thread's classloaders and locks that matter,
+     * not those of the thread that this constructor runs on.
      * 
      * @param scanSpec
      *            The {@link ScanSpec}.
@@ -121,6 +124,23 @@ public class ClasspathFinder {
      *            The log.
      */
     public ClasspathFinder(final ScanSpec scanSpec, final ReflectionUtils reflectionUtils, final LogNode log) {
+        this(scanSpec, CallStackInfo.read(reflectionUtils, log), reflectionUtils, log);
+    }
+
+    /**
+     * A class to find the unique ordered classpath elements.
+     * 
+     * @param scanSpec
+     *            The {@link ScanSpec}.
+     * @param callStackInfo
+     *            What was read from the thread that asked for the search.
+     * @param reflectionUtils
+     *            The reflection utils instance.
+     * @param log
+     *            The log.
+     */
+    public ClasspathFinder(final ScanSpec scanSpec, final CallStackInfo callStackInfo,
+            final ReflectionUtils reflectionUtils, final LogNode log) {
         final LogNode classpathFinderLog = log == null ? null : log.log("Finding classpath and modules");
 
         // If classloaders are overridden, check if the override classloader(s) is/are JPMS classloaders.
@@ -174,8 +194,7 @@ public class ClasspathFinder {
 
         // Only instantiate a module finder if requested
         moduleFinder = scanNonSystemModules || scanSpec.enableSystemJarsAndModules
-                ? new ModuleFinder(new CallStackReader(reflectionUtils).getClassContext(classpathFinderLog),
-                        scanSpec, scanNonSystemModules,
+                ? new ModuleFinder(callStackInfo.getClassContext(), scanSpec, scanNonSystemModules,
                         /* scanSystemModules = */ scanSpec.enableSystemJarsAndModules, reflectionUtils,
                         classpathFinderLog)
                 : null;
@@ -185,7 +204,7 @@ public class ClasspathFinder {
         // Only look for environment classloaders if classpath and classloaders are not overridden
         final ClassLoaderFinder classLoaderFinder = scanSpec.overrideClasspath == null
                 && scanSpec.overrideClassLoaders == null
-                        ? new ClassLoaderFinder(scanSpec, reflectionUtils, classpathFinderLog)
+                        ? new ClassLoaderFinder(scanSpec, callStackInfo, classpathFinderLog)
                         : null;
         final ClassLoader[] contextClassLoaders = classLoaderFinder == null ? new ClassLoader[0]
                 : classLoaderFinder.getContextClassLoaders();

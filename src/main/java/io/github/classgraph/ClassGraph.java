@@ -48,6 +48,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
+import nonapi.io.github.classgraph.classpath.CallStackInfo;
 import nonapi.io.github.classgraph.classpath.SystemJarFinder;
 import nonapi.io.github.classgraph.concurrency.AutoCloseableExecutorService;
 import nonapi.io.github.classgraph.concurrency.InterruptionChecker;
@@ -1633,15 +1634,19 @@ public class ClassGraph {
         // Read the worker timeout on this thread, so that changing it after the scan has been started does not
         // change the timeout of the scan that is already running
         final long workerTimeoutNanosForScan = this.workerTimeoutNanos;
+        // Read the call stack and the context classloader on the calling thread, since it is the caller's
+        // classloaders and module layers that are to be searched, not those of the thread that the scan happens
+        // to run on
+        final CallStackInfo callStackInfo = CallStackInfo.read(reflectionUtils, topLevelLog);
         // Use execute() rather than submit(), since a ScanResultProcessor and FailureHandler are used
         executorService.execute(new Runnable() {
             @Override
             public void run() {
                 try {
                     // Call scanner, but ignore the returned ScanResult
-                    new Scanner(/* performScan = */ true, scanSpec, executorService, numParallelTasks,
-                            workerTimeoutNanosForScan, scanResultProcessor, failureHandler, reflectionUtils,
-                            topLevelLog).call();
+                    new Scanner(/* performScan = */ true, callStackInfo, scanSpec, executorService,
+                            numParallelTasks, workerTimeoutNanosForScan, scanResultProcessor, failureHandler,
+                            reflectionUtils, topLevelLog).call();
                 } catch (final Throwable t) {
                     // Call failure handler. Anything thrown before the Scanner starts running the scan (e.g. by a
                     // user-supplied classpath element filter, which the Scanner constructor calls) has to be caught
@@ -1674,9 +1679,13 @@ public class ClassGraph {
      */
     public Future<ScanResult> scanAsync(final ExecutorService executorService, final int numParallelTasks) {
         try {
-            return executorService.submit(new Scanner(/* performScan = */ true, scanSpec, executorService,
-                    numParallelTasks, workerTimeoutNanos, /* scanResultProcessor = */ null,
-                    /* failureHandler = */ null, reflectionUtils, topLevelLog));
+            // Read the call stack and the context classloader on the calling thread, since it is the caller's
+            // classloaders and module layers that are to be searched, not those of the thread that the scan
+            // happens to run on
+            return executorService.submit(new Scanner(/* performScan = */ true,
+                    CallStackInfo.read(reflectionUtils, topLevelLog), scanSpec, executorService, numParallelTasks,
+                    workerTimeoutNanos, /* scanResultProcessor = */ null, /* failureHandler = */ null,
+                    reflectionUtils, topLevelLog));
         } catch (final InterruptedException e) {
             // Interrupted during the Scanner constructor's execution (specifically, by getModuleOrder(),
             // which is unlikely to ever actually be interrupted -- but this exception needs to be caught).
@@ -1745,10 +1754,14 @@ public class ClassGraph {
      */
     private ScanResult scanOnThisThread(final boolean performScan, final ExecutorService executorService,
             final int numParallelTasks) {
+        // Read the call stack once, on the calling thread: the scan needs it both to decide whether loading a
+        // class on a worker thread could deadlock (#933) and to find the caller's classloaders and module layers
+        final CallStackInfo callStackInfo = CallStackInfo.read(reflectionUtils, topLevelLog);
         try {
-            final ScanResult scanResult = new Scanner(performScan, scanSpec, executorService, numParallelTasks,
-                    workerTimeoutNanos, /* scanResultProcessor = */ null, /* failureHandler = */ null,
-                    reflectionUtils, topLevelLog).call();
+            final ScanResult scanResult = new Scanner(performScan, callStackInfo, scanSpec, executorService,
+                    numTasksWithoutDeadlockHazard(callStackInfo, numParallelTasks), workerTimeoutNanos,
+                    /* scanResultProcessor = */ null, /* failureHandler = */ null, reflectionUtils, topLevelLog)
+                            .call();
 
             // The resulting scanResult cannot be null, but check for null to keep SpotBugs happy
             if (scanResult == null) {
@@ -1775,6 +1788,36 @@ public class ClassGraph {
     }
 
     /**
+     * Reduce the number of parallel tasks to 1 if the calling thread is holding a lock that the classloader would
+     * also need in order to load one of ClassGraph's own classes on a worker thread. Loading a class on a worker
+     * thread would then deadlock the scan, and the deadlock cannot be broken, since a thread that is blocked on
+     * class loading cannot be interrupted (#933). Running the whole scan on the calling thread is slower, but it
+     * loads every class the scan needs on the thread that already holds the lock, so it cannot deadlock.
+     *
+     * @param callStackInfo
+     *            The call stack of the calling thread.
+     * @param numParallelTasks
+     *            The requested number of parallel tasks.
+     * @return the number of parallel tasks to use.
+     */
+    private int numTasksWithoutDeadlockHazard(final CallStackInfo callStackInfo, final int numParallelTasks) {
+        if (numParallelTasks <= 1) {
+            // The scan already runs entirely on the calling thread
+            return numParallelTasks;
+        }
+        final String frame = callStackInfo.getFrameHoldingClassLoadingLock();
+        if (frame == null) {
+            return numParallelTasks;
+        }
+        if (topLevelLog != null) {
+            topLevelLog.log("The thread that called scan() is holding a class loading lock in " + frame
+                    + ", so loading a class on a worker thread could deadlock the scan (#933) -- running the "
+                    + "whole scan on the calling thread instead of using " + numParallelTasks + " threads");
+        }
+        return 1;
+    }
+
+    /**
      * Scans the classpath with the requested number of threads, blocking until the scan is complete. You should
      * assign the returned {@link ScanResult} in a try-with-resources statement, or manually close it when you are
      * finished with it.
@@ -1783,7 +1826,10 @@ public class ClassGraph {
      * Calling this with a {@code numThreads} of 1 starts no worker threads at all: the whole scan is run on the
      * calling thread, so every class the scan needs is loaded on the calling thread. Use that if the calling thread
      * holds a lock that the classloader also acquires, since loading a class on a worker thread would then deadlock
-     * (#933).
+     * (#933). The two commonest ways to hold such a lock are detected automatically -- calling {@code scan()}
+     * from a static initializer, or from a {@link ClassLoader} that is loading a class -- and the scan then falls
+     * back to running on the calling thread whatever {@code numThreads} says, noting it in the verbose log. (On
+     * Java 8, only the static initializer case can be detected.)
      *
      * @param numThreads
      *            The number of worker threads to start up. If 1, the scan is run entirely on the calling thread.

@@ -63,6 +63,7 @@ import io.github.classgraph.ClassGraph.FailureHandler;
 import io.github.classgraph.ClassGraph.ScanResultProcessor;
 import io.github.classgraph.Classfile.ClassfileFormatException;
 import io.github.classgraph.Classfile.SkipClassException;
+import nonapi.io.github.classgraph.classpath.CallStackInfo;
 import nonapi.io.github.classgraph.classpath.ClasspathFinder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder.ClasspathEntry;
 import nonapi.io.github.classgraph.classpath.ModuleFinder;
@@ -130,6 +131,8 @@ class Scanner implements Callable<ScanResult> {
      *
      * @param performScan
      *            If true, performing a scan. If false, only fetching the classpath.
+     * @param callStackInfo
+     *            what was read from the thread that asked for the scan, read by that thread before the scan started
      * @param scanSpec
      *            the scan spec
      * @param executorService
@@ -151,8 +154,8 @@ class Scanner implements Callable<ScanResult> {
      * @throws InterruptedException
      *             if interrupted
      */
-    Scanner(final boolean performScan, final ScanSpec scanSpec, final ExecutorService executorService,
-            final int numParallelTasks, final long workerTimeoutNanos,
+    Scanner(final boolean performScan, final CallStackInfo callStackInfo, final ScanSpec scanSpec,
+            final ExecutorService executorService, final int numParallelTasks, final long workerTimeoutNanos,
             final ScanResultProcessor scanResultProcessor, final FailureHandler failureHandler,
             final ReflectionUtils reflectionUtils, final LogNode topLevelLog) throws InterruptedException {
         this.scanSpec = scanSpec;
@@ -186,7 +189,8 @@ class Scanner implements Callable<ScanResult> {
         // runs during construction -- a ClassLoaderHandler, a classpath element filter -- so the failure can be of
         // any type, not just InterruptedException
         try {
-            this.classpathFinder = new ClasspathFinder(scanSpec, reflectionUtils, classpathFinderLog);
+            this.classpathFinder = new ClasspathFinder(scanSpec, callStackInfo, reflectionUtils,
+                    classpathFinderLog);
 
             this.moduleOrder = new ArrayList<>();
 

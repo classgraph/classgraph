@@ -36,7 +36,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
-import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.CollectionUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
@@ -112,12 +111,12 @@ public class ClassLoaderFinder {
      *
      * @param scanSpec
      *            The scan spec, or null if none available.
-     * @param reflectionUtils
-     *            The reflection utils instance.
+     * @param callStackInfo
+     *            What was read from the thread that started the search.
      * @param log
      *            The log.
      */
-    ClassLoaderFinder(final ScanSpec scanSpec, final ReflectionUtils reflectionUtils, final LogNode log) {
+    ClassLoaderFinder(final ScanSpec scanSpec, final CallStackInfo callStackInfo, final LogNode log) {
         LinkedHashSet<ClassLoader> classLoadersUnique;
         LogNode classLoadersFoundLog;
         if (scanSpec.overrideClassLoaders == null) {
@@ -127,10 +126,12 @@ public class ClassLoaderFinder {
             // (e.g. it doesn't cover parent delegation modes):
             // http://www.javaworld.com/article/2077344/core-java/find-a-way-out-of-the-classloader-maze.html?page=2
 
-            // Get thread context classloader (this is the first classloader to try, since a context classloader
-            // can be set as an override on a per-thread basis)
+            // Get the context classloader of the thread that asked for the search (this is the first classloader
+            // to try, since a context classloader can be set as an override on a per-thread basis). It is the
+            // calling thread's context classloader that is wanted, not that of the thread this code happens to
+            // run on, which for an asynchronous scan is a worker thread of the ExecutorService.
             classLoadersUnique = new LinkedHashSet<>();
-            final ClassLoader threadClassLoader = Thread.currentThread().getContextClassLoader();
+            final ClassLoader threadClassLoader = callStackInfo.getContextClassLoader();
             if (threadClassLoader != null) {
                 classLoadersUnique.add(threadClassLoader);
             }
@@ -163,17 +164,10 @@ public class ClassLoaderFinder {
             // innermost frame first, so the immediate caller's classloader is preferred over the classloader of
             // the code that called it -- Class.forName(className) resolves against the classloader of its
             // immediate caller.
-            try {
-                final Class<?>[] callStack = new CallStackReader(reflectionUtils).getClassContext(log);
-                for (final Class<?> callStackClass : callStack) {
-                    final ClassLoader callerClassLoader = callStackClass.getClassLoader();
-                    if (callerClassLoader != null) {
-                        classLoadersUnique.add(callerClassLoader);
-                    }
-                }
-            } catch (final IllegalArgumentException e) {
-                if (log != null) {
-                    log.log("Could not get call stack", e);
+            for (final Class<?> callStackClass : callStackInfo.getClassContext()) {
+                final ClassLoader callerClassLoader = callStackClass.getClassLoader();
+                if (callerClassLoader != null) {
+                    classLoadersUnique.add(callerClassLoader);
                 }
             }
 
