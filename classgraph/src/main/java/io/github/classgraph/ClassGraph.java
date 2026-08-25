@@ -507,6 +507,25 @@ public class ClassGraph {
      * takes in that order.
      *
      * <p>
+     * The application ClassLoader is one of the JPMS builtin ClassLoaders, and none of those exposes the locations
+     * it loads from through any public API, so its classpath entries are read from its private
+     * {@code jdk.internal.loader.URLClassPath ucp} field where that is possible, and from the
+     * {@code java.class.path} system property otherwise. The {@code jdk.internal.loader} package is exported to
+     * only three modules and is never opened, so the field can be read only if
+     * <a href="https://github.com/toolfactory/narcissus">Narcissus</a> is on the classpath, or the JVM was launched
+     * with {@code --add-opens java.base/jdk.internal.loader=ALL-UNNAMED}. Two kinds of classpath entry are
+     * therefore missed when the field cannot be read, since neither is listed in any system property the
+     * application can read:
+     * <ul>
+     * <li>the jars a Java agent appended by calling
+     * {@code Instrumentation.appendToSystemClassLoaderSearch(JarFile)}, which is specified not to change the value
+     * of {@code java.class.path}; and</li>
+     * <li>the entries appended to the boot classpath with {@code -Xbootclasspath/a}, or with the
+     * {@code Boot-Class-Path} attribute of a Java agent's manifest, which the bootstrap ClassLoader holds in a
+     * {@code URLClassPath} of its own.</li>
+     * </ul>
+     *
+     * <p>
      * This method takes no arguments, because it scans what is in the environment. To scan specific ClassLoaders or
      * specific classpath elements instead, call {@link #enableClassLoaders(ClassLoader...)} or
      * {@link #enableClasspathEntries(Object...)} and do not call this method. Calling both scans the environment as
