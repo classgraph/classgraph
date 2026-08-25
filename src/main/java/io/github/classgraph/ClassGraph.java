@@ -45,6 +45,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
 import nonapi.io.github.classgraph.classpath.SystemJarFinder;
@@ -82,6 +83,19 @@ public class ClassGraph {
                     // Num scanning threads (higher than available processors, because some threads can be blocked)
                             Runtime.getRuntime().availableProcessors() * 1.25) //
     );
+
+    /**
+     * The default maximum length of time to wait for a worker thread to finish. This is long enough that a healthy
+     * scan will never hit it, but short enough that a scan that can never finish is reported rather than hanging
+     * forever.
+     */
+    static final long DEFAULT_WORKER_TIMEOUT_NANOS = TimeUnit.MINUTES.toNanos(1);
+
+    /**
+     * The maximum number of nanoseconds to wait for a worker thread to finish, or {@link Long#MAX_VALUE} to wait
+     * indefinitely.
+     */
+    private long workerTimeoutNanos = DEFAULT_WORKER_TIMEOUT_NANOS;
 
     /**
      * Method to use to attempt to circumvent encapsulation in JDK 16+, in order to get access to a classloader's
@@ -1470,6 +1484,39 @@ public class ClassGraph {
     }
 
     /**
+     * Set the maximum length of time to wait for a worker thread to finish, once the calling thread has run out of
+     * work of its own to do. If a worker thread does not finish within this time, the scan throws
+     * {@link ClassGraphException} rather than blocking forever.
+     *
+     * <p>
+     * A worker thread that never finishes means the scan cannot complete. The two known causes are a classloading
+     * deadlock, where the calling thread holds a lock that the classloader needs in order to load one of
+     * ClassGraph's own classes on a worker thread (#933) -- which can be avoided by calling {@link #scan(int)} with
+     * a {@code numThreads} of 1, so that nothing is loaded on a worker thread -- and a worker thread blocking
+     * indefinitely on a filesystem or network read of a classpath element.
+     *
+     * <p>
+     * Default: 1 minute. Set a longer timeout if a scan of a very large or very slow classpath needs it. A timeout
+     * that is zero or negative disables the timeout, so that worker threads are waited for indefinitely.
+     *
+     * @param workerTimeout
+     *            the maximum length of time to wait for a worker thread to finish.
+     * @param timeUnit
+     *            the unit of {@code workerTimeout}.
+     * @return this (for method chaining).
+     */
+    public ClassGraph setWorkerTimeout(final long workerTimeout, final TimeUnit timeUnit) {
+        if (timeUnit == null) {
+            throw new NullPointerException("timeUnit must not be null");
+        }
+        final long timeoutNanos = timeUnit.toNanos(workerTimeout);
+        // A timeout that is zero or negative, or that saturated when converted to nanoseconds, means "wait
+        // indefinitely", which was the behavior before this timeout was added
+        this.workerTimeoutNanos = timeoutNanos > 0L ? timeoutNanos : Long.MAX_VALUE;
+        return this;
+    }
+
+    /**
      * If true, use a {@link MappedByteBuffer} rather than the {@link FileChannel} API to open files, which may be
      * faster for large classpaths consisting of many large jarfiles, but uses up virtual memory space.
      *
@@ -1583,6 +1630,9 @@ public class ClassGraph {
             // force the addition of a FailureHandler so that exceptions are not silently swallowed.
             throw new IllegalArgumentException("failureHandler cannot be null");
         }
+        // Read the worker timeout on this thread, so that changing it after the scan has been started does not
+        // change the timeout of the scan that is already running
+        final long workerTimeoutNanosForScan = this.workerTimeoutNanos;
         // Use execute() rather than submit(), since a ScanResultProcessor and FailureHandler are used
         executorService.execute(new Runnable() {
             @Override
@@ -1590,7 +1640,8 @@ public class ClassGraph {
                 try {
                     // Call scanner, but ignore the returned ScanResult
                     new Scanner(/* performScan = */ true, scanSpec, executorService, numParallelTasks,
-                            scanResultProcessor, failureHandler, reflectionUtils, topLevelLog).call();
+                            workerTimeoutNanosForScan, scanResultProcessor, failureHandler, reflectionUtils,
+                            topLevelLog).call();
                 } catch (final Throwable t) {
                     // Call failure handler. Anything thrown before the Scanner starts running the scan (e.g. by a
                     // user-supplied classpath element filter, which the Scanner constructor calls) has to be caught
@@ -1624,8 +1675,8 @@ public class ClassGraph {
     public Future<ScanResult> scanAsync(final ExecutorService executorService, final int numParallelTasks) {
         try {
             return executorService.submit(new Scanner(/* performScan = */ true, scanSpec, executorService,
-                    numParallelTasks, /* scanResultProcessor = */ null, /* failureHandler = */ null,
-                    reflectionUtils, topLevelLog));
+                    numParallelTasks, workerTimeoutNanos, /* scanResultProcessor = */ null,
+                    /* failureHandler = */ null, reflectionUtils, topLevelLog));
         } catch (final InterruptedException e) {
             // Interrupted during the Scanner constructor's execution (specifically, by getModuleOrder(),
             // which is unlikely to ever actually be interrupted -- but this exception needs to be caught).
@@ -1696,8 +1747,8 @@ public class ClassGraph {
             final int numParallelTasks) {
         try {
             final ScanResult scanResult = new Scanner(performScan, scanSpec, executorService, numParallelTasks,
-                    /* scanResultProcessor = */ null, /* failureHandler = */ null, reflectionUtils, topLevelLog)
-                            .call();
+                    workerTimeoutNanos, /* scanResultProcessor = */ null, /* failureHandler = */ null,
+                    reflectionUtils, topLevelLog).call();
 
             // The resulting scanResult cannot be null, but check for null to keep SpotBugs happy
             if (scanResult == null) {
@@ -1741,7 +1792,8 @@ public class ClassGraph {
      *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
      */
     public ScanResult scan(final int numThreads) {
-        try (AutoCloseableExecutorService executorService = new AutoCloseableExecutorService(numThreads)) {
+        try (AutoCloseableExecutorService executorService = new AutoCloseableExecutorService(numThreads,
+                workerTimeoutNanos)) {
             return scan(executorService, numThreads);
         }
     }
@@ -1786,7 +1838,8 @@ public class ClassGraph {
      */
     public List<File> getClasspathFiles() {
         try (AutoCloseableExecutorService executorService = new AutoCloseableExecutorService(
-                DEFAULT_NUM_WORKER_THREADS); ScanResult scanResult = getClasspathScanResult(executorService)) {
+                DEFAULT_NUM_WORKER_THREADS, workerTimeoutNanos);
+                ScanResult scanResult = getClasspathScanResult(executorService)) {
             return scanResult.getClasspathFiles();
         }
     }
@@ -1819,7 +1872,8 @@ public class ClassGraph {
      */
     public List<URI> getClasspathURIs() {
         try (AutoCloseableExecutorService executorService = new AutoCloseableExecutorService(
-                DEFAULT_NUM_WORKER_THREADS); ScanResult scanResult = getClasspathScanResult(executorService)) {
+                DEFAULT_NUM_WORKER_THREADS, workerTimeoutNanos);
+                ScanResult scanResult = getClasspathScanResult(executorService)) {
             return scanResult.getClasspathURIs();
         }
     }
@@ -1835,7 +1889,8 @@ public class ClassGraph {
      */
     public List<URL> getClasspathURLs() {
         try (AutoCloseableExecutorService executorService = new AutoCloseableExecutorService(
-                DEFAULT_NUM_WORKER_THREADS); ScanResult scanResult = getClasspathScanResult(executorService)) {
+                DEFAULT_NUM_WORKER_THREADS, workerTimeoutNanos);
+                ScanResult scanResult = getClasspathScanResult(executorService)) {
             return scanResult.getClasspathURLs();
         }
     }
@@ -1849,7 +1904,8 @@ public class ClassGraph {
      */
     public List<ModuleRef> getModules() {
         try (AutoCloseableExecutorService executorService = new AutoCloseableExecutorService(
-                DEFAULT_NUM_WORKER_THREADS); ScanResult scanResult = getClasspathScanResult(executorService)) {
+                DEFAULT_NUM_WORKER_THREADS, workerTimeoutNanos);
+                ScanResult scanResult = getClasspathScanResult(executorService)) {
             return scanResult.getModules();
         }
     }

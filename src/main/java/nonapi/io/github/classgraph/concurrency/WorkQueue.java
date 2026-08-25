@@ -37,6 +37,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -100,6 +102,12 @@ public class WorkQueue<T> implements AutoCloseable {
      */
     private final InterruptionChecker interruptionChecker;
 
+    /**
+     * The maximum number of nanoseconds that {@link #close()} waits for a worker to finish, or
+     * {@link Long#MAX_VALUE} to wait indefinitely.
+     */
+    private final long workerTimeoutNanos;
+
     /** The log node. */
     private final LogNode log;
 
@@ -161,6 +169,9 @@ public class WorkQueue<T> implements AutoCloseable {
      *            the interruption checker
      * @param numParallelTasks
      *            The number of parallel tasks.
+     * @param workerTimeoutNanos
+     *            The maximum number of nanoseconds to wait for a worker to finish, or {@link Long#MAX_VALUE} to
+     *            wait indefinitely.
      * @param log
      *            The log.
      * @param workUnitProcessor
@@ -168,11 +179,12 @@ public class WorkQueue<T> implements AutoCloseable {
      * @throws InterruptedException
      *             If the work was interrupted.
      * @throws ExecutionException
-     *             If a worker throws an uncaught exception.
+     *             If a worker throws an uncaught exception, or does not finish before the timeout.
      */
     public static <U> void runWorkQueue(final Collection<U> elements, final ExecutorService executorService,
-            final InterruptionChecker interruptionChecker, final int numParallelTasks, final LogNode log,
-            final WorkUnitProcessor<U> workUnitProcessor) throws InterruptedException, ExecutionException {
+            final InterruptionChecker interruptionChecker, final int numParallelTasks,
+            final long workerTimeoutNanos, final LogNode log, final WorkUnitProcessor<U> workUnitProcessor)
+            throws InterruptedException, ExecutionException {
         if (elements.isEmpty()) {
             // Nothing to do
             return;
@@ -180,7 +192,7 @@ public class WorkQueue<T> implements AutoCloseable {
         // WorkQueue#close() is called when this try-with-resources block terminates, initiating a barrier wait
         // while all worker threads complete.
         try (WorkQueue<U> workQueue = new WorkQueue<>(elements, workUnitProcessor, numParallelTasks,
-                interruptionChecker, log)) {
+                interruptionChecker, workerTimeoutNanos, log)) {
             // Start (numParallelTasks - 1) worker threads (may start zero threads if numParallelTasks == 1)
             workQueue.startWorkers(executorService, numParallelTasks - 1);
             // Use the current thread to do work too, in case there is only one thread available in the
@@ -201,14 +213,19 @@ public class WorkQueue<T> implements AutoCloseable {
      *            the number of workers
      * @param interruptionChecker
      *            the interruption checker
+     * @param workerTimeoutNanos
+     *            the maximum number of nanoseconds to wait for a worker to finish, or {@link Long#MAX_VALUE} to
+     *            wait indefinitely
      * @param log
      *            the log
      */
     private WorkQueue(final Collection<T> initialWorkUnits, final WorkUnitProcessor<T> workUnitProcessor,
-            final int numWorkers, final InterruptionChecker interruptionChecker, final LogNode log) {
+            final int numWorkers, final InterruptionChecker interruptionChecker, final long workerTimeoutNanos,
+            final LogNode log) {
         this.workUnitProcessor = workUnitProcessor;
         this.numWorkers = numWorkers;
         this.interruptionChecker = interruptionChecker;
+        this.workerTimeoutNanos = workerTimeoutNanos;
         this.log = log;
         addWorkUnits(initialWorkUnits);
     }
@@ -350,7 +367,21 @@ public class WorkQueue<T> implements AutoCloseable {
             final Future<?> future = worker.future;
             try {
                 // Block on completion using future.get(), which may throw one of the exceptions below
-                future.get();
+                future.get(workerTimeoutNanos, TimeUnit.NANOSECONDS);
+            } catch (final TimeoutException e) {
+                // The worker is still running, and there is no way to stop it, since a thread blocked on class
+                // loading or on a filesystem read cannot be interrupted. All that can be done is to report why the
+                // scan cannot finish. The message has to go in the innermost exception, since
+                // InterruptionChecker#getCause(Throwable) unwraps nested ExecutionExceptions.
+                interruptionChecker.setExecutionException(new ExecutionException(new IllegalStateException(
+                        "Timed out after " + TimeUnit.NANOSECONDS.toMillis(workerTimeoutNanos)
+                                + "ms waiting for a worker thread to finish. Either the calling thread holds a lock "
+                                + "that the classloader needs in order to load one of ClassGraph's own classes on "
+                                + "a worker thread, which deadlocks the scan (call scan(1) to run the whole scan "
+                                + "on the calling thread, so that no class is loaded on a worker thread), or a "
+                                + "worker thread is blocked reading a classpath element from a filesystem or "
+                                + "network (call ClassGraph#setWorkerTimeout() to allow more time)")));
+                interruptionChecker.interrupt();
             } catch (final CancellationException e) {
                 if (log != null) {
                     log.log("~", "Worker thread was cancelled");

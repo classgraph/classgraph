@@ -102,6 +102,12 @@ class Scanner implements Callable<ScanResult> {
     /** The number of parallel tasks. */
     private final int numParallelTasks;
 
+    /**
+     * The maximum number of nanoseconds to wait for a worker to finish, or {@link Long#MAX_VALUE} to wait
+     * indefinitely.
+     */
+    private final long workerTimeoutNanos;
+
     /** The scan result processor. */
     private final ScanResultProcessor scanResultProcessor;
 
@@ -130,6 +136,9 @@ class Scanner implements Callable<ScanResult> {
      *            the executor service
      * @param numParallelTasks
      *            the num parallel tasks
+     * @param workerTimeoutNanos
+     *            the maximum number of nanoseconds to wait for a worker to finish, or {@link Long#MAX_VALUE} to
+     *            wait indefinitely
      * @param scanResultProcessor
      *            the scan result processor
      * @param failureHandler
@@ -143,9 +152,9 @@ class Scanner implements Callable<ScanResult> {
      *             if interrupted
      */
     Scanner(final boolean performScan, final ScanSpec scanSpec, final ExecutorService executorService,
-            final int numParallelTasks, final ScanResultProcessor scanResultProcessor,
-            final FailureHandler failureHandler, final ReflectionUtils reflectionUtils, final LogNode topLevelLog)
-            throws InterruptedException {
+            final int numParallelTasks, final long workerTimeoutNanos,
+            final ScanResultProcessor scanResultProcessor, final FailureHandler failureHandler,
+            final ReflectionUtils reflectionUtils, final LogNode topLevelLog) throws InterruptedException {
         this.scanSpec = scanSpec;
         this.performScan = performScan;
         scanSpec.sortPrefixes();
@@ -165,6 +174,7 @@ class Scanner implements Callable<ScanResult> {
                 : new InterruptionChecker();
         this.nestedJarHandler = new NestedJarHandler(scanSpec, interruptionChecker, reflectionUtils);
         this.numParallelTasks = numParallelTasks;
+        this.workerTimeoutNanos = workerTimeoutNanos;
         this.scanResultProcessor = scanResultProcessor;
         this.failureHandler = failureHandler;
         this.topLevelLog = topLevelLog;
@@ -326,7 +336,8 @@ class Scanner implements Callable<ScanResult> {
      */
     private <W> void processWorkUnits(final Collection<W> workUnits, final LogNode log,
             final WorkUnitProcessor<W> workUnitProcessor) throws InterruptedException, ExecutionException {
-        WorkQueue.runWorkQueue(workUnits, executorService, interruptionChecker, numParallelTasks, log,
+        WorkQueue.runWorkQueue(workUnits, executorService, interruptionChecker, numParallelTasks,
+                workerTimeoutNanos, log,
                 workUnitProcessor);
         if (log != null) {
             log.addElapsedTime();
