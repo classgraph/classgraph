@@ -77,6 +77,15 @@ public class ClassLoaderOrderBuilder implements ClassLoaderOrder {
      */
     private final Set<ClassLoader> allParentClassLoaders = Collections.newSetFromMap(new IdentityHashMap<>());
 
+    /**
+     * The handlers found for each {@link ClassLoader}, so that the handlers are chosen only once per classloader.
+     * Every classloader is looked up twice, once by {@link #delegateTo(ClassLoader, boolean, ClassGraphLog)} and
+     * once by {@link #add(ClassLoader, ClassGraphLog)}, and choosing the handlers walks the classloader's class
+     * hierarchy once per registered handler.
+     */
+    private final Map<ClassLoader, List<ClassLoaderHandlerRegistryEntry>> classLoaderHandlers = //
+            new IdentityHashMap<>();
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**
@@ -120,6 +129,22 @@ public class ClassLoaderOrderBuilder implements ClassLoaderOrder {
      */
     private List<ClassLoaderHandlerRegistryEntry> getClassLoaderHandlerRegistryEntries(
             final ClassLoader classLoader, final @Nullable ClassGraphLog log) {
+        // The handlers are chosen once per classloader, so this also logs the choice only once
+        return classLoaderHandlers.computeIfAbsent(classLoader, cl -> chooseClassLoaderHandlers(cl, log));
+    }
+
+    /**
+     * Choose the {@link ClassLoaderHandler}(s) to handle a given {@link ClassLoader}.
+     *
+     * @param classLoader
+     *            the class loader
+     * @param log
+     *            the log node, or null to skip logging
+     * @return the registry entries that can handle the classloader, or a singleton list containing the fallback
+     *         handler if none can.
+     */
+    private List<ClassLoaderHandlerRegistryEntry> chooseClassLoaderHandlers(final ClassLoader classLoader,
+            final @Nullable ClassGraphLog log) {
         final var classLoaderClass = classLoader.getClass();
         final List<ClassLoaderHandlerRegistryEntry> ents = new ArrayList<>();
         // The user's handlers are offered the classloader before the built-in handlers are, so that a user handler
@@ -263,7 +288,7 @@ public class ClassLoaderOrderBuilder implements ClassLoaderOrder {
             // several equally specific handlers remain, they are called in the order they were registered in, and
             // the ones that run later can only add classloaders that an earlier one did not already place.
             for (final ClassLoaderHandlerRegistryEntry entry : getClassLoaderHandlerRegistryEntries(classLoader,
-                    /* Don't log twice -- also logged by the add method */ null)) {
+                    log)) {
                 entry.findClassLoaderOrder(classLoader, this, log);
             }
         }
