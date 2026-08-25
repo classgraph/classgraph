@@ -46,13 +46,31 @@ import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
 import org.jspecify.annotations.Nullable;
 
 // TODO: once ClassGraph's minimum supported JDK version is 21 or later, revisit the way work is scheduled across
-// worker threads, both here and in AutoCloseableExecutorService. Virtual threads (JDK 21) make a thread cheap
-// enough that the work does not have to be handed to a fixed-size pool of workers that pull from a shared queue:
-// one virtual thread per work unit may be simpler, and a scan spends much of its time blocked on file I/O, which
-// is what virtual threads are best at. Whether it is actually faster would have to be measured.
-// The poison pills, the count of incomplete work units, and the manual claiming of unstarted workers in close()
-// all exist to manage a fixed pool, and could go with it. Structured concurrency would also remove the need to
-// track submitted workers by hand, if it is a final API by then.
+// worker threads, both here and in AutoCloseableExecutorService. Virtual threads (JDK 21) are the obvious thing to
+// reach for, but measurement says they would not make a scan of local files any faster, and the reasons are worth
+// recording so that this is not tried twice:
+//
+// A virtual thread is only an improvement over a pooled platform thread if it unmounts while it is blocked, and
+// almost nothing a scan blocks on unmounts. Reading a file through FileChannel or RandomAccessFile pins the carrier
+// thread, and the scheduler does not start another carrier to compensate: with the scheduler's parallelism set to
+// 1, three virtual threads blocked on a file read let only the first one run, while three blocked in Thread.sleep()
+// or on a socket read all ran (measured on JDK 25 and 26). Reads through a MappedByteBuffer, which is how file
+// content is read wherever a file can be mapped, are page faults, which the JVM cannot see at all.
+//
+// Nor is there idle parallelism to reclaim: the work is CPU- and memory-bound once the page cache is warm. Scanning
+// 144 jars with enableAllInfo() (61.5k classes) took 3.38s with 1 worker thread, 0.90s with 8, 0.84s with 16 and
+// 0.87s with 32, on a machine with 32 cores -- so the scan already stops scaling well below the number of cores,
+// and adding more concurrent tasks cannot help. A thread per work unit would also mean tens of thousands of
+// threads, since a work unit is a single classfile.
+//
+// The one place virtual threads would help is JarURLDownloader, which fetches a remote jar over HTTP: socket reads
+// do unmount, so many jars could be downloaded at once without holding a worker thread each.
+//
+// What is worth doing regardless is the simplification. The poison pills, the count of incomplete work units, and
+// the manual claiming of unstarted workers in close() all exist to manage a fixed pool of workers pulling from a
+// shared queue, and structured concurrency would remove the need to track submitted workers by hand -- but the
+// pool also bounds parallelism deliberately (see ClassGraph#DEFAULT_NUM_WORKER_THREADS), so whatever replaces it
+// still has to bound the number of work units in flight.
 
 /**
  * A parallel work queue.
