@@ -1607,8 +1607,12 @@ public class ClassGraph {
      * assign the wrapped {@link ScanResult} in a try-with-resources statement, or manually close it when you are
      * finished with it.
      *
-     * @param performScan
-     *            If true, performing a scan. If false, only fetching the classpath.
+     * <p>
+     * The scan runs on a thread of the {@link ExecutorService}, so the classes that the scanner touches are loaded
+     * on that thread. If the thread that calls this method then blocks on the returned {@link Future} while holding
+     * a lock that the classloader also acquires, the scan can never complete (#933) -- use
+     * {@link #scan(ExecutorService, int)}, which runs the scanner on the calling thread, if that is a possibility.
+     *
      * @param executorService
      *            A custom {@link ExecutorService} to use for scheduling worker tasks.
      * @param numParallelTasks
@@ -1617,11 +1621,11 @@ public class ClassGraph {
      * @return a {@code Future<ScanResult>}, that when resolved using get() yields a new {@link ScanResult} object
      *         representing the result of the scan.
      */
-    private Future<ScanResult> scanAsync(final boolean performScan, final ExecutorService executorService,
-            final int numParallelTasks) {
+    public Future<ScanResult> scanAsync(final ExecutorService executorService, final int numParallelTasks) {
         try {
-            return executorService.submit(new Scanner(performScan, scanSpec, executorService, numParallelTasks,
-                    /* scanResultProcessor = */ null, /* failureHandler = */ null, reflectionUtils, topLevelLog));
+            return executorService.submit(new Scanner(/* performScan = */ true, scanSpec, executorService,
+                    numParallelTasks, /* scanResultProcessor = */ null, /* failureHandler = */ null,
+                    reflectionUtils, topLevelLog));
         } catch (final InterruptedException e) {
             // Interrupted during the Scanner constructor's execution (specifically, by getModuleOrder(),
             // which is unlikely to ever actually be interrupted -- but this exception needs to be caught).
@@ -1639,26 +1643,15 @@ public class ClassGraph {
     }
 
     /**
-     * Asynchronously scans the classpath for matching files, returning a {@code Future<ScanResult>}. You should
-     * assign the wrapped {@link ScanResult} in a try-with-resources statement, or manually close it when you are
-     * finished with it.
-     *
-     * @param executorService
-     *            A custom {@link ExecutorService} to use for scheduling worker tasks.
-     * @param numParallelTasks
-     *            The number of parallel tasks to break the work into during the most CPU-intensive stage of
-     *            classpath scanning. Ideally the ExecutorService will have at least this many threads available.
-     * @return a {@code Future<ScanResult>}, that when resolved using get() yields a new {@link ScanResult} object
-     *         representing the result of the scan.
-     */
-    public Future<ScanResult> scanAsync(final ExecutorService executorService, final int numParallelTasks) {
-        return scanAsync(/* performScan = */ true, executorService, numParallelTasks);
-    }
-
-    /**
      * Scans the classpath using the requested {@link ExecutorService} and the requested degree of parallelism,
      * blocking until the scan is complete. You should assign the returned {@link ScanResult} in a
      * try-with-resources statement, or manually close it when you are finished with it.
+     *
+     * <p>
+     * The scan itself runs on the calling thread, and the {@link ExecutorService} is used only for the parallel
+     * stages of the scan, so passing a {@code numParallelTasks} of 1 loads every class the scan needs on the
+     * calling thread. That matters when the calling thread holds a lock that the classloader also acquires, since
+     * loading a class on any other thread would then deadlock (#933).
      *
      * @param executorService
      *            A custom {@link ExecutorService} to use for scheduling worker tasks. This {@link ExecutorService}
@@ -1673,9 +1666,38 @@ public class ClassGraph {
      *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
      */
     public ScanResult scan(final ExecutorService executorService, final int numParallelTasks) {
+        return scanOnThisThread(/* performScan = */ true, executorService, numParallelTasks);
+    }
+
+    /**
+     * Run a scan on the calling thread, blocking until it is complete.
+     *
+     * <p>
+     * The {@link Scanner} is run on the calling thread rather than being submitted to the {@link ExecutorService}
+     * and waited for. Submitting it would leave the calling thread blocked on a {@link Future} while the classes
+     * that the scanner touches were loaded on a worker thread, which deadlocks if the calling thread holds a lock
+     * that the classloader also acquires -- a classloader that locks during early startup is not unusual. Neither
+     * side of that cycle is a monitor that both threads contend for, so the JVM does not report it as a deadlock:
+     * the scan simply never returns (#933). The {@link ExecutorService} is still used for the parallel stages of
+     * the scan, and is not used at all when {@code numParallelTasks} is 1.
+     *
+     * @param performScan
+     *            If true, performing a scan. If false, only fetching the classpath.
+     * @param executorService
+     *            A custom {@link ExecutorService} to use for scheduling worker tasks.
+     * @param numParallelTasks
+     *            The number of parallel tasks to break the work into during the most CPU-intensive stage of
+     *            classpath scanning.
+     * @return a {@link ScanResult} object representing the result of the scan.
+     * @throws ClassGraphException
+     *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
+     */
+    private ScanResult scanOnThisThread(final boolean performScan, final ExecutorService executorService,
+            final int numParallelTasks) {
         try {
-            // Start the scan, then block waiting for the result
-            final ScanResult scanResult = scanAsync(executorService, numParallelTasks).get();
+            final ScanResult scanResult = new Scanner(performScan, scanSpec, executorService, numParallelTasks,
+                    /* scanResultProcessor = */ null, /* failureHandler = */ null, reflectionUtils, topLevelLog)
+                            .call();
 
             // The resulting scanResult cannot be null, but check for null to keep SpotBugs happy
             if (scanResult == null) {
@@ -1693,6 +1715,11 @@ public class ClassGraph {
             throw new ClassGraphException("Scan interrupted", e);
         } catch (final ExecutionException e) {
             throw new ClassGraphException("Uncaught exception during scan", InterruptionChecker.getCause(e));
+        } catch (final RuntimeException e) {
+            // An unchecked exception thrown by the scanner used to reach the caller wrapped in an
+            // ExecutionException by the Future, and was rewrapped as the cause of a ClassGraphException, so wrap it
+            // the same way here rather than letting it propagate unwrapped
+            throw new ClassGraphException("Uncaught exception during scan", e);
         }
     }
 
@@ -1701,8 +1728,14 @@ public class ClassGraph {
      * assign the returned {@link ScanResult} in a try-with-resources statement, or manually close it when you are
      * finished with it.
      *
+     * <p>
+     * Calling this with a {@code numThreads} of 1 starts no worker threads at all: the whole scan is run on the
+     * calling thread, so every class the scan needs is loaded on the calling thread. Use that if the calling thread
+     * holds a lock that the classloader also acquires, since loading a class on a worker thread would then deadlock
+     * (#933).
+     *
      * @param numThreads
-     *            The number of worker threads to start up.
+     *            The number of worker threads to start up. If 1, the scan is run entirely on the calling thread.
      * @return a {@link ScanResult} object representing the result of the scan.
      * @throws ClassGraphException
      *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
@@ -1738,25 +1771,7 @@ public class ClassGraph {
      *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
      */
     ScanResult getClasspathScanResult(final AutoCloseableExecutorService executorService) {
-        try {
-            final ScanResult scanResult = scanAsync(/* performScan = */ false, executorService,
-                    DEFAULT_NUM_WORKER_THREADS).get();
-
-            // The resulting scanResult cannot be null, but check for null to keep SpotBugs happy
-            if (scanResult == null) {
-                throw new NullPointerException();
-            }
-            return scanResult;
-
-        } catch (final InterruptedException e) {
-            // Restore the interrupt status, for the same reason as in scan(ExecutorService, int)
-            Thread.currentThread().interrupt();
-            throw new ClassGraphException("Scan interrupted", e);
-        } catch (final CancellationException e) {
-            throw new ClassGraphException("Scan interrupted", e);
-        } catch (final ExecutionException e) {
-            throw new ClassGraphException("Uncaught exception during scan", InterruptionChecker.getCause(e));
-        }
+        return scanOnThisThread(/* performScan = */ false, executorService, DEFAULT_NUM_WORKER_THREADS);
     }
 
     /**
