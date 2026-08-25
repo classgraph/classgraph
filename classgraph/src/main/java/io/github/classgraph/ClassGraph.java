@@ -89,6 +89,14 @@ import org.jspecify.annotations.Nullable;
  * {@link ScanResult#getModuleReferences()} report exactly which classpath elements and modules were scanned.
  *
  * <p>
+ * The {@code accept} and {@code reject} methods only narrow what the {@code enable} methods enabled -- neither of
+ * them adds anything to the scan. {@code accept} says "don't scan everything that was enabled, but do scan this",
+ * and {@code reject} says "out of what you are scanning, ignore this". So {@code acceptPackages("com.xyz").scan()}
+ * on its own scans nothing, since no source of classes was enabled, and {@code acceptModules("java.base")} does not
+ * cause {@code java.base} to be scanned unless {@link #enableSystemModules()} or {@link #enableModules()} was also
+ * called.
+ *
+ * <p>
  * Documentation: <a href= "https://github.com/classgraph/classgraph/wiki">
  * https://github.com/classgraph/classgraph/wiki</a>
  */
@@ -760,6 +768,11 @@ public class ClassGraph {
      * Scan one or more specific packages and their sub-packages.
      *
      * <p>
+     * This narrows what is scanned to the named packages; it does not enable a source of classes. Call
+     * {@link #enableClasspath()}, {@link #enableModules()} or one of the other {@code enable} methods to say where
+     * the classes are looked for in the first place.
+     *
+     * <p>
      * N.B. Automatically calls {@link #enableClassInfo()} -- call {@link #acceptPaths(String...)} instead if you
      * only need to scan resources.
      *
@@ -805,6 +818,11 @@ public class ClassGraph {
     /**
      * Scan one or more specific paths, and their sub-directories or nested paths.
      *
+     * <p>
+     * This narrows what is scanned to the named paths; it does not enable a source of resources. Call
+     * {@link #enableClasspath()}, {@link #enableModules()} or one of the other {@code enable} methods to say where
+     * the resources are looked for in the first place.
+     *
      * @param paths
      *            The paths to scan, relative to the package root of the classpath element (with '/' as a
      *            separator). May include glob wildcards: {@code '*'} matches within a single path segment only, and
@@ -840,6 +858,11 @@ public class ClassGraph {
     /**
      * Scan one or more specific packages, without recursively scanning sub-packages unless they are themselves
      * accepted.
+     *
+     * <p>
+     * This narrows what is scanned to the named packages; it does not enable a source of classes. Call
+     * {@link #enableClasspath()}, {@link #enableModules()} or one of the other {@code enable} methods to say where
+     * the classes are looked for in the first place.
      *
      * <p>
      * N.B. Automatically calls {@link #enableClassInfo()} -- call {@link #acceptPathsNonRecursive(String...)}
@@ -880,6 +903,11 @@ public class ClassGraph {
      * themselves accepted.
      *
      * <p>
+     * This narrows what is scanned to the named paths; it does not enable a source of resources. Call
+     * {@link #enableClasspath()}, {@link #enableModules()} or one of the other {@code enable} methods to say where
+     * the resources are looked for in the first place.
+     *
+     * <p>
      * This may be particularly useful for scanning the package root ("") without recursively scanning everything in
      * the jar, dir or module.
      *
@@ -909,6 +937,10 @@ public class ClassGraph {
 
     /**
      * Prevent the scanning of one or more specific packages and their sub-packages.
+     *
+     * <p>
+     * This leaves the named packages out of what is being scanned; like the {@code accept} methods, it never adds
+     * anything to the scan.
      *
      * <p>
      * N.B. Automatically calls {@link #enableClassInfo()} -- call {@link #rejectPaths(String...)} instead if you
@@ -953,6 +985,10 @@ public class ClassGraph {
     /**
      * Prevent the scanning of one or more specific paths and their sub-directories / nested paths.
      *
+     * <p>
+     * This leaves the named paths out of what is being scanned; like the {@code accept} methods, it never adds
+     * anything to the scan.
+     *
      * @param paths
      *            The paths to reject (with '/' as a separator). May include glob wildcards: {@code '*'} matches
      *            within a single path segment only, and {@code "**"}, used as a complete segment, matches zero or
@@ -985,6 +1021,11 @@ public class ClassGraph {
     /**
      * Scan one or more specific classes, without scanning other classes in the same package unless the package is
      * itself accepted.
+     *
+     * <p>
+     * This narrows what is scanned to the named classes; it does not enable a source of classes. Call
+     * {@link #enableClasspath()}, {@link #enableModules()} or one of the other {@code enable} methods to say where
+     * the classes are looked for in the first place.
      *
      * <p>
      * N.B. Automatically calls {@link #enableClassInfo()}.
@@ -1021,6 +1062,10 @@ public class ClassGraph {
      * accepted package.
      *
      * <p>
+     * This leaves the named classes out of what is being scanned; like the {@code accept} methods, it never adds
+     * anything to the scan.
+     *
+     * <p>
      * N.B. Automatically calls {@link #enableClassInfo()}.
      *
      * @param classNames
@@ -1045,6 +1090,11 @@ public class ClassGraph {
     /**
      * Accept one or more jars. This will cause only the accepted jars to be scanned.
      *
+     * <p>
+     * This narrows what is scanned to the named jars; it does not add a jar to the classpath. A jar is scanned only
+     * if it is also reached from a source that was enabled with {@link #enableClasspath()},
+     * {@link #enableClassLoaders(ClassLoader...)} or {@link #enableClasspathEntries(Object...)}.
+     *
      * @param jarLeafNames
      *            The leafnames of the jars that should be scanned (e.g. {@code "mylib.jar"}), matched ignoring
      *            case. May contain glob wildcards, where {@code '*'} matches zero or more characters
@@ -1067,6 +1117,10 @@ public class ClassGraph {
 
     /**
      * Reject one or more jars, preventing them from being scanned.
+     *
+     * <p>
+     * This leaves the named jars out of what is being scanned; like the {@code accept} methods, it never adds
+     * anything to the scan.
      *
      * @param jarLeafNames
      *            The leafnames of the jars that should not be scanned (e.g. {@code "badlib.jar"}), matched ignoring
@@ -1117,6 +1171,10 @@ public class ClassGraph {
     /**
      * Reject one or more modules, preventing them from being scanned.
      *
+     * <p>
+     * This leaves the named modules out of what is being scanned; like the {@code accept} methods, it never adds
+     * anything to the scan.
+     *
      * @param moduleNames
      *            The names of the modules that should not be scanned. May contain glob wildcards, where {@code '*'}
      *            matches within a single module name segment, {@code "**"} matches zero or more whole segments, and
@@ -1138,6 +1196,10 @@ public class ClassGraph {
      * Accept classpath elements based on resource paths. Only classpath elements that contain resources with paths
      * matching the accept will be scanned.
      *
+     * <p>
+     * This narrows what is scanned to the classpath elements that match; it does not add a classpath element to the
+     * scan.
+     *
      * @param resourcePaths
      *            The resource paths, any of which must be present in a classpath element for the classpath element
      *            to be scanned. May contain glob wildcards, where {@code '*'} matches within a single path segment,
@@ -1157,6 +1219,10 @@ public class ClassGraph {
     /**
      * Reject classpath elements based on resource paths. Classpath elements that contain resources with paths
      * matching the reject will not be scanned.
+     *
+     * <p>
+     * This leaves the matching classpath elements out of what is being scanned; like the {@code accept} methods, it
+     * never adds anything to the scan.
      *
      * @param resourcePaths
      *            The resource paths which cause a classpath not to be scanned if any are present in a classpath
