@@ -372,8 +372,8 @@ class Scanner implements Callable<ScanResult> {
      */
     private <W> void processWorkUnits(final Collection<W> workUnits, final @Nullable LogNode log,
             final WorkUnitProcessor<W> workUnitProcessor) throws InterruptedException, ExecutionException {
-        WorkQueue.runWorkQueue(workUnits, executorService, interruptionChecker, numParallelTasks, log,
-                workUnitProcessor);
+        WorkQueue.runWorkQueue(workUnits, executorService, interruptionChecker, numParallelTasks,
+                scanSpec.getWorkerTimeoutNanos(), log, workUnitProcessor);
         if (log != null) {
             log.addElapsedTime();
         }

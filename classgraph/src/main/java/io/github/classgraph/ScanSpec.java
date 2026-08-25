@@ -29,8 +29,11 @@
 package io.github.classgraph;
 
 import java.lang.reflect.Field;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.filter.AcceptReject.AcceptRejectLeafname;
@@ -186,6 +189,32 @@ class ScanSpec {
      * are removed when the {@code ScanResult} is closed, or failing that, on JVM exit.
      */
     public boolean removeTemporaryFilesAfterScan;
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * The maximum length of time to wait for a worker thread to finish. A timeout that is zero, negative, or too
+     * long to express in nanoseconds means "wait indefinitely", which was the behavior before this timeout was
+     * added.
+     */
+    public Duration workerTimeout = ClassGraph.DEFAULT_WORKER_TIMEOUT;
+
+    /**
+     * Get {@link #workerTimeout} in nanoseconds, for {@link Future#get(long, TimeUnit)}.
+     *
+     * @return the number of nanoseconds to wait for a worker thread to finish, or {@link Long#MAX_VALUE} if
+     *         {@link #workerTimeout} is zero, negative, or too long to express in nanoseconds, meaning that worker
+     *         threads should be waited for indefinitely.
+     */
+    public long getWorkerTimeoutNanos() {
+        try {
+            final var timeoutNanos = workerTimeout.toNanos();
+            return timeoutNanos > 0L ? timeoutNanos : Long.MAX_VALUE;
+        } catch (final ArithmeticException e) {
+            // The timeout is longer than Long.MAX_VALUE nanoseconds (about 292 years)
+            return Long.MAX_VALUE;
+        }
+    }
 
     // -------------------------------------------------------------------------------------------------------------
 

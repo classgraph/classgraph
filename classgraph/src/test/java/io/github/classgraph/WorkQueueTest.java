@@ -5,10 +5,12 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.catchThrowable;
 
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -34,6 +36,9 @@ public class WorkQueueTest {
         Thread.interrupted();
     }
 
+    /** The worker timeout to use in tests that are not testing the timeout itself. */
+    private static final long WORKER_TIMEOUT_NANOS = ClassGraph.DEFAULT_WORKER_TIMEOUT.toNanos();
+
     /**
      * Run a work queue over the given work units.
      *
@@ -52,7 +57,7 @@ public class WorkQueueTest {
             final WorkUnitProcessor<Integer> workUnitProcessor) throws InterruptedException, ExecutionException {
         try (var executorService = new AutoCloseableExecutorService(numParallelTasks)) {
             WorkQueue.runWorkQueue(workUnits, executorService, executorService.interruptionChecker,
-                    numParallelTasks, /* log = */ null, workUnitProcessor);
+                    numParallelTasks, WORKER_TIMEOUT_NANOS, /* log = */ null, workUnitProcessor);
         }
     }
 
@@ -121,7 +126,7 @@ public class WorkQueueTest {
             // Run the work queue on the executor's only thread, asking for more tasks than it has threads
             final Future<?> workQueueTask = executorService.submit(() -> {
                 WorkQueue.runWorkQueue(workUnits, executorService, executorService.interruptionChecker,
-                        /* numParallelTasks = */ 4, /* log = */ null,
+                        /* numParallelTasks = */ 4, WORKER_TIMEOUT_NANOS, /* log = */ null,
                         (workUnit, workQueue, log) -> processed.add(workUnit));
                 return null;
             });
@@ -182,7 +187,8 @@ public class WorkQueueTest {
         final Throwable thrown;
         try (var executorService = new AutoCloseableExecutorService(4)) {
             thrown = catchThrowable(() -> WorkQueue.runWorkQueue(IntStream.range(0, 1000).boxed().toList(),
-                    executorService, interruptionChecker, 4, /* log = */ null, (workUnit, workQueue, log) -> {
+                    executorService, interruptionChecker, 4, WORKER_TIMEOUT_NANOS, /* log = */ null,
+                    (workUnit, workQueue, log) -> {
                         numProcessed.incrementAndGet();
                         throw cause;
                     }));
@@ -206,12 +212,54 @@ public class WorkQueueTest {
         // One task, so the work is all done on this thread, and the interruption is thrown from here
         try (var executorService = new AutoCloseableExecutorService(1)) {
             assertThatThrownBy(() -> WorkQueue.runWorkQueue(IntStream.range(0, 1000).boxed().toList(),
-                    executorService, interruptionChecker, 1, /* log = */ null, (workUnit, workQueue, log) -> {
+                    executorService, interruptionChecker, 1, WORKER_TIMEOUT_NANOS, /* log = */ null,
+                    (workUnit, workQueue, log) -> {
                         numProcessed.incrementAndGet();
                         interruptionChecker.interrupt();
                     })).isInstanceOf(InterruptedException.class);
         }
 
         assertThat(numProcessed).hasValue(1);
+    }
+
+    /**
+     * A worker that never finishes stops the work queue after the worker timeout, rather than blocking the calling
+     * thread forever. (Without the timeout, this test hangs.)
+     */
+    @Test
+    public void aWorkerThatNeverFinishesTimesOut() {
+        final var interruptionChecker = new InterruptionChecker();
+        final var callingThread = Thread.currentThread();
+        // Released at the end of the test, so that the stuck worker thread can finish
+        final var releaseWorker = new CountDownLatch(1);
+        // Counted down once the worker thread is stuck, so that the calling thread cannot stop the queue first
+        final var workerIsStuck = new CountDownLatch(1);
+
+        final Throwable thrown;
+        try (var executorService = new AutoCloseableExecutorService(2)) {
+            thrown = catchThrowable(() -> WorkQueue.runWorkQueue(List.of(1, 2), executorService,
+                    interruptionChecker, /* numParallelTasks = */ 2, Duration.ofMillis(250).toNanos(),
+                    /* log = */ null, (workUnit, workQueue, log) -> {
+                        if (Thread.currentThread() == callingThread) {
+                            // Stop the work queue, so that the calling thread reaches the completion barrier in
+                            // WorkQueue#close() while the worker thread is still stuck
+                            workerIsStuck.await();
+                            throw new IllegalStateException("stopping the work queue");
+                        }
+                        workerIsStuck.countDown();
+                        releaseWorker.await();
+                    }));
+            releaseWorker.countDown();
+        }
+
+        // The reason the calling thread stopped is reported, rather than being masked by the timeout
+        assertThat(thrown).isInstanceOf(ExecutionException.class);
+        assertThat(InterruptionChecker.getCause(thrown)).isInstanceOf(IllegalStateException.class)
+                .hasMessage("stopping the work queue");
+        // The timeout is recorded, so that a scan that only hits the timeout still reports why it could not finish
+        final var timeout = interruptionChecker.getExecutionException();
+        assertThat(timeout).isNotNull();
+        assertThat(InterruptionChecker.getCause(timeout)).isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Timed out after PT0.25S waiting for a worker thread to finish");
     }
 }

@@ -34,6 +34,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
 
@@ -42,15 +43,32 @@ class AutoCloseableExecutorService extends ThreadPoolExecutor implements AutoClo
     /** The {@link InterruptionChecker}. */
     public final InterruptionChecker interruptionChecker = new InterruptionChecker();
 
+    /** The maximum number of nanoseconds to wait for a task to finish. */
+    private final long workerTimeoutNanos;
+
     /**
-     * A ThreadPoolExecutor that can be used in a try-with-resources block.
+     * A ThreadPoolExecutor that can be used in a try-with-resources block, using the default worker timeout.
      *
      * @param numThreads
      *            The number of threads to allocate.
      */
     public AutoCloseableExecutorService(final int numThreads) {
+        this(numThreads, ClassGraph.DEFAULT_WORKER_TIMEOUT.toNanos());
+    }
+
+    /**
+     * A ThreadPoolExecutor that can be used in a try-with-resources block.
+     *
+     * @param numThreads
+     *            The number of threads to allocate.
+     * @param workerTimeoutNanos
+     *            The maximum number of nanoseconds to wait for a task to finish, or {@link Long#MAX_VALUE} to wait
+     *            indefinitely.
+     */
+    public AutoCloseableExecutorService(final int numThreads, final long workerTimeoutNanos) {
         super(numThreads, numThreads, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>(),
                 new SimpleThreadFactory("ClassGraph-worker-", true));
+        this.workerTimeoutNanos = workerTimeoutNanos;
     }
 
     /**
@@ -73,10 +91,11 @@ class AutoCloseableExecutorService extends ThreadPoolExecutor implements AutoClo
         } else if (/* throwable == null && */ runnable instanceof final Future<?> future) {
             // submit() was called, so throwable is not set
             try {
-                // This call will not block, since execution has finished
-                future.get();
-            } catch (CancellationException | InterruptedException e) {
-                // If this thread was cancelled or interrupted, interrupt other threads
+                // This call will not block, since execution has finished. The timeout is applied anyway, so that
+                // a task that has somehow not finished cannot hang the worker thread that ran it.
+                future.get(workerTimeoutNanos, TimeUnit.NANOSECONDS);
+            } catch (CancellationException | InterruptedException | TimeoutException e) {
+                // If this thread was cancelled, interrupted or timed out, interrupt other threads
                 interruptionChecker.interrupt();
             } catch (final ExecutionException e) {
                 // Record the exception that was thrown by the thread

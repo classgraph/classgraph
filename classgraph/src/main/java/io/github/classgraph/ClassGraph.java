@@ -35,6 +35,7 @@ import java.net.URI;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -114,6 +115,13 @@ public class ClassGraph {
                     // Num scanning threads (higher than available processors, because some threads can be blocked)
                             Runtime.getRuntime().availableProcessors() * 1.25) //
     );
+
+    /**
+     * The default maximum length of time to wait for a worker thread to finish. This is long enough that a healthy
+     * scan will never hit it, but short enough that a scan that can never finish is reported rather than hanging
+     * forever.
+     */
+    static final Duration DEFAULT_WORKER_TIMEOUT = Duration.ofMinutes(1);
 
     /** The Maven {@code groupId} of the artifact this class is packaged in. */
     private static final String MAVEN_GROUP_ID = "io.github.classgraph";
@@ -1277,6 +1285,32 @@ public class ClassGraph {
     }
 
     /**
+     * Set the maximum length of time to wait for a worker thread to finish, once the calling thread has run out of
+     * work of its own to do. If a worker thread does not finish within this time, the scan throws
+     * {@link ClassGraphException} rather than blocking forever.
+     *
+     * <p>
+     * A worker thread that never finishes means the scan cannot complete. The two known causes are a classloading
+     * deadlock, where the calling thread holds a lock that the classloader needs in order to load one of
+     * ClassGraph's own classes on a worker thread (#933) -- which can be avoided by calling {@link #scan(int)} with
+     * a {@code numThreads} of 1, so that nothing is loaded on a worker thread -- and a worker thread blocking
+     * indefinitely on a filesystem or network read of a classpath element.
+     *
+     * <p>
+     * Default: 1 minute. Set a longer timeout if a scan of a very large or very slow classpath needs it. A timeout
+     * that is zero or negative disables the timeout, so that worker threads are waited for indefinitely.
+     *
+     * @param workerTimeout
+     *            the maximum length of time to wait for a worker thread to finish.
+     * @return this (for method chaining).
+     */
+    public ClassGraph setWorkerTimeout(final Duration workerTimeout) {
+        Assert.notNull(workerTimeout, "workerTimeout");
+        scanSpec.workerTimeout = workerTimeout;
+        return this;
+    }
+
+    /**
      * If true, provide all versions of a multi-release resource using their multi-release path prefix, instead of
      * just the one the running JVM would select. Implicitly disables {@link #enableClassInfo()} and all features
      * depending on it.
@@ -1483,7 +1517,7 @@ public class ClassGraph {
      *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
      */
     public ScanResult scan(final int numThreads) {
-        try (var executorService = new AutoCloseableExecutorService(numThreads)) {
+        try (var executorService = new AutoCloseableExecutorService(numThreads, scanSpec.getWorkerTimeoutNanos())) {
             return scan(executorService, numThreads);
         }
     }
@@ -1527,8 +1561,8 @@ public class ClassGraph {
      *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
      */
     public List<File> getClasspathFiles() {
-        try (var executorService = new AutoCloseableExecutorService(DEFAULT_NUM_WORKER_THREADS);
-                var scanResult = getClasspathScanResult(executorService)) {
+        try (var executorService = new AutoCloseableExecutorService(DEFAULT_NUM_WORKER_THREADS,
+                scanSpec.getWorkerTimeoutNanos()); var scanResult = getClasspathScanResult(executorService)) {
             return scanResult.getClasspathFiles();
         }
     }
@@ -1560,8 +1594,8 @@ public class ClassGraph {
      *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
      */
     public List<URI> getClasspathURIs() {
-        try (var executorService = new AutoCloseableExecutorService(DEFAULT_NUM_WORKER_THREADS);
-                var scanResult = getClasspathScanResult(executorService)) {
+        try (var executorService = new AutoCloseableExecutorService(DEFAULT_NUM_WORKER_THREADS,
+                scanSpec.getWorkerTimeoutNanos()); var scanResult = getClasspathScanResult(executorService)) {
             return scanResult.getClasspathURIs();
         }
     }
@@ -1576,8 +1610,8 @@ public class ClassGraph {
      *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
      */
     public List<URL> getClasspathURLs() {
-        try (var executorService = new AutoCloseableExecutorService(DEFAULT_NUM_WORKER_THREADS);
-                var scanResult = getClasspathScanResult(executorService)) {
+        try (var executorService = new AutoCloseableExecutorService(DEFAULT_NUM_WORKER_THREADS,
+                scanSpec.getWorkerTimeoutNanos()); var scanResult = getClasspathScanResult(executorService)) {
             return scanResult.getClasspathURLs();
         }
     }
@@ -1590,8 +1624,8 @@ public class ClassGraph {
      *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
      */
     public List<ModuleReference> getModuleReferences() {
-        try (var executorService = new AutoCloseableExecutorService(DEFAULT_NUM_WORKER_THREADS);
-                var scanResult = getClasspathScanResult(executorService)) {
+        try (var executorService = new AutoCloseableExecutorService(DEFAULT_NUM_WORKER_THREADS,
+                scanSpec.getWorkerTimeoutNanos()); var scanResult = getClasspathScanResult(executorService)) {
             return scanResult.getModuleReferences();
         }
     }
