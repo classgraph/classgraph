@@ -53,7 +53,7 @@ import org.jspecify.annotations.Nullable;
  * those forms it has, so code that reads the classpath does not have to know which one it is:
  *
  * <pre>
- * try (Classpath classpath = new ClasspathFinder().find()) {
+ * try (Classpath classpath = new ClasspathFinder().enableClasspath().find()) {
  *     Vfs vfs = classpath.getVfs();
  *     for (ClasspathEntry entry : classpath) {
  *         VfsRoot root = entry.open(vfs);

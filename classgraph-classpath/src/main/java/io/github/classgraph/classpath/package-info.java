@@ -36,12 +36,16 @@
  * {@link io.github.classgraph.classpath.Classpath}:
  *
  * <pre>
- * try (Classpath classpath = new ClasspathFinder().find()) {
+ * try (Classpath classpath = new ClasspathFinder().enableModules().enableClasspath().find()) {
  *     for (ClasspathEntry entry : classpath) {
  *         System.out.println(entry.getLocation());
  *     }
  * }
  * </pre>
+ *
+ * <p>
+ * Nothing is searched until it is enabled, so at least one of the {@code enable} methods has to be called for
+ * anything to be found -- see {@link io.github.classgraph.classpath.ClasspathFinder} for what each of them enables.
  *
  * <p>
  * This package reports where classes and resources <i>would be</i> loaded from. Finding the classpath does not open

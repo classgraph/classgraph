@@ -489,10 +489,16 @@ public final class ScanResult implements AutoCloseable {
     // Classpath / module path
 
     /**
-     * Returns the list of File objects for unique classpath elements (directories or jarfiles), in classloader
-     * resolution order.
+     * Returns the list of File objects for the unique classpath elements (directories or jarfiles) that were
+     * scanned, in classloader resolution order.
      *
-     * @return The unique classpath elements.
+     * <p>
+     * Only the classpath elements that were actually scanned are listed: a classpath element is scanned only if it
+     * was enabled with {@link ClassGraph#enableClasspath()}, {@link ClassGraph#enableClassLoaders(ClassLoader...)}
+     * or {@link ClassGraph#enableClasspathEntries(Object...)}, and was not narrowed out by an {@code accept} or
+     * {@code reject} method.
+     *
+     * @return The unique classpath elements that were scanned.
      * @throws IllegalStateException
      *             if this {@link ScanResult} has been closed.
      */
@@ -509,10 +515,11 @@ public final class ScanResult implements AutoCloseable {
     }
 
     /**
-     * Returns all unique directories or zip/jarfiles on the classpath, in classloader resolution order, as a
-     * classpath string, delineated with the standard path separator character.
+     * Returns the unique directories and zip/jarfiles that were scanned, in classloader resolution order, as a
+     * classpath string, delineated with the standard path separator character. Only the classpath elements that
+     * were actually scanned are listed, as described in {@link #getClasspathFiles()}.
      *
-     * @return a the unique directories and jarfiles on the classpath, in classpath resolution order, as a path
+     * @return the unique directories and jarfiles that were scanned, in classpath resolution order, as a path
      *         string.
      * @throws IllegalStateException
      *             if this {@link ScanResult} has been closed.
@@ -523,7 +530,8 @@ public final class ScanResult implements AutoCloseable {
     }
 
     /**
-     * Returns an ordered list of unique classpath element and module URIs.
+     * Returns an ordered list of the unique URIs of the classpath elements and modules that were scanned, as
+     * described in {@link #getClasspathFiles()} and {@link #getModuleReferences()}.
      *
      * @return The unique classpath element and module URIs.
      * @throws IllegalStateException
@@ -543,8 +551,8 @@ public final class ScanResult implements AutoCloseable {
     }
 
     /**
-     * Returns an ordered list of unique classpath element and module URLs. Any URI that cannot be converted to a
-     * {@link URL} is skipped.
+     * Returns an ordered list of the unique URLs of the classpath elements and modules that were scanned, as
+     * described in {@link #getClasspathURIs()}. Any URI that cannot be converted to a {@link URL} is skipped.
      *
      * @return The unique classpath element and module URLs.
      * @throws IllegalStateException

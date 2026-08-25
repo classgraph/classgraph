@@ -219,6 +219,11 @@ public class ClassGraph {
      * {@link #enableAnnotationInfo()}, {@link #enableStaticFinalFieldConstantInitializerValues()},
      * {@link #ignoreClassVisibility()}, {@link #ignoreFieldVisibility()}, and {@link #ignoreMethodVisibility()}.
      *
+     * <p>
+     * This says what is recorded about the classes that are scanned; it does not enable a source of classes. Call
+     * {@link #enableClasspath()}, {@link #enableModules()} or one of the other {@code enable} methods that say
+     * where to scan.
+     *
      * @return this (for method chaining).
      */
     public ClassGraph enableAllInfo() {
@@ -236,6 +241,11 @@ public class ClassGraph {
     /**
      * Enables the scanning of classfiles, producing {@link ClassInfo} objects in the {@link ScanResult}. Implicitly
      * disables {@link #enableMultiReleaseVersions()}.
+     *
+     * <p>
+     * This says what is recorded about the classfiles that are scanned; it does not enable a source of classfiles.
+     * Call {@link #enableClasspath()}, {@link #enableModules()} or one of the other {@code enable} methods that say
+     * where to scan.
      *
      * @return this (for method chaining).
      */
@@ -1163,7 +1173,8 @@ public class ClassGraph {
 
     /**
      * Accept one or more modules for scanning. If any module is accepted, only the accepted modules are scanned
-     * (any jars and directories on the classpath are still scanned, unless they are excluded by other criteria).
+     * (any jars and directories on the enabled classpath are still scanned, unless they are excluded by other
+     * criteria).
      *
      * <p>
      * This narrows what is scanned; it does not enable the scanning of modules. Call {@link #enableModules()},
@@ -1452,8 +1463,9 @@ public class ClassGraph {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Asynchronously scans the classpath, calling the {@code scanResultProcessor} callback on success or the
-     * {@code failureHandler} callback on failure.
+     * Asynchronously scan the enabled classpath elements and modules, calling the {@code scanResultProcessor}
+     * callback on success or the {@code failureHandler} callback on failure. Nothing is scanned unless one of the
+     * {@code enable} methods was called.
      *
      * @param executorService
      *            A custom {@link ExecutorService} to use for scheduling worker tasks.
@@ -1495,9 +1507,9 @@ public class ClassGraph {
     }
 
     /**
-     * Asynchronously scans the classpath for matching files, returning a {@code Future<ScanResult>}. You should
-     * assign the wrapped {@link ScanResult} in a try-with-resources statement, or manually close it when you are
-     * finished with it.
+     * Asynchronously scan the enabled classpath elements and modules, returning a {@code Future<ScanResult>}.
+     * Nothing is scanned unless one of the {@code enable} methods was called. You should assign the wrapped
+     * {@link ScanResult} in a try-with-resources statement, or manually close it when you are finished with it.
      *
      * <p>
      * The scan runs on a thread of the {@link ExecutorService}, so the classes that the scanner touches are loaded
@@ -1523,9 +1535,10 @@ public class ClassGraph {
     }
 
     /**
-     * Scans the classpath using the requested {@link ExecutorService} and the requested degree of parallelism,
-     * blocking until the scan is complete. You should assign the returned {@link ScanResult} in a
-     * try-with-resources statement, or manually close it when you are finished with it.
+     * Scan the enabled classpath elements and modules using the requested {@link ExecutorService} and the requested
+     * degree of parallelism, blocking until the scan is complete. Nothing is scanned unless one of the
+     * {@code enable} methods was called. You should assign the returned {@link ScanResult} in a try-with-resources
+     * statement, or manually close it when you are finished with it.
      *
      * <p>
      * The scan itself runs on the calling thread, and the {@link ExecutorService} is used only for the parallel
@@ -1634,9 +1647,10 @@ public class ClassGraph {
     }
 
     /**
-     * Scans the classpath with the requested number of threads, blocking until the scan is complete. You should
-     * assign the returned {@link ScanResult} in a try-with-resources statement, or manually close it when you are
-     * finished with it.
+     * Scan the enabled classpath elements and modules with the requested number of threads, blocking until the scan
+     * is complete. Nothing is scanned unless one of the {@code enable} methods was called. You should assign the
+     * returned {@link ScanResult} in a try-with-resources statement, or manually close it when you are finished
+     * with it.
      *
      * <p>
      * Calling this with a {@code numThreads} of 1 starts no worker threads at all: the whole scan is run on the
@@ -1659,8 +1673,10 @@ public class ClassGraph {
     }
 
     /**
-     * Scans the classpath, blocking until the scan is complete. You should assign the returned {@link ScanResult}
-     * in a try-with-resources statement, or manually close it when you are finished with it.
+     * Scan the enabled classpath elements and modules, blocking until the scan is complete. Nothing is scanned
+     * unless one of the {@code enable} methods was called, so a {@link ClassGraph} that enabled no source of
+     * classes produces an empty {@link ScanResult}. You should assign the returned {@link ScanResult} in a
+     * try-with-resources statement, or manually close it when you are finished with it.
      *
      * @return a {@link ScanResult} object representing the result of the scan.
      * @throws ClassGraphException
@@ -1687,11 +1703,14 @@ public class ClassGraph {
     }
 
     /**
-     * Returns the list of all unique File objects representing directories or zip/jarfiles on the classpath, in
-     * classloader resolution order. Classpath elements that do not exist as a file or directory are not included in
-     * the returned list.
+     * Returns the list of unique File objects representing the enabled directory and zip/jarfile classpath
+     * elements, in classloader resolution order. Only the classpath elements that would have been scanned are
+     * returned: a classpath element is found only if it was enabled with {@link #enableClasspath()},
+     * {@link #enableClassLoaders(ClassLoader...)} or {@link #enableClasspathEntries(Object...)}, and was not
+     * narrowed out by an {@code accept} or {@code reject} method. Classpath elements that do not exist as a file or
+     * directory are not included in the returned list.
      *
-     * @return a {@code List<File>} consisting of the unique directories and jarfiles on the classpath, in classpath
+     * @return a {@code List<File>} consisting of the unique enabled directories and jarfiles, in classpath
      *         resolution order.
      * @throws ClassGraphException
      *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
@@ -1704,15 +1723,16 @@ public class ClassGraph {
     }
 
     /**
-     * Returns the list of all unique File objects representing directories or zip/jarfiles on the classpath, in
-     * classloader resolution order, in the form of a classpath path string. Classpath elements that do not exist as
-     * a file or directory are not included in the returned list. Note that the returned string contains only base
-     * files, and does not include package roots or nested jars within jars, since the path separator (':')
-     * conflicts with the URL scheme separator character (also ':') on Linux and Mac OS X. Call
-     * {@link #getClasspathURIs()} to get the full URIs for classpath elements and modules.
+     * Returns the unique enabled directory and zip/jarfile classpath elements, in classloader resolution order, in
+     * the form of a classpath path string. Only the classpath elements that would have been scanned are returned,
+     * as described in {@link #getClasspathFiles()}. Classpath elements that do not exist as a file or directory are
+     * not included in the returned list. Note that the returned string contains only base files, and does not
+     * include package roots or nested jars within jars, since the path separator (':') conflicts with the URL
+     * scheme separator character (also ':') on Linux and Mac OS X. Call {@link #getClasspathURIs()} to get the full
+     * URIs for classpath elements and modules.
      *
-     * @return a classpath path string consisting of the unique directories and jarfiles on the classpath, in
-     *         classpath resolution order.
+     * @return a classpath path string consisting of the unique enabled directories and jarfiles, in classpath
+     *         resolution order.
      * @throws ClassGraphException
      *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
      */
@@ -1721,11 +1741,12 @@ public class ClassGraph {
     }
 
     /**
-     * Returns the ordered list of all unique {@link URI} objects representing directory/jar classpath elements and
-     * modules. Classpath elements representing jarfiles or directories that do not exist are not included in the
-     * returned list.
+     * Returns the ordered list of unique {@link URI} objects representing the enabled directory/jar classpath
+     * elements and modules. Only the classpath elements and modules that would have been scanned are returned, as
+     * described in {@link #getClasspathFiles()} and {@link #getModuleReferences()}. Classpath elements representing
+     * jarfiles or directories that do not exist are not included in the returned list.
      *
-     * @return the unique classpath elements and modules, as a list of {@link URI} objects.
+     * @return the unique enabled classpath elements and modules, as a list of {@link URI} objects.
      * @throws ClassGraphException
      *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
      */
@@ -1737,11 +1758,12 @@ public class ClassGraph {
     }
 
     /**
-     * Returns the ordered list of all unique {@link URL} objects representing directory/jar classpath elements and
-     * modules. Classpath elements representing jarfiles or directories that do not exist, as well as modules with
-     * unknown (null) location or with {@code jrt:} location URI scheme, are not included in the returned list.
+     * Returns the ordered list of unique {@link URL} objects representing the enabled directory/jar classpath
+     * elements and modules, as described in {@link #getClasspathURIs()}. Classpath elements representing jarfiles
+     * or directories that do not exist, as well as modules with unknown (null) location or with {@code jrt:}
+     * location URI scheme, are not included in the returned list.
      *
-     * @return the unique classpath elements and modules, as a list of {@link URL} objects.
+     * @return the unique enabled classpath elements and modules, as a list of {@link URL} objects.
      * @throws ClassGraphException
      *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
      */
@@ -1753,9 +1775,13 @@ public class ClassGraph {
     }
 
     /**
-     * Returns the {@link ModuleReference} for each visible module.
+     * Returns the {@link ModuleReference} for each enabled module. Only the modules that would have been scanned
+     * are returned: a module is found only if it was enabled with {@link #enableModules()},
+     * {@link #enableSystemModules()}, {@link #enableNonSystemModules()} or
+     * {@link #enableModuleLayers(ModuleLayer...)}, and was not narrowed out by {@link #acceptModules(String...)} or
+     * {@link #rejectModules(String...)}.
      *
-     * @return a list of the {@link ModuleReference} for each visible module.
+     * @return a list of the {@link ModuleReference} for each enabled module.
      * @throws ClassGraphException
      *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
      */
@@ -1771,9 +1797,9 @@ public class ClassGraph {
      * {@code --patch-module}, {@code --add-exports}, {@code --add-opens}, and {@code --add-reads}.
      *
      * <p>
-     * Note that the returned {@link ModulePathInfo} object does not include classpath entries from the traditional
-     * classpath or system modules. Use {@link #getModuleReferences()} to get all visible modules, including
-     * anonymous, automatic and system modules.
+     * Note that the returned {@link ModulePathInfo} object reports what the commandline asked for, whether or not
+     * any of it was enabled for scanning, and does not include classpath entries from the traditional classpath or
+     * system modules. Use {@link #getModuleReferences()} to get the modules that were enabled.
      *
      * <p>
      * Also, {@link ModulePathInfo#getAddExports()} and {@link ModulePathInfo#getAddOpens()} will not contain
