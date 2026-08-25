@@ -212,24 +212,20 @@ public class ModuleFinder {
     /**
      * Find the module layers of the classes on the callstack, and the boot layer.
      *
-     * @param callStack
-     *            the call stack
+     * @param callStackInfo
+     *            the call stack info
      * @param scanNonSystemModules
      *            whether the non-system modules are going to be scanned
      * @param layersOut
      *            the set to add the layers to
      */
-    private void findDetectedModuleLayers(final Class<?>[] callStack, final boolean scanNonSystemModules,
+    private void findDetectedModuleLayers(final CallStackInfo callStackInfo, final boolean scanNonSystemModules,
             final LinkedHashSet<ModuleLayer> layersOut) {
-        for (final Class<?> stackFrameClass : callStack) {
-            final var layer = stackFrameClass.getModule().getLayer();
-            if (layer != null) {
-                layersOut.add(layer);
-            } else if (scanNonSystemModules) {
-                // getLayer() returns null for unnamed modules -- in that case the classes are on
-                // java.class.path, so java.class.path has to be scanned to find them
-                forceScanJavaClassPath = true;
-            }
+        layersOut.addAll(callStackInfo.getModuleLayers());
+        if (scanNonSystemModules && callStackInfo.anyClassIsInAnUnnamedModule()) {
+            // A class in an unnamed module has no module layer -- in that case the classes are on
+            // java.class.path, so java.class.path has to be scanned to find them
+            forceScanJavaClassPath = true;
         }
         // Add system modules from boot layer, if they weren't already found in stacktrace
         layersOut.add(ModuleLayer.boot());
@@ -240,8 +236,8 @@ public class ModuleFinder {
     /**
      * Find the modules of the module layers that the caller enabled.
      *
-     * @param callStack
-     *            the callstack.
+     * @param callStackInfo
+     *            the call stack info.
      * @param classpathSpec
      *            The scan spec, which says which kinds of module are going to be scanned.
      * @param scanSourceSpec
@@ -249,7 +245,7 @@ public class ModuleFinder {
      * @param log
      *            The log.
      */
-    public ModuleFinder(final Class<?>[] callStack, final ClasspathSpec classpathSpec,
+    public ModuleFinder(final CallStackInfo callStackInfo, final ClasspathSpec classpathSpec,
             final ScanSourceSpec scanSourceSpec, final @Nullable LogNode log) {
         final var scanSystemModules = classpathSpec.scanSystemModules;
         final var scanNonSystemModules = classpathSpec.scanNonSystemModules;
@@ -258,7 +254,7 @@ public class ModuleFinder {
         // ones the caller named. A layer that both of them reach is searched at the first position it is reached at.
         final LinkedHashSet<ModuleLayer> layers = new LinkedHashSet<>();
         if (scanSourceSpec.searchDetectedModuleLayers) {
-            findDetectedModuleLayers(callStack, scanNonSystemModules, layers);
+            findDetectedModuleLayers(callStackInfo, scanNonSystemModules, layers);
         }
         final var namedModuleLayers = scanSourceSpec.namedModuleLayers;
         if (namedModuleLayers != null) {

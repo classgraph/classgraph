@@ -28,16 +28,16 @@
  */
 package io.github.classgraph.classpath.internal;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.stream.Stream;
 
 import org.jspecify.annotations.Nullable;
 
 /**
- * The call stack of the thread that started a classpath search, read once and then passed to everything that needs
- * it.
+ * What a classpath search needs to know about the call stack of the thread that started it, read in one walk of the
+ * stack and then passed to everything that needs it.
  *
  * <p>
  * Three parts of a scan ask about the call stack: the classloader search, which searches the classloader of the
@@ -49,18 +49,30 @@ import org.jspecify.annotations.Nullable;
  * and what all three need is taken from that one walk.
  *
  * <p>
+ * Only what they need is kept, rather than a frame or a class per stack entry: the classloaders and the module
+ * layers of the classes in the stack, each deduplicated and in innermost-frame-first order, and whether any frame
+ * is holding a class loading lock. (Anything else a later caller needs can be added here, and read in the same
+ * walk.)
+ *
+ * <p>
  * The walk has to happen on the thread that called ClassGraph, since that is the thread whose caller and whose
  * locks are being asked about, and it has to happen before any of the work is handed to another thread.
  */
-public final class CallStack {
+public final class CallStackInfo {
     /** The name the compiler gives a static initializer block. */
     private static final String STATIC_INITIALIZER = "<clinit>";
 
     /** The methods of {@link ClassLoader} that hold the loading lock of the class that is being loaded. */
     private static final Set<String> CLASS_LOADING_METHODS = Set.of("loadClass", "findClass", "defineClass");
 
-    /** The classes in the call stack, innermost frame first. */
-    private final Class<?>[] classContext;
+    /** The classloaders of the classes in the call stack, innermost frame first. */
+    private final LinkedHashSet<ClassLoader> classLoaders;
+
+    /** The module layers of the classes in the call stack, innermost frame first. */
+    private final LinkedHashSet<ModuleLayer> moduleLayers;
+
+    /** Whether any class in the call stack is in an unnamed module, i.e. was loaded from the classpath. */
+    private final boolean anyClassIsInAnUnnamedModule;
 
     /** The innermost frame that is holding a class loading lock, or null if there is no such frame. */
     private final @Nullable String frameHoldingClassLoadingLock;
@@ -68,12 +80,36 @@ public final class CallStack {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get the classes in the call stack.
+     * Get the classloaders of the classes in the call stack.
      *
-     * @return The classes in the call stack, innermost frame first.
+     * @return the classloaders, in innermost-frame-first order, as an unmodifiable set. A class loaded by the
+     *         bootstrap classloader contributes no classloader, since {@link Class#getClassLoader()} returns null
+     *         for one.
      */
-    public Class<?>[] getClassContext() {
-        return classContext;
+    public Set<ClassLoader> getClassLoaders() {
+        return Collections.unmodifiableSet(classLoaders);
+    }
+
+    /**
+     * Get the module layers of the classes in the call stack.
+     *
+     * @return the module layers, in innermost-frame-first order, as an unmodifiable set. A class in an unnamed
+     *         module contributes no layer, since {@link Module#getLayer()} returns null for one -- see
+     *         {@link #anyClassIsInAnUnnamedModule()}.
+     */
+    public Set<ModuleLayer> getModuleLayers() {
+        return Collections.unmodifiableSet(moduleLayers);
+    }
+
+    /**
+     * Determine whether any class in the call stack is in an unnamed module.
+     *
+     * @return true if any class in the call stack is in an unnamed module, which means that the class was loaded
+     *         from the classpath rather than from a module, so the classpath has to be searched in order to find
+     *         classes like it.
+     */
+    public boolean anyClassIsInAnUnnamedModule() {
+        return anyClassIsInAnUnnamedModule;
     }
 
     /**
@@ -88,7 +124,8 @@ public final class CallStack {
      *
      * @return the stack frame that is holding the lock, in the form
      *         {@code com.xyz.Example.<clinit>(Example.java:20)}, or null if the thread that read this call stack
-     *         was not holding a class loading lock.
+     *         was not holding a class loading lock. Only the innermost such frame is kept, and only so that the
+     *         verbose log can say which frame stopped the scan from using worker threads.
      */
     public @Nullable String getFrameHoldingClassLoadingLock() {
         return frameHoldingClassLoadingLock;
@@ -99,35 +136,54 @@ public final class CallStack {
     /**
      * Constructor.
      *
-     * @param classContext
-     *            the classes in the call stack, innermost frame first
+     * @param classLoaders
+     *            the classloaders of the classes in the call stack, innermost frame first
+     * @param moduleLayers
+     *            the module layers of the classes in the call stack, innermost frame first
+     * @param anyClassIsInAnUnnamedModule
+     *            whether any class in the call stack is in an unnamed module
      * @param frameHoldingClassLoadingLock
      *            the innermost frame that is holding a class loading lock, or null if there is no such frame
      */
-    private CallStack(final Class<?>[] classContext, final @Nullable String frameHoldingClassLoadingLock) {
-        this.classContext = classContext;
+    private CallStackInfo(final LinkedHashSet<ClassLoader> classLoaders,
+            final LinkedHashSet<ModuleLayer> moduleLayers, final boolean anyClassIsInAnUnnamedModule,
+            final @Nullable String frameHoldingClassLoadingLock) {
+        this.classLoaders = classLoaders;
+        this.moduleLayers = moduleLayers;
+        this.anyClassIsInAnUnnamedModule = anyClassIsInAnUnnamedModule;
         this.frameHoldingClassLoadingLock = frameHoldingClassLoadingLock;
     }
 
     /**
-     * Read the call stack of the current thread.
+     * Read what is needed from the call stack of the current thread.
      *
-     * @return the call stack.
+     * @return the call stack info.
      */
-    public static CallStack read() {
+    public static CallStackInfo read() {
         try {
-            final var callStack = StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE)
-                    .walk(CallStack::read);
-            if (callStack.classContext.length > 0) {
-                return callStack;
+            final var callStackInfo = StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE)
+                    .walk(CallStackInfo::read);
+            if (!callStackInfo.classLoaders.isEmpty() || !callStackInfo.moduleLayers.isEmpty()) {
+                return callStackInfo;
             }
         } catch (Exception | LinkageError e) {
             // Fall through
         }
-        // The call stack could not be read -- fall back to naming just this class, and to reporting no class
-        // loading lock, since the check for one exists to avoid a deadlock that only some classloaders cause, so
-        // failing to run it must not stop a scan that would have worked
-        return new CallStack(new Class<?>[] { CallStack.class }, /* frameHoldingClassLoadingLock = */ null);
+        // The call stack could not be read -- fall back to naming only this class' own classloader and module
+        // layer, and to reporting no class loading lock, since the check for one exists to avoid a deadlock that
+        // only some classloaders cause, so failing to run it must not stop a scan that would have worked
+        final LinkedHashSet<ClassLoader> classLoaders = new LinkedHashSet<>();
+        final var classLoader = CallStackInfo.class.getClassLoader();
+        if (classLoader != null) {
+            classLoaders.add(classLoader);
+        }
+        final LinkedHashSet<ModuleLayer> moduleLayers = new LinkedHashSet<>();
+        final var moduleLayer = CallStackInfo.class.getModule().getLayer();
+        if (moduleLayer != null) {
+            moduleLayers.add(moduleLayer);
+        }
+        return new CallStackInfo(classLoaders, moduleLayers,
+                /* anyClassIsInAnUnnamedModule = */ moduleLayer == null, /* frameHoldingClassLoadingLock = */ null);
     }
 
     /**
@@ -135,24 +191,34 @@ public final class CallStack {
      *
      * @param stackFrames
      *            the stack frames, innermost frame first
-     * @return the call stack.
+     * @return the call stack info.
      */
-    private static CallStack read(final Stream<StackWalker.StackFrame> stackFrames) {
-        final List<Class<?>> classContext = new ArrayList<>();
+    private static CallStackInfo read(final Stream<StackWalker.StackFrame> stackFrames) {
+        final LinkedHashSet<ClassLoader> classLoaders = new LinkedHashSet<>();
+        final LinkedHashSet<ModuleLayer> moduleLayers = new LinkedHashSet<>();
+        var anyClassIsInAnUnnamedModule = false;
         var frameHoldingClassLoadingLock = (String) null;
         // The frames are consumed in one pass, rather than with two stream operations, because a StackFrame is
         // valid only while the walk is running, so nothing that a later pass would need can be kept
         for (final var stackFrame : (Iterable<StackWalker.StackFrame>) stackFrames::iterator) {
-            classContext.add(stackFrame.getDeclaringClass());
+            final var stackFrameClass = stackFrame.getDeclaringClass();
+            final var classLoader = stackFrameClass.getClassLoader();
+            if (classLoader != null) {
+                classLoaders.add(classLoader);
+            }
+            final var moduleLayer = stackFrameClass.getModule().getLayer();
+            if (moduleLayer != null) {
+                moduleLayers.add(moduleLayer);
+            } else {
+                anyClassIsInAnUnnamedModule = true;
+            }
             if (frameHoldingClassLoadingLock == null && holdsClassLoadingLock(stackFrame)) {
                 // The innermost such frame is the one that is reported
                 frameHoldingClassLoadingLock = stackFrame.toString();
             }
         }
-        // The array element type is given explicitly on toArray(), because otherwise it is inferred from the list
-        // element type, which captures the wildcard of Class<?> -- and an array constructor reference cannot
-        // produce an array of a captured type
-        return new CallStack(classContext.toArray(new Class<?>[0]), frameHoldingClassLoadingLock);
+        return new CallStackInfo(classLoaders, moduleLayers, anyClassIsInAnUnnamedModule,
+                frameHoldingClassLoadingLock);
     }
 
     /**

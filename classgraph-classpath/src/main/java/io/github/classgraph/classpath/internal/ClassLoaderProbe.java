@@ -96,8 +96,9 @@ public class ClassLoaderProbe {
      * <p>
      * Call this only from the thread that asked for the classpath. If the caller has already read its own call
      * stack -- as ClassGraph has, since it checks the stack for a class loading lock before it starts a scan (#933)
-     * -- then pass that call stack to {@link #ClassLoaderProbe(CallStack, ClasspathSpec, ScanSourceSpec, LogNode)}
-     * instead, rather than walking the stack a second time.
+     * -- then pass that call stack to
+     * {@link #ClassLoaderProbe(CallStackInfo, ClasspathSpec, ScanSourceSpec, LogNode)} instead, rather than walking
+     * the stack a second time.
      *
      * @param classpathSpec
      *            The {@link ClasspathSpec}.
@@ -108,14 +109,14 @@ public class ClassLoaderProbe {
      */
     public ClassLoaderProbe(final ClasspathSpec classpathSpec, final ScanSourceSpec scanSourceSpec,
             final @Nullable LogNode log) {
-        this(CallStack.read(), classpathSpec, scanSourceSpec, log);
+        this(CallStackInfo.read(), classpathSpec, scanSourceSpec, log);
     }
 
     /**
      * Find the classpath elements and modules of the sources that the caller enabled, using a call stack that has
      * already been read.
      *
-     * @param callStack
+     * @param callStackInfo
      *            The call stack of the thread that asked for the classpath, which names the classloaders and module
      *            layers that the caller can see.
      * @param classpathSpec
@@ -125,7 +126,7 @@ public class ClassLoaderProbe {
      * @param log
      *            The log.
      */
-    public ClassLoaderProbe(final CallStack callStack, final ClasspathSpec classpathSpec,
+    public ClassLoaderProbe(final CallStackInfo callStackInfo, final ClasspathSpec classpathSpec,
             final ScanSourceSpec scanSourceSpec, final @Nullable LogNode log) {
         final var classLoaderProbeLog = log == null ? null : log.log("Finding classpath and modules");
 
@@ -133,7 +134,7 @@ public class ClassLoaderProbe {
         // the order in which the JVM resolves a class: a builtin classloader looks the class's package up among the
         // modules before it delegates to its parent or falls back to its classpath
         moduleFinder = scanSourceSpec.searchDetectedModuleLayers || scanSourceSpec.namedModuleLayers != null
-                ? new ModuleFinder(callStack.getClassContext(), classpathSpec, scanSourceSpec, classLoaderProbeLog)
+                ? new ModuleFinder(callStackInfo, classpathSpec, scanSourceSpec, classLoaderProbeLog)
                 : null;
 
         classpathOrder = new ClasspathOrderBuilder(classpathSpec);
@@ -141,7 +142,7 @@ public class ClassLoaderProbe {
         // The classloaders in the environment are found whether or not they are one of the sources to search, since
         // a classpath entry that the caller named directly still has to record a classloader, and since this is the
         // classloader that the scan falls back to when it has to load a class
-        final var contextClassLoaders = new ClassLoaderFinder(callStack, classLoaderProbeLog)
+        final var contextClassLoaders = new ClassLoaderFinder(callStackInfo, classLoaderProbeLog)
                 .getContextClassLoaders();
         defaultClassLoader = contextClassLoaders.length == 0 ? null : contextClassLoaders[0];
 

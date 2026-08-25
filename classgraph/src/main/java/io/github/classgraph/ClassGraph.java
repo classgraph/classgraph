@@ -57,7 +57,7 @@ import io.github.classgraph.base.internal.utils.Assert;
 import io.github.classgraph.base.internal.utils.VersionFinder;
 import io.github.classgraph.classpath.ClassLoaderHandler;
 import io.github.classgraph.classpath.ModulePathInfo;
-import io.github.classgraph.classpath.internal.CallStack;
+import io.github.classgraph.classpath.internal.CallStackInfo;
 import io.github.classgraph.classpath.internal.ScanSourceSpec;
 import org.jspecify.annotations.Nullable;
 
@@ -1489,12 +1489,12 @@ public class ClassGraph {
         Assert.notNull(failureHandler, "failureHandler");
         // Read the call stack on the calling thread, since it is the caller's classloaders and module layers that
         // are to be searched, not those of the thread that the scan happens to run on
-        final var callStack = CallStack.read();
+        final var callStackInfo = CallStackInfo.read();
         // Use execute() rather than submit(), since a ScanResultProcessor and FailureHandler are used
         executorService.execute(() -> {
             try {
                 // Call scanner, but ignore the returned ScanResult
-                new Scanner(/* performScan = */ true, callStack, scanSpec, scanSourceSpec, executorService,
+                new Scanner(/* performScan = */ true, callStackInfo, scanSpec, scanSourceSpec, executorService,
                         numParallelTasks, scanResultProcessor, failureHandler, topLevelLog).call();
             } catch (final Throwable t) {
                 // Call failure handler. Anything thrown before the Scanner starts running the scan (e.g. by a
@@ -1529,7 +1529,7 @@ public class ClassGraph {
         Assert.notNull(executorService, "executorService");
         // Read the call stack on the calling thread, since it is the caller's classloaders and module layers that
         // are to be searched, not those of the thread that the scan happens to run on
-        return executorService.submit(new Scanner(/* performScan = */ true, CallStack.read(), scanSpec,
+        return executorService.submit(new Scanner(/* performScan = */ true, CallStackInfo.read(), scanSpec,
                 scanSourceSpec, executorService, numParallelTasks, /* scanResultProcessor = */ null,
                 /* failureHandler = */ null, topLevelLog));
     }
@@ -1590,11 +1590,11 @@ public class ClassGraph {
             final int numParallelTasks) {
         // Read the call stack once, on the calling thread: the scan needs it both to decide whether loading a class
         // on a worker thread could deadlock (#933) and to find the caller's classloaders and module layers
-        final var callStack = CallStack.read();
+        final var callStackInfo = CallStackInfo.read();
         try {
-            final var scanResult = new Scanner(performScan, callStack, scanSpec, scanSourceSpec, executorService,
-                    numTasksWithoutDeadlockHazard(callStack, numParallelTasks), /* scanResultProcessor = */ null,
-                    /* failureHandler = */ null, topLevelLog).call();
+            final var scanResult = new Scanner(performScan, callStackInfo, scanSpec, scanSourceSpec,
+                    executorService, numTasksWithoutDeadlockHazard(callStackInfo, numParallelTasks),
+                    /* scanResultProcessor = */ null, /* failureHandler = */ null, topLevelLog).call();
             // A Scanner that was given no scan result processor always returns a scan result
             return Objects.requireNonNull(scanResult);
 
@@ -1623,18 +1623,18 @@ public class ClassGraph {
      * class loading cannot be interrupted (#933). Running the whole scan on the calling thread is slower, but it
      * loads every class the scan needs on the thread that already holds the lock, so it cannot deadlock.
      *
-     * @param callStack
+     * @param callStackInfo
      *            The call stack of the calling thread.
      * @param numParallelTasks
      *            The requested number of parallel tasks.
      * @return the number of parallel tasks to use.
      */
-    private int numTasksWithoutDeadlockHazard(final CallStack callStack, final int numParallelTasks) {
+    private int numTasksWithoutDeadlockHazard(final CallStackInfo callStackInfo, final int numParallelTasks) {
         if (numParallelTasks <= 1) {
             // The scan already runs entirely on the calling thread
             return numParallelTasks;
         }
-        final var frame = callStack.getFrameHoldingClassLoadingLock();
+        final var frame = callStackInfo.getFrameHoldingClassLoadingLock();
         if (frame == null) {
             return numParallelTasks;
         }

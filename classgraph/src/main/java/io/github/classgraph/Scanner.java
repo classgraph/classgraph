@@ -74,7 +74,7 @@ import io.github.classgraph.base.internal.path.PathSyntax;
 import io.github.classgraph.base.internal.utils.CollectionUtils;
 import io.github.classgraph.classpath.ClassLoaderHandler;
 import io.github.classgraph.classpath.internal.ScanSourceSpec;
-import io.github.classgraph.classpath.internal.CallStack;
+import io.github.classgraph.classpath.internal.CallStackInfo;
 import io.github.classgraph.classpath.internal.ClassLoaderProbe;
 import io.github.classgraph.vfs.Vfs;
 import org.jspecify.annotations.Nullable;
@@ -133,7 +133,7 @@ class Scanner implements Callable<ScanResult> {
      *
      * @param performScan
      *            If true, performing a scan. If false, only fetching the classpath.
-     * @param callStack
+     * @param callStackInfo
      *            the call stack of the thread that asked for the scan, read by that thread before the scan started
      * @param scanSpec
      *            the scan spec
@@ -150,7 +150,7 @@ class Scanner implements Callable<ScanResult> {
      * @param topLevelLog
      *            the log
      */
-    Scanner(final boolean performScan, final CallStack callStack, final ScanSpec scanSpec,
+    Scanner(final boolean performScan, final CallStackInfo callStackInfo, final ScanSpec scanSpec,
             final ScanSourceSpec scanSourceSpec, final ExecutorService executorService, final int numParallelTasks,
             final @Nullable Consumer<ScanResult> scanResultProcessor,
             final @Nullable Consumer<Throwable> failureHandler, final @Nullable LogNode topLevelLog) {
@@ -191,7 +191,7 @@ class Scanner implements Callable<ScanResult> {
             // to find the classpath, and those must not be kept alive for the duration of the scan. It is the last
             // thing in a scan to hold a classloader at all -- from here on, only the string form of each
             // classloader is kept
-            final var classLoaderProbe = new ClassLoaderProbe(callStack, scanSpec.classpathSpec, scanSourceSpec,
+            final var classLoaderProbe = new ClassLoaderProbe(callStackInfo, scanSpec.classpathSpec, scanSourceSpec,
                     classLoaderProbeLog);
 
             this.moduleOrder = new ArrayList<>();

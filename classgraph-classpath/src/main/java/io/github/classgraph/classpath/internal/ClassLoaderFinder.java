@@ -60,13 +60,13 @@ public class ClassLoaderFinder {
     /**
      * Find the classloaders that are present in the environment.
      *
-     * @param callStack
+     * @param callStackInfo
      *            The call stack of the thread that started the search.
      * @param log
      *            The log.
      */
-    ClassLoaderFinder(final CallStack callStack, final @Nullable LogNode log) {
-        final var classLoadersUnique = findDefaultClassLoaders(callStack);
+    ClassLoaderFinder(final CallStackInfo callStackInfo, final @Nullable LogNode log) {
+        final var classLoadersUnique = findDefaultClassLoaders(callStackInfo);
 
         // Log all identified ClassLoaders
         if (log != null) {
@@ -87,11 +87,11 @@ public class ClassLoaderFinder {
      * doesn't cover parent delegation modes):
      * http://www.javaworld.com/article/2077344/core-java/find-a-way-out-of-the-classloader-maze.html?page=2
      *
-     * @param callStack
+     * @param callStackInfo
      *            The call stack of the thread that started the search.
      * @return The classloaders, in the order they should be searched in.
      */
-    private static List<ClassLoader> findDefaultClassLoaders(final CallStack callStack) {
+    private static List<ClassLoader> findDefaultClassLoaders(final CallStackInfo callStackInfo) {
         final LinkedHashSet<ClassLoader> classLoadersUnique = new LinkedHashSet<>();
 
         // Get thread context classloader (this is the first classloader to try, since a context classloader can
@@ -128,13 +128,9 @@ public class ClassLoaderFinder {
         // Find classloaders for classes on callstack, in case any were missed. The call stack is read innermost
         // frame first, so the immediate caller's classloader is preferred over the classloader of the code that
         // called it -- Class.forName(className) resolves against the classloader of its immediate caller.
-        // (CallStack#read falls back to naming just itself, rather than throwing, if the stack cannot be read.)
-        for (final var callStackClass : callStack.getClassContext()) {
-            final var callerClassLoader = callStackClass.getClassLoader();
-            if (callerClassLoader != null) {
-                classLoadersUnique.add(callerClassLoader);
-            }
-        }
+        // (CallStackInfo#read falls back to naming just its own classloader, rather than throwing, if the stack
+        // cannot be read.)
+        classLoadersUnique.addAll(callStackInfo.getClassLoaders());
 
         // Sort the classloaders so that a classloader is always ordered before its own ancestors, keeping the
         // preference order above between classloaders that are unrelated to each other (List#sort is stable).
