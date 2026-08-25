@@ -11,11 +11,14 @@ import java.net.URLClassLoader;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 
+import org.apache.felix.framework.BundleWiringImpl;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledForJreRange;
 import org.junit.jupiter.api.condition.JRE;
@@ -273,6 +276,32 @@ public class ClasspathFinderTest {
         final ModuleFinder moduleFinder = classpathFinder.getModuleFinder();
         assertNotNull(moduleFinder, "Modules should have been searched for");
         assertNotNull(moduleFinder.getNonSystemModuleRefs(), "Non-system modules should have been scanned");
+    }
+
+    /**
+     * More than one {@code ClassLoaderHandler} can handle the same classloader -- a classloader that a handler
+     * recognizes by name may also extend {@link URLClassLoader}, say. Each of those handlers contributes the
+     * classpath entries it knows how to read, but the classloader itself must appear in the classloader delegation
+     * order only once, since that order is the order in which classloaders are tried when a class is loaded.
+     *
+     * @throws Exception
+     *             if the classpath could not be read
+     */
+    @Test
+    public void aClassLoaderHandledByMoreThanOneHandlerIsInTheDelegationOrderOnce() throws Exception {
+        // Arrange: a classloader that FelixClassLoaderHandler handles by name, and URLClassLoaderHandler handles
+        // because it extends URLClassLoader
+        final ScanSpec scanSpec = new ScanSpec();
+        scanSpec.overrideClassLoaders(new BundleWiringImpl.BundleClassLoader(new URL[0]));
+
+        // Act
+        final ClasspathFinder classpathFinder = new ClasspathFinder(scanSpec, new ReflectionUtils(), new LogNode());
+
+        // Assert
+        final List<ClassLoader> classLoaderOrder = Arrays
+                .asList(classpathFinder.getClassLoaderOrderRespectingParentDelegation());
+        assertEquals(new LinkedHashSet<ClassLoader>(classLoaderOrder).size(), classLoaderOrder.size(),
+                "No classloader should be listed twice: " + classLoaderOrder);
     }
 
     /**

@@ -29,6 +29,8 @@
 package nonapi.io.github.classgraph.classpath;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -267,6 +269,12 @@ public class ClasspathFinder {
             final LogNode classloaderURLLog = classpathFinderLog == null ? null
                     : classpathFinderLog.log("Obtaining URLs from classloaders in delegation order");
             final List<ClassLoader> finalClassLoaderOrder = new ArrayList<>();
+            // More than one ClassLoaderHandler can handle the same classloader, and each of them is asked for its
+            // classpath entries, but the classloader itself belongs in the delegation order only once.
+            // (Identity is used rather than equality, since TomEE makes an instance of CxfContainerClassLoader
+            // equal to the instance of TomEEWebappClassLoader that it delegates to -- #515.)
+            final Set<ClassLoader> classLoadersInFinalOrder = Collections
+                    .newSetFromMap(new IdentityHashMap<ClassLoader, Boolean>());
             for (final Entry<ClassLoader, List<ClassLoaderHandlerRegistryEntry>> ent : classLoaderOrder
                     .getClassLoaderOrder()) {
                 final ClassLoader classLoader = ent.getKey();
@@ -290,7 +298,9 @@ public class ClasspathFinder {
                         } finally {
                             classpathOrder.setPackageRootPrefixes(null);
                         }
-                        finalClassLoaderOrder.add(classLoader);
+                        if (classLoadersInFinalOrder.add(classLoader)) {
+                            finalClassLoaderOrder.add(classLoader);
+                        }
                     } else if (classloaderURLLog != null) {
                         classloaderURLLog
                                 .log("Ignoring parent classloader " + classLoader + ", normally handled by "
