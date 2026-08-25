@@ -45,6 +45,15 @@ import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
 import org.jspecify.annotations.Nullable;
 
+// TODO: once ClassGraph's minimum supported JDK version is 21 or later, revisit the way work is scheduled across
+// worker threads, both here and in AutoCloseableExecutorService. Virtual threads (JDK 21) make a thread cheap
+// enough that the work does not have to be handed to a fixed-size pool of workers that pull from a shared queue:
+// one virtual thread per work unit may be simpler, and a scan spends much of its time blocked on file I/O, which
+// is what virtual threads are best at. Whether it is actually faster would have to be measured.
+// The poison pills, the count of incomplete work units, and the manual claiming of unstarted workers in close()
+// all exist to manage a fixed pool, and could go with it. Structured concurrency would also remove the need to
+// track submitted workers by hand, if it is a final API by then.
+
 /**
  * A parallel work queue.
  *
