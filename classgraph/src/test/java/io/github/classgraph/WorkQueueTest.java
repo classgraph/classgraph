@@ -260,6 +260,6 @@ public class WorkQueueTest {
         final var timeout = interruptionChecker.getExecutionException();
         assertThat(timeout).isNotNull();
         assertThat(InterruptionChecker.getCause(timeout)).isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("Timed out after PT0.25S waiting for a worker thread to finish");
+                .hasMessageContaining("Timed out after 250ms waiting for a worker thread to finish");
     }
 }

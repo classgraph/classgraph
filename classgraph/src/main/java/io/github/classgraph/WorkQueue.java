@@ -28,7 +28,6 @@
  */
 package io.github.classgraph;
 
-import java.time.Duration;
 import java.util.Collection;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CancellationException;
@@ -350,9 +349,9 @@ final class WorkQueue<T> implements AutoCloseable {
                 // loading or on a filesystem read cannot be interrupted. All that can be done is to report why the
                 // scan cannot finish. The message has to go in the innermost exception, since
                 // InterruptionChecker#getCause(Throwable) unwraps nested ExecutionExceptions.
-                interruptionChecker.setExecutionException(new ExecutionException(
-                        new IllegalStateException("Timed out after " + Duration.ofNanos(workerTimeoutNanos)
-                                + " waiting for a worker thread to finish. Either the calling thread holds a lock "
+                interruptionChecker.setExecutionException(new ExecutionException(new IllegalStateException(
+                        "Timed out after " + TimeUnit.NANOSECONDS.toMillis(workerTimeoutNanos)
+                                + "ms waiting for a worker thread to finish. Either the calling thread holds a lock "
                                 + "that the classloader needs in order to load one of ClassGraph's own classes on "
                                 + "a worker thread, which deadlocks the scan (call scan(1) to run the whole scan "
                                 + "on the calling thread, so that no class is loaded on a worker thread), or a "
