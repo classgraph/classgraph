@@ -25,11 +25,12 @@ public class ClassGraphExceptionTest {
      * {@link ClassGraphException} would see a thread that no longer looks interrupted.
      *
      * <p>
-     * The interruption is triggered from the {@link ExecutorService}, at the point where the scan has been
-     * submitted and the calling thread is about to block waiting for the result, and the submitted task is never
-     * run, so that the calling thread is certain to be interrupted while waiting rather than after the scan has
-     * already finished. Interrupting the thread before the scan starts would leave the outcome up to whether every
-     * step before the wait happens to preserve the interrupt status, which is not something the JDK guarantees.
+     * The interruption is triggered from the {@link ExecutorService}, at the point where the scan starts a worker
+     * thread, which the calling thread does from inside the scan, and the submitted worker is never run, so that
+     * the calling thread is certain to be interrupted partway through the scan rather than after it has already
+     * finished. Interrupting the thread before the scan starts would leave the outcome up to whether every step
+     * before the first interruption check happens to preserve the interrupt status, which is not something the JDK
+     * guarantees.
      */
     @Test
     public void interruptedScanIsReportedWithoutSwallowingTheInterruption() {
@@ -38,12 +39,14 @@ public class ClassGraphExceptionTest {
             @Override
             public <T> Future<T> submit(final Callable<T> task) {
                 Thread.currentThread().interrupt();
-                // Return a task that is never run, so that Future#get() blocks until it is interrupted
+                // Return a task that is never run, so that the calling thread does all the work itself, and finds
+                // the interrupt status set the next time it checks for interruption
                 return new FutureTask<>(task);
             }
         };
         try {
-            assertThatThrownBy(() -> new ClassGraph().enableClasspath().scan(executorService, 1))
+            // Two parallel tasks, so that the scan starts a worker thread, which is what triggers the interruption
+            assertThatThrownBy(() -> new ClassGraph().enableClasspath().scan(executorService, 2))
                     .isInstanceOf(ClassGraphException.class).hasMessage("Scan interrupted")
                     .hasCauseInstanceOf(InterruptedException.class);
             // Thread.interrupted() both reports and clears the status, so this also stops the interruption leaking
