@@ -40,11 +40,14 @@ public class Issue703Test {
     /**
      * Object is the superclass of a standard class that extends no other class, and is the last entry in the
      * superclass chain of any standard class. Interfaces have no superclass.
+     *
+     * <p>
+     * External classes are enabled, since Object is not accepted here, and so is an external class.
      */
     @Test
     public void objectIsTheUniversalSuperclass() {
         try (var scanResult = new ClassGraph().enableClasspath()
-                .acceptPackages(Issue703Test.class.getPackage().getName()).scan()) {
+                .acceptPackages(Issue703Test.class.getPackage().getName()).enableExternalClasses().scan()) {
             assertThat(scanResult.getClassInfo(ExtendsNothing.class.getName()).getSuperclass().getName())
                     .isEqualTo("java.lang.Object");
             assertThat(scanResult.getClassInfo(ExtendsSomething.class.getName()).getAllSuperclasses().getNames())

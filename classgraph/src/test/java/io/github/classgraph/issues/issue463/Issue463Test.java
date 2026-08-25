@@ -11,8 +11,9 @@ import org.junit.jupiter.api.Test;
 import io.github.classgraph.ClassGraph;
 
 /**
- * Test that queries that look "downwards" through the class hierarchy return only accepted classes, whether or not
- * the class the query starts from is itself an external class.
+ * Test that queries return only accepted classes, whether they look "upwards" or "downwards" through the class
+ * hierarchy, and whether or not the class the query starts from is itself an external class. The external classes
+ * are reported only if {@link ClassGraph#enableExternalClasses()} was called.
  */
 public class Issue463Test {
     /** An annotation. */
@@ -66,10 +67,10 @@ public class Issue463Test {
     public void downwardQueriesReturnOnlyAcceptedClasses() {
         try (var scanResult = new ClassGraph().enableClasspath().acceptClasses(Leaf.class.getName()).enableAllInfo()
                 .scan()) {
-            // Upwards: what Leaf's own classfile chain declares, external classes included
-            assertThat(scanResult.getAllSuperclasses(Leaf.class).getNames()).contains(Mid.class.getName(),
-                    Base.class.getName());
-            assertThat(scanResult.getAllSuperinterfaces(Leaf.class).getNames()).containsOnly(Iface.class.getName());
+            // Upwards: the external classes that Leaf's own classfile chain declares are left out too, since
+            // enableExternalClasses() was not called
+            assertThat(scanResult.getAllSuperclasses(Leaf.class).getNames()).isEmpty();
+            assertThat(scanResult.getAllSuperinterfaces(Leaf.class).getNames()).isEmpty();
 
             // Downwards: only what was accepted, even though the class each query starts from is itself external
             assertThat(scanResult.getAllSubclasses(Base.class).getNames()).containsOnly(Leaf.class.getName());
@@ -80,12 +81,15 @@ public class Issue463Test {
     }
 
     /**
-     * With external classes enabled, the same downward queries return the external classes too.
+     * With external classes enabled, the same queries return the external classes too.
      */
     @Test
-    public void downwardQueriesReturnExternalClassesIfEnabled() {
+    public void queriesReturnExternalClassesIfEnabled() {
         try (var scanResult = new ClassGraph().enableClasspath().acceptClasses(Leaf.class.getName()).enableAllInfo()
                 .enableExternalClasses().scan()) {
+            assertThat(scanResult.getAllSuperclasses(Leaf.class).getNames()).contains(Mid.class.getName(),
+                    Base.class.getName());
+            assertThat(scanResult.getAllSuperinterfaces(Leaf.class).getNames()).containsOnly(Iface.class.getName());
             assertThat(scanResult.getAllSubclasses(Base.class).getNames()).containsOnly(Mid.class.getName(),
                     Leaf.class.getName());
             assertThat(scanResult.getAllClassesImplementing(Iface.class).getNames())
@@ -108,6 +112,26 @@ public class Issue463Test {
                     .containsOnly(Leaf.class.getName());
             assertThat(scanResult.getClassesWithFieldAnnotation(MetaAnn.class).getNames())
                     .containsOnly(Leaf.class.getName());
+        }
+    }
+
+    /**
+     * The outer classes of an accepted class, and the annotations on its fields, are external classes too if they
+     * were not accepted, so they are reported only if {@link ClassGraph#enableExternalClasses()} was called.
+     */
+    @Test
+    public void outerClassesAndFieldAnnotationsHonourExternalClasses() {
+        try (var scanResult = new ClassGraph().enableClasspath().acceptClasses(Leaf.class.getName()).enableAllInfo()
+                .scan()) {
+            final var leaf = scanResult.getClassInfo(Leaf.class.getName());
+            assertThat(leaf.getOuterClasses().getNames()).isEmpty();
+            assertThat(leaf.getFieldAnnotations().getNames()).isEmpty();
+        }
+        try (var scanResult = new ClassGraph().enableClasspath().acceptClasses(Leaf.class.getName()).enableAllInfo()
+                .enableExternalClasses().scan()) {
+            final var leaf = scanResult.getClassInfo(Leaf.class.getName());
+            assertThat(leaf.getOuterClasses().getNames()).containsOnly(Issue463Test.class.getName());
+            assertThat(leaf.getFieldAnnotations().getNames()).contains(FieldAnn.class.getName());
         }
     }
 }

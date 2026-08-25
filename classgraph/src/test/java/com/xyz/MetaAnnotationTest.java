@@ -104,14 +104,14 @@ class MetaAnnotationTest {
     void acrossCycle() {
         assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.H").directOnly().getNames())
                 .containsOnly("com.xyz.meta.I");
-        assertThat(scanResult.getDirectAnnotationsOnClass("com.xyz.meta.H").getNames()).containsOnly(
-                "com.xyz.meta.I", "com.xyz.meta.K", "java.lang.annotation.Retention",
-                "java.lang.annotation.Target");
+        // @Retention and @Target are left out, since they are external classes and external classes were not
+        // enabled
+        assertThat(scanResult.getDirectAnnotationsOnClass("com.xyz.meta.H").getNames())
+                .containsOnly("com.xyz.meta.I", "com.xyz.meta.K");
         assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.I").directOnly().getNames())
                 .containsOnly("com.xyz.meta.E", "com.xyz.meta.H");
-        assertThat(scanResult.getDirectAnnotationsOnClass("com.xyz.meta.I").getNames()).containsOnly(
-                "com.xyz.meta.L", "com.xyz.meta.H", "java.lang.annotation.Retention",
-                "java.lang.annotation.Target");
+        assertThat(scanResult.getDirectAnnotationsOnClass("com.xyz.meta.I").getNames())
+                .containsOnly("com.xyz.meta.L", "com.xyz.meta.H");
         assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.K").directOnly().getNames())
                 .containsOnly("com.xyz.meta.H");
         assertThat(scanResult.getClassesWithAnnotation("com.xyz.meta.D").directOnly().getNames())

@@ -137,8 +137,8 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
         if (classSignature == null) {
             // The class has no generic signature, so it supplies no type arguments -- but a class further up the
             // hierarchy may still be generic, so keep walking
-            addSubstitutions(classInfo.getSuperclass(), substitutions, visited);
-            for (final ClassInfo interfaceInfo : classInfo.getAllSuperinterfaces()) {
+            addSubstitutions(classInfo.superclassIncludingExternal(), substitutions, visited);
+            for (final ClassInfo interfaceInfo : classInfo.allSuperinterfacesIncludingExternal()) {
                 addSubstitutions(interfaceInfo, substitutions, visited);
             }
             return;

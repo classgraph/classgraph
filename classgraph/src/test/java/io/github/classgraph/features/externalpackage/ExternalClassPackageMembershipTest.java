@@ -22,9 +22,10 @@ public class ExternalClassPackageMembershipTest {
     @Test
     public void externalClassIsNotListedAsAPackageMember() {
         try (var scanResult = new ClassGraph().enableClasspath().acceptPackages(ACCEPTED_PACKAGE).scan()) {
-            // The external superclass was read -- it is reachable as a superclass
-            assertThat(scanResult.getClassInfo(AcceptedSubclass.class.getName()).getSuperclass().getName())
-                    .isEqualTo(ExternalSuperclass.class.getName());
+            // The external superclass was read, so it has a ClassInfo, but it is not reported as the superclass,
+            // since enableExternalClasses() was not called
+            assertThat(scanResult.getClassInfo(ExternalSuperclass.class.getName())).isNotNull();
+            assertThat(scanResult.getClassInfo(AcceptedSubclass.class.getName()).getSuperclass()).isNull();
 
             // ... but getAllClasses() leaves it out, and so does its package
             assertThat(scanResult.getAllClasses().getNames()).containsExactly(AcceptedSubclass.class.getName());
@@ -41,6 +42,8 @@ public class ExternalClassPackageMembershipTest {
     public void externalClassIsListedAsAPackageMemberIfEnabled() {
         try (var scanResult = new ClassGraph().enableClasspath().acceptPackages(ACCEPTED_PACKAGE)
                 .enableExternalClasses().scan()) {
+            assertThat(scanResult.getClassInfo(AcceptedSubclass.class.getName()).getSuperclass().getName())
+                    .isEqualTo(ExternalSuperclass.class.getName());
             assertThat(scanResult.getAllClasses().getNames()).contains(ExternalSuperclass.class.getName());
             assertThat(scanResult.getPackageInfo(EXTERNAL_PACKAGE).getClassInfo().getNames())
                     .containsExactly(ExternalSuperclass.class.getName());

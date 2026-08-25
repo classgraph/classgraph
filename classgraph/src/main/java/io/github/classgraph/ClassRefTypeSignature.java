@@ -255,7 +255,7 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
                         || outerClassInfo.isInterfaceOrAnnotation() //
                         || innerClassInfo.isInterfaceOrAnnotation() //
                         || innerClassInfo.isStatic() //
-                        || !outerClassInfo.getInnerClasses().contains(innerClassInfo);
+                        || !outerClassInfo.innerClassesIncludingExternal().contains(innerClassInfo);
             }
             if (!skipSuffix) {
                 // Found nested classes

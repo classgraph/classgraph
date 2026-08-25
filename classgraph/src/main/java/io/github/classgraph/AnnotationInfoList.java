@@ -351,7 +351,7 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
         }
         if (annotatedClass != null) {
             // Add any @Inherited annotations on superclasses
-            for (final ClassInfo superclass : annotatedClass.getAllSuperclasses()) {
+            for (final ClassInfo superclass : annotatedClass.allSuperclassesIncludingExternal()) {
                 if (superclass.annotationInfo != null) {
                     for (final AnnotationInfo sai : superclass.annotationInfo) {
                         // Don't add inherited superclass annotation if it is overridden in a subclass

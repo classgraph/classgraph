@@ -202,11 +202,15 @@ public class ClassGraphTest {
     }
 
     /**
-     * Test external superclass returned.
+     * Test that an external superclass is returned only if external classes were enabled.
      */
     @Test
     public void testExternalSuperclassReturned() {
         try (var scanResult = new ClassGraph().enableClasspath().acceptPackages(ACCEPT_PACKAGE).scan()) {
+            assertThat(scanResult.getAllSuperclasses(Accepted.class.getName()).getNames()).isEmpty();
+        }
+        try (var scanResult = new ClassGraph().enableClasspath().acceptPackages(ACCEPT_PACKAGE)
+                .enableExternalClasses().scan()) {
             assertThat(scanResult.getAllSuperclasses(Accepted.class.getName()).getNames())
                     .containsExactly(RejectedSuperclass.class.getName(), "java.lang.Object");
             assertThat(scanResult.getAllSubclasses(Accepted.class).getNames()).isEmpty();
@@ -244,7 +248,8 @@ public class ClassGraphTest {
     @Test
     public void testRejectedPlaceholderNotReturned() {
         try (var scanResult = new ClassGraph().enableClasspath().acceptPackages(ROOT_PACKAGE)
-                .rejectPackages(RejectedAnnotation.class.getPackage().getName()).enableAnnotationInfo().scan()) {
+                .rejectPackages(RejectedAnnotation.class.getPackage().getName()).enableAnnotationInfo()
+                .enableExternalClasses().scan()) {
             // The rejected superclass is filtered out, but Object, which is above it in the hierarchy, is not
             // rejected
             assertThat(scanResult.getAllSuperclasses(Accepted.class.getName()).getNames())
@@ -281,12 +286,16 @@ public class ClassGraphTest {
     }
 
     /**
-     * Test external annotation returned.
+     * Test that an external annotation is returned only if external classes were enabled.
      */
     @Test
     public void testExternalAnnotationReturned() {
         try (var scanResult = new ClassGraph().enableClasspath().acceptPackages(ACCEPT_PACKAGE)
                 .enableAnnotationInfo().scan()) {
+            assertThat(scanResult.getAllAnnotationsOnClass(Accepted.class.getName()).getNames()).isEmpty();
+        }
+        try (var scanResult = new ClassGraph().enableClasspath().acceptPackages(ACCEPT_PACKAGE)
+                .enableAnnotationInfo().enableExternalClasses().scan()) {
             assertThat(scanResult.getAllAnnotationsOnClass(Accepted.class.getName()).getNames())
                     .containsExactly(RejectedAnnotation.class.getName());
         }
@@ -335,8 +344,9 @@ public class ClassGraphTest {
     public void testVisibleIfNotRejected() {
         try (var scanResult = new ClassGraph().enableClasspath().acceptPackages(ROOT_PACKAGE).enableAnnotationInfo()
                 .scan()) {
+            // Object is left out, since it is an external class and external classes were not enabled
             assertThat(scanResult.getAllSuperclasses(Accepted.class.getName()).getNames())
-                    .containsExactly(RejectedSuperclass.class.getName(), "java.lang.Object");
+                    .containsExactly(RejectedSuperclass.class.getName());
             assertThat(scanResult.getAllSubclasses(Accepted.class).getNames())
                     .containsExactly(RejectedSubclass.class.getName());
             assertThat(scanResult.getAllClassesImplementing(AcceptedInterface.class).getNames())

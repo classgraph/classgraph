@@ -33,14 +33,13 @@ public class IssuesTest {
     }
 
     /**
-     * Extends external.
+     * Extends external: the external superclasses are left out, since external classes were not enabled.
      */
     @Test
     public void extendsExternal() {
         try (var scanResult = new ClassGraph().enableClasspath()
                 .acceptPackages(InternalExtendsExternal.class.getPackage().getName()).scan()) {
-            assertThat(scanResult.getAllSuperclasses(InternalExtendsExternal.class.getName()).getNames())
-                    .containsOnly(ExternalSuperclass.class.getName(), "java.lang.Object");
+            assertThat(scanResult.getAllSuperclasses(InternalExtendsExternal.class.getName()).getNames()).isEmpty();
         }
     }
 

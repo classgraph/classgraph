@@ -142,8 +142,9 @@ public class ClassInfoTest {
      */
     @Test
     public void directVsAllSuperclasses() {
+        // Object is left out, since it is an external class and external classes were not enabled
         assertThat(scanResult.getAllSuperclasses(ClsSubSub.class).getNames()).containsOnly(ClsSub.class.getName(),
-                Cls.class.getName(), "java.lang.Object");
+                Cls.class.getName());
         assertThat(scanResult.getClassInfo(ClsSubSub.class.getName()).getSuperclass().getName())
                 .isEqualTo(ClsSub.class.getName());
     }

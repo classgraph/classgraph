@@ -89,8 +89,9 @@ public class Issue238Test {
                 .acceptPackages(Issue238Test.class.getPackage().getName()).enableAllInfo().scan()) {
             final var classNames = scanResult.getAllClasses().get(E.class.getName()).getAllSuperclasses()
                     .getNames();
+            // Object is left out, since it is an external class and external classes were not enabled
             assertThat(classNames).containsExactly(F.class.getName(), A.class.getName(), G.class.getName(),
-                    B.class.getName(), D.class.getName(), C.class.getName(), "java.lang.Object");
+                    B.class.getName(), D.class.getName(), C.class.getName());
         }
     }
 }

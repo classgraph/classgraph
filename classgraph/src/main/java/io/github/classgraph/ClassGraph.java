@@ -423,9 +423,19 @@ public class ClassGraph {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Causes ClassGraph to return classes that are not in the accepted packages, but that are directly referred to
-     * by classes within accepted packages as a superclass, implemented interface or annotation. (Automatically
-     * calls {@link #enableClassInfo()}.)
+     * Causes ClassGraph to return the external classes: the classes that were not accepted for scanning, but that
+     * were read anyway, because an accepted class refers to them as a superclass, implemented interface or
+     * annotation. (Automatically calls {@link #enableClassInfo()}.)
+     *
+     * <p>
+     * Scanning is always extended upwards from an accepted class in this way, so that the part of the class graph
+     * above an accepted class is complete, whether or not this method is called. What this method changes is only
+     * whether the external classes are reported: without it, an external class is left out of
+     * {@link ScanResult#getAllClasses()}, and out of the result of any query, including the "upward" queries such
+     * as {@link ClassInfo#getSuperclass()}, {@link ClassInfo#getAllSuperinterfaces()} and
+     * {@link ClassInfo#getAllAnnotations()}. (The predicates that report the class hierarchy as the JVM sees it,
+     * such as {@link ClassInfo#extendsSuperclass(String)}, {@link ClassInfo#implementsInterface(String)} and
+     * {@link ClassInfo#hasAnnotation(String)}, still take the external classes into account.)
      *
      * @return this (for method chaining).
      */

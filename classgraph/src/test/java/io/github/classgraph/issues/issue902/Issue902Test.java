@@ -50,12 +50,14 @@ public class Issue902Test {
     }
 
     /**
-     * The superclass chain of a class in a system module is completed all the way to Object.
+     * The superclass chain of a class in a system module is completed all the way to Object. External classes are
+     * enabled, since every class in the chain is external here.
      */
     @Test
     public void systemSuperclassChainIsCompleted() {
         try (var scanResult = new ClassGraph().enableClasspath()
-                .acceptPackages(Issue902Test.class.getPackage().getName()).enableClassInfo().scan()) {
+                .acceptPackages(Issue902Test.class.getPackage().getName()).enableClassInfo().enableExternalClasses()
+                .scan()) {
             final var timerTask = scanResult.getClassInfo(TimerTask.class.getName());
             assertThat(timerTask).isNotNull();
             assertThat(timerTask.getAllSuperclasses().getNames()).containsExactly("java.lang.Object");
