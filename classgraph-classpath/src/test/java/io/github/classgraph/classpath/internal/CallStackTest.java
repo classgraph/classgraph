@@ -5,34 +5,41 @@ import static org.assertj.core.api.Assertions.catchThrowable;
 
 import org.junit.jupiter.api.Test;
 
-/** Tests for {@link ClassLoadingLockDetector}. */
-public class ClassLoadingLockDetectorTest {
-    /** A class that asks the detector what it reports while the class's own static initializer is running. */
+/** Tests for {@link CallStack}. */
+public class CallStackTest {
+    /** A class that asks the call stack what it reports while the class's own static initializer is running. */
     private static class InitializedByAStaticInitializer {
-        /** What the detector reported during this class's static initializer. */
+        /** The frame holding a class loading lock during this class's static initializer. */
         static final String FRAME;
 
         static {
-            FRAME = ClassLoadingLockDetector.findFrameHoldingClassLoadingLock();
+            FRAME = CallStack.read().getFrameHoldingClassLoadingLock();
         }
     }
 
-    /** A classloader that asks the detector what it reports while the classloader is loading a class. */
+    /** A classloader that asks the call stack what it reports while the classloader is loading a class. */
     private static class ProbingClassLoader extends ClassLoader {
-        /** What the detector reported during {@link #findClass(String)}. */
+        /** The frame holding a class loading lock during {@link #findClass(String)}. */
         String frame;
 
         @Override
         protected Class<?> findClass(final String name) throws ClassNotFoundException {
-            frame = ClassLoadingLockDetector.findFrameHoldingClassLoadingLock();
+            frame = CallStack.read().getFrameHoldingClassLoadingLock();
             throw new ClassNotFoundException(name);
         }
+    }
+
+    /** The call stack names the class of every frame, innermost frame first. */
+    @Test
+    public void theCallStackNamesTheClassOfEveryFrame() {
+        // The walk starts inside CallStack#read, so this test class is the frame below it
+        assertThat(CallStack.read().getClassContext()).startsWith(CallStack.class, CallStackTest.class);
     }
 
     /** An ordinary method holds no class loading lock, so a scan started from one can use worker threads. */
     @Test
     public void anOrdinaryMethodHoldsNoClassLoadingLock() {
-        assertThat(ClassLoadingLockDetector.findFrameHoldingClassLoadingLock()).isNull();
+        assertThat(CallStack.read().getFrameHoldingClassLoadingLock()).isNull();
     }
 
     /** A static initializer holds the initialization lock of the class it is initializing. */

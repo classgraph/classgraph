@@ -57,7 +57,7 @@ import io.github.classgraph.base.internal.utils.Assert;
 import io.github.classgraph.base.internal.utils.VersionFinder;
 import io.github.classgraph.classpath.ClassLoaderHandler;
 import io.github.classgraph.classpath.ModulePathInfo;
-import io.github.classgraph.classpath.internal.ClassLoadingLockDetector;
+import io.github.classgraph.classpath.internal.CallStack;
 import io.github.classgraph.classpath.internal.ScanSourceSpec;
 import org.jspecify.annotations.Nullable;
 
@@ -1380,12 +1380,15 @@ public class ClassGraph {
         // The result of the Future<ScanObject> object returned by launchAsyncScan is discarded below, so a
         // FailureHandler is required, so that exceptions are not silently swallowed.
         Assert.notNull(failureHandler, "failureHandler");
+        // Read the call stack on the calling thread, since it is the caller's classloaders and module layers that
+        // are to be searched, not those of the thread that the scan happens to run on
+        final var callStack = CallStack.read();
         // Use execute() rather than submit(), since a ScanResultProcessor and FailureHandler are used
         executorService.execute(() -> {
             try {
                 // Call scanner, but ignore the returned ScanResult
-                new Scanner(/* performScan = */ true, scanSpec, scanSourceSpec, executorService, numParallelTasks,
-                        scanResultProcessor, failureHandler, topLevelLog).call();
+                new Scanner(/* performScan = */ true, callStack, scanSpec, scanSourceSpec, executorService,
+                        numParallelTasks, scanResultProcessor, failureHandler, topLevelLog).call();
             } catch (final Throwable t) {
                 // Call failure handler. Anything thrown before the Scanner starts running the scan (e.g. by a
                 // user-supplied classpath element filter, which the Scanner constructor calls) has to be caught
@@ -1417,9 +1420,11 @@ public class ClassGraph {
      */
     public Future<ScanResult> scanAsync(final ExecutorService executorService, final int numParallelTasks) {
         Assert.notNull(executorService, "executorService");
-        return executorService.submit(
-                new Scanner(/* performScan = */ true, scanSpec, scanSourceSpec, executorService, numParallelTasks,
-                        /* scanResultProcessor = */ null, /* failureHandler = */ null, topLevelLog));
+        // Read the call stack on the calling thread, since it is the caller's classloaders and module layers that
+        // are to be searched, not those of the thread that the scan happens to run on
+        return executorService.submit(new Scanner(/* performScan = */ true, CallStack.read(), scanSpec,
+                scanSourceSpec, executorService, numParallelTasks, /* scanResultProcessor = */ null,
+                /* failureHandler = */ null, topLevelLog));
     }
 
     /**
@@ -1475,9 +1480,12 @@ public class ClassGraph {
      */
     private ScanResult scanOnThisThread(final boolean performScan, final ExecutorService executorService,
             final int numParallelTasks) {
+        // Read the call stack once, on the calling thread: the scan needs it both to decide whether loading a class
+        // on a worker thread could deadlock (#933) and to find the caller's classloaders and module layers
+        final var callStack = CallStack.read();
         try {
-            final var scanResult = new Scanner(performScan, scanSpec, scanSourceSpec, executorService,
-                    numTasksWithoutDeadlockHazard(numParallelTasks), /* scanResultProcessor = */ null,
+            final var scanResult = new Scanner(performScan, callStack, scanSpec, scanSourceSpec, executorService,
+                    numTasksWithoutDeadlockHazard(callStack, numParallelTasks), /* scanResultProcessor = */ null,
                     /* failureHandler = */ null, topLevelLog).call();
             // A Scanner that was given no scan result processor always returns a scan result
             return Objects.requireNonNull(scanResult);
@@ -1507,16 +1515,18 @@ public class ClassGraph {
      * class loading cannot be interrupted (#933). Running the whole scan on the calling thread is slower, but it
      * loads every class the scan needs on the thread that already holds the lock, so it cannot deadlock.
      *
+     * @param callStack
+     *            The call stack of the calling thread.
      * @param numParallelTasks
      *            The requested number of parallel tasks.
      * @return the number of parallel tasks to use.
      */
-    private int numTasksWithoutDeadlockHazard(final int numParallelTasks) {
+    private int numTasksWithoutDeadlockHazard(final CallStack callStack, final int numParallelTasks) {
         if (numParallelTasks <= 1) {
             // The scan already runs entirely on the calling thread
             return numParallelTasks;
         }
-        final var frame = ClassLoadingLockDetector.findFrameHoldingClassLoadingLock();
+        final var frame = callStack.getFrameHoldingClassLoadingLock();
         if (frame == null) {
             return numParallelTasks;
         }
