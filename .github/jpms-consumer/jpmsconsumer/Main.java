@@ -72,7 +72,9 @@ public final class Main {
      */
     public static void main(final String[] args) throws Exception {
         // Scanning this module requires the module path to be read, and the module to be opened to ClassGraph.
-        try (ScanResult scanResult = new ClassGraph().enableClasspath().enableAllInfo()
+        // Nothing here is on the classpath, so it is enableNonSystemModules() that reaches it, not
+        // enableClasspath().
+        try (ScanResult scanResult = new ClassGraph().enableNonSystemModules().enableAllInfo()
                 .acceptPackages("jpmsconsumer").scan()) {
             check("the module's own classes are scanned",
                     scanResult.getAllClasses().getNames().contains("jpmsconsumer.Main"));
@@ -81,7 +83,7 @@ public final class Main {
         }
 
         // Resources have to be read out of the jars that are on the module path, not just classes.
-        try (ScanResult scanResult = new ClassGraph().enableClasspath().acceptPaths("META-INF").scan()) {
+        try (ScanResult scanResult = new ClassGraph().enableNonSystemModules().acceptPaths("META-INF").scan()) {
             final Resource manifest = scanResult.getResourcesWithLeafName("MANIFEST.MF").stream().findFirst()
                     .orElse(null);
             check("a manifest is found on the module path", manifest != null);
@@ -90,7 +92,7 @@ public final class Main {
         }
 
         // System modules are read out of the jrt filesystem, which is a different VFS root kind again.
-        try (ScanResult scanResult = new ClassGraph().enableClasspath().acceptPackages("java.util.function")
+        try (ScanResult scanResult = new ClassGraph().enableNonSystemModules().acceptPackages("java.util.function")
                 .enableClassInfo().scan()) {
             check("system modules are skipped unless they are asked for",
                     scanResult.getClassInfo("java.util.function.Function") == null);
