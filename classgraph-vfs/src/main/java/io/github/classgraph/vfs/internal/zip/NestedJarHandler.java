@@ -439,17 +439,14 @@ public class NestedJarHandler {
         // Only the last item in a '!'-delimited list can be a non-jar path, so the parent must always be a jarfile.
         final var parentLogicalZipFile = parentLogicalZipFileAndPackageRoot.getKey();
 
-        // Look up the child path within the parent zipfile
+        // Look up the child path within the parent zipfile. Sanitizing the path stripped any trailing slash, so
+        // what the child path names is decided by what the parent jarfile holds, not by how the path was written --
+        // which is what a path such as "outer.jar!/lib/inner.jar/" needs, since the trailing slash there is a
+        // mistake rather than a statement that the nested jarfile is a directory.
         var isDirectory = false;
-        while (childPath.endsWith("/")) {
-            // Child path is definitely a directory, it ends with a slash
-            isDirectory = true;
-            childPath = childPath.substring(0, childPath.length() - 1);
-        }
-        // If child path doesn't end with a slash, see if there's a non-directory entry with a name matching the
-        // child path (LogicalZipFile discards directory entries ending with a slash when reading the central
-        // directory of a zipfile)
-        final var childZipEntry = isDirectory ? null : findEntry(parentLogicalZipFile, childPath);
+        // See if there's a non-directory entry with a name matching the child path (LogicalZipFile discards
+        // directory entries ending with a slash when reading the central directory of a zipfile)
+        final var childZipEntry = findEntry(parentLogicalZipFile, childPath);
         if (childZipEntry == null && hasEntriesUnderDir(parentLogicalZipFile, childPath)) {
             // If there is no non-directory zipfile entry with a name matching the child path, the child path is a
             // directory if any entries in the zipfile have it as a dir prefix
