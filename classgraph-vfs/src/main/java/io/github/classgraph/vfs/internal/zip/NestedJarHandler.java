@@ -46,7 +46,6 @@ import io.github.classgraph.base.internal.path.FastPathResolver;
 import io.github.classgraph.base.internal.path.FileUtils;
 import io.github.classgraph.base.internal.path.PathSyntax;
 import io.github.classgraph.vfs.internal.VfsSession;
-import io.github.classgraph.vfs.internal.slice.Slice;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -204,10 +203,9 @@ public class NestedJarHandler {
         // (The stream is opened here, so it is closed here -- PhysicalZipFile does not close what it reads.)
         final PhysicalZipFile physicalZipFile;
         try (InputStream childZipEntryInputStream = childZipEntry.getSlice().open()) {
-            physicalZipFile = new PhysicalZipFile(childZipEntryInputStream,
-                    childZipEntry.uncompressedSize >= 0L && childZipEntry.uncompressedSize <= Slice.MAX_BUFFER_SIZE
-                            ? (int) childZipEntry.uncompressedSize
-                            : -1,
+            // The uncompressed size is a length rather than a hint that may have to fit in an array: an entry too
+            // long to buffer in RAM is spilled straight to disk, which needs the real length rather than -1
+            physicalZipFile = new PhysicalZipFile(childZipEntryInputStream, childZipEntry.uncompressedSize,
                     childZipEntry.entryName, session, log);
         }
 
