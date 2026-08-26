@@ -498,16 +498,14 @@ class Scanner implements Callable<ScanResult> {
                         isMultiSection ? PathSyntax.toJarUrlSeparators(classpathEntStr) : classpathEntStr, isURL,
                         isMultiSection);
             }
-            // Last-ditch effort -- try to convert String to Path
+            // Last-ditch effort -- try to convert String to Path. This goes through File, rather than calling
+            // Path#of directly, so that the path string is first normalized the way File normalizes it (e.g. by
+            // collapsing repeated and trailing separators).
             if (classpathEntryObjNormalized instanceof final String pathStr) {
                 try {
                     classpathEntryObjNormalized = new File(pathStr).toPath();
-                } catch (final Exception e) {
-                    try {
-                        classpathEntryObjNormalized = Path.of(pathStr);
-                    } catch (final InvalidPathException e2) {
-                        throw new IOException("Malformed path: " + classpathEntryObj + " : " + e2);
-                    }
+                } catch (final InvalidPathException e) {
+                    throw new IOException("Malformed path: " + classpathEntryObj + " : " + e);
                 }
             }
         }
