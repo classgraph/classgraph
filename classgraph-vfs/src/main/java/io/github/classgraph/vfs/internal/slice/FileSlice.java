@@ -99,7 +99,7 @@ public final class FileSlice extends Slice {
      * @param isDeflatedZipEntry
      *            true if this is a deflated zip entry
      * @param inflatedLengthHint
-     *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 of this is not a deflated
+     *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 if this is not a deflated
      *            zip entry.
      * @param session
      *            the session that owns what is opened
@@ -130,7 +130,7 @@ public final class FileSlice extends Slice {
      * @param isDeflatedZipEntry
      *            true if this is a deflated zip entry
      * @param inflatedLengthHint
-     *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 of this is not a deflated
+     *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 if this is not a deflated
      *            zip entry.
      * @param session
      *            the session that owns what is opened
@@ -201,7 +201,7 @@ public final class FileSlice extends Slice {
      * @param isDeflatedZipEntry
      *            true if this is a deflated zip entry
      * @param inflatedLengthHint
-     *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 of this is not a deflated
+     *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 if this is not a deflated
      *            zip entry.
      * @return the slice
      */

@@ -167,7 +167,7 @@ class RecycledInflaterInputStream extends InputStream {
                             buf[0] = (byte) 0;
                             inflater.setInput(buf, 0, 1);
                         } else {
-                            // Deflate the chunk of data
+                            // Hand the chunk of deflated data to the inflater as its next input
                             inflater.setInput(buf, 0, numRawBytesRead);
                         }
                     }
