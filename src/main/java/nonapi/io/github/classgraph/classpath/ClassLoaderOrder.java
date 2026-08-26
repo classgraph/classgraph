@@ -28,12 +28,11 @@
  */
 package nonapi.io.github.classgraph.classpath;
 
+import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.IdentityHashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
@@ -45,8 +44,14 @@ import nonapi.io.github.classgraph.utils.LogNode;
 
 /** A class to find all unique classloaders. */
 public class ClassLoaderOrder {
-    /** The {@link ClassLoader} order. */
-    private final Map<ClassLoader, List<ClassLoaderHandlerRegistryEntry>> classLoaderOrder = new LinkedHashMap<>();
+    /**
+     * The {@link ClassLoader} order, with the handlers to run for each classloader. This is a list rather than a
+     * map keyed by classloader, because two classloaders that are equal are still two classloaders, and a map would
+     * keep only one of them (see the note on {@link #added}). Nothing is added twice, since {@link #added} guards
+     * that.
+     */
+    private final List<Entry<ClassLoader, List<ClassLoaderHandlerRegistryEntry>>> classLoaderOrder = //
+            new ArrayList<>();
 
     /** The reflection utils instance. */
     public final ReflectionUtils reflectionUtils;
@@ -93,7 +98,7 @@ public class ClassLoaderOrder {
      *         {@link ClassLoaderHandlerRegistryEntry}.
      */
     public List<Entry<ClassLoader, List<ClassLoaderHandlerRegistryEntry>>> getClassLoaderOrder() {
-        return new ArrayList<>(classLoaderOrder.entrySet());
+        return new ArrayList<>(classLoaderOrder);
     }
 
     /**
@@ -145,7 +150,8 @@ public class ClassLoaderOrder {
             return;
         }
         if (added.add(classLoader)) {
-            classLoaderOrder.put(classLoader, getClassLoaderHandlerRegistryEntries(classLoader, log));
+            classLoaderOrder.add(
+                    new SimpleEntry<>(classLoader, getClassLoaderHandlerRegistryEntries(classLoader, log)));
         }
     }
 
