@@ -163,7 +163,8 @@ public class ZipFileSlice {
      * Get the physical {@link File} that this ZipFileSlice is a slice of.
      *
      * @return the physical {@link File} that this ZipFileSlice is a slice of, or null if this file was downloaded
-     *         from a URL directly to RAM.
+     *         from a URL directly to RAM, or if it is a {@link Path} in a filesystem that has no {@link File} view
+     *         of its files.
      */
     public @Nullable File getPhysicalFile() {
         final var path = physicalZipFile.getPath();
