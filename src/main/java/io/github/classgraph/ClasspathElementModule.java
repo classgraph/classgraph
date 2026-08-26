@@ -78,7 +78,7 @@ class ClasspathElementModule extends ClasspathElement {
     private final Set<String> allResourcePaths = new HashSet<>();
 
     /**
-     * A zip/jarfile classpath element.
+     * A module classpath element.
      *
      * @param moduleRef
      *            the module ref
@@ -381,7 +381,7 @@ class ClasspathElementModule extends ClasspathElement {
                 }
 
                 // Accept/reject classpath elements based on file resource paths
-                if (!checkResourcePathAcceptReject(relativePath, log)) {
+                if (!checkResourcePathAcceptReject(relativePath, subLog)) {
                     // The whole classpath element is rejected, so stop scanning the rest of it
                     break;
                 }

@@ -109,7 +109,7 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
                         + "(\"jrt:\" is not supported by the URL class without a custom URL protocol handler): "
                         + uri);
             } else {
-                throw new IllegalArgumentException("Could not create URL from URI: " + uri + " -- " + e);
+                throw new IllegalArgumentException("Could not create URL from URI: " + uri + " : " + e, e);
             }
         }
     }
@@ -136,8 +136,8 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
                                             : classpathElement.getResourcePathSeparator())
                             + URLPathEncoder.encodePath(resourcePath));
         } catch (final URISyntaxException e) {
-            throw new IllegalArgumentException("Could not form URL for classpath element: " + locationURIStr
-                    + " ; path: " + resourcePath + " : " + e);
+            throw new IllegalArgumentException("Could not form URI for classpath element: " + locationURIStr
+                    + " ; path: " + resourcePath + " : " + e, e);
         }
     }
 
