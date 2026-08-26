@@ -1413,11 +1413,20 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Checks if this class extends the named superclass.
      *
+     * <p>
+     * A class never extends itself, so this returns false if {@code superclassName} names this class.
+     *
      * @param superclassName
      *            The name of a superclass.
      * @return true if this class extends the named superclass.
      */
     public boolean extendsSuperclass(final String superclassName) {
+        if (name.equals(superclassName)) {
+            // A class does not extend itself -- in particular, Object does not extend Object
+            return false;
+        }
+        // Every standard class extends Object by the rules of the language, whether or not its whole superclass
+        // chain was scanned
         return (superclassName.equals("java.lang.Object") && isStandardClass())
                 || getSuperclasses().containsName(superclassName);
     }
@@ -1682,11 +1691,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Checks whether this class declares a method with the annotation.
+     * Checks whether this class declares a method with a parameter that has the annotation.
      *
      * @param methodParameterAnnotation
-     *            A method annotation.
-     * @return true if this class declares a method with the annotation.
+     *            A method parameter annotation.
+     * @return true if this class declares a method with a parameter that has the annotation.
      */
     public boolean hasDeclaredMethodParameterAnnotation(
             final Class<? extends Annotation> methodParameterAnnotation) {
@@ -1695,11 +1704,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Checks whether this class declares a method with the named annotation.
+     * Checks whether this class declares a method with a parameter that has the named annotation.
      *
      * @param methodParameterAnnotationName
-     *            The name of a method annotation.
-     * @return true if this class declares a method with the named annotation.
+     *            The name of a method parameter annotation.
+     * @return true if this class declares a method with a parameter that has the named annotation.
      */
     public boolean hasDeclaredMethodParameterAnnotation(final String methodParameterAnnotationName) {
         for (final MethodInfo mi : getDeclaredMethodInfo()) {
@@ -1711,11 +1720,13 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Checks whether this class or one of its superclasses or interfaces has a method with the annotation.
+     * Checks whether this class or one of its superclasses or interfaces has a method with a parameter that has the
+     * annotation.
      *
      * @param methodParameterAnnotation
-     *            A method annotation.
-     * @return true if this class or one of its superclasses or interfaces has a method with the annotation.
+     *            A method parameter annotation.
+     * @return true if this class or one of its superclasses or interfaces has a method with a parameter that has
+     *         the annotation.
      */
     public boolean hasMethodParameterAnnotation(final Class<? extends Annotation> methodParameterAnnotation) {
         Assert.isAnnotation(methodParameterAnnotation);
@@ -1723,11 +1734,13 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Checks whether this class or one of its superclasses or interfaces has a method with the named annotation.
+     * Checks whether this class or one of its superclasses or interfaces has a method with a parameter that has the
+     * named annotation.
      *
      * @param methodParameterAnnotationName
-     *            The name of a method annotation.
-     * @return true if this class or one of its superclasses or interfaces has a method with the named annotation.
+     *            The name of a method parameter annotation.
+     * @return true if this class or one of its superclasses or interfaces has a method with a parameter that has
+     *         the named annotation.
      */
     public boolean hasMethodParameterAnnotation(final String methodParameterAnnotationName) {
         for (final ClassInfo ci : getMethodOverrideOrder()) {
@@ -1859,12 +1872,20 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * If this class represents {@link Object}, then returns only standard classes, not interfaces, since interfaces
      * don't extend {@link Object}.
      *
+     * A class is never its own subclass, so the returned list never contains this class.
+     *
      * @return the list of subclasses of this class, or the empty list if none.
      */
     public ClassInfoList getSubclasses() {
         if (getName().equals("java.lang.Object")) {
             // Make an exception for querying all subclasses of java.lang.Object
-            return scanResult.getAllStandardClasses();
+            return scanResult.getAllStandardClasses().filter(new ClassInfoList.ClassInfoFilter() {
+                @Override
+                public boolean accept(final ClassInfo classInfo) {
+                    // Object is not its own subclass
+                    return classInfo != ClassInfo.this;
+                }
+            });
         } else {
             return new ClassInfoList(
                     this.filterClassInfo(RelType.SUBCLASSES, /* strictAccept = */ !isExternalClass),
@@ -2701,8 +2722,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Returns information on the method(s) or constructor(s) of the given name declared by this class, but not by
-     * its interfaces or superclasses. Constructors have the method name of {@code "<init>"}. See also:
+     * Returns information on the method(s) or constructor(s) of the given name declared by this class, or by its
+     * interfaces or superclasses. Constructors have the method name of {@code "<init>"}. See also:
      *
      * <ul>
      * <li>{@link #getDeclaredMethodInfo(String)}
@@ -2728,7 +2749,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @param methodName
      *            The method name to query.
      * @return a list of {@link MethodInfo} objects for the method(s) with the given name, or the empty list if the
-     *         method was not found in this class (or is not visible).
+     *         method was not found in this class, its interfaces or its superclasses (or is not visible).
      * @throws IllegalArgumentException
      *             if {@link ClassGraph#enableMethodInfo()} was not called prior to initiating the scan.
      */
@@ -2906,11 +2927,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Get all method parameter annotations.
      *
-     * @return A list of all annotations or meta-annotations on methods declared by the class, (not including
-     *         methods declared by the interfaces or superclasses of this class), as a list of {@link ClassInfo}
-     *         objects, or the empty list if none. N.B. these annotations do not contain specific annotation
-     *         parameters -- call {@link MethodInfo#getAnnotationInfo()} to get details on specific method
-     *         annotation instances.
+     * @return A list of all annotations or meta-annotations on the parameters of methods declared by the class,
+     *         (not including methods declared by the interfaces or superclasses of this class), as a list of
+     *         {@link ClassInfo} objects, or the empty list if none. N.B. these annotations do not contain specific
+     *         annotation parameters -- call {@link MethodParameterInfo#getAnnotationInfo()} to get details on
+     *         specific method parameter annotation instances.
      */
     public ClassInfoList getMethodParameterAnnotations() {
         return getFieldOrMethodAnnotations(RelType.METHOD_PARAMETER_ANNOTATIONS);
@@ -3886,7 +3907,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                     } else {
                         isFirstParam = false;
                     }
-                    fieldInfo.toString(/* useModifiers = */ false, /* useSimpleNames = */ false, buf);
+                    fieldInfo.toString(/* useModifiers = */ false, useSimpleNames, buf);
                 }
                 buf.append(')');
             }
