@@ -242,9 +242,8 @@ public abstract class VfsEntry {
      *
      * @return the content of the entry, as a closeable buffer.
      * @throws IOException
-     *             if the entry could not be read, or if the {@link Vfs} has been closed.
-     * @throws OutOfMemoryError
-     *             if the entry is larger than 2GB, the largest a {@link java.nio.ByteBuffer} can be.
+     *             if the entry could not be read, or if the {@link Vfs} has been closed, or if the entry is larger
+     *             than 2GB, the largest a {@link java.nio.ByteBuffer} can be.
      */
     public abstract CloseableByteBuffer read() throws IOException;
 
@@ -255,9 +254,8 @@ public abstract class VfsEntry {
      *
      * @return the content of the entry.
      * @throws IOException
-     *             if the entry could not be read, or if the {@link Vfs} has been closed.
-     * @throws OutOfMemoryError
-     *             if the entry is larger than the largest possible array.
+     *             if the entry could not be read, or if the {@link Vfs} has been closed, or if the entry is larger
+     *             than the largest possible array.
      */
     public abstract byte[] load() throws IOException;
 
@@ -266,9 +264,8 @@ public abstract class VfsEntry {
      *
      * @return the content of the entry, as a string.
      * @throws IOException
-     *             if the entry could not be read, or if the {@link Vfs} has been closed.
-     * @throws OutOfMemoryError
-     *             if the entry is larger than the largest possible array.
+     *             if the entry could not be read, or if the {@link Vfs} has been closed, or if the entry is larger
+     *             than the largest possible array.
      */
     public String loadAsString() throws IOException {
         return loadAsString(StandardCharsets.UTF_8);
@@ -282,9 +279,8 @@ public abstract class VfsEntry {
      *            the charset to decode the content in.
      * @return the content of the entry, as a string.
      * @throws IOException
-     *             if the entry could not be read, or if the {@link Vfs} has been closed.
-     * @throws OutOfMemoryError
-     *             if the entry is larger than the largest possible array.
+     *             if the entry could not be read, or if the {@link Vfs} has been closed, or if the entry is larger
+     *             than the largest possible array.
      */
     public String loadAsString(final Charset charset) throws IOException {
         Assert.notNull(charset, "charset");
