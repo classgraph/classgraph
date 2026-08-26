@@ -8,6 +8,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.util.Locale;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -35,6 +36,42 @@ public class FastZipEntryMSDOSTimeTest {
     /** A zip entry timestamped in September must not be read as January. */
     @Test
     public void msdosMonthIsReadFromFourBits(@TempDir final File tempDir) throws Exception {
+        // An MS-DOS timestamp has no timezone, and is read as UTC
+        assertThat(msdosLastModifiedMillis(tempDir))
+                .isEqualTo(LAST_MODIFIED.toInstant(ZoneOffset.UTC).toEpochMilli());
+    }
+
+    /**
+     * An MS-DOS timestamp is read the same way whatever the default locale is.
+     *
+     * <p>
+     * The year, month and day of an MS-DOS date are Gregorian, but a default locale of {@code th-TH-u-ca-buddhist}
+     * or {@code ja-JP-u-ca-japanese} makes {@link java.util.Calendar#getInstance(java.util.TimeZone)} hand back a
+     * calendar of that locale's own system, which reads the same year as a year of a different era.
+     */
+    @Test
+    public void msdosTimeIsReadTheSameWayInEveryLocale(@TempDir final File tempDir) throws Exception {
+        final var defaultLocale = Locale.getDefault();
+        try {
+            Locale.setDefault(Locale.forLanguageTag("th-TH-u-ca-buddhist"));
+            assertThat(msdosLastModifiedMillis(tempDir))
+                    .isEqualTo(LAST_MODIFIED.toInstant(ZoneOffset.UTC).toEpochMilli());
+        } finally {
+            Locale.setDefault(defaultLocale);
+        }
+    }
+
+    /**
+     * Write a jarfile holding one entry timestamped {@link #LAST_MODIFIED}, and read that entry's last modified
+     * time back.
+     *
+     * @param tempDir
+     *            a temporary directory to write the jarfile into.
+     * @return the last modified time of the entry, in millis since the epoch.
+     * @throws Exception
+     *             if the jarfile could not be written or read.
+     */
+    private static long msdosLastModifiedMillis(final File tempDir) throws Exception {
         final var jarFile = new File(tempDir, "msdos-time.jar");
         try (var fileOut = new FileOutputStream(jarFile); var zipOut = new ZipOutputStream(fileOut)) {
             final var entry = new ZipEntry(ENTRY_NAME);
@@ -61,8 +98,6 @@ public class FastZipEntryMSDOSTimeTest {
             // The jarfile must not be left open, otherwise the temporary directory cannot be deleted on Windows
             session.close(/* log = */ null);
         }
-
-        // An MS-DOS timestamp has no timezone, and is read as UTC
-        assertThat(lastModifiedTimeMillis).isEqualTo(LAST_MODIFIED.toInstant(ZoneOffset.UTC).toEpochMilli());
+        return lastModifiedTimeMillis;
     }
 }
