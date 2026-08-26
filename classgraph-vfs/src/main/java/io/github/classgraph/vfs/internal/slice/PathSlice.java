@@ -28,10 +28,12 @@
  */
 package io.github.classgraph.vfs.internal.slice;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -187,6 +189,40 @@ public final class PathSlice extends Slice {
             close();
             throw e;
         }
+    }
+
+    /**
+     * Convert a {@link File} to a {@link Path} on the default filesystem.
+     *
+     * @param file
+     *            the file
+     * @return the {@link Path} for the file
+     * @throws IOException
+     *             if the file's path cannot be represented as a {@link Path} on the default filesystem (on Windows,
+     *             a filename can contain characters that a {@link Path} does not accept)
+     */
+    private static Path toPath(final File file) throws IOException {
+        try {
+            return file.toPath();
+        } catch (final InvalidPathException e) {
+            throw new IOException("Not a valid path for the default filesystem: " + file, e);
+        }
+    }
+
+    /**
+     * Constructor for a toplevel slice of a whole zipfile named by a {@link File} on the default filesystem.
+     *
+     * @param file
+     *            the file
+     * @param session
+     *            the session that owns what is opened
+     * @param log
+     *            the log node, or null to skip logging
+     * @throws IOException
+     *             if the file cannot be opened, or its path is not valid for the default filesystem.
+     */
+    public PathSlice(final File file, final VfsSession session, final @Nullable LogNode log) throws IOException {
+        this(toPath(file), session, log);
     }
 
     /**

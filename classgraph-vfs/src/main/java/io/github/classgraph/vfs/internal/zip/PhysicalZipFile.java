@@ -39,7 +39,6 @@ import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.path.FastPathResolver;
 import io.github.classgraph.base.internal.path.FileUtils;
 import io.github.classgraph.vfs.internal.VfsSession;
-import io.github.classgraph.vfs.internal.slice.FileSlice;
 import io.github.classgraph.vfs.internal.slice.PathSlice;
 import io.github.classgraph.vfs.internal.slice.Slice;
 import org.jspecify.annotations.Nullable;
@@ -76,7 +75,7 @@ class PhysicalZipFile {
     PhysicalZipFile(final File file, final VfsSession session, final @Nullable LogNode log) throws IOException {
         this.file = file;
         this.pathStr = FastPathResolver.resolve(FileUtils.currDirPath(), file.getPath());
-        this.slice = new FileSlice(file, session, log);
+        this.slice = new PathSlice(file, session, log);
     }
 
     /**
@@ -119,10 +118,10 @@ class PhysicalZipFile {
             final VfsSession session, final @Nullable LogNode log) throws IOException {
         this.pathStr = pathStr;
         // Try downloading the InputStream to a byte array. If this succeeds, this will result in an ArraySlice. If
-        // it fails, the InputStream will be spilled to disk, resulting in a FileSlice.
+        // it fails, the InputStream will be spilled to disk, resulting in a PathSlice over the temporary file.
         this.slice = Slice.fromInputStream(inputStream, /* tempFileBaseName = */ pathStr, inputStreamLengthHint,
                 session, log);
-        this.file = this.slice instanceof final FileSlice fileSlice ? fileSlice.file : null;
+        this.file = this.slice instanceof final PathSlice pathSlice ? pathSlice.path.toFile() : null;
     }
 
     /**

@@ -477,7 +477,7 @@ public class LogicalZipFile extends ZipFileSlice {
         // than 2GB, need to read each entry field from the file directly using ZipFileSliceReader.
         if (cen.cenSize() > Slice.MAX_BUFFER_SIZE) {
             // Create a slice that covers the central directory (this allows a central directory larger than 2GB to
-            // be accessed using the slower FileSlice API, which reads the file directly, but also the slice can be
+            // be accessed using the slower PathSlice API, which reads the file directly, but also the slice can be
             // accessed without adding cenPos to each read offset, so that this slice or the slice in the "else"
             // clause below are accessed with the same index, which is the offset from the start of the central
             // directory).
@@ -485,7 +485,7 @@ public class LogicalZipFile extends ZipFileSlice {
                     /* inflatedSizeHint = */ 0L).randomAccessReader();
         }
         // Read the central directory into RAM for speed, then wrap it in an ArraySlice (random access is faster
-        // for ArraySlice than for FileSlice)
+        // for ArraySlice than for PathSlice)
         final var entryBytes = new byte[(int) cen.cenSize()];
         if (reader.read(cen.cenPos(), entryBytes, 0, (int) cen.cenSize()) < cen.cenSize()) {
             // Should not happen

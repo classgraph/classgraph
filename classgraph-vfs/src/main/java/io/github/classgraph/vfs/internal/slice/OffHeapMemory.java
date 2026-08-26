@@ -246,7 +246,7 @@ public final class OffHeapMemory {
      *         reflectively.
      * @throws IOException
      *             if mapping the file failed with an I/O error (mapping may succeed if retried after garbage
-     *             collection, see FileSlice).
+     *             collection, see PathSlice).
      */
     public static @Nullable ByteBuffer mapFileUsingArena(final Object arena, final FileChannel fileChannel,
             final long position, final long size) throws IOException {

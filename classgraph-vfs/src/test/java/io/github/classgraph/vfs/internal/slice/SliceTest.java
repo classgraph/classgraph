@@ -161,7 +161,7 @@ public class SliceTest {
         // A length hint that is longer than the maximum RAM buffer size spills to disk without buffering
         final var session = session(/* maxBufferedJarRAMSize = */ CONTENT.length / 2);
         try {
-            assertThat(sliceOfContent(session, CONTENT.length)).isInstanceOf(FileSlice.class);
+            assertThat(sliceOfContent(session, CONTENT.length)).isInstanceOf(PathSlice.class);
             assertThat(session.hasTempFiles()).isTrue();
         } finally {
             session.close(/* log = */ null);
@@ -172,7 +172,7 @@ public class SliceTest {
         final var understatedSession = session(/* maxBufferedJarRAMSize = */ CONTENT.length / 2);
         try {
             assertThat(sliceOfContent(understatedSession, /* inputStreamLengthHint = */ CONTENT.length / 2))
-                    .isInstanceOf(FileSlice.class);
+                    .isInstanceOf(PathSlice.class);
         } finally {
             understatedSession.close(/* log = */ null);
         }
@@ -344,8 +344,8 @@ public class SliceTest {
     @Test
     public void closingTheSessionClosesEverySliceThatWasLeftOpen(@TempDir final Path tempDir) throws IOException {
         final var session = session();
-        final var first = new FileSlice(writeFile(tempDir, "first.bin").toFile(), session, /* log = */ null);
-        final var second = new FileSlice(writeFile(tempDir, "second.bin").toFile(), session, /* log = */ null);
+        final var first = new PathSlice(writeFile(tempDir, "first.bin").toFile(), session, /* log = */ null);
+        final var second = new PathSlice(writeFile(tempDir, "second.bin").toFile(), session, /* log = */ null);
 
         session.close(/* log = */ null);
 

@@ -171,7 +171,7 @@ public abstract class Slice implements AutoCloseable {
      * @param log
      *            the log node, or null to skip logging
      * @return an {@link ArraySlice}, if the {@link InputStream} could be read into a byte array, otherwise a
-     *         {@link FileSlice} over the temporary file that it was spilled to.
+     *         {@link PathSlice} over the temporary file that it was spilled to.
      * @throws IOException
      *             If the contents could not be read.
      */
@@ -261,7 +261,7 @@ public abstract class Slice implements AutoCloseable {
      * @throws IOException
      *             If anything went wrong creating or writing to the temp file.
      */
-    private static FileSlice spillToDisk(final InputStream inputStream, final String tempFileBaseName,
+    private static PathSlice spillToDisk(final InputStream inputStream, final String tempFileBaseName,
             final byte @Nullable [] buf, final int bufBytesUsed, final byte @Nullable [] overflowBuf,
             final VfsSession session, final @Nullable LogNode log) throws IOException {
         // Create temp file
@@ -293,8 +293,8 @@ public abstract class Slice implements AutoCloseable {
             inputStream.transferTo(outputStream);
         }
 
-        // Return a new FileSlice for the temporary file
-        return new FileSlice(tempFile, session, log);
+        // Return a new PathSlice for the temporary file
+        return new PathSlice(tempFile, session, log);
     }
 
     // ---------------------------------------------------------------------------------------------------------
