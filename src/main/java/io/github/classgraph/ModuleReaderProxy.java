@@ -187,8 +187,15 @@ public class ModuleReaderProxy implements Closeable {
             }
             return Collections.<String> emptyList();
         }
-        final Object resourcesList = reflectionUtils.invokeMethod(/* throwException = */ true, resourcesStream,
-                "collect", collectorsRef.collectorClass, collectorsRef.collectorsToList);
+        final Object resourcesList;
+        try {
+            resourcesList = reflectionUtils.invokeMethod(/* throwException = */ true, resourcesStream, "collect",
+                    collectorsRef.collectorClass, collectorsRef.collectorsToList);
+        } finally {
+            // The stream may hold an open directory of an exploded module, and it is closing the stream that
+            // closes the directory, so the stream has to be closed even though nothing is read from it afterwards
+            reflectionUtils.invokeMethod(/* throwException = */ false, resourcesStream, "close");
+        }
         if (resourcesList == null) {
             throw new IllegalArgumentException("Could not call moduleReader.list().collect(Collectors.toList())");
         }
