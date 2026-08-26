@@ -76,11 +76,7 @@ public final class JarUtils {
             // Tomcat serves a non-exploded WAR file through its own "war:" URL protocol (#925)
             "war:", //
             // Spring Boot addresses entries within an executable jar through its own "nested:" URL protocol
-            "nested:", //
-            // Allow for escaping of ':' characters in paths, which probably goes beyond what the spec would allow
-            // for, but would make sense, since File.separatorChar will never be '\\' when File.pathSeparatorChar is
-            // ':'
-            "\\:" //
+            "nested:" //
     };
 
     /**
@@ -160,7 +156,9 @@ public final class JarUtils {
             final Set<Integer> splitPoints = new HashSet<>();
             for (int i = -1;;) {
                 // A ':' escaped as "\:" is part of a path element, not a separator (this is the escaping
-                // applied by appendPathElt, and undone by the DOUBLE_BACKSHLASH_WITH_COLON unescape below)
+                // applied by appendPathElt, and undone by the DOUBLE_BACKSHLASH_WITH_COLON unescape below).
+                // Escaping probably goes beyond what the spec would allow for, but it makes sense, since
+                // File.separatorChar will never be '\\' when File.pathSeparatorChar is ':'
                 boolean foundNonPathSeparator = i > 0 && pathStr.charAt(i - 1) == '\\';
                 for (int j = 0; !foundNonPathSeparator && j < UNIX_NON_PATH_SEPARATORS.length; j++) {
                     // Skip ':' characters in the middle of non-path-separators such as "http://"
@@ -178,7 +176,8 @@ public final class JarUtils {
                     for (final String scheme : scanSpec.allowedURLSchemes) {
                         // Skip schemes already handled by the faster matching code above
                         if (!scheme.equals("http") && !scheme.equals("https") && !scheme.equals("jar")
-                                && !scheme.equals("file") && !scheme.equals("war")) {
+                                && !scheme.equals("file") && !scheme.equals("war")
+                                && !scheme.equals("nested")) {
                             final int schemeLen = scheme.length();
                             final int startIdx = i - schemeLen;
                             if (pathStr.regionMatches(true, startIdx, scheme, 0, schemeLen)

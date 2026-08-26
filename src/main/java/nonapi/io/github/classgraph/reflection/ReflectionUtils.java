@@ -115,10 +115,10 @@ public final class ReflectionUtils {
     }
 
     /**
-     * Get the value of the field in the class of the given object or any of its superclasses. If an exception is
-     * thrown while trying to read the field, and throwException is true, then IllegalArgumentException is thrown
-     * wrapping the cause, otherwise this will return null. If passed a null object, returns null unless
-     * throwException is true, then throws IllegalArgumentException.
+     * Get the value of the given field in the given object. If an exception is thrown while trying to read the
+     * field, and throwException is true, then IllegalArgumentException is thrown wrapping the cause, otherwise
+     * this will return null. If passed a null object, returns null unless throwException is true, then throws
+     * IllegalArgumentException.
      * 
      * @param throwException
      *            If true, throw an exception if the field value could not be read.
@@ -341,10 +341,17 @@ public final class ReflectionUtils {
         if (reflectionDriver == null) {
             throw new RuntimeException("Cannot use reflection after ScanResult has been closed");
         }
-        if (obj == null || methodName == null || argTypes == null || params == null
-                || argTypes.length != params.length) {
+        if (obj == null || methodName == null || argTypes == null || params == null) {
             if (throwException) {
                 throw new IllegalArgumentException("Unexpected null argument");
+            } else {
+                return null;
+            }
+        }
+        if (argTypes.length != params.length) {
+            if (throwException) {
+                throw new IllegalArgumentException("Got " + argTypes.length + " argument types but "
+                        + params.length + " parameter values");
             } else {
                 return null;
             }
