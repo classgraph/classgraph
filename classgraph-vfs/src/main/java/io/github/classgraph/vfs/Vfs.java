@@ -47,6 +47,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
@@ -257,6 +258,31 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
         final var cachedRoot = cacheRoot(rootsByPath, resolvedPath, root, path);
         cacheRootUnderReportedPath(cachedRoot, resolvedPath);
         return cachedRoot;
+    }
+
+    /**
+     * Return the root that is already open at the given path, or, if there is none, cache the root the given
+     * factory builds and return that. This is how a root that was built without going through {@link #open(String)}
+     * -- the container of a root that was opened at a package root -- is shared with the callers that name the same
+     * jarfile, rather than becoming a second root over one jarfile, each with its own entry list.
+     *
+     * @param path
+     *            the path the root reports itself at, which is already in the form
+     *            {@link FastPathResolver#resolve(String)} returns, since it is the canonical path of the jarfile
+     *            that backs the root.
+     * @param rootFactory
+     *            builds the root, and is only called if no root is open at that path yet.
+     * @return the root open at that path.
+     * @throws IOException
+     *             if this {@link Vfs} has been closed.
+     */
+    VfsRoot rootAtPath(final String path, final Supplier<VfsRoot> rootFactory) throws IOException {
+        checkNotClosed(path);
+        final var alreadyOpened = rootsByPath.get(path);
+        if (alreadyOpened != null) {
+            return alreadyOpened;
+        }
+        return cacheRoot(rootsByPath, path, rootFactory.get(), path);
     }
 
     /**

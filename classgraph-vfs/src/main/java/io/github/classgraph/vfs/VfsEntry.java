@@ -115,8 +115,8 @@ public abstract class VfsEntry {
     /**
      * Returns the full path of this entry, which locates it on the machine rather than within its root: a
      * filesystem path for a file in a directory, the path of the jarfile followed by {@code "!/"} and the entry's
-     * name for a jarfile entry, and the module name followed by {@code ":"} and the entry's name for a module
-     * resource.
+     * name for a jarfile entry, and the module name followed by {@code "/"} and the entry's name for a module
+     * resource, which is how the JDK itself names something within a module.
      *
      * @return the path of the entry.
      */

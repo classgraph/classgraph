@@ -1117,6 +1117,33 @@ public class VfsTest {
     }
 
     /**
+     * The container of a root that was opened at a package root is the same root that opening the jarfile by its
+     * own path hands back, whichever of the two is asked for first, rather than a second root over one jarfile.
+     *
+     * @param tempDir
+     *            a temporary directory to write the jarfile into.
+     * @throws IOException
+     *             if the jarfile could not be written or read.
+     */
+    @Test
+    public void theContainerRootIsTheRootTheWholeJarfileOpensAs(@TempDir final File tempDir) throws IOException {
+        final var jarFile = new File(tempDir, "app.jar");
+        writeJar(jarFile, "BOOT-INF/classes/com/xyz/widget.txt");
+        final var packageRootPath = jarFile.getPath() + "!/BOOT-INF/classes";
+
+        try (var vfs = new Vfs()) {
+            // The package root is opened first, so its container root is what the whole jarfile then opens as
+            final var containerRoot = vfs.open(packageRootPath).getContainerRoot();
+            assertThat(vfs.open(jarFile.getPath())).isSameAs(containerRoot);
+        }
+        try (var vfs = new Vfs()) {
+            // The whole jarfile is opened first, so that root is what the package root reports as its container
+            final var wholeJarRoot = vfs.open(jarFile.getPath());
+            assertThat(vfs.open(packageRootPath).getContainerRoot()).isSameAs(wholeJarRoot);
+        }
+    }
+
+    /**
      * A root of a closed {@link Vfs} hands out nothing that still reads from storage. Its container root is built
      * on demand, so it would otherwise manufacture a fresh working view of the whole jarfile after the storage
      * behind it was released, and its manifest is cached the first time it is read, so it would keep answering out

@@ -140,7 +140,12 @@ final class ArchiveRoot extends VfsRoot {
             synchronized (this) {
                 root = containerRoot;
                 if (root == null) {
-                    containerRoot = root = new ArchiveRoot(getVfs(), logicalZipFile, "");
+                    // The whole jarfile is a root in its own right, and is the root that opening the jarfile by its
+                    // own path hands back, so it goes through the same cache rather than becoming a second root
+                    // over one jarfile, with a second copy of its entry list
+                    final var vfs = getVfs();
+                    containerRoot = root = vfs.rootAtPath(logicalZipFile.getPath(),
+                            () -> new ArchiveRoot(vfs, logicalZipFile, ""));
                 }
             }
         }

@@ -627,9 +627,8 @@ public abstract class VfsRoot implements Iterable<VfsEntry> {
      *             if the manifest file could not be read, or if the {@link Vfs} has been closed.
      */
     public synchronized @Nullable Map<String, String> getManifest() throws IOException {
-        // Checked even when the manifest has already been read, so that a root of a closed Vfs reports itself
-        // as closed
-        // rather than answering out of a cache that was warmed while it was open
+        // Checked even when the manifest has already been read, so that a root of a closed Vfs reports itself as
+        // closed rather than answering out of a cache that was warmed while it was open
         checkNotClosed(getPath());
         // This is synchronized rather than double-checked, so that a second thread asking for the manifest while
         // the first is still reading it waits for that read rather than starting a second one
