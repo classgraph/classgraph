@@ -47,6 +47,16 @@ class AutoCloseableExecutorService extends ThreadPoolExecutor implements AutoClo
     private final long workerTimeoutNanos;
 
     /**
+     * How long {@link #close()} waits for the worker threads to terminate.
+     *
+     * <p>
+     * This is deliberately not {@link #workerTimeoutNanos}: the work queue already waited that long for its
+     * workers, and only got as far as closing the executor once they had all finished or the wait had timed out.
+     * This is just a grace period for the threads to unwind before they are interrupted.
+     */
+    private static final long TERMINATION_TIMEOUT_MILLIS = 2500;
+
+    /**
      * A ThreadPoolExecutor that can be used in a try-with-resources block, using the default worker timeout.
      *
      * @param numThreads
@@ -120,7 +130,7 @@ class AutoCloseableExecutorService extends ThreadPoolExecutor implements AutoClo
         var terminated = false;
         try {
             // Await termination of any running tasks
-            terminated = awaitTermination(2500, TimeUnit.MILLISECONDS);
+            terminated = awaitTermination(TERMINATION_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
         } catch (final InterruptedException e) {
             interruptionChecker.interrupt();
         }

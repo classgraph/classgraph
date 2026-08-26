@@ -155,13 +155,17 @@ class QuarkusClassLoaderHandler implements ClassLoaderHandler {
      *
      * @param classLoader
      *            the classloader
-     * @return the classpath elements (empty if none of the fields were found).
+     * @return a snapshot of the classpath elements (empty if none of the fields were found).
      */
     @SuppressWarnings("unchecked")
     private static Collection<Object> findQuarkusClassLoaderElements(final ClassLoader classLoader) {
-        var elements = (Collection<Object>) ReflectionUtils.getFieldVal(false, classLoader, "elements");
-        if (elements == null) {
-            elements = new ArrayList<>();
+        // Copy the collections, rather than handing back a live field of a classloader that the running
+        // application may still be adding elements to while the scan iterates them
+        final Collection<Object> elements = new ArrayList<>();
+        final var singleField = (Collection<Object>) ReflectionUtils.getFieldVal(false, classLoader, "elements");
+        if (singleField != null) {
+            elements.addAll(singleField);
+        } else {
             // Since 3.16.x
             for (final String fieldName : new String[] { "normalPriorityElements", "lesserPriorityElements" }) {
                 final var fieldVal = (Collection<Object>) ReflectionUtils.getFieldVal(false, classLoader,
