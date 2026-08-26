@@ -71,7 +71,11 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
     /** The last modified date in MSDOS format, if {@link FastZipEntry#lastModifiedTimeMillis} is 0L. */
     private final int lastModifiedDateMSDOS;
 
-    /** The file attributes for this resource, or 0 if unknown. */
+    /**
+     * The high 16 bits of the external file attributes of this entry, which is the Unix mode of the entry if the
+     * zipfile was written on a Unix-like system, or 0 if it was not. (The low 16 bits, which hold the MS-DOS
+     * attributes, are not read: the only thing this is used for is the entry's POSIX permissions.)
+     */
     public final int fileAttributes;
 
     /**
@@ -117,7 +121,8 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
      * @param lastModifiedDateMSDOS
      *            The last modified date, in MSDOS format, if lastModifiedMillis is 0L.
      * @param fileAttributes
-     *            The POSIX file attribute bits from the zip entry.
+     *            The high 16 bits of the external file attributes of the zip entry, which is the Unix mode of the
+     *            entry if the zipfile was written on a Unix-like system, or 0 if it was not.
      * @param enableMultiReleaseVersions
      *            If true, leave multi-release entry names unchanged, so that every version of an entry is reported
      *            separately; if false, strip any "META-INF/versions/{versionInt}/" prefix from the entry name, so
