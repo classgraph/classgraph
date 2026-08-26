@@ -721,15 +721,16 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
     }
 
     /**
-     * Add classpath entries, separated by the system path separator character.
+     * Add classpath entries, one per list element. Nothing is split here: a list element that holds more than one
+     * classpath entry is added as a single entry.
      *
      * @param classpathEntries
-     *            a list of delimited path {@link String}, {@link URL}, {@link URI} or {@link File} objects.
+     *            a list of path {@link String}, {@link URL}, {@link URI} or {@link File} objects, one per entry.
      * @param classLoader
      *            the ClassLoader that this classpath was obtained from.
      * @param log
      *            the log node, or null to skip logging
-     * @return true (and add the classpath element) if pathElement is not null or empty, otherwise return false.
+     * @return true if there was at least one classpath entry to add, otherwise false.
      */
     @Override
     public boolean addClasspathEntries(final @Nullable List<Object> classpathEntries,

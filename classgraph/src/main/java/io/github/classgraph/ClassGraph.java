@@ -590,8 +590,7 @@ public class ClassGraph {
      */
     public ClassGraph enableClasspathEntries(final String classpath) {
         Assert.notNull(classpath, "classpath");
-        scanSourceSpec.enableClasspathEntries(
-                List.of(PathList.split(classpath, scanSpec.classpathSpec.allowedURLSchemes)));
+        scanSourceSpec.enableClasspathString(classpath);
         return this;
     }
 

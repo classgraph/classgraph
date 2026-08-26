@@ -77,8 +77,10 @@ public interface ClasspathOrder {
      * Add several classpath entries.
      *
      * @param classpathEntries
-     *            a list of {@link String} path, {@link URL}, {@link URI} or {@link File} objects. A {@link String}
-     *            may hold several paths, separated by the system path separator character.
+     *            a list of {@link String} path, {@link URL}, {@link URI} or {@link File} objects, one per classpath
+     *            entry. Nothing is split here, so a {@link String} that holds several paths separated by the system
+     *            path separator character is added as a single entry -- pass that to
+     *            {@link #addClasspathPathStr(String, ClassLoader, ClassGraphLog)} instead.
      * @param classLoader
      *            the {@link ClassLoader} that these classpath entries were obtained from.
      * @param log

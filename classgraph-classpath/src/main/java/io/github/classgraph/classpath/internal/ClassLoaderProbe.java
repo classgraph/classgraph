@@ -37,6 +37,7 @@ import io.github.classgraph.base.internal.path.FileUtils;
 import io.github.classgraph.base.internal.path.PathList;
 import io.github.classgraph.base.internal.utils.VersionFinder;
 import io.github.classgraph.classpath.internal.ScanSourceSpec.ClasspathSource;
+import io.github.classgraph.classpath.internal.ScanSourceSpec.ClasspathString;
 import io.github.classgraph.classpath.internal.ScanSourceSpec.NamedClassLoaders;
 import io.github.classgraph.classpath.internal.ScanSourceSpec.NamedClasspathEntries;
 import io.github.classgraph.classpath.internal.classloaderhandler.ClassLoaderHandlerRegistry.ClassLoaderHandlerRegistryEntry;
@@ -170,6 +171,12 @@ public class ClassLoaderProbe {
         for (final ClasspathSource classpathSource : scanSourceSpec.classpathSources) {
             if (classpathSource instanceof final NamedClasspathEntries namedClasspathEntries) {
                 addNamedClasspathEntries(namedClasspathEntries.classpathEntries(), classLoaderProbeLog);
+            } else if (classpathSource instanceof final ClasspathString classpathString) {
+                // The classpath is split here rather than when the caller handed it over, so that a URL scheme the
+                // caller registered afterwards still keeps its own ':' from being read as a separator
+                addNamedClasspathEntries(List.of(
+                        (Object[]) PathList.split(classpathString.classpath(), classpathSpec.allowedURLSchemes)),
+                        classLoaderProbeLog);
             } else {
                 final var classLoaders = classpathSource instanceof final NamedClassLoaders namedClassLoaders
                         ? namedClassLoaders.classLoaders()

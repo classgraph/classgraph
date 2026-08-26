@@ -245,8 +245,9 @@ public abstract sealed class ClasspathEntry {
      *
      * <p>
      * Pass {@link Classpath#getVfs()}, to read a jarfile that was already opened to read its manifest without
-     * opening it a second time. Close the returned root when finished with it; closing the {@link Vfs} closes it
-     * too, so a root does not outlive the {@link Vfs} it was opened through.
+     * opening it a second time. The returned root owns nothing that has to be released, and is not closed: what it
+     * reads through belongs to the {@link Vfs}, and stops working when that is closed, so do not let the root
+     * outlive the {@link Vfs} it was opened through.
      *
      * @param vfs
      *            the virtual filesystem to open the classpath element through.
@@ -410,9 +411,9 @@ public abstract sealed class ClasspathEntry {
 
         /**
          * Returns this classpath element as a {@link Path}. It may be in a filesystem other than the default one,
-         * in which case opening the {@link Path} is what reaches it. Its {@link #getLocation()} is the
-         * {@link Path#toUri()} form, which reaches the same element only if that filesystem's provider is installed
-         * and the filesystem is still open, and only if the {@link Vfs} has not denied its URL scheme.
+         * in which case opening the {@link Path} is what reaches it: the {@link #getLocation()} of such an element
+         * is its {@link Path#toUri()} form, which reaches the same element only if that filesystem's provider is
+         * installed and the filesystem is still open, and only if the {@link Vfs} has not denied its URL scheme.
          *
          * @return the path.
          */

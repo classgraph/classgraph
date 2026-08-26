@@ -37,6 +37,7 @@ import java.util.Collections;
 import java.util.List;
 
 import io.github.classgraph.base.LogNode;
+import io.github.classgraph.base.internal.path.PathList;
 import io.github.classgraph.base.internal.utils.Assert;
 import org.jspecify.annotations.Nullable;
 
@@ -84,6 +85,17 @@ public class ScanSourceSpec {
      *            the classpath elements, one entry per element.
      */
     public record NamedClasspathEntries(List<Object> classpathEntries) implements ClasspathSource {
+    }
+
+    /**
+     * A whole classpath given directly, still to be split at {@link File#pathSeparatorChar}. The split is left
+     * until the classpath is found, because which URL schemes' own {@code ':'} must not be read as a separator is
+     * not settled until then: the caller may register a scheme after handing over the classpath that names it.
+     *
+     * @param classpath
+     *            the classpath, with the elements separated by {@link File#pathSeparatorChar}.
+     */
+    public record ClasspathString(String classpath) implements ClasspathSource {
     }
 
     /** The places classpath elements are looked for, in the order they were enabled in. */
@@ -155,6 +167,24 @@ public class ScanSourceSpec {
                     || classpathEntry instanceof Path ? classpathEntry : classpathEntry.toString());
         }
         classpathSources.add(new NamedClasspathEntries(normalized));
+    }
+
+    /**
+     * Search the classpath elements of the given classpath, which is split at {@link File#pathSeparatorChar} when
+     * the classpath is found rather than now.
+     *
+     * @param classpath
+     *            the classpath, with the elements separated by {@link File#pathSeparatorChar}.
+     * @throws IllegalArgumentException
+     *             if the classpath holds no classpath element.
+     */
+    public void enableClasspathString(final String classpath) {
+        // Only the emptiness of the classpath is tested here, which no set of registered URL schemes can change:
+        // splitting for real is left until the classpath is found
+        if (PathList.split(classpath, /* allowedURLSchemes = */ null).length == 0) {
+            throw new IllegalArgumentException("At least one classpath entry must be provided");
+        }
+        classpathSources.add(new ClasspathString(classpath));
     }
 
     /** Search the module layers that are visible from the caller, and the boot layer. */

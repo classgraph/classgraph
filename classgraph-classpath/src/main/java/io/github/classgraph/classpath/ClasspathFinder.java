@@ -34,7 +34,6 @@ import java.util.List;
 
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
-import io.github.classgraph.base.internal.path.PathList;
 import io.github.classgraph.base.internal.utils.Assert;
 import io.github.classgraph.classpath.internal.ClassLoaderProbe;
 import io.github.classgraph.classpath.internal.ClasspathSpec;
@@ -261,7 +260,7 @@ public final class ClasspathFinder {
      */
     public ClasspathFinder enableClasspathEntries(final String classpath) {
         Assert.notNull(classpath, "classpath");
-        scanSourceSpec.enableClasspathEntries(List.of(PathList.split(classpath, classpathSpec.allowedURLSchemes)));
+        scanSourceSpec.enableClasspathString(classpath);
         return this;
     }
 

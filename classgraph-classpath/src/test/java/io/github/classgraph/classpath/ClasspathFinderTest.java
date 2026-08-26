@@ -102,6 +102,18 @@ public class ClasspathFinderTest {
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
+    /**
+     * A classpath handed over as a single string is split when the classpath is found, not when it is handed over,
+     * so a URL scheme registered afterwards still keeps its own {@code ':'} from being read as a path separator.
+     */
+    @Test
+    public void aURLSchemeCanBeRegisteredAfterTheClasspathThatNamesIt() {
+        final var location = "s3://bucket/widget.jar";
+        try (var classpath = new ClasspathFinder().enableClasspathEntries(location).enableURLScheme("s3").find()) {
+            assertThat(classpath.getLocations()).containsExactly(location);
+        }
+    }
+
     /** A classloader is passed to {@code enableClassLoaders}, not to {@code enableClasspathEntries}. */
     @Test
     public void aClassLoaderIsNotAClasspathElement() {

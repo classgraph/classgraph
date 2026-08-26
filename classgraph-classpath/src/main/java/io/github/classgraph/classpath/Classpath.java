@@ -73,7 +73,7 @@ public final class Classpath implements AutoCloseable, Iterable<ClasspathEntry> 
      * @param entries
      *            the classpath elements, in the order the classloaders would search them.
      * @param classLoaderProbe
-     *            the classpath finder that found the classpath.
+     *            the probe that read the classloaders, which is where the modules come from.
      * @param modulePathInfo
      *            the module path switches the JVM was launched with.
      * @param vfs
