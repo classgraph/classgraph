@@ -212,6 +212,30 @@ class RandomAccessFileChannelReaderTest {
         }
     }
 
+    /**
+     * The {@link java.nio.ByteBuffer} that wraps the destination array is reused between calls, so its limit is
+     * left where the previous read stopped. A second read that starts further into the same array than the previous
+     * read ended must still work: positioning past a stale limit threw {@link IllegalArgumentException}, which is
+     * not one of the exceptions that {@link java.io.InputStream#read(byte[], int, int)} is allowed to throw for a
+     * valid range.
+     */
+    @Test
+    void aLaterReadCanStartPastWherePreviousReadEnded(@TempDir final Path tmpDir) throws IOException {
+        final var file = writeTestFile(tmpDir, 64);
+        try (var fileChannel = FileChannel.open(file, StandardOpenOption.READ)) {
+            final var reader = new RandomAccessFileChannelReader(fileChannel, 0L, 64L);
+            final var arr = new byte[16];
+
+            assertThat(reader.read(0, arr, 0, 4)).isEqualTo(4);
+            // Leave a gap in the destination array, so this read starts past where the previous read ended
+            assertThat(reader.read(8, arr, 8, 4)).isEqualTo(4);
+            assertThat(arr[8]).isEqualTo((byte) 8);
+            assertThat(arr[11]).isEqualTo((byte) 11);
+            // The bytes in the gap were not written
+            assertThat(arr[4]).isEqualTo((byte) 0);
+        }
+    }
+
     /** Reading up to the end of the file must still stop at the end of the file. */
     @Test
     void readPastEndOfFileStopsAtEndOfFile(@TempDir final Path tmpDir) throws IOException {

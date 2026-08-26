@@ -189,6 +189,10 @@ public class RandomAccessByteBufferReader implements RandomAccessReader {
                 // Limit the source to the bytes that were asked for, otherwise the rest of the slice is copied
                 // too, overflowing the destination
                 byteBuffer.limit(srcStart + numBytesToRead);
+                // Open the destination's limit up to its capacity before positioning, since it may still carry
+                // the limit that a previous read left on it, and positioning past a stale limit throws
+                // IllegalArgumentException
+                dstBuf.limit(dstBuf.capacity());
                 dstBuf.position(dstBufStart);
                 dstBuf.limit(dstBufStart + numBytesToRead);
                 dstBuf.put(byteBuffer);

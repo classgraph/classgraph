@@ -99,6 +99,10 @@ public class RandomAccessFileChannelReader implements RandomAccessReader {
                 return -1;
             }
             final var srcStart = sliceStartPos + srcOffset;
+            // Open the limit up to the capacity before positioning, since the destination buffer may still carry
+            // the limit that a previous read left on it, and positioning past a stale limit throws
+            // IllegalArgumentException
+            dstBuf.limit(dstBuf.capacity());
             dstBuf.position(dstBufStart);
             dstBuf.limit(dstBufStart + numBytesToRead);
             // FileChannel#read is not required to transfer the whole of the requested range in a single call, and
