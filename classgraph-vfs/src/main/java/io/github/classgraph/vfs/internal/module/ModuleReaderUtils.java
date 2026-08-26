@@ -30,6 +30,7 @@ package io.github.classgraph.vfs.internal.module;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.lang.module.ModuleReader;
 import java.lang.module.ModuleReference;
 import java.net.URI;
@@ -139,6 +140,10 @@ public final class ModuleReaderUtils {
             // N.B. the returned list must be mutable, since ClasspathElementModule sorts it in place (so
             // Stream#toList() cannot be used here)
             return resourcesStream.collect(Collectors.toCollection(ArrayList::new));
+        } catch (final UncheckedIOException e) {
+            // A lazy ModuleReader reports a failure to read the module as an UncheckedIOException thrown from the
+            // stream operation that caused the read, rather than from ModuleReader#list() itself, so unwrap it
+            throw new IOException("Could not list the contents of module " + moduleName, e.getCause());
         }
     }
 

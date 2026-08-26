@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.lang.module.ModuleDescriptor;
 import java.lang.module.ModuleFinder;
 import java.lang.module.ModuleReader;
@@ -253,5 +254,36 @@ public class ModuleReaderUtilsTest {
         assertThat(ModuleReaderUtils.list(moduleReader, "test.module", /* log = */ null))
                 .containsExactly("some/Resource.class");
         assertThat(streamClosed).isTrue();
+    }
+
+    /**
+     * A lazy {@link ModuleReader} that fails while its stream of resource paths is being read reports the failure
+     * as an {@link IOException}. {@link ModuleReader#list()} is specified to wrap such a failure in an
+     * {@link UncheckedIOException} and throw it from the stream operation that caused the read, so without this the
+     * unchecked exception would escape past the {@code throws IOException} that the caller declares.
+     */
+    @Test
+    public void anIOExceptionWhileReadingTheStreamOfResourcePathsIsReported() {
+        final var moduleReader = new ModuleReader() {
+            @Override
+            public Optional<URI> find(final String name) {
+                return Optional.empty();
+            }
+
+            @Override
+            public Stream<String> list() {
+                return Stream.of("some/Resource.class").map(path -> {
+                    throw new UncheckedIOException(new IOException("Simulated failure"));
+                });
+            }
+
+            @Override
+            public void close() {
+                // Nothing to close
+            }
+        };
+        assertThatThrownBy(() -> ModuleReaderUtils.list(moduleReader, "test.module", /* log = */ null))
+                .isInstanceOf(IOException.class).hasMessage("Could not list the contents of module test.module")
+                .hasRootCauseMessage("Simulated failure");
     }
 }
