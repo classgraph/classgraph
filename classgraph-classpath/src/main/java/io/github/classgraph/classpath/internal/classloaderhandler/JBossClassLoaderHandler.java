@@ -263,14 +263,10 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
                 // resource directories, or NativeLibraryResourceLoader for (usually non-existent) native library
                 // "lib/" dirs adjacent to the jarfiles that they were presumably extracted from.
                 final var resourceLoader = Array.get(vfsResourceLoaders, i);
-                // Could skip NativeLibraryResourceLoader instances altogether, but testing for
-                // their existence
-                // only seems to add about 3% to the total scan time.
-                // if
-                // (!resourceLoader.getClass().getSimpleName().equals("NativeLibraryResourceLoader"))
-                // {
+                // A NativeLibraryResourceLoader could be skipped here, since it holds no classes, but the lib dirs
+                // it names usually do not exist, and a classpath element that is not there is dropped anyway, which
+                // was measured to cost only about 3% of the total scan time.
                 handleResourceLoader(resourceLoader, moduleLoader, classpathOrderOut, log);
-                // }
             }
         }
     }

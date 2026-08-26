@@ -86,7 +86,7 @@ public final class ClassLoaderHandlerRegistry {
     }
 
     /**
-     * A list of fully-qualified ClassLoader class names paired with the ClassLoaderHandler that can handle them.
+     * A single registered {@link ClassLoaderHandler}, whether built-in or registered by the user.
      */
     public static final class ClassLoaderHandlerRegistryEntry {
         /** The {@link ClassLoaderHandler} instance. */
@@ -96,7 +96,7 @@ public final class ClassLoaderHandlerRegistry {
          * Constructor.
          *
          * @param classLoaderHandler
-         *            The ClassLoaderHandler class.
+         *            the {@link ClassLoaderHandler}.
          */
         public ClassLoaderHandlerRegistryEntry(final ClassLoaderHandler classLoaderHandler) {
             this.classLoaderHandler = classLoaderHandler;
@@ -135,14 +135,14 @@ public final class ClassLoaderHandlerRegistry {
         /**
          * Call {@code canHandle(Class, ClassGraphLog)} on the associated {@link ClassLoaderHandler}.
          *
-         * @param classLoader
-         *            the {@link ClassLoader}.
+         * @param classLoaderClass
+         *            the {@link ClassLoader} class or one of its superclasses.
          * @param log
          *            the log node, or null to skip logging
          * @return true, if this {@link ClassLoaderHandler} can handle the {@link ClassLoader}.
          */
-        public boolean canHandle(final Class<?> classLoader, final @Nullable ClassGraphLog log) {
-            return classLoaderHandler.canHandle(classLoader, log);
+        public boolean canHandle(final Class<?> classLoaderClass, final @Nullable ClassGraphLog log) {
+            return classLoaderHandler.canHandle(classLoaderClass, log);
         }
 
         /**

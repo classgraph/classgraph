@@ -87,7 +87,7 @@ class EquinoxClassLoaderHandler implements OSGiClassLoaderHandler {
             final var moduleContainer = ReflectionUtils.getFieldVal(false, storage, "moduleContainer");
             // type ModuleDatabase
             final var moduleDatabase = ReflectionUtils.getFieldVal(false, moduleContainer, "moduleDatabase");
-            // type HashMap<Integer, EquinoxModule>
+            // type HashMap<Long, EquinoxModule> -- an OSGi bundle id is a long, so the key below is 0L, not 0
             final var modulesById = ReflectionUtils.getFieldVal(false, moduleDatabase, "modulesById");
             // type EquinoxSystemModule (module 0 is always the system module)
             final var module0 = ReflectionUtils.invokeMethod(false, modulesById, "get", Object.class, 0L);

@@ -82,8 +82,7 @@ class UnoOneJarClassLoaderHandler implements ClassLoaderHandler {
         classpathOrder.addClasspathEntry(unoJarOneJarPath, classLoader, log);
 
         // If this property is defined, Uno-Jar jar path was specified on commandline. Otherwise, jar path should be
-        // contained in java.class.path (which will be separately picked up by ClassGraph, as long as
-        // classloaders/classpath are not overloaded and parent classloaders are not ignored).
+        // contained in java.class.path, which is picked up separately if the classpath was enabled.
         final var unoJarJarPath = VersionFinder.getProperty("uno-jar.jar.path");
         classpathOrder.addClasspathEntry(unoJarJarPath, classLoader, log);
 
@@ -97,8 +96,7 @@ class UnoOneJarClassLoaderHandler implements ClassLoaderHandler {
         // For One-Jar:
 
         // If this property is defined, One-Jar jar path was specified on commandline. Otherwise, jar path should be
-        // contained in java.class.path (which will be separately picked up by ClassGraph, as long as
-        // classloaders/classpath are not overloaded and parent classloaders are not ignored).
+        // contained in java.class.path, which is picked up separately if the classpath was enabled.
         final var oneJarJarPath = VersionFinder.getProperty("one-jar.jar.path");
         classpathOrder.addClasspathEntry(oneJarJarPath, classLoader, log);
 
