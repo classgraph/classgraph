@@ -107,10 +107,12 @@ public interface ClassLoaderHandler {
      * is offered the classloader.
      *
      * <p>
-     * The class hierarchy is walked once, with every name tested at each class, rather than once per name, and the
-     * hierarchy is walked in most-specific-first order: the class itself, then its superclasses, then its
-     * interfaces. So if the names include both a class and one of its own supertypes, the more specific of the two
-     * is the one that is returned.
+     * The class hierarchy is walked once, with every name tested at each class, rather than once per name. The walk
+     * visits the class itself, then its superclass and everything above it, and only then the interfaces the class
+     * implements directly, so a class is always reached before its own supertypes, and the more specific of a class
+     * and one of its supertypes is the one that is returned. Two interfaces that the class inherits from different
+     * places are reached superclass-first, though, so a name that is only reachable through an interface of a
+     * superclass is returned ahead of one reachable through an interface of the class itself.
      *
      * @param cls
      *            the class to test, or null.

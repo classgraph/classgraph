@@ -48,11 +48,12 @@
  * anything to be found -- see {@link io.github.classgraph.classpath.ClasspathFinder} for what each of them enables.
  *
  * <p>
- * This package reports where classes and resources <i>would be</i> loaded from. Finding the classpath does not open
- * or verify the existence of anything it reports -- an entry may name a jar or directory that does not exist, and
- * nested jars are reported in the {@code outer.jar!/inner.jar} form rather than being extracted. To read what is at
- * an element, open it with {@link io.github.classgraph.classpath.ClasspathEntry#open}, which lists its contents; or
- * use <a href="https://github.com/classgraph/classgraph">ClassGraph</a> itself, which is built on this library, to
+ * This package reports where classes and resources <i>would be</i> loaded from. It does not read what is there: a
+ * jarfile is opened only far enough to find the classpath elements it declares in its manifest and its lib dirs, an
+ * element that the filesystem says is not there is left out, and a nested jar is reported in the
+ * {@code outer.jar!/inner.jar} form rather than being extracted. To read what is at an element, open it with
+ * {@link io.github.classgraph.classpath.ClasspathEntry#open}, which lists its contents; or use
+ * <a href="https://github.com/classgraph/classgraph">ClassGraph</a> itself, which is built on this library, to
  * parse the classfiles it finds there.
  *
  * <p>

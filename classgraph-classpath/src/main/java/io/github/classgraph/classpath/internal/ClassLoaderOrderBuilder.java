@@ -211,7 +211,10 @@ public class ClassLoaderOrderBuilder implements ClassLoaderOrder {
         for (var cls = classLoaderClass; cls != null; cls = cls.getSuperclass()) {
             classHierarchy.add(cls);
         }
-        // Find the index in that hierarchy of the most distant ancestor each handler still handles
+        // Find the index in that hierarchy of the most distant ancestor each handler still handles. Only the
+        // superclasses are walked, so a handler that recognizes the classloader by an interface it implements, and
+        // that therefore handles no superclass of it, is left at index 0 and counts as the most specific of all --
+        // which is what a handler written against an interface that only this classloader implements deserves.
         final var generality = new int[ents.size()];
         var leastGeneral = Integer.MAX_VALUE;
         for (var i = 0; i < ents.size(); i++) {

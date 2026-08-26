@@ -425,8 +425,10 @@ public final class ClasspathFinder {
      * returned {@link Classpath} to close the jarfiles again.
      *
      * <p>
-     * A classpath element that could not be opened, or that is not a jarfile, is still reported -- a classloader
-     * may name a jarfile or directory that is not there.
+     * A classpath element that is there but could not be opened, or that is not a jarfile, is still reported: it
+     * simply declares no classpath elements of its own. A classpath element that the filesystem says is not there,
+     * or that cannot be read, is left out, since it cannot contribute a class to anything -- a classloader may name
+     * a jarfile or directory that was never installed.
      *
      * @return the classpath.
      * @throws IllegalStateException
