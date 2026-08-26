@@ -3,6 +3,7 @@ package nonapi.io.github.classgraph.reflection;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -334,6 +335,31 @@ public class ReflectionDriverTest {
         assertThat(noMethods.findField(Fixture.class, obj, "instanceField").getName()).isEqualTo("instanceField");
         assertThatThrownBy(() -> noMethods.findMethod(Fixture.class, obj, "instanceMethod"))
                 .isInstanceOf(NoSuchMethodException.class);
+    }
+
+    /**
+     * A member that cannot be made accessible is reported as not found, rather than being handed back for the caller
+     * to fail on, and a field and a method are reported the same way as each other.
+     */
+    @Test
+    void aMemberThatCannotBeMadeAccessibleIsReportedAsNotFound() {
+        final Fixture obj = new Fixture();
+
+        final ReflectionDriver inaccessible = new StandardReflectionDriver() {
+            @Override
+            boolean isAccessible(final Object instance, final AccessibleObject fieldOrMethod) {
+                return false;
+            }
+
+            @Override
+            public boolean makeAccessible(final Object instance, final AccessibleObject fieldOrMethod) {
+                return false;
+            }
+        };
+        assertThatThrownBy(() -> inaccessible.findField(Fixture.class, obj, "instanceField"))
+                .isInstanceOf(NoSuchFieldException.class).hasMessageContaining("Could not make field accessible");
+        assertThatThrownBy(() -> inaccessible.findMethod(Fixture.class, obj, "instanceMethod"))
+                .isInstanceOf(NoSuchMethodException.class).hasMessageContaining("Could not make method accessible");
     }
 
     /**
