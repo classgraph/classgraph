@@ -166,7 +166,7 @@ public abstract class Resource implements AutoCloseable, Comparable<Resource> {
         try {
             return uri.toURL();
         } catch (final IllegalArgumentException | MalformedURLException e) {
-            throw new IllegalStateException("Could not create URL from URI: " + uri + " -- " + e);
+            throw new IllegalStateException("Could not create URL from URI: " + uri + " : " + e, e);
         }
     }
 
@@ -192,8 +192,8 @@ public abstract class Resource implements AutoCloseable, Comparable<Resource> {
                                             : classpathElement.getResourcePathSeparator())
                             + URLPaths.encodePath(resourcePath));
         } catch (final URISyntaxException e) {
-            throw new IllegalStateException("Could not form URL for classpath element: " + locationURIStr
-                    + " ; path: " + resourcePath + " : " + e);
+            throw new IllegalStateException("Could not form URI for classpath element: " + locationURIStr
+                    + " ; path: " + resourcePath + " : " + e, e);
         }
     }
 

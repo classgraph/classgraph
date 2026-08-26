@@ -726,7 +726,7 @@ class ClasspathElementZip extends ClasspathElement {
         try {
             return new URI(URLPaths.normalizeURLPath(getZipFilePath()));
         } catch (final URISyntaxException e) {
-            throw new IllegalStateException("Could not form URI: " + e);
+            throw new IllegalStateException("Could not form URI for " + getZipFilePath() + " : " + e, e);
         }
     }
 
@@ -759,7 +759,7 @@ class ClasspathElementZip extends ClasspathElement {
      *
      * @return The {@link File} for the outermost zipfile of this classpath element, or null if this file was
      *         downloaded from a URL directly to RAM, or if the classpath element was backed by a custom filesystem
-     *         that supports the {@link Path} API put not the {@link File} API.
+     *         that supports the {@link Path} API but not the {@link File} API.
      */
     @Override
     @Nullable
