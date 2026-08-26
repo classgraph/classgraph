@@ -32,12 +32,12 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.IdentityHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.CollectionUtils;
+import nonapi.io.github.classgraph.utils.LinkedIdentitySet;
 import nonapi.io.github.classgraph.utils.LogNode;
 
 /** A class to find the unique ordered classpath elements. */
@@ -117,7 +117,7 @@ public class ClassLoaderFinder {
      *            The log.
      */
     ClassLoaderFinder(final ScanSpec scanSpec, final CallStackInfo callStackInfo, final LogNode log) {
-        LinkedHashSet<ClassLoader> classLoadersUnique;
+        LinkedIdentitySet<ClassLoader> classLoadersUnique;
         LogNode classLoadersFoundLog;
         if (scanSpec.overrideClassLoaders == null) {
             // ClassLoaders were not overridden
@@ -130,7 +130,9 @@ public class ClassLoaderFinder {
             // to try, since a context classloader can be set as an override on a per-thread basis). It is the
             // calling thread's context classloader that is wanted, not that of the thread this code happens to
             // run on, which for an asynchronous scan is a worker thread of the ExecutorService.
-            classLoadersUnique = new LinkedHashSet<>();
+            // Deduplicated by reference rather than by equals(), since a classloader can claim to be equal to
+            // another classloader that loads a different set of classes -- see LinkedIdentitySet
+            classLoadersUnique = new LinkedIdentitySet<>();
             final ClassLoader threadClassLoader = callStackInfo.getContextClassLoader();
             if (threadClassLoader != null) {
                 classLoadersUnique.add(threadClassLoader);
@@ -191,7 +193,8 @@ public class ClassLoaderFinder {
                     return delegationDepth(cl1) - delegationDepth(cl0);
                 }
             });
-            classLoadersUnique = new LinkedHashSet<>(sortedClassLoaders);
+            classLoadersUnique = new LinkedIdentitySet<>();
+            classLoadersUnique.addAll(sortedClassLoaders);
 
             // Add any custom-added classloaders after system/context/module classloaders
             if (scanSpec.addedClassLoaders != null) {
@@ -201,7 +204,8 @@ public class ClassLoaderFinder {
 
         } else {
             // ClassLoaders were overridden
-            classLoadersUnique = new LinkedHashSet<>(scanSpec.overrideClassLoaders);
+            classLoadersUnique = new LinkedIdentitySet<>();
+            classLoadersUnique.addAll(scanSpec.overrideClassLoaders);
             classLoadersFoundLog = log == null ? null : log.log("Override ClassLoaders:");
         }
 
