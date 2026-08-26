@@ -59,23 +59,6 @@ public final class PathSlice extends Slice {
     private @Nullable FileChannel fileChannel;
 
     /**
-     * Get the {@link FileChannel} opened on the {@link Path}.
-     *
-     * @return the {@link FileChannel}
-     * @throws IOException
-     *             if {@link #close()} has been called
-     */
-    private FileChannel fileChannel() throws IOException {
-        // Read the field into a local, so that a close running concurrently cannot null it between the check and
-        // the use
-        final var channel = topLevelPathSlice.fileChannel;
-        if (channel == null) {
-            throw new IOException("Cannot read " + path + " after the Vfs has been closed");
-        }
-        return channel;
-    }
-
-    /**
      * The toplevel file slice, which owns the file channel and the memory mapping, or {@code this} if this is the
      * toplevel slice.
      */
@@ -96,6 +79,23 @@ public final class PathSlice extends Slice {
 
     /** True if {@link #close} has been called. */
     private final AtomicBoolean isClosed = new AtomicBoolean();
+
+    /**
+     * Get the {@link FileChannel} opened on the {@link Path}.
+     *
+     * @return the {@link FileChannel}
+     * @throws IOException
+     *             if {@link #close()} has been called
+     */
+    private FileChannel fileChannel() throws IOException {
+        // Read the field into a local, so that a close running concurrently cannot null it between the check and
+        // the use
+        final var channel = topLevelPathSlice.fileChannel;
+        if (channel == null) {
+            throw new IOException("Cannot read " + path + " after the Vfs has been closed");
+        }
+        return channel;
+    }
 
     /**
      * Constructor for treating a range of a file as a slice.
@@ -127,10 +127,8 @@ public final class PathSlice extends Slice {
         // at once. A copy of the mapped buffer would matter most: below JDK 22 the toplevel slice unmaps the file
         // by freeing its address range, so a sub slice that kept reading through a copy of the mapping would be
         // reading memory that is no longer there. The mapping always covers the whole file, and is addressed in
-        // whole-file coordinates by way of sliceStartPos, in a sub slice as much as in the toplevel slice.
-        //
-        // Only mark toplevel file slices as open (sub slices don't need to be marked as open since they don't need
-        // to be closed, they read through the toplevel slice's file channel and mapping)
+        // whole-file coordinates by way of sliceStartPos, in a sub slice as much as in the toplevel slice. A sub
+        // slice is therefore not registered with the session as open: it holds nothing of its own to release.
     }
 
     /**
@@ -274,7 +272,7 @@ public final class PathSlice extends Slice {
                 return Slice.readAllBytesAsArray(inputStream, inflatedLengthHint);
             }
         } else {
-            // Copy from FileChannel to byte array
+            // Copy from either the memory mapping or the FileChannel to a byte array
             if (sliceLength > Slice.MAX_BUFFER_SIZE) {
                 throw new IOException("File is larger than 2GB");
             }

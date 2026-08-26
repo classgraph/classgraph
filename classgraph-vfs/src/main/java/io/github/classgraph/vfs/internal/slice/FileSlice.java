@@ -116,10 +116,8 @@ public final class FileSlice extends Slice {
         // at once. A copy of the mapped buffer would matter most: below JDK 22 the toplevel slice unmaps the file
         // by freeing its address range, so a sub slice that kept reading through a copy of the mapping would be
         // reading memory that is no longer there. The mapping always covers the whole file, and is addressed in
-        // whole-file coordinates by way of sliceStartPos, in a sub slice as much as in the toplevel slice.
-        //
-        // Only mark toplevel file slices as open (sub slices don't need to be marked as open since they don't need
-        // to be closed, they read through the toplevel slice's file handle and mapping)
+        // whole-file coordinates by way of sliceStartPos, in a sub slice as much as in the toplevel slice. A sub
+        // slice is therefore not registered with the session as open: it holds nothing of its own to release.
     }
 
     /**

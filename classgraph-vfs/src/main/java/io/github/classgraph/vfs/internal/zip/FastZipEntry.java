@@ -59,8 +59,13 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
     /** The uncompressed size of the zip entry, in bytes. */
     public final long uncompressedSize;
 
-    /** The last modified millis since the epoch, or 0L if it is unknown */
-    private long lastModifiedTimeMillis;
+    /**
+     * The last modified millis since the epoch, or 0L if it is unknown. Volatile, since it caches the conversion of
+     * the MSDOS date and time, and the entries of a zipfile are shared between the threads reading it: a long field
+     * that is not volatile may be written in two halves, so a thread that read a value another thread was caching
+     * could read half of one value and half of another.
+     */
+    private volatile long lastModifiedTimeMillis;
 
     /**
      * The last modified time in MSDOS format, if {@link FastZipEntry#lastModifiedTimeMillis} is 0L.
@@ -198,7 +203,7 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
      * Lazily get zip entry slice -- this is deferred until zip entry data needs to be read, in order to avoid
      * randomly seeking within zipfile for every entry as the central directory is read.
      *
-     * @return the offset within the physical zip file of the entry's start offset.
+     * @return the {@link Slice} covering the entry's raw data, which is still deflated if the entry is deflated.
      * @throws IOException
      *             If an I/O exception occurs.
      */
@@ -249,8 +254,9 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
      * @return the last modified time in Epoch millis.
      */
     public long getLastModifiedMillis() {
+        var lastModifiedMillis = lastModifiedTimeMillis;
         // If lastModifiedTimeMillis is zero, but there is an MSDOS date and time available
-        if (lastModifiedTimeMillis == 0L && (lastModifiedDateMSDOS != 0 || lastModifiedTimeMSDOS != 0)) {
+        if (lastModifiedMillis == 0L && (lastModifiedDateMSDOS != 0 || lastModifiedTimeMSDOS != 0)) {
             // Convert from MS-DOS Date & Time Format to Epoch millis
             final var lastModifiedSecond = (lastModifiedTimeMSDOS & 0b11111) * 2;
             final var lastModifiedMinute = lastModifiedTimeMSDOS >> 5 & 0b111111;
@@ -269,11 +275,11 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
             lastModifiedCalendar.set(Calendar.MILLISECOND, 0);
 
             // Cache converted time by overwriting the zero lastModifiedTimeMillis field
-            lastModifiedTimeMillis = lastModifiedCalendar.getTimeInMillis();
+            lastModifiedTimeMillis = lastModifiedMillis = lastModifiedCalendar.getTimeInMillis();
         }
 
         // Return the last modified time, or 0L if it is totally unknown.
-        return lastModifiedTimeMillis;
+        return lastModifiedMillis;
     }
 
     /**

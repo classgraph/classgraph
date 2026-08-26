@@ -880,20 +880,24 @@ public class LogicalZipFile extends ZipFileSlice {
             final var commentLen = cenReader.readUnsignedShort(entOff + 32);
             entSize = 46 + filenameLen + extraFieldLen + commentLen;
 
+            // The filename has to be within the central directory, otherwise reading it would read beyond the end
+            // of it. The record after this one starts past the end of the central directory too, so this entry and
+            // every entry after it is dropped.
             if (entOff + 46 + filenameLen > cen.cenSize()) {
                 if (log != null) {
-                    log.log("Filename extends past end of entry -- skipping entry at offset " + entOff);
+                    log.log("Filename extends past the end of the central directory -- dropping the entry at "
+                            + "offset " + entOff + " and any entry after it");
                 }
                 break;
             }
 
-            // The extra field area has to be within the central directory too, otherwise reading the extra fields
-            // would read beyond the end of it. (The comment is not tested here, because it is never read -- an
-            // entry whose comment is the only part of it that does not fit is still readable. Either way, the
-            // record after this one starts past the end of the central directory, so the loop ends here.)
+            // The extra field area has to be within the central directory too, for the same reason. (The comment is
+            // not tested here, because it is never read -- an entry whose comment is the only part of it that does
+            // not fit is still readable.)
             if (entOff + 46 + filenameLen + extraFieldLen > cen.cenSize()) {
                 if (log != null) {
-                    log.log("Extra field area extends past end of entry -- skipping entry at offset " + entOff);
+                    log.log("Extra field area extends past the end of the central directory -- dropping the entry "
+                            + "at offset " + entOff + " and any entry after it");
                 }
                 break;
             }

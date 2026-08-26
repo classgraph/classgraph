@@ -49,8 +49,8 @@ import org.jspecify.annotations.Nullable;
  * On JDK 22 and later this is done through the {@code java.lang.foreign.Arena} API: buffers are allocated from a
  * shared arena, and closing the arena frees or unmaps all of them at once, and makes a thread that is still reading
  * one throw {@link IllegalStateException} rather than reading memory that is no longer there. On JDK 17 to 21 that
- * API is unavailable (or not final), so {@link #openArena()} returns null, no off-heap memory is allocated at all,
- * and a file that was memory mapped without an arena is unmapped by
+ * API is unavailable (or not final), so {@link #openArena()} returns null, a file is memory mapped through
+ * {@link FileChannel#map(MapMode, long, long)} instead, and the mapping is unmapped by
  * {@link #closeDirectByteBuffer(ByteBuffer, LogNode)}. Both APIs are reached by reflection, since ClassGraph
  * compiles against JDK 17.
  *
@@ -308,13 +308,12 @@ public final class OffHeapMemory {
      * {@link ByteBuffer} and immediately freeing it again.
      *
      * <p>
-     * Freeing a direct {@link ByteBuffer} happens when a {@code ScanResult} is closed, which may be long after the
-     * scan itself, and possibly from a shutdown hook or a container's teardown code, by which time the classloader
-     * that loaded ClassGraph may no longer be able to load anything -- one report had a Maven plugin's Plexus
-     * {@code ClassRealm} already closed, so the lambda class implementing the buffer-freeing code could not be
-     * defined, and closing threw {@link NoClassDefFoundError}. Loading those classes up front, while the
+     * Freeing a direct {@link ByteBuffer} happens when the reading session is closed, which may be long after the
+     * file was read, and possibly from a shutdown hook or a container's teardown code, by which time the
+     * classloader that loaded ClassGraph may no longer be able to load anything -- one report had a Maven plugin's
+     * Plexus {@code ClassRealm} already closed, so the lambda class implementing the buffer-freeing code could not
+     * be defined, and closing threw {@link NoClassDefFoundError}. Loading those classes up front, while the
      * classloader is certainly still alive, means closing needs no classes that are not already loaded.
-     *
      */
     // #331
     public static void warmUpDirectByteBufferClosing() {

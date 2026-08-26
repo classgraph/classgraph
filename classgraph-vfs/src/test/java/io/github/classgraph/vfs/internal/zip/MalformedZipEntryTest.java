@@ -709,7 +709,7 @@ public class MalformedZipEntryTest {
         final var jarFile = writeZip(tempDir, "long-filename.jar", entry(GOOD_NAME),
                 entry("testpkg/long-name.txt").cenFilenameLen(60000));
         assertThat(entryNamesReadBack(jarFile)).containsExactly(GOOD_NAME);
-        assertThat(verboseLogOfReading(jarFile)).contains("Filename extends past end of entry");
+        assertThat(verboseLogOfReading(jarFile)).contains("Filename extends past the end of the central directory");
     }
 
     /**
@@ -723,7 +723,8 @@ public class MalformedZipEntryTest {
         final var jarFile = writeZip(tempDir, "long-extra-field-area.jar", entry(GOOD_NAME),
                 entry("testpkg/long-extra-field-area.txt").cenExtraFieldLen(60000));
         assertThat(entryNamesReadBack(jarFile)).containsExactly(GOOD_NAME);
-        assertThat(verboseLogOfReading(jarFile)).contains("Extra field area extends past end of entry");
+        assertThat(verboseLogOfReading(jarFile))
+                .contains("Extra field area extends past the end of the central directory");
     }
 
     /**
