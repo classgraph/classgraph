@@ -59,14 +59,7 @@ public final class PathList {
             // Tomcat serves a non-exploded WAR file through its own "war:" URL protocol (#925)
             "war:", //
             // Spring Boot addresses entries within an executable jar through its own "nested:" URL protocol
-            "nested:", //
-            // Allow for escaping of ':' characters in paths. This is a ClassGraph extension -- the JDK splits
-            // java.class.path on File.pathSeparator with no escape syntax at all -- but it is safe, because
-            // File.separatorChar is '/' on every platform whose File.pathSeparatorChar is ':', so a backslash
-            // before a colon is never part of the path syntax there. The cost is that a classpath entry that
-            // genuinely ends in a backslash (a legal, if bizarre, filename character on Unix) is joined to the
-            // entry that follows it instead of being split from it.
-            "\\:" //
+            "nested:" //
     };
 
     /**
@@ -216,7 +209,12 @@ public final class PathList {
     private static boolean isSchemeOrEscapedColon(final String pathStr, final int colonIdx,
             final @Nullable Set<String> allowedURLSchemes) {
         // A ':' escaped as "\:" is part of a path element, not a separator (this is the escaping applied by
-        // appendPathElt, and undone by the DOUBLE_BACKSLASH_WITH_COLON unescape in splitOnColon)
+        // appendPathElt, and undone by the DOUBLE_BACKSLASH_WITH_COLON unescape in splitOnColon). Escaping is a
+        // ClassGraph extension -- the JDK splits java.class.path on File.pathSeparator with no escape syntax at
+        // all -- but it is safe, because File.separatorChar is '/' on every platform whose File.pathSeparatorChar
+        // is ':', so a backslash before a colon is never part of the path syntax there. The cost is that a
+        // classpath entry that genuinely ends in a backslash (a legal, if bizarre, filename character on Unix) is
+        // joined to the entry that follows it instead of being split from it.
         if (colonIdx > 0 && pathStr.charAt(colonIdx - 1) == '\\') {
             return true;
         }
@@ -237,7 +235,7 @@ public final class PathList {
         for (final String scheme : allowedURLSchemes) {
             // Skip schemes already handled by the faster matching code above
             if (!"http".equals(scheme) && !"https".equals(scheme) && !"jar".equals(scheme) && !"file".equals(scheme)
-                    && !"war".equals(scheme)) {
+                    && !"war".equals(scheme) && !"nested".equals(scheme)) {
                 final var startIdx = colonIdx - scheme.length();
                 if (pathStr.regionMatches(true, startIdx, scheme, 0, scheme.length())
                         && startsAPathElement(pathStr, startIdx)) {

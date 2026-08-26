@@ -50,7 +50,10 @@ public class InterruptionChecker {
     private final AtomicReference<@Nullable ExecutionException> thrownExecutionException = //
             new AtomicReference<>();
 
-    /** Interrupt all threads that share this InterruptionChecker. */
+    /**
+     * Interrupt this thread, and record the interruption so that the other threads that share this
+     * InterruptionChecker interrupt themselves the next time they check.
+     */
     public void interrupt() {
         interrupted.set(true);
         Thread.currentThread().interrupt();
@@ -107,10 +110,12 @@ public class InterruptionChecker {
     }
 
     /**
-     * Check for interruption and return interruption status.
+     * Check for interruption and return interruption status. (An exception thrown by a worker is not reported here,
+     * only by {@link #check()}, unless it was caused by an interruption, which is recorded as an interruption
+     * rather than as an exception.)
      *
      * @return true if this thread or any other thread that shares this InterruptionChecker instance has been
-     *         interrupted or has thrown an exception.
+     *         interrupted.
      */
     public boolean checkAndReturn() {
         // Check if any thread has been interrupted

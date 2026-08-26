@@ -483,9 +483,11 @@ public final class LogNode implements ClassGraphLog {
     }
 
     /**
-     * Flush out the log to stderr, and clear the log contents. Only call this on the toplevel log node, when
-     * threads do not have access to references of internal log nodes so that they cannot add more log entries
-     * inside the tree, otherwise log entries may be lost.
+     * Write the log out to the {@code io.github.classgraph.ClassGraph} {@link Logger} at {@code INFO} level, and
+     * clear the log contents. (Where the log ends up is therefore up to the JDK logging configuration, which by
+     * default writes to stderr.) Only call this on the toplevel log node, when threads do not have access to
+     * references of internal log nodes so that they cannot add more log entries inside the tree, otherwise log
+     * entries may be lost.
      */
     public void flush() {
         if (parent != null) {
