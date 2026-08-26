@@ -33,6 +33,7 @@ import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.stream.Stream;
 
+import io.github.classgraph.base.internal.utils.LinkedIdentitySet;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -69,8 +70,13 @@ public final class CallStackInfo {
     /** The context classloader of the thread that this info was read on, or null if it has none. */
     private final @Nullable ClassLoader contextClassLoader;
 
-    /** The classloaders of the classes in the call stack, innermost frame first. */
-    private final LinkedHashSet<ClassLoader> classLoaders;
+    /**
+     * The classloaders of the classes in the call stack, innermost frame first. Deduplicated by reference rather
+     * than by {@code equals()}, since a classloader can claim to be equal to another classloader that loads a
+     * different set of classes -- see {@link LinkedIdentitySet}. The module layers do not need the same treatment,
+     * since {@link ModuleLayer} is final and does not override {@code equals()}.
+     */
+    private final LinkedIdentitySet<ClassLoader> classLoaders;
 
     /** The module layers of the classes in the call stack, innermost frame first. */
     private final LinkedHashSet<ModuleLayer> moduleLayers;
@@ -162,7 +168,7 @@ public final class CallStackInfo {
      *            the innermost frame that is holding a class loading lock, or null if there is no such frame
      */
     private CallStackInfo(final @Nullable ClassLoader contextClassLoader,
-            final LinkedHashSet<ClassLoader> classLoaders, final LinkedHashSet<ModuleLayer> moduleLayers,
+            final LinkedIdentitySet<ClassLoader> classLoaders, final LinkedHashSet<ModuleLayer> moduleLayers,
             final boolean anyClassIsInAnUnnamedModule, final @Nullable String frameHoldingClassLoadingLock) {
         this.contextClassLoader = contextClassLoader;
         this.classLoaders = classLoaders;
@@ -190,7 +196,7 @@ public final class CallStackInfo {
         // The call stack could not be read -- fall back to naming only this class' own classloader and module
         // layer, and to reporting no class loading lock, since the check for one exists to avoid a deadlock that
         // only some classloaders cause, so failing to run it must not stop a scan that would have worked
-        final LinkedHashSet<ClassLoader> classLoaders = new LinkedHashSet<>();
+        final LinkedIdentitySet<ClassLoader> classLoaders = new LinkedIdentitySet<>();
         final var classLoader = CallStackInfo.class.getClassLoader();
         if (classLoader != null) {
             classLoaders.add(classLoader);
@@ -215,7 +221,7 @@ public final class CallStackInfo {
      */
     private static CallStackInfo read(final @Nullable ClassLoader contextClassLoader,
             final Stream<StackWalker.StackFrame> stackFrames) {
-        final LinkedHashSet<ClassLoader> classLoaders = new LinkedHashSet<>();
+        final LinkedIdentitySet<ClassLoader> classLoaders = new LinkedIdentitySet<>();
         final LinkedHashSet<ModuleLayer> moduleLayers = new LinkedHashSet<>();
         var anyClassIsInAnUnnamedModule = false;
         var frameHoldingClassLoadingLock = (String) null;

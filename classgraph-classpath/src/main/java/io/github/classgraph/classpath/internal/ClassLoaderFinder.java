@@ -32,11 +32,11 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.IdentityHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
 import io.github.classgraph.base.LogNode;
+import io.github.classgraph.base.internal.utils.LinkedIdentitySet;
 import org.jspecify.annotations.Nullable;
 
 /** A class to find the classloaders that are present in the environment. */
@@ -92,7 +92,9 @@ public class ClassLoaderFinder {
      * @return The classloaders, in the order they should be searched in.
      */
     private static List<ClassLoader> findDefaultClassLoaders(final CallStackInfo callStackInfo) {
-        final LinkedHashSet<ClassLoader> classLoadersUnique = new LinkedHashSet<>();
+        // Deduplicated by reference rather than by equals(), since a classloader can claim to be equal to another
+        // classloader that loads a different set of classes -- see LinkedIdentitySet
+        final LinkedIdentitySet<ClassLoader> classLoadersUnique = new LinkedIdentitySet<>();
 
         // Get the context classloader of the thread that asked for the search (this is the first classloader to
         // try, since a context classloader can be set as an override on a per-thread basis). It is the calling
