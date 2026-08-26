@@ -163,8 +163,14 @@ final class ModuleEntry extends VfsEntry {
                 // The buffer belongs to the ModuleReader and has to be handed back to it, so the caller gets a
                 // read-only view of it, and closing that view is what releases the buffer and recycles the reader
                 final var closeableByteBuffer = new CloseableByteBuffer(byteBuffer.asReadOnlyBuffer(), () -> {
-                    reader.release(byteBuffer);
-                    recycler.recycle(reader);
+                    try {
+                        reader.release(byteBuffer);
+                    } finally {
+                        // ModuleReader#release is allowed to throw, and CloseableByteBuffer#close swallows what
+                        // the close action throws, so without this the reader would stay checked out of the
+                        // recycler forever rather than being handed back for the next read
+                        recycler.recycle(reader);
+                    }
                 });
                 handedOffToCaller = true;
                 return closeableByteBuffer;
