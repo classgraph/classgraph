@@ -99,6 +99,36 @@ public class VfsEntryLookupCaseTest {
     }
 
     /**
+     * A lookup by exact name is not answered by a name that reaches the file by some other route, such as one with
+     * a {@code "."} or {@code ".."} segment in it, or one with a repeated separator. A directory root resolves the
+     * name against the filesystem, which accepts all of those, whereas a jarfile root looks the name up in a map of
+     * the names its entries are stored under, so without an exact-match check the two kinds of root would answer
+     * the same question differently.
+     *
+     * @param tempDir
+     *            a temporary directory to build in.
+     * @throws IOException
+     *             if the classpath elements could not be built or read.
+     */
+    @Test
+    public void anEntryIsNotFoundUnderANameThatIsNotTheNameItIsStoredUnder(@TempDir final Path tempDir)
+            throws IOException {
+        final var dir = makeDir(tempDir.resolve("dir"), STORED_NAME);
+        final var jar = makeJar(tempDir, STORED_NAME);
+        try (var vfs = new Vfs()) {
+            for (final var rootPath : new String[] { dir.toString(), jar.toString() }) {
+                final var root = vfs.open(rootPath);
+                assertThat(root.getEntry("Com/Xyz/../Xyz/Widget.txt")).isNull();
+                assertThat(root.getEntry("./" + STORED_NAME)).isNull();
+                assertThat(root.getEntry("Com//Xyz/Widget.txt")).isNull();
+                assertThat(root.getEntry("/" + STORED_NAME)).isNull();
+                // The name the file really is stored under is still found
+                assertThat(Objects.requireNonNull(root.getEntry(STORED_NAME)).getName()).isEqualTo(STORED_NAME);
+            }
+        }
+    }
+
+    /**
      * A lookup that ignores case finds the file, and the entry it returns is named the way the file is stored,
      * rather than the way it was asked for.
      *

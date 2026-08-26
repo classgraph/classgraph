@@ -783,7 +783,9 @@ public class LogicalZipFile extends ZipFileSlice {
         }
         final var isDeflated = compressionMethod == /* deflated */ 8;
 
-        // Get external file attributes
+        // Get the high 16 bits of the 4-byte external file attributes field, which starts at offset 38. Those are
+        // the Unix mode of the entry, if the zipfile was written on a Unix-like system; the low 16 bits hold the
+        // MS-DOS attributes, which are of no use here
         final var fileAttributes = cenReader.readUnsignedShort(entOff + 40);
 
         // Read the compressed and uncompressed size, and the offset of the local file header, any of which the

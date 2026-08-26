@@ -77,7 +77,11 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
      */
     private final int lastModifiedDateMSDOS;
 
-    /** The file attributes for this resource, or 0 if unknown. */
+    /**
+     * The high 16 bits of the external file attributes of this entry, which is the Unix mode of the entry if the
+     * zipfile was written on a Unix-like system, or 0 if it was not. (The low 16 bits, which hold the MS-DOS
+     * attributes, are not read: the only thing this is used for is the entry's POSIX permissions.)
+     */
     public final int fileAttributes;
 
     /**

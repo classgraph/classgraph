@@ -123,7 +123,7 @@ public abstract class Recycler<T, E extends Exception> implements AutoCloseable 
      * @param instance
      *            the instance to recycle.
      * @throws IllegalArgumentException
-     *             if the object instance was not originally obtained from this {@link Recycler}.
+     *             if the object instance was not obtained from this {@link Recycler}, or was already recycled.
      */
     public final void recycle(final T instance) {
         if (instance != null) {

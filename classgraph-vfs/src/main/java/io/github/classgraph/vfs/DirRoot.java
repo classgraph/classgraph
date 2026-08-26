@@ -233,6 +233,27 @@ final class DirRoot extends VfsRoot {
         return true;
     }
 
+    /**
+     * Returns the name of a file under this root, relative to the root, with {@code '/'} as the separator, which is
+     * the form of the names a walk of this root reports.
+     *
+     * @param file
+     *            the file, which must be under this root's directory.
+     * @return the name of the file relative to the root.
+     */
+    private String relativeName(final Path file) {
+        // Joining the segments, rather than replacing the separator in the string form of the path, is what makes
+        // this independent of the separator of the filesystem the directory is in
+        final var relativeName = new StringBuilder();
+        for (final Path segment : dir.relativize(file)) {
+            if (relativeName.length() > 0) {
+                relativeName.append('/');
+            }
+            relativeName.append(segment);
+        }
+        return relativeName.toString();
+    }
+
     @Override
     @Nullable
     VfsEntry getEntryImpl(final String name) throws IOException {
@@ -249,6 +270,13 @@ final class DirRoot extends VfsRoot {
         // A name containing ".." must not be able to reach outside the root, and an absolute name must not be able
         // to replace it -- Path#resolve returns the argument unchanged if it is absolute
         if (!resolved.startsWith(dir) || !FileUtils.canReadAndIsFile(resolved)) {
+            return null;
+        }
+        // The name is matched exactly, whatever kind of root this is, so a name that reaches the file by some other
+        // route is not a match: one with "." or ".." segments in it, or, on Windows, one written with the platform
+        // separator rather than '/'. Path#resolve accepts all of those, whereas the same name would not be found in
+        // an archive root, where the name is looked up in a map of the names the entries are stored under
+        if (!name.equals(relativeName(resolved))) {
             return null;
         }
         // The filesystems of Windows and macOS answer a lookup for a name whose case does not match the name the
