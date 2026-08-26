@@ -483,9 +483,10 @@ public class FileSlice extends Slice {
      * Close the slice, releasing any memory mapping of the file.
      *
      * <p>
-     * On JDK 22 and later this always unmaps the file, by closing the arena that mapped it, even if another thread
-     * is still reading it: that read throws {@link IllegalStateException}, which the readers translate into
-     * {@link IOException}.
+     * On JDK 22 and later this unmaps the file by closing the arena that mapped it, and does so even if another
+     * thread is still reading it: that read throws {@link IllegalStateException}, which the readers translate into
+     * {@link IOException}. An arena that will not close leaves the file mapped for the rest of the life of the
+     * JVM, so that too is left to the garbage collector to do what it can with.
      *
      * <p>
      * Below JDK 22 there is no arena, and the only method that can unmap a file, {@code Unsafe::invokeCleaner},
@@ -515,7 +516,12 @@ public class FileSlice extends Slice {
                     synchronized (this) {
                         unmapped = true;
                     }
-                    FileUtils.closeArena(arena, nestedJarHandler.reflectionUtils, /* log = */ null);
+                    if (!FileUtils.closeArena(arena, nestedJarHandler.reflectionUtils, /* log = */ null)) {
+                        // The arena would not close, so the file is still mapped -- ask for a collection as the
+                        // scan closes, in case something the collector can reach is what is holding it
+                        // #939
+                        nestedJarHandler.markFileAsAwaitingUnmapping();
+                    }
                     arena = null;
                     backingByteBuffer = null;
                 } else if (backingByteBuffer != null && !unmapIfNoViewIsOpen()) {
