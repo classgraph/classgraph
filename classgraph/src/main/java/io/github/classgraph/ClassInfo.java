@@ -84,8 +84,8 @@ import org.jspecify.annotations.Nullable;
  * {@link #toString()} does not apply that filter: it renders the class declaration as it would be written in Java
  * source, so it names every supertype and every annotation that the classfile declares, external or not. Filtering
  * them would leave a class that extends {@code java.util.ArrayList} rendered as {@code class com.xyz.MyList},
- * reading as though it extended {@link Object}. Call {@link #getSuperclass()}, {@link #getInterfaces()} and
- * {@link #getDirectAnnotations()} for the filtered view.
+ * reading as though it extended {@link Object}. Call {@link #getSuperclass()}, {@link #getDirectSuperinterfaces()}
+ * and {@link #getDirectAnnotations()} for the filtered view.
  */
 public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>, HasName, HasAnnotations {
     /** The name of the class. */
