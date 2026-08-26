@@ -115,4 +115,45 @@ public class ClassLoaderDelegationOrderTest {
         }
     }
 
+    /**
+     * A classloader that declares itself equal to another classloader still contributes its own classpath entries.
+     * Two classloaders that are equal are still two classloaders, and TomEE really does make an instance of one
+     * classloader class equal to the instance of another that it delegates to (#515).
+     */
+    static class EqualToEveryOtherClassLoader extends URLClassLoader {
+        EqualToEveryOtherClassLoader(final URL[] urls, final ClassLoader parent) {
+            super(urls, parent);
+        }
+
+        @Override
+        public boolean equals(final Object other) {
+            return other instanceof EqualToEveryOtherClassLoader;
+        }
+
+        @Override
+        public int hashCode() {
+            return 0;
+        }
+    }
+
+    /**
+     * A classloader that is equal to another classloader is not the same classloader, so both are searched, and the
+     * classpath entries of both are found.
+     *
+     * @param tempDir
+     *            a temporary directory to create the classpath elements in
+     * @throws IOException
+     *             if the classpath elements could not be created
+     */
+    @Test
+    public void aClassLoaderThatIsEqualToAnotherIsStillSearched(@TempDir final Path tempDir) throws IOException {
+        final var parentDir = Files.createDirectory(tempDir.resolve("parent"));
+        final var childDir = Files.createDirectory(tempDir.resolve("child"));
+        try (var parent = new EqualToEveryOtherClassLoader(new URL[] { parentDir.toUri().toURL() },
+                /* parent = */ null);
+                var child = new EqualToEveryOtherClassLoader(new URL[] { childDir.toUri().toURL() }, parent);
+                var classpath = new ClasspathFinder().enableClassLoaders(child).find()) {
+            assertThat(classpath.getLocations()).containsExactly(location(parentDir), location(childDir));
+        }
+    }
 }

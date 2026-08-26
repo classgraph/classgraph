@@ -31,7 +31,6 @@ package io.github.classgraph.classpath.internal;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.IdentityHashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -53,8 +52,14 @@ public class ClassLoaderOrderBuilder implements ClassLoaderOrder {
      */
     private final List<ClassLoaderHandlerRegistryEntry> userClassLoaderHandlers;
 
-    /** The {@link ClassLoader} order. */
-    private final Map<ClassLoader, List<ClassLoaderHandlerRegistryEntry>> classLoaderOrder = new LinkedHashMap<>();
+    /**
+     * The {@link ClassLoader} order, with the handlers to run for each classloader. This is a list rather than a
+     * map keyed by classloader, because two classloaders that are equal are still two classloaders, and a map would
+     * keep only one of them (see the note on {@link #added}). Nothing is added twice, since {@link #added} guards
+     * that.
+     */
+    private final List<Entry<ClassLoader, List<ClassLoaderHandlerRegistryEntry>>> classLoaderOrder = //
+            new ArrayList<>();
 
     /**
      * The set of all {@link ClassLoader} instances that have been added to the order so far, so that classloaders
@@ -105,7 +110,7 @@ public class ClassLoaderOrderBuilder implements ClassLoaderOrder {
      *         {@link ClassLoaderHandlerRegistryEntry}.
      */
     public List<Entry<ClassLoader, List<ClassLoaderHandlerRegistryEntry>>> getClassLoaderOrder() {
-        return new ArrayList<>(classLoaderOrder.entrySet());
+        return new ArrayList<>(classLoaderOrder);
     }
 
     /**
@@ -247,7 +252,7 @@ public class ClassLoaderOrderBuilder implements ClassLoaderOrder {
             return;
         }
         if (added.add(classLoader)) {
-            classLoaderOrder.put(classLoader, getClassLoaderHandlerRegistryEntries(classLoader, log));
+            classLoaderOrder.add(Map.entry(classLoader, getClassLoaderHandlerRegistryEntries(classLoader, log)));
         }
     }
 
