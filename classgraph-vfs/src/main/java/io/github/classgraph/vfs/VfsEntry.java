@@ -48,11 +48,12 @@ import org.jspecify.annotations.Nullable;
  * One file within a {@link VfsRoot}: a file in a directory tree, an entry of a jarfile, or a resource in a module.
  *
  * <p>
- * An entry is stateless, and can be read any number of times, from any number of threads at once. The five read
- * methods differ only in what they hand back: {@link #open()} and {@link #openChannel()} stream the content,
+ * An entry is stateless, and can be read any number of times, from any number of threads at once. The read methods
+ * differ only in what they hand back: {@link #open()} and {@link #openChannel()} stream the content,
  * {@link #read()} maps or wraps it as a {@link java.nio.ByteBuffer}, {@link #load()} copies it into a byte array,
- * and {@link #loadAsString()} decodes that array as UTF-8. The first three return something the caller owns and
- * must close; the last two are self-contained.
+ * and {@link #loadAsString()} decodes that array as UTF-8, or in the charset given to
+ * {@link #loadAsString(Charset)}. The first three return something the caller owns and must close; the rest are
+ * self-contained.
  *
  * <p>
  * Everything an entry hands out stops working once the {@link Vfs} that produced it is closed.
@@ -176,8 +177,8 @@ public abstract class VfsEntry {
     /**
      * Returns the number of bytes of content this entry has, once decompressed.
      *
-     * @return the length in bytes, or -1 if the length is not known without reading the entry, which is the case
-     *         for a module resource.
+     * @return the length in bytes, or -1 if the length is not known: a module resource does not know its length
+     *         without being read, and a file whose size could not be read from the filesystem has none to report.
      */
     public abstract long getLength();
 
