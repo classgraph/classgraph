@@ -127,7 +127,8 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
      * @param lastModifiedDateMSDOS
      *            The last modified date, in MSDOS format, if lastModifiedMillis is 0L.
      * @param fileAttributes
-     *            The POSIX file attribute bits from the zip entry.
+     *            The high 16 bits of the external file attributes of the zip entry, which is the Unix mode of the
+     *            entry if the zipfile was written on a Unix-like system, or 0 if it was not.
      * @param enableMultiReleaseVersions
      *            If true, leave multi-release entry names unchanged, so that every version of an entry is reported
      *            separately; if false, strip any "META-INF/versions/{versionInt}/" prefix from the entry name, so
