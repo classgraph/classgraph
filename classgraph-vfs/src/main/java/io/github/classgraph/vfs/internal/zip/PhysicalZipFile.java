@@ -121,7 +121,7 @@ class PhysicalZipFile {
         // it fails, the InputStream will be spilled to disk, resulting in a PathSlice over the temporary file.
         this.slice = Slice.fromInputStream(inputStream, /* tempFileBaseName = */ pathStr, inputStreamLengthHint,
                 session, log);
-        this.file = this.slice instanceof final PathSlice pathSlice ? pathSlice.path.toFile() : null;
+        this.file = this.slice instanceof final PathSlice pathSlice ? pathSlice.getFile() : null;
     }
 
     /**

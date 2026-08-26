@@ -30,12 +30,14 @@ package io.github.classgraph.vfs.internal.slice;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.github.classgraph.base.LogNode;
@@ -48,8 +50,17 @@ import org.jspecify.annotations.Nullable;
 
 /** A {@link Path} slice. */
 public final class PathSlice extends Slice {
-    /** The {@link Path}. */
-    public final Path path;
+    /**
+     * The {@link Path} of the file, or null if this slice was opened from a {@link File} whose path cannot be
+     * represented as a {@link Path} on the default filesystem.
+     */
+    private final @Nullable Path path;
+
+    /** The {@link File} of the file, or null if this slice was opened from a {@link Path}. */
+    private final @Nullable File file;
+
+    /** The path of the file, as it was given, for use in log and exception messages. */
+    private final String pathStr;
 
     /** The file length. */
     private final long fileLength;
@@ -94,9 +105,27 @@ public final class PathSlice extends Slice {
         // the use
         final var channel = topLevelPathSlice.fileChannel;
         if (channel == null) {
-            throw new IOException("Cannot read " + path + " after the Vfs has been closed");
+            throw new IOException("Cannot read " + pathStr + " after the Vfs has been closed");
         }
         return channel;
+    }
+
+    /**
+     * Get the {@link File} that this slice reads.
+     *
+     * @return the {@link File} that this slice reads, or null if this slice reads a {@link Path} in a filesystem
+     *         that has no {@link File} view of its files.
+     */
+    public @Nullable File getFile() {
+        if (file != null) {
+            return file;
+        }
+        try {
+            return path == null ? null : path.toFile();
+        } catch (final UnsupportedOperationException e) {
+            // The filesystem supports the Path API but not the File API
+            return null;
+        }
     }
 
     /**
@@ -121,6 +150,8 @@ public final class PathSlice extends Slice {
         super(parentSlice, offset, length, isDeflatedZipEntry, inflatedLengthHint, session);
 
         this.path = parentSlice.path;
+        this.file = parentSlice.file;
+        this.pathStr = parentSlice.pathStr;
         this.fileLength = parentSlice.fileLength;
         this.topLevelPathSlice = parentSlice.topLevelPathSlice;
 
@@ -131,6 +162,85 @@ public final class PathSlice extends Slice {
         // reading memory that is no longer there. The mapping always covers the whole file, and is addressed in
         // whole-file coordinates by way of sliceStartPos, in a sub slice as much as in the toplevel slice. A sub
         // slice is therefore not registered with the session as open: it holds nothing of its own to release.
+    }
+
+    /**
+     * Constructor for toplevel file slice. Exactly one of {@code path} and {@code file} is non-null.
+     *
+     * @param path
+     *            the path, or null if the file is only reachable through the {@link File} API
+     * @param file
+     *            the file, or null if the file is reachable through the {@link Path} API
+     * @param pathStr
+     *            the path of the file, as it was given, for use in log and exception messages
+     * @param session
+     *            the session that owns what is opened
+     * @param checkAccess
+     *            whether it is needed to check read access and if it is a file
+     * @param memoryMapWholeFile
+     *            if true, and files are memory-mapped on this platform, memory-map the whole file. Only pass true
+     *            for a file that is read many times at random offsets, such as a zipfile -- for a file that is read
+     *            once and then closed, mapping and unmapping the file costs more than reading it.
+     * @param log
+     *            the log node, or null to skip logging
+     * @throws IOException
+     *             if the file cannot be opened.
+     */
+    private PathSlice(final @Nullable Path path, final @Nullable File file, final String pathStr,
+            final VfsSession session, final boolean checkAccess, final boolean memoryMapWholeFile,
+            final @Nullable LogNode log) throws IOException {
+        super(0L, /* isDeflatedZipEntry = */ false, /* inflatedLengthHint = */ 0L, session);
+
+        this.path = path;
+        this.file = file;
+        this.pathStr = pathStr;
+        // Set before the file is opened, since it is what tells close() that this slice owns the file channel
+        this.topLevelPathSlice = this;
+
+        final FileChannel fileChannelOpened;
+        if (path != null) {
+            if (checkAccess) {
+                // Make sure the file is readable and is a regular file
+                FileUtils.checkCanReadAndIsFile(path);
+            }
+            fileChannelOpened = FileChannel.open(path, StandardOpenOption.READ);
+        } else {
+            // The file's path cannot be represented as a Path on the default filesystem, so the channel has to be
+            // opened through the File API instead. (Closing the channel closes the RandomAccessFile with it, as
+            // RandomAccessFile#getChannel specifies, so close() does not have to hold on to it. This channel is
+            // opened without FILE_SHARE_DELETE on Windows, unlike the channel that FileChannel#open returns, so
+            // while it is open the file cannot be deleted there.)
+            final var fileToOpen = Objects.requireNonNull(file);
+            if (checkAccess) {
+                // Make sure the file is readable and is a regular file
+                FileUtils.checkCanReadAndIsFile(fileToOpen);
+            }
+            fileChannelOpened = new RandomAccessFile(fileToOpen, "r").getChannel();
+        }
+        this.fileChannel = fileChannelOpened;
+        // Nothing but this constructor knows about the file channel until the slice is registered as open, so if
+        // anything below throws, this is the only place the channel can be closed
+        try {
+            this.fileLength = fileChannelOpened.size();
+
+            // Had to use 0L for sliceLength in call to super, since FileChannel wasn't open yet => update
+            // sliceLength
+            this.sliceLength = fileLength;
+
+            if (memoryMapWholeFile && session.vfsSpec.isMemoryMappingFiles()) {
+                // Memory-map the whole file, if it can be mapped -- otherwise fall through and read through the
+                // FileChannel API instead
+                final var mapping = FileMapping.map(fileChannelOpened, fileLength, pathStr, log);
+                fileMapping = mapping;
+                backingByteBuffer = mapping == null ? null : mapping.byteBuffer;
+            }
+
+            // Mark toplevel slice as open
+            registerAsOpen();
+        } catch (final IOException | RuntimeException | Error e) {
+            close();
+            throw e;
+        }
     }
 
     /**
@@ -153,59 +263,23 @@ public final class PathSlice extends Slice {
      */
     public PathSlice(final Path path, final VfsSession session, final boolean checkAccess,
             final boolean memoryMapWholeFile, final @Nullable LogNode log) throws IOException {
-        super(0L, /* isDeflatedZipEntry = */ false, /* inflatedLengthHint = */ 0L, session);
-
-        if (checkAccess) {
-            // Make sure the File is readable and is a regular file
-            FileUtils.checkCanReadAndIsFile(path);
-        }
-
-        this.path = path;
-        // Set before the file is opened, since it is what tells close() that this slice owns the file channel
-        this.topLevelPathSlice = this;
-
-        final var fileChannelOpened = FileChannel.open(path, StandardOpenOption.READ);
-        this.fileChannel = fileChannelOpened;
-        // Nothing but this constructor knows about the file channel until the slice is registered as open, so if
-        // anything below throws, this is the only place the channel can be closed
-        try {
-            this.fileLength = fileChannelOpened.size();
-
-            // Had to use 0L for sliceLength in call to super, since FileChannel wasn't open yet => update
-            // sliceLength
-            this.sliceLength = fileLength;
-
-            if (memoryMapWholeFile && session.vfsSpec.isMemoryMappingFiles()) {
-                // Memory-map the whole file, if it can be mapped -- otherwise fall through and read through the
-                // FileChannel API instead
-                final var mapping = FileMapping.map(fileChannelOpened, fileLength, path, log);
-                fileMapping = mapping;
-                backingByteBuffer = mapping == null ? null : mapping.byteBuffer;
-            }
-
-            // Mark toplevel slice as open
-            registerAsOpen();
-        } catch (final IOException | RuntimeException | Error e) {
-            close();
-            throw e;
-        }
+        this(path, /* file = */ null, path.toString(), session, checkAccess, memoryMapWholeFile, log);
     }
 
     /**
-     * Convert a {@link File} to a {@link Path} on the default filesystem.
+     * Get the {@link Path} for a {@link File} on the default filesystem.
      *
      * @param file
      *            the file
-     * @return the {@link Path} for the file
-     * @throws IOException
-     *             if the file's path cannot be represented as a {@link Path} on the default filesystem (on Windows,
-     *             a filename can contain characters that a {@link Path} does not accept)
+     * @return the {@link Path} for the file, or null if the file's path cannot be represented as a {@link Path}. On
+     *         Windows a filename can contain characters that {@link Path} rejects -- the name of an NTFS alternate
+     *         data stream, say -- and such a file can only be opened through the {@link File} API.
      */
-    private static Path toPath(final File file) throws IOException {
+    private static @Nullable Path pathOrNull(final File file) {
         try {
             return file.toPath();
         } catch (final InvalidPathException e) {
-            throw new IOException("Not a valid path for the default filesystem: " + file, e);
+            return null;
         }
     }
 
@@ -219,10 +293,11 @@ public final class PathSlice extends Slice {
      * @param log
      *            the log node, or null to skip logging
      * @throws IOException
-     *             if the file cannot be opened, or its path is not valid for the default filesystem.
+     *             if the file cannot be opened.
      */
     public PathSlice(final File file, final VfsSession session, final @Nullable LogNode log) throws IOException {
-        this(toPath(file), session, log);
+        this(pathOrNull(file), file, file.toString(), session, /* checkAccess = */ true,
+                /* memoryMapWholeFile = */ true, log);
     }
 
     /**
@@ -340,7 +415,7 @@ public final class PathSlice extends Slice {
             return super.acquireMappingView();
         }
         if (!mapping.acquireView()) {
-            throw new IOException("Cannot read " + path + " after the Vfs has been closed");
+            throw new IOException("Cannot read " + pathStr + " after the Vfs has been closed");
         }
         return mapping::releaseView;
     }

@@ -4,13 +4,18 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
+import java.io.File;
 import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.lang.ref.WeakReference;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
 
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
@@ -440,6 +445,53 @@ public class PathSliceTest {
                 /* log = */ null);
         try {
             assertThat(slice.read().isDirect()).isFalse();
+            assertThat(slice.load()).isEqualTo(CONTENT);
+        } finally {
+            slice.close();
+        }
+    }
+
+    /** A slice can be opened from a {@link File} as well as from a {@link Path}, and reads the same content. */
+    @Test
+    public void aSliceCanBeOpenedFromAFile(@TempDir final Path tempDir) throws IOException {
+        final var file = writeTestFile(tempDir).toFile();
+        final var session = session(/* memoryMapFiles = */ true);
+        final var slice = new PathSlice(file, session, /* log = */ null);
+        try {
+            assertThat(slice.getFile()).isEqualTo(file);
+            assertThat(slice.load()).isEqualTo(CONTENT);
+        } finally {
+            slice.close();
+        }
+    }
+
+    /**
+     * A file whose path cannot be represented as a {@link Path} is still opened, through the {@link File} API. The
+     * only such file that can be created is an NTFS alternate data stream, whose name contains a ':', which
+     * {@link Path} rejects on Windows.
+     *
+     * @param tempDir
+     *            a temporary directory
+     * @throws IOException
+     *             if the file could not be written or opened
+     */
+    @Test
+    @EnabledOnOs(OS.WINDOWS)
+    public void aFileThatIsNotAValidPathIsOpenedThroughTheFileApi(@TempDir final Path tempDir) throws IOException {
+        // Write the content to an alternate data stream of a host file
+        final var hostFile = tempDir.resolve("host.dat");
+        Files.write(hostFile, new byte[0]);
+        final var streamFile = new File(hostFile + ":content.bin");
+        try (var raf = new RandomAccessFile(streamFile, "rw")) {
+            raf.write(CONTENT);
+        }
+        // The stream's name is not a valid Path, which is what sends PathSlice down the File API
+        assertThatThrownBy(streamFile::toPath).isInstanceOf(InvalidPathException.class);
+
+        final var session = session(/* memoryMapFiles = */ true);
+        final var slice = new PathSlice(streamFile, session, /* log = */ null);
+        try {
+            assertThat(slice.getFile()).isEqualTo(streamFile);
             assertThat(slice.load()).isEqualTo(CONTENT);
         } finally {
             slice.close();
