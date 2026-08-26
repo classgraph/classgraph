@@ -475,12 +475,13 @@ public final class PathSyntax {
         var leafStartIdx = 1 + (File.separatorChar == '/' ? path.lastIndexOf('/', endIdx)
                 : Math.max(path.lastIndexOf('/', endIdx), path.lastIndexOf(File.separatorChar, endIdx)));
         // In case of temp files (for jars extracted from within jars), remove the temp filename prefix -- see
-        // VfsSession.makeTempFile()
-        var tempSepIdx = path.indexOf(TEMP_FILENAME_LEAF_SEPARATOR);
-        if (tempSepIdx >= 0) {
-            tempSepIdx += TEMP_FILENAME_LEAF_SEPARATOR.length();
+        // VfsSession.makeTempFile(). The separator is only looked for within the leafname itself: searching the
+        // whole path found a "---" in a directory name or in a path nested within the jar, which left the leafname
+        // truncated or empty, so the jar matched no accept or reject criterion and was silently skipped
+        final var tempSepIdx = path.indexOf(TEMP_FILENAME_LEAF_SEPARATOR, leafStartIdx);
+        if (tempSepIdx >= 0 && tempSepIdx + TEMP_FILENAME_LEAF_SEPARATOR.length() <= endIdx) {
+            leafStartIdx = tempSepIdx + TEMP_FILENAME_LEAF_SEPARATOR.length();
         }
-        leafStartIdx = Math.max(leafStartIdx, tempSepIdx);
         leafStartIdx = Math.min(leafStartIdx, endIdx);
         return path.substring(leafStartIdx, endIdx);
     }
