@@ -494,7 +494,7 @@ class ClasspathElementDir extends ClasspathElement {
             // does not find it again
             return URLPaths.moveUNCServerIntoPath(classpathEltPath.toUri());
         } catch (IOError | SecurityException e) {
-            throw new IllegalStateException("Could not convert to URI: " + classpathEltPath);
+            throw new IllegalStateException("Could not convert to URI: " + classpathEltPath, e);
         }
     }
 
