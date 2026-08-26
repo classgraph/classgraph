@@ -63,34 +63,45 @@ public final class ModulePathInfo {
     /** The module {@code reads} directives added by the {@code --add-reads} switch. */
     private final Set<String> addReads = new LinkedHashSet<>();
 
-    /** The fields. */
-    private final List<Set<String>> fields = List.of( //
-            modulePath, //
-            addModules, //
-            patchModules, //
-            addExports, //
-            addOpens, //
-            addReads //
-    );
+    /**
+     * One module path commandline switch, and the values read for it.
+     *
+     * @param argSwitch
+     *            the switch, including its trailing {@code '='}. The JVM normalizes the other spellings of a switch
+     *            into this one before it reports its own commandline: {@code -p dir} and {@code --module-path dir}
+     *            are both reported as {@code --module-path=dir}, so only this spelling has to be recognized.
+     * @param argPartSeparatorChar
+     *            the character that separates the values of one occurrence of the switch, or {@code '\0'} if the
+     *            switch takes a single value and has to be repeated to give more than one.
+     * @param values
+     *            the values read for the switch, in the order they were listed on the commandline.
+     */
+    private record ModulePathSwitch(String argSwitch, char argPartSeparatorChar, Set<String> values) {
+        /**
+         * Add the value of one occurrence of this switch, splitting it into parts if the switch takes several
+         * values at once.
+         *
+         * @param argParam
+         *            the text that followed the switch.
+         */
+        private void addArgParam(final String argParam) {
+            if (argPartSeparatorChar == '\0') {
+                values.add(argParam);
+            } else {
+                values.addAll(
+                        Arrays.asList(PathList.split(argParam, argPartSeparatorChar, /* classpathSpec = */ null)));
+            }
+        }
+    }
 
-    /** The module path commandline switches. */
-    private static final List<String> argSwitches = List.of( //
-            "--module-path=", //
-            "--add-modules=", //
-            "--patch-module=", //
-            "--add-exports=", //
-            "--add-opens=", //
-            "--add-reads=" //
-    );
-
-    /** The module path commandline switch value delimiters. */
-    private static final List<Character> argPartSeparatorChars = List.of( //
-            File.pathSeparatorChar, // --module-path (delimited path format)
-            ',', // --add-modules (comma-delimited)
-            '\0', // --patch-module (only one param per switch)
-            '\0', // --add-exports (only one param per switch)
-            '\0', // --add-opens (only one param per switch)
-            '\0' // --add-reads (only one param per switch)
+    /** The module path commandline switches, each paired with the values read for it. */
+    private final List<ModulePathSwitch> modulePathSwitches = List.of( //
+            new ModulePathSwitch("--module-path=", File.pathSeparatorChar, modulePath), //
+            new ModulePathSwitch("--add-modules=", ',', addModules), //
+            new ModulePathSwitch("--patch-module=", '\0', patchModules), //
+            new ModulePathSwitch("--add-exports=", '\0', addExports), //
+            new ModulePathSwitch("--add-opens=", '\0', addOpens), //
+            new ModulePathSwitch("--add-reads=", '\0', addReads) //
     );
 
     /** Set to true once the commandline arguments have been read. */
@@ -250,20 +261,9 @@ public final class ModulePathInfo {
                             "getInputArguments");
             if (commandlineArguments != null) {
                 for (final String arg : commandlineArguments) {
-                    for (var i = 0; i < fields.size(); i++) {
-                        final var argSwitch = argSwitches.get(i);
-                        if (arg.startsWith(argSwitch)) {
-                            final var argParam = arg.substring(argSwitch.length());
-                            final var argField = fields.get(i);
-                            final char sepChar = argPartSeparatorChars.get(i);
-                            if (sepChar == '\0') {
-                                // Only one param per switch
-                                argField.add(argParam);
-                            } else {
-                                // Split arg param into parts
-                                argField.addAll(Arrays
-                                        .asList(PathList.split(argParam, sepChar, /* classpathSpec = */ null)));
-                            }
+                    for (final ModulePathSwitch modulePathSwitch : modulePathSwitches) {
+                        if (arg.startsWith(modulePathSwitch.argSwitch())) {
+                            modulePathSwitch.addArgParam(arg.substring(modulePathSwitch.argSwitch().length()));
                         }
                     }
                 }
@@ -285,44 +285,26 @@ public final class ModulePathInfo {
     public synchronized String toString() {
         readCommandLineArguments();
         final StringBuilder buf = new StringBuilder(1024);
-        if (!modulePath.isEmpty()) {
-            buf.append("--module-path=");
-            buf.append(StringUtils.join(File.pathSeparator, modulePath));
-        }
-        if (!addModules.isEmpty()) {
-            if (!buf.isEmpty()) {
-                buf.append(' ');
+        for (final ModulePathSwitch modulePathSwitch : modulePathSwitches) {
+            final var values = modulePathSwitch.values();
+            if (values.isEmpty()) {
+                continue;
             }
-            buf.append("--add-modules=");
-            buf.append(StringUtils.join(",", addModules));
-        }
-        for (final String patchModulesEntry : patchModules) {
-            if (!buf.isEmpty()) {
-                buf.append(' ');
+            if (modulePathSwitch.argPartSeparatorChar() == '\0') {
+                // The switch takes a single value, so it is repeated once per value
+                for (final String value : values) {
+                    if (!buf.isEmpty()) {
+                        buf.append(' ');
+                    }
+                    buf.append(modulePathSwitch.argSwitch()).append(value);
+                }
+            } else {
+                if (!buf.isEmpty()) {
+                    buf.append(' ');
+                }
+                buf.append(modulePathSwitch.argSwitch())
+                        .append(StringUtils.join(String.valueOf(modulePathSwitch.argPartSeparatorChar()), values));
             }
-            buf.append("--patch-module=");
-            buf.append(patchModulesEntry);
-        }
-        for (final String addExportsEntry : addExports) {
-            if (!buf.isEmpty()) {
-                buf.append(' ');
-            }
-            buf.append("--add-exports=");
-            buf.append(addExportsEntry);
-        }
-        for (final String addOpensEntry : addOpens) {
-            if (!buf.isEmpty()) {
-                buf.append(' ');
-            }
-            buf.append("--add-opens=");
-            buf.append(addOpensEntry);
-        }
-        for (final String addReadsEntry : addReads) {
-            if (!buf.isEmpty()) {
-                buf.append(' ');
-            }
-            buf.append("--add-reads=");
-            buf.append(addReadsEntry);
         }
         return buf.toString();
     }
