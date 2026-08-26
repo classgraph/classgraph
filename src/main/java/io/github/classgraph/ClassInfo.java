@@ -3844,6 +3844,48 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Append the record components of this class to a buffer, in the form {@code "(int x, String name)"}. Does
+     * nothing if this class is not a record.
+     *
+     * <p>
+     * The record components are the instance fields of the record, in declaration order. (A record may also declare
+     * static fields, which are not components.) If field info was not enabled during the scan, or the component
+     * fields were not visible to the scan, then no component is known, and the whole component list is omitted
+     * rather than rendered empty, since an empty list would wrongly state that the record has no components.
+     *
+     * @param useSimpleNames
+     *            if true, strip package and outer class names from class names
+     * @param buf
+     *            the buffer to append to
+     */
+    private void appendRecordComponents(final boolean useSimpleNames, final StringBuilder buf) {
+        final FieldInfoList fields = fieldInfo;
+        if (!isRecord || fields == null) {
+            return;
+        }
+        final int componentListStartPos = buf.length();
+        buf.append('(');
+        boolean isFirstComponent = true;
+        for (final FieldInfo field : fields) {
+            if (field.isStatic()) {
+                continue;
+            }
+            if (isFirstComponent) {
+                isFirstComponent = false;
+            } else {
+                buf.append(", ");
+            }
+            field.toString(/* useModifiers = */ false, useSimpleNames, buf);
+        }
+        if (isFirstComponent) {
+            // No component was rendered -- drop the component list rather than rendering "()"
+            buf.setLength(componentListStartPos);
+        } else {
+            buf.append(')');
+        }
+    }
+
+    /**
      * To string.
      *
      * @param useSimpleNames
@@ -3897,20 +3939,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                                     : isInterface() ? "interface " //
                                             : "class ");
             buf.append(useSimpleNames ? ClassInfo.getSimpleName(name) : name);
-            if (isRecord) {
-                // Add params, if this is a record class
-                buf.append('(');
-                boolean isFirstParam = true;
-                for (final FieldInfo fieldInfo : getFieldInfo()) {
-                    if (!isFirstParam) {
-                        buf.append(", ");
-                    } else {
-                        isFirstParam = false;
-                    }
-                    fieldInfo.toString(/* useModifiers = */ false, useSimpleNames, buf);
-                }
-                buf.append(')');
-            }
+            appendRecordComponents(useSimpleNames, buf);
             final ClassInfo superclass = getSuperclass();
             if (superclass != null && !superclass.getName().equals("java.lang.Object")) {
                 buf.append(" extends ");
