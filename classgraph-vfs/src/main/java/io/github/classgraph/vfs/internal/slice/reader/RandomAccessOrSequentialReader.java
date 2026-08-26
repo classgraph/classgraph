@@ -250,6 +250,10 @@ public class RandomAccessOrSequentialReader implements RandomAccessReader, Seque
             return -1;
         }
         try {
+            // Open the limit up to the capacity before positioning, since the destination buffer may still carry
+            // the limit that a previous read left on it, and positioning past a stale limit throws
+            // IllegalArgumentException
+            dstBuf.limit(dstBuf.capacity());
             dstBuf.position(dstBufStart);
             dstBuf.limit(dstBufStart + numBytesToRead);
             dstBuf.put(arr, idx, numBytesToRead);

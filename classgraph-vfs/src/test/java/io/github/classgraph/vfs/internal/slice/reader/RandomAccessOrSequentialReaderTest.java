@@ -369,6 +369,30 @@ public class RandomAccessOrSequentialReaderTest {
     }
 
     /**
+     * A read leaves the destination buffer's limit where it stopped, so a later read into the same buffer has to
+     * open the limit up again before positioning. Positioning past a stale limit threw
+     * {@link IllegalArgumentException} rather than reading, which is what the other {@link RandomAccessReader}
+     * implementations do not do.
+     *
+     * @param source
+     *            the kind of classpath element to read from
+     * @throws IOException
+     *             if the content could not be read
+     */
+    @ParameterizedTest
+    @EnumSource(Source.class)
+    public void aLaterReadCanStartPastWhereThePreviousReadEnded(final Source source) throws IOException {
+        try (var reader = reader(source, PATTERN)) {
+            final var dstBuf = ByteBuffer.allocate(PATTERN.length);
+            assertThat(reader.read(0, dstBuf, 0, 2)).isEqualTo(2);
+            // Leave a gap in the destination, so this read starts past where the previous read ended
+            assertThat(reader.read(6, dstBuf, 6, 2)).isEqualTo(2);
+            assertThat(dstBuf.array()).containsExactly(0x01, 0x23, 0x00, 0x00, 0x00, 0x00, (byte) 0xCD,
+                    (byte) 0xEF);
+        }
+    }
+
+    /**
      * An offset that is out of range is rejected, rather than being silently narrowed to an int, or added to the
      * number of bytes to read to give a sum that wraps negative -- either of which would turn a read from outside
      * the content into one that looks like it is already buffered. Offsets are read out of the content itself (a
