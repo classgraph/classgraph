@@ -125,6 +125,11 @@ public abstract class VfsRoot implements Iterable<VfsEntry> {
      * A directory or jarfile is named by its canonical path, which is not always the path the root was opened from:
      * a symlink, or, on Windows, an 8.3 short name, reaches the same directory or jarfile under another name.
      *
+     * <p>
+     * A directory of some filesystem other than the one the process was started in -- one of a mounted zipfile, say
+     * -- is named by its URI resolved to a path, since the string form of such a path names nothing outside its own
+     * filesystem: a directory of a mounted zipfile is called {@code "/dir"} there, whatever jarfile it is in.
+     *
      * @return the path of the root.
      */
     public abstract String getPath();
@@ -396,11 +401,10 @@ public abstract class VfsRoot implements Iterable<VfsEntry> {
      *
      * <p>
      * Null does not distinguish between the reasons for it: for a directory, the name may not exist, may name a
-     * directory rather than a file, may name a file that the process has no permission to read, or may point
-     * outside the root once {@code ".."} sections are resolved; for a jarfile or a module, the name may not exist,
-     * or may be an entry that this root does not report (an encrypted entry, an entry stored with an unsupported
-     * compression method, or an entry hidden by a newer multi-release version of itself). Test for the file
-     * directly if the difference matters.
+     * directory rather than a file, or may name a file that the process has no permission to read; for a jarfile or
+     * a module, the name may not exist, or may be an entry that this root does not report (an encrypted entry, an
+     * entry stored with an unsupported compression method, or an entry hidden by a newer multi-release version of
+     * itself). Test for the file directly if the difference matters.
      *
      * <p>
      * A directory that is walked with {@link #walk(VfsVisitor)} or listed with {@link #getEntries()} does report an
@@ -418,6 +422,12 @@ public abstract class VfsRoot implements Iterable<VfsEntry> {
      * file through a symbolic link is the one exception: following the link changes the path by more than the case
      * of its characters, which is the only thing that tells a folded name from a followed link, so on a
      * case-insensitive filesystem such a name can still be found in a case it is not stored in.
+     *
+     * <p>
+     * The name also has to be written the way the entries of a root are named -- relative to the package root, with
+     * {@code '/'} as the separator and no leading {@code '/'} -- so a name with a {@code "."} or {@code ".."}
+     * section in it, a repeated separator, or, on Windows, the platform separator, is not found, even for a
+     * directory root, whose filesystem would resolve all of those to a file.
      *
      * @param name
      *            the name of the entry, relative to the package root, e.g. {@code "com/xyz/Widget.class"}.

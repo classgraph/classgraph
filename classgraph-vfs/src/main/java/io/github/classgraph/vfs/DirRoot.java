@@ -43,7 +43,6 @@ import java.util.List;
 import java.util.Set;
 
 import io.github.classgraph.base.LogNode;
-import io.github.classgraph.base.internal.path.FastPathResolver;
 import io.github.classgraph.base.internal.path.FileUtils;
 import io.github.classgraph.base.internal.path.URLPaths;
 import io.github.classgraph.base.internal.utils.CollectionUtils;
@@ -54,7 +53,7 @@ final class DirRoot extends VfsRoot {
     /** The directory, canonicalized. */
     private final Path dir;
 
-    /** The path of the directory, with {@code '/'} as the separator. */
+    /** The path of the directory, with {@code '/'} as the separator, as reported by {@link #getPath()}. */
     private final String pathStr;
 
     /** The entries under the directory, or null until {@link #getEntries()} is first called. */
@@ -91,7 +90,11 @@ final class DirRoot extends VfsRoot {
             // than failing to open a directory that can be read perfectly well
         }
         this.dir = absoluteDir;
-        this.pathStr = FastPathResolver.resolve(FileUtils.currDirPath(), this.dir.toString());
+        try {
+            this.pathStr = FileUtils.pathStr(this.dir);
+        } catch (final IOError | SecurityException e) {
+            throw new IOException("Could not form URI for " + this.dir + " : " + e, e);
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------

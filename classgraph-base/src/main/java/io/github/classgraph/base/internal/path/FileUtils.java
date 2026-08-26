@@ -32,6 +32,7 @@ import io.github.classgraph.base.internal.utils.VersionFinder;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
@@ -65,6 +66,27 @@ public final class FileUtils {
     }
 
     // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * The path of a file, in the form ClassGraph names files by: for a file of the filesystem the process was
+     * started in, the path with {@code '/'} as the separator; for a file of any other filesystem, the URI of the
+     * file resolved to a path, since the string form of such a path names nothing outside its own filesystem -- a
+     * directory of a mounted zipfile is called {@code "/dir"} there, whatever jarfile it is in, whereas resolving
+     * its URI yields the {@code "the-jarfile.jar!/dir"} form that a package root within a jarfile is named by.
+     *
+     * @param path
+     *            A {@link Path}.
+     * @return the path, as a string.
+     * @throws java.io.IOError
+     *             if the URI of a file of another filesystem could not be formed.
+     * @throws SecurityException
+     *             if the URI of a file of another filesystem could not be read.
+     */
+    public static String pathStr(final Path path) {
+        return path.getFileSystem() == FileSystems.getDefault()
+                ? FastPathResolver.resolve(currDirPath(), path.toString())
+                : FastPathResolver.resolve(path.toUri().toString());
+    }
 
     /**
      * Get the current directory (only looks at the current directory the first time it is called, then caches this

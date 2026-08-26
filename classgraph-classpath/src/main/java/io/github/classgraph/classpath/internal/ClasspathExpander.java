@@ -291,10 +291,7 @@ public final class ClasspathExpander {
         final var nioPath = root.getNioPath();
         // A root reports the path of the file it is physically stored in, which is the classpath element itself only
         // when the classpath element is that whole file
-        return nioPath != null
-                && root.getPath().equals(FastPathResolver.resolve(FileUtils.currDirPath(), nioPath.toString()))
-                        ? nioPath
-                        : null;
+        return nioPath != null && root.getPath().equals(FileUtils.pathStr(nioPath)) ? nioPath : null;
     }
 
     /**

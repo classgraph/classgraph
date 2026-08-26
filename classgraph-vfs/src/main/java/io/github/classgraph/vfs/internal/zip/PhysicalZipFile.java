@@ -93,7 +93,7 @@ class PhysicalZipFile {
      */
     PhysicalZipFile(final Path path, final VfsSession session, final @Nullable LogNode log) throws IOException {
         this.path = path;
-        this.pathStr = FastPathResolver.resolve(FileUtils.currDirPath(), path.toString());
+        this.pathStr = FileUtils.pathStr(path);
         this.slice = new PathSlice(path, session, log);
     }
 

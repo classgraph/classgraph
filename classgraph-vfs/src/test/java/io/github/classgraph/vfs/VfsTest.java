@@ -15,6 +15,7 @@ import java.lang.module.ModuleFinder;
 import java.lang.module.ModuleReference;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermission;
@@ -819,6 +820,28 @@ public class VfsTest {
             assertThat(root.getEntries()).extracting(VfsEntry::getName).containsExactly("com/xyz/widget.txt");
             assertThat(entryContent(root, "com/xyz/widget.txt")).isEqualTo(RESOURCE_CONTENT);
             assertThat(vfs.open(dir)).isSameAs(root);
+            // The path of the directory in its own filesystem is "/classes", which names nothing outside that
+            // filesystem, so the root is named by its URI instead
+            assertThat(root.getPath()).startsWith("jimfs://").endsWith("/classes");
+        }
+    }
+
+    /**
+     * A directory of a mounted zipfile is named the way a package root within a jarfile is named everywhere else in
+     * ClassGraph: the path of the jarfile, {@code "!/"}, and the path of the directory within it.
+     */
+    @Test
+    public void aDirectoryInAMountedZipfileIsNamedByTheJarfileItIsIn(@TempDir final File tempDir)
+            throws IOException {
+        final var jarFile = new File(tempDir, "widget.jar");
+        writeJar(jarFile, "com/xyz/widget.txt");
+
+        try (var fileSystem = FileSystems.newFileSystem(jarFile.toPath()); var vfs = new Vfs()) {
+            final var root = vfs.open(fileSystem.getPath("/com"));
+            assertThat(root.getKind()).isEqualTo(VfsRoot.Kind.DIRECTORY);
+            assertThat(root.getPath()).endsWith("/widget.jar!/com");
+            assertThat(root.getEntries()).extracting(VfsEntry::getName).containsExactly("xyz/widget.txt");
+            assertThat(entryContent(root, "xyz/widget.txt")).isEqualTo(RESOURCE_CONTENT);
         }
     }
 
