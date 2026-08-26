@@ -417,15 +417,15 @@ class Classfile {
                         scheduleScanningIfExternalClass(methodAnnotationInfo.getName(), "method annotation", log);
                         extendScanningUpwardsFromAnnotationParameterValues(methodAnnotationInfo, log);
                     }
-                    if (methodInfo.parameterAnnotationInfo != null
-                            && methodInfo.parameterAnnotationInfo.length > 0) {
-                        for (final AnnotationInfo[] paramAnnInfoArr : methodInfo.parameterAnnotationInfo) {
-                            if (paramAnnInfoArr != null && paramAnnInfoArr.length > 0) {
-                                for (final AnnotationInfo paramAnnInfo : paramAnnInfoArr) {
-                                    scheduleScanningIfExternalClass(paramAnnInfo.getName(),
-                                            "method parameter annotation", log);
-                                    extendScanningUpwardsFromAnnotationParameterValues(paramAnnInfo, log);
-                                }
+                }
+                // A method's parameters can be annotated whether or not the method itself is annotated
+                if (methodInfo.parameterAnnotationInfo != null && methodInfo.parameterAnnotationInfo.length > 0) {
+                    for (final AnnotationInfo[] paramAnnInfoArr : methodInfo.parameterAnnotationInfo) {
+                        if (paramAnnInfoArr != null && paramAnnInfoArr.length > 0) {
+                            for (final AnnotationInfo paramAnnInfo : paramAnnInfoArr) {
+                                scheduleScanningIfExternalClass(paramAnnInfo.getName(),
+                                        "method parameter annotation", log);
+                                extendScanningUpwardsFromAnnotationParameterValues(paramAnnInfo, log);
                             }
                         }
                     }
