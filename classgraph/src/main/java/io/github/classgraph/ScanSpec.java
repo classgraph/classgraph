@@ -445,7 +445,13 @@ class ScanSpec {
                     continue;
                 }
                 try {
-                    scanSpecLog.log(field.getName() + ": " + field.get(this));
+                    final var value = field.get(this);
+                    // Skip the bookkeeping list, which duplicates every criterion logged by name below, and
+                    // skip a criterion that nothing was accepted or rejected with
+                    if (value == acceptRejects || value instanceof AcceptReject && value.toString().isEmpty()) {
+                        continue;
+                    }
+                    scanSpecLog.log(field.getName() + ": " + value);
                 } catch (final ReflectiveOperationException e) {
                     // Ignore
                 }
