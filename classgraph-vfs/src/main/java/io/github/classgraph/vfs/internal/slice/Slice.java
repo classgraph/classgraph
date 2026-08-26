@@ -209,15 +209,19 @@ public abstract class Slice implements AutoCloseable {
                     // Reached the end of the stream
                     break;
                 }
-                // There is more of the stream to read than fits in the buffer
-                if (buf.length >= maxBufferedJarRAMSize) {
-                    // The buffer is not allowed to grow any further, so the rest of the stream goes to disk
-                    return spillToDisk(inputStream, tempFileBaseName, buf, bufBytesUsed,
-                            new byte[] { (byte) overflowByte }, session, log);
+                // There is more of the stream to read. Only grow the buffer if it is actually full -- the read can
+                // also have returned zero from a buffer with room left in it, and doubling the buffer on every one
+                // of those reads would grow it to maxBufferedJarRAMSize to hold a handful of bytes.
+                if (bufBytesUsed == buf.length) {
+                    if (buf.length >= maxBufferedJarRAMSize) {
+                        // The buffer is not allowed to grow any further, so the rest of the stream goes to disk
+                        return spillToDisk(inputStream, tempFileBaseName, buf, bufBytesUsed,
+                                new byte[] { (byte) overflowByte }, session, log);
+                    }
+                    // Double the size of the buffer (in long arithmetic, since the doubling can overflow an int)
+                    buf = Arrays.copyOf(buf, (int) Math.min(buf.length * 2L, maxBufferedJarRAMSize));
                 }
-                // Double the size of the buffer (in long arithmetic, since the doubling can overflow an int), and
-                // put the byte that the probe read into it, so that the probe does not lose it
-                buf = Arrays.copyOf(buf, (int) Math.min(buf.length * 2L, maxBufferedJarRAMSize));
+                // Put the byte that the probe read into the buffer, so that the probe does not lose it
                 buf[bufBytesUsed++] = (byte) overflowByte;
             }
             // Successfully reached end of stream

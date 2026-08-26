@@ -286,6 +286,52 @@ public class SliceTest {
     }
 
     /**
+     * A stream that returns zero from a read of a non-empty buffer does not make the buffer grow. The buffer is
+     * only out of room when it is full, and treating a zero-length read as a full buffer doubles the buffer on
+     * every such read, up to the whole of the maximum RAM buffer size, to hold a stream of a few bytes.
+     *
+     * @throws IOException
+     *             if the stream could not be read
+     */
+    @Test
+    public void aStreamThatReturnsZeroFromAReadDoesNotGrowTheBuffer() throws IOException {
+        final var stream = new InputStream() {
+            private final InputStream wrapped = new ByteArrayInputStream(CONTENT);
+
+            /** The number of reads into a non-empty buffer left to answer with zero. */
+            private int zeroReadsLeft = 1;
+
+            @Override
+            public int read() throws IOException {
+                return wrapped.read();
+            }
+
+            @Override
+            public int read(final byte[] buf, final int off, final int len) throws IOException {
+                if (len == 0) {
+                    return 0;
+                }
+                if (zeroReadsLeft > 0) {
+                    zeroReadsLeft--;
+                    return 0;
+                }
+                return wrapped.read(buf, off, len);
+            }
+        };
+        // The content fits exactly within the maximum RAM buffer size, so it is only spilled to disk if the zero
+        // read is mistaken for a full buffer
+        final var session = session(/* maxBufferedJarRAMSize = */ CONTENT.length);
+        try {
+            final var slice = Slice.fromInputStream(stream, "zeroreads.bin", /* inputStreamLengthHint = */ -1L,
+                    session, /* log = */ null);
+            assertThat(slice).isInstanceOf(ArraySlice.class);
+            assertThat(slice.load()).containsExactly(CONTENT);
+        } finally {
+            session.close(/* log = */ null);
+        }
+    }
+
+    /**
      * Closing the resources owned by a scan closes every slice that was left open, including slices that span the
      * same range of two different files. Otherwise one of the files stays open, which on Windows stops it from
      * being deleted.
