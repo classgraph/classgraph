@@ -49,8 +49,8 @@ import org.jspecify.annotations.Nullable;
  * <p>
  * {@link GraphVizDotFile#generateFromInterClassDependencies(ScanResult, ClassInfoList, GraphVizDotFileOptions)}
  * draws a different graph, and reads only {@link #setLayoutSize(float, float)}, {@link #includeExternalClasses()}
- * and {@link #excludeExternalClasses()} — the options that show or hide the contents of a class node have no effect
- * on it.
+ * and {@link #excludeExternalClasses()} -- the options that show or hide the contents of a class node have no
+ * effect on it.
  */
 public final class GraphVizDotFileOptions {
     /** The GraphViz layout width, in inches. */

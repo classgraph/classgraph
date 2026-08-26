@@ -33,6 +33,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.TreeSet;
 import java.util.stream.Stream;
 import java.util.zip.CRC32;
 import java.util.zip.ZipEntry;
@@ -572,6 +573,37 @@ public class VfsFileSystemTest {
             // ProviderMismatchException
             assertThatThrownBy(() -> path.compareTo(tempDir)).isInstanceOf(ClassCastException.class);
             assertThatThrownBy(path::toFile).isInstanceOf(UnsupportedOperationException.class);
+        }
+    }
+
+    /**
+     * {@link Path#compareTo(Path)} returns zero only for a path that is equal, so that a sorted collection does not
+     * silently drop the path of another view of the same root.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the root could not be read.
+     */
+    @Test
+    public void pathsOfTwoViewsOfOneRootAreOrderedApart(@TempDir final Path tempDir) throws IOException {
+        final var jarFile = tempDir.resolve("library.jar").toFile();
+        writeJar(jarFile);
+
+        try (var vfs = new Vfs()) {
+            final var root = vfs.open(jarFile);
+            final Path inFirstView;
+            try (var firstView = root.asFileSystem()) {
+                inFirstView = firstView.getPath("/com/xyz/Widget.class");
+            }
+            // Closing a view only discards that view, so the next call hands out a second view of the same root
+            final var secondView = root.asFileSystem();
+            final var inSecondView = secondView.getPath("/com/xyz/Widget.class");
+
+            assertThat(inFirstView).isNotEqualTo(inSecondView);
+            assertThat(inFirstView.compareTo(inSecondView)).isNegative();
+            assertThat(inSecondView.compareTo(inFirstView)).isPositive();
+            assertThat(new TreeSet<>(List.of(inFirstView, inSecondView))).hasSize(2);
         }
     }
 

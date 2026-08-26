@@ -1076,7 +1076,9 @@ public final class GraphVizDotFile {
         buf.append('\n');
         for (final ClassInfo ci : classes) {
             for (final ClassInfo dep : ci.getClassDependencies()) {
-                if (includeExternalClasses || allVisibleNodes.contains(dep)) {
+                // An edge is only drawn if the dependency has a node of its own -- when external classes are
+                // included, every dependency was given a node above, so every edge is drawn
+                if (allVisibleNodes.contains(dep)) {
                     // class --> dep
                     appendEdge(ci.getName(), dep.getName(), "[arrowsize=2.5]", buf);
                 }

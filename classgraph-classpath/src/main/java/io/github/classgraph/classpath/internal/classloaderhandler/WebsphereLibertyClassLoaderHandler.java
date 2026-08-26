@@ -87,10 +87,10 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
     private static void delegateToAll(final ClassLoader classLoader, final String fieldName,
             final ClassLoaderOrder classLoaderOrder, final @Nullable ClassGraphLog log) {
         final var delegates = ReflectionUtils.getFieldVal(false, classLoader, fieldName);
-        if (delegates instanceof Iterable) {
-            for (final Object delegate : (Iterable<?>) delegates) {
-                if (delegate instanceof ClassLoader) {
-                    classLoaderOrder.delegateTo((ClassLoader) delegate, /* isParent = */ false, log);
+        if (delegates instanceof final Iterable<?> delegateList) {
+            for (final Object delegate : delegateList) {
+                if (delegate instanceof final ClassLoader delegateClassLoader) {
+                    classLoaderOrder.delegateTo(delegateClassLoader, /* isParent = */ false, log);
                 }
             }
         }

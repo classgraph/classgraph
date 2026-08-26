@@ -38,16 +38,19 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
 import java.nio.file.WatchService;
+import java.nio.file.attribute.BasicFileAttributeView;
 import java.nio.file.attribute.FileAttributeView;
 import java.nio.file.attribute.FileStoreAttributeView;
 import java.nio.file.attribute.UserPrincipalLookupService;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
@@ -64,6 +67,15 @@ import org.jspecify.annotations.Nullable;
  * The filesystem separator is {@code '/'} for every kind of root, and the root directory is {@code "/"}.
  */
 final class VfsFileSystem extends FileSystem {
+    /** The number to give the next view that is created. */
+    private static final AtomicLong NEXT_SERIAL = new AtomicLong();
+
+    /**
+     * A number that is unique to this view, so that {@link VfsPath#compareTo(Path)} can order the paths of two
+     * different views of the same root, rather than reporting that they are equal when they are not.
+     */
+    final long serial = NEXT_SERIAL.getAndIncrement();
+
     /** The root this is a view of. */
     private final VfsRoot root;
 
@@ -567,7 +579,7 @@ final class VfsFileSystem extends FileSystem {
 
         @Override
         public String type() {
-            return root.getKind().toString().toLowerCase(java.util.Locale.ROOT);
+            return root.getKind().toString().toLowerCase(Locale.ROOT);
         }
 
         @Override
@@ -596,7 +608,7 @@ final class VfsFileSystem extends FileSystem {
 
         @Override
         public boolean supportsFileAttributeView(final Class<? extends FileAttributeView> type) {
-            return type == java.nio.file.attribute.BasicFileAttributeView.class;
+            return type == BasicFileAttributeView.class;
         }
 
         @Override

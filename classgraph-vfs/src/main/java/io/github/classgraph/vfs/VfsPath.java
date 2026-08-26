@@ -333,7 +333,11 @@ final class VfsPath implements Path {
             // ProviderMismatchException that the other methods of Path throw
             throw new ClassCastException("Not a path of a virtual filesystem: " + other);
         }
-        return toString().compareTo(otherPath.toString());
+        final var diff = toString().compareTo(otherPath.toString());
+        // Path#compareTo specifies that it returns zero only for a path that is equal to this one, and a path of
+        // another view of the same root is not equal to this one, however it is spelled. The views are therefore
+        // ordered by the order in which they were created, which is arbitrary but stable.
+        return diff != 0 ? diff : Long.compare(fileSystem.serial, otherPath.fileSystem.serial);
     }
 
     @Override
