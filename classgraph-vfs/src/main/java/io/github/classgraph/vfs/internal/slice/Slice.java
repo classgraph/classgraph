@@ -180,37 +180,45 @@ public abstract class Slice implements AutoCloseable {
             throws IOException {
         final var maxBufferedJarRAMSize = session.vfsSpec.getMaxBufferedJarRAMSize();
         if (inputStreamLengthHint <= maxBufferedJarRAMSize) {
-            // inputStreamLengthHint is unknown (-1) or shorter than maxBufferedJarRAMSize, so try
-            // reading from the InputStream into an array of size maxBufferedJarRAMSize or
-            // inputStreamLengthHint respectively. Also if inputStreamLengthHint == 0, which may or may not be
-            // valid, use a buffer size of 16kB to avoid spilling to disk in case this is wrong but the file is
-            // still small.
-            final var bufSize = inputStreamLengthHint == -1L ? maxBufferedJarRAMSize
-                    : inputStreamLengthHint == 0L ? 16384
-                            : Math.min((int) inputStreamLengthHint, maxBufferedJarRAMSize);
-            var buf = new byte[bufSize];
-            final var bufLength = buf.length;
+            // inputStreamLengthHint is unknown (-1) or no longer than maxBufferedJarRAMSize, so read the stream
+            // into an array. A known length is allocated up front, since it is usually right; a length that is
+            // unknown, or that is zero and so may or may not be right, starts at the default buffer size, and the
+            // buffer is doubled from there as it fills, so that reading a small stream of unknown length does not
+            // allocate the whole of maxBufferedJarRAMSize.
+            var buf = new byte[inputStreamLengthHint <= 0L ? Math.min(DEFAULT_BUFFER_SIZE, maxBufferedJarRAMSize)
+                    : (int) inputStreamLengthHint];
 
             var bufBytesUsed = 0;
-            var bytesRead = 0;
-            while ((bytesRead = inputStream.read(buf, bufBytesUsed, bufLength - bufBytesUsed)) > 0) {
-                // Fill buffer until nothing more can be read
-                bufBytesUsed += bytesRead;
-            }
-            if (bytesRead == 0) {
-                // If bytesRead was zero rather than -1, we need to probe the InputStream (by reading one more
-                // byte) to see if inputStreamHint underestimated the actual length of the stream. (The probe is
-                // the single-byte InputStream#read, which returns either a byte value or -1 for the end of the
+            for (;;) {
+                int bytesRead;
+                while ((bytesRead = inputStream.read(buf, bufBytesUsed, buf.length - bufBytesUsed)) > 0) {
+                    // Fill buffer until nothing more can be read
+                    bufBytesUsed += bytesRead;
+                }
+                if (bytesRead < 0) {
+                    // Reached the end of the stream
+                    break;
+                }
+                // bytesRead == 0, so the buffer is full, or the stream returned zero from a read of a non-empty
+                // buffer. Probe the stream by reading one more byte to see which it was. (The probe is the
+                // single-byte InputStream#read, which returns either a byte value or -1 for the end of the
                 // stream -- a probe through InputStream#read(byte[], int, int) could return zero, which is what
                 // made the probe necessary in the first place, and the stream would be truncated here.)
                 final var overflowByte = inputStream.read();
-                if (overflowByte != -1) {
-                    // We were able to read one more byte, so we're still not at the end of the stream, and we
-                    // need to spill to disk, because buf is full
+                if (overflowByte == -1) {
+                    // Reached the end of the stream
+                    break;
+                }
+                // There is more of the stream to read than fits in the buffer
+                if (buf.length >= maxBufferedJarRAMSize) {
+                    // The buffer is not allowed to grow any further, so the rest of the stream goes to disk
                     return spillToDisk(inputStream, tempFileBaseName, buf, bufBytesUsed,
                             new byte[] { (byte) overflowByte }, session, log);
                 }
-                // else reached the end of the stream => don't spill to disk
+                // Double the size of the buffer (in long arithmetic, since the doubling can overflow an int), and
+                // put the byte that the probe read into it, so that the probe does not lose it
+                buf = Arrays.copyOf(buf, (int) Math.min(buf.length * 2L, maxBufferedJarRAMSize));
+                buf[bufBytesUsed++] = (byte) overflowByte;
             }
             // Successfully reached end of stream
             if (bufBytesUsed < buf.length) {

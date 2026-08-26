@@ -9,6 +9,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -168,12 +169,71 @@ public class SliceTest {
 
         // A length hint that understates the length of the stream fills the buffer, and only then turns out to be
         // wrong, so the buffered bytes have to be written to the temporary file ahead of the rest of the stream
-        final var understatedSession = session();
+        final var understatedSession = session(/* maxBufferedJarRAMSize = */ CONTENT.length / 2);
         try {
             assertThat(sliceOfContent(understatedSession, /* inputStreamLengthHint = */ CONTENT.length / 2))
                     .isInstanceOf(FileSlice.class);
         } finally {
             understatedSession.close(/* log = */ null);
+        }
+    }
+
+    /**
+     * A stream that turns out to be longer than its length hint, but still short enough to buffer in RAM, is read
+     * into a larger buffer rather than being spilled to a temporary file. The hint is only a hint -- a zip entry
+     * can understate the length of the entry it describes -- and spilling a jar of a few bytes to disk when
+     * megabytes of RAM were allowed for it is not what the setting says will happen.
+     *
+     * @throws IOException
+     *             if a stream could not be read
+     */
+    @Test
+    public void aStreamThatOutgrowsItsLengthHintButStillFitsInRamIsBuffered() throws IOException {
+        final var session = session();
+        try {
+            assertThat(sliceOfContent(session, /* inputStreamLengthHint = */ CONTENT.length / 2))
+                    .isInstanceOf(ArraySlice.class);
+            assertThat(sliceOfContent(session, /* inputStreamLengthHint = */ 1L)).isInstanceOf(ArraySlice.class);
+            assertThat(session.hasTempFiles()).isFalse();
+        } finally {
+            session.close(/* log = */ null);
+        }
+    }
+
+    /**
+     * Reading a stream whose length is not known does not allocate the whole of the maximum RAM buffer size up
+     * front, since most jars are a tiny fraction of that size, and several may be read at once.
+     *
+     * @throws IOException
+     *             if the stream could not be read
+     */
+    @Test
+    public void aStreamOfUnknownLengthDoesNotAllocateTheWholeRamBudgetUpFront() throws IOException {
+        final var maxBufferedJarRAMSize = 64 * 1024 * 1024;
+        // The number of bytes that the first read asked for, which is the size of the initial buffer
+        final var firstReadLength = new AtomicInteger(-1);
+        final var stream = new InputStream() {
+            private final InputStream wrapped = new ByteArrayInputStream(CONTENT);
+
+            @Override
+            public int read() throws IOException {
+                return wrapped.read();
+            }
+
+            @Override
+            public int read(final byte[] buf, final int off, final int len) throws IOException {
+                firstReadLength.compareAndSet(-1, len);
+                return wrapped.read(buf, off, len);
+            }
+        };
+        final var session = session(maxBufferedJarRAMSize);
+        try {
+            final var slice = Slice.fromInputStream(stream, "unknownlength.bin", /* inputStreamLengthHint = */ -1L,
+                    session, /* log = */ null);
+            assertThat(slice.load()).containsExactly(CONTENT);
+            assertThat(firstReadLength.get()).isLessThanOrEqualTo(65536);
+        } finally {
+            session.close(/* log = */ null);
         }
     }
 
