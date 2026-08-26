@@ -844,8 +844,8 @@ class Scanner implements Callable<ScanResult> {
         });
         // Find any nesting of elements within other elements
         for (int i = 0; i < classpathElts.size(); i++) {
-            // See if each classpath element is a prefix of any others (if so, they will immediately follow
-            // in lexicographic order)
+            // See if each classpath element is a prefix of any others (if so, they form a contiguous run
+            // starting at the next element in lexicographic order)
             final SimpleEntry<String, ClasspathElement> ei = classpathElts.get(i);
             final String basePath = ei.getKey();
             final int basePathLen = basePath.length();
@@ -853,9 +853,15 @@ class Scanner implements Callable<ScanResult> {
                 final SimpleEntry<String, ClasspathElement> ej = classpathElts.get(j);
                 final String comparePath = ej.getKey();
                 final int comparePathLen = comparePath.length();
-                boolean foundNestedClasspathRoot = false;
-                if (comparePath.startsWith(basePath) && comparePathLen > basePathLen) {
-                    // Require a separator after the prefix
+                if (!comparePath.startsWith(basePath)) {
+                    // Every path with basePath as a prefix is contiguous in the sorted order, so once one of
+                    // them does not start with basePath, none of the ones after it can either
+                    break;
+                }
+                if (comparePathLen > basePathLen) {
+                    // Require a separator after the prefix -- an element that merely shares the prefix, e.g.
+                    // "/a/b-extra" for the base path "/a/b", is not nested within it, but does sort between it
+                    // and the elements that are, since every character below '/' does
                     final char nextChar = comparePath.charAt(basePathLen);
                     if (nextChar == '/' || nextChar == '!') {
                         // basePath is a path prefix of comparePath. Ensure that the nested classpath does
@@ -868,8 +874,7 @@ class Scanner implements Callable<ScanResult> {
                         final String nestedClasspathRelativePath = comparePath.substring(basePathLen
                                 + separatorLen);
                         if (nestedClasspathRelativePath.indexOf('!') < 0) {
-                            // Found a nested classpath root
-                            foundNestedClasspathRoot = true;
+                            // Found a nested classpath root.
                             // Store link from prefix element to nested elements
                             final ClasspathElement baseElement = ei.getValue();
                             if (baseElement.nestedClasspathRootPrefixes == null) {
@@ -881,10 +886,6 @@ class Scanner implements Callable<ScanResult> {
                             }
                         }
                     }
-                }
-                if (!foundNestedClasspathRoot) {
-                    // After the first non-match, there can be no more prefix matches in the sorted order
-                    break;
                 }
             }
         }
