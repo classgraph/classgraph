@@ -79,6 +79,13 @@ import org.jspecify.annotations.Nullable;
  * case none of the above applies to it. External classes are only returned by queries that report all scanned
  * classes, such as {@link ScanResult#getAllClasses()}, if {@link ClassGraph#enableExternalClasses()} was called
  * before scanning.
+ *
+ * <p>
+ * {@link #toString()} does not apply that filter: it renders the class declaration as it would be written in Java
+ * source, so it names every supertype and every annotation that the classfile declares, external or not. Filtering
+ * them would leave a class that extends {@code java.util.ArrayList} rendered as {@code class com.xyz.MyList},
+ * reading as though it extended {@link Object}. Call {@link #getSuperclass()}, {@link #getInterfaces()} and
+ * {@link #getDirectAnnotations()} for the filtered view.
  */
 public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>, HasName, HasAnnotations {
     /** The name of the class. */
