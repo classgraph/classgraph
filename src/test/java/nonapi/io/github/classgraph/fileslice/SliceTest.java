@@ -17,6 +17,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -51,6 +52,39 @@ public class SliceTest {
         final ScanSpec scanSpec = new ScanSpec();
         scanSpec.enableMemoryMapping = true;
         return new NestedJarHandler(scanSpec, new InterruptionChecker(), new ReflectionUtils());
+    }
+
+    /**
+     * Create the handler that owns the slices opened during a scan, with a given limit on the amount of RAM that a
+     * jar may be buffered in.
+     *
+     * @param maxBufferedJarRAMSize
+     *            the maximum number of bytes that a jar may be buffered in
+     * @return the nested jar handler
+     */
+    private static NestedJarHandler nestedJarHandler(final int maxBufferedJarRAMSize) {
+        final ScanSpec scanSpec = new ScanSpec();
+        scanSpec.maxBufferedJarRAMSize = maxBufferedJarRAMSize;
+        return new NestedJarHandler(scanSpec, new InterruptionChecker(), new ReflectionUtils());
+    }
+
+    /**
+     * Read the standard content from an {@link InputStream}, telling the reader the given length for it.
+     *
+     * @param nestedJarHandler
+     *            the handler to read the stream with
+     * @param inputStreamLengthHint
+     *            the length to claim for the stream, or -1L for an unknown length
+     * @return the slice the content was read into
+     * @throws IOException
+     *             if the stream could not be read
+     */
+    private static Slice sliceOfContent(final NestedJarHandler nestedJarHandler, final long inputStreamLengthHint)
+            throws IOException {
+        final Slice slice = nestedJarHandler.readAllBytesWithSpilloverToDisk(new ByteArrayInputStream(CONTENT),
+                "content.bin", inputStreamLengthHint, /* log = */ null);
+        assertThat(slice.load()).containsExactly(CONTENT);
+        return slice;
     }
 
     /**
@@ -97,6 +131,93 @@ public class SliceTest {
             assertThat(first.slice(2, 4, /* isDeflatedZipEntry = */ false, /* inflatedLengthHint = */ 0L))
                     .isNotEqualTo(
                             second.slice(2, 4, /* isDeflatedZipEntry = */ false, /* inflatedLengthHint = */ 0L));
+        } finally {
+            nestedJarHandler.close(/* log = */ null);
+        }
+    }
+
+    /**
+     * An {@link InputStream} that is longer than the maximum RAM buffer size is spilled to a temporary file, in
+     * order, including the bytes that were already buffered before the stream turned out to be too long.
+     *
+     * @throws IOException
+     *             if a stream could not be read
+     */
+    @Test
+    public void anInputStreamThatIsTooLongToBufferIsSpilledToATemporaryFile() throws IOException {
+        // A length hint that is longer than the maximum RAM buffer size spills to disk without buffering
+        final NestedJarHandler nestedJarHandler = nestedJarHandler(/* maxBufferedJarRAMSize = */ CONTENT.length / 2);
+        try {
+            assertThat(sliceOfContent(nestedJarHandler, CONTENT.length)).isInstanceOf(FileSlice.class);
+        } finally {
+            nestedJarHandler.close(/* log = */ null);
+        }
+
+        // A length hint that understates the length of the stream fills the buffer, and only then turns out to be
+        // wrong, so the buffered bytes have to be written to the temporary file ahead of the rest of the stream
+        final NestedJarHandler understatedHandler = nestedJarHandler(
+                /* maxBufferedJarRAMSize = */ CONTENT.length / 2);
+        try {
+            assertThat(sliceOfContent(understatedHandler, /* inputStreamLengthHint = */ CONTENT.length / 2))
+                    .isInstanceOf(FileSlice.class);
+        } finally {
+            understatedHandler.close(/* log = */ null);
+        }
+    }
+
+    /**
+     * A stream that turns out to be longer than its length hint, but still short enough to buffer in RAM, is read
+     * into a larger buffer rather than being spilled to a temporary file. The hint is only a hint -- a zip entry
+     * can understate the length of the entry it describes -- and spilling a jar of a few bytes to disk when
+     * megabytes of RAM were allowed for it is not what the setting says will happen.
+     *
+     * @throws IOException
+     *             if a stream could not be read
+     */
+    @Test
+    public void aStreamThatOutgrowsItsLengthHintButStillFitsInRamIsBuffered() throws IOException {
+        final NestedJarHandler nestedJarHandler = nestedJarHandler();
+        try {
+            assertThat(sliceOfContent(nestedJarHandler, /* inputStreamLengthHint = */ CONTENT.length / 2))
+                    .isInstanceOf(ArraySlice.class);
+            assertThat(sliceOfContent(nestedJarHandler, /* inputStreamLengthHint = */ 1L))
+                    .isInstanceOf(ArraySlice.class);
+        } finally {
+            nestedJarHandler.close(/* log = */ null);
+        }
+    }
+
+    /**
+     * Reading a stream whose length is not known does not allocate the whole of the maximum RAM buffer size up
+     * front, since most jars are a tiny fraction of that size, and several may be read at once.
+     *
+     * @throws IOException
+     *             if the stream could not be read
+     */
+    @Test
+    public void aStreamOfUnknownLengthDoesNotAllocateTheWholeRamBudgetUpFront() throws IOException {
+        // The number of bytes that the first read asked for, which is the size of the initial buffer
+        final AtomicInteger firstReadLength = new AtomicInteger(-1);
+        final InputStream stream = new InputStream() {
+            private final InputStream wrapped = new ByteArrayInputStream(CONTENT);
+
+            @Override
+            public int read() throws IOException {
+                return wrapped.read();
+            }
+
+            @Override
+            public int read(final byte[] buf, final int off, final int len) throws IOException {
+                firstReadLength.compareAndSet(-1, len);
+                return wrapped.read(buf, off, len);
+            }
+        };
+        final NestedJarHandler nestedJarHandler = nestedJarHandler(/* maxBufferedJarRAMSize = */ 64 * 1024 * 1024);
+        try {
+            final Slice slice = nestedJarHandler.readAllBytesWithSpilloverToDisk(stream, "unknownlength.bin",
+                    /* inputStreamLengthHint = */ -1L, /* log = */ null);
+            assertThat(slice.load()).containsExactly(CONTENT);
+            assertThat(firstReadLength.get()).isLessThanOrEqualTo(65536);
         } finally {
             nestedJarHandler.close(/* log = */ null);
         }

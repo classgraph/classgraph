@@ -1020,59 +1020,56 @@ public class NestedJarHandler {
         // Open an InflaterInputStream on the slice
         try (InputStream inptStream = inputStream) {
             if (inputStreamLengthHint <= scanSpec.maxBufferedJarRAMSize) {
-                // inputStreamLengthHint is unknown (-1) or shorter than
-                // scanSpec.maxBufferedJarRAMSize,
-                // so try reading from the InputStream into an array of size
-                // scanSpec.maxBufferedJarRAMSize
-                // or inputStreamLengthHint respectively. Also if inputStreamLengthHint == 0,
-                // which may or
-                // may not be valid, use a buffer size of 16kB to avoid spilling to disk in case
-                // this is
-                // wrong but the file is still small.
-                final int bufSize = inputStreamLengthHint == -1L ? scanSpec.maxBufferedJarRAMSize
-                        : inputStreamLengthHint == 0L ? 16384
-                                : Math.min((int) inputStreamLengthHint, scanSpec.maxBufferedJarRAMSize);
-                byte[] buf = new byte[bufSize];
-                final int bufLength = buf.length;
+                // inputStreamLengthHint is unknown (-1) or no longer than scanSpec.maxBufferedJarRAMSize, so read
+                // the stream into an array. A known length is allocated up front, since it is usually right; a
+                // length that is unknown, or that is zero and so may or may not be right, starts at 16kB, and the
+                // buffer is doubled from there as it fills, so that reading a small stream of unknown length does
+                // not allocate the whole of scanSpec.maxBufferedJarRAMSize.
+                byte[] buf = new byte[inputStreamLengthHint <= 0L ? Math.min(16384, scanSpec.maxBufferedJarRAMSize)
+                        : (int) inputStreamLengthHint];
 
                 int bufBytesUsed = 0;
-                int bytesRead = 0;
-                while ((bytesRead = inptStream.read(buf, bufBytesUsed, bufLength - bufBytesUsed)) > 0) {
-                    // Fill buffer until nothing more can be read
-                    bufBytesUsed += bytesRead;
-                }
-                if (bytesRead == 0) {
-                    // If bytesRead was zero rather than -1, we need to probe the InputStream (by
-                    // reading
-                    // one more byte) to see if inputStreamHint underestimated the actual length of
-                    // the stream. (The probe is the single-byte InputStream#read, which returns
-                    // either a byte value or -1 for the end of the stream -- a probe through
-                    // InputStream#read(byte[], int, int) could return zero, which is what made the
-                    // probe necessary in the first place, and the stream would be truncated here.)
+                for (;;) {
+                    int bytesRead;
+                    while ((bytesRead = inptStream.read(buf, bufBytesUsed, buf.length - bufBytesUsed)) > 0) {
+                        // Fill buffer until nothing more can be read
+                        bufBytesUsed += bytesRead;
+                    }
+                    if (bytesRead < 0) {
+                        // Reached the end of the stream
+                        break;
+                    }
+                    // bytesRead == 0, so the buffer is full, or the stream returned zero from a read of a non-empty
+                    // buffer. Probe the stream by reading one more byte to see which it was. (The probe is the
+                    // single-byte InputStream#read, which returns either a byte value or -1 for the end of the
+                    // stream -- a probe through InputStream#read(byte[], int, int) could return zero, which is what
+                    // made the probe necessary in the first place, and the stream would be truncated here.)
                     final int overflowByte = inptStream.read();
-                    if (overflowByte != -1) {
-                        // We were able to read one more byte, so we're still not at the end of the
-                        // stream,
-                        // and we need to spill to disk, because buf is full
+                    if (overflowByte == -1) {
+                        // Reached the end of the stream
+                        break;
+                    }
+                    // There is more of the stream to read than fits in the buffer
+                    if (buf.length >= scanSpec.maxBufferedJarRAMSize) {
+                        // The buffer is not allowed to grow any further, so the rest of the stream goes to disk
                         return spillToDisk(inptStream, tempFileBaseName, buf, bufBytesUsed,
                                 new byte[] { (byte) overflowByte }, log);
                     }
-                    // else reached the end of the stream => don't spill to disk
+                    // Double the size of the buffer (in long arithmetic, since the doubling can overflow an int),
+                    // and put the byte that the probe read into it, so that the probe does not lose it
+                    buf = Arrays.copyOf(buf, (int) Math.min(buf.length * 2L, scanSpec.maxBufferedJarRAMSize));
+                    buf[bufBytesUsed++] = (byte) overflowByte;
                 }
                 // Successfully reached end of stream
                 if (bufBytesUsed < buf.length) {
-                    // Trim array if needed (this is needed if inputStreamLengthHint was -1, or
-                    // overestimated
+                    // Trim array if needed (this is needed if inputStreamLengthHint was -1, or overestimated
                     // the length of the InputStream)
                     buf = Arrays.copyOf(buf, bufBytesUsed);
                 }
                 // Return buf as new ArraySlice
-                return new ArraySlice(buf, /* isDeflatedZipEntry = */ false, /* inflatedSizeHint = */
-                        0L, this);
-
+                return new ArraySlice(buf, /* isDeflatedZipEntry = */ false, /* inflatedSizeHint = */ 0L, this);
             }
-            // inputStreamLengthHint is longer than scanSpec.maxJarRamSize, so immediately
-            // spill to disk
+            // inputStreamLengthHint is longer than scanSpec.maxJarRamSize, so immediately spill to disk
             return spillToDisk(inptStream, tempFileBaseName, /* buf = */ null, /* bufBytesUsed = */ 0,
                     /* overflowBuf = */ null, log);
         }
