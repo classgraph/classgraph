@@ -352,11 +352,14 @@ final class WorkQueue<T> implements AutoCloseable {
      * Completion barrier for work queue. This should be called after runWorkLoop() exits on the main thread (e.g.
      * using try-with-resources).
      *
-     * @throws ExecutionException
-     *             If a worker threw an uncaught exception.
+     * <p>
+     * Nothing is thrown from here, even if a worker failed: a worker's exception is handed to the
+     * {@link InterruptionChecker}, so that it is thrown by the next {@link InterruptionChecker#check()} on the
+     * calling thread, rather than replacing whatever exception is already propagating out of the try-with-resources
+     * block that called this.
      */
     @Override
-    public void close() throws ExecutionException {
+    public void close() {
         for (Worker worker; (worker = workerTasks.poll()) != null;) {
             // If the ExecutorService did not have a free thread to start a worker on, claiming the worker here
             // stops it running the work loop if it is started later, so there is nothing to wait for. Waiting for
