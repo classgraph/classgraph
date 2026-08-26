@@ -1411,6 +1411,23 @@ public final class ScanResult implements Closeable {
     }
 
     /**
+     * Check that this {@link ScanResult} has not been closed, and that class info and annotation info were enabled
+     * during the scan.
+     *
+     * @throws IllegalArgumentException
+     *             if this {@link ScanResult} has been closed, or class info or annotation info were not enabled.
+     */
+    private void checkAnnotationInfoEnabled() {
+        if (closed.get()) {
+            throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
+        }
+        if (!scanSpec.enableClassInfo || !scanSpec.enableAnnotationInfo) {
+            throw new IllegalArgumentException(
+                    "Please call ClassGraph#enableClassInfo() and #enableAnnotationInfo() before #scan()");
+        }
+    }
+
+    /**
      * Get classes with all of the named class annotations or meta-annotation.
      *
      * @param annotationNames
@@ -1419,6 +1436,9 @@ public final class ScanResult implements Closeable {
      *         the scan, or the empty list if none.
      */
     public ClassInfoList getClassesWithAllAnnotations(final String... annotationNames) {
+        // Checked here as well as in #getClassesWithAnnotation(String), since that is not reached if the array of
+        // annotation names is empty
+        checkAnnotationInfoEnabled();
         ClassInfoList foundClassInfo = null;
         for (final String annotationName : annotationNames) {
             final ClassInfoList classInfoList = getClassesWithAnnotation(annotationName);
@@ -1444,6 +1464,9 @@ public final class ScanResult implements Closeable {
      *         the scan, or the empty list if none.
      */
     public ClassInfoList getClassesWithAnyAnnotation(final String... annotationNames) {
+        // Checked here as well as in #getClassesWithAnnotation(String), since that is not reached if the array of
+        // annotation names is empty
+        checkAnnotationInfoEnabled();
         ClassInfoList foundClassInfo = null;
         for (final String annotationName : annotationNames) {
             final ClassInfoList classInfoList = getClassesWithAnnotation(annotationName);
