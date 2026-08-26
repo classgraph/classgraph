@@ -83,9 +83,11 @@ public class EqualClassLoadersTest {
                 URLClassLoader child = new EqualToEveryOtherClassLoader(new URL[] { childDir.toUri().toURL() },
                         parent);
                 ScanResult scanResult = new ClassGraph().overrideClassLoaders(child).scan()) {
-            // URLClassLoader delegates to its parent first, so the parent's directory comes first
-            assertThat(scanResult.getClasspath()).isEqualTo(parentDir.toFile().getPath() + File.pathSeparator
-                    + childDir.toFile().getPath());
+            // URLClassLoader delegates to its parent first, so the parent's directory comes first. The path a
+            // classpath element is reported as is canonical, and a temporary directory is not already in that form:
+            // it is reached through a symbolic link on macOS, and through an 8.3 short name on Windows
+            assertThat(scanResult.getClasspath()).isEqualTo(parentDir.toRealPath().toFile().getPath()
+                    + File.pathSeparator + childDir.toRealPath().toFile().getPath());
         }
     }
 }
