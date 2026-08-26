@@ -168,8 +168,8 @@ class PhysicalZipFile {
 
     @Override
     public int hashCode() {
-        // (Use pathStr for identity, not file -- file is null for Path-backed zipfiles, and is the outermost file,
-        // shared between all nested jars extracted to RAM from the same outer zipfile)
+        // (Use pathStr for identity, not file -- file is null for Path-backed zipfiles, and for nested jars that
+        // were extracted to RAM rather than spilled to disk, so it does not identify a zipfile on its own)
         return Objects.hashCode(pathStr);
     }
 
