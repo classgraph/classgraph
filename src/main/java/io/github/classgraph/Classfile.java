@@ -2046,8 +2046,11 @@ class Classfile {
                                     // declaration), or in extends clause of interface declaration
                                     if (supertypeIndex == 65535) {
                                         // Type in extends clause of class declaration
-                                        classTypeSignature.getSuperclassSignature().addTypeAnnotation(typePath,
-                                                annotationInfo);
+                                        final ClassRefTypeSignature superclassSignature = classTypeSignature
+                                                .getSuperclassSignature();
+                                        if (superclassSignature != null) {
+                                            superclassSignature.addTypeAnnotation(typePath, annotationInfo);
+                                        }
                                     } else {
                                         // Type in implements clause of class declaration, or in extends
                                         // clause of interface declaration
