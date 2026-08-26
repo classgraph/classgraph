@@ -178,7 +178,8 @@ public class FastZipEntryIdentityTest {
         withZipFile(jarFile, logicalZipFile -> {
             final var zipEntry = logicalZipFile.entries.get(0);
             assertThat(zipEntry.getPath()).isEqualTo(logicalZipFile.getPath() + "!/" + BASE_ENTRY_NAME);
-            assertThat(zipEntry).hasToString("jar:file:" + zipEntry.getPath());
+            // The path alone, with no URL scheme in front of it: the entry does not know that its zipfile is a file
+            assertThat(zipEntry).hasToString(zipEntry.getPath());
         });
     }
 }

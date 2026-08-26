@@ -275,6 +275,12 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
      * Sort in decreasing order of version number, then lexicographically increasing order of unversioned entry
      * path.
      *
+     * <p>
+     * This orders the entries of a single zipfile, which is the only way entries are ever sorted. It ignores which
+     * zipfile an entry belongs to, whereas {@link #equals(Object)} does not, so a sorted set or map must not be
+     * given the entries of more than one zipfile: identically named entries of two zipfiles compare equal, and the
+     * second of them would be dropped as a duplicate.
+     *
      * @param o
      *            the object to compare to
      * @return the result of comparison
@@ -316,6 +322,10 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
 
     @Override
     public String toString() {
-        return "jar:file:" + getPath();
+        // Just the path, not a URL: the zipfile this entry belongs to is not necessarily a file (it can be a jarfile
+        // downloaded into memory, or a jarfile nested inside another one), and a nested jarfile's path holds more
+        // than one "!/" separator, which no jar URL is allowed to hold. ArchiveEntry#getURI() is what forms the URL
+        // of an entry.
+        return getPath();
     }
 }
