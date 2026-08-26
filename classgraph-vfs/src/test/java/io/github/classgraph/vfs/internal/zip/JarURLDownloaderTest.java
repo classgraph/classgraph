@@ -9,10 +9,13 @@ import java.io.InputStream;
 import java.net.InetAddress;
 import java.net.MalformedURLException;
 import java.net.ServerSocket;
+import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -244,6 +247,41 @@ public class JarURLDownloaderTest {
             assertThatThrownBy(
                     () -> JarURLDownloader.downloadJarFromURL(server.jarURL(), session, /* log = */ null))
                     .isInstanceOf(IOException.class).hasMessage("Got response code 404 for URL " + server.jarURL());
+        }
+    }
+
+    /**
+     * A server that accepts the connection and then sends nothing is given up on, rather than holding the scan open
+     * for as long as it cares to keep the socket open. (A blocked socket read cannot be interrupted, so without a
+     * read timeout there is nothing that can stop such a scan.)
+     *
+     * @throws IOException
+     *             if the server socket could not be opened
+     */
+    @Test
+    public void aServerThatAcceptsTheConnectionAndThenStallsIsGivenUpOn() throws IOException {
+        final var accepted = new AtomicReference<Socket>();
+        try (var serverSocket = new ServerSocket(0, /* backlog = */ 1, InetAddress.getLoopbackAddress())) {
+            // The connection is accepted and then left open, with no response ever written to it
+            final var thread = new Thread(() -> {
+                try {
+                    accepted.set(serverSocket.accept());
+                } catch (final IOException e) {
+                    // The server socket was closed at the end of the test
+                }
+            });
+            thread.setDaemon(true);
+            thread.start();
+            final var jarURL = "http://" + serverSocket.getInetAddress().getHostAddress() + ":"
+                    + serverSocket.getLocalPort() + "/stalled.jar";
+
+            assertThatThrownBy(() -> JarURLDownloader.downloadJarFromURL(jarURL, session, /* log = */ null))
+                    .isInstanceOf(SocketTimeoutException.class);
+        } finally {
+            final var acceptedSocket = accepted.get();
+            if (acceptedSocket != null) {
+                acceptedSocket.close();
+            }
         }
     }
 
