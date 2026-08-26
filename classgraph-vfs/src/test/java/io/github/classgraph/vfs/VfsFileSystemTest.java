@@ -354,6 +354,37 @@ public class VfsFileSystemTest {
     }
 
     /**
+     * A file last modified before the epoch reports the time it was really modified, not the epoch.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the root could not be read.
+     */
+    @Test
+    public void reportsAModificationTimeFromBeforeTheEpoch(@TempDir final Path tempDir) throws IOException {
+        final var dir = tempDir.resolve("dir");
+        Files.createDirectory(dir);
+        writeDir(dir);
+        // 1960-01-01T00:00:00Z, which is before the epoch, so the time is negative
+        final var beforeTheEpoch = FileTime.fromMillis(-315619200000L);
+        Files.setLastModifiedTime(dir.resolve("root.txt"), beforeTheEpoch);
+        // Not every filesystem can record a time before the epoch; only check the ones that can
+        assumeTrue(Files.getLastModifiedTime(dir.resolve("root.txt")).equals(beforeTheEpoch));
+
+        try (var vfs = new Vfs()) {
+            final var root = vfs.open(dir.toFile());
+            assertThat(Objects.requireNonNull(root.getEntry("root.txt")).getLastModifiedMillis())
+                    .isEqualTo(beforeTheEpoch.toMillis());
+
+            final var path = root.asFileSystem().getPath("/root.txt");
+            assertThat(Files.getLastModifiedTime(path)).isEqualTo(beforeTheEpoch);
+            assertThat(Files.readAttributes(path, BasicFileAttributes.class).creationTime())
+                    .isEqualTo(beforeTheEpoch);
+        }
+    }
+
+    /**
      * Every operation that would write throws {@link ReadOnlyFileSystemException}, since a virtual filesystem is
      * read-only.
      *
