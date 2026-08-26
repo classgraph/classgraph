@@ -50,7 +50,9 @@ import org.jspecify.annotations.Nullable;
  * <p>
  * Every way in which a module can fail to be read is reported as an {@link IOException}: the {@link IOException}
  * thrown by the {@link ModuleReader} method itself, a resource that the module does not contain, and a
- * {@code ModuleReader} implementation that returns null where its contract does not permit it.
+ * {@code ModuleReader} implementation that returns null where its contract does not permit it. The one exception is
+ * a {@link SecurityException}, which only {@link #openModule(ModuleReference)} wraps: the rest declare it, so that
+ * a caller can tell a module it is not allowed to read from one that cannot be read.
  */
 public final class ModuleReaderUtils {
     /** Class can not be constructed. */
@@ -101,7 +103,8 @@ public final class ModuleReaderUtils {
      *            the name of the module being read, for error messages.
      * @param log
      *            the log, or null for no logging.
-     * @return A list of the paths of resources in the module.
+     * @return A list of the paths of resources in the module. The list is mutable, since callers sort it in place,
+     *         and it is empty rather than null if the module reader listed its contents as null.
      * @throws IOException
      *             If the contents of the module could not be listed.
      * @throws SecurityException
@@ -127,7 +130,8 @@ public final class ModuleReaderUtils {
                         + "implementation " + moduleReader.getClass().getName()
                         + " -- treating the module as empty");
             }
-            return List.of();
+            // Mutable, for the same reason as the list built below
+            return new ArrayList<>();
         }
         // The stream may hold an open directory of an exploded module, and it is closing the stream that closes
         // the directory, so the stream has to be closed even though nothing is read from it afterwards
@@ -160,7 +164,7 @@ public final class ModuleReaderUtils {
             throw new IOException("Could not call ModuleReader#open(String) for path " + path, e);
         }
         if (optionalInputStream == null) {
-            throw new IOException("Got null result from ModuleReader#open for path " + path);
+            throw new IOException("Got null result from ModuleReader#open(String) for path " + path);
         }
         final var inputStream = optionalInputStream.orElse(null);
         if (inputStream == null) {

@@ -161,7 +161,11 @@ public class ModuleReaderUtilsTest {
         final var moduleReader = new FailingModuleReader(Failure.NULL);
         try (var reader = ModuleReaderUtils.openModule(moduleReference(moduleReader))) {
             final var log = new LogNode();
-            assertThat(ModuleReaderUtils.list(reader, "test.module", log)).isEmpty();
+            final var resourcePaths = ModuleReaderUtils.list(reader, "test.module", log);
+            assertThat(resourcePaths).isEmpty();
+            // The empty list has to be mutable too, since the caller sorts whatever it gets in place, and
+            // Collections#sort throws on an immutable list even when there is nothing to sort
+            Collections.sort(resourcePaths);
             assertThat(log.toString()).contains("ModuleReader#list() returned null for module test.module")
                     .contains(FailingModuleReader.class.getName());
         }
