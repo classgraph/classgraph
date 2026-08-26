@@ -295,7 +295,11 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
             return -1;
         }
         try {
-        	final Buffer db = FileSlice.toBuffer(dstBuf);
+            final Buffer db = FileSlice.toBuffer(dstBuf);
+            // Open the limit up to the capacity before positioning, since the destination buffer may still carry
+            // the limit that a previous read left on it, and positioning past a stale limit throws
+            // IllegalArgumentException
+            db.limit(dstBuf.capacity());
             db.position(dstBufStart);
             db.limit(dstBufStart + numBytesToRead);
             dstBuf.put(arr, idx, numBytesToRead);
