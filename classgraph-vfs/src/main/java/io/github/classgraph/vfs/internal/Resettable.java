@@ -29,10 +29,10 @@
 package io.github.classgraph.vfs.internal;
 
 /**
- * An interface for recycleable objects that need to be reset when {@link RecycleOnClose#close()} is called to
+ * An interface for recyclable objects that need to be reset when {@link RecycleOnClose#close()} is called to
  * recycle the object.
  */
 public interface Resettable {
-    /** Reset a recycleable object (called when the object is recycled). */
+    /** Reset a recyclable object (called when the object is recycled). */
     void reset();
 }
