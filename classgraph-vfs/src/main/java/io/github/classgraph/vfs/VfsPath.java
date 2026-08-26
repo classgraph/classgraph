@@ -328,7 +328,12 @@ final class VfsPath implements Path {
 
     @Override
     public int compareTo(final Path other) {
-        return toString().compareTo(check(other).toString());
+        if (!(other instanceof final VfsPath otherPath)) {
+            // Path#compareTo specifies ClassCastException for a path of another provider, rather than the
+            // ProviderMismatchException that the other methods of Path throw
+            throw new ClassCastException("Not a path of a virtual filesystem: " + other);
+        }
+        return toString().compareTo(otherPath.toString());
     }
 
     @Override

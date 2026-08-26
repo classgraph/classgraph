@@ -14,6 +14,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.ClosedFileSystemException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.FileSystem;
+import java.nio.file.FileSystemException;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.NotDirectoryException;
@@ -338,7 +339,12 @@ public class VfsFileSystemTest {
                     .isInstanceOf(NoSuchFileException.class);
             assertThatThrownBy(() -> Files.readAllBytes(fileSystem.getPath("/nonexistent")))
                     .isInstanceOf(NoSuchFileException.class);
-            assertThatThrownBy(() -> Files.readAllBytes(dirPath)).isInstanceOf(NoSuchFileException.class);
+            // A directory exists but has no content to read, and is reported as a directory rather than as a
+            // missing file, which is what the default provider reports too
+            assertThatThrownBy(() -> Files.readAllBytes(dirPath)).isExactlyInstanceOf(FileSystemException.class)
+                    .hasMessageContaining("Is a directory");
+            assertThatThrownBy(() -> Files.newInputStream(dirPath)).isExactlyInstanceOf(FileSystemException.class);
+            assertThatThrownBy(() -> Files.newByteChannel(dirPath)).isExactlyInstanceOf(FileSystemException.class);
         }
     }
 
@@ -526,6 +532,9 @@ public class VfsFileSystemTest {
                     .isInstanceOf(IllegalArgumentException.class);
             assertThatThrownBy(() -> path.resolve(tempDir)).isInstanceOf(ProviderMismatchException.class);
             assertThatThrownBy(() -> path.relativize(tempDir)).isInstanceOf(ProviderMismatchException.class);
+            // Path#compareTo specifies ClassCastException, where the other methods of Path throw
+            // ProviderMismatchException
+            assertThatThrownBy(() -> path.compareTo(tempDir)).isInstanceOf(ClassCastException.class);
             assertThatThrownBy(path::toFile).isInstanceOf(UnsupportedOperationException.class);
         }
     }

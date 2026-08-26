@@ -42,6 +42,7 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.DirectoryStream.Filter;
 import java.nio.file.FileStore;
 import java.nio.file.FileSystem;
+import java.nio.file.FileSystemException;
 import java.nio.file.FileSystemNotFoundException;
 import java.nio.file.LinkOption;
 import java.nio.file.NoSuchFileException;
@@ -114,14 +115,23 @@ final class VfsFileSystemProvider extends FileSystemProvider {
      * @param path
      *            the path.
      * @return the entry.
+     * @throws java.nio.file.FileSystemException
+     *             if the path names a directory, which has no content to read.
      * @throws NoSuchFileException
      *             if the path does not name a file of the filesystem.
      * @throws IOException
      *             if the entries of the root could not be listed.
      */
     private static VfsEntry entryOf(final VfsPath path) throws IOException {
-        final var entry = path.getFileSystem().entry(path.entryName());
+        final var fileSystem = path.getFileSystem();
+        final var name = path.entryName();
+        final var entry = fileSystem.entry(name);
         if (entry == null) {
+            // Reported the same way as the default provider reports it, rather than as a missing file, since
+            // Files#exists and Files#isDirectory both answer for a directory
+            if (fileSystem.isDirectory(name)) {
+                throw new FileSystemException(path.toString(), null, "Is a directory");
+            }
             throw new NoSuchFileException(path.toString());
         }
         return entry;
