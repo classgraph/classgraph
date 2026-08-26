@@ -9,46 +9,28 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import io.github.classgraph.classpath.ClassLoaderHandler;
-import io.github.classgraph.classpath.internal.classloaderhandler.ClassLoaderHandlerRegistry.ClassLoaderHandlerRegistryEntry;
 
-/** The package roots and lib dirs that each {@link ClassLoaderHandler} declares reach its registry entry. */
+/** The package roots and lib dirs that each {@link ClassLoaderHandler} declares. */
 class ClassLoaderHandlerRegistryTest {
     /**
-     * Every registry entry, including the fallback entry.
+     * Every registered handler, including the fallback handler.
      *
-     * @return every registry entry.
+     * @return every registered handler.
      */
-    static Stream<ClassLoaderHandlerRegistryEntry> registryEntries() {
+    static Stream<ClassLoaderHandler> registeredHandlers() {
         return Stream.concat(ClassLoaderHandlerRegistry.CLASS_LOADER_HANDLERS.stream(),
                 Stream.of(ClassLoaderHandlerRegistry.FALLBACK_HANDLER));
     }
 
     /**
-     * Find the registry entry of a {@link ClassLoaderHandler} class.
+     * Find the registered instance of a {@link ClassLoaderHandler} class.
      *
      * @param handlerClass
      *            the {@link ClassLoaderHandler} class.
-     * @return the registry entry.
+     * @return the registered handler.
      */
-    private static ClassLoaderHandlerRegistryEntry entryOf(final Class<? extends ClassLoaderHandler> handlerClass) {
-        return registryEntries().filter(entry -> entry.classLoaderHandler.getClass() == handlerClass).findFirst()
-                .orElseThrow();
-    }
-
-    /**
-     * A registry entry reports the prefixes its handler declares. The entries are constructed while
-     * {@link ClassLoaderHandlerRegistry} is still initializing, so an entry that read the prefixes in its
-     * constructor would read them before they had been assigned.
-     *
-     * @param entry
-     *            the registry entry.
-     */
-    // #119
-    @ParameterizedTest
-    @MethodSource("registryEntries")
-    void eachEntryReportsThePrefixesItsHandlerDeclares(final ClassLoaderHandlerRegistryEntry entry) {
-        assertThat(entry.getPackageRootPrefixes()).isEqualTo(entry.classLoaderHandler.getPackageRootPrefixes());
-        assertThat(entry.getLibDirPrefixes()).isEqualTo(entry.classLoaderHandler.getLibDirPrefixes());
+    private static ClassLoaderHandler handlerOf(final Class<? extends ClassLoaderHandler> handlerClass) {
+        return registeredHandlers().filter(handler -> handler.getClass() == handlerClass).findFirst().orElseThrow();
     }
 
     /**
@@ -57,35 +39,34 @@ class ClassLoaderHandlerRegistryTest {
      * only from the classpath elements it was given, as {@link java.net.URLClassLoader} does, so its handler
      * declares nothing.
      *
-     * @param entry
-     *            the registry entry.
+     * @param handler
+     *            the registered handler.
      */
     @ParameterizedTest
-    @MethodSource("registryEntries")
-    void onlyTheHandlersOfClassLoadersThatLookInFixedDirsDeclarePrefixes(
-            final ClassLoaderHandlerRegistryEntry entry) {
-        final var handlerClass = entry.classLoaderHandler.getClass();
+    @MethodSource("registeredHandlers")
+    void onlyTheHandlersOfClassLoadersThatLookInFixedDirsDeclarePrefixes(final ClassLoaderHandler handler) {
+        final var handlerClass = handler.getClass();
         if (handlerClass != TomcatWebappClassLoaderBaseHandler.class
                 && handlerClass != UnoOneJarClassLoaderHandler.class) {
-            assertThat(entry.getPackageRootPrefixes()).as(handlerClass.getSimpleName()).isEmpty();
-            assertThat(entry.getLibDirPrefixes()).as(handlerClass.getSimpleName()).isEmpty();
+            assertThat(handler.getPackageRootPrefixes()).as(handlerClass.getSimpleName()).isEmpty();
+            assertThat(handler.getLibDirPrefixes()).as(handlerClass.getSimpleName()).isEmpty();
         }
     }
 
     /** Every prefix ends in a slash, so that it cannot match a prefix of a longer directory name. */
     @Test
     void everyPrefixEndsInASlash() {
-        registryEntries().forEach(entry -> assertThat(
-                Stream.concat(entry.getPackageRootPrefixes().stream(), entry.getLibDirPrefixes().stream()))
+        registeredHandlers().forEach(handler -> assertThat(
+                Stream.concat(handler.getPackageRootPrefixes().stream(), handler.getLibDirPrefixes().stream()))
                 .allMatch(prefix -> prefix.endsWith("/")));
     }
 
     /** Catalina serves a webapp's own classes and jarfiles from the two fixed dirs of the war layout. */
     @Test
     void tomcatDeclaresTheWebappClassesAndLibDirs() {
-        final var entry = entryOf(TomcatWebappClassLoaderBaseHandler.class);
-        assertThat(entry.getPackageRootPrefixes()).containsExactly("WEB-INF/classes/");
-        assertThat(entry.getLibDirPrefixes()).containsExactly("WEB-INF/lib/");
+        final var handler = handlerOf(TomcatWebappClassLoaderBaseHandler.class);
+        assertThat(handler.getPackageRootPrefixes()).containsExactly("WEB-INF/classes/");
+        assertThat(handler.getLibDirPrefixes()).containsExactly("WEB-INF/lib/");
     }
 
     /**
@@ -97,13 +78,13 @@ class ClassLoaderHandlerRegistryTest {
     @Test
     void theBuiltInHandlersAreInAlphabeticalOrder() {
         assertThat(ClassLoaderHandlerRegistry.CLASS_LOADER_HANDLERS.stream()
-                .map(entry -> entry.classLoaderHandler.getClass().getSimpleName()).toList())
+                .map(handler -> handler.getClass().getSimpleName()).toList())
                 .isSortedAccordingTo(String.CASE_INSENSITIVE_ORDER);
     }
 
     /** An Uno-Jar or One-JAR executable jar puts the jar it launches in {@code "main/"} and its deps in "lib/". */
     @Test
     void unoOneJarDeclaresItsLaunchedJarAndLibDirs() {
-        assertThat(entryOf(UnoOneJarClassLoaderHandler.class).getLibDirPrefixes()).contains("lib/", "main/");
+        assertThat(handlerOf(UnoOneJarClassLoaderHandler.class).getLibDirPrefixes()).contains("lib/", "main/");
     }
 }

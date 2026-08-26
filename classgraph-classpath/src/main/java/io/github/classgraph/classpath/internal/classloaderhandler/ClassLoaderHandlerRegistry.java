@@ -30,11 +30,7 @@ package io.github.classgraph.classpath.internal.classloaderhandler;
 
 import java.util.List;
 
-import io.github.classgraph.base.ClassGraphLog;
 import io.github.classgraph.classpath.ClassLoaderHandler;
-import io.github.classgraph.classpath.ClassLoaderOrder;
-import io.github.classgraph.classpath.ClasspathOrder;
-import org.jspecify.annotations.Nullable;
 
 /** The registry for ClassLoaderHandler classes. */
 public final class ClassLoaderHandlerRegistry {
@@ -53,28 +49,17 @@ public final class ClassLoaderHandlerRegistry {
      * {@code FallbackClassLoaderHandler} is not in this list -- it is registered separately as
      * {@link #FALLBACK_HANDLER}, since it is only used when no other handler can handle a classloader.
      */
-    public static final List<ClassLoaderHandlerRegistryEntry> CLASS_LOADER_HANDLERS = List.of(
-            new ClassLoaderHandlerRegistryEntry(new AntClassLoaderHandler()),
-            new ClassLoaderHandlerRegistryEntry(new CxfContainerClassLoaderHandler()),
-            new ClassLoaderHandlerRegistryEntry(new EquinoxClassLoaderHandler()),
-            new ClassLoaderHandlerRegistryEntry(new EquinoxContextFinderClassLoaderHandler()),
-            new ClassLoaderHandlerRegistryEntry(new FelixClassLoaderHandler()),
-            new ClassLoaderHandlerRegistryEntry(new JBossClassLoaderHandler()),
-            new ClassLoaderHandlerRegistryEntry(new JPMSClassLoaderHandler()),
-            new ClassLoaderHandlerRegistryEntry(new OSGiDefaultClassLoaderHandler()),
-            new ClassLoaderHandlerRegistryEntry(new PlexusClassWorldsClassRealmClassLoaderHandler()),
-            new ClassLoaderHandlerRegistryEntry(new QuarkusClassLoaderHandler()),
-            new ClassLoaderHandlerRegistryEntry(new SpringBootRestartClassLoaderHandler()),
-            new ClassLoaderHandlerRegistryEntry(new TomcatWebappClassLoaderBaseHandler()),
-            new ClassLoaderHandlerRegistryEntry(new UnoOneJarClassLoaderHandler()),
-            new ClassLoaderHandlerRegistryEntry(new URLClassLoaderHandler()),
-            new ClassLoaderHandlerRegistryEntry(new WeblogicClassLoaderHandler()),
-            new ClassLoaderHandlerRegistryEntry(new WebsphereLibertyClassLoaderHandler()),
-            new ClassLoaderHandlerRegistryEntry(new WebsphereTraditionalClassLoaderHandler()));
+    public static final List<ClassLoaderHandler> CLASS_LOADER_HANDLERS = List.of(new AntClassLoaderHandler(),
+            new CxfContainerClassLoaderHandler(), new EquinoxClassLoaderHandler(),
+            new EquinoxContextFinderClassLoaderHandler(), new FelixClassLoaderHandler(),
+            new JBossClassLoaderHandler(), new JPMSClassLoaderHandler(), new OSGiDefaultClassLoaderHandler(),
+            new PlexusClassWorldsClassRealmClassLoaderHandler(), new QuarkusClassLoaderHandler(),
+            new SpringBootRestartClassLoaderHandler(), new TomcatWebappClassLoaderBaseHandler(),
+            new UnoOneJarClassLoaderHandler(), new URLClassLoaderHandler(), new WeblogicClassLoaderHandler(),
+            new WebsphereLibertyClassLoaderHandler(), new WebsphereTraditionalClassLoaderHandler());
 
     /** Fallback ClassLoaderHandler. */
-    public static final ClassLoaderHandlerRegistryEntry FALLBACK_HANDLER = new ClassLoaderHandlerRegistryEntry(
-            new FallbackClassLoaderHandler());
+    public static final ClassLoaderHandler FALLBACK_HANDLER = new FallbackClassLoaderHandler();
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -83,98 +68,5 @@ public final class ClassLoaderHandlerRegistry {
      */
     private ClassLoaderHandlerRegistry() {
         // Cannot be constructed
-    }
-
-    /**
-     * A single registered {@link ClassLoaderHandler}, whether built-in or registered by the user.
-     */
-    public static final class ClassLoaderHandlerRegistryEntry {
-        /** The {@link ClassLoaderHandler} instance. */
-        public final ClassLoaderHandler classLoaderHandler;
-
-        /**
-         * Constructor.
-         *
-         * @param classLoaderHandler
-         *            the {@link ClassLoaderHandler}.
-         */
-        public ClassLoaderHandlerRegistryEntry(final ClassLoaderHandler classLoaderHandler) {
-            this.classLoaderHandler = classLoaderHandler;
-        }
-
-        /**
-         * The name of the associated {@link ClassLoaderHandler} class, for logging.
-         *
-         * @return the fully-qualified class name of the {@link ClassLoaderHandler}.
-         */
-        public String getHandlerName() {
-            return classLoaderHandler.getClass().getName();
-        }
-
-        /**
-         * The automatic package root prefixes (e.g. {@code "BOOT-INF/classes/"}) that should be looked for, and
-         * stripped from resource paths, in classpath elements obtained from the associated
-         * {@link ClassLoaderHandler}.
-         *
-         * @return the package root prefixes.
-         */
-        public List<String> getPackageRootPrefixes() {
-            return classLoaderHandler.getPackageRootPrefixes();
-        }
-
-        /**
-         * The lib dirs (e.g. {@code "BOOT-INF/lib/"}) whose jarfiles should be added to the classpath, within
-         * classpath elements obtained from the associated {@link ClassLoaderHandler}.
-         *
-         * @return the lib dir prefixes.
-         */
-        public List<String> getLibDirPrefixes() {
-            return classLoaderHandler.getLibDirPrefixes();
-        }
-
-        /**
-         * Call {@code canHandle(Class, ClassGraphLog)} on the associated {@link ClassLoaderHandler}.
-         *
-         * @param classLoaderClass
-         *            the {@link ClassLoader} class or one of its superclasses.
-         * @param log
-         *            the log node, or null to skip logging
-         * @return true, if this {@link ClassLoaderHandler} can handle the {@link ClassLoader}.
-         */
-        public boolean canHandle(final Class<?> classLoaderClass, final @Nullable ClassGraphLog log) {
-            return classLoaderHandler.canHandle(classLoaderClass, log);
-        }
-
-        /**
-         * Call {@code findClassLoaderOrder(ClassLoader, ClassLoaderOrder, ClassGraphLog)} on the associated
-         * {@link ClassLoaderHandler}.
-         *
-         * @param classLoader
-         *            the {@link ClassLoader}.
-         * @param classLoaderOrder
-         *            a {@link ClassLoaderOrder} object.
-         * @param log
-         *            the log node, or null to skip logging
-         */
-        public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
-                final @Nullable ClassGraphLog log) {
-            classLoaderHandler.findClassLoaderOrder(classLoader, classLoaderOrder, log);
-        }
-
-        /**
-         * Call {@code findClasspathOrder(ClassLoader, ClasspathOrder, ClassGraphLog)} on the associated
-         * {@link ClassLoaderHandler}.
-         *
-         * @param classLoader
-         *            the {@link ClassLoader}.
-         * @param classpathOrder
-         *            a {@link ClasspathOrder} object.
-         * @param log
-         *            the log node, or null to skip logging
-         */
-        public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
-                final @Nullable ClassGraphLog log) {
-            classLoaderHandler.findClasspathOrder(classLoader, classpathOrder, log);
-        }
     }
 }

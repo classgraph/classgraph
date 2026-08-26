@@ -40,17 +40,15 @@ import io.github.classgraph.base.ClassGraphLog;
 import io.github.classgraph.classpath.ClassLoaderHandler;
 import io.github.classgraph.classpath.ClassLoaderOrder;
 import io.github.classgraph.classpath.internal.classloaderhandler.ClassLoaderHandlerRegistry;
-import io.github.classgraph.classpath.internal.classloaderhandler.ClassLoaderHandlerRegistry.ClassLoaderHandlerRegistryEntry;
 import org.jspecify.annotations.Nullable;
 
 /** A class to find all unique classloaders. */
 public class ClassLoaderOrderBuilder implements ClassLoaderOrder {
     /**
-     * The registry entries for the {@link ClassLoaderHandler} instances the user registered, in registration order.
-     * These are offered each classloader before the built-in handlers are, so that a user handler can override a
-     * built-in one.
+     * The {@link ClassLoaderHandler} instances the user registered, in registration order. These are offered each
+     * classloader before the built-in handlers are, so that a user handler can override a built-in one.
      */
-    private final List<ClassLoaderHandlerRegistryEntry> userClassLoaderHandlers;
+    private final List<ClassLoaderHandler> userClassLoaderHandlers;
 
     /**
      * The {@link ClassLoader} order, with the handlers to run for each classloader. This is a list rather than a
@@ -58,7 +56,7 @@ public class ClassLoaderOrderBuilder implements ClassLoaderOrder {
      * keep only one of them (see the note on {@link #added}). Nothing is added twice, since {@link #added} guards
      * that.
      */
-    private final List<Entry<ClassLoader, List<ClassLoaderHandlerRegistryEntry>>> classLoaderOrder = //
+    private final List<Entry<ClassLoader, List<ClassLoaderHandler>>> classLoaderOrder = //
             new ArrayList<>();
 
     /**
@@ -88,7 +86,7 @@ public class ClassLoaderOrderBuilder implements ClassLoaderOrder {
      * once by {@link #add(ClassLoader, ClassGraphLog)}, and choosing the handlers walks the classloader's class
      * hierarchy once per registered handler.
      */
-    private final Map<ClassLoader, List<ClassLoaderHandlerRegistryEntry>> classLoaderHandlers = //
+    private final Map<ClassLoader, List<ClassLoaderHandler>> classLoaderHandlers = //
             new IdentityHashMap<>();
 
     // -------------------------------------------------------------------------------------------------------------
@@ -97,19 +95,18 @@ public class ClassLoaderOrderBuilder implements ClassLoaderOrder {
      * Constructor.
      *
      * @param userClassLoaderHandlers
-     *            the registry entries for the {@link ClassLoaderHandler} instances the user registered.
+     *            the {@link ClassLoaderHandler} instances the user registered.
      */
-    public ClassLoaderOrderBuilder(final List<ClassLoaderHandlerRegistryEntry> userClassLoaderHandlers) {
+    public ClassLoaderOrderBuilder(final List<ClassLoaderHandler> userClassLoaderHandlers) {
         this.userClassLoaderHandlers = userClassLoaderHandlers;
     }
 
     /**
      * Get the {@link ClassLoader} order.
      *
-     * @return the {@link ClassLoader} order, as a pair: {@link ClassLoader},
-     *         {@link ClassLoaderHandlerRegistryEntry}.
+     * @return the {@link ClassLoader} order, as a pair: {@link ClassLoader}, {@link ClassLoaderHandler}.
      */
-    public List<Entry<ClassLoader, List<ClassLoaderHandlerRegistryEntry>>> getClassLoaderOrder() {
+    public List<Entry<ClassLoader, List<ClassLoaderHandler>>> getClassLoaderOrder() {
         return new ArrayList<>(classLoaderOrder);
     }
 
@@ -129,11 +126,11 @@ public class ClassLoaderOrderBuilder implements ClassLoaderOrder {
      *            the class loader
      * @param log
      *            the log node, or null to skip logging
-     * @return the registry entries that can handle the classloader, or a singleton list containing the fallback
-     *         handler if none can.
+     * @return the handlers that can handle the classloader, or a singleton list containing the fallback handler if
+     *         none can.
      */
-    private List<ClassLoaderHandlerRegistryEntry> getClassLoaderHandlerRegistryEntries(
-            final ClassLoader classLoader, final @Nullable ClassGraphLog log) {
+    private List<ClassLoaderHandler> getClassLoaderHandlers(final ClassLoader classLoader,
+            final @Nullable ClassGraphLog log) {
         // The handlers are chosen once per classloader, so this also logs the choice only once
         return classLoaderHandlers.computeIfAbsent(classLoader, cl -> chooseClassLoaderHandlers(cl, log));
     }
@@ -145,33 +142,33 @@ public class ClassLoaderOrderBuilder implements ClassLoaderOrder {
      *            the class loader
      * @param log
      *            the log node, or null to skip logging
-     * @return the registry entries that can handle the classloader, or a singleton list containing the fallback
-     *         handler if none can.
+     * @return the handlers that can handle the classloader, or a singleton list containing the fallback handler if
+     *         none can.
      */
-    private List<ClassLoaderHandlerRegistryEntry> chooseClassLoaderHandlers(final ClassLoader classLoader,
+    private List<ClassLoaderHandler> chooseClassLoaderHandlers(final ClassLoader classLoader,
             final @Nullable ClassGraphLog log) {
         final var classLoaderClass = classLoader.getClass();
-        final List<ClassLoaderHandlerRegistryEntry> ents = new ArrayList<>();
+        final List<ClassLoaderHandler> handlers = new ArrayList<>();
         // The user's handlers are offered the classloader before the built-in handlers are, so that a user handler
         // can override a built-in one
-        for (final ClassLoaderHandlerRegistryEntry ent : userClassLoaderHandlers) {
-            if (ent.canHandle(classLoaderClass, log)) {
-                ents.add(ent);
+        for (final ClassLoaderHandler handler : userClassLoaderHandlers) {
+            if (handler.canHandle(classLoaderClass, log)) {
+                handlers.add(handler);
             }
         }
-        final var numUserHandlers = ents.size();
-        for (final ClassLoaderHandlerRegistryEntry ent : ClassLoaderHandlerRegistry.CLASS_LOADER_HANDLERS) {
-            if (ent.canHandle(classLoaderClass, log)) {
+        final var numUserHandlers = handlers.size();
+        for (final ClassLoaderHandler handler : ClassLoaderHandlerRegistry.CLASS_LOADER_HANDLERS) {
+            if (handler.canHandle(classLoaderClass, log)) {
                 // This ClassLoaderHandler can handle the ClassLoader class, or one of its superclasses
-                ents.add(ent);
+                handlers.add(handler);
             }
         }
-        if (ents.isEmpty()) {
-            ents.add(ClassLoaderHandlerRegistry.FALLBACK_HANDLER);
-        } else if (ents.size() > 1) {
-            return dropMoreGeneralHandlers(ents, numUserHandlers, classLoaderClass, log);
+        if (handlers.isEmpty()) {
+            handlers.add(ClassLoaderHandlerRegistry.FALLBACK_HANDLER);
+        } else if (handlers.size() > 1) {
+            return dropMoreGeneralHandlers(handlers, numUserHandlers, classLoaderClass, log);
         }
-        return ents;
+        return handlers;
     }
 
     /**
@@ -192,20 +189,19 @@ public class ClassLoaderOrderBuilder implements ClassLoaderOrder {
      * Handlers the user registered are never dropped, since the user registered them for this exact purpose;
      * dropping one would silently turn off something the caller explicitly asked for.
      *
-     * @param ents
-     *            the registry entries that can handle the classloader, user-registered ones first, in the order
-     *            they should run in. Must contain at least two entries.
+     * @param handlers
+     *            the handlers that can handle the classloader, user-registered ones first, in the order they should
+     *            run in. Must contain at least two handlers.
      * @param numUserHandlers
-     *            the number of user-registered entries at the head of {@code ents}.
+     *            the number of user-registered handlers at the head of {@code handlers}.
      * @param classLoaderClass
      *            the class of the classloader being handled.
      * @param log
      *            the log node, or null to skip logging
-     * @return the entries to run, in the order they were given in.
+     * @return the handlers to run, in the order they were given in.
      */
-    private static List<ClassLoaderHandlerRegistryEntry> dropMoreGeneralHandlers(
-            final List<ClassLoaderHandlerRegistryEntry> ents, final int numUserHandlers,
-            final Class<?> classLoaderClass, final @Nullable ClassGraphLog log) {
+    private static List<ClassLoaderHandler> dropMoreGeneralHandlers(final List<ClassLoaderHandler> handlers,
+            final int numUserHandlers, final Class<?> classLoaderClass, final @Nullable ClassGraphLog log) {
         // The classloader class, then each of its superclasses in turn, so that a larger index is more general
         final List<Class<?>> classHierarchy = new ArrayList<>();
         for (var cls = classLoaderClass; cls != null; cls = cls.getSuperclass()) {
@@ -215,30 +211,31 @@ public class ClassLoaderOrderBuilder implements ClassLoaderOrder {
         // superclasses are walked, so a handler that recognizes the classloader by an interface it implements, and
         // that therefore handles no superclass of it, is left at index 0 and counts as the most specific of all --
         // which is what a handler written against an interface that only this classloader implements deserves.
-        final var generality = new int[ents.size()];
+        final var generality = new int[handlers.size()];
         var leastGeneral = Integer.MAX_VALUE;
-        for (var i = 0; i < ents.size(); i++) {
-            // Index 0 does not need testing -- every handler in ents already handles the classloader class itself
+        for (var i = 0; i < handlers.size(); i++) {
+            // Index 0 does not need testing -- every handler already handles the classloader class itself
             for (var j = classHierarchy.size() - 1; j > 0; j--) {
                 // Don't log the probing calls, since they say nothing about the classloader being handled
-                if (ents.get(i).canHandle(classHierarchy.get(j), /* log = */ null)) {
+                if (handlers.get(i).canHandle(classHierarchy.get(j), /* log = */ null)) {
                     generality[i] = j;
                     break;
                 }
             }
             leastGeneral = Math.min(leastGeneral, generality[i]);
         }
-        final List<ClassLoaderHandlerRegistryEntry> leastGeneralEnts = new ArrayList<>(ents.size());
-        for (var i = 0; i < ents.size(); i++) {
+        final List<ClassLoaderHandler> leastGeneralHandlers = new ArrayList<>(handlers.size());
+        for (var i = 0; i < handlers.size(); i++) {
             if (i < numUserHandlers || generality[i] == leastGeneral) {
-                leastGeneralEnts.add(ents.get(i));
+                leastGeneralHandlers.add(handlers.get(i));
             } else if (log != null) {
-                log.log("Not using ClassLoaderHandler " + ents.get(i).getHandlerName() + ", since it handles "
-                        + classHierarchy.get(generality[i]).getName() + ", and another handler handles the more "
-                        + "specific class " + classHierarchy.get(leastGeneral).getName());
+                log.log("Not using ClassLoaderHandler " + handlers.get(i).getClass().getName()
+                        + ", since it handles " + classHierarchy.get(generality[i]).getName()
+                        + ", and another handler handles the more specific class "
+                        + classHierarchy.get(leastGeneral).getName());
             }
         }
-        return leastGeneralEnts;
+        return leastGeneralHandlers;
     }
 
     /**
@@ -255,7 +252,7 @@ public class ClassLoaderOrderBuilder implements ClassLoaderOrder {
             return;
         }
         if (added.add(classLoader)) {
-            classLoaderOrder.add(Map.entry(classLoader, getClassLoaderHandlerRegistryEntries(classLoader, log)));
+            classLoaderOrder.add(Map.entry(classLoader, getClassLoaderHandlers(classLoader, log)));
         }
     }
 
@@ -295,9 +292,8 @@ public class ClassLoaderOrderBuilder implements ClassLoaderOrder {
             // general handler that would place the parent and child classloaders in a different order. When
             // several equally specific handlers remain, they are called in the order they were registered in, and
             // the ones that run later can only add classloaders that an earlier one did not already place.
-            for (final ClassLoaderHandlerRegistryEntry entry : getClassLoaderHandlerRegistryEntries(classLoader,
-                    log)) {
-                entry.findClassLoaderOrder(classLoader, this, log);
+            for (final ClassLoaderHandler handler : getClassLoaderHandlers(classLoader, log)) {
+                handler.findClassLoaderOrder(classLoader, this, log);
             }
         }
     }

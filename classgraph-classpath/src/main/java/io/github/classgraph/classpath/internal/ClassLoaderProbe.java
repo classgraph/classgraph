@@ -40,7 +40,7 @@ import io.github.classgraph.classpath.internal.ScanSourceSpec.ClasspathSource;
 import io.github.classgraph.classpath.internal.ScanSourceSpec.ClasspathString;
 import io.github.classgraph.classpath.internal.ScanSourceSpec.NamedClassLoaders;
 import io.github.classgraph.classpath.internal.ScanSourceSpec.NamedClasspathEntries;
-import io.github.classgraph.classpath.internal.classloaderhandler.ClassLoaderHandlerRegistry.ClassLoaderHandlerRegistryEntry;
+import io.github.classgraph.classpath.ClassLoaderHandler;
 import io.github.classgraph.classpath.internal.classloaderhandler.ClassLoaderHandlerRegistry;
 import org.jspecify.annotations.Nullable;
 
@@ -147,18 +147,16 @@ public class ClassLoaderProbe {
                 .getContextClassLoaders();
         defaultClassLoader = contextClassLoaders.length == 0 ? null : contextClassLoaders[0];
 
-        // Wrap the ClassLoaderHandlers the user registered. These are offered each classloader before the built-in
+        // The ClassLoaderHandlers the user registered. These are offered each classloader before the built-in
         // handlers are, so that a user handler can override a built-in one.
-        final List<ClassLoaderHandlerRegistryEntry> userClassLoaderHandlers = classpathSpec.classLoaderHandlers
-                .stream().map(ClassLoaderHandlerRegistryEntry::new).toList();
+        final var userClassLoaderHandlers = classpathSpec.classLoaderHandlers;
         if (classLoaderProbeLog != null) {
             final var classLoaderHandlerLog = classLoaderProbeLog.log("ClassLoaderHandlers:");
-            for (final ClassLoaderHandlerRegistryEntry classLoaderHandlerEntry : userClassLoaderHandlers) {
-                classLoaderHandlerLog.log(classLoaderHandlerEntry.getHandlerName() + " (registered by the caller)");
+            for (final ClassLoaderHandler classLoaderHandler : userClassLoaderHandlers) {
+                classLoaderHandlerLog.log(classLoaderHandler.getClass().getName() + " (registered by the caller)");
             }
-            for (final ClassLoaderHandlerRegistryEntry classLoaderHandlerEntry : //
-            ClassLoaderHandlerRegistry.CLASS_LOADER_HANDLERS) {
-                classLoaderHandlerLog.log(classLoaderHandlerEntry.getHandlerName());
+            for (final ClassLoaderHandler classLoaderHandler : ClassLoaderHandlerRegistry.CLASS_LOADER_HANDLERS) {
+                classLoaderHandlerLog.log(classLoaderHandler.getClass().getName());
             }
         }
 
@@ -254,29 +252,28 @@ public class ClassLoaderProbe {
         final var classLoaderOrderEntries = classLoaderOrder.getClassLoaderOrder();
         final var classloaderURLLog = log == null ? null
                 : log.log("Obtaining URLs from classloaders in delegation order");
-        for (final Entry<ClassLoader, List<ClassLoaderHandlerRegistryEntry>> ent : classLoaderOrderEntries
+        for (final Entry<ClassLoader, List<ClassLoaderHandler>> ent : classLoaderOrderEntries
                 .subList(numClassLoadersSearched, classLoaderOrderEntries.size())) {
             final var classLoader = ent.getKey();
-            for (final ClassLoaderHandlerRegistryEntry classLoaderHandlerRegistryEntry : ent.getValue()) {
+            for (final ClassLoaderHandler classLoaderHandler : ent.getValue()) {
                 if (classpathSpec.ignoreParentClassLoaders && allParentClassLoaders.contains(classLoader)) {
                     if (classloaderURLLog != null) {
                         classloaderURLLog.log("Ignoring parent classloader " + classLoader
-                                + ", normally handled by " + classLoaderHandlerRegistryEntry.getHandlerName());
+                                + ", normally handled by " + classLoaderHandler.getClass().getName());
                     }
                 } else {
                     // Add the classpath entries to classpathOrder
                     final var classloaderHandlerLog = classloaderURLLog == null ? null
                             : classloaderURLLog.log("Classloader " + classLoader.getClass().getName()
-                                    + " is handled by " + classLoaderHandlerRegistryEntry.getHandlerName());
+                                    + " is handled by " + classLoaderHandler.getClass().getName());
                     // Record the package roots that this ClassLoaderHandler's classpath elements can have, so that
                     // only the package roots that are applicable to each classpath element are looked for and
                     // stripped when it is scanned (#929), and likewise the lib dirs that this ClassLoaderHandler
                     // loads jarfiles from without listing them as classpath elements
-                    classpathOrder.setPackageRootPrefixes(classLoaderHandlerRegistryEntry.getPackageRootPrefixes());
-                    classpathOrder.setLibDirPrefixes(classLoaderHandlerRegistryEntry.getLibDirPrefixes());
+                    classpathOrder.setPackageRootPrefixes(classLoaderHandler.getPackageRootPrefixes());
+                    classpathOrder.setLibDirPrefixes(classLoaderHandler.getLibDirPrefixes());
                     try {
-                        classLoaderHandlerRegistryEntry.findClasspathOrder(classLoader, classpathOrder,
-                                classloaderHandlerLog);
+                        classLoaderHandler.findClasspathOrder(classLoader, classpathOrder, classloaderHandlerLog);
                     } finally {
                         classpathOrder.setPackageRootPrefixes(null);
                         classpathOrder.setLibDirPrefixes(null);
