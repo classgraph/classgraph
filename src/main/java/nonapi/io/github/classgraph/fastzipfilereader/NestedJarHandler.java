@@ -655,6 +655,11 @@ public class NestedJarHandler {
         try (final CloseableUrlConnection urlConn = new CloseableUrlConnection(url)) {
             long contentLengthHint = -1L;
             urlConn.conn.setConnectTimeout(HTTP_TIMEOUT);
+            // Without a read timeout, a server that accepts the connection and then sends nothing blocks the scan
+            // for as long as it cares to hold the socket open, and a blocked socket read does not answer to the
+            // interruption checker, so nothing can stop the scan. This bounds the wait for the next block of the
+            // response, not the time the whole download is allowed to take.
+            urlConn.conn.setReadTimeout(HTTP_TIMEOUT);
             urlConn.conn.connect();
             if (urlConn.httpConn != null) {
                 // Get content length from HTTP headers, if available
@@ -699,7 +704,9 @@ public class NestedJarHandler {
                 return physicalZipFile;
 
             } catch (final MalformedURLException e) {
-                throw new IOException("Malformed URL: " + jarURL);
+                // Chain the cause, as well as naming the URL -- otherwise which part of the URL the stream handler
+                // could not make sense of is lost
+                throw new IOException("Malformed URL: " + jarURL, e);
             }
         }
     }
