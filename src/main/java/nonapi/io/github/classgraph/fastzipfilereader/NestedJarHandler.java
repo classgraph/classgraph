@@ -133,13 +133,13 @@ public class NestedJarHandler {
                 }
 
                 // Read the InputStream for the child zip entry to a RAM buffer, or spill to
-                // disk if it's too large
+                // disk if it's too large. (The uncompressed size is a length rather than a
+                // hint that may have to fit in an array: an entry too long to buffer in RAM
+                // is spilled straight to disk, which needs the real length rather than -1.
+                // The size cannot be negative, since an entry with a negative size is dropped
+                // while the central directory is read.)
                 final PhysicalZipFile physicalZipFile = new PhysicalZipFile(childZipEntry.getSlice().open(),
-                        childZipEntry.uncompressedSize >= 0L
-                                && childZipEntry.uncompressedSize <= FileUtils.MAX_BUFFER_SIZE
-                                        ? (int) childZipEntry.uncompressedSize
-                                        : -1,
-                        childZipEntry.entryName, NestedJarHandler.this, log);
+                        childZipEntry.uncompressedSize, childZipEntry.entryName, NestedJarHandler.this, log);
 
                 // Create a new logical slice of the extracted inner zipfile
                 childZipEntrySlice = new ZipFileSlice(physicalZipFile, childZipEntry);
