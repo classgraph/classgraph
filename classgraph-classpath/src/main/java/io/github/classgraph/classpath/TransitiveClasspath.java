@@ -29,7 +29,9 @@
 package io.github.classgraph.classpath;
 
 import java.io.IOException;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -102,26 +104,47 @@ final class TransitiveClasspath {
     static List<ClasspathEntry> expand(final List<ClasspathEntry> entries, final Vfs vfs, final VfsSpec vfsSpec,
             final @Nullable LogNode log) {
         final var classpath = new TransitiveClasspath(vfs, vfsSpec, log);
-        for (final ClasspathEntry entry : entries) {
-            classpath.addRec(entry);
-        }
+        classpath.addAll(entries);
         return classpath.expanded;
     }
 
     /**
-     * Add a classpath element, then add the classpath elements it declares, and so on.
+     * Add classpath elements, then add the classpath elements each of them declares, and so on.
      *
-     * @param entry
-     *            the classpath element.
+     * @param entries
+     *            the classpath elements.
      */
-    private void addRec(final ClasspathEntry entry) {
-        if (!alreadyAdded.add(entry.getLocation())) {
-            // The classpath element was already reached by a shorter route, so it keeps its earlier position
-            return;
+    private void addAll(final List<ClasspathEntry> entries) {
+        // The classpath elements are expanded depth first, with an explicit stack rather than by recursing, since
+        // the depth is decided by the jarfiles that are read: a long enough chain of jarfiles that each declare the
+        // next one in a Class-Path manifest entry would otherwise overflow the stack
+        final Deque<ClasspathEntry> toAdd = new ArrayDeque<>();
+        pushInReverse(toAdd, entries);
+        while (!toAdd.isEmpty()) {
+            final var entry = toAdd.pop();
+            if (!alreadyAdded.add(entry.getLocation())) {
+                // The classpath element was already reached by a shorter route, so it keeps its earlier position
+                continue;
+            }
+            expanded.add(entry);
+            // The children are added before anything that is still on the stack, so that a classpath element is
+            // immediately followed by the classpath elements it declares
+            pushInReverse(toAdd, children(entry));
         }
-        expanded.add(entry);
-        for (final ClasspathEntry child : children(entry)) {
-            addRec(child);
+    }
+
+    /**
+     * Push classpath elements onto the stack in reverse order, so that they are popped in the order they are listed
+     * in.
+     *
+     * @param toAdd
+     *            the stack.
+     * @param entries
+     *            the classpath elements to push.
+     */
+    private static void pushInReverse(final Deque<ClasspathEntry> toAdd, final List<ClasspathEntry> entries) {
+        for (var i = entries.size() - 1; i >= 0; --i) {
+            toAdd.push(entries.get(i));
         }
     }
 
@@ -191,8 +214,8 @@ final class TransitiveClasspath {
      * @return the path of the child classpath element, spelled the way the classpath element that declared it was
      *         spelled.
      */
-    private static String spelledAsReached(final String childPath, final String canonicalPath,
-            final String reachedPath) {
+    // Visible for testing
+    static String spelledAsReached(final String childPath, final String canonicalPath, final String reachedPath) {
         // Only the outermost path component names a file on disk, so only it can be canonicalized. (The paths
         // differ in more than that component if the classpath element is a package root within a jarfile, e.g.
         // "/dir/spring-boot-app.jar!/BOOT-INF/classes", since that is not part of the path of the jarfile.)
@@ -205,15 +228,41 @@ final class TransitiveClasspath {
             // The path was not changed by canonicalization, which is the usual case
             return childPath;
         }
-        // A Bundle-ClassPath entry is a path within the jarfile, so it starts with the path of the jarfile itself
-        if (childPath.startsWith(canonicalJarPath)) {
+        // A Bundle-ClassPath entry or a lib dir jar is a path within the classpath element, so it starts with the
+        // path of the classpath element itself
+        if (isPathWithin(childPath, canonicalJarPath)) {
             return reachedJarPath + childPath.substring(canonicalJarPath.length());
         }
-        // A Class-Path entry or a lib dir jar is resolved against the directory the jarfile is in, so it starts
-        // with that directory instead. A Class-Path entry that is an absolute path elsewhere starts with neither,
-        // and is left alone.
+        // A Class-Path entry is resolved against the directory the jarfile is in, so it starts with that directory
+        // instead. A Class-Path entry that is an absolute path elsewhere starts with neither, and is left alone.
         final var canonicalDirPath = PathSyntax.getParentDirPath(canonicalJarPath);
-        return canonicalDirPath.isEmpty() || !childPath.startsWith(canonicalDirPath + "/") ? childPath
+        return canonicalDirPath.isEmpty() || !isPathWithin(childPath, canonicalDirPath) ? childPath
                 : PathSyntax.getParentDirPath(reachedJarPath) + childPath.substring(canonicalDirPath.length());
+    }
+
+    /**
+     * Determine whether a path is a given path, or lies within it.
+     *
+     * <p>
+     * The prefix has to be followed by a path separator, so that {@code /dir/lib.jar} is not treated as a prefix of
+     * the path of the unrelated file {@code /dir/lib.jar.bak}. The separator is either the {@code '/'} that
+     * separates the components of a path, or the {@code '!'} of the {@code "!/"} that separates the path of a
+     * jarfile from a path within it.
+     *
+     * @param path
+     *            the path.
+     * @param prefix
+     *            the path it may lie within, with no trailing separator.
+     * @return true if the path is the prefix, or lies within it.
+     */
+    private static boolean isPathWithin(final String path, final String prefix) {
+        if (!path.startsWith(prefix)) {
+            return false;
+        }
+        if (path.length() == prefix.length()) {
+            return true;
+        }
+        final var nextChar = path.charAt(prefix.length());
+        return nextChar == '/' || nextChar == '!';
     }
 }

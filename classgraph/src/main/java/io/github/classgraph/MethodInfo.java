@@ -680,9 +680,9 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
         if (!isVarArgs()) {
             return -1;
         }
-        // The variadic parameter is the last parameter that is not synthetic or mandated -- the Java compiler can
-        // tack on parameters *after* the variadic parameter, for variable capture with anonymous inner classes
-        // (see #260)
+        // The variadic parameter is declared as an array, and is the last array parameter that is not synthetic or
+        // mandated -- the Java compiler can tack on parameters *after* the variadic parameter, for variable capture
+        // with anonymous inner classes (see #260)
         final var allParamInfo = getParameterInfo();
         for (var i = allParamInfo.size() - 1; i >= 0; --i) {
             final var paramInfo = allParamInfo.get(i);

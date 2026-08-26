@@ -635,29 +635,26 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
             final boolean isClassfileOnly, final @Nullable LogNode log) {
         final var path = resource.getPath();
         final var isClassFile = ClassNames.isClassfilePath(path);
-        var isAccepted = false;
-        if (isClassFile) {
-            // Check classfile scanning is enabled, and classfile is not specifically rejected
-            if (scanSpec.enableClassInfo && !scanSpec.classfilePathAcceptReject
-                    .isRejected(ClassNames.withLowerCaseClassfileExtension(path))) {
-                // ClassInfo is enabled, and found an accepted classfile
-                acceptedClassfileResources.add(resource);
-                isAccepted = true;
-            }
-        } else {
-            // Resources are always accepted if found in accepted directories
-            isAccepted = true;
+        // A classfile is only scheduled for scanning if classfile scanning is enabled, and the classfile is not
+        // specifically rejected
+        final var addedAsClassfile = isClassFile && scanSpec.enableClassInfo
+                && !scanSpec.classfilePathAcceptReject.isRejected(ClassNames.withLowerCaseClassfileExtension(path));
+        if (addedAsClassfile) {
+            acceptedClassfileResources.add(resource);
         }
 
-        if (!isClassfileOnly) {
-            // Add resource to list of accepted resources, whether for a classfile or non-classfile resource
+        // Add resource to list of accepted resources, whether for a classfile or non-classfile resource. A classfile
+        // that is not scheduled for scanning is still listed as a resource, since it is still a file of the
+        // classpath element.
+        final var addedAsResource = !isClassfileOnly;
+        if (addedAsResource) {
             acceptedResources.add(resource);
         }
 
-        // Write to log if enabled, and as long as classfile scanning is not disabled, and this is not a rejected
-        // classfile
-        if (log != null && isAccepted) {
-            final var type = isClassFile ? "classfile" : "resource";
+        // Write to log if enabled, and as long as the resource was actually added to one of the two lists
+        if (log != null && (addedAsClassfile || addedAsResource)) {
+            // A classfile that was only added as a resource is logged as a resource, since it is not scanned
+            final var type = addedAsClassfile ? "classfile" : "resource";
             final var logStr = switch (parentMatchStatus) {
             case HAS_ACCEPTED_PATH_PREFIX -> "Found " + type + " within subpackage of accepted package: ";
             case AT_ACCEPTED_PATH -> "Found " + type + " within accepted package: ";

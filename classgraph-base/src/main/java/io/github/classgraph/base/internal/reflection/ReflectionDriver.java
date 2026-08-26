@@ -482,19 +482,19 @@ abstract class ReflectionDriver {
      *            The name of the field.
      * @return The {@link Field} object for the requested field name (never null).
      * @throws Exception
-     *             if the field could not be found
+     *             if the field could not be found, or could not be made accessible
      */
     protected Field findField(final Class<?> cls, final @Nullable Object obj, final String fieldName)
             throws Exception {
         final var field = classMemberCache(cls).fieldNameToField.get(fieldName);
         if (field != null) {
             final var accessInstance = accessInstance(field, obj);
-            if (!isAccessible(accessInstance, field)) {
-                // If field was found but is not accessible, try making it accessible and then returning it (may
-                // result in a reflective access warning on stderr)
-                makeAccessible(accessInstance, field);
+            // If field was found but is not accessible, try making it accessible and then returning it (may result
+            // in a reflective access warning on stderr)
+            if (isAccessible(accessInstance, field) || makeAccessible(accessInstance, field)) {
+                return field;
             }
-            return field;
+            throw new NoSuchFieldException("Could not make field accessible: " + cls.getName() + "." + fieldName);
         }
         throw new NoSuchFieldException("Could not find field " + cls.getName() + "." + fieldName);
     }
@@ -508,7 +508,7 @@ abstract class ReflectionDriver {
      *            The name of the field.
      * @return The {@link Field} object for the requested field name (never null).
      * @throws Exception
-     *             if the field could not be found, or is not static
+     *             if the field could not be found, could not be made accessible, or is not static
      */
     protected Field findStaticField(final Class<?> cls, final String fieldName) throws Exception {
         final var field = findField(cls, null, fieldName);
