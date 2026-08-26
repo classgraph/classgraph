@@ -378,10 +378,11 @@ public class NestedJarHandler {
             final var topLevelSlice = new ZipFileSlice(physicalZipFile);
             try {
                 logicalZipFile = zipFileSliceToLogicalZipFileMap.get(topLevelSlice, log);
-            } catch (final NullSingletonException e) {
-                throw new IOException("Could not get toplevel slice " + topLevelSlice + " : " + e);
-            } catch (final NewInstanceException e) {
-                throw new IOException("Could not get toplevel slice " + topLevelSlice, e);
+            } catch (final NullSingletonException | NewInstanceException e) {
+                // Chain the cause, as well as naming it in the message, so that the reason is reachable from the
+                // stack trace
+                final var cause = e.getCause() == null ? e : e.getCause();
+                throw new IOException("Could not get toplevel slice " + topLevelSlice + " : " + cause, cause);
             }
         } catch (final IOException | InterruptedException | RuntimeException | Error e) {
             if (ownedUntilHandedOver) {
@@ -430,10 +431,11 @@ public class NestedJarHandler {
         Entry<LogicalZipFile, String> parentLogicalZipFileAndPackageRoot;
         try {
             parentLogicalZipFileAndPackageRoot = nestedPathToLogicalZipFileAndPackageRootMap.get(parentPath, log);
-        } catch (final NullSingletonException e) {
-            throw new IOException("Could not get parent logical zipfile " + parentPath + " : " + e);
-        } catch (final NewInstanceException e) {
-            throw new IOException("Could not get parent logical zipfile " + parentPath, e);
+        } catch (final NullSingletonException | NewInstanceException e) {
+            // Chain the cause, as well as naming it in the message, so that the reason is reachable from the stack
+            // trace
+            final var cause = e.getCause() == null ? e : e.getCause();
+            throw new IOException("Could not get parent logical zipfile " + parentPath + " : " + cause, cause);
         }
 
         // Only the last item in a '!'-delimited list can be a non-jar path, so the parent must always be a jarfile.
@@ -549,10 +551,11 @@ public class NestedJarHandler {
         final ZipFileSlice zipEntrySlice;
         try {
             zipEntrySlice = fastZipEntryToZipFileSliceMap.get(zipEntry, log);
-        } catch (final NullSingletonException e) {
-            throw new IOException("Could not get child zip entry slice " + zipEntry + " : " + e);
-        } catch (final NewInstanceException e) {
-            throw new IOException("Could not get child zip entry slice " + zipEntry, e);
+        } catch (final NullSingletonException | NewInstanceException e) {
+            // Chain the cause, as well as naming it in the message, so that the reason is reachable from the stack
+            // trace
+            final var cause = e.getCause() == null ? e : e.getCause();
+            throw new IOException("Could not get child zip entry slice " + zipEntry + " : " + cause, cause);
         }
 
         final var zipSliceLog = log == null ? null
@@ -561,10 +564,11 @@ public class NestedJarHandler {
         // Get or create a new LogicalZipFile for the child zipfile
         try {
             return zipFileSliceToLogicalZipFileMap.get(zipEntrySlice, zipSliceLog);
-        } catch (final NullSingletonException e) {
-            throw new IOException("Could not get child logical zipfile " + zipEntrySlice + " : " + e);
-        } catch (final NewInstanceException e) {
-            throw new IOException("Could not get child logical zipfile " + zipEntrySlice, e);
+        } catch (final NullSingletonException | NewInstanceException e) {
+            // Chain the cause, as well as naming it in the message, so that the reason is reachable from the stack
+            // trace
+            final var cause = e.getCause() == null ? e : e.getCause();
+            throw new IOException("Could not get child logical zipfile " + zipEntrySlice + " : " + cause, cause);
         }
     }
 

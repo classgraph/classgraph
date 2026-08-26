@@ -134,6 +134,18 @@ public class NestedJarPathResolutionTest {
         }
     }
 
+    /**
+     * A path naming an entry of the jarfile that is not itself a jarfile reports why the entry could not be opened
+     * as a jarfile, with the reason chained so that it is reachable from the stack trace.
+     */
+    @Test
+    public void anEntryThatIsNotAJarfileIsReportedWithTheReasonChained() {
+        assertThatThrownBy(() -> resolve(outerJarPath + "!/" + PACKAGE_ROOT + "/testpkg/Outer.class")).cause()
+                .isInstanceOf(IOException.class).hasMessageContaining("Could not get child logical zipfile").cause()
+                .isInstanceOf(IOException.class)
+                .hasMessageContaining("Zipfile too short to have a central directory");
+    }
+
     /** A path that names neither an entry nor a directory of the jarfile is reported, naming the path. */
     @Test
     public void aPathThatNamesNothingInTheJarfileIsReported() {
