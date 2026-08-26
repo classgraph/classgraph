@@ -39,6 +39,7 @@ import java.lang.module.ModuleReference;
 import io.github.classgraph.vfs.VfsSpec;
 import org.junit.jupiter.api.Test;
 
+import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
 import io.github.classgraph.vfs.internal.slice.Slice;
 import io.github.classgraph.vfs.internal.slice.reader.RandomAccessReader;
@@ -153,8 +154,10 @@ class VfsSessionCloseTest {
     void theCloseReleasesEverythingEvenAfterAResourceFailsToClose() throws Exception {
         final var session = newSession();
         final var tempFile = session.makeTempFile("test.jar", /* onlyUseLeafname = */ false);
-        final var firstSlice = new UnclosableSlice(session, tempFile);
-        final var secondSlice = new UnclosableSlice(session, tempFile);
+        final var firstSlice = new UnclosableSlice(session, tempFile,
+                new IllegalStateException("Could not close this slice"));
+        final var secondSlice = new UnclosableSlice(session, tempFile,
+                new IllegalStateException("Could not close this slice"));
 
         session.close(/* log = */ null);
 
@@ -171,11 +174,37 @@ class VfsSessionCloseTest {
     }
 
     /**
+     * A resource that will not release is reported, whether it failed with an {@link IOException} or with an
+     * unchecked exception: a file handle or a memory mapping that outlives the session is what a user reading the
+     * log is trying to explain, so a teardown that dropped the reason would leave them with nothing to go on.
+     */
+    @Test
+    void theCloseReportsAResourceThatWouldNotRelease() throws Exception {
+        final var session = newSession();
+        final var tempFile = session.makeTempFile("test.jar", /* onlyUseLeafname = */ false);
+        final var checkedFailure = new UnclosableSlice(session, tempFile,
+                new IOException("The file handle would not release"));
+        final var uncheckedFailure = new UnclosableSlice(session, tempFile,
+                new IllegalStateException("The mapping would not release"));
+        final var log = new LogNode();
+
+        session.close(log);
+
+        assertThat(checkedFailure.closeWasCalled).isTrue();
+        assertThat(uncheckedFailure.closeWasCalled).isTrue();
+        assertThat(log.toString()).contains("Could not release a resource that the session opened")
+                .contains("The file handle would not release").contains("The mapping would not release");
+    }
+
+    /**
      * A toplevel {@link Slice} that cannot be closed, and that records what it saw when the teardown reached it.
      */
     private static final class UnclosableSlice extends Slice {
         /** The temporary file of the session, so that the order of the teardown can be checked. */
         private final File tempFile;
+
+        /** The exception that {@link #close()} fails with. */
+        private final Exception closeFailure;
 
         /** True once {@link #close()} has been called. */
         private boolean closeWasCalled;
@@ -190,20 +219,27 @@ class VfsSessionCloseTest {
          *            the session to register with, so that its teardown closes this slice.
          * @param tempFile
          *            the temporary file of the session, so that the order of the teardown can be checked.
+         * @param closeFailure
+         *            the exception that {@link #close()} fails with.
          * @throws IOException
          *             if the session has already been closed.
          */
-        UnclosableSlice(final VfsSession session, final File tempFile) throws IOException {
+        UnclosableSlice(final VfsSession session, final File tempFile, final Exception closeFailure)
+                throws IOException {
             super(/* length = */ 0L, /* isDeflatedZipEntry = */ false, /* inflatedLengthHint = */ 0L, session);
             this.tempFile = tempFile;
+            this.closeFailure = closeFailure;
             registerAsOpen();
         }
 
         @Override
-        public void close() {
+        public void close() throws IOException {
             closeWasCalled = true;
             tempFileExistedAtClose = tempFile.exists();
-            throw new IllegalStateException("Could not close this slice");
+            if (closeFailure instanceof final IOException ioException) {
+                throw ioException;
+            }
+            throw (RuntimeException) closeFailure;
         }
 
         @Override

@@ -564,10 +564,10 @@ public class VfsSession {
         void run(final TeardownStep step) {
             try {
                 step.run();
-            } catch (final IOException e) {
-                // Nothing can be done about a resource that cannot be closed cleanly, and the storage behind it is
-                // being discarded either way
-            } catch (final RuntimeException | Error e) {
+            } catch (final IOException | RuntimeException | Error e) {
+                // Nothing can be done about a resource that will not release, but say so: a file handle or a memory
+                // mapping that outlives the session is exactly what a user reading the log is trying to explain --
+                // on Windows it is why a jarfile cannot be deleted or overwritten after the scan
                 if (log != null) {
                     log.log("Could not release a resource that the session opened", e);
                 }
