@@ -1470,12 +1470,21 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * The whole superclass chain is tested, including any external superclasses, whether or not
      * {@link ClassGraph#enableExternalClasses()} was called -- this reports the class hierarchy as the JVM sees it.
      *
+     * <p>
+     * A class never extends itself, so this returns false if {@code superclassName} names this class.
+     *
      * @param superclassName
      *            The name of a superclass.
      * @return true if this class extends the named superclass.
      */
     public boolean extendsSuperclass(final String superclassName) {
         Assert.notNull(superclassName, "superclassName");
+        if (name.equals(superclassName)) {
+            // A class does not extend itself -- in particular, Object does not extend Object
+            return false;
+        }
+        // Every standard class extends Object by the rules of the language, whether or not its whole superclass
+        // chain was scanned
         return ("java.lang.Object".equals(superclassName) && isStandardClass())
                 || allSuperclassesIncludingExternal().containsName(superclassName);
     }
@@ -1799,11 +1808,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Checks whether this class declares a method with the annotation.
+     * Checks whether this class declares a method with a parameter that has the annotation.
      *
      * @param methodParameterAnnotation
-     *            A method annotation.
-     * @return true if this class declares a method with the annotation.
+     *            A method parameter annotation.
+     * @return true if this class declares a method with a parameter that has the annotation.
      * @throws IllegalArgumentException
      *             if {@code methodParameterAnnotation} is not an annotation type.
      * @throws IllegalStateException
@@ -1818,11 +1827,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Checks whether this class declares a method with the named annotation.
+     * Checks whether this class declares a method with a parameter that has the named annotation.
      *
      * @param methodParameterAnnotationName
-     *            The name of a method annotation.
-     * @return true if this class declares a method with the named annotation.
+     *            The name of a method parameter annotation.
+     * @return true if this class declares a method with a parameter that has the named annotation.
      * @throws IllegalStateException
      *             if {@link ClassGraph#enableMethodInfo()} and {@link ClassGraph#enableAnnotationInfo()} were not
      *             both called before scanning.
@@ -1838,11 +1847,13 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Checks whether this class or one of its superclasses or interfaces has a method with the annotation.
+     * Checks whether this class or one of its superclasses or interfaces has a method with a parameter that has the
+     * annotation.
      *
      * @param methodParameterAnnotation
-     *            A method annotation.
-     * @return true if this class or one of its superclasses or interfaces has a method with the annotation.
+     *            A method parameter annotation.
+     * @return true if this class or one of its superclasses or interfaces has a method with a parameter that has
+     *         the annotation.
      * @throws IllegalArgumentException
      *             if {@code methodParameterAnnotation} is not an annotation type.
      * @throws IllegalStateException
@@ -1856,11 +1867,13 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Checks whether this class or one of its superclasses or interfaces has a method with the named annotation.
+     * Checks whether this class or one of its superclasses or interfaces has a method with a parameter that has the
+     * named annotation.
      *
      * @param methodParameterAnnotationName
-     *            The name of a method annotation.
-     * @return true if this class or one of its superclasses or interfaces has a method with the named annotation.
+     *            The name of a method parameter annotation.
+     * @return true if this class or one of its superclasses or interfaces has a method with a parameter that has
+     *         the named annotation.
      * @throws IllegalStateException
      *             if {@link ClassGraph#enableMethodInfo()} and {@link ClassGraph#enableAnnotationInfo()} were not
      *             both called before scanning.
@@ -2944,8 +2957,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Returns information on the method(s) or constructor(s) of the given name declared by this class, but not by
-     * its interfaces or superclasses. Constructors have the method name of {@code "<init>"}. See also:
+     * Returns information on the method(s) or constructor(s) of the given name declared by this class, or by its
+     * interfaces or superclasses. Constructors have the method name of {@code "<init>"}. See also:
      *
      * <ul>
      * <li>{@link #getDeclaredMethodInfo(String)}
@@ -2971,7 +2984,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @param methodName
      *            The method name to query.
      * @return a list of {@link MethodInfo} objects for the method(s) with the given name, or the empty list if the
-     *         method was not found in this class (or is not visible).
+     *         method was not found in this class, its interfaces or its superclasses (or is not visible).
      * @throws IllegalStateException
      *             if {@link ClassGraph#enableMethodInfo()} was not called prior to initiating the scan.
      */
@@ -3159,11 +3172,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Get all method parameter annotations.
      *
-     * @return A list of all annotations or meta-annotations on methods declared by the class, (not including
-     *         methods declared by the interfaces or superclasses of this class), as a list of {@link ClassInfo}
-     *         objects, or the empty list if none. N.B. these annotations do not contain specific annotation
-     *         parameters -- call {@link MethodInfo#getAllAnnotationInfo()} to get details on specific method
-     *         annotation instances.
+     * @return A list of all annotations or meta-annotations on the parameters of methods declared by the class,
+     *         (not including methods declared by the interfaces or superclasses of this class), as a list of
+     *         {@link ClassInfo} objects, or the empty list if none. N.B. these annotations do not contain specific
+     *         annotation parameters -- call {@link MethodParameterInfo#getAllAnnotationInfo()} to get details on
+     *         specific method parameter annotation instances.
      * @throws IllegalStateException
      *             if {@link ClassGraph#enableMethodInfo()} and {@link ClassGraph#enableAnnotationInfo()} were not
      *             both called before scanning.
@@ -4001,7 +4014,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                     } else {
                         isFirstParam = false;
                     }
-                    fieldInfo.toString(/* includeModifiers = */ false, /* useSimpleNames = */ false, buf);
+                    fieldInfo.toString(/* includeModifiers = */ false, useSimpleNames, buf);
                 }
                 buf.append(')');
             }
