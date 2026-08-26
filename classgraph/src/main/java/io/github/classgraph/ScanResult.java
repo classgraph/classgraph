@@ -1729,6 +1729,9 @@ public final class ScanResult implements AutoCloseable {
      *             {@link ClassGraph#enableAnnotationInfo()} were not both called before scanning.
      */
     public ClassInfoList getClassesWithAllAnnotations(final String... annotationNames) {
+        // Checked here as well as in #getClassesWithAnnotation(String), since that is not reached if the array of
+        // annotation names is empty
+        checkAnnotationInfoEnabled();
         Assert.notNullElements(annotationNames, "annotationNames");
         ClassInfoList foundClassInfo = null;
         for (final String annotationName : annotationNames) {
@@ -1757,6 +1760,9 @@ public final class ScanResult implements AutoCloseable {
      *             {@link ClassGraph#enableAnnotationInfo()} were not both called before scanning.
      */
     public ClassInfoList getClassesWithAnyAnnotation(final String... annotationNames) {
+        // Checked here as well as in #getClassesWithAnnotation(String), since that is not reached if the array of
+        // annotation names is empty
+        checkAnnotationInfoEnabled();
         Assert.notNullElements(annotationNames, "annotationNames");
         ClassInfoList foundClassInfo = null;
         for (final String annotationName : annotationNames) {

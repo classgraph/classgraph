@@ -2370,7 +2370,8 @@ class Classfile {
                     superclassSignature.addTypeAnnotation(typePath, annotationInfo);
                 }
             } else {
-                // Type in implements clause of interface declaration
+                // Type in implements clause of class declaration, or in extends clause of interface
+                // declaration
                 final var superinterfaceSignatures = classTypeSignature.getSuperinterfaceSignatures();
                 if (supertypeIndex < superinterfaceSignatures.size()) {
                     superinterfaceSignatures.get(supertypeIndex).addTypeAnnotation(typePath, annotationInfo);

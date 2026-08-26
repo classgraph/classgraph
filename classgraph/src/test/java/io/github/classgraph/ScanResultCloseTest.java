@@ -50,6 +50,12 @@ public class ScanResultCloseTest {
         assertThatIllegalStateException().isThrownBy(scanResult::getClasspathFiles);
         assertThatIllegalStateException().isThrownBy(scanResult::getClasspathURIs);
         assertThatIllegalStateException().isThrownBy(scanResult::getClasspathContentsLastModifiedMillis);
+        // The varargs annotation queries reach their check through #getClassesWithAnnotation(String), which is not
+        // called at all when the array of annotation names is empty
+        assertThatIllegalStateException().isThrownBy(() -> scanResult.getClassesWithAllAnnotations(new String[0]))
+                .withMessageContaining("after it has been closed");
+        assertThatIllegalStateException().isThrownBy(() -> scanResult.getClassesWithAnyAnnotation(new String[0]))
+                .withMessageContaining("after it has been closed");
     }
 
     /**
