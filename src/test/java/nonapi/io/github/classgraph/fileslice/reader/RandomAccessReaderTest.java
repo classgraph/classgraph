@@ -169,6 +169,28 @@ public class RandomAccessReaderTest {
     }
 
     /**
+     * A read leaves the destination buffer's limit where it stopped, so a later read into the same buffer has to
+     * open the limit up again before positioning. Positioning past a stale limit threw
+     * {@link IllegalArgumentException} rather than reading.
+     *
+     * @param readerKind
+     *            the kind of reader to read through
+     * @throws IOException
+     *             if the content could not be read
+     */
+    @ParameterizedTest
+    @EnumSource(ReaderKind.class)
+    public void aLaterReadCanStartPastWhereThePreviousReadEnded(final ReaderKind readerKind) throws IOException {
+        final RandomAccessReader reader = reader(readerKind, PATTERN, 0, PATTERN.length);
+
+        final ByteBuffer dstBuf = ByteBuffer.allocate(PATTERN.length);
+        assertThat(reader.read(0, dstBuf, 0, 2)).isEqualTo(2);
+        // Leave a gap in the destination, so this read starts past where the previous read ended
+        assertThat(reader.read(6, dstBuf, 6, 2)).isEqualTo(2);
+        assertThat(dstBuf.array()).containsExactly(0x01, 0x23, 0x00, 0x00, 0x00, 0x00, (byte) 0xCD, (byte) 0xEF);
+    }
+
+    /**
      * A read that runs past the end of the slice is rejected, rather than reading whatever follows the slice.
      *
      * @param readerKind
