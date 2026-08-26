@@ -894,8 +894,8 @@ class Scanner implements Callable<ScanResult> {
                 Comparator.comparing(SimpleEntry<String, ClasspathElement>::getKey));
         // Find any nesting of elements within other elements
         for (var i = 0; i < classpathElts.size(); i++) {
-            // See if each classpath element is a prefix of any others (if so, they will immediately follow in
-            // lexicographic order)
+            // See if each classpath element is a prefix of any others (if so, they form a contiguous run starting
+            // at the next element in lexicographic order)
             final var ei = classpathElts.get(i);
             final var basePath = ei.getKey();
             final var basePathLen = basePath.length();
@@ -903,9 +903,15 @@ class Scanner implements Callable<ScanResult> {
                 final var ej = classpathElts.get(j);
                 final var comparePath = ej.getKey();
                 final var comparePathLen = comparePath.length();
-                var foundNestedClasspathRoot = false;
-                if (comparePath.startsWith(basePath) && comparePathLen > basePathLen) {
-                    // Require a separator after the prefix
+                if (!comparePath.startsWith(basePath)) {
+                    // Every path with basePath as a prefix is contiguous in the sorted order, so once one of them
+                    // does not start with basePath, none of the ones after it can either
+                    break;
+                }
+                if (comparePathLen > basePathLen) {
+                    // Require a separator after the prefix -- an element that merely shares the prefix, e.g.
+                    // "/a/b-extra" for the base path "/a/b", is not nested within it, but does sort between it and
+                    // the elements that are, since every character below '/' does
                     final var nextChar = comparePath.charAt(basePathLen);
                     if (nextChar == '/' || nextChar == '!') {
                         // basePath is a path prefix of comparePath. Ensure that the nested classpath does not
@@ -917,8 +923,7 @@ class Scanner implements Callable<ScanResult> {
                         final var separatorLen = comparePath.startsWith("!/", basePathLen) ? 2 : 1;
                         final var nestedClasspathRelativePath = comparePath.substring(basePathLen + separatorLen);
                         if (nestedClasspathRelativePath.indexOf('!') < 0) {
-                            // Found a nested classpath root
-                            foundNestedClasspathRoot = true;
+                            // Found a nested classpath root.
                             // Store link from prefix element to nested elements
                             final var baseElement = ei.getValue();
                             if (baseElement.nestedClasspathRootPrefixes == null) {
@@ -930,10 +935,6 @@ class Scanner implements Callable<ScanResult> {
                             }
                         }
                     }
-                }
-                if (!foundNestedClasspathRoot) {
-                    // After the first non-match, there can be no more prefix matches in the sorted order
-                    break;
                 }
             }
         }
