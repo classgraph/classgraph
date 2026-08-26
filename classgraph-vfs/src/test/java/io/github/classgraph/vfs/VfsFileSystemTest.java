@@ -1104,6 +1104,18 @@ public class VfsFileSystemTest {
             final var negated = fileSystem.getPathMatcher("glob:/root[!r]txt");
             assertThat(negated.matches(fileSystem.getPath("/root.txt"))).isTrue();
             assertThat(negated.matches(fileSystem.getPath("/rootrtxt"))).isFalse();
+            // A negated bracket expression does not match across a directory boundary, any more than '*' or '?' do
+            assertThat(negated.matches(fileSystem.getPath("/root/txt"))).isFalse();
+            // ']' is a literal at the start of a bracket expression, since there is no empty bracket expression
+            final var closeBracket = fileSystem.getPathMatcher("glob:/root[]r]txt");
+            assertThat(closeBracket.matches(fileSystem.getPath("/root]txt"))).isTrue();
+            assertThat(closeBracket.matches(fileSystem.getPath("/rootrtxt"))).isTrue();
+            assertThat(closeBracket.matches(fileSystem.getPath("/root.txt"))).isFalse();
+            // The syntax is compared without regard to case
+            assertThat(fileSystem.getPathMatcher("GLOB:/root.txt").matches(fileSystem.getPath("/root.txt")))
+                    .isTrue();
+            assertThat(fileSystem.getPathMatcher("ReGeX:/root\\.txt").matches(fileSystem.getPath("/root.txt")))
+                    .isTrue();
         }
     }
 }

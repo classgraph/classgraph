@@ -335,6 +335,14 @@ final class VfsFileSystem extends FileSystem {
         return List.of(fileStore());
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>
+     * Only the {@code "basic"} view is supported. A jarfile entry or a file in a directory may still record POSIX
+     * permissions, which {@link VfsEntry#getPosixFilePermissions()} reports, but a {@code "posix"} view would also
+     * have to name an owner and a group, which no kind of root records.
+     */
     @Override
     public Set<String> supportedFileAttributeViews() {
         return Set.of("basic");
@@ -369,9 +377,10 @@ final class VfsFileSystem extends FileSystem {
         final var syntax = syntaxAndPattern.substring(0, colonIdx);
         final var pattern = syntaxAndPattern.substring(colonIdx + 1);
         final Pattern compiled;
-        if ("glob".equals(syntax)) {
+        // FileSystem#getPathMatcher specifies that the syntax is compared without regard to case
+        if ("glob".equalsIgnoreCase(syntax)) {
             compiled = globToPattern(pattern);
-        } else if ("regex".equals(syntax)) {
+        } else if ("regex".equalsIgnoreCase(syntax)) {
             compiled = Pattern.compile(pattern);
         } else {
             throw new UnsupportedOperationException("Unsupported pattern syntax: " + syntax);
@@ -475,7 +484,9 @@ final class VfsFileSystem extends FileSystem {
      * @return the index of the {@code ']'} that closed the bracket expression.
      */
     private static int appendBracketExpression(final StringBuilder regex, final String glob, final int startIdx) {
-        regex.append('[');
+        // Intersected with everything but the name separator, so that a negated bracket expression does not match
+        // across a directory boundary any more than "*" and "?" do, which is how the default provider compiles it
+        regex.append("[[^/]&&[");
         var i = startIdx + 1;
         if (i < glob.length() && glob.charAt(i) == '^') {
             // '!' is the negation in a glob, so a leading '^' is a literal, as it is for the default provider
@@ -493,7 +504,7 @@ final class VfsFileSystem extends FileSystem {
         for (; i < glob.length(); i++) {
             final var c = glob.charAt(i);
             if (c == ']') {
-                regex.append(']');
+                regex.append("]]");
                 return i;
             }
             if (c == '/') {
