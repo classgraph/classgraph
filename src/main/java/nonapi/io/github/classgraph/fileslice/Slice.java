@@ -85,7 +85,7 @@ public abstract class Slice implements Closeable {
      * @param isDeflatedZipEntry
      *            true if this is a deflated zip entry
      * @param inflatedLengthHint
-     *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 of this is not a deflated
+     *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 if this is not a deflated
      *            zip entry.
      * @param nestedJarHandler
      *            the nested jar handler
@@ -124,7 +124,7 @@ public abstract class Slice implements Closeable {
      * @param isDeflatedZipEntry
      *            true if this is a deflated zip entry
      * @param inflatedLengthHint
-     *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 of this is not a deflated
+     *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 if this is not a deflated
      *            zip entry.
      * @param nestedJarHandler
      *            the nested jar handler
@@ -145,7 +145,7 @@ public abstract class Slice implements Closeable {
      * @param isDeflatedZipEntry
      *            true if this is a deflated zip entry
      * @param inflatedLengthHint
-     *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 of this is not a deflated
+     *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 if this is not a deflated
      *            zip entry.
      * @return The child slice.
      */

@@ -53,7 +53,7 @@ public class ArraySlice extends Slice {
      * @param isDeflatedZipEntry
      *            true if this is a deflated zip entry
      * @param inflatedLengthHint
-     *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 of this is not a deflated
+     *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 if this is not a deflated
      *            zip entry.
      * @param nestedJarHandler
      *            the nested jar handler
@@ -73,7 +73,7 @@ public class ArraySlice extends Slice {
      * @param isDeflatedZipEntry
      *            true if this is a deflated zip entry
      * @param inflatedLengthHint
-     *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 of this is not a deflated
+     *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 if this is not a deflated
      *            zip entry.
      * @param nestedJarHandler
      *            the nested jar handler
@@ -94,7 +94,7 @@ public class ArraySlice extends Slice {
      * @param isDeflatedZipEntry
      *            the is deflated zip entry
      * @param inflatedLengthHint
-     *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 of this is not a deflated
+     *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 if this is not a deflated
      *            zip entry.
      * @return the slice
      */
@@ -117,7 +117,7 @@ public class ArraySlice extends Slice {
     @Override
     public byte[] load() throws IOException {
         if (isDeflatedZipEntry) {
-            // Deflate into RAM if necessary
+            // Inflate into RAM if deflated
             try (InputStream inputStream = open()) {
                 return NestedJarHandler.readAllBytesAsArray(inputStream, inflatedLengthHint);
             }
