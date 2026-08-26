@@ -1039,9 +1039,9 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
             }
         }
 
-        // Find varargs param index, if present -- this is, for varargs methods, the last argument that
-        // is not a synthetic or mandated parameter (turns out the Java compiler can tack on parameters
-        // *after* the varargs parameter, for variable capture with anonymous inner classes -- see #260).
+        // Find varargs param index, if present -- the variadic parameter is declared as an array, and is the
+        // last array parameter that is not synthetic or mandated (turns out the Java compiler can tack on
+        // parameters *after* the varargs parameter, for variable capture with anonymous inner classes -- see #260).
         int varArgsParamIndex = -1;
         if (isVarArgs()) {
             for (int i = allParamInfo.length - 1; i >= 0; --i) {
