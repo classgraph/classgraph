@@ -1246,8 +1246,16 @@ public class NestedJarHandler {
                     for (final Slice slice : new ArrayList<>(openSlices)) {
                         try {
                             slice.close();
-                        } catch (final IOException e) {
-                            // Ignore
+                        } catch (final IOException | RuntimeException | Error e) {
+                            // Nothing can be done about a resource that will not release, but say so: a file
+                            // handle or a memory mapping that outlives the scan is exactly what a user reading
+                            // the log is trying to explain -- on Windows it is why a jarfile cannot be deleted
+                            // or overwritten after the scan. The failure must not stop the teardown either,
+                            // since the slices still to be closed, the inflater recycler and the temporary files
+                            // would all be left behind for the rest of the life of the JVM.
+                            if (log != null) {
+                                log.log("Could not release a resource that the scan opened", e);
+                            }
                         }
                         markSliceAsClosed(slice);
                     }
