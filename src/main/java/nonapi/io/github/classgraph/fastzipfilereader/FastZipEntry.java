@@ -30,6 +30,7 @@ package nonapi.io.github.classgraph.fastzipfilereader;
 
 import java.io.IOException;
 import java.util.Calendar;
+import java.util.Locale;
 import java.util.TimeZone;
 
 import nonapi.io.github.classgraph.fileslice.Slice;
@@ -250,7 +251,11 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
             final int lastModifiedMonth = (lastModifiedDateMSDOS >> 5 & 0b1111) - 1;
             final int lastModifiedYear = (lastModifiedDateMSDOS >> 9) + 1980;
 
-            final Calendar lastModifiedCalendar = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
+            // The year, month and day of an MS-DOS date are Gregorian, so the calendar has to be a Gregorian one.
+            // Locale.ROOT is what asks for that: the default locale can be one whose calendar system is not
+            // Gregorian, such as th-TH-u-ca-buddhist or ja-JP-u-ca-japanese, and such a calendar would read the
+            // same year as a year of a different era.
+            final Calendar lastModifiedCalendar = Calendar.getInstance(TimeZone.getTimeZone("UTC"), Locale.ROOT);
             lastModifiedCalendar.set(lastModifiedYear, lastModifiedMonth, lastModifiedDay, lastModifiedHour,
                     lastModifiedMinute, lastModifiedSecond);
             lastModifiedCalendar.set(Calendar.MILLISECOND, 0);
