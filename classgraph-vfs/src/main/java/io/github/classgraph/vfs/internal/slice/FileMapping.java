@@ -217,8 +217,8 @@ final class FileMapping {
      * it closes.
      *
      * <p>
-     * On JDK 22 and later this always unmaps the file, by closing the arena that mapped it, even if another thread
-     * is still reading it: that read throws {@link IllegalStateException}, which the readers translate into
+     * On JDK 22 and later this unmaps the file by closing the arena that mapped it, and does so even if another
+     * thread is still reading it: that read throws {@link IllegalStateException}, which the readers translate into
      * {@link IOException}.
      *
      * <p>
@@ -231,8 +231,9 @@ final class FileMapping {
      * the memory out from under it. Closing a {@link io.github.classgraph.vfs.Vfs} while another thread is reading
      * through it is a use-after-close either way, and is documented as one.
      *
-     * @return true if the file has been unmapped by the time this returns, or false if it is left mapped until the
-     *         garbage collector finds every view of it unreachable.
+     * @return true if the file has been unmapped by the time this returns, or false if it is left mapped -- either
+     *         until the garbage collector finds every view of it unreachable, or, if the arena would not close, for
+     *         the rest of the life of the JVM.
      */
     // #939
     boolean unmap() {
@@ -240,12 +241,15 @@ final class FileMapping {
         final var arenaCurr = arena;
         if (arenaCurr != null) {
             arena = null;
-            // Unmap the ByteBuffer by closing the arena that was used to map it
+            // Nothing but closing the arena can unmap a buffer that an arena mapped, since Unsafe::invokeCleaner
+            // has no cleaner to invoke on such a buffer -- so rule out the fallback below whether or not the
+            // arena closes, rather than leaving a later releaseView() to try a method that cannot work
             synchronized (this) {
                 unmapped = true;
             }
-            OffHeapMemory.closeArena(arenaCurr, /* log = */ null);
-            return true;
+            // An arena that will not close leaves the file mapped, which the caller has to be told about: on
+            // Windows a mapped file cannot be deleted or overwritten
+            return OffHeapMemory.closeArena(arenaCurr, /* log = */ null);
         }
         return unmapIfNoViewIsOpen();
     }
