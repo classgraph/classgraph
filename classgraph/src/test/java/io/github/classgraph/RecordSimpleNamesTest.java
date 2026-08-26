@@ -25,9 +25,9 @@ public class RecordSimpleNamesTest {
             final var rec = scanResult.getClassInfo(Rec.class.getName());
             assertThat(rec).isNotNull();
             assertThat(rec.toStringWithSimpleNames())
-                    .isEqualTo("public static final record Rec(String name, List<Integer> values) extends Record");
+                    .isEqualTo("public static final record Rec(String name, List<Integer> values)");
             assertThat(rec.toString()).isEqualTo("public static final record " + Rec.class.getName()
-                    + "(java.lang.String name, java.util.List<java.lang.Integer> values) extends java.lang.Record");
+                    + "(java.lang.String name, java.util.List<java.lang.Integer> values)");
         }
     }
 }

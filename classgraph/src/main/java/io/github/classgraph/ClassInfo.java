@@ -162,7 +162,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     @Nullable
     FieldInfoList fieldInfo;
 
-    /** Info on fields. */
+    /** Info on methods. */
     @Nullable
     MethodInfoList methodInfo;
 
@@ -3950,6 +3950,84 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Determine whether a supertype is implicit in the declaration of this class, i.e. is added by the compiler and
+     * cannot be written in the {@code extends} or {@code implements} clause in Java source:
+     * {@code java.lang.Object} as the superclass of a class, {@code java.lang.Record} as the superclass of a
+     * record, {@code java.lang.Enum} as the superclass of an enum, and {@code java.lang.annotation.Annotation} as a
+     * superinterface of an annotation.
+     *
+     * @param supertypeName
+     *            the name of the superclass or superinterface
+     * @return true if the supertype is implicit, so should be omitted when this class' declaration is rendered
+     */
+    boolean isImplicitSupertype(final String supertypeName) {
+        return switch (supertypeName) {
+        case "java.lang.Object" -> true;
+        case "java.lang.Record" -> isRecord();
+        case "java.lang.Enum" -> isEnum();
+        case "java.lang.annotation.Annotation" -> isAnnotation();
+        default -> false;
+        };
+    }
+
+    /**
+     * Determine whether a supertype signature refers to a supertype that is implicit in the declaration of this
+     * class, so should be omitted when the declaration is rendered. An annotated supertype is never omitted, since
+     * its type annotation is written in the source even when the supertype itself is implicit.
+     *
+     * @param supertypeSignature
+     *            the signature of the superclass or superinterface
+     * @return true if the supertype is implicit and unannotated, so should be omitted
+     */
+    boolean isImplicitSupertype(final ClassRefTypeSignature supertypeSignature) {
+        final var typeAnnotations = supertypeSignature.getTypeAnnotationInfo();
+        return (typeAnnotations == null || typeAnnotations.isEmpty())
+                && isImplicitSupertype(supertypeSignature.getFullyQualifiedClassName());
+    }
+
+    /**
+     * Append the record components of this class to a buffer, in the form {@code "(int x, String name)"}. Does
+     * nothing if this class is not a record.
+     *
+     * <p>
+     * The record components are the instance fields of the record, in declaration order. (A record may also declare
+     * static fields, which are not components.) If field info was not enabled during the scan, or the component
+     * fields were not visible to the scan, then no component is known, and the whole component list is omitted
+     * rather than rendered empty, since an empty list would wrongly state that the record has no components.
+     *
+     * @param useSimpleNames
+     *            if true, strip package and outer class names from class names
+     * @param buf
+     *            the buffer to append to
+     */
+    void appendRecordComponents(final boolean useSimpleNames, final StringBuilder buf) {
+        final var fields = fieldInfo;
+        if (!isRecord || fields == null) {
+            return;
+        }
+        final var componentListStartPos = buf.length();
+        buf.append('(');
+        var isFirstComponent = true;
+        for (final FieldInfo field : fields) {
+            if (field.isStatic()) {
+                continue;
+            }
+            if (isFirstComponent) {
+                isFirstComponent = false;
+            } else {
+                buf.append(", ");
+            }
+            field.toString(/* includeModifiers = */ false, useSimpleNames, buf);
+        }
+        if (isFirstComponent) {
+            // No component was rendered -- drop the component list rather than rendering "()"
+            buf.setLength(componentListStartPos);
+        } else {
+            buf.append(')');
+        }
+    }
+
+    /**
      * To string.
      *
      * @param useSimpleNames
@@ -3991,7 +4069,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             // N.B. pass useSimpleNames through, so that the type parameter bounds, the superclass and the
             // superinterfaces are simplified too, not just the class name (toStringInternal simplifies the class
             // name itself if useSimpleNames is true)
-            typeSig.toStringInternal(name, useSimpleNames, modifiers, isAnnotation(), isInterface(), buf);
+            typeSig.appendClassDeclaration(useSimpleNames, buf);
         } else {
             // Non-generic classes
             TypeUtils.modifiersToString(modifiers, ModifierType.CLASS, /* ignored */ false, buf);
@@ -4004,39 +4082,27 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                                     : isInterface() ? "interface " //
                                             : "class ");
             buf.append(useSimpleNames ? ClassInfo.getSimpleName(name) : name);
-            if (isRecord) {
-                // Add params, if this is a record class
-                buf.append('(');
-                var isFirstParam = true;
-                for (final FieldInfo fieldInfo : getFieldInfo()) {
-                    if (!isFirstParam) {
-                        buf.append(", ");
-                    } else {
-                        isFirstParam = false;
-                    }
-                    fieldInfo.toString(/* includeModifiers = */ false, useSimpleNames, buf);
-                }
-                buf.append(')');
-            }
+            appendRecordComponents(useSimpleNames, buf);
             final var superclass = superclassIncludingExternal();
-            if (superclass != null && !"java.lang.Object".equals(superclass.getName())) {
+            if (superclass != null && !isImplicitSupertype(superclass.getName())) {
                 buf.append(" extends ");
                 superclass.toString(useSimpleNames, buf);
             }
             final var interfaces = this
                     .filterClassInfo(RelType.IMPLEMENTED_INTERFACES, /* excludeExternalClasses = */ false)
                     .directlyRelatedClasses();
-            if (!interfaces.isEmpty()) {
-                buf.append(isInterface() ? " extends " : " implements ");
-                var first = true;
-                for (final ClassInfo iface : interfaces) {
-                    if (first) {
-                        first = false;
-                    } else {
-                        buf.append(", ");
-                    }
-                    iface.toString(useSimpleNames, buf);
+            var isFirstInterface = true;
+            for (final ClassInfo iface : interfaces) {
+                if (isImplicitSupertype(iface.getName())) {
+                    continue;
                 }
+                if (isFirstInterface) {
+                    buf.append(isInterface() ? " extends " : " implements ");
+                    isFirstInterface = false;
+                } else {
+                    buf.append(", ");
+                }
+                iface.toString(useSimpleNames, buf);
             }
         }
     }

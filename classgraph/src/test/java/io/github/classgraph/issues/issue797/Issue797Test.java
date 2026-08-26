@@ -15,8 +15,7 @@ public class Issue797Test {
             final var bar = result.getClassInfo("io.github.classgraph.issues.issue797.Bar");
             assertThat(bar.toString()).isEqualTo(
                     "public final record io.github.classgraph.issues.issue797.Bar(" + "java.lang.String baz, "
-                            + "java.util.List<@jakarta.validation.constraints.NotNull java.lang.String> value) "
-                            + "extends java.lang.Record");
+                            + "java.util.List<@jakarta.validation.constraints.NotNull java.lang.String> value)");
             final var baz = bar.getMethodInfo("baz").get(0);
             assertThat(baz.toString()).isEqualTo("public java.lang.String baz()");
             final var value = bar.getMethodInfo("value").get(0);
