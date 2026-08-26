@@ -287,4 +287,42 @@ public class ReflectionUtilsTest {
         assertThat(ReflectionUtils.classForNameOrNull("java.lang.NoSuchClassAsThis")).isNull();
     }
 
+    /** Records whether {@link InitializesOnLoad} has been initialized, without being that class itself. */
+    public static class InitializationFlag {
+        /** Constructor. */
+        public InitializationFlag() {
+        }
+
+        /** True once the static initializer of {@link InitializesOnLoad} has run. */
+        static volatile boolean initialized;
+    }
+
+    /** A class whose static initializer is observable, so that a test can tell whether it has been run. */
+    public static class InitializesOnLoad {
+        /** Constructor. */
+        public InitializesOnLoad() {
+        }
+
+        static {
+            InitializationFlag.initialized = true;
+        }
+    }
+
+    /**
+     * A class is looked up by name in a given classloader, without being initialized, and yields null rather than
+     * throwing if that classloader cannot see it.
+     */
+    @Test
+    public void classesAreLookedUpByNameInAGivenClassLoader() {
+        final var classLoader = ReflectionUtilsTest.class.getClassLoader();
+        assertThat(ReflectionUtils.classForNameOrNull(InitializesOnLoad.class.getName(), classLoader))
+                .isEqualTo(InitializesOnLoad.class);
+        assertThat(InitializationFlag.initialized).as("the class was initialized by the lookup").isFalse();
+
+        // The platform classloader cannot see the classes of the classpath
+        assertThat(ReflectionUtils.classForNameOrNull(InitializesOnLoad.class.getName(),
+                ClassLoader.getPlatformClassLoader())).isNull();
+        // A null classloader is the bootstrap classloader, which can see the classes of java.base
+        assertThat(ReflectionUtils.classForNameOrNull("java.lang.String", null)).isEqualTo(String.class);
+    }
 }

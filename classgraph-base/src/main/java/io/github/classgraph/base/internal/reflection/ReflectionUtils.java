@@ -427,7 +427,7 @@ public final class ReflectionUtils {
     }
 
     /**
-     * Call Class.forName(className), but return null if any exception is thrown.
+     * Find a class by name in ClassGraph's own classloader, returning null if it could not be found or loaded.
      *
      * @param className
      *            The class name to load.
@@ -436,6 +436,31 @@ public final class ReflectionUtils {
     public static @Nullable Class<?> classForNameOrNull(final String className) {
         try {
             return REFLECTION_DRIVER.findClass(className);
+        } catch (final Throwable e) {
+            return null;
+        }
+    }
+
+    /**
+     * Find a class by name in a given classloader, without initializing it, and returning null if it could not be
+     * found or loaded.
+     *
+     * <p>
+     * Use this rather than {@link #classForNameOrNull(String)} for a class that belongs to the environment being
+     * examined rather than to ClassGraph, such as a class of a servlet container: ClassGraph's own classloader is
+     * not necessarily one that the container's classes are visible to, and finding out what is on the classpath
+     * must not run the environment's code.
+     *
+     * @param className
+     *            The class name to load.
+     * @param classLoader
+     *            The classloader to find the class in, or null to use the bootstrap classloader.
+     * @return The class of the requested name, or null if an exception was thrown while trying to load the class.
+     */
+    public static @Nullable Class<?> classForNameOrNull(final String className,
+            final @Nullable ClassLoader classLoader) {
+        try {
+            return REFLECTION_DRIVER.findClass(className, classLoader);
         } catch (final Throwable e) {
             return null;
         }

@@ -153,28 +153,19 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
      * @return The Class object representing the JBoss VFS class, or null if it couldn't be found.
      */
     private static @Nullable Class<?> getJBossVFSAccess(final Object root) {
-        Class<?> jbossVFS = null;
         // we need access to the class 'VFS' of org.jboss.vfs
-        try {
-            if (root.getClass().getName().contains("org.jboss.vfs")) {
-                // first, try the classloader of the root object. Since the root object comes from org.jboss.vfs, it
-                // is likely that we can get access to org.jboss.vfs.VFS from this classloader
-                final var vfsRootClassloader = root.getClass().getClassLoader();
-                jbossVFS = loadJBossVFS(vfsRootClassloader);
-            } else {
-                // for non org.jboss.vfs objects, use the currentThread
-                jbossVFS = loadJBossVFS(Thread.currentThread().getContextClassLoader());
-            }
-        } catch (final ClassNotFoundException e) {
-            try {
-                // try to load JBoss VFS access from the current threads classloader since the previous method
-                // failed if the previous method was already the currentThreads classloader, it will fail again...
-                jbossVFS = loadJBossVFS(Thread.currentThread().getContextClassLoader());
-            } catch (final ClassNotFoundException e1) {
-                // swallow the exception. If there is no VFS present, we can't do anything...
+        if (root.getClass().getName().contains("org.jboss.vfs")) {
+            // first, try the classloader of the root object. Since the root object comes from org.jboss.vfs, it is
+            // likely that we can get access to org.jboss.vfs.VFS from this classloader
+            final var jbossVFS = loadJBossVFS(root.getClass().getClassLoader());
+            if (jbossVFS != null) {
+                return jbossVFS;
             }
         }
-        return jbossVFS;
+        // for non org.jboss.vfs objects, and if the classloader of the root object could not see VFS, try the
+        // context classloader of the current thread. If there is no VFS present, we can't do anything, so this
+        // returns null.
+        return loadJBossVFS(Thread.currentThread().getContextClassLoader());
     }
 
     /**
@@ -182,12 +173,10 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
      *
      * @param classLoader
      *            the classloader to load {@code org.jboss.vfs.VFS} from.
-     * @return the {@code org.jboss.vfs.VFS} class.
-     * @throws ClassNotFoundException
-     *             if the class is not visible to the given classloader.
+     * @return the {@code org.jboss.vfs.VFS} class, or null if it is not visible to the given classloader.
      */
-    private static Class<?> loadJBossVFS(final @Nullable ClassLoader classLoader) throws ClassNotFoundException {
-        return Class.forName("org.jboss.vfs.VFS", true, classLoader);
+    private static @Nullable Class<?> loadJBossVFS(final @Nullable ClassLoader classLoader) {
+        return ReflectionUtils.classForNameOrNull("org.jboss.vfs.VFS", classLoader);
     }
 
     /**

@@ -52,12 +52,12 @@ class CxfContainerClassLoaderHandler implements ClassLoaderHandler {
     @Override
     public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
             final @Nullable ClassGraphLog log) {
-        try {
-            classLoaderOrder.delegateTo(
-                    Class.forName("org.apache.openejb.server.cxf.transport.util.CxfUtil").getClassLoader(),
-                    /* isParent = */ true, log);
-        } catch (LinkageError | ClassNotFoundException e) {
-            // Ignore
+        // The container's classes are looked up in the classloader being handled, since they are not necessarily
+        // visible to ClassGraph's own classloader
+        final var cxfUtil = ReflectionUtils
+                .classForNameOrNull("org.apache.openejb.server.cxf.transport.util.CxfUtil", classLoader);
+        if (cxfUtil != null) {
+            classLoaderOrder.delegateTo(cxfUtil.getClassLoader(), /* isParent = */ true, log);
         }
         // tccl = TomcatClassLoader
         classLoaderOrder.delegateTo((ClassLoader) ReflectionUtils.invokeMethod(false, classLoader, "tccl"),

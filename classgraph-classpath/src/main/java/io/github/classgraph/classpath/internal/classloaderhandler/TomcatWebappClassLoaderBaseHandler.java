@@ -108,11 +108,11 @@ class TomcatWebappClassLoaderBaseHandler extends URLClassLoaderHandler {
             // TomEEWebappClassLoader has a lot of complex delegation rules, including classname-specific
             // delegation, which is not supported by the current ClassGraph model, so we just try to approximate the
             // delegation order with a fixed order.
-            try {
-                classLoaderOrder.delegateTo(Class.forName("org.apache.openejb.OpenEJB").getClassLoader(),
-                        /* isParent = */ true, log);
-            } catch (LinkageError | ClassNotFoundException e) {
-                // Ignore
+            // The container's classes are looked up in the classloader being handled, since they are not
+            // necessarily visible to ClassGraph's own classloader
+            final var openEJB = ReflectionUtils.classForNameOrNull("org.apache.openejb.OpenEJB", classLoader);
+            if (openEJB != null) {
+                classLoaderOrder.delegateTo(openEJB.getClassLoader(), /* isParent = */ true, log);
             }
         }
         classLoaderOrder.add(classLoader, log);

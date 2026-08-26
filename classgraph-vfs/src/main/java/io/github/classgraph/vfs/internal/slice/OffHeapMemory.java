@@ -88,9 +88,12 @@ public final class OffHeapMemory {
     /** Look up {@code Unsafe#invokeCleaner(ByteBuffer)} and the {@code theUnsafe} singleton it is called on. */
     private static void lookupInvokeCleanerMethod() {
         try {
-            // A JVM with no sun.misc.Unsafe throws ClassNotFoundException or LinkageError here, which is caught
-            // below, leaving the fields null -- closeDirectByteBufferImpl() then logs and returns false
-            final var unsafeClass = Class.forName("sun.misc.Unsafe");
+            // A JVM with no sun.misc.Unsafe leaves the fields null -- closeDirectByteBufferImpl() then logs and
+            // returns false
+            final var unsafeClass = ReflectionUtils.classForNameOrNull("sun.misc.Unsafe");
+            if (unsafeClass == null) {
+                return;
+            }
             final var theUnsafeField = unsafeClass.getDeclaredField("theUnsafe");
             theUnsafeField.setAccessible(true);
             theUnsafe = theUnsafeField.get(null);

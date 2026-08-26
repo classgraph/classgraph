@@ -179,6 +179,29 @@ abstract class ReflectionDriver {
     abstract Class<?> findClass(final String className) throws Exception;
 
     /**
+     * Find a class by name in a given classloader, without initializing it.
+     *
+     * <p>
+     * Use this rather than {@link #findClass(String)} for a class that belongs to the environment being examined
+     * rather than to ClassGraph, such as a class of a servlet container: ClassGraph's own classloader is not
+     * necessarily one that the container's classes are visible to. The class is not initialized, since finding out
+     * what is on the classpath must not run the environment's code -- any later reflective call on the class
+     * initializes it at that point, as it would have to anyway.
+     *
+     * @param className
+     *            the class name
+     * @param classLoader
+     *            the classloader to find the class in, or null to use the bootstrap classloader
+     * @return the class reference
+     * @throws Exception
+     *             if the class could not be found or loaded
+     */
+    @SuppressWarnings("static-method")
+    Class<?> findClass(final String className, final @Nullable ClassLoader classLoader) throws Exception {
+        return Class.forName(className, /* initialize = */ false, classLoader);
+    }
+
+    /**
      * Get declared methods for class.
      *
      * @param cls
