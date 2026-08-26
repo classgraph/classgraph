@@ -97,6 +97,9 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
      */
     private static final int BUF_CHUNK_SIZE = 8192 - 8;
 
+    /** The message of the {@link IOException} thrown when a read runs past the end of the classfile. */
+    private static final String END_OF_CLASSFILE = "Tried to read past the end of the classfile";
+
     /**
      * Constructor.
      * 
@@ -192,8 +195,15 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
             // and array is already "fully loaded" (the ArraySlice's backing array is used as the buffer).
             throw new IOException("Tried to read past end of fixed array buffer");
         }
-        if (targetArrUsed > FileUtils.MAX_BUFFER_SIZE || targetArrUsed < 0 || arrUsed == maxArrLen) {
+        if (targetArrUsed > FileUtils.MAX_BUFFER_SIZE || targetArrUsed < 0) {
             throw new IOException("Hit 2GB limit while trying to grow buffer array");
+        }
+        if (arrUsed == maxArrLen) {
+            // The buffer already holds the whole of the classfile, so there is nothing left to read. (This is the
+            // 2GB limit only when the length of the classfile is unknown; when it is known, reporting it as such
+            // would send the reader of the message looking for a file thousands of times larger than the one that
+            // was actually read past the end of.)
+            throw new IOException(END_OF_CLASSFILE);
         }
 
         // Need to read at least BUF_CHUNK_SIZE (but don't overshoot past 2GB limit)
@@ -238,9 +248,10 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
             }
         }
 
-        // Check the buffer was able to be filled to the requested position
+        // Check the buffer was able to be filled to the requested position. The read can only stop short of the
+        // target if the classfile ran out, either at the end of the stream or at the length hint.
         if (arrUsed < targetArrUsed) {
-            throw new IOException("Buffer underflow");
+            throw new IOException(END_OF_CLASSFILE);
         }
     }
 

@@ -15,7 +15,7 @@ import org.junit.jupiter.api.Test;
  * <p>
  * {@link InputStream#read(byte[], int, int)} is not required to transfer the whole of the requested range in a
  * single call, and the channel-backed streams that a module and a directory are read through really can transfer
- * less. The reader used to issue a single read and throw {@code IOException: Buffer underflow} if it came up short.
+ * less. The reader used to issue a single read and throw an {@link IOException} if it came up short.
  */
 public class ClassfileReaderShortReadTest {
     /** An {@link InputStream} that never transfers more than one byte per read, however many were asked for. */
