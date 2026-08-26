@@ -34,6 +34,7 @@ import java.net.URI;
 import java.nio.file.ClosedFileSystemException;
 import java.nio.file.FileStore;
 import java.nio.file.FileSystem;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
 import java.nio.file.WatchService;
@@ -265,8 +266,13 @@ final class VfsFileSystem extends FileSystem {
         final var packageRoot = root.getPackageRoot();
         final var entryPath = URLPaths.encodePath(packageRoot.isEmpty() ? name : packageRoot + "/" + name);
         final var rootURIStr = root.getURI().toString();
+        // A module that was exploded into a directory is read from that directory, so a name within it is named the
+        // way a name within a directory root is, rather than as an entry of a jarfile that does not exist. Only a
+        // module is asked, since a directory root is already known to be one and an archive root never is.
+        final var moduleDir = root.getKind() == VfsRoot.Kind.MODULE ? root.getNioPath() : null;
         final String uriStr;
-        if (root.getKind() == VfsRoot.Kind.DIRECTORY || rootURIStr.startsWith("jrt:")) {
+        if (root.getKind() == VfsRoot.Kind.DIRECTORY || rootURIStr.startsWith("jrt:")
+                || (moduleDir != null && Files.isDirectory(moduleDir))) {
             uriStr = rootURIStr + (rootURIStr.endsWith("/") ? "" : "/") + entryPath;
         } else {
             uriStr = (rootURIStr.startsWith("jar:") ? "" : "jar:") + rootURIStr + "!/" + entryPath;

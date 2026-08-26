@@ -7,8 +7,12 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.lang.module.ModuleDescriptor;
 import java.lang.module.ModuleFinder;
+import java.lang.module.ModuleReader;
+import java.lang.module.ModuleReference;
 import java.lang.ref.WeakReference;
+import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.ClosedFileSystemException;
@@ -28,6 +32,7 @@ import java.nio.file.attribute.FileTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Stream;
 import java.util.zip.CRC32;
 import java.util.zip.ZipEntry;
@@ -574,6 +579,64 @@ public class VfsFileSystemTest {
                     .isEqualTo(Objects.requireNonNull(jarRoot.getEntry("com/xyz/Widget.class")).getURI());
             assertThat(jarFileSystem.getPath("/com/xyz").toUri().toString()).endsWith("!/com/xyz");
         }
+    }
+
+    /**
+     * A module that was exploded into a directory is read from that directory, so a path of it names a file, not an
+     * entry of a jarfile that does not exist.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the module could not be read.
+     */
+    @Test
+    public void pathsOfAnExplodedModuleCarryTheURIOfTheDirectory(@TempDir final Path tempDir) throws IOException {
+        final var moduleDir = tempDir.resolve("mod");
+        Files.createDirectory(moduleDir);
+        writeDir(moduleDir);
+
+        try (var vfs = new Vfs()) {
+            final var fileSystem = vfs.open(explodedModule(moduleDir)).asFileSystem();
+
+            // A resource of the module has a URI of its own, which the module reader supplies
+            assertThat(fileSystem.getPath("/com/xyz/Widget.class").toUri())
+                    .isEqualTo(moduleDir.resolve("com/xyz/Widget.class").toUri());
+            // A directory of the module has no resource to ask, so its URI is formed from the module's location
+            assertThat(fileSystem.getPath("/com/xyz").toUri()).hasScheme("file").asString().endsWith("/com/xyz");
+        }
+    }
+
+    /**
+     * Create a module that is exploded into a directory, the way {@link ModuleFinder#of(Path...)} reports one.
+     *
+     * @param moduleDir
+     *            the directory the module was exploded into.
+     * @return the module.
+     */
+    private static ModuleReference explodedModule(final Path moduleDir) {
+        return new ModuleReference(ModuleDescriptor.newModule("test.module").build(), moduleDir.toUri()) {
+            @Override
+            public ModuleReader open() {
+                return new ModuleReader() {
+                    @Override
+                    public Optional<URI> find(final String name) {
+                        final var file = moduleDir.resolve(name);
+                        return Files.exists(file) ? Optional.of(file.toUri()) : Optional.empty();
+                    }
+
+                    @Override
+                    public Stream<String> list() {
+                        return ENTRY_NAMES.stream();
+                    }
+
+                    @Override
+                    public void close() {
+                        // A reader that reads through the default filesystem holds nothing open between reads
+                    }
+                };
+            }
+        };
     }
 
     /**
