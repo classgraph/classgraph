@@ -89,6 +89,9 @@ public class RandomAccessOrSequentialReader implements RandomAccessReader, Seque
      */
     private static final int BUF_CHUNK_SIZE = 8192 - 8;
 
+    /** The message of the {@link IOException} thrown when a read runs past the end of the content. */
+    private static final String END_OF_CONTENT = "Tried to read past the end of the content";
+
     /**
      * Constructor for reading an entry of a virtual filesystem. Whatever the entry has to open in order to be read
      * is opened by this reader, and closed by {@link #close()}, so the entry itself does not need to be opened by
@@ -151,8 +154,15 @@ public class RandomAccessOrSequentialReader implements RandomAccessReader, Seque
             // The stream is only cleared by close(), so the buffer cannot be filled any further than it already is
             throw new IOException("Tried to read past the buffered part of a closed reader");
         }
-        if (targetArrUsed > Slice.MAX_BUFFER_SIZE || targetArrUsed < 0 || arrUsed == maxArrLen) {
+        if (targetArrUsed > Slice.MAX_BUFFER_SIZE || targetArrUsed < 0) {
             throw new IOException("Hit 2GB limit while trying to grow buffer array");
+        }
+        if (arrUsed == maxArrLen) {
+            // The buffer already holds the whole of the content, so there is nothing left to read. (This is the
+            // 2GB limit only when the length of the content is unknown; when it is known, reporting it as such
+            // would send the reader of the message looking for a file thousands of times larger than the one that
+            // was actually read past the end of.)
+            throw new IOException(END_OF_CONTENT);
         }
 
         // Need to read at least BUF_CHUNK_SIZE (but don't overshoot past 2GB limit). The chunk end is computed in
@@ -185,9 +195,10 @@ public class RandomAccessOrSequentialReader implements RandomAccessReader, Seque
             arrUsed += numRead;
         }
 
-        // Check the buffer was able to be filled to the requested position
+        // Check the buffer was able to be filled to the requested position. The stream can only stop short of the
+        // target if the content ran out, either at the end of the stream or at the length hint.
         if (arrUsed < targetArrUsed) {
-            throw new IOException("Buffer underflow");
+            throw new IOException(END_OF_CONTENT);
         }
     }
 

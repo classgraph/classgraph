@@ -345,8 +345,9 @@ public class RandomAccessOrSequentialReaderTest {
     }
 
     /**
-     * A read past the end of the classfile fails, rather than returning whatever happened to be in the buffer. (The
-     * message depends on where the classfile is being read from, so only the exception type is checked here.)
+     * A read past the end of the classfile fails, rather than returning whatever happened to be in the buffer, and
+     * says that the read ran past the end of the content, whichever kind of classpath element it is being read
+     * from.
      *
      * @param source
      *            the kind of classpath element to read from
@@ -356,12 +357,17 @@ public class RandomAccessOrSequentialReaderTest {
     @ParameterizedTest
     @EnumSource(Source.class)
     public void aReadPastTheEndOfTheClassfileIsRejected(final Source source) throws IOException {
+        final var pastTheEnd = "Tried to read past the end of the content";
         try (var reader = reader(source, PATTERN)) {
-            assertThatThrownBy(() -> reader.readByte(PATTERN.length)).isInstanceOf(IOException.class);
-            assertThatThrownBy(() -> reader.readInt(PATTERN.length - 3)).isInstanceOf(IOException.class);
-            assertThatThrownBy(() -> reader.readLong(1)).isInstanceOf(IOException.class);
-            assertThatThrownBy(() -> reader.read(0, new byte[16], 0, 16)).isInstanceOf(IOException.class);
-            assertThatThrownBy(() -> reader.readString(0, 16)).isInstanceOf(IOException.class);
+            assertThatThrownBy(() -> reader.readByte(PATTERN.length)).isInstanceOf(IOException.class)
+                    .hasMessage(pastTheEnd);
+            assertThatThrownBy(() -> reader.readInt(PATTERN.length - 3)).isInstanceOf(IOException.class)
+                    .hasMessage(pastTheEnd);
+            assertThatThrownBy(() -> reader.readLong(1)).isInstanceOf(IOException.class).hasMessage(pastTheEnd);
+            assertThatThrownBy(() -> reader.read(0, new byte[16], 0, 16)).isInstanceOf(IOException.class)
+                    .hasMessage(pastTheEnd);
+            assertThatThrownBy(() -> reader.readString(0, 16)).isInstanceOf(IOException.class)
+                    .hasMessage(pastTheEnd);
 
             // The reads that stay within the classfile still succeed
             assertThat(reader.readInt(0)).isEqualTo(0x01234567);
