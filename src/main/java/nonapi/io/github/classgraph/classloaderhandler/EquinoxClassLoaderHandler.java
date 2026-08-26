@@ -230,7 +230,7 @@ class EquinoxClassLoaderHandler implements ClassLoaderHandler {
             // type ModuleDatabase
             final Object moduleDatabase = classpathOrder.reflectionUtils.getFieldVal(false, moduleContainer,
                     "moduleDatabase");
-            // type HashMap<Integer, EquinoxModule>
+            // type HashMap<Long, EquinoxModule> -- an OSGi bundle id is a long, so the key below is 0L, not 0
             final Object modulesById = classpathOrder.reflectionUtils.getFieldVal(false, moduleDatabase,
                     "modulesById");
             // type EquinoxSystemModule (module 0 is always the system module)

@@ -154,7 +154,7 @@ public class ClassLoaderHandlerRegistry {
     }
 
     /**
-     * A list of fully-qualified ClassLoader class names paired with the ClassLoaderHandler that can handle them.
+     * A single registered {@link ClassLoaderHandler}, whether built-in or registered by the user.
      */
     public static class ClassLoaderHandlerRegistryEntry {
         /** The {@link ClassLoaderHandler} instance. */
@@ -164,7 +164,7 @@ public class ClassLoaderHandlerRegistry {
          * Constructor.
          *
          * @param classLoaderHandler
-         *            The ClassLoaderHandler class.
+         *            the {@link ClassLoaderHandler}.
          */
         private ClassLoaderHandlerRegistryEntry(final ClassLoaderHandler classLoaderHandler) {
             this.classLoaderHandler = classLoaderHandler;
