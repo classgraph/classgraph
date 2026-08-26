@@ -514,12 +514,14 @@ public final class JarUtils {
         int leafStartIdx = 1 + (File.separatorChar == '/' ? path.lastIndexOf('/', endIdx)
                 : Math.max(path.lastIndexOf('/', endIdx), path.lastIndexOf(File.separatorChar, endIdx)));
         // In case of temp files (for jars extracted from within jars), remove the temp filename prefix -- see
-        // NestedJarHandler.makeTempFile()
-        int sepIdx = path.indexOf(NestedJarHandler.TEMP_FILENAME_LEAF_SEPARATOR);
-        if (sepIdx >= 0) {
-            sepIdx += NestedJarHandler.TEMP_FILENAME_LEAF_SEPARATOR.length();
+        // NestedJarHandler.makeTempFile(). The separator is only looked for within the leafname itself: searching
+        // the whole path found a "---" in a directory name or in a path nested within the jar, which left the
+        // leafname truncated or empty, so the jar matched no accept or reject criterion and was silently skipped
+        final int tempSepIdx = path.indexOf(NestedJarHandler.TEMP_FILENAME_LEAF_SEPARATOR, leafStartIdx);
+        if (tempSepIdx >= 0
+                && tempSepIdx + NestedJarHandler.TEMP_FILENAME_LEAF_SEPARATOR.length() <= endIdx) {
+            leafStartIdx = tempSepIdx + NestedJarHandler.TEMP_FILENAME_LEAF_SEPARATOR.length();
         }
-        leafStartIdx = Math.max(leafStartIdx, sepIdx);
         leafStartIdx = Math.min(leafStartIdx, endIdx);
         return path.substring(leafStartIdx, endIdx);
     }

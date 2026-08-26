@@ -142,6 +142,27 @@ public class JarUtilsTest {
     }
 
     /**
+     * The temp filename separator is only meaningful within the leafname itself. A "---" in a path nested within a
+     * jarfile is not the separator that a temp filename carries, so it must not truncate the leafname of the jar.
+     * Searching the whole path for it made the leafname empty in that case, so the jar matched no accept or reject
+     * criterion and was silently skipped.
+     */
+    @Test
+    public void aTempSeparatorAfterTheNestedJarSeparatorDoesNotEmptyTheLeafName(@TempDir final Path tempDir)
+            throws IOException {
+        final String outerJarPath = Files.write(tempDir.resolve("c.jar"), new byte[] { 'P', 'K' }).toString()
+                .replace(File.separatorChar, '/');
+        assertThat(JarUtils.leafName(outerJarPath + "!/BOOT-INF/lib/a"
+                + NestedJarHandler.TEMP_FILENAME_LEAF_SEPARATOR + "b.jar")).isEqualTo("c.jar");
+        // The same holds for a "---" in a directory name that the leafname is not part of
+        final Path dirWithTempSep = Files
+                .createDirectory(tempDir.resolve("d" + NestedJarHandler.TEMP_FILENAME_LEAF_SEPARATOR + "e"));
+        final String jarPath = Files.write(dirWithTempSep.resolve("f.jar"), new byte[] { 'P', 'K' }).toString()
+                .replace(File.separatorChar, '/');
+        assertThat(JarUtils.leafName(jarPath)).isEqualTo("f.jar");
+    }
+
+    /**
      * A '!' in a directory name is an ordinary filename character, not a nested jar separator, so it does not end
      * the leafname. Ending the leafname at the first '!' regardless made the leafname of a jar below such a
      * directory the directory's name, so the jar matched no accept or reject criterion and was silently skipped.
