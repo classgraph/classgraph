@@ -92,8 +92,6 @@ class ClasspathElementZip extends ClasspathElement {
      */
     @Nullable
     String moduleNameFromManifestFile;
-    /** The automatic module name, derived from the jarfile filename. */
-    private @Nullable String derivedAutomaticModuleName;
 
     /**
      * A jarfile classpath element.
@@ -685,22 +683,15 @@ class ClasspathElementZip extends ClasspathElement {
     }
 
     /**
-     * Get the module name declared by the jarfile, or, if it declares none, an automatic module name derived from
-     * the jar name.
+     * Get the module name explicitly declared by the jarfile. A filename-derived automatic module name applies only
+     * when a jar is resolved on a module path; a jar scanned as a traditional classpath element remains in the
+     * unnamed module and must not acquire one merely because of its filename.
      *
-     * @return the module name
+     * @return the declared module name, or null if there is none.
      */
     @Override
     public @Nullable String getModuleName() {
-        final var declaredModuleName = getDeclaredModuleName();
-        if (declaredModuleName != null) {
-            return declaredModuleName;
-        }
-        if (derivedAutomaticModuleName == null) {
-            derivedAutomaticModuleName = AutomaticModuleName.derive(zipFilePath);
-        }
-        return derivedAutomaticModuleName == null || derivedAutomaticModuleName.isEmpty() ? null
-                : derivedAutomaticModuleName;
+        return getDeclaredModuleName();
     }
 
     /**

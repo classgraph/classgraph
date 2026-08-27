@@ -29,10 +29,13 @@
 package io.github.classgraph;
 
 import java.io.Serial;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Objects;
 import java.util.function.Predicate;
 
 import io.github.classgraph.base.internal.utils.Assert;
+import io.github.classgraph.base.internal.utils.CollectionUtils;
 
 /** A list of {@link PackageInfo} objects, which can be indexed by package name. */
 public class PackageInfoList extends MappableInfoList<PackageInfo> {
@@ -58,7 +61,7 @@ public class PackageInfoList extends MappableInfoList<PackageInfo> {
     /**
      * Construct a new modifiable empty list of {@link PackageInfo} objects.
      */
-    public PackageInfoList() {
+    PackageInfoList() {
         super();
     }
 
@@ -68,19 +71,21 @@ public class PackageInfoList extends MappableInfoList<PackageInfo> {
      * @param sizeHint
      *            the expected number of elements
      */
-    public PackageInfoList(final int sizeHint) {
+    PackageInfoList(final int sizeHint) {
         super(sizeHint);
     }
 
     /**
-     * Construct a new modifiable {@link PackageInfoList}, given an initial collection of {@link PackageInfo}
-     * objects.
+     * Construct a new unmodifiable {@link PackageInfoList} from a completed collection of {@link PackageInfo}
+     * objects. The collection is copied.
      *
      * @param packageInfoCollection
      *            the package info collection
      */
     public PackageInfoList(final Collection<PackageInfo> packageInfoCollection) {
-        super(packageInfoCollection);
+        super(CollectionUtils
+                .sortCopy(Objects.requireNonNull(packageInfoCollection, "packageInfoCollection must not be null")),
+                /* modifiable = */ false);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -96,12 +101,12 @@ public class PackageInfoList extends MappableInfoList<PackageInfo> {
      */
     public PackageInfoList filter(final Predicate<PackageInfo> filter) {
         Assert.notNull(filter, "filter");
-        final PackageInfoList packageInfoFiltered = new PackageInfoList();
+        final var packageInfoFiltered = new ArrayList<PackageInfo>();
         for (final PackageInfo packageInfo : this) {
             if (filter.test(packageInfo)) {
                 packageInfoFiltered.add(packageInfo);
             }
         }
-        return unmodifiable(packageInfoFiltered);
+        return new PackageInfoList(packageInfoFiltered);
     }
 }

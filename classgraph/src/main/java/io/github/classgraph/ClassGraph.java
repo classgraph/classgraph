@@ -728,9 +728,9 @@ public class ClassGraph {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Scan the system modules ({@code java.*}, {@code jdk.*}, {@code javafx.*}, {@code oracle.*}) of the
-     * ModuleLayers that are visible from the caller: the layers of the classes on the call stack, and the boot
-     * layer.
+     * Scan the modules supplied by the running JVM, as identified by
+     * {@link java.lang.module.ModuleFinder#ofSystem()}, in the ModuleLayers that are visible from the caller: the
+     * layers of the classes on the call stack, and the boot layer.
      *
      * @return this (for method chaining).
      */
@@ -1470,16 +1470,20 @@ public class ClassGraph {
      *            A custom {@link ExecutorService} to use for scheduling worker tasks.
      * @param numParallelTasks
      *            The number of parallel tasks to break the work into during the most CPU-intensive stage of
-     *            classpath scanning. Ideally the ExecutorService will have at least this many threads available.
+     *            classpath scanning. Must be at least 1. Ideally the ExecutorService will have at least this many
+     *            threads available.
      * @param scanResultProcessor
-     *            A callback to run on successful scan. It is passed the {@link ScanResult}, and is responsible for
-     *            closing it.
+     *            A callback to run on successful scan. It is passed a borrowed {@link ScanResult} that is valid
+     *            only for the duration of the callback. ClassGraph closes it after the callback returns or throws.
      * @param failureHandler
      *            A callback to run on failed scan. It is passed any {@link Throwable} thrown during the scan.
+     * @throws IllegalArgumentException
+     *             if {@code numParallelTasks} is less than 1.
      */
     public void scanAsync(final ExecutorService executorService, final int numParallelTasks,
             final Consumer<ScanResult> scanResultProcessor, final Consumer<Throwable> failureHandler) {
         Assert.notNull(executorService, "executorService");
+        checkNumParallelTasks(numParallelTasks);
         // If scanResultProcessor is null, the scan won't do anything after completion, and the ScanResult will
         // simply be lost.
         Assert.notNull(scanResultProcessor, "scanResultProcessor");
@@ -1520,12 +1524,16 @@ public class ClassGraph {
      *            A custom {@link ExecutorService} to use for scheduling worker tasks.
      * @param numParallelTasks
      *            The number of parallel tasks to break the work into during the most CPU-intensive stage of
-     *            classpath scanning. Ideally the ExecutorService will have at least this many threads available.
+     *            classpath scanning. Must be at least 1. Ideally the ExecutorService will have at least this many
+     *            threads available.
      * @return a {@code Future<ScanResult>}, that when resolved using get() yields a new {@link ScanResult} object
      *         representing the result of the scan.
+     * @throws IllegalArgumentException
+     *             if {@code numParallelTasks} is less than 1.
      */
     public Future<ScanResult> scanAsync(final ExecutorService executorService, final int numParallelTasks) {
         Assert.notNull(executorService, "executorService");
+        checkNumParallelTasks(numParallelTasks);
         // Read the call stack on the calling thread, since it is the caller's classloaders and module layers that
         // are to be searched, not those of the thread that the scan happens to run on
         return executorService.submit(new Scanner(/* performScan = */ true, CallStackInfo.read(), scanSpec,
@@ -1552,14 +1560,30 @@ public class ClassGraph {
      *            for {@link Executors#newFixedThreadPool(int)}.)
      * @param numParallelTasks
      *            The number of parallel tasks to break the work into during the most CPU-intensive stage of
-     *            classpath scanning. Ideally the ExecutorService will have at least this many threads available.
+     *            classpath scanning. Must be at least 1. The calling thread is one of these tasks; ideally the
+     *            ExecutorService will have at least {@code numParallelTasks - 1} threads available.
      * @return a {@link ScanResult} object representing the result of the scan.
      * @throws ClassGraphException
      *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
+     * @throws IllegalArgumentException
+     *             if {@code numParallelTasks} is less than 1.
      */
     public ScanResult scan(final ExecutorService executorService, final int numParallelTasks) {
         Assert.notNull(executorService, "executorService");
+        checkNumParallelTasks(numParallelTasks);
         return scanOnThisThread(/* performScan = */ true, executorService, numParallelTasks);
+    }
+
+    /**
+     * Validate the requested scan parallelism before scheduling any work.
+     *
+     * @param numParallelTasks
+     *            The requested number of parallel scan tasks.
+     */
+    private static void checkNumParallelTasks(final int numParallelTasks) {
+        if (numParallelTasks < 1) {
+            throw new IllegalArgumentException("numParallelTasks must be at least 1");
+        }
     }
 
     /**
@@ -1646,8 +1670,8 @@ public class ClassGraph {
     }
 
     /**
-     * Scan the enabled classpath elements and modules with the requested number of threads, blocking until the scan
-     * is complete. Nothing is scanned unless one of the {@code enable} methods was called. You should assign the
+     * Scan the enabled classpath elements and modules with the requested parallelism, blocking until the scan is
+     * complete. Nothing is scanned unless one of the {@code enable} methods was called. You should assign the
      * returned {@link ScanResult} in a try-with-resources statement, or manually close it when you are finished
      * with it.
      *
@@ -1660,12 +1684,16 @@ public class ClassGraph {
      * to running on the calling thread whatever {@code numThreads} says, noting it in the verbose log.
      *
      * @param numThreads
-     *            The number of worker threads to start up. If 1, the scan is run entirely on the calling thread.
+     *            The total number of parallel tasks, including the calling thread. Must be at least 1. If 1, the
+     *            scan is run entirely on the calling thread.
      * @return a {@link ScanResult} object representing the result of the scan.
      * @throws ClassGraphException
      *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
+     * @throws IllegalArgumentException
+     *             if {@code numThreads} is less than 1.
      */
     public ScanResult scan(final int numThreads) {
+        checkNumParallelTasks(numThreads);
         try (var executorService = new AutoCloseableExecutorService(numThreads, scanSpec.getWorkerTimeoutNanos())) {
             return scan(executorService, numThreads);
         }
@@ -1798,13 +1826,8 @@ public class ClassGraph {
      * <p>
      * Note that the returned {@link ModulePathInfo} object reports what the commandline asked for, whether or not
      * any of it was enabled for scanning, and does not include classpath entries from the traditional classpath or
-     * system modules. Use {@link #getModuleReferences()} to get the modules that were enabled.
-     *
-     * <p>
-     * Also, {@link ModulePathInfo#getAddExports()} and {@link ModulePathInfo#getAddOpens()} will not contain
-     * {@code Add-Exports} or {@code Add-Opens} entries from jarfile manifest files encountered during scanning,
-     * unless you obtain the {@link ModulePathInfo} by calling {@link ScanResult#getModulePathInfo()} rather than by
-     * calling {@link ClassGraph#getModulePathInfo()} before {@link ClassGraph#scan()}.
+     * system modules. This is an immutable snapshot of JVM command-line arguments; manifest attributes encountered
+     * during a scan do not mutate it. Use {@link #getModuleReferences()} to get the modules that were enabled.
      *
      * @return The {@link ModulePathInfo}.
      */

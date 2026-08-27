@@ -69,7 +69,6 @@ import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
 import io.github.classgraph.base.internal.concurrency.SingletonMap;
 import io.github.classgraph.base.internal.path.FastPathResolver;
 import io.github.classgraph.base.internal.path.FileUtils;
-import io.github.classgraph.base.internal.path.PathList;
 import io.github.classgraph.base.internal.path.PathSyntax;
 import io.github.classgraph.base.internal.utils.CollectionUtils;
 import io.github.classgraph.classpath.ClassLoaderHandler;
@@ -938,12 +937,6 @@ class Scanner implements Callable<ScanResult> {
         }
     }
 
-    /** The manifest attribute that lists the packages a jarfile needs exported to it, from JEP 261. */
-    private static final String ADD_EXPORTS_KEY = "Add-Exports";
-
-    /** The manifest attribute that lists the packages a jarfile needs opened to it, from JEP 261. */
-    private static final String ADD_OPENS_KEY = "Add-Opens";
-
     /**
      * Find classpath elements whose path is a prefix of another classpath element, and record the nesting.
      *
@@ -952,7 +945,8 @@ class Scanner implements Callable<ScanResult> {
      * @param classLoaderProbeLog
      *            the classpath finder log
      */
-    private void preprocessClasspathElementsByType(final List<ClasspathElement> finalTraditionalClasspathEltOrder,
+    private static void preprocessClasspathElementsByType(
+            final List<ClasspathElement> finalTraditionalClasspathEltOrder,
             final @Nullable LogNode classLoaderProbeLog) {
         final List<SimpleEntry<String, ClasspathElement>> classpathEltDirs = new ArrayList<>();
         final List<SimpleEntry<String, ClasspathElement>> classpathEltZips = new ArrayList<>();
@@ -970,29 +964,10 @@ class Scanner implements Callable<ScanResult> {
                 // Separate out ClasspathElementZip elements from other types
                 classpathEltZips.add(new SimpleEntry<>(classpathEltZip.getZipFilePath(), classpathElt));
 
-                // Handle module-related manifest entries
+                // Retrieve the explicitly declared automatic module name, if present
                 final var zipRoot = classpathEltZip.vfsRoot;
                 if (zipRoot != null) {
                     try {
-                        // From JEP 261: "A <module>/<package> pair in the value of an Add-Exports attribute has the
-                        // same meaning as the command-line option --add-exports <module>/<package>=ALL-UNNAMED. A
-                        // <module>/<package> pair in the value of an Add-Opens attribute has the same meaning as the
-                        // command-line option --add-opens <module>/<package>=ALL-UNNAMED."
-                        final var addExportsManifestValue = zipRoot.getManifestEntry(ADD_EXPORTS_KEY);
-                        if (addExportsManifestValue != null) {
-                            for (final String addExports : PathList.split(addExportsManifestValue, ' ',
-                                    scanSpec.classpathSpec.allowedURLSchemes)) {
-                                scanSpec.classpathSpec.modulePathInfo.addExportsEntry(addExports + "=ALL-UNNAMED");
-                            }
-                        }
-                        final var addOpensManifestValue = zipRoot.getManifestEntry(ADD_OPENS_KEY);
-                        if (addOpensManifestValue != null) {
-                            for (final String addOpens : PathList.split(addOpensManifestValue, ' ',
-                                    scanSpec.classpathSpec.allowedURLSchemes)) {
-                                scanSpec.classpathSpec.modulePathInfo.addOpensEntry(addOpens + "=ALL-UNNAMED");
-                            }
-                        }
-                        // Retrieve Automatic-Module-Name manifest entry, if present
                         final var moduleName = zipRoot.getModuleName();
                         if (moduleName != null) {
                             classpathEltZip.moduleNameFromManifestFile = moduleName;

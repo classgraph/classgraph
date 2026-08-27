@@ -76,6 +76,18 @@ public class MappableInfoList<T extends HasName> extends InfoList<T> {
     }
 
     /**
+     * Constructor.
+     *
+     * @param infoCollection
+     *            the initial elements
+     * @param modifiable
+     *            whether the list may be modified after construction
+     */
+    MappableInfoList(final Collection<T> infoCollection, final boolean modifiable) {
+        super(infoCollection, modifiable);
+    }
+
+    /**
      * Get an index for this list, as a map from the name of each list item (obtained by calling {@code getName()}
      * on each list item) to the list item.
      *

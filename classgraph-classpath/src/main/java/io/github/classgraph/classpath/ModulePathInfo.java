@@ -155,8 +155,7 @@ public final class ModulePathInfo {
      * Returns the module {@code exports} directives added on the commandline using the {@code --add-exports}
      * switch, as an ordered set of strings in the format
      * {@code <source-module>/<package>=<target-module>(,<target-module>)*}, in the order they were listed on the
-     * commandline. Additionally, any {@code Add-Exports} entries found in jarfile manifests during classpath
-     * scanning are appended to this set, in the format {@code <source-module>/<package>=ALL-UNNAMED}.
+     * commandline.
      *
      * @return The {@code exports} directives, as an unmodifiable set.
      */
@@ -167,9 +166,7 @@ public final class ModulePathInfo {
     /**
      * Returns the module {@code opens} directives added on the commandline using the {@code --add-opens} switch, as
      * an ordered set of strings in the format {@code <source-module>/<package>=<target-module>(,<target-module>)*},
-     * in the order they were listed on the commandline. Additionally, any {@code Add-Opens} entries found in
-     * jarfile manifests during classpath scanning are appended to this set, in the format
-     * {@code <source-module>/<package>=ALL-UNNAMED}.
+     * in the order they were listed on the commandline.
      *
      * @return The {@code opens} directives, as an unmodifiable set.
      */
@@ -188,40 +185,9 @@ public final class ModulePathInfo {
         return snapshot(addReads);
     }
 
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Add an {@code Add-Exports} entry found in a jarfile manifest during scanning. This is for the scanner, which
-     * reads the manifests, and is not part of the API.
-     *
-     * @param addExportsEntry
-     *            the entry, in the format {@code <source-module>/<package>=ALL-UNNAMED}.
-     * @hidden
-     */
-    public synchronized void addExportsEntry(final String addExportsEntry) {
-        addExports.add(addExportsEntry);
-    }
-
-    /**
-     * Add an {@code Add-Opens} entry found in a jarfile manifest during scanning. This is for the scanner, which
-     * reads the manifests, and is not part of the API.
-     *
-     * @param addOpensEntry
-     *            the entry, in the format {@code <source-module>/<package>=ALL-UNNAMED}.
-     * @hidden
-     */
-    public synchronized void addOpensEntry(final String addOpensEntry) {
-        addOpens.add(addOpensEntry);
-    }
-
     /**
      * Read the commandline arguments if they have not been read yet, then return an unmodifiable copy of one of the
      * field sets.
-     *
-     * <p>
-     * A copy rather than an unmodifiable view, since {@link #addExportsEntry(String)} and
-     * {@link #addOpensEntry(String)} can be called from a scan thread while the caller is still iterating the
-     * returned set, and the field sets are plain {@link LinkedHashSet}s.
      *
      * @param field
      *            the field set to snapshot.
@@ -273,11 +239,6 @@ public final class ModulePathInfo {
 
     /**
      * Return the module path info in commandline format.
-     *
-     * <p>
-     * Synchronized for the same reason {@link #snapshot(Set)} is: this reads the plain {@link LinkedHashSet} fields
-     * directly, and {@link #addExportsEntry(String)} and {@link #addOpensEntry(String)} can be called from a scan
-     * thread while it is doing so.
      *
      * @return the module path commandline string.
      */

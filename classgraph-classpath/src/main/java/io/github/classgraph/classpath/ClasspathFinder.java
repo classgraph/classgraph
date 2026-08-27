@@ -363,7 +363,8 @@ public final class ClasspathFinder {
 
     /**
      * Search the module layers that are visible from the caller -- the layers of the classes on the call stack, and
-     * the boot layer -- for the system modules ({@code java.*}, {@code jdk.*}, {@code javafx.*}, {@code oracle.*}).
+     * the boot layer -- for the modules supplied by the running JVM, as identified by
+     * {@link java.lang.module.ModuleFinder#ofSystem()}.
      *
      * @return this (for method chaining).
      */

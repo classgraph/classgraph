@@ -57,7 +57,6 @@ import io.github.classgraph.base.internal.filter.AcceptReject;
 import io.github.classgraph.base.internal.path.PathList;
 import io.github.classgraph.base.internal.path.PathSyntax;
 import io.github.classgraph.base.internal.utils.Assert;
-import io.github.classgraph.base.internal.utils.CollectionUtils;
 import io.github.classgraph.classpath.ModulePathInfo;
 import io.github.classgraph.vfs.Vfs;
 import org.jspecify.annotations.Nullable;
@@ -599,14 +598,13 @@ public final class ScanResult implements AutoCloseable {
 
     /**
      * Get the module path info provided on the commandline with {@code --module-path}, {@code --add-modules},
-     * {@code --patch-module}, {@code --add-exports}, {@code --add-opens}, and {@code --add-reads}, and also the
-     * {@code Add-Exports} and {@code Add-Opens} entries from jarfile manifest files encountered during scanning.
+     * {@code --patch-module}, {@code --add-exports}, {@code --add-opens}, and {@code --add-reads}.
      *
      * <p>
-     * Note that the returned {@link ModulePathInfo} object reports what the commandline and the manifests asked
-     * for, whether or not any of it was scanned, and does not include classpath entries from the traditional
-     * classpath or system modules. Use {@link #getModuleReferences()} to get the modules that were actually
-     * scanned.
+     * Note that the returned {@link ModulePathInfo} object is an immutable snapshot of JVM command-line arguments.
+     * It reports what the commandline asked for, whether or not any of it was scanned, and does not include
+     * traditional classpath entries, system modules, or jar manifest attributes. Use {@link #getModuleReferences()}
+     * to get the modules that were actually scanned.
      *
      * @return The {@link ModulePathInfo}.
      * @throws IllegalStateException
@@ -899,9 +897,7 @@ public final class ScanResult implements AutoCloseable {
      */
     public ModuleInfoList getModuleInfo() {
         checkClassInfoEnabled();
-        final var moduleInfoList = new ModuleInfoList(moduleNameToModuleInfo().values());
-        CollectionUtils.sortIfNotEmpty(moduleInfoList);
-        return unmodifiable(moduleInfoList);
+        return new ModuleInfoList(moduleNameToModuleInfo().values());
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -935,9 +931,7 @@ public final class ScanResult implements AutoCloseable {
      */
     public PackageInfoList getPackageInfo() {
         checkClassInfoEnabled();
-        final var packageInfoList = new PackageInfoList(packageNameToPackageInfo().values());
-        CollectionUtils.sortIfNotEmpty(packageInfoList);
-        return unmodifiable(packageInfoList);
+        return new PackageInfoList(packageNameToPackageInfo().values());
     }
 
     // -------------------------------------------------------------------------------------------------------------

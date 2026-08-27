@@ -61,13 +61,14 @@ import java.nio.file.spi.FileSystemProvider;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.jspecify.annotations.Nullable;
 
@@ -147,12 +148,15 @@ final class VfsFileSystemProvider extends FileSystemProvider {
      */
     private static void checkReadOnly(final Collection<? extends OpenOption> options) {
         for (final var option : options) {
+            Objects.requireNonNull(option, "open option must not be null");
             if (option == StandardOpenOption.WRITE || option == StandardOpenOption.APPEND
                     || option == StandardOpenOption.CREATE || option == StandardOpenOption.CREATE_NEW
                     || option == StandardOpenOption.DELETE_ON_CLOSE
                     || option == StandardOpenOption.TRUNCATE_EXISTING || option == StandardOpenOption.SYNC
                     || option == StandardOpenOption.DSYNC) {
                 throw new ReadOnlyFileSystemException();
+            } else if (option != StandardOpenOption.READ) {
+                throw new UnsupportedOperationException("Unsupported open option: " + option);
             }
         }
     }
@@ -213,6 +217,10 @@ final class VfsFileSystemProvider extends FileSystemProvider {
     public SeekableByteChannel newByteChannel(final Path path, final Set<? extends OpenOption> options,
             final FileAttribute<?>... attrs) throws IOException {
         checkReadOnly(options);
+        if (attrs.length != 0) {
+            throw new UnsupportedOperationException(
+                    "File attributes are not supported by this read-only filesystem");
+        }
         return new VfsByteChannel(entryOf(check(path)).read());
     }
 
@@ -251,7 +259,7 @@ final class VfsFileSystemProvider extends FileSystemProvider {
         private final List<Path> children;
 
         /** Whether {@link #iterator()} has been called, or this stream has been closed. */
-        private boolean spent;
+        private final AtomicBoolean spent = new AtomicBoolean();
 
         /**
          * Constructor.
@@ -265,17 +273,33 @@ final class VfsFileSystemProvider extends FileSystemProvider {
 
         @Override
         public Iterator<Path> iterator() {
-            if (spent) {
+            if (!spent.compareAndSet(false, true)) {
                 throw new IllegalStateException("The iterator has already been returned, or the stream was closed");
             }
-            spent = true;
-            // Collections#unmodifiableList so that the iterator does not support remove
-            return Collections.unmodifiableList(children).iterator();
+            // DirectoryStream requires its iterator to be thread-safe. The entries are an immutable snapshot, and
+            // an atomic cursor lets multiple consumer threads share the one iterator without duplicates.
+            return new Iterator<>() {
+                private final AtomicInteger cursor = new AtomicInteger();
+
+                @Override
+                public boolean hasNext() {
+                    return cursor.get() < children.size();
+                }
+
+                @Override
+                public Path next() {
+                    final int index = cursor.getAndIncrement();
+                    if (index >= children.size()) {
+                        throw new java.util.NoSuchElementException();
+                    }
+                    return children.get(index);
+                }
+            };
         }
 
         @Override
         public void close() {
-            spent = true;
+            spent.set(true);
         }
     }
 

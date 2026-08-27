@@ -142,6 +142,16 @@ public class PotentiallyUnmodifiableListTest {
         assertThat(list).containsExactly("a", "b");
     }
 
+    /** Capacity-changing operations honor the same frozen contract as content-changing operations. */
+    @Test
+    public void anUnmodifiableListCannotChangeItsCapacity() {
+        final var list = PotentiallyUnmodifiableList.unmodifiable(listOf("a", "b"));
+        assertThatThrownBy(() -> list.ensureCapacity(100)).isInstanceOf(UnsupportedOperationException.class)
+                .hasMessage("List is immutable");
+        assertThatThrownBy(list::trimToSize).isInstanceOf(UnsupportedOperationException.class)
+                .hasMessage("List is immutable");
+    }
+
     /**
      * A sublist of a modifiable list is a writable view of it, but a sublist of an unmodifiable list is
      * unmodifiable too -- {@link java.util.ArrayList#subList} returns a view that writes straight to the backing

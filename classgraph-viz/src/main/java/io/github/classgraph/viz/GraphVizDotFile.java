@@ -647,6 +647,40 @@ public final class GraphVizDotFile {
     }
 
     /**
+     * Append a quoted GraphViz identifier, escaping characters that would terminate or alter the identifier.
+     *
+     * @param identifier
+     *            The identifier to quote and escape.
+     * @param buf
+     *            The destination buffer.
+     */
+    static void appendQuotedIdentifier(final CharSequence identifier, final StringBuilder buf) {
+        buf.append('"');
+        for (var i = 0; i < identifier.length(); i++) {
+            final char c = identifier.charAt(i);
+            switch (c) {
+            case '"' -> buf.append("\\\"");
+            case '\\' -> buf.append("\\\\");
+            case '\n' -> buf.append("\\n");
+            case '\r' -> buf.append("\\r");
+            case '\t' -> buf.append("\\t");
+            default -> {
+                if (c < 0x20 || c == 0x7f) {
+                    // DOT does not define a portable escape for every control character. Encode these into a
+                    // collision-free printable form; node identifiers are internal and need not equal the label.
+                    buf.append("\\u");
+                    final String hex = Integer.toHexString(c);
+                    buf.append("0".repeat(4 - hex.length())).append(hex);
+                } else {
+                    buf.append(c);
+                }
+            }
+            }
+        }
+        buf.append('"');
+    }
+
+    /**
      * Append an edge between two class nodes.
      *
      * @param fromClassName
@@ -660,8 +694,11 @@ public final class GraphVizDotFile {
      */
     private static void appendEdge(final String fromClassName, final String toClassName, final String attributes,
             final StringBuilder buf) {
-        buf.append("  \"").append(fromClassName).append("\" -> \"").append(toClassName).append("\" ")
-                .append(attributes).append('\n');
+        buf.append("  ");
+        appendQuotedIdentifier(fromClassName, buf);
+        buf.append(" -> ");
+        appendQuotedIdentifier(toClassName, buf);
+        buf.append(' ').append(attributes).append('\n');
     }
 
     /**
@@ -684,7 +721,7 @@ public final class GraphVizDotFile {
             final String shape, final String boxBgColor, final GraphVizDotFileOptions options,
             final StringBuilder buf) {
         for (final ClassInfo node : classNodes) {
-            buf.append('"').append(node.getName()).append('"');
+            appendQuotedIdentifier(node.getName(), buf);
             labelClassNodeHTML(scanResult, node, shape, boxBgColor, options, buf);
             buf.append(";\n");
         }
@@ -1064,7 +1101,7 @@ public final class GraphVizDotFile {
         }
 
         for (final ClassInfo ci : allVisibleNodes) {
-            buf.append('"').append(ci.getName()).append('"');
+            appendQuotedIdentifier(ci.getName(), buf);
             appendClassNodeLabelHeader(ci, ci.isAnnotation() ? "oval" : ci.isInterface() ? "diamond" : "box",
                     ci.isAnnotation() ? ANNOTATION_COLOR
                             : ci.isInterface() ? INTERFACE_COLOR : STANDARD_CLASS_COLOR,

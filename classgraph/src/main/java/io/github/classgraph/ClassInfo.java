@@ -1228,7 +1228,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Get the {@link ModuleInfo} object for the class.
      *
-     * @return the {@link ModuleInfo} object for the class, or null if the class is not part of a named module.
+     * @return the {@link ModuleInfo} object for the class, or null if the class is not part of a named module and
+     *         its traditional classpath jar does not explicitly declare a module name.
      */
     public @Nullable ModuleInfo getModuleInfo() {
         return moduleInfo;

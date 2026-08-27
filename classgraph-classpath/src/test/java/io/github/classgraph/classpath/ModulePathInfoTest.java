@@ -14,11 +14,7 @@ import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/**
- * Tests for {@link ModulePathInfo}. Only the {@code Add-Exports} and {@code Add-Opens} entries can be filled in
- * without launching a JVM with module switches on its commandline, since the rest are only read from the
- * commandline.
- */
+/** Tests for the immutable commandline snapshot represented by {@link ModulePathInfo}. */
 public class ModulePathInfoTest {
     /** A new instance has nothing in it, and prints as the empty string rather than as a bare switch. */
     @Test
@@ -49,27 +45,6 @@ public class ModulePathInfoTest {
                 .isInstanceOf(UnsupportedOperationException.class);
         assertThatThrownBy(() -> modulePathInfo.getAddReads().add("x"))
                 .isInstanceOf(UnsupportedOperationException.class);
-    }
-
-    /**
-     * The {@code Add-Exports} and {@code Add-Opens} manifest entries found during scanning are added to the
-     * corresponding sets, in the order they were found, and each is printed as its own commandline switch.
-     */
-    @Test
-    public void manifestEntriesAreAddedAndPrintedAsSwitches() {
-        final var modulePathInfo = new ModulePathInfo();
-        modulePathInfo.addExportsEntry("jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED");
-        modulePathInfo.addExportsEntry("java.base/sun.nio.ch=ALL-UNNAMED");
-        // A repeated entry is only listed once, since the entries are held in a set
-        modulePathInfo.addExportsEntry("java.base/sun.nio.ch=ALL-UNNAMED");
-        modulePathInfo.addOpensEntry("java.base/java.lang=ALL-UNNAMED");
-
-        assertThat(modulePathInfo.getAddExports()).containsExactly(
-                "jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED", "java.base/sun.nio.ch=ALL-UNNAMED");
-        assertThat(modulePathInfo.getAddOpens()).containsExactly("java.base/java.lang=ALL-UNNAMED");
-        assertThat(modulePathInfo).hasToString("--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED "
-                + "--add-exports=java.base/sun.nio.ch=ALL-UNNAMED "
-                + "--add-opens=java.base/java.lang=ALL-UNNAMED");
     }
 
     /**

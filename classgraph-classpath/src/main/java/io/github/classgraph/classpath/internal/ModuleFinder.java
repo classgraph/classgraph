@@ -84,15 +84,18 @@ public class ModuleFinder {
     }
 
     /**
-     * Check if a module is a system module, based on its name.
+     * Check whether a reference identifies one of the modules supplied by the running JVM. Matching both its name
+     * and location prevents a child layer from turning an application module into a system module merely by giving
+     * it a system-looking name (or even the same name as a module in a parent layer).
      *
-     * @param moduleName
-     *            the module name
-     * @return true if this is a system module.
+     * @param moduleReference
+     *            the module reference to classify
+     * @return true if the reference identifies a module supplied by the running JVM
      */
-    private static boolean isSystemModule(final String moduleName) {
-        return moduleName.startsWith("java.") || moduleName.startsWith("jdk.") || moduleName.startsWith("javafx.")
-                || moduleName.startsWith("oracle.");
+    private static boolean isSystemModule(final ModuleReference moduleReference) {
+        final var systemReference = java.lang.module.ModuleFinder.ofSystem()
+                .find(moduleReference.descriptor().name()).orElse(null);
+        return systemReference != null && systemReference.location().equals(moduleReference.location());
     }
 
     /**
@@ -274,7 +277,7 @@ public class ModuleFinder {
         systemModuleReferences = new ArrayList<>();
         nonSystemModuleReferences = new ArrayList<>();
         for (final ModuleReference moduleReference : allModuleReferences) {
-            if (isSystemModule(moduleReference.descriptor().name())) {
+            if (isSystemModule(moduleReference)) {
                 // System modules are listed whether or not they are going to be scanned, since the classfile of
                 // a class in a system module that is not being scanned may still be read, in order to complete
                 // the class graph above an accepted class (#902)

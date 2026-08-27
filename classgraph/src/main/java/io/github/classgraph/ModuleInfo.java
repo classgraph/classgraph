@@ -38,10 +38,14 @@ import java.util.Map;
 import java.util.Set;
 
 import io.github.classgraph.base.internal.utils.Assert;
-import io.github.classgraph.base.internal.utils.CollectionUtils;
 import org.jspecify.annotations.Nullable;
 
-/** Holds metadata about a module encountered during a scan. */
+/**
+ * Holds metadata about a named module encountered during a scan. For a traditional classpath jar, this object is
+ * created only when the jar explicitly declares a module name through {@code module-info.class} or the
+ * {@code Automatic-Module-Name} manifest attribute; a filename-derived automatic name is used only for a jar that
+ * was actually resolved as a module.
+ */
 public class ModuleInfo implements Comparable<ModuleInfo>, HasName, HasAnnotations {
     /** The name of the module. */
     private final String name;
@@ -101,9 +105,9 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName, HasAnnotatio
     }
 
     /**
-     * The module name, or {@code ""} for the unnamed module.
+     * The name of this named module.
      *
-     * @return the module name, or {@code ""} for the unnamed module.
+     * @return the module name.
      */
     @Override
     public String getName() {
@@ -133,11 +137,10 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName, HasAnnotatio
     }
 
     /**
-     * The {@link ModuleReference} for this module, or null if this module was obtained from a classpath element on
-     * the traditional classpath that contained a {@code module-info.class} file.
+     * The {@link ModuleReference} for this module, or null if its name was declared by a traditional classpath jar
+     * rather than by a module resolved in a {@link ModuleLayer}.
      *
-     * @return the {@link ModuleReference}, or null if this module was obtained from a classpath element on the
-     *         traditional classpath that contained a {@code module-info.class} file.
+     * @return the {@link ModuleReference}, or null for explicitly named traditional classpath jars.
      */
     public @Nullable ModuleReference getModuleReference() {
         return moduleReference;
@@ -184,7 +187,7 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName, HasAnnotatio
     public ClassInfoList getClassInfo() {
         final var classes = classNameToClassInfo;
         // The ClassInfoList(Collection) constructor uniquifies and sorts by name
-        return classes == null ? ClassInfoList.EMPTY_LIST : unmodifiable(new ClassInfoList(classes.values()));
+        return classes == null ? ClassInfoList.EMPTY_LIST : new ClassInfoList(classes.values());
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -229,9 +232,7 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName, HasAnnotatio
         if (packages == null) {
             return PackageInfoList.EMPTY_LIST;
         }
-        final PackageInfoList packageInfoList = new PackageInfoList(packages.values());
-        CollectionUtils.sortIfNotEmpty(packageInfoList);
-        return unmodifiable(packageInfoList);
+        return new PackageInfoList(packages.values());
     }
 
     // -------------------------------------------------------------------------------------------------------------

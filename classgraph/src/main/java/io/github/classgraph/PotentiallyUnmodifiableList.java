@@ -89,6 +89,19 @@ class PotentiallyUnmodifiableList<T> extends ArrayList<T> {
         super(collection);
     }
 
+    /**
+     * Constructor.
+     *
+     * @param collection
+     *            the initial elements
+     * @param modifiable
+     *            whether the list may be modified after construction
+     */
+    PotentiallyUnmodifiableList(final Collection<T> collection, final boolean modifiable) {
+        super(collection);
+        this.modifiable = modifiable;
+    }
+
     /** Make this list unmodifiable. */
     void makeUnmodifiable() {
         modifiable = false;
@@ -106,6 +119,22 @@ class PotentiallyUnmodifiableList<T> extends ArrayList<T> {
     static <L extends PotentiallyUnmodifiableList<?>> L unmodifiable(final L list) {
         list.makeUnmodifiable();
         return list;
+    }
+
+    @Override
+    public void ensureCapacity(final int minCapacity) {
+        if (!modifiable) {
+            throw new UnsupportedOperationException("List is immutable");
+        }
+        super.ensureCapacity(minCapacity);
+    }
+
+    @Override
+    public void trimToSize() {
+        if (!modifiable) {
+            throw new UnsupportedOperationException("List is immutable");
+        }
+        super.trimToSize();
     }
 
     @Override

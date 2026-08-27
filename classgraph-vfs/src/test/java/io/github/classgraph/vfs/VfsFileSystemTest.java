@@ -22,6 +22,7 @@ import java.nio.file.FileSystemException;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.NotDirectoryException;
+import java.nio.file.OpenOption;
 import java.nio.file.Path;
 import java.nio.file.ProviderMismatchException;
 import java.nio.file.ReadOnlyFileSystemException;
@@ -29,11 +30,16 @@ import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributeView;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileTime;
+import java.nio.file.attribute.FileAttribute;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
 import java.util.stream.Stream;
 import java.util.zip.CRC32;
 import java.util.zip.ZipEntry;
@@ -1115,6 +1121,36 @@ public class VfsFileSystemTest {
         }
     }
 
+    /** Unknown open options and file attributes are rejected rather than silently ignored. */
+    @Test
+    public void rejectsUnsupportedOpenOptionsAndAttributes(@TempDir final Path tempDir) throws IOException {
+        final var jarFile = tempDir.resolve("library.jar").toFile();
+        writeJar(jarFile);
+        final OpenOption unsupportedOption = new OpenOption() {
+        };
+        final FileAttribute<String> unsupportedAttribute = new FileAttribute<>() {
+            @Override
+            public String name() {
+                return "unsupported:value";
+            }
+
+            @Override
+            public String value() {
+                return "value";
+            }
+        };
+
+        try (var vfs = new Vfs()) {
+            final var path = vfs.open(jarFile).asFileSystem().getPath("/root.txt");
+            assertThatThrownBy(() -> Files.newByteChannel(path, Set.of(unsupportedOption)))
+                    .isInstanceOf(UnsupportedOperationException.class)
+                    .hasMessageContaining("Unsupported open option");
+            assertThatThrownBy(
+                    () -> Files.newByteChannel(path, Set.of(StandardOpenOption.READ), unsupportedAttribute))
+                    .isInstanceOf(UnsupportedOperationException.class).hasMessageContaining("attributes");
+        }
+    }
+
     /**
      * A directory stream hands out its iterator once, and that iterator cannot remove anything.
      *
@@ -1140,6 +1176,42 @@ public class VfsFileSystemTest {
             final DirectoryStream<Path> closed = Files.newDirectoryStream(fileSystem.getPath("/com/xyz"));
             closed.close();
             assertThatThrownBy(closed::iterator).isInstanceOf(IllegalStateException.class);
+        }
+    }
+
+    /** Concurrent calls cannot both acquire the single iterator of a directory stream. */
+    @Test
+    public void directoryStreamIteratorAcquisitionIsAtomic(@TempDir final Path tempDir) throws Exception {
+        final var jarFile = tempDir.resolve("library.jar").toFile();
+        writeJar(jarFile);
+        final var executor = Executors.newFixedThreadPool(2);
+        try (var vfs = new Vfs()) {
+            final var fileSystem = vfs.open(jarFile).asFileSystem();
+            for (var repetition = 0; repetition < 100; repetition++) {
+                try (DirectoryStream<Path> stream = Files.newDirectoryStream(fileSystem.getPath("/com/xyz"))) {
+                    final var barrier = new CyclicBarrier(2);
+                    final var first = executor.submit(() -> {
+                        barrier.await();
+                        return stream.iterator();
+                    });
+                    final var second = executor.submit(() -> {
+                        barrier.await();
+                        return stream.iterator();
+                    });
+                    var successes = 0;
+                    for (final var future : List.of(first, second)) {
+                        try {
+                            assertThat(future.get()).isNotNull();
+                            successes++;
+                        } catch (final ExecutionException e) {
+                            assertThat(e.getCause()).isInstanceOf(IllegalStateException.class);
+                        }
+                    }
+                    assertThat(successes).isOne();
+                }
+            }
+        } finally {
+            executor.shutdown();
         }
     }
 

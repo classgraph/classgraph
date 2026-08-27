@@ -22,6 +22,14 @@ import io.github.classgraph.ScanResult;
 
 /** Tests the graphs written by {@link GraphVizDotFile}. */
 public class GraphVizDotFileTest {
+    /** DOT identifiers escape syntax and control characters without changing ordinary class names. */
+    @Test
+    public void dotIdentifiersAreEscaped() {
+        final var identifier = new StringBuilder();
+        GraphVizDotFile.appendQuotedIdentifier("p.A\"\\B\n\u0001", identifier);
+        assertThat(identifier).hasToString("\"p.A\\\"\\\\B\\n\\u0001\"");
+    }
+
     /** The superclass of the graphed class. */
     public static class Base {
     }

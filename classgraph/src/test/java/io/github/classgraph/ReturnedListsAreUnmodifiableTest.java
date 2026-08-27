@@ -159,39 +159,34 @@ public class ReturnedListsAreUnmodifiableTest {
         assertThat(modifiableCollections).isEmpty();
     }
 
-    /** Lists that the user constructs directly should stay modifiable. */
+    /** Public collection constructors produce completed, unmodifiable info lists. */
     @Test
-    public void userConstructedListsAreModifiable() {
-        assertThat(isUnmodifiable(new ClassInfoList())).isFalse();
-        assertThat(isUnmodifiable(new AnnotationInfoList())).isFalse();
-        assertThat(isUnmodifiable(new MethodInfoList())).isFalse();
-        assertThat(isUnmodifiable(new FieldInfoList())).isFalse();
-        assertThat(isUnmodifiable(new ResourceList())).isFalse();
+    public void publicInfoListConstructorsProduceUnmodifiableLists() {
+        assertThat(isUnmodifiable(new ClassInfoList(List.of()))).isTrue();
+        assertThat(isUnmodifiable(new AnnotationInfoList(List.of()))).isTrue();
+        assertThat(isUnmodifiable(new MethodInfoList(List.of()))).isTrue();
+        assertThat(isUnmodifiable(new FieldInfoList(List.of()))).isTrue();
+        assertThat(isUnmodifiable(new PackageInfoList(List.of()))).isTrue();
+        assertThat(isUnmodifiable(new ModuleInfoList(List.of()))).isTrue();
     }
 
-    /** A list that the user constructs behaves like an ordinary list, with every mutating method working. */
+    /** A public info-list constructor snapshots the caller's completed collection. */
     @Test
-    public void everyMutatorWorksOnAUserConstructedList() {
+    public void aPublicInfoListConstructorCopiesAndUniquifiesItsInput() {
         try (var scanResult = new ClassGraph().enableClasspath()
                 .acceptPackages(ClassWithMembers.class.getPackage().getName()).enableAllInfo().scan()) {
             final var classes = List.copyOf(scanResult.getAllClasses());
             assertThat(classes).hasSizeGreaterThan(1);
-            final var classInfoList = new ClassInfoList(classes);
+            final var source = new ArrayList<ClassInfo>();
+            source.add(classes.get(1));
+            source.add(classes.get(0));
+            source.add(classes.get(1));
+            final var classInfoList = new ClassInfoList(source);
+            source.clear();
 
-            assertThat(classInfoList.remove(classes.get(0))).isTrue();
-            assertThat(classInfoList).doesNotContain(classes.get(0)).hasSize(classes.size() - 1);
-            // Removing something that is not in the list leaves the list alone
-            assertThat(classInfoList.remove(classes.get(0))).isFalse();
-            assertThat(classInfoList).hasSize(classes.size() - 1);
-
-            assertThat(classInfoList.add(classes.get(0))).isTrue();
-            classInfoList.sort(null);
-            final var sortedClasses = new ArrayList<>(classes);
-            sortedClasses.sort(null);
-            assertThat(classInfoList).containsExactlyElementsOf(sortedClasses);
-
-            assertThat(classInfoList.removeAll(classes)).isTrue();
-            assertThat(classInfoList).isEmpty();
+            assertThat(classInfoList).containsExactly(classes.get(0), classes.get(1));
+            assertThat(classInfoList.directOnly()).containsExactlyElementsOf(classInfoList);
+            assertThat(isUnmodifiable(classInfoList)).isTrue();
         }
     }
 

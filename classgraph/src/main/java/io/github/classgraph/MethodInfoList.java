@@ -29,6 +29,7 @@
 package io.github.classgraph;
 
 import java.io.Serial;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -72,7 +73,7 @@ public class MethodInfoList extends InfoList<MethodInfo> {
     }
 
     /** Construct a new modifiable empty list of {@link MethodInfo} objects. */
-    public MethodInfoList() {
+    MethodInfoList() {
         super();
     }
 
@@ -82,19 +83,20 @@ public class MethodInfoList extends InfoList<MethodInfo> {
      * @param sizeHint
      *            the expected number of elements
      */
-    public MethodInfoList(final int sizeHint) {
+    MethodInfoList(final int sizeHint) {
         super(sizeHint);
     }
 
     /**
-     * Construct a new modifiable empty {@link MethodInfoList}, given an initial collection of {@link MethodInfo}
-     * objects.
+     * Construct a new unmodifiable {@link MethodInfoList} from a completed collection of {@link MethodInfo}
+     * objects. The collection is copied.
      *
      * @param methodInfoCollection
      *            the collection of {@link MethodInfo} objects.
      */
     public MethodInfoList(final Collection<MethodInfo> methodInfoCollection) {
-        super(Objects.requireNonNull(methodInfoCollection, "methodInfoCollection must not be null"));
+        super(Objects.requireNonNull(methodInfoCollection, "methodInfoCollection must not be null"),
+                /* modifiable = */ false);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -231,12 +233,12 @@ public class MethodInfoList extends InfoList<MethodInfo> {
      */
     public MethodInfoList filter(final Predicate<MethodInfo> filter) {
         Assert.notNull(filter, "filter");
-        final MethodInfoList methodInfoFiltered = new MethodInfoList();
+        final var methodInfoFiltered = new ArrayList<MethodInfo>();
         for (final MethodInfo methodInfo : this) {
             if (filter.test(methodInfo)) {
                 methodInfoFiltered.add(methodInfo);
             }
         }
-        return unmodifiable(methodInfoFiltered);
+        return new MethodInfoList(methodInfoFiltered);
     }
 }

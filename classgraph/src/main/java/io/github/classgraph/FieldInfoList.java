@@ -29,6 +29,7 @@
 package io.github.classgraph;
 
 import java.io.Serial;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Objects;
@@ -63,7 +64,7 @@ public class FieldInfoList extends MappableInfoList<FieldInfo> {
     /**
      * Construct a new modifiable empty list of {@link FieldInfo} objects.
      */
-    public FieldInfoList() {
+    FieldInfoList() {
         super();
     }
 
@@ -73,18 +74,20 @@ public class FieldInfoList extends MappableInfoList<FieldInfo> {
      * @param sizeHint
      *            the expected number of elements
      */
-    public FieldInfoList(final int sizeHint) {
+    FieldInfoList(final int sizeHint) {
         super(sizeHint);
     }
 
     /**
-     * Construct a new modifiable empty {@link FieldInfoList}, given an initial list of {@link FieldInfo} objects.
+     * Construct a new unmodifiable {@link FieldInfoList} from a completed collection of {@link FieldInfo} objects.
+     * The collection is copied.
      *
      * @param fieldInfoCollection
      *            the collection of {@link FieldInfo} objects.
      */
     public FieldInfoList(final Collection<FieldInfo> fieldInfoCollection) {
-        super(Objects.requireNonNull(fieldInfoCollection, "fieldInfoCollection must not be null"));
+        super(Objects.requireNonNull(fieldInfoCollection, "fieldInfoCollection must not be null"),
+                /* modifiable = */ false);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -119,12 +122,12 @@ public class FieldInfoList extends MappableInfoList<FieldInfo> {
      */
     public FieldInfoList filter(final Predicate<FieldInfo> filter) {
         Assert.notNull(filter, "filter");
-        final FieldInfoList fieldInfoFiltered = new FieldInfoList();
+        final var fieldInfoFiltered = new ArrayList<FieldInfo>();
         for (final FieldInfo fieldInfo : this) {
             if (filter.test(fieldInfo)) {
                 fieldInfoFiltered.add(fieldInfo);
             }
         }
-        return unmodifiable(fieldInfoFiltered);
+        return new FieldInfoList(fieldInfoFiltered);
     }
 }

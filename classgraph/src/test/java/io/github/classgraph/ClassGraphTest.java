@@ -10,7 +10,6 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.net.URLConnection;
 import java.net.URLStreamHandler;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -20,10 +19,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.jar.Attributes;
 import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
-import java.util.jar.Manifest;
 import java.util.logging.Handler;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
@@ -420,49 +417,23 @@ public class ClassGraphTest {
         }
     }
 
-    /**
-     * The {@code Add-Exports} and {@code Add-Opens} entries of the manifest of a jar that is scanned are added to
-     * the module path info of the scan result, which is the only way to see them: they are not on the commandline,
-     * so they are not known until the jar has been opened.
-     *
-     * @param tempDir
-     *            a temporary directory to write the jar into.
-     * @throws IOException
-     *             if the jar could not be written.
-     */
-    @Test
-    public void moduleSwitchesFromAScannedJarManifestAreReported(@TempDir final Path tempDir) throws IOException {
-        final var manifestJarFile = tempDir.resolve("add-exports.jar");
-        final var manifest = new Manifest();
-        manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
-        manifest.getMainAttributes().putValue("Add-Exports",
-                "com.xyz.first/com.xyz.pkg1 com.xyz.second/com.xyz.pkg2");
-        manifest.getMainAttributes().putValue("Add-Opens", "com.xyz.third/com.xyz.pkg3");
-        try (var jarOut = new JarOutputStream(Files.newOutputStream(manifestJarFile), manifest)) {
-            jarOut.putNextEntry(new JarEntry("res/injar.txt"));
-            jarOut.write("in jar".getBytes(StandardCharsets.UTF_8));
-            jarOut.closeEntry();
-        }
-
-        final var classGraph = new ClassGraph().enableClasspathEntries(manifestJarFile.toString());
-        // The manifest has not been read yet, so nothing from it has been added to the module path info
-        assertThat(classGraph.getModulePathInfo().getAddExports())
-                .doesNotContain("com.xyz.first/com.xyz.pkg1=ALL-UNNAMED");
-
-        try (var scanResult = classGraph.scan()) {
-            // Each entry of the manifest attribute becomes one switch, targeting the unnamed module
-            assertThat(scanResult.getModulePathInfo().getAddExports())
-                    .contains("com.xyz.first/com.xyz.pkg1=ALL-UNNAMED", "com.xyz.second/com.xyz.pkg2=ALL-UNNAMED");
-            assertThat(scanResult.getModulePathInfo().getAddOpens())
-                    .contains("com.xyz.third/com.xyz.pkg3=ALL-UNNAMED");
-        }
-    }
-
     /** The visible modules can be listed without running a scan. */
     @Test
     public void theVisibleModulesCanBeListed() {
         assertThat(new ClassGraph().enableSystemJars().enableSystemModules().getModuleReferences())
                 .extracting(moduleReference -> moduleReference.descriptor().name()).contains("java.base");
+    }
+
+    /** Packaging a traditional classpath entry as a plain jar does not turn it into a named module. */
+    @Test
+    public void aPlainClasspathJarRemainsInTheUnnamedModule() {
+        try (var scanResult = new ClassGraph().enableClasspathEntries(jarFile.toString()).enableClassInfo()
+                .scan()) {
+            final var classInfo = scanResult.getClassInfo(PACKAGE_NAME + ".InJar");
+            assertThat(classInfo).isNotNull();
+            assertThat(classInfo.getModuleInfo()).isNull();
+            assertThat(scanResult.getModuleInfo()).isEmpty();
+        }
     }
 
     /** The module layers to scan can be overridden. */
@@ -493,6 +464,30 @@ public class ClassGraphTest {
         }
     }
 
+    /** Every scan entry point rejects non-positive parallelism before scheduling work. */
+    @Test
+    public void scansRejectNonPositiveParallelism() {
+        final var executorService = Executors.newFixedThreadPool(1);
+        try {
+            for (final int parallelism : new int[] { 0, -1 }) {
+                assertThatIllegalArgumentException().isThrownBy(() -> new ClassGraph().scan(parallelism))
+                        .withMessageContaining("at least 1");
+                assertThatIllegalArgumentException()
+                        .isThrownBy(() -> new ClassGraph().scan(executorService, parallelism))
+                        .withMessageContaining("at least 1");
+                assertThatIllegalArgumentException()
+                        .isThrownBy(() -> new ClassGraph().scanAsync(executorService, parallelism))
+                        .withMessageContaining("at least 1");
+                assertThatIllegalArgumentException()
+                        .isThrownBy(() -> new ClassGraph().scanAsync(executorService, parallelism, scanResult -> {
+                        }, throwable -> {
+                        })).withMessageContaining("at least 1");
+            }
+        } finally {
+            executorService.shutdown();
+        }
+    }
+
     /**
      * An asynchronous scan searches the context classloader of the thread that asked for the scan, not that of the
      * worker thread that the scan happens to run on.
@@ -515,9 +510,7 @@ public class ClassGraphTest {
             Thread.currentThread().setContextClassLoader(callerClassLoader);
             new ClassGraph().enableClasspath().acceptPackages(PACKAGE_NAME).scanAsync(executorService, 3,
                     scanResult -> {
-                        try (scanResult) {
-                            classNames.set(scanResult.getAllClasses().getNames());
-                        }
+                        classNames.set(scanResult.getAllClasses().getNames());
                         done.countDown();
                     }, throwable -> {
                         failure.set(throwable);
@@ -542,9 +535,7 @@ public class ClassGraphTest {
         try {
             new ClassGraph().enableClasspathEntries(classesDir.toString()).acceptPackages(PACKAGE_NAME)
                     .scanAsync(executorService, 3, scanResult -> {
-                        try (scanResult) {
-                            classNames.set(scanResult.getAllClasses().getNames());
-                        }
+                        classNames.set(scanResult.getAllClasses().getNames());
                         done.countDown();
                     }, throwable -> {
                         failure.set(throwable);
@@ -568,7 +559,6 @@ public class ClassGraphTest {
             new ClassGraph().enableClasspathEntries(classesDir.toString()).filterClasspathElements(path -> {
                 throw new IllegalStateException("classpath element filter failed");
             }).scanAsync(executorService, 3, scanResult -> {
-                scanResult.close();
                 done.countDown();
             }, throwable -> {
                 failure.set(throwable);

@@ -32,6 +32,9 @@ public class ModuleFinderLayerOrderTest {
     /** The name of the automatic module in the child layer. Sorts <i>after</i> the parent module's name. */
     private static final String CHILD_MODULE = "cgzchildmod";
 
+    /** An application module whose name used to be mistaken for a system module. */
+    private static final String PREFIXED_APPLICATION_MODULE = "oracle.application";
+
     /**
      * Build a jar that resolves as an automatic module of the given name. The jar contains a single resource, since
      * an automatic module needs no classes.
@@ -95,7 +98,9 @@ public class ModuleFinderLayerOrderTest {
         final var nonSystemModuleReferences = moduleFinder.getNonSystemModuleReferences();
         assertThat(nonSystemModuleReferences).isNotNull();
         return nonSystemModuleReferences.stream().map(moduleReference -> moduleReference.descriptor().name())
-                .filter(name -> name.equals(PARENT_MODULE) || name.equals(CHILD_MODULE)).toList();
+                .filter(name -> name.equals(PARENT_MODULE) || name.equals(CHILD_MODULE)
+                        || name.equals(PREFIXED_APPLICATION_MODULE))
+                .toList();
     }
 
     /**
@@ -137,5 +142,13 @@ public class ModuleFinderLayerOrderTest {
         final var childLayer = defineModuleLayer(childJar, CHILD_MODULE, parentLayer);
 
         assertThat(nonSystemModuleNames(parentLayer, childLayer)).containsExactly(PARENT_MODULE, CHILD_MODULE);
+    }
+
+    /** A system-looking name does not make an application module part of the runtime image. */
+    @Test
+    public void systemModulesAreIdentifiedByOriginRatherThanName(@TempDir final File tempDir) throws Exception {
+        final var jar = buildAutomaticModuleJar(tempDir, PREFIXED_APPLICATION_MODULE);
+        final var layer = defineModuleLayer(jar, PREFIXED_APPLICATION_MODULE, ModuleLayer.boot());
+        assertThat(nonSystemModuleNames(layer)).containsExactly(PREFIXED_APPLICATION_MODULE);
     }
 }

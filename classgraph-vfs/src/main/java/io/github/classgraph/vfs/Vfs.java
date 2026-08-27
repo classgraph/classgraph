@@ -247,16 +247,17 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
             return alreadyOpened;
         }
         final var root = openUncached(resolvedPath, logNode == null ? null : logNode.log("Opening " + path));
-        final var alreadyOpenedUnderReportedPath = openedUnderReportedPath(root, resolvedPath);
-        if (alreadyOpenedUnderReportedPath != null) {
-            // The path names something that is already open under another name, so the root just opened is a second
-            // view of it, and is dropped in favour of the one already open. (It is not closed: it was never handed
-            // out, it holds nothing that needs releasing, and closing it would evict the root it duplicates from
-            // the cache of the paths that root was opened from.)
-            return cacheRoot(rootsByPath, resolvedPath, alreadyOpenedUnderReportedPath, path);
+        // Pick the winner under the root's canonical/reported path first. Every alias must point to this winner;
+        // caching the alias first leaves a race in which the alias and canonical path can retain different roots.
+        final var reportedPath = root.reportedPath();
+        final var cachedRoot = cacheRoot(rootsByPath, reportedPath, root, path);
+        if (!reportedPath.equals(resolvedPath)) {
+            // This is deliberately an unconditional replacement. Any existing value for this alias was produced
+            // by a concurrent open of the same thing and must be reconciled with the canonical-path winner.
+            rootsByPath.put(resolvedPath, cachedRoot);
+            uncacheIfClosed(rootsByPath, resolvedPath, cachedRoot);
+            discardIfClosed(path, cachedRoot);
         }
-        final var cachedRoot = cacheRoot(rootsByPath, resolvedPath, root, path);
-        cacheRootUnderReportedPath(cachedRoot, resolvedPath);
         return cachedRoot;
     }
 
@@ -283,44 +284,6 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
             return alreadyOpened;
         }
         return cacheRoot(rootsByPath, path, rootFactory.get(), path);
-    }
-
-    /**
-     * Return the root that is already open at the path a root that has just been opened reports itself at, if there
-     * is one. A root is named by the canonical path of the directory or jarfile that backs it, which is not always
-     * the path it was opened from, so two paths that reach the same thing -- through a symlink, or, on Windows,
-     * through an 8.3 short name -- open one root under two names, and the second one to be opened is redundant.
-     *
-     * @param root
-     *            the root that has just been opened.
-     * @param openedFrom
-     *            the resolved path the root was opened from.
-     * @return the root already open at the path {@code root} reports itself at, or null if there is none, or if
-     *         {@code root} reports itself at the path it was opened from.
-     */
-    private @Nullable VfsRoot openedUnderReportedPath(final VfsRoot root, final String openedFrom) {
-        final var reportedPath = root.reportedPath();
-        return reportedPath.equals(openedFrom) ? null : rootsByPath.get(reportedPath);
-    }
-
-    /**
-     * Cache a root under the path it reports itself at, as well as under the path it was opened from. A root is
-     * named by the canonical path of the directory or jarfile that backs it, which is not always the path it was
-     * opened from: a symlink, or -- on Windows -- a path written in 8.3 short form, reaches the same file under
-     * another name. Without this, handing the path a root reports back to {@link #open(String)} would read the same
-     * directory or jarfile a second time.
-     *
-     * @param root
-     *            the root, already cached under the path it was opened from.
-     * @param openedFrom
-     *            the resolved path the root was opened from.
-     */
-    private void cacheRootUnderReportedPath(final VfsRoot root, final String openedFrom) {
-        final var reportedPath = root.reportedPath();
-        if (!reportedPath.equals(openedFrom)) {
-            rootsByPath.putIfAbsent(reportedPath, root);
-            uncacheIfClosed(rootsByPath, reportedPath, root);
-        }
     }
 
     /**

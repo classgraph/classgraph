@@ -22,6 +22,8 @@ import java.nio.file.attribute.PosixFilePermission;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.zip.CRC32;
 import java.util.zip.ZipEntry;
@@ -523,6 +525,35 @@ public class VfsTest {
             assertThat(root.getPath()).contains("/real/").doesNotContain("/link/");
             assertThat(vfs.open(jarFile.getCanonicalPath())).isSameAs(root);
             assertThat(vfs).containsExactly(root);
+        }
+    }
+
+    /** Concurrent opens through a symlink and its canonical path converge on one cached root. */
+    @Test
+    public void canonicalAliasesConvergeWhenOpenedConcurrently(@TempDir final File tempDir) throws Exception {
+        final var realDir = new File(tempDir, "real");
+        assertThat(realDir.mkdir()).isTrue();
+        Files.writeString(realDir.toPath().resolve("entry.txt"), RESOURCE_CONTENT);
+        final Path linkedDir = createSymbolicLinkOrSkip(new File(tempDir, "link").toPath(), realDir.toPath());
+        final var executor = Executors.newFixedThreadPool(2);
+        try {
+            for (var repetition = 0; repetition < 50; repetition++) {
+                try (var vfs = new Vfs()) {
+                    final var barrier = new CyclicBarrier(2);
+                    final var throughLink = executor.submit(() -> {
+                        barrier.await();
+                        return vfs.open(linkedDir.toString());
+                    });
+                    final var canonical = executor.submit(() -> {
+                        barrier.await();
+                        return vfs.open(realDir.getCanonicalPath());
+                    });
+                    assertThat(throughLink.get()).isSameAs(canonical.get());
+                    assertThat(vfs.open(linkedDir.toString())).isSameAs(vfs.open(realDir.getCanonicalPath()));
+                }
+            }
+        } finally {
+            executor.shutdown();
         }
     }
 

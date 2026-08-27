@@ -65,8 +65,8 @@ public class ClasspathSpec {
     public final AcceptRejectWholeString moduleAcceptReject = register(new AcceptRejectWholeString('.'));
 
     /**
-     * If true, scan the system modules ({@code java.*}, {@code jdk.*}, {@code javafx.*}, {@code oracle.*}) found in
-     * the module layers that are searched.
+     * If true, scan the modules supplied by the running JVM, as identified by
+     * {@link java.lang.module.ModuleFinder#ofSystem()}, found in the module layers that are searched.
      *
      * <p>
      * System modules are always <i>listed</i> when a module layer is searched, whether or not this is true, since

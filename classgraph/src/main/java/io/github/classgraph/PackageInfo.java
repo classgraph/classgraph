@@ -30,7 +30,6 @@ package io.github.classgraph;
 
 import static io.github.classgraph.PotentiallyUnmodifiableList.unmodifiable;
 
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -39,7 +38,6 @@ import java.util.Objects;
 import java.util.Set;
 
 import io.github.classgraph.base.internal.utils.Assert;
-import io.github.classgraph.base.internal.utils.CollectionUtils;
 import org.jspecify.annotations.Nullable;
 
 /** Holds metadata about a package encountered during a scan. */
@@ -196,10 +194,7 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName, HasAnnotat
         if (childPackages == null) {
             return PackageInfoList.EMPTY_LIST;
         }
-        final PackageInfoList childrenSorted = new PackageInfoList(childPackages);
-        // Ensure children are sorted
-        CollectionUtils.sortIfNotEmpty(childrenSorted, Comparator.comparing(o1 -> o1.name));
-        return unmodifiable(childrenSorted);
+        return new PackageInfoList(childPackages);
     }
 
     // -------------------------------------------------------------------------------------------------------------

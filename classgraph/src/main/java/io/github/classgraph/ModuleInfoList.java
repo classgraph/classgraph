@@ -29,10 +29,13 @@
 package io.github.classgraph;
 
 import java.io.Serial;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Objects;
 import java.util.function.Predicate;
 
 import io.github.classgraph.base.internal.utils.Assert;
+import io.github.classgraph.base.internal.utils.CollectionUtils;
 
 /** A list of {@link ModuleInfo} objects, which can be indexed by module name. */
 public class ModuleInfoList extends MappableInfoList<ModuleInfo> {
@@ -58,7 +61,7 @@ public class ModuleInfoList extends MappableInfoList<ModuleInfo> {
     /**
      * Construct a new modifiable empty list of {@link ModuleInfo} objects.
      */
-    public ModuleInfoList() {
+    ModuleInfoList() {
         super();
     }
 
@@ -68,18 +71,21 @@ public class ModuleInfoList extends MappableInfoList<ModuleInfo> {
      * @param sizeHint
      *            the expected number of elements
      */
-    public ModuleInfoList(final int sizeHint) {
+    ModuleInfoList(final int sizeHint) {
         super(sizeHint);
     }
 
     /**
-     * Construct a new modifiable {@link ModuleInfoList}, given an initial collection of {@link ModuleInfo} objects.
+     * Construct a new unmodifiable {@link ModuleInfoList} from a completed collection of {@link ModuleInfo}
+     * objects. The collection is copied.
      *
      * @param moduleInfoCollection
      *            the module info collection
      */
     public ModuleInfoList(final Collection<ModuleInfo> moduleInfoCollection) {
-        super(moduleInfoCollection);
+        super(CollectionUtils
+                .sortCopy(Objects.requireNonNull(moduleInfoCollection, "moduleInfoCollection must not be null")),
+                /* modifiable = */ false);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -95,12 +101,12 @@ public class ModuleInfoList extends MappableInfoList<ModuleInfo> {
      */
     public ModuleInfoList filter(final Predicate<ModuleInfo> filter) {
         Assert.notNull(filter, "filter");
-        final ModuleInfoList moduleInfoFiltered = new ModuleInfoList();
+        final var moduleInfoFiltered = new ArrayList<ModuleInfo>();
         for (final ModuleInfo moduleInfo : this) {
             if (filter.test(moduleInfo)) {
                 moduleInfoFiltered.add(moduleInfo);
             }
         }
-        return unmodifiable(moduleInfoFiltered);
+        return new ModuleInfoList(moduleInfoFiltered);
     }
 }

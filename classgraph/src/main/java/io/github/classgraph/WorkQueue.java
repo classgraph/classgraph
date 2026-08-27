@@ -192,6 +192,9 @@ final class WorkQueue<T> implements AutoCloseable {
             final InterruptionChecker interruptionChecker, final int numParallelTasks,
             final long workerTimeoutNanos, final @Nullable LogNode log,
             final WorkUnitProcessor<U> workUnitProcessor) throws InterruptedException, ExecutionException {
+        if (numParallelTasks < 1) {
+            throw new IllegalArgumentException("numParallelTasks must be at least 1");
+        }
         if (elements.isEmpty()) {
             // Nothing to do
             return;

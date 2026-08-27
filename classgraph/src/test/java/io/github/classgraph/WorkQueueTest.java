@@ -12,6 +12,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -142,6 +143,21 @@ public class WorkQueueTest {
         assertThatCode(() -> runWorkQueue(List.of(), 4, (workUnit, workQueue, log) -> {
             throw new AssertionError("Should not be called");
         })).doesNotThrowAnyException();
+    }
+
+    /** The queue defensively rejects non-positive parallelism even when there is no work. */
+    @Test
+    public void nonPositiveParallelismIsRejected() {
+        final var executor = Executors.newSingleThreadExecutor();
+        try {
+            for (final int parallelism : new int[] { 0, -1 }) {
+                assertThatThrownBy(() -> WorkQueue.runWorkQueue(List.of(), executor, new InterruptionChecker(),
+                        parallelism, WORKER_TIMEOUT_NANOS, /* log = */ null, (workUnit, workQueue, log) -> {
+                        })).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("at least 1");
+            }
+        } finally {
+            executor.shutdown();
+        }
     }
 
     /** A null work unit is rejected, since the queue uses null internally to tell a worker to stop. */

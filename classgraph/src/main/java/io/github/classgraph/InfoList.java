@@ -83,6 +83,18 @@ public class InfoList<T extends HasName> extends PotentiallyUnmodifiableList<T> 
         super(infoCollection);
     }
 
+    /**
+     * Constructor.
+     *
+     * @param infoCollection
+     *            the initial elements
+     * @param modifiable
+     *            whether the list may be modified after construction
+     */
+    InfoList(final Collection<T> infoCollection, final boolean modifiable) {
+        super(infoCollection, modifiable);
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**

@@ -91,7 +91,7 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     /**
      * Construct a new modifiable empty list of {@link AnnotationInfo} objects.
      */
-    public AnnotationInfoList() {
+    AnnotationInfoList() {
         super();
     }
 
@@ -101,20 +101,21 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
      * @param sizeHint
      *            the expected number of elements
      */
-    public AnnotationInfoList(final int sizeHint) {
+    AnnotationInfoList(final int sizeHint) {
         super(sizeHint);
     }
 
     /**
-     * Construct a new modifiable {@link AnnotationInfoList}, given an initial collection of {@link AnnotationInfo}
-     * objects.
+     * Construct a new unmodifiable {@link AnnotationInfoList} from a completed collection of {@link AnnotationInfo}
+     * objects. The collection is copied.
      *
      * @param annotationInfoCollection
      *            the annotations to add to the list. All of them are treated as directly present on the annotated
      *            item, rather than as meta-annotations.
      */
     public AnnotationInfoList(final Collection<AnnotationInfo> annotationInfoCollection) {
-        super(Objects.requireNonNull(annotationInfoCollection, "annotationInfoCollection must not be null"));
+        super(Objects.requireNonNull(annotationInfoCollection, "annotationInfoCollection must not be null"),
+                /* modifiable = */ false);
         // If only reachable annotations are given, treat all of them as direct
         directlyRelatedAnnotations = this;
     }
@@ -129,8 +130,9 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
      */
     AnnotationInfoList(final AnnotationInfoList reachableAnnotations,
             final @Nullable AnnotationInfoList directlyRelatedAnnotations) {
-        super(reachableAnnotations);
-        this.directlyRelatedAnnotations = directlyRelatedAnnotations;
+        super(reachableAnnotations, /* modifiable = */ false);
+        this.directlyRelatedAnnotations = directlyRelatedAnnotations == null ? null
+                : new AnnotationInfoList(directlyRelatedAnnotations);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -147,13 +149,21 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
      */
     public AnnotationInfoList filter(final Predicate<AnnotationInfo> filter) {
         Assert.notNull(filter, "filter");
-        final AnnotationInfoList annotationInfoFiltered = new AnnotationInfoList();
-        for (final AnnotationInfo resource : this) {
-            if (filter.test(resource)) {
-                annotationInfoFiltered.add(resource);
+        final List<AnnotationInfo> reachableFiltered = new ArrayList<>();
+        final var directAnnotations = directlyRelatedAnnotations;
+        final List<AnnotationInfo> directlyRelatedFiltered = directAnnotations == null ? null : new ArrayList<>();
+        for (final AnnotationInfo annotationInfo : this) {
+            if (filter.test(annotationInfo)) {
+                reachableFiltered.add(annotationInfo);
+                if (directAnnotations != null && directlyRelatedFiltered != null
+                        && directAnnotations.contains(annotationInfo)) {
+                    directlyRelatedFiltered.add(annotationInfo);
+                }
             }
         }
-        return unmodifiable(annotationInfoFiltered);
+        final var reachableResult = new AnnotationInfoList(reachableFiltered);
+        return directlyRelatedFiltered == null ? reachableResult
+                : new AnnotationInfoList(reachableResult, new AnnotationInfoList(directlyRelatedFiltered));
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -373,19 +383,17 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
             }
         }
         // Return sorted annotation list
-        final var directAnnotationInfoSorted = directAnnotationInfo == null ? AnnotationInfoList.EMPTY_LIST
-                : new AnnotationInfoList(directAnnotationInfo);
-        CollectionUtils.sortIfNotEmpty(directAnnotationInfoSorted);
-        final AnnotationInfoList annotationInfoList = new AnnotationInfoList(reachableAnnotationInfo,
-                directAnnotationInfoSorted);
         // Sort by name, then put the most directly related of any annotations that share a name first, so that
         // AnnotationInfoList#get(String) returns the annotation that is directly present on the annotated element,
         // if there is one #559
-        CollectionUtils.sortIfNotEmpty(annotationInfoList,
+        CollectionUtils.sortIfNotEmpty(reachableAnnotationInfo,
                 Comparator.comparing(AnnotationInfo::getName).thenComparing(
                         (final AnnotationInfo ai) -> directness.getOrDefault(ai, Directness.META_ANNOTATION))
                         .thenComparing(Comparator.naturalOrder()));
-        return annotationInfoList;
+        final List<AnnotationInfo> directAnnotationInfoSorted = directAnnotationInfo == null ? List.of()
+                : new ArrayList<>(directAnnotationInfo);
+        CollectionUtils.sortIfNotEmpty(directAnnotationInfoSorted);
+        return new AnnotationInfoList(reachableAnnotationInfo, new AnnotationInfoList(directAnnotationInfoSorted));
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -404,8 +412,7 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
         // only the direct annotations.
         return this.directlyRelatedAnnotations == null ? this
                 // Make .directOnly() idempotent
-                : unmodifiable(new AnnotationInfoList(directlyRelatedAnnotations,
-                        /* directlyRelatedAnnotations = */ null));
+                : new AnnotationInfoList(directlyRelatedAnnotations, /* directlyRelatedAnnotations = */ null);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -444,12 +451,12 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
         if (!hasNamedAnnotation) {
             return AnnotationInfoList.EMPTY_LIST;
         }
-        final AnnotationInfoList matchingAnnotations = new AnnotationInfoList(size());
+        final List<AnnotationInfo> matchingAnnotations = new ArrayList<>();
         for (final AnnotationInfo ai : this) {
             if (ai.getName().equals(name)) {
                 matchingAnnotations.add(ai);
             }
         }
-        return unmodifiable(matchingAnnotations);
+        return new AnnotationInfoList(matchingAnnotations);
     }
 }

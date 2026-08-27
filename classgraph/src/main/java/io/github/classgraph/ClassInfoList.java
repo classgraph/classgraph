@@ -56,6 +56,10 @@ import org.jspecify.annotations.Nullable;
  * {@link ClassInfo#getAllSuperclasses()}, which are in ascending order of the class hierarchy.
  *
  * <p>
+ * A list returned by {@link MethodInfo#getThrownExceptions()} preserves every entry in the declaration, so it can
+ * contain the same {@link ClassInfo} more than once when distinct type variables resolve to the same class bound.
+ *
+ * <p>
  * Equality is {@link List} equality: two lists are equal if they hold equal classes in the same order. Which of the
  * classes are directly related is reported by {@link #directOnly()}, and is not part of the comparison, so two
  * lists that hold the same classes are equal even when they were reached by different relationships.
@@ -75,10 +79,7 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
     private static final long serialVersionUID = 1L;
 
     /** An unmodifiable empty {@link ClassInfoList}. */
-    static final ClassInfoList EMPTY_LIST = new ClassInfoList();
-    static {
-        EMPTY_LIST.makeUnmodifiable();
-    }
+    static final ClassInfoList EMPTY_LIST = new ClassInfoList(Set.of(), /* sortByName = */ false);
 
     /**
      * Return an unmodifiable empty {@link ClassInfoList}.
@@ -98,36 +99,17 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      *            directly related classes
      * @param sortByName
      *            whether to sort by name
-     * @param modifiable
-     *            whether the list may be modified after construction
-     */
-    private ClassInfoList(final Set<ClassInfo> reachableClasses,
-            final @Nullable Set<ClassInfo> directlyRelatedClasses, final boolean sortByName,
-            final boolean modifiable) {
-        // Sort a copy of the classes before handing them to the superclass constructor, rather than sorting this
-        // list once it has been built, so that a partly-initialized instance is never passed to another method
-        super(sortByName ? CollectionUtils.sortCopy(reachableClasses) : reachableClasses);
-        this.sortByName = sortByName;
-        // If directlyRelatedClasses was not provided, then assume all reachable classes were directly related
-        this.directlyRelatedClasses = directlyRelatedClasses == null ? reachableClasses : directlyRelatedClasses;
-        this.modifiable = modifiable;
-    }
-
-    /**
-     * Construct an unmodifiable list of {@link ClassInfo} objects, consisting of reachable classes (obtained
-     * through the transitive closure) and directly related classes (one step away in the graph). This is the
-     * constructor used to build the result lists returned by the public API, which are all unmodifiable.
-     *
-     * @param reachableClasses
-     *            reachable classes
-     * @param directlyRelatedClasses
-     *            directly related classes
-     * @param sortByName
-     *            whether to sort by name
      */
     ClassInfoList(final Set<ClassInfo> reachableClasses, final @Nullable Set<ClassInfo> directlyRelatedClasses,
             final boolean sortByName) {
-        this(reachableClasses, directlyRelatedClasses, sortByName, /* modifiable = */ false);
+        // Sort a copy of the classes before handing them to the superclass constructor, rather than sorting this
+        // list once it has been built, so that a partly-initialized instance is never passed to another method
+        super(sortByName ? CollectionUtils.sortCopy(reachableClasses) : reachableClasses, /* modifiable = */ false);
+        this.sortByName = sortByName;
+        // If directlyRelatedClasses was not provided, then assume all reachable classes were directly related
+        this.directlyRelatedClasses = new LinkedHashSet<>(
+                directlyRelatedClasses == null ? reachableClasses : directlyRelatedClasses);
+        this.directlyRelatedClasses.retainAll(reachableClasses);
     }
 
     /**
@@ -157,33 +139,29 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
     }
 
     /**
-     * Construct a new empty modifiable list of {@link ClassInfo} objects.
-     */
-    public ClassInfoList() {
-        super(1);
-        this.sortByName = false;
-        directlyRelatedClasses = new HashSet<>(2);
-    }
-
-    /**
-     * Construct a new empty modifiable list of {@link ClassInfo} objects, given a size hint.
+     * Construct an unmodifiable list of {@link ClassInfo} objects from a completed list, preserving its order and
+     * duplicates when sorting is disabled. Every class is treated as directly related. This is used for a throws
+     * clause, where two declared types can resolve to the same {@link ClassInfo} through a type-variable bound.
      *
-     * @param sizeHint
-     *            the expected number of elements
+     * @param reachableClasses
+     *            the completed list
+     * @param sortByName
+     *            whether to sort by name
      */
-    public ClassInfoList(final int sizeHint) {
-        super(sizeHint);
-        this.sortByName = false;
-        directlyRelatedClasses = new HashSet<>(2);
+    ClassInfoList(final List<ClassInfo> reachableClasses, final boolean sortByName) {
+        super(sortByName ? CollectionUtils.sortCopy(reachableClasses) : reachableClasses, /* modifiable = */ false);
+        this.sortByName = sortByName;
+        directlyRelatedClasses = new LinkedHashSet<>(reachableClasses);
     }
 
     /**
-     * Construct a new modifiable empty {@link ClassInfoList}, given an initial list of {@link ClassInfo} objects.
+     * Construct a new unmodifiable {@link ClassInfoList} from a completed collection of {@link ClassInfo} objects.
      *
      * <p>
      * If the passed {@link Collection} is not a {@link Set}, then the {@link ClassInfo} objects will be uniquified
      * (by adding them to a set) before they are added to the returned list. {@link ClassInfo} objects in the
-     * returned list will be sorted by name.
+     * returned list will be sorted by name. The collection is copied, so later changes to it do not affect this
+     * list. Every class in the constructed list is treated as directly related.
      *
      * @param classInfoCollection
      *            the initial collection of {@link ClassInfo} objects to add to the {@link ClassInfoList}.
@@ -193,7 +171,7 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
                 "classInfoCollection must not be null") instanceof final Set<ClassInfo> classInfoSet //
                         ? classInfoSet
                         : new HashSet<>(classInfoCollection), //
-                /* directlyRelatedClasses = */ null, /* sortByName = */ true, /* modifiable = */ true);
+                /* directlyRelatedClasses = */ null, /* sortByName = */ true);
     }
 
     // -------------------------------------------------------------------------------------------------------------
