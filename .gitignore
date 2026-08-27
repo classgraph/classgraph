@@ -18,7 +18,13 @@ lib/
 *.tmp
 *.bak
 *~
+# What a JVM leaves behind when it dies: the crash log, the core dump it names in that log, the
+# compiler replay file, and the heap dump from -XX:+HeapDumpOnOutOfMemoryError. A crash writes these
+# into the working directory of the JVM, which for a forked test JVM is the module directory
 hs_err_pid*
+replay_pid*
+core.*
+*.hprof
 
 *.iml
 # Eclipse project metadata, including the copies a language server generates when it imports the
