@@ -113,26 +113,6 @@ public class ZipFileSlice {
     }
 
     /**
-     * Get the parent ZipFileslice, or return null if this is a toplevel slice (i.e. if this slice wraps an entire
-     * physical zipfile).
-     *
-     * @return the parent ZipFileslice, or null if this is a toplevel slice.
-     */
-    public @Nullable ZipFileSlice getParentZipFileSlice() {
-        return parentZipFileSlice;
-    }
-
-    /**
-     * Get the name of the slice (either the entry name/path within the parent zipfile slice, or the path of the
-     * physical zipfile if this slice is a toplevel slice (i.e. if this slice wraps an entire physical zipfile).
-     *
-     * @return the name of the slice.
-     */
-    public String getPathWithinParentZipFileSlice() {
-        return pathWithinParentZipFileSlice;
-    }
-
-    /**
      * Recursively append the path in top down ancestral order.
      *
      * @param buf

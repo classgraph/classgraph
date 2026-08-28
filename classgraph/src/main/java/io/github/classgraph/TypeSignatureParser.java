@@ -145,36 +145,6 @@ class TypeSignatureParser {
     }
 
     /**
-     * Get the next character, throwing a {@link TypeSignatureParseException} if the next character is not the
-     * expected character.
-     *
-     * @param expectedChar
-     *            The expected next character.
-     * @throws TypeSignatureParseException
-     *             If the next character is not the expected next character.
-     */
-    public void peekExpect(final char expectedChar) throws TypeSignatureParseException {
-        if (position == string.length()) {
-            throw new TypeSignatureParseException(this, "Expected '" + expectedChar + "'; reached end of string");
-        }
-        final var next = string.charAt(position);
-        if (next != expectedChar) {
-            throw new TypeSignatureParseException(this, "Expected '" + expectedChar + "'; got '" + next + "'");
-        }
-    }
-
-    /**
-     * Peek operator that can look ahead several characters.
-     *
-     * @param strMatch
-     *            The string to compare, starting at the current position, as a "peek" operation.
-     * @return True if the strMatch matches a substring of the remaining string starting at the current position.
-     */
-    public boolean peekMatches(final String strMatch) {
-        return string.regionMatches(position, strMatch, 0, strMatch.length());
-    }
-
-    /**
      * Advance one character without returning the value of the character.
      */
     public void next() {
@@ -215,24 +185,6 @@ class TypeSignatureParser {
      */
     public int getPosition() {
         return position;
-    }
-
-    /**
-     * Set the position of the parser within the string.
-     *
-     * @param position
-     *            The position to move to.
-     * @throws IllegalArgumentException
-     *             If the position is out of range.
-     */
-    public void setPosition(final int position) {
-        // The end-of-string position is valid, since that is the position getPosition() returns once the whole
-        // input has been consumed, and code that saves and restores a parser position needs to be able to restore
-        // that position
-        if (position < 0 || position > string.length()) {
-            throw new IllegalArgumentException("Invalid position");
-        }
-        this.position = position;
     }
 
     /**
@@ -279,20 +231,6 @@ class TypeSignatureParser {
      */
     public void appendToToken(final char c) {
         token.append(c);
-    }
-
-    /**
-     * Skip whitespace starting at the current position.
-     */
-    public void skipWhitespace() {
-        while (position < string.length()) {
-            final var c = string.charAt(position);
-            if (c == ' ' || c == '\n' || c == '\r' || c == '\t') {
-                position++;
-            } else {
-                break;
-            }
-        }
     }
 
     /**

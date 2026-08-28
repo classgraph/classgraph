@@ -38,8 +38,6 @@ import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileTime;
-import java.util.HashMap;
-import java.util.Map;
 
 import org.jspecify.annotations.Nullable;
 
@@ -326,27 +324,6 @@ public final class FileUtils {
         }
     }
 
-    /**
-     * Check if a {@link File} exists, is a directory, and can be read.
-     *
-     * @param file
-     *            A {@link File}.
-     * @throws IOException
-     *             if the file does not exist, is not a directory, or cannot be read.
-     */
-    public static void checkCanReadAndIsDir(final File file) throws IOException {
-        try {
-            if (!file.canRead()) {
-                throw new FileNotFoundException("Directory does not exist or cannot be read: " + file);
-            }
-        } catch (final SecurityException e) {
-            throw new FileNotFoundException("File " + file + " cannot be accessed: " + e);
-        }
-        if (!file.isDirectory()) {
-            throw new IOException("Not a directory: " + file);
-        }
-    }
-
     // -------------------------------------------------------------------------------------------------------------
 
     /**
@@ -424,19 +401,6 @@ public final class FileUtils {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Create a {@link FileAttributesGetter} that reads the attributes of each {@link Path} at most once, caching
-     * the result. The returned getter is not thread safe, so it should only be used within the scope of the code
-     * that created it.
-     *
-     * @return the caching {@link FileAttributesGetter}.
-     */
-    public static FileAttributesGetter createCachedAttributesGetter() {
-        final Map<Path, BasicFileAttributes> cache = new HashMap<>();
-        // readAttributes never returns null, so computeIfAbsent caches every path after the first read
-        return path -> cache.computeIfAbsent(path, FileUtils::readAttributes);
-    }
-
-    /**
      * Read the {@link BasicFileAttributes} of a {@link Path}. If the attributes cannot be read, returns a
      * best-effort implementation backed by the {@link File} API, which throws {@link UnsupportedOperationException}
      * from the accessors it cannot support.
@@ -496,17 +460,5 @@ public final class FileUtils {
                 }
             };
         }
-    }
-
-    /** Gets the {@link BasicFileAttributes} of a {@link Path}. */
-    public interface FileAttributesGetter {
-        /**
-         * Get the attributes of a {@link Path}.
-         *
-         * @param path
-         *            A {@link Path}.
-         * @return the attributes of the path.
-         */
-        BasicFileAttributes get(Path path);
     }
 }

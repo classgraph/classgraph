@@ -47,27 +47,6 @@ public class TypeSignatureParserTest {
         assertThat(parser.getPosition()).isEqualTo(2);
     }
 
-    /** A saved end-of-string position can be restored. */
-    @Test
-    public void canRestoreEndOfStringPosition() throws TypeSignatureParseException {
-        final var parser = new TypeSignatureParser("abc");
-        parser.advance(3);
-        final var endPosition = parser.getPosition();
-        parser.setPosition(0);
-        parser.setPosition(endPosition);
-        assertThat(parser.getPosition()).isEqualTo(3);
-    }
-
-    /**
-     * A position past the end of the input, or a negative one, is still rejected.
-     */
-    @Test
-    public void invalidPositionsAreRejected() throws TypeSignatureParseException {
-        final var parser = new TypeSignatureParser("abc");
-        assertThatThrownBy(() -> parser.setPosition(4)).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> parser.setPosition(-1)).isInstanceOf(IllegalArgumentException.class);
-    }
-
     // -----------------------------------------------------------------------------------------------------------
 
     /** There is nothing to parse in a null string, and that is a parse error rather than a null dereference. */
@@ -99,19 +78,6 @@ public class TypeSignatureParserTest {
         assertThat(parser.peek()).isEqualTo('\0');
     }
 
-    /** The next character can be checked against several characters at once, without consuming any of them. */
-    @Test
-    public void severalCharactersCanBeCheckedAtOnceWithoutConsumingThem() throws TypeSignatureParseException {
-        final var parser = new TypeSignatureParser("abcd");
-        assertThat(parser.peekMatches("abc")).isTrue();
-        assertThat(parser.peekMatches("abd")).isFalse();
-        assertThat(parser.getPosition()).isZero();
-        parser.advance(2);
-        assertThat(parser.peekMatches("cd")).isTrue();
-        // A string that runs off the end of the input does not match, rather than failing
-        assertThat(parser.peekMatches("cde")).isFalse();
-    }
-
     /** A character that was expected is consumed, and one that was not is a parse error. */
     @Test
     public void expectingACharacterConsumesItOnlyIfItIsThere() throws TypeSignatureParseException {
@@ -124,38 +90,12 @@ public class TypeSignatureParserTest {
         assertThatExceptionOfType(TypeSignatureParseException.class).isThrownBy(() -> emptyParser.expect('a'));
     }
 
-    /** An expected character can be checked for without consuming it, whether or not it is there. */
-    @Test
-    public void expectingACharacterWithoutConsumingItLeavesThePositionAlone() throws TypeSignatureParseException {
-        final var parser = new TypeSignatureParser("ab");
-        parser.peekExpect('a');
-        assertThat(parser.getPosition()).isZero();
-        assertThatExceptionOfType(TypeSignatureParseException.class).isThrownBy(() -> parser.peekExpect('b'));
-        assertThat(parser.getPosition()).isZero();
-        // Expecting a character when the input has run out is a parse error, not an out-of-bounds read
-        final var emptyParser = new TypeSignatureParser("");
-        assertThatExceptionOfType(TypeSignatureParseException.class).isThrownBy(() -> emptyParser.peekExpect('a'));
-    }
-
     /** A character can be skipped without reading it. */
     @Test
     public void aCharacterCanBeSkippedWithoutReadingIt() throws TypeSignatureParseException {
         final var parser = new TypeSignatureParser("ab");
         parser.next();
         assertThat(parser.peek()).isEqualTo('b');
-    }
-
-    /** Whitespace of every kind is skipped, up to the next character that is not whitespace. */
-    @Test
-    public void whitespaceIsSkipped() throws TypeSignatureParseException {
-        final var parser = new TypeSignatureParser(" \t\r\n x y");
-        parser.skipWhitespace();
-        assertThat(parser.getc()).isEqualTo('x');
-        parser.skipWhitespace();
-        assertThat(parser.getc()).isEqualTo('y');
-        // Skipping whitespace when there is none left to skip, or no input left at all, does nothing
-        parser.skipWhitespace();
-        assertThat(parser.hasMore()).isFalse();
     }
 
     /** Characters and strings are accumulated into the token buffer, which is emptied when the token is read. */

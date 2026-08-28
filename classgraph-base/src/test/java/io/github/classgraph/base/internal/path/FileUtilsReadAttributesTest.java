@@ -58,14 +58,4 @@ public class FileUtilsReadAttributesTest {
         assertThatThrownBy(attributes::lastAccessTime).isInstanceOf(UnsupportedOperationException.class);
         assertThatThrownBy(attributes::fileKey).isInstanceOf(UnsupportedOperationException.class);
     }
-
-    /** The caching getter reads the attributes of each path once, and returns the same object afterwards. */
-    @Test
-    public void cachedGetterReadsEachPathOnce(@TempDir final Path tempDir) throws IOException {
-        final var file = Files.write(tempDir.resolve("file.txt"), new byte[] { 1 });
-        final var getter = FileUtils.createCachedAttributesGetter();
-        final var attributes = getter.get(file);
-        assertThat(getter.get(file)).isSameAs(attributes);
-        assertThat(getter.get(tempDir)).isNotSameAs(attributes);
-    }
 }

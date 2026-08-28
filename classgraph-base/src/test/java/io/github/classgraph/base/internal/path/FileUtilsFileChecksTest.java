@@ -49,8 +49,6 @@ public class FileUtilsFileChecksTest {
 
         assertThatCode(() -> FileUtils.checkCanReadAndIsFile(file)).doesNotThrowAnyException();
         assertThatCode(() -> FileUtils.checkCanReadAndIsFile(path)).doesNotThrowAnyException();
-        assertThatThrownBy(() -> FileUtils.checkCanReadAndIsDir(file)).isInstanceOf(IOException.class)
-                .hasMessage("Not a directory: " + file);
     }
 
     /**
@@ -72,7 +70,6 @@ public class FileUtilsFileChecksTest {
         assertThat(FileUtils.canReadAndIsFile(tempDir)).isFalse();
         assertThat(FileUtils.isFile(tempDir)).isFalse();
 
-        assertThatCode(() -> FileUtils.checkCanReadAndIsDir(file)).doesNotThrowAnyException();
         assertThatThrownBy(() -> FileUtils.checkCanReadAndIsFile(file)).isInstanceOf(IOException.class)
                 .hasMessage("Not a regular file: " + file);
         assertThatThrownBy(() -> FileUtils.checkCanReadAndIsFile(tempDir)).isInstanceOf(IOException.class)
@@ -102,8 +99,6 @@ public class FileUtilsFileChecksTest {
 
         assertThatThrownBy(() -> FileUtils.checkCanReadAndIsFile(file)).isInstanceOf(FileNotFoundException.class)
                 .hasMessage("File does not exist or cannot be read: " + file);
-        assertThatThrownBy(() -> FileUtils.checkCanReadAndIsDir(file)).isInstanceOf(FileNotFoundException.class)
-                .hasMessage("Directory does not exist or cannot be read: " + file);
     }
 
     /**
