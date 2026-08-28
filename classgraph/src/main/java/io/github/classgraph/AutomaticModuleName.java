@@ -63,7 +63,10 @@ final class AutomaticModuleName {
      * algorithm</a>.
      *
      * @param jarPath
-     *            The jar path.
+     *            The jar path, spelled the way ClassGraph canonicalizes paths: directory separators are '/' on
+     *            every platform, and nested jar separators are "!/". A raw {@link java.nio.file.Path#toString()}
+     *            must not be passed, since on Windows its separators are '\', which this method treats as part of
+     *            the filename rather than as a separator.
      * @return The automatic module name.
      */
     static String derive(final String jarPath) {

@@ -437,7 +437,10 @@ public class ClassGraphTest {
             assertThat(classInfo).isNotNull();
             final var moduleInfo = classInfo.getModuleInfo();
             assertThat(moduleInfo).isNotNull();
-            assertThat(moduleInfo.getName()).isEqualTo(AutomaticModuleName.derive(jarFile.toString()));
+            // Derive from the filename alone, since derive() expects a path spelled with '/' separators, and
+            // Path#toString() uses the platform separator
+            assertThat(moduleInfo.getName())
+                    .isEqualTo(AutomaticModuleName.derive(jarFile.getFileName().toString()));
             assertThat(moduleInfo.getModuleReference()).isNull();
             assertThat(scanResult.getModuleInfo()).containsExactly(moduleInfo);
         }
