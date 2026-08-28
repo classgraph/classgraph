@@ -82,6 +82,27 @@ class LinkedIdentitySetTest {
         assertThatThrownBy(iterator::remove).isInstanceOf(UnsupportedOperationException.class);
     }
 
+    /**
+     * Elements cannot be removed. The inherited implementations look for the element to remove with
+     * {@code equals()}, which is the very comparison this set exists to avoid, so they answered a request to remove
+     * something by reporting that it was not there rather than by refusing.
+     */
+    @Test
+    void elementsCannotBeRemoved() {
+        final var set = new LinkedIdentitySet<String>();
+        set.addAll(List.of("a", "b"));
+
+        // Removing something that is not in the set reported that there was nothing to remove
+        assertThatThrownBy(() -> set.remove("z")).isInstanceOf(UnsupportedOperationException.class);
+        assertThatThrownBy(() -> set.removeAll(List.of())).isInstanceOf(UnsupportedOperationException.class);
+        // Retaining everything reported that there was nothing to remove
+        assertThatThrownBy(() -> set.retainAll(List.of("a", "b")))
+                .isInstanceOf(UnsupportedOperationException.class);
+        // Removing something that is in the set threw, but only because the iterator refuses removal
+        assertThatThrownBy(() -> set.remove("a")).isInstanceOf(UnsupportedOperationException.class);
+        assertThat(List.copyOf(set)).containsExactly("a", "b");
+    }
+
     /** A new set is empty. */
     @Test
     void aNewSetIsEmpty() {
