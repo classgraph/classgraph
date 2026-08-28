@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Iterator;
 
 import org.junit.jupiter.api.Test;
@@ -75,6 +76,28 @@ public class LinkedIdentitySetTest {
         final Iterator<String> iterator = set.iterator();
         iterator.next();
         assertThatThrownBy(iterator::remove).isInstanceOf(UnsupportedOperationException.class);
+    }
+
+    /**
+     * Elements cannot be removed. The inherited implementations look for the element to remove with
+     * {@code equals()}, which is the very comparison this set exists to avoid, so they answered a request to remove
+     * something by reporting that it was not there rather than by refusing.
+     */
+    @Test
+    public void elementsCannotBeRemoved() {
+        final LinkedIdentitySet<String> set = new LinkedIdentitySet<>();
+        set.addAll(Arrays.asList("a", "b"));
+
+        // Removing something that is not in the set reported that there was nothing to remove
+        assertThatThrownBy(() -> set.remove("z")).isInstanceOf(UnsupportedOperationException.class);
+        assertThatThrownBy(() -> set.removeAll(Collections.emptyList()))
+                .isInstanceOf(UnsupportedOperationException.class);
+        // Retaining everything reported that there was nothing to remove
+        assertThatThrownBy(() -> set.retainAll(Arrays.asList("a", "b")))
+                .isInstanceOf(UnsupportedOperationException.class);
+        // Removing something that is in the set threw, but only because the iterator refuses removal
+        assertThatThrownBy(() -> set.remove("a")).isInstanceOf(UnsupportedOperationException.class);
+        assertThat(new ArrayList<>(set)).containsExactly("a", "b");
     }
 
     /** A new set is empty. */

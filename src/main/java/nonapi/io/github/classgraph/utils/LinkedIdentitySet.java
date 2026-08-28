@@ -30,6 +30,7 @@ package nonapi.io.github.classgraph.utils;
 
 import java.util.AbstractSet;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.Iterator;
@@ -51,7 +52,9 @@ import java.util.Map;
  *
  * <p>
  * Like {@link Collections#newSetFromMap(Map)} over an {@link IdentityHashMap}, this deliberately breaks the general
- * contract of {@link java.util.Set}, which is defined in terms of {@code equals()}. Elements cannot be removed.
+ * contract of {@link java.util.Set}, which is defined in terms of {@code equals()}. Elements cannot be removed:
+ * every removal method throws {@link UnsupportedOperationException}, rather than fall back on the equals-based
+ * implementation it inherits and remove an element that was never asked for.
  *
  * @param <E>
  *            the element type.
@@ -113,5 +116,47 @@ public final class LinkedIdentitySet<E> extends AbstractSet<E> {
     @Override
     public int size() {
         return elementsInOrder.size();
+    }
+
+    /** The message of the {@link UnsupportedOperationException} that every removal method throws. */
+    private static final String CANNOT_REMOVE = "Elements cannot be removed from a LinkedIdentitySet";
+
+    /**
+     * Elements cannot be removed.
+     *
+     * @param element
+     *            ignored.
+     * @return never returns.
+     */
+    @Override
+    public boolean remove(final Object element) {
+        // AbstractSet#remove removes the first element that equals() the given one, which need not be the element
+        // that #contains reports, since #contains compares by reference. Rather than remove an element that was
+        // never asked for, refuse: the point of this set is that equals() cannot be trusted to mean "same object"
+        throw new UnsupportedOperationException(CANNOT_REMOVE);
+    }
+
+    /**
+     * Elements cannot be removed.
+     *
+     * @param elements
+     *            ignored.
+     * @return never returns.
+     */
+    @Override
+    public boolean removeAll(final Collection<?> elements) {
+        throw new UnsupportedOperationException(CANNOT_REMOVE);
+    }
+
+    /**
+     * Elements cannot be removed.
+     *
+     * @param elements
+     *            ignored.
+     * @return never returns.
+     */
+    @Override
+    public boolean retainAll(final Collection<?> elements) {
+        throw new UnsupportedOperationException(CANNOT_REMOVE);
     }
 }
