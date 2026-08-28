@@ -1314,13 +1314,7 @@ public final class ScanResult implements Closeable {
      * @return A list of all annotation classes found during the scan, or the empty list if none.
      */
     public ClassInfoList getAllAnnotations() {
-        if (closed.get()) {
-            throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
-        }
-        if (!scanSpec.enableClassInfo || !scanSpec.enableAnnotationInfo) {
-            throw new IllegalArgumentException(
-                    "Please call ClassGraph#enableClassInfo() and #enableAnnotationInfo() before #scan()");
-        }
+        checkAnnotationInfoEnabled();
         return ClassInfo.getAllAnnotationClasses(classNameToClassInfo.values(), scanSpec);
     }
 
@@ -1331,13 +1325,7 @@ public final class ScanResult implements Closeable {
      * @return A list of all accepted interfaces found during the scan, or the empty list if none.
      */
     public ClassInfoList getAllInterfacesAndAnnotations() {
-        if (closed.get()) {
-            throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
-        }
-        if (!scanSpec.enableClassInfo || !scanSpec.enableAnnotationInfo) {
-            throw new IllegalArgumentException(
-                    "Please call ClassGraph#enableClassInfo() and #enableAnnotationInfo() before #scan()");
-        }
+        checkAnnotationInfoEnabled();
         return ClassInfo.getAllInterfacesOrAnnotationClasses(classNameToClassInfo.values(), scanSpec);
     }
 
@@ -1399,13 +1387,7 @@ public final class ScanResult implements Closeable {
      *         or the empty list if none.
      */
     public ClassInfoList getClassesWithAnnotation(final String annotationName) {
-        if (closed.get()) {
-            throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
-        }
-        if (!scanSpec.enableClassInfo || !scanSpec.enableAnnotationInfo) {
-            throw new IllegalArgumentException(
-                    "Please call ClassGraph#enableClassInfo() and #enableAnnotationInfo() before #scan()");
-        }
+        checkAnnotationInfoEnabled();
         final ClassInfo classInfo = classNameToClassInfo.get(annotationName);
         return classInfo == null ? ClassInfoList.EMPTY_LIST : classInfo.getClassesWithAnnotation();
     }
@@ -1495,13 +1477,7 @@ public final class ScanResult implements Closeable {
      *         the empty list if none.
      */
     public ClassInfoList getAnnotationsOnClass(final String className) {
-        if (closed.get()) {
-            throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
-        }
-        if (!scanSpec.enableClassInfo || !scanSpec.enableAnnotationInfo) {
-            throw new IllegalArgumentException(
-                    "Please call ClassGraph#enableClassInfo() and #enableAnnotationInfo() before #scan()");
-        }
+        checkAnnotationInfoEnabled();
         final ClassInfo classInfo = classNameToClassInfo.get(className);
         return classInfo == null ? ClassInfoList.EMPTY_LIST : classInfo.getAnnotations();
     }
