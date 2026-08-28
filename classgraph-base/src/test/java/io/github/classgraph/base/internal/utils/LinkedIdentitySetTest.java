@@ -98,9 +98,22 @@ class LinkedIdentitySetTest {
         // Retaining everything reported that there was nothing to remove
         assertThatThrownBy(() -> set.retainAll(List.of("a", "b")))
                 .isInstanceOf(UnsupportedOperationException.class);
+        // Clearing the set threw
+        assertThatThrownBy(set::clear).isInstanceOf(UnsupportedOperationException.class);
         // Removing something that is in the set threw, but only because the iterator refuses removal
         assertThatThrownBy(() -> set.remove("a")).isInstanceOf(UnsupportedOperationException.class);
         assertThat(List.copyOf(set)).containsExactly("a", "b");
+    }
+
+    /**
+     * Clearing an empty set is refused too. The inherited implementation removes through the iterator, so it had
+     * nothing to remove from an empty set and returned quietly, rather than refusing like every other remover.
+     */
+    @Test
+    void anEmptySetCannotBeCleared() {
+        final var set = new LinkedIdentitySet<String>();
+        assertThatThrownBy(set::clear).isInstanceOf(UnsupportedOperationException.class)
+                .hasMessage("Elements cannot be removed from a LinkedIdentitySet");
     }
 
     /** A new set is empty. */

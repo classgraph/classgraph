@@ -256,7 +256,9 @@ public final class LogNode implements ClassGraphLog {
                     buf);
         }
         if (stackTrace != null && !stackTrace.isEmpty()) {
-            final var parts = stackTrace.split("\n");
+            // A stack trace is written by PrintWriter#println, which ends each line with the platform line
+            // separator, so on Windows the lines are separated by "\r\n" rather than by "\n"
+            final var parts = stackTrace.split("\\r?\\n");
             for (final String part : parts) {
                 appendLine(timeStampStr, indentLevel, part, buf);
             }

@@ -416,7 +416,17 @@ public final class FileUtils {
             return new BasicFileAttributes() {
                 @Override
                 public FileTime lastModifiedTime() {
-                    return FileTime.fromMillis(path.toFile().lastModified());
+                    try {
+                        return FileTime.fromMillis(path.toFile().lastModified());
+                    } catch (final UnsupportedOperationException ignored) {
+                    }
+                    try {
+                        return Files.getLastModifiedTime(path);
+                    } catch (final IOException | SecurityException e) {
+                        // File#lastModified() returns zero when the time cannot be read, so match that rather
+                        // than throwing from an accessor that the File-backed path never throws from
+                        return FileTime.fromMillis(0);
+                    }
                 }
 
                 @Override
@@ -451,7 +461,17 @@ public final class FileUtils {
 
                 @Override
                 public long size() {
-                    return path.toFile().length();
+                    try {
+                        return path.toFile().length();
+                    } catch (final UnsupportedOperationException ignored) {
+                    }
+                    try {
+                        return Files.size(path);
+                    } catch (final IOException | SecurityException e) {
+                        // File#length() returns zero when the length cannot be read, so match that rather than
+                        // throwing from an accessor that the File-backed path never throws from
+                        return 0L;
+                    }
                 }
 
                 @Override
