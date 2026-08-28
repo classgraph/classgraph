@@ -81,7 +81,7 @@ final class ArchiveEntry extends VfsEntry {
     }
 
     @Override
-    public String getStoredPathFromRoot() {
+    public String getRawPathFromRoot() {
         return zipEntry.entryName;
     }
 

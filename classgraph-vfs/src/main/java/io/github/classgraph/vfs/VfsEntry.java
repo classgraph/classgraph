@@ -92,8 +92,8 @@ public abstract class VfsEntry {
      * <p>
      * For an entry of a multi-release jarfile that is only present for some JDK versions, this is the path without
      * the {@code "META-INF/versions/<version>/"} prefix, so that the same entry has the same path whichever version
-     * of it was selected. Use {@link #getStoredPathFromRoot()} to get the path the entry is physically stored
-     * under.
+     * of it was selected. Use {@link #getRawPathFromRoot()} to get the unprocessed path the entry is physically
+     * stored under.
      *
      * <p>
      * This is a whole path and not a leafname, which is why it is not called {@code getName()}: {@code
@@ -122,19 +122,19 @@ public abstract class VfsEntry {
     }
 
     /**
-     * Returns the path this entry is stored under within its root, before the root's package root prefix was
-     * stripped from it and before any multi-release version prefix was resolved. Use {@link #getPathFromRoot()} to
-     * look an entry up or to match it against a path; use this to report where the entry physically lies within its
-     * root.
+     * Returns the raw, unprocessed path this entry is stored under within its root: the path as it physically
+     * appears in the root, before the root's package root prefix was stripped from it and before any multi-release
+     * version prefix was resolved. Use {@link #getPathFromRoot()} to look an entry up or to match it against a
+     * path; use this only to report where the entry physically lies within its root.
      *
      * <p>
      * This differs from {@link #getPathFromRoot()} only for an entry of a jarfile: in a root opened at a package
      * root, this path still has the package root prefix on it, and for an entry of a multi-release jarfile that is
      * only present for some JDK versions, this is the versioned path.
      *
-     * @return the path the entry is stored under, relative to its root.
+     * @return the raw path the entry is stored under, relative to its root.
      */
-    public String getStoredPathFromRoot() {
+    public String getRawPathFromRoot() {
         return getPathFromRoot();
     }
 
