@@ -105,8 +105,18 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
             // but the super-constructor has been called, so it should be fine :-)
             CollectionUtils.sortIfNotEmpty(this);
         }
-        // If directlyRelatedClasses was not provided, then assume all reachable classes were directly related
-        this.directlyRelatedClasses = directlyRelatedClasses == null ? reachableClasses : directlyRelatedClasses;
+        if (directlyRelatedClasses == null) {
+            // If directlyRelatedClasses was not provided, then assume all reachable classes were directly related
+            this.directlyRelatedClasses = reachableClasses;
+        } else {
+            // Drop any directly-related class that is not reachable, so that directOnly() can never return a class
+            // that this list does not contain. #exclude() removes a class from the reachable classes whenever the
+            // other list can reach it, but from the directly-related classes only when the other list relates to it
+            // directly, so without this the two can disagree.
+            final Set<ClassInfo> directlyRelatedAndReachable = new LinkedHashSet<>(directlyRelatedClasses);
+            directlyRelatedAndReachable.retainAll(reachableClasses);
+            this.directlyRelatedClasses = directlyRelatedAndReachable;
+        }
     }
 
     /**

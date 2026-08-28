@@ -212,6 +212,74 @@ final class GraphvizDotfileGenerator {
     }
 
     /**
+     * Append a quoted GraphViz identifier, escaping characters that would terminate or alter the identifier.
+     *
+     * @param identifier
+     *            the identifier to quote and escape
+     * @param buf
+     *            the buffer to append to
+     */
+    static void appendQuotedIdentifier(final CharSequence identifier, final StringBuilder buf) {
+        buf.append('"');
+        for (int i = 0; i < identifier.length(); i++) {
+            final char c = identifier.charAt(i);
+            switch (c) {
+            case '"':
+                buf.append("\\\"");
+                break;
+            case '\\':
+                buf.append("\\\\");
+                break;
+            case '\n':
+                buf.append("\\n");
+                break;
+            case '\r':
+                buf.append("\\r");
+                break;
+            case '\t':
+                buf.append("\\t");
+                break;
+            default:
+                if (c < 0x20 || c == 0x7f) {
+                    // DOT does not define a portable escape for every control character. Encode these into a
+                    // collision-free printable form; node identifiers are internal and need not equal the label.
+                    buf.append("\\u");
+                    final String hex = Integer.toHexString(c);
+                    for (int j = hex.length(); j < 4; j++) {
+                        buf.append('0');
+                    }
+                    buf.append(hex);
+                } else {
+                    buf.append(c);
+                }
+                break;
+            }
+        }
+        buf.append('"');
+    }
+
+    /**
+     * Append an edge between two class nodes.
+     *
+     * @param fromClassName
+     *            the name of the class the edge starts at
+     * @param toClassName
+     *            the name of the class the edge ends at
+     * @param attributes
+     *            the GraphViz attributes of the edge, i.e. the shape and size of its arrowhead
+     * @param buf
+     *            the buffer to append to
+     */
+    private static void appendEdge(final String fromClassName, final String toClassName, final String attributes,
+            final StringBuilder buf) {
+        buf.append("  ");
+        appendQuotedIdentifier(fromClassName, buf);
+        buf.append(" -> ");
+        appendQuotedIdentifier(toClassName, buf);
+        buf.append(' ').append(attributes).append('\n');
+    }
+
+    /**
      * Produce HTML label for class node.
      *
      * @param ci
@@ -535,21 +603,21 @@ final class GraphvizDotfileGenerator {
         final ClassInfoList annotationNodes = classInfoList.getAnnotations();
 
         for (final ClassInfo node : standardClassNodes) {
-            buf.append('"').append(node.getName()).append('"');
+            appendQuotedIdentifier(node.getName(), buf);
             labelClassNodeHTML(node, "box", STANDARD_CLASS_COLOR, showFields, showMethods, useSimpleNames, scanSpec,
                     buf);
             buf.append(";\n");
         }
 
         for (final ClassInfo node : interfaceNodes) {
-            buf.append('"').append(node.getName()).append('"');
+            appendQuotedIdentifier(node.getName(), buf);
             labelClassNodeHTML(node, "diamond", INTERFACE_COLOR, showFields, showMethods, useSimpleNames, scanSpec,
                     buf);
             buf.append(";\n");
         }
 
         for (final ClassInfo node : annotationNodes) {
-            buf.append('"').append(node.getName()).append('"');
+            appendQuotedIdentifier(node.getName(), buf);
             labelClassNodeHTML(node, "oval", ANNOTATION_COLOR, showFields, showMethods, useSimpleNames, scanSpec,
                     buf);
             buf.append(";\n");
@@ -566,17 +634,15 @@ final class GraphvizDotfileGenerator {
                 if (directSuperclassNode != null && allVisibleNodes.contains(directSuperclassNode.getName())
                         && !directSuperclassNode.getName().equals("java.lang.Object")) {
                     // class --> superclass
-                    buf.append("  \"").append(classNode.getName()).append("\" -> \"")
-                            .append(directSuperclassNode.getName()).append("\" [arrowsize=2.5]\n");
+                    appendEdge(classNode.getName(), directSuperclassNode.getName(), "[arrowsize=2.5]", buf);
                 }
             }
 
             for (final ClassInfo implementedInterfaceNode : classNode.getInterfaces().directOnly()) {
                 if (allVisibleNodes.contains(implementedInterfaceNode.getName())) {
                     // class --<> implemented interface
-                    buf.append("  \"").append(classNode.getName()).append("\" -> \"")
-                            .append(implementedInterfaceNode.getName())
-                            .append("\" [arrowhead=diamond, arrowsize=2.5]\n");
+                    appendEdge(classNode.getName(), implementedInterfaceNode.getName(),
+                            "[arrowhead=diamond, arrowsize=2.5]", buf);
                 }
             }
 
@@ -585,9 +651,8 @@ final class GraphvizDotfileGenerator {
                     for (final ClassInfo referencedFieldType : fi.findReferencedClassInfo(/* log = */ null)) {
                         if (allVisibleNodes.contains(referencedFieldType.getName())) {
                             // class --[ ] field type (open box)
-                            buf.append("  \"").append(referencedFieldType.getName()).append("\" -> \"")
-                                    .append(classNode.getName())
-                                    .append("\" [arrowtail=obox, arrowsize=2.5, dir=back]\n");
+                            appendEdge(referencedFieldType.getName(), classNode.getName(),
+                                    "[arrowtail=obox, arrowsize=2.5, dir=back]", buf);
                         }
                     }
                 }
@@ -598,9 +663,8 @@ final class GraphvizDotfileGenerator {
                     for (final ClassInfo referencedMethodType : mi.findReferencedClassInfo(/* log = */ null)) {
                         if (allVisibleNodes.contains(referencedMethodType.getName())) {
                             // class --[#] field type (open box)
-                            buf.append("  \"").append(referencedMethodType.getName()).append("\" -> \"")
-                                    .append(classNode.getName())
-                                    .append("\" [arrowtail=box, arrowsize=2.5, dir=back]\n");
+                            appendEdge(referencedMethodType.getName(), classNode.getName(),
+                                    "[arrowtail=box, arrowsize=2.5, dir=back]", buf);
                         }
                     }
                 }
@@ -610,8 +674,8 @@ final class GraphvizDotfileGenerator {
             for (final ClassInfo superinterfaceNode : interfaceNode.getInterfaces().directOnly()) {
                 if (allVisibleNodes.contains(superinterfaceNode.getName())) {
                     // interface --<> superinterface
-                    buf.append("  \"").append(interfaceNode.getName()).append("\" -> \"")
-                            .append(superinterfaceNode.getName()).append("\" [arrowhead=diamond, arrowsize=2.5]\n");
+                    appendEdge(interfaceNode.getName(), superinterfaceNode.getName(),
+                            "[arrowhead=diamond, arrowsize=2.5]", buf);
                 }
             }
         }
@@ -620,24 +684,24 @@ final class GraphvizDotfileGenerator {
                 for (final ClassInfo annotatedClassNode : annotationNode.getClassesWithAnnotationDirectOnly()) {
                     if (allVisibleNodes.contains(annotatedClassNode.getName())) {
                         // annotated class --o annotation
-                        buf.append("  \"").append(annotatedClassNode.getName()).append("\" -> \"")
-                                .append(annotationNode.getName()).append("\" [arrowhead=dot, arrowsize=2.5]\n");
+                        appendEdge(annotatedClassNode.getName(), annotationNode.getName(),
+                                "[arrowhead=dot, arrowsize=2.5]", buf);
                     }
                 }
                 for (final ClassInfo classWithMethodAnnotationNode : annotationNode
                         .getClassesWithMethodAnnotationDirectOnly()) {
                     if (allVisibleNodes.contains(classWithMethodAnnotationNode.getName())) {
                         // class with method annotation --o method annotation
-                        buf.append("  \"").append(classWithMethodAnnotationNode.getName()).append("\" -> \"")
-                                .append(annotationNode.getName()).append("\" [arrowhead=odot, arrowsize=2.5]\n");
+                        appendEdge(classWithMethodAnnotationNode.getName(), annotationNode.getName(),
+                                "[arrowhead=odot, arrowsize=2.5]", buf);
                     }
                 }
                 for (final ClassInfo classWithMethodAnnotationNode : annotationNode
                         .getClassesWithFieldAnnotationDirectOnly()) {
                     if (allVisibleNodes.contains(classWithMethodAnnotationNode.getName())) {
                         // class with field annotation --o method annotation
-                        buf.append("  \"").append(classWithMethodAnnotationNode.getName()).append("\" -> \"")
-                                .append(annotationNode.getName()).append("\" [arrowhead=odot, arrowsize=2.5]\n");
+                        appendEdge(classWithMethodAnnotationNode.getName(), annotationNode.getName(),
+                                "[arrowhead=odot, arrowsize=2.5]", buf);
                     }
                 }
             }
@@ -688,7 +752,7 @@ final class GraphvizDotfileGenerator {
         }
 
         for (final ClassInfo ci : allVisibleNodes) {
-            buf.append('"').append(ci.getName()).append('"');
+            appendQuotedIdentifier(ci.getName(), buf);
             buf.append("[shape=").append(ci.isAnnotation() ? "oval" : ci.isInterface() ? "diamond" : "box")
                     .append(",style=filled,fillcolor=\"#").append(ci.isAnnotation() ? ANNOTATION_COLOR
                             : ci.isInterface() ? INTERFACE_COLOR : STANDARD_CLASS_COLOR)
@@ -721,8 +785,7 @@ final class GraphvizDotfileGenerator {
             for (final ClassInfo dep : ci.getClassDependencies()) {
                 if (includeExternalClasses || allVisibleNodes.contains(dep)) {
                     // class --> dep
-                    buf.append("  \"").append(ci.getName()).append("\" -> \"").append(dep.getName())
-                            .append("\" [arrowsize=2.5]\n");
+                    appendEdge(ci.getName(), dep.getName(), "[arrowsize=2.5]", buf);
                 }
             }
         }

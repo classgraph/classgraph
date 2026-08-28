@@ -143,12 +143,22 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
      */
     public AnnotationInfoList filter(final AnnotationInfoFilter filter) {
         final AnnotationInfoList annotationInfoFiltered = new AnnotationInfoList();
-        for (final AnnotationInfo resource : this) {
-            if (filter.accept(resource)) {
-                annotationInfoFiltered.add(resource);
+        // Filter the directly-related annotations alongside the reachable ones, otherwise the filtered list would
+        // have no record of which of its annotations were directly present on the annotated element, and
+        // directOnly() would return the meta-annotations too
+        final AnnotationInfoList directAnnotations = directlyRelatedAnnotations;
+        final AnnotationInfoList directlyRelatedFiltered = directAnnotations == null ? null
+                : new AnnotationInfoList();
+        for (final AnnotationInfo annotationInfo : this) {
+            if (filter.accept(annotationInfo)) {
+                annotationInfoFiltered.add(annotationInfo);
+                if (directlyRelatedFiltered != null && directAnnotations.contains(annotationInfo)) {
+                    directlyRelatedFiltered.add(annotationInfo);
+                }
             }
         }
-        return annotationInfoFiltered;
+        return directlyRelatedFiltered == null ? annotationInfoFiltered
+                : new AnnotationInfoList(annotationInfoFiltered, directlyRelatedFiltered);
     }
 
     // -------------------------------------------------------------------------------------------------------------

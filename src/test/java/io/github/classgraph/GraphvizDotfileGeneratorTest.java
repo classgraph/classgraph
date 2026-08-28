@@ -59,6 +59,19 @@ public class GraphvizDotfileGeneratorTest {
     }
 
     /**
+     * DOT identifiers escape syntax and control characters without changing ordinary class names. Class names are
+     * emitted as node identifiers, and the JVM allows any character in a class name except {@code . ; [ /}, so a
+     * class name from hand-written or obfuscated bytecode can otherwise terminate the identifier it appears in and
+     * make the whole .dot file unparseable.
+     */
+    @Test
+    public void dotIdentifiersAreEscaped() {
+        final StringBuilder identifier = new StringBuilder();
+        GraphvizDotfileGenerator.appendQuotedIdentifier("p.A\"\\B\n\u0001", identifier);
+        assertThat(identifier.toString()).isEqualTo("\"p.A\\\"\\\\B\\n\\u0001\"");
+    }
+
+    /**
      * A backslash is escaped as a numeric character reference. GraphViz resolves only the named entities it knows,
      * and there is no name for a backslash -- an unknown entity makes GraphViz report "undefined entity" and exit
      * with an error, and the label of the node that contained it is then not rendered as a table at all.
