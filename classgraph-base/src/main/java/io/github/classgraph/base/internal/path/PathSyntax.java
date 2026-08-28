@@ -52,6 +52,12 @@ public final class PathSyntax {
     public static final String TEMP_FILENAME_LEAF_SEPARATOR = "---";
 
     /**
+     * The prefix that every ClassGraph temporary filename begins with. A leafname is only read as a temporary
+     * filename if it starts with this, so that a file genuinely named {@code "a---b.jar"} keeps its whole name.
+     */
+    public static final String TEMP_FILENAME_PREFIX = "ClassGraph--";
+
+    /**
      * Constructor.
      */
     private PathSyntax() {
@@ -471,19 +477,63 @@ public final class PathSyntax {
         // jar matched no accept or reject criterion and was silently skipped
         // #903
         final var sepIdx = indexOfNestedJarSeparator(path);
-        final var endIdx = sepIdx >= 0 ? sepIdx : path.length();
-        var leafStartIdx = 1 + (File.separatorChar == '/' ? path.lastIndexOf('/', endIdx)
+        return segmentEndingAt(path, sepIdx >= 0 ? sepIdx : path.length());
+    }
+
+    /**
+     * Returns the innermost segment of a path: the name of the innermost nested jarfile for a nested jar path, and
+     * the leafname of the path otherwise. Unlike {@link #leafName(String)}, which stops at the outermost nested jar
+     * separator so that a path within a jarfile is named by the jarfile, this names the last thing in the path.
+     *
+     * @param path
+     *            A file path.
+     * @return The innermost segment of the path.
+     */
+    public static String lastSegment(final String path) {
+        return segmentEndingAt(path, path.length());
+    }
+
+    /**
+     * Returns the segment of a path that ends at {@code endIdx}: everything after the last directory separator
+     * before {@code endIdx}, with any ClassGraph temporary filename prefix stripped off it.
+     *
+     * @param path
+     *            A file path.
+     * @param endIdx
+     *            The index to end the segment at.
+     * @return The segment.
+     */
+    private static String segmentEndingAt(final String path, final int endIdx) {
+        var startIdx = 1 + (File.separatorChar == '/' ? path.lastIndexOf('/', endIdx)
                 : Math.max(path.lastIndexOf('/', endIdx), path.lastIndexOf(File.separatorChar, endIdx)));
+        startIdx = Math.min(startIdx, endIdx);
         // In case of temp files (for jars extracted from within jars), remove the temp filename prefix -- see
-        // VfsSession.makeTempFile(). The separator is only looked for within the leafname itself: searching the
-        // whole path found a "---" in a directory name or in a path nested within the jar, which left the leafname
-        // truncated or empty, so the jar matched no accept or reject criterion and was silently skipped
-        final var tempSepIdx = path.indexOf(TEMP_FILENAME_LEAF_SEPARATOR, leafStartIdx);
-        if (tempSepIdx >= 0 && tempSepIdx + TEMP_FILENAME_LEAF_SEPARATOR.length() <= endIdx) {
-            leafStartIdx = tempSepIdx + TEMP_FILENAME_LEAF_SEPARATOR.length();
+        // VfsSession.makeTempFile(). The prefix is only stripped from a segment that actually starts with the
+        // temporary filename prefix, and only at the first separator after it: looking for the separator anywhere
+        // truncated the name of a file genuinely named "a---b.jar" to "b.jar", and looking for it anywhere in the
+        // whole path found a "---" in a directory name or in a path nested within the jar, which left the name
+        // empty, so the jar matched no accept or reject criterion and was silently skipped
+        if (path.startsWith(TEMP_FILENAME_PREFIX, startIdx)) {
+            final var tempSepIdx = path.indexOf(TEMP_FILENAME_LEAF_SEPARATOR,
+                    startIdx + TEMP_FILENAME_PREFIX.length());
+            if (tempSepIdx >= 0 && tempSepIdx + TEMP_FILENAME_LEAF_SEPARATOR.length() <= endIdx) {
+                startIdx = tempSepIdx + TEMP_FILENAME_LEAF_SEPARATOR.length();
+            }
         }
-        leafStartIdx = Math.min(leafStartIdx, endIdx);
-        return path.substring(leafStartIdx, endIdx);
+        return path.substring(startIdx, endIdx);
+    }
+
+    /**
+     * Returns the simple name of an entry name: everything after the last {@code '/'}. An entry name is always
+     * spelled with {@code '/'} as its separator, whatever the platform, and is never a temporary filename, so
+     * unlike {@link #leafName(String)} this is a plain split at the last {@code '/'}.
+     *
+     * @param name
+     *            An entry name, relative to the root that contains it.
+     * @return The simple name.
+     */
+    public static String simpleName(final String name) {
+        return name.substring(name.lastIndexOf('/') + 1);
     }
 
     /**

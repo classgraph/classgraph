@@ -202,6 +202,54 @@ public class PathSyntaxTest {
     }
 
     /**
+     * Only a leafname that begins with the temporary filename prefix is read as a temporary filename, so a file
+     * genuinely named "a---b.jar" keeps its whole name. Stripping everything up to the first "---" in the leafname
+     * regardless truncated such a name to "b.jar", so the jar matched no accept or reject criterion naming it.
+     */
+    @Test
+    public void aTempSeparatorOnlyTruncatesANameThatBeginsWithTheTempPrefix(@TempDir final Path tempDir)
+            throws IOException {
+        final var dirWithTempSep = Files
+                .createDirectory(tempDir.resolve("a" + PathSyntax.TEMP_FILENAME_LEAF_SEPARATOR + "b"));
+        final var jarPath = dirWithTempSep.resolve("x" + PathSyntax.TEMP_FILENAME_LEAF_SEPARATOR + "y.jar")
+                .toString().replace(File.separatorChar, '/');
+        assertThat(PathSyntax.leafName(jarPath)).isEqualTo("x---y.jar");
+        // A temporary filename carries the prefix, and only the first separator after the prefix is the one that
+        // ends the random part, so an inner jar whose own name contains "---" keeps the rest of its name
+        assertThat(PathSyntax.leafName(
+                "/tmp/" + PathSyntax.TEMP_FILENAME_PREFIX + "12345" + PathSyntax.TEMP_FILENAME_LEAF_SEPARATOR + "x"
+                        + PathSyntax.TEMP_FILENAME_LEAF_SEPARATOR + "y.jar"))
+                .isEqualTo("x---y.jar");
+    }
+
+    /**
+     * The last segment of a path is the innermost thing it names, so unlike the leafname it does not stop at the
+     * outermost nested jar separator.
+     */
+    @Test
+    public void theLastSegmentOfAPathIsTheInnermostThingItNames(@TempDir final Path tempDir) throws IOException {
+        assertThat(PathSyntax.lastSegment("/a/b/c.jar")).isEqualTo("c.jar");
+        assertThat(PathSyntax.lastSegment("c.jar")).isEqualTo("c.jar");
+        assertThat(PathSyntax.lastSegment("")).isEmpty();
+        final var outerJarPath = Files.write(tempDir.resolve("c.jar"), new byte[] { 'P', 'K' }).toString()
+                .replace(File.separatorChar, '/');
+        // The leafname of a path within a jarfile is the jarfile's name, but its last segment is the inner name
+        assertThat(PathSyntax.leafName(outerJarPath + "!/BOOT-INF/lib/inner.jar")).isEqualTo("c.jar");
+        assertThat(PathSyntax.lastSegment(outerJarPath + "!/BOOT-INF/lib/inner.jar")).isEqualTo("inner.jar");
+    }
+
+    /** The simple name of an entry name is everything after its last '/', whatever the platform separator is. */
+    @Test
+    public void theSimpleNameOfAnEntryNameIsEverythingAfterItsLastSlash() {
+        assertThat(PathSyntax.simpleName("com/xyz/Widget.class")).isEqualTo("Widget.class");
+        assertThat(PathSyntax.simpleName("Widget.class")).isEqualTo("Widget.class");
+        assertThat(PathSyntax.simpleName("")).isEmpty();
+        assertThat(PathSyntax.simpleName("com/xyz/")).isEmpty();
+        // An entry name is spelled with '/' on every platform, so a '\' in one is an ordinary filename character
+        assertThat(PathSyntax.simpleName("com/xyz/a\\b.class")).isEqualTo("a\\b.class");
+    }
+
+    /**
      * A '!' in a directory name is an ordinary filename character, not a nested jar separator, so it does not end
      * the leafname. Ending the leafname at the first '!' regardless made the leafname of a jar below such a
      * directory the directory's name, so the jar matched no accept or reject criterion and was silently skipped.

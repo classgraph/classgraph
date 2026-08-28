@@ -258,17 +258,6 @@ public class VfsSession {
     // ---------------------------------------------------------------------------------------------------------
 
     /**
-     * Get the leafname of a path.
-     *
-     * @param path
-     *            the path
-     * @return the leafname
-     */
-    private static String leafname(final String path) {
-        return path.substring(path.lastIndexOf('/') + 1);
-    }
-
-    /**
      * Characters that may not appear in a filename. Windows rejects every ASCII control character, and also
      * {@code " * / < > ? \ |}, whereas Linux and macOS reject only {@code /}. Windows accepts {@code :}, but treats
      * it as the start of an NTFS alternate data stream rather than as part of the filename. The remaining
@@ -303,8 +292,9 @@ public class VfsSession {
      *             case the temporary file is deleted again before this method throws.
      */
     public File makeTempFile(final String filePathBase, final boolean onlyUseLeafname) throws IOException {
-        final var tempFile = File.createTempFile("ClassGraph--", PathSyntax.TEMP_FILENAME_LEAF_SEPARATOR
-                + sanitizeFilename(onlyUseLeafname ? leafname(filePathBase) : filePathBase));
+        final var tempFile = File.createTempFile(PathSyntax.TEMP_FILENAME_PREFIX,
+                PathSyntax.TEMP_FILENAME_LEAF_SEPARATOR
+                        + sanitizeFilename(onlyUseLeafname ? PathSyntax.simpleName(filePathBase) : filePathBase));
         tempFile.deleteOnExit();
         final boolean registered;
         synchronized (closeLock) {

@@ -41,6 +41,7 @@ import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermission;
 import java.util.Set;
 
+import io.github.classgraph.base.internal.path.PathSyntax;
 import io.github.classgraph.base.internal.utils.Assert;
 import org.jspecify.annotations.Nullable;
 
@@ -96,6 +97,16 @@ public abstract class VfsEntry {
      * @return the name of the entry.
      */
     public abstract String getName();
+
+    /**
+     * Returns the leafname of this entry: the part of {@link #getName()} after the last {@code '/'}, e.g.
+     * {@code "Widget.class"} for an entry named {@code "com/xyz/Widget.class"}.
+     *
+     * @return the leafname of the entry.
+     */
+    public final String getLeafName() {
+        return PathSyntax.simpleName(getName());
+    }
 
     /**
      * Returns the name this entry is stored under within its root, before the root's package root prefix was

@@ -30,6 +30,8 @@ package io.github.classgraph;
 
 import java.util.regex.Pattern;
 
+import io.github.classgraph.base.internal.path.PathSyntax;
+
 /**
  * The name that the module system gives a jarfile that has no module descriptor and no
  * {@code Automatic-Module-Name} manifest entry, which it derives from the name of the jarfile.
@@ -64,8 +66,7 @@ final class AutomaticModuleName {
      *
      * @param jarPath
      *            The jar path, as normalized by {@code FastPathResolver}: directory separators are '/' on every
-     *            platform, and nested jar separators are "!/". A '\' is part of a filename here, not a separator,
-     *            so a raw {@link java.nio.file.Path#toString()} cannot be passed on Windows.
+     *            platform, and nested jar separators are "!/".
      * @return The automatic module name.
      */
     static String derive(final String jarPath) {
@@ -81,19 +82,15 @@ final class AutomaticModuleName {
             // Then truncate at last '!'
             endIdx = lastPlingIdx;
         }
-        // Find the second to last '!' (or -1, if none)
-        final var secondToLastPlingIdx = endIdx == 0 ? -1 : jarPath.lastIndexOf("!/", endIdx - 1);
-        // Find last '/' between the second to last and the last '!'
-        final var startIdx = Math.max(secondToLastPlingIdx, jarPath.lastIndexOf('/', endIdx - 1)) + 1;
-        // Find last '.' after that '/'
-        final var lastDotBeforeLastPlingIdx = jarPath.lastIndexOf('.', endIdx - 1);
-        if (lastDotBeforeLastPlingIdx > startIdx) {
-            // Strip off extension
-            endIdx = lastDotBeforeLastPlingIdx;
-        }
+        // The jar is named by the innermost segment of what is left, which is the name of the innermost nested
+        // jarfile for a nested jar path, and the leafname of the path otherwise
+        var moduleName = PathSyntax.lastSegment(jarPath.substring(0, endIdx));
 
-        // Remove .jar extension
-        var moduleName = jarPath.substring(startIdx, endIdx);
+        // Remove the ".jar" extension, but not a leading '.' of a name that is nothing but an extension
+        final var lastDotIdx = moduleName.lastIndexOf('.');
+        if (lastDotIdx > 0) {
+            moduleName = moduleName.substring(0, lastDotIdx);
+        }
 
         // Find first occurrence of "-[0-9]"
         final var matcher = DASH_VERSION.matcher(moduleName);

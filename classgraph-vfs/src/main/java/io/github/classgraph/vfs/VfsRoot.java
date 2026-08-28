@@ -46,6 +46,7 @@ import java.util.List;
 import java.util.Map;
 
 import io.github.classgraph.base.LogNode;
+import io.github.classgraph.base.internal.path.PathSyntax;
 import io.github.classgraph.base.internal.utils.Assert;
 import io.github.classgraph.vfs.internal.ManifestParser;
 import org.jspecify.annotations.Nullable;
@@ -133,6 +134,19 @@ public abstract class VfsRoot implements Iterable<VfsEntry> {
      * @return the path of the root.
      */
     public abstract String getPath();
+
+    /**
+     * Returns the leafname of this root: the filename of the jarfile for an archive, the name of the directory for
+     * a directory, and the module name for a module. For a jarfile nested within another jarfile, this is the name
+     * of the innermost jarfile, and for a root opened at a package root, it is the name of the jarfile that
+     * contains the package root rather than the name of the package root directory, since the package root is not
+     * part of {@link #getPath()}.
+     *
+     * @return the leafname of the root.
+     */
+    public String getLeafName() {
+        return PathSyntax.lastSegment(getPath());
+    }
 
     /**
      * Returns the {@link URI} of this root.

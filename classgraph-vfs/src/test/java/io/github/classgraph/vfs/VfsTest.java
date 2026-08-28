@@ -360,6 +360,25 @@ public class VfsTest {
         }
     }
 
+    /** A root is named by its jarfile or directory, and an entry by the last segment of its name. */
+    @Test
+    public void rootsAndEntriesReportTheirLeafNames(@TempDir final File tempDir) throws IOException {
+        final var jarFile = new File(tempDir, "widget.jar");
+        writeJar(jarFile, "com/xyz/widget.txt");
+
+        try (var vfs = new Vfs()) {
+            final var jarRoot = vfs.open(jarFile.getPath());
+            assertThat(jarRoot.getLeafName()).isEqualTo("widget.jar");
+            assertThat(Objects.requireNonNull(jarRoot.getEntry("com/xyz/widget.txt")).getLeafName())
+                    .isEqualTo("widget.txt");
+            // A directory root is named by the directory itself
+            final var dirRoot = vfs.open(tempDir.getPath());
+            assertThat(dirRoot.getLeafName()).isEqualTo(tempDir.getCanonicalFile().getName());
+            assertThat(Objects.requireNonNull(dirRoot.getEntry("widget.jar")).getLeafName())
+                    .isEqualTo("widget.jar");
+        }
+    }
+
     /** The Automatic-Module-Name manifest entry is reported as the module name of a jarfile. */
     @Test
     public void theAutomaticModuleNameIsRead(@TempDir final File tempDir) throws IOException {

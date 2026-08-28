@@ -54,6 +54,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
+import io.github.classgraph.base.internal.path.PathSyntax;
 import io.github.classgraph.base.internal.path.URLPaths;
 import io.github.classgraph.base.internal.utils.Assert;
 import org.jspecify.annotations.Nullable;
@@ -170,18 +171,19 @@ final class VfsFileSystem extends FileSystem {
                 // Add this entry to its parent directory, then that directory to its own parent, and so on up to
                 // the root, stopping as soon as a directory is reached that has already been added
                 var currName = name;
+                var simpleName = entry.getLeafName();
                 while (true) {
-                    final var slashIdx = currName.lastIndexOf('/');
-                    final var dirName = slashIdx < 0 ? "" : currName.substring(0, slashIdx);
-                    final var simpleName = currName.substring(slashIdx + 1);
                     if (simpleName.isEmpty()) {
                         break;
                     }
+                    final var slashIdx = currName.lastIndexOf('/');
+                    final var dirName = slashIdx < 0 ? "" : currName.substring(0, slashIdx);
                     final var children = childNames.computeIfAbsent(dirName, k -> new TreeSet<>());
                     if (!children.add(simpleName) || dirName.isEmpty()) {
                         break;
                     }
                     currName = dirName;
+                    simpleName = PathSyntax.simpleName(currName);
                 }
             }
             final Map<String, List<String>> childNamesByDir = new HashMap<>();
