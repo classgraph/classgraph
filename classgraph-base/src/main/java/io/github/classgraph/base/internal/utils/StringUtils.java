@@ -109,7 +109,11 @@ public final class StringUtils {
                 appendUnicodeEscape(c, buf);
             } else {
                 final var replacement = CHAR_REPLACEMENTS[c];
-                buf.append(replacement == null ? String.valueOf(c) : replacement);
+                if (replacement == null) {
+                    buf.append(c);
+                } else {
+                    buf.append(replacement);
+                }
             }
         }
         return buf.toString();
