@@ -273,7 +273,7 @@ public class VfsTest {
             assertThat(root.getModuleReference()).isNull();
             assertThat(root.getURI().getScheme()).isEqualTo("file");
             assertThat(root.getURL().getProtocol()).isEqualTo("file");
-            assertThat(root.getEntries()).extracting(VfsEntry::getName)
+            assertThat(root.getEntries()).extracting(VfsEntry::getPathFromRoot)
                     .containsExactlyInAnyOrder("META-INF/MANIFEST.MF", "com/xyz/widget.txt");
 
             final var entry = Objects.requireNonNull(root.getEntry("com/xyz/widget.txt"));
@@ -368,13 +368,13 @@ public class VfsTest {
 
         try (var vfs = new Vfs()) {
             final var jarRoot = vfs.open(jarFile.getPath());
-            assertThat(jarRoot.getLeafName()).isEqualTo("widget.jar");
-            assertThat(Objects.requireNonNull(jarRoot.getEntry("com/xyz/widget.txt")).getLeafName())
+            assertThat(jarRoot.getLastSegment()).isEqualTo("widget.jar");
+            assertThat(Objects.requireNonNull(jarRoot.getEntry("com/xyz/widget.txt")).getLastSegment())
                     .isEqualTo("widget.txt");
             // A directory root is named by the directory itself
             final var dirRoot = vfs.open(tempDir.getPath());
-            assertThat(dirRoot.getLeafName()).isEqualTo(tempDir.getCanonicalFile().getName());
-            assertThat(Objects.requireNonNull(dirRoot.getEntry("widget.jar")).getLeafName())
+            assertThat(dirRoot.getLastSegment()).isEqualTo(tempDir.getCanonicalFile().getName());
+            assertThat(Objects.requireNonNull(dirRoot.getEntry("widget.jar")).getLastSegment())
                     .isEqualTo("widget.jar");
         }
     }
@@ -474,18 +474,18 @@ public class VfsTest {
 
         try (var vfs = new Vfs()) {
             final var root = vfs.open(jarFile.getPath());
-            assertThat(root.getEntries("BOOT-INF/lib/")).extracting(VfsEntry::getName)
+            assertThat(root.getEntries("BOOT-INF/lib/")).extracting(VfsEntry::getPathFromRoot)
                     .containsExactly("BOOT-INF/lib/a.jar", "BOOT-INF/lib/b.jar");
             // A prefix is matched against the whole entry name, so it need not end at a directory boundary. A
             // jarfile lists its entries in the order its central directory holds them, which is the order they
             // were written in, so "lib-provided" comes last here rather than where sorting by name would put it.
-            assertThat(root.getEntries("BOOT-INF/lib")).extracting(VfsEntry::getName)
+            assertThat(root.getEntries("BOOT-INF/lib")).extracting(VfsEntry::getPathFromRoot)
                     .containsExactly("BOOT-INF/lib/a.jar", "BOOT-INF/lib/b.jar", "BOOT-INF/lib-provided/c.jar");
-            assertThat(root.getEntries("BOOT-INF/classes/com/xyz/Ap")).extracting(VfsEntry::getName)
+            assertThat(root.getEntries("BOOT-INF/classes/com/xyz/Ap")).extracting(VfsEntry::getPathFromRoot)
                     .containsExactly("BOOT-INF/classes/com/xyz/App.class");
             // The empty prefix lists the whole root, and a prefix nothing starts with lists nothing
-            assertThat(root.getEntries("")).extracting(VfsEntry::getName)
-                    .isEqualTo(root.getEntries().stream().map(VfsEntry::getName).toList());
+            assertThat(root.getEntries("")).extracting(VfsEntry::getPathFromRoot)
+                    .isEqualTo(root.getEntries().stream().map(VfsEntry::getPathFromRoot).toList());
             assertThat(root.getEntries("nothing/")).isEmpty();
         }
     }
@@ -507,11 +507,11 @@ public class VfsTest {
 
         try (var vfs = new Vfs()) {
             final var root = vfs.open(dir.getPath());
-            assertThat(root.getEntries("BOOT-INF/lib/")).extracting(VfsEntry::getName)
+            assertThat(root.getEntries("BOOT-INF/lib/")).extracting(VfsEntry::getPathFromRoot)
                     .containsExactly("BOOT-INF/lib/a.jar", "BOOT-INF/lib/b.jar");
-            assertThat(root.getEntries("root")).extracting(VfsEntry::getName).containsExactly("root.txt");
-            assertThat(root.getEntries("")).extracting(VfsEntry::getName)
-                    .isEqualTo(root.getEntries().stream().map(VfsEntry::getName).toList());
+            assertThat(root.getEntries("root")).extracting(VfsEntry::getPathFromRoot).containsExactly("root.txt");
+            assertThat(root.getEntries("")).extracting(VfsEntry::getPathFromRoot)
+                    .isEqualTo(root.getEntries().stream().map(VfsEntry::getPathFromRoot).toList());
             assertThat(root.getEntries("nothing/")).isEmpty();
         }
     }
@@ -634,7 +634,7 @@ public class VfsTest {
             assertThat(root.getURI().getScheme()).isEqualTo("file");
             // A directory is listed recursively, and its subdirectories are not themselves entries. Each
             // directory's own files come before its subdirectories.
-            assertThat(root.getEntries()).extracting(VfsEntry::getName).containsExactly("root.txt",
+            assertThat(root.getEntries()).extracting(VfsEntry::getPathFromRoot).containsExactly("root.txt",
                     "com/xyz/widget.txt");
 
             final var entry = Objects.requireNonNull(root.getEntry("com/xyz/widget.txt"));
@@ -907,7 +907,8 @@ public class VfsTest {
             assertThat(root.getNioPath()).isEqualTo(dir);
             // A filesystem that has no File API reports no File
             assertThat(root.getFile()).isNull();
-            assertThat(root.getEntries()).extracting(VfsEntry::getName).containsExactly("com/xyz/widget.txt");
+            assertThat(root.getEntries()).extracting(VfsEntry::getPathFromRoot)
+                    .containsExactly("com/xyz/widget.txt");
             assertThat(entryContent(root, "com/xyz/widget.txt")).isEqualTo(RESOURCE_CONTENT);
             assertThat(vfs.open(dir)).isSameAs(root);
             // The path of the directory in its own filesystem is "/classes", which names nothing outside that
@@ -930,7 +931,7 @@ public class VfsTest {
             final var root = vfs.open(fileSystem.getPath("/com"));
             assertThat(root.getKind()).isEqualTo(VfsRoot.Kind.DIRECTORY);
             assertThat(root.getPath()).endsWith("/widget.jar!/com");
-            assertThat(root.getEntries()).extracting(VfsEntry::getName).containsExactly("xyz/widget.txt");
+            assertThat(root.getEntries()).extracting(VfsEntry::getPathFromRoot).containsExactly("xyz/widget.txt");
             assertThat(entryContent(root, "xyz/widget.txt")).isEqualTo(RESOURCE_CONTENT);
         }
     }
@@ -1034,8 +1035,8 @@ public class VfsTest {
             // Opening the same module twice returns the same root
             assertThat(vfs.open(moduleReference)).isSameAs(root);
 
-            assertThat(root.getEntries()).extracting(VfsEntry::getName).contains("java/util/logging/Logger.class")
-                    .doesNotContain("java/util/logging/");
+            assertThat(root.getEntries()).extracting(VfsEntry::getPathFromRoot)
+                    .contains("java/util/logging/Logger.class").doesNotContain("java/util/logging/");
 
             final var entry = Objects.requireNonNull(root.getEntry("java/util/logging/Logger.class"));
             assertThat(entry.getPath()).isEqualTo("java.logging/java/util/logging/Logger.class");
@@ -1147,7 +1148,8 @@ public class VfsTest {
             final var root = vfs.open(jarFile.getPath() + "!/BOOT-INF/classes");
             assertThat(root.getPackageRoot()).isEqualTo("BOOT-INF/classes");
             assertThat(root.toString()).isEqualTo(root.getPath() + "!/BOOT-INF/classes");
-            assertThat(root.getEntries()).extracting(VfsEntry::getName).containsExactly("com/xyz/widget.txt");
+            assertThat(root.getEntries()).extracting(VfsEntry::getPathFromRoot)
+                    .containsExactly("com/xyz/widget.txt");
             final var entry = Objects.requireNonNull(root.getEntry("com/xyz/widget.txt"));
             assertThat(entry.getPath()).isEqualTo(root.getPath() + "!/BOOT-INF/classes/com/xyz/widget.txt");
             assertThat(entry.loadAsString()).isEqualTo(RESOURCE_CONTENT);
@@ -1414,7 +1416,7 @@ public class VfsTest {
             final var root = vfs.open(jarFile.getPath());
             // The version 9 copy masks the unversioned one. The version 9999 copy is newer than any JVM that
             // exists, so it cannot be used, and is left under its versioned path rather than masking anything
-            assertThat(root.getEntries()).extracting(VfsEntry::getName).containsExactlyInAnyOrder(
+            assertThat(root.getEntries()).extracting(VfsEntry::getPathFromRoot).containsExactlyInAnyOrder(
                     "META-INF/MANIFEST.MF", "com/xyz/widget.txt", "META-INF/versions/9999/com/xyz/widget.txt");
             assertThat(entryContent(root, "com/xyz/widget.txt")).isEqualTo("version 9");
         }
@@ -1437,7 +1439,7 @@ public class VfsTest {
 
         try (var vfs = new Vfs(new VfsSpec().enableMultiReleaseVersions())) {
             final var root = vfs.open(jarFile.getPath());
-            assertThat(root.getEntries()).extracting(VfsEntry::getName).containsExactlyInAnyOrder(
+            assertThat(root.getEntries()).extracting(VfsEntry::getPathFromRoot).containsExactlyInAnyOrder(
                     "META-INF/MANIFEST.MF", "com/xyz/widget.txt", "META-INF/versions/9/com/xyz/widget.txt",
                     "META-INF/versions/9999/com/xyz/widget.txt");
             assertThat(entryContent(root, "com/xyz/widget.txt")).isEqualTo("base");

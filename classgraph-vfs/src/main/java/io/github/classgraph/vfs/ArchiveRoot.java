@@ -85,7 +85,7 @@ final class ArchiveRoot extends VfsRoot {
                         zipEntry.entryNameUnversioned.substring(packageRootPrefix.length()));
                 entriesTmp.add(entry);
                 // The first entry with a given name wins, matching the order that a classloader would find them in
-                entriesByNameTmp.putIfAbsent(entry.getName(), entry);
+                entriesByNameTmp.putIfAbsent(entry.getPathFromRoot(), entry);
             }
         }
         this.entries = Collections.unmodifiableList(entriesTmp);

@@ -444,7 +444,7 @@ public class MalformedZipEntryTest {
         final List<String> entryNames = new ArrayList<>();
         try (var vfs = new Vfs()) {
             for (final var entry : vfs.open(jarFile.getPath()).getEntries()) {
-                entryNames.add(entry.getName());
+                entryNames.add(entry.getPathFromRoot());
             }
         }
         return entryNames;
@@ -463,7 +463,7 @@ public class MalformedZipEntryTest {
         final List<String> entries = new ArrayList<>();
         try (var vfs = new Vfs()) {
             for (final var entry : vfs.open(jarFile.getPath()).getEntries()) {
-                entries.add(entry.getName() + ": " + new String(entry.load(), StandardCharsets.UTF_8));
+                entries.add(entry.getPathFromRoot() + ": " + new String(entry.load(), StandardCharsets.UTF_8));
             }
         }
         return entries;

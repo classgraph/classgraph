@@ -136,15 +136,31 @@ public abstract class VfsRoot implements Iterable<VfsEntry> {
     public abstract String getPath();
 
     /**
-     * Returns the leafname of this root: the filename of the jarfile for an archive, the name of the directory for
-     * a directory, and the module name for a module. For a jarfile nested within another jarfile, this is the name
-     * of the innermost jarfile, and for a root opened at a package root, it is the name of the jarfile that
-     * contains the package root rather than the name of the package root directory, since the package root is not
-     * part of {@link #getPath()}.
+     * Returns the last segment of {@link #getPath()}: the filename of the jarfile for an archive, the name of the
+     * directory for a directory, and the module name for a module. This is the shortest name that identifies the
+     * root to a person, and it is not unique -- two roots can easily have the same last segment.
      *
-     * @return the leafname of the root.
+     * <p>
+     * "Last segment" means the innermost thing the path names. For a jarfile nested within another jarfile, that is
+     * the innermost jarfile: the last segment of {@code "/a/outer.jar!/BOOT-INF/lib/inner.jar"} is
+     * {@code "inner.jar"}, not {@code "outer.jar"}. Note that this is deliberately not the same rule that accept
+     * and reject criteria are matched under, which stop at the outermost nested jar separator and so name a path
+     * inside a jarfile by the jarfile itself. Both readings are useful and neither is wrong; they answer different
+     * questions, and this method answers "what is this root", not "which jarfile is this path in".
+     *
+     * <p>
+     * For a root opened at a package root, this is the name of the jarfile or directory that contains the package
+     * root, rather than the name of the package root directory, because the package root is not part of
+     * {@link #getPath()}.
+     *
+     * <p>
+     * If the path is that of a temporary file that ClassGraph extracted a nested jarfile into, the temporary
+     * filename prefix is stripped, so the segment is the name of the jarfile that was extracted rather than the
+     * name it was extracted to.
+     *
+     * @return the last segment of the path of the root.
      */
-    public String getLeafName() {
+    public String getLastSegment() {
         return PathSyntax.lastSegment(getPath());
     }
 
@@ -205,9 +221,9 @@ public abstract class VfsRoot implements Iterable<VfsEntry> {
     }
 
     /**
-     * Returns the package root within this root: the directory that {@link VfsEntry#getName()} is relative to,
-     * without a trailing {@code '/'}. This is the empty string unless the path this root was opened from ended in a
-     * {@code "!/"} section that named a directory rather than a nested jarfile, as it does for a Spring Boot
+     * Returns the package root within this root: the directory that {@link VfsEntry#getPathFromRoot()} is relative
+     * to, without a trailing {@code '/'}. This is the empty string unless the path this root was opened from ended
+     * in a {@code "!/"} section that named a directory rather than a nested jarfile, as it does for a Spring Boot
      * application's {@code "app.jar!/BOOT-INF/classes"}.
      *
      * @return the package root, or the empty string if the whole root is the package root.
@@ -326,7 +342,7 @@ public abstract class VfsRoot implements Iterable<VfsEntry> {
      *
      * <pre>
      * for (VfsEntry entry : root) {
-     *     System.out.println(entry.getName());
+     *     System.out.println(entry.getPathFromRoot());
      * }
      * </pre>
      *
@@ -373,7 +389,7 @@ public abstract class VfsRoot implements Iterable<VfsEntry> {
         String prevDirName = null;
         var prevDirWanted = false;
         for (final var entry : entryList) {
-            final var name = entry.getName();
+            final var name = entry.getPathFromRoot();
             final var lastSlashIdx = name.lastIndexOf('/');
             final var dirName = lastSlashIdx < 0 ? "/" : name.substring(0, lastSlashIdx + 1);
             if (!dirName.equals(prevDirName)) {
@@ -444,7 +460,8 @@ public abstract class VfsRoot implements Iterable<VfsEntry> {
      * directory root, whose filesystem would resolve all of those to a file.
      *
      * @param name
-     *            the name of the entry, relative to the package root, e.g. {@code "com/xyz/Widget.class"}.
+     *            the path of the entry relative to the package root, as {@link VfsEntry#getPathFromRoot()} returns
+     *            it, e.g. {@code "com/xyz/Widget.class"}.
      * @return the entry, or null if there is no readable entry with that name.
      * @throws IOException
      *             if the root could not be searched, or if the {@link Vfs} has been closed.
@@ -459,7 +476,8 @@ public abstract class VfsRoot implements Iterable<VfsEntry> {
      * Returns the entry with the given name, once it is known that this root is open.
      *
      * @param name
-     *            the name of the entry, relative to the package root.
+     *            the path of the entry relative to the package root, as {@link VfsEntry#getPathFromRoot()} returns
+     *            it.
      * @return the entry, or null if there is no readable entry with that name.
      * @throws IOException
      *             if the root could not be searched.
@@ -516,7 +534,8 @@ public abstract class VfsRoot implements Iterable<VfsEntry> {
      * Null covers the same cases here as it does for {@link #getEntry(String)}.
      *
      * @param name
-     *            the name of the entry, relative to the package root, e.g. {@code "com/xyz/Widget.class"}.
+     *            the path of the entry relative to the package root, as {@link VfsEntry#getPathFromRoot()} returns
+     *            it, e.g. {@code "com/xyz/Widget.class"}.
      * @return the entry, or null if no readable entry has that name when the case of both is ignored.
      * @throws IOException
      *             if the root could not be searched, or if the {@link Vfs} has been closed.
@@ -534,7 +553,8 @@ public abstract class VfsRoot implements Iterable<VfsEntry> {
      * free to hold both as files.
      *
      * @param name
-     *            the name of the entry, relative to the package root, e.g. {@code "com/xyz/Widget.class"}.
+     *            the path of the entry relative to the package root, as {@link VfsEntry#getPathFromRoot()} returns
+     *            it, e.g. {@code "com/xyz/Widget.class"}.
      * @return the matching entries, as an unmodifiable list.
      * @throws IOException
      *             if the root could not be searched, or if the {@link Vfs} has been closed.
@@ -548,7 +568,8 @@ public abstract class VfsRoot implements Iterable<VfsEntry> {
      * Find the entries whose name matches the given name when the case of both is ignored.
      *
      * @param name
-     *            the name of the entry, relative to the package root.
+     *            the path of the entry relative to the package root, as {@link VfsEntry#getPathFromRoot()} returns
+     *            it.
      * @param firstMatchOnly
      *            true to stop the search at the first match.
      * @return the matching entries.
@@ -571,7 +592,7 @@ public abstract class VfsRoot implements Iterable<VfsEntry> {
 
             @Override
             public boolean visitEntry(final VfsEntry entry) {
-                if (entry.getName().equalsIgnoreCase(name)) {
+                if (entry.getPathFromRoot().equalsIgnoreCase(name)) {
                     matchingEntries.add(entry);
                     return !firstMatchOnly;
                 }
@@ -613,7 +634,7 @@ public abstract class VfsRoot implements Iterable<VfsEntry> {
 
             @Override
             public boolean visitEntry(final VfsEntry entry) {
-                if (entry.getName().startsWith(pathPrefix)) {
+                if (entry.getPathFromRoot().startsWith(pathPrefix)) {
                     matchingEntries.add(entry);
                 }
                 return true;

@@ -166,7 +166,7 @@ public class ResourceTest {
         try (var scanResult = scanTestResourcesDir()) {
             final var resource = resource(scanResult, TEXT_FILE);
             final var entry = resource.getVfsEntry();
-            assertThat(entry.getName()).isEqualTo(resource.getPath());
+            assertThat(entry.getPathFromRoot()).isEqualTo(resource.getPath());
             assertThat(entry.getLength()).isEqualTo(TEXT_FILE_CONTENT.length());
             // The entry reads the same content, without going through the resource
             assertThat(entry.loadAsString()).isEqualTo(TEXT_FILE_CONTENT);

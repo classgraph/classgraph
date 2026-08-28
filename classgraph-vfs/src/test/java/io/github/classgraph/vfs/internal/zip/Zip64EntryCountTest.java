@@ -213,7 +213,7 @@ public class Zip64EntryCountTest {
         final List<String> entries = new ArrayList<>();
         try (var vfs = new Vfs()) {
             for (final var entry : vfs.open(jarFile.getPath()).getEntries()) {
-                entries.add(entry.getName() + ": " + new String(entry.load(), StandardCharsets.UTF_8));
+                entries.add(entry.getPathFromRoot() + ": " + new String(entry.load(), StandardCharsets.UTF_8));
             }
         }
         return entries;

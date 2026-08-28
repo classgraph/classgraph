@@ -153,7 +153,7 @@ public class ZipEntryNameEncodingTest {
         final List<String> names = new ArrayList<>();
         try (var vfs = new Vfs()) {
             for (final var entry : vfs.open(jarFile.getPath()).getEntries()) {
-                names.add(entry.getName());
+                names.add(entry.getPathFromRoot());
             }
         }
         return names;

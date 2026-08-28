@@ -185,7 +185,7 @@ public final class ClasspathExpander {
             // come first, and the entries of each come back in the order the virtual filesystem reports them in,
             // which is sorted by name for a directory and central directory order for a jarfile
             for (final VfsEntry entry : container.getEntries(libDirPrefix)) {
-                final var name = entry.getName();
+                final var name = entry.getPathFromRoot();
                 if (name.toLowerCase(Locale.ROOT).endsWith(".jar") && namesAdded.add(name)) {
                     childEntries.add(
                             new ChildEntry(ChildEntryOrigin.NESTED_LIB_JAR, entry.getPath(), entry.getNioPath()));

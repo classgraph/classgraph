@@ -160,7 +160,8 @@ public class ClasspathFinderTest {
             vfs = classpath.getVfs();
             final var location = classpath.getLocations().get(0);
             final var root = vfs.open(location);
-            assertThat(root.getEntries()).extracting(VfsEntry::getName).containsExactly("com/xyz/Widget.class");
+            assertThat(root.getEntries()).extracting(VfsEntry::getPathFromRoot)
+                    .containsExactly("com/xyz/Widget.class");
             // Opening the same location again hands back the root that is already open, rather than reading the
             // jarfile a second time
             assertThat(vfs.open(location)).isSameAs(root);

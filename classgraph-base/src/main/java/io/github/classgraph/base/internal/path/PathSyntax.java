@@ -464,7 +464,17 @@ public final class PathSyntax {
 
     /**
      * Returns the leafname of a path, after first stripping off everything from the nested jar separator ('!')
-     * onwards, if present, so that the leafname of a path within a jarfile is the name of the jarfile itself.
+     * onwards, if present, so that the leafname of a path within a jarfile is the name of the jarfile itself. This
+     * is the name that accept and reject criteria are matched against: a criterion names the jarfile it wants
+     * accepted or rejected, and every path within that jarfile has to answer to that name.
+     *
+     * <p>
+     * This differs from {@link #lastSegment(String)}, which names the innermost thing in the path rather than the
+     * outermost jarfile. For {@code "/a/outer.jar!/BOOT-INF/lib/inner.jar"} this returns {@code "outer.jar"} and
+     * {@code lastSegment} returns {@code "inner.jar"}. Both are correct answers to different questions -- "which
+     * jarfile is this path in" versus "what does this path name" -- so the two cannot be collapsed into one method.
+     * Use this one when matching a path against a user-supplied criterion, and {@code lastSegment} when naming a
+     * thing to a person or deriving an identifier from it.
      *
      * @param path
      *            A file path.
@@ -481,9 +491,12 @@ public final class PathSyntax {
     }
 
     /**
-     * Returns the innermost segment of a path: the name of the innermost nested jarfile for a nested jar path, and
-     * the leafname of the path otherwise. Unlike {@link #leafName(String)}, which stops at the outermost nested jar
-     * separator so that a path within a jarfile is named by the jarfile, this names the last thing in the path.
+     * Returns the last segment of a path: the name of the innermost nested jarfile for a nested jar path, and the
+     * leafname of the path otherwise. Unlike {@link #leafName(String)}, which stops at the outermost nested jar
+     * separator so that a path within a jarfile is named by the jarfile, this names the last thing in the path --
+     * see that method for when to use which. Both strip a ClassGraph temporary filename prefix from the segment
+     * they return, so an extracted nested jarfile is named by the jarfile rather than by the temporary file it was
+     * extracted into.
      *
      * @param path
      *            A file path.

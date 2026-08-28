@@ -88,8 +88,8 @@ public class VfsWalkTest {
 
         @Override
         public boolean visitEntry(final VfsEntry entry) {
-            entryNames.add(entry.getName());
-            return continueAfter.test(entry.getName());
+            entryNames.add(entry.getPathFromRoot());
+            return continueAfter.test(entry.getPathFromRoot());
         }
     }
 
@@ -156,7 +156,8 @@ public class VfsWalkTest {
             final var root = vfs.open(writeDirTree(tempDir).getPath());
             final var recorder = new Recorder();
             root.walk(recorder);
-            assertThat(recorder.entryNames).isEqualTo(root.getEntries().stream().map(VfsEntry::getName).toList());
+            assertThat(recorder.entryNames)
+                    .isEqualTo(root.getEntries().stream().map(VfsEntry::getPathFromRoot).toList());
         }
     }
 
@@ -237,7 +238,10 @@ public class VfsWalkTest {
         }
     }
 
-    /** A package root is stripped from the names a walk reports, just as it is from {@link VfsEntry#getName()}. */
+    /**
+     * A package root is stripped from the names a walk reports, just as it is from
+     * {@link VfsEntry#getPathFromRoot()}.
+     */
     @Test
     public void aWalkOfAPackageRootReportsStrippedNames(@TempDir final File tempDir) throws IOException {
         final var jarFile = new File(tempDir, "app.jar");
@@ -277,7 +281,8 @@ public class VfsWalkTest {
             final var recorder = new Recorder();
             root.walk(recorder);
 
-            assertThat(recorder.entryNames).isEqualTo(root.getEntries().stream().map(VfsEntry::getName).toList());
+            assertThat(recorder.entryNames)
+                    .isEqualTo(root.getEntries().stream().map(VfsEntry::getPathFromRoot).toList());
             assertThat(recorder.entryNames).contains("java/util/logging/Logger.class");
             assertThat(recorder.dirNames).contains("java/util/logging/");
         }

@@ -141,7 +141,7 @@ class ClasspathElementModule extends ClasspathElement {
          *            the resource, as an entry in the virtual filesystem.
          */
         ModuleResource(final VfsEntry entry) {
-            super(ClasspathElementModule.this, entry, entry.getName());
+            super(ClasspathElementModule.this, entry, entry.getPathFromRoot());
         }
 
         @Override
@@ -220,7 +220,7 @@ class ClasspathElementModule extends ClasspathElement {
 
                 @Override
                 public boolean visitEntry(final VfsEntry entry) {
-                    final var relativePath = entry.getName();
+                    final var relativePath = entry.getPathFromRoot();
 
                     // A versioned path in a module must be a nested versioned section, i.e. a path like
                     // "META-INF/versions/{version}/META-INF/versions/{version}/", since META-INF should only ever

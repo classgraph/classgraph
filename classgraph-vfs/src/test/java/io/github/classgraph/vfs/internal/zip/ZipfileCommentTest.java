@@ -69,7 +69,7 @@ public class ZipfileCommentTest {
             zipOut.closeEntry();
         }
         try (var vfs = new Vfs()) {
-            return vfs.open(jarFile.getPath()).getEntries().stream().map(entry -> entry.getName()).toList();
+            return vfs.open(jarFile.getPath()).getEntries().stream().map(entry -> entry.getPathFromRoot()).toList();
         }
     }
 

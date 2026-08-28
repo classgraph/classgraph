@@ -37,7 +37,7 @@
  * <pre>
  * try (Vfs vfs = new Vfs()) {
  *     for (VfsEntry entry : vfs.open("outer.jar!/lib/inner.jar").getEntries()) {
- *         System.out.println(entry.getName() + " (" + entry.getLength() + " bytes)");
+ *         System.out.println(entry.getPathFromRoot() + " (" + entry.getLength() + " bytes)");
  *     }
  * }
  * </pre>

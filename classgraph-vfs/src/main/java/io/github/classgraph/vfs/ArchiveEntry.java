@@ -76,12 +76,12 @@ final class ArchiveEntry extends VfsEntry {
     // -------------------------------------------------------------------------------------------------------------
 
     @Override
-    public String getName() {
+    public String getPathFromRoot() {
         return name;
     }
 
     @Override
-    public String getStoredName() {
+    public String getStoredPathFromRoot() {
         return zipEntry.entryName;
     }
 

@@ -75,7 +75,7 @@ public class VfsEntryLookupCaseTest {
         try (var vfs = new Vfs()) {
             final var root = vfs.open(dir.toString());
             assertThat(root.getEntry(DIFFERENTLY_CASED_NAME)).isNull();
-            assertThat(Objects.requireNonNull(root.getEntry(STORED_NAME)).getName()).isEqualTo(STORED_NAME);
+            assertThat(Objects.requireNonNull(root.getEntry(STORED_NAME)).getPathFromRoot()).isEqualTo(STORED_NAME);
         }
     }
 
@@ -94,7 +94,7 @@ public class VfsEntryLookupCaseTest {
         try (var vfs = new Vfs()) {
             final var root = vfs.open(jar.toString());
             assertThat(root.getEntry(DIFFERENTLY_CASED_NAME)).isNull();
-            assertThat(Objects.requireNonNull(root.getEntry(STORED_NAME)).getName()).isEqualTo(STORED_NAME);
+            assertThat(Objects.requireNonNull(root.getEntry(STORED_NAME)).getPathFromRoot()).isEqualTo(STORED_NAME);
         }
     }
 
@@ -123,7 +123,8 @@ public class VfsEntryLookupCaseTest {
                 assertThat(root.getEntry("Com//Xyz/Widget.txt")).isNull();
                 assertThat(root.getEntry("/" + STORED_NAME)).isNull();
                 // The name the file really is stored under is still found
-                assertThat(Objects.requireNonNull(root.getEntry(STORED_NAME)).getName()).isEqualTo(STORED_NAME);
+                assertThat(Objects.requireNonNull(root.getEntry(STORED_NAME)).getPathFromRoot())
+                        .isEqualTo(STORED_NAME);
             }
         }
     }
@@ -146,11 +147,11 @@ public class VfsEntryLookupCaseTest {
                 final var root = vfs.open(rootPath);
                 final var entry = Objects.requireNonNull(root.getEntryCaseInsensitive(DIFFERENTLY_CASED_NAME),
                         rootPath);
-                assertThat(entry.getName()).as(rootPath).isEqualTo(STORED_NAME);
+                assertThat(entry.getPathFromRoot()).as(rootPath).isEqualTo(STORED_NAME);
                 assertThat(new String(entry.load(), StandardCharsets.UTF_8)).as(rootPath).isEqualTo(CONTENT);
                 // The exact name still matches when case is ignored
-                assertThat(Objects.requireNonNull(root.getEntryCaseInsensitive(STORED_NAME), rootPath).getName())
-                        .as(rootPath).isEqualTo(STORED_NAME);
+                assertThat(Objects.requireNonNull(root.getEntryCaseInsensitive(STORED_NAME), rootPath)
+                        .getPathFromRoot()).as(rootPath).isEqualTo(STORED_NAME);
                 assertThat(root.getEntryCaseInsensitive("com/xyz/nonexistent.txt")).as(rootPath).isNull();
             }
         }
@@ -170,13 +171,14 @@ public class VfsEntryLookupCaseTest {
         final var jar = makeJar(tempDir, STORED_NAME, DIFFERENTLY_CASED_NAME);
         try (var vfs = new Vfs()) {
             final var root = vfs.open(jar.toString());
-            assertThat(root.getEntriesCaseInsensitive(DIFFERENTLY_CASED_NAME)).extracting(VfsEntry::getName)
+            assertThat(root.getEntriesCaseInsensitive(DIFFERENTLY_CASED_NAME)).extracting(VfsEntry::getPathFromRoot)
                     .containsExactly(STORED_NAME, DIFFERENTLY_CASED_NAME);
             // The first entry in the zipfile is the one a single lookup finds, whichever case it was asked for in
-            assertThat(Objects.requireNonNull(root.getEntryCaseInsensitive(DIFFERENTLY_CASED_NAME)).getName())
+            assertThat(
+                    Objects.requireNonNull(root.getEntryCaseInsensitive(DIFFERENTLY_CASED_NAME)).getPathFromRoot())
                     .isEqualTo(STORED_NAME);
-            assertThat(Objects.requireNonNull(root.getEntry(STORED_NAME)).getName()).isEqualTo(STORED_NAME);
-            assertThat(Objects.requireNonNull(root.getEntry(DIFFERENTLY_CASED_NAME)).getName())
+            assertThat(Objects.requireNonNull(root.getEntry(STORED_NAME)).getPathFromRoot()).isEqualTo(STORED_NAME);
+            assertThat(Objects.requireNonNull(root.getEntry(DIFFERENTLY_CASED_NAME)).getPathFromRoot())
                     .isEqualTo(DIFFERENTLY_CASED_NAME);
         }
     }
@@ -256,7 +258,7 @@ public class VfsEntryLookupCaseTest {
             final var throughDirLink = Objects.requireNonNull(root.getEntry("Linked/Xyz/Widget.txt"));
             assertThat(new String(throughDirLink.load(), StandardCharsets.UTF_8)).isEqualTo(CONTENT);
             final var throughFileLink = Objects.requireNonNull(root.getEntry("Alias.txt"));
-            assertThat(throughFileLink.getName()).isEqualTo("Alias.txt");
+            assertThat(throughFileLink.getPathFromRoot()).isEqualTo("Alias.txt");
             assertThat(new String(throughFileLink.load(), StandardCharsets.UTF_8)).isEqualTo(CONTENT);
         }
     }

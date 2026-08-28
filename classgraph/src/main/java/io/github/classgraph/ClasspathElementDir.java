@@ -147,7 +147,7 @@ class ClasspathElementDir extends ClasspathElement {
          *            the file, as an entry in the virtual filesystem.
          */
         DirResource(final VfsEntry entry) {
-            super(ClasspathElementDir.this, entry, stripLeadingSlashes(entry.getName()));
+            super(ClasspathElementDir.this, entry, stripLeadingSlashes(entry.getPathFromRoot()));
         }
 
         @Override
@@ -329,7 +329,7 @@ class ClasspathElementDir extends ClasspathElement {
 
         @Override
         public boolean visitEntry(final VfsEntry entry) {
-            final var entryName = entry.getName();
+            final var entryName = entry.getPathFromRoot();
             if (parentMatchStatus == ScanSpecPathMatch.ANCESTOR_OF_ACCEPTED_PATH) {
                 // The directory is only an ancestor of an accepted path, so none of its files are accepted -- but
                 // the module descriptor of the package root is always read, so that the module name is known even

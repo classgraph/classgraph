@@ -95,7 +95,7 @@ public class ClasspathEntryTest {
                 jar.toUri().toURL() }) {
             try (var classpath = findClasspath(classpathElement)) {
                 final var entry = classpath.getEntries().get(0);
-                assertThat(entry.open(classpath.getVfs())).extracting(VfsEntry::getName)
+                assertThat(entry.open(classpath.getVfs())).extracting(VfsEntry::getPathFromRoot)
                         .containsExactly(ENTRY_PATH);
             }
         }
@@ -145,7 +145,7 @@ public class ClasspathEntryTest {
                 final var entry = classpath.getEntries().get(0);
                 assertThat(entry).isInstanceOf(ClasspathEntry.OfPath.class);
                 assertThat(entry.getLocation()).isEqualTo(jar.toUri().toString()).startsWith("jimfs://");
-                assertThat(entry.open(classpath.getVfs())).extracting(VfsEntry::getName)
+                assertThat(entry.open(classpath.getVfs())).extracting(VfsEntry::getPathFromRoot)
                         .containsExactly(ENTRY_PATH);
                 try (var denyingVfs = new Vfs(new VfsSpec().disableURLScheme("jimfs"))) {
                     // Nothing is fetched over a denied scheme, so the location alone does not reach the element
@@ -154,7 +154,7 @@ public class ClasspathEntryTest {
                     // still reached -- which is the whole reason the Path is kept, rather than the element being
                     // flattened to its location and that being parsed back
                     final var root = entry.open(denyingVfs);
-                    assertThat(root).extracting(VfsEntry::getName).containsExactly(ENTRY_PATH);
+                    assertThat(root).extracting(VfsEntry::getPathFromRoot).containsExactly(ENTRY_PATH);
                     // A root that is already open is not fetched again, so the location now names it
                     assertThat(denyingVfs.open(entry.getLocation())).isSameAs(root);
                 }

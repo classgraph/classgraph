@@ -90,7 +90,7 @@ final class DirEntry extends VfsEntry {
     // -------------------------------------------------------------------------------------------------------------
 
     @Override
-    public String getName() {
+    public String getPathFromRoot() {
         return name;
     }
 

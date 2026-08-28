@@ -85,43 +85,57 @@ public abstract class VfsEntry {
     }
 
     /**
-     * Returns the name of this entry relative to its root, with {@code '/'} as the separator and no leading
-     * {@code '/'}, e.g. {@code "com/xyz/Widget.class"}. This is the same name whichever kind of root the entry came
-     * from, so it is the name to match against, and the name to key a map of entries by.
+     * Returns the path of this entry relative to its root, with {@code '/'} as the separator and no leading
+     * {@code '/'}, e.g. {@code "com/xyz/Widget.class"}. This is the same path whichever kind of root the entry came
+     * from, so it is the path to match against, and the path to key a map of entries by.
      *
      * <p>
-     * For an entry of a multi-release jarfile that is only present for some JDK versions, this is the name without
-     * the {@code "META-INF/versions/<version>/"} prefix, so that the same entry has the same name whichever version
-     * of it was selected.
+     * For an entry of a multi-release jarfile that is only present for some JDK versions, this is the path without
+     * the {@code "META-INF/versions/<version>/"} prefix, so that the same entry has the same path whichever version
+     * of it was selected. Use {@link #getStoredPathFromRoot()} to get the path the entry is physically stored
+     * under.
      *
-     * @return the name of the entry.
+     * <p>
+     * This is a whole path and not a leafname, which is why it is not called {@code getName()}: {@code
+     * File#getName()} and {@code Path#getFileName()} both return only the last segment of a path, and this returns
+     * all of it. {@link #getLastSegment()} is the method that corresponds to those.
+     *
+     * @return the path of the entry relative to its root.
      */
-    public abstract String getName();
+    public abstract String getPathFromRoot();
 
     /**
-     * Returns the leafname of this entry: the part of {@link #getName()} after the last {@code '/'}, e.g.
-     * {@code "Widget.class"} for an entry named {@code "com/xyz/Widget.class"}.
+     * Returns the last segment of {@link #getPathFromRoot()}: the part after the last {@code '/'}, e.g.
+     * {@code "Widget.class"} for an entry whose path from the root is {@code "com/xyz/Widget.class"}. This is what
+     * {@code File#getName()} would return for the same path. An entry whose path ends in {@code '/'} has an empty
+     * last segment.
      *
-     * @return the leafname of the entry.
+     * <p>
+     * This is the entry-level counterpart of {@link VfsRoot#getLastSegment()}, and is defined the same way: the
+     * text after the last separator. An entry path has no nested jar separators in it -- it is always a plain path
+     * within one root -- so unlike a root path, there is only one way to read its last segment.
+     *
+     * @return the last segment of the path of the entry.
      */
-    public final String getLeafName() {
-        return PathSyntax.simpleName(getName());
+    public final String getLastSegment() {
+        return PathSyntax.simpleName(getPathFromRoot());
     }
 
     /**
-     * Returns the name this entry is stored under within its root, before the root's package root prefix was
-     * stripped from it and before any multi-release version prefix was resolved. Use {@link #getName()} to look an
-     * entry up or to match it against a path; use this to report where the entry physically lies within its root.
+     * Returns the path this entry is stored under within its root, before the root's package root prefix was
+     * stripped from it and before any multi-release version prefix was resolved. Use {@link #getPathFromRoot()} to
+     * look an entry up or to match it against a path; use this to report where the entry physically lies within its
+     * root.
      *
      * <p>
-     * This differs from {@link #getName()} only for an entry of a jarfile: in a root opened at a package root, this
-     * name still has the package root prefix on it, and for an entry of a multi-release jarfile that is only
-     * present for some JDK versions, this is the versioned name.
+     * This differs from {@link #getPathFromRoot()} only for an entry of a jarfile: in a root opened at a package
+     * root, this path still has the package root prefix on it, and for an entry of a multi-release jarfile that is
+     * only present for some JDK versions, this is the versioned path.
      *
-     * @return the name the entry is stored under.
+     * @return the path the entry is stored under, relative to its root.
      */
-    public String getStoredName() {
-        return getName();
+    public String getStoredPathFromRoot() {
+        return getPathFromRoot();
     }
 
     /**
@@ -172,7 +186,7 @@ public abstract class VfsEntry {
      *             if the {@link Vfs} that opened the root has been closed.
      */
     public Path asPath() {
-        return getRoot().asFileSystem().getPath("/" + getName());
+        return getRoot().asFileSystem().getPath("/" + getPathFromRoot());
     }
 
     /**

@@ -360,7 +360,7 @@ class ClasspathElementZip extends ClasspathElement {
         @Override
         public String getPathRelativeToClasspathElement() {
             // The name of the entry in the zipfile, which for an entry of a multi-release jar is the versioned name
-            final var entryName = getVfsEntry().getStoredName();
+            final var entryName = getVfsEntry().getStoredPathFromRoot();
             return entryName.startsWith(packageRootPrefix) ? entryName.substring(packageRootPrefix.length())
                     : entryName;
         }
@@ -430,7 +430,7 @@ class ClasspathElementZip extends ClasspathElement {
 
         @Override
         public boolean visitEntry(final VfsEntry entry) {
-            final var entryName = entry.getName();
+            final var entryName = entry.getPathFromRoot();
 
             if (isIgnoredVersionedPath(entryName)) {
                 if (subLog != null) {

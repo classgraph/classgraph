@@ -163,7 +163,7 @@ final class VfsFileSystem extends FileSystem {
             final Map<String, TreeSet<String>> childNames = new HashMap<>();
             childNames.put("", new TreeSet<>());
             for (final var entry : root.getEntries()) {
-                final var name = entry.getName();
+                final var name = entry.getPathFromRoot();
                 if (name.isEmpty() || entriesByName.putIfAbsent(name, entry) != null) {
                     // Where two entries share a name, the first one wins
                     continue;
@@ -171,7 +171,7 @@ final class VfsFileSystem extends FileSystem {
                 // Add this entry to its parent directory, then that directory to its own parent, and so on up to
                 // the root, stopping as soon as a directory is reached that has already been added
                 var currName = name;
-                var simpleName = entry.getLeafName();
+                var simpleName = entry.getLastSegment();
                 while (true) {
                     if (simpleName.isEmpty()) {
                         break;
