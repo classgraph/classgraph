@@ -106,10 +106,20 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
         // list once it has been built, so that a partly-initialized instance is never passed to another method
         super(sortByName ? CollectionUtils.sortCopy(reachableClasses) : reachableClasses, /* modifiable = */ false);
         this.sortByName = sortByName;
-        // If directlyRelatedClasses was not provided, then assume all reachable classes were directly related
-        this.directlyRelatedClasses = new LinkedHashSet<>(
-                directlyRelatedClasses == null ? reachableClasses : directlyRelatedClasses);
-        this.directlyRelatedClasses.retainAll(reachableClasses);
+        if (directlyRelatedClasses == null) {
+            // If directlyRelatedClasses was not provided, then every reachable class is directly related, so the
+            // set can be shared rather than copied. Every caller either builds the set for this list alone, or
+            // reaches this constructor through ClassInfoList(Collection), which copies the caller's collection.
+            this.directlyRelatedClasses = reachableClasses;
+        } else {
+            // Drop any directly-related class that is not reachable, so that directOnly() can never return a class
+            // that this list does not contain. #exclude() removes a class from the reachable classes whenever the
+            // other list can reach it, but from the directly-related classes only when the other list relates to it
+            // directly, so without this the two can disagree.
+            final Set<ClassInfo> directlyRelatedAndReachable = new LinkedHashSet<>(directlyRelatedClasses);
+            directlyRelatedAndReachable.retainAll(reachableClasses);
+            this.directlyRelatedClasses = directlyRelatedAndReachable;
+        }
     }
 
     /**
@@ -158,19 +168,18 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      * Construct a new unmodifiable {@link ClassInfoList} from a completed collection of {@link ClassInfo} objects.
      *
      * <p>
-     * If the passed {@link Collection} is not a {@link Set}, then the {@link ClassInfo} objects will be uniquified
-     * (by adding them to a set) before they are added to the returned list. {@link ClassInfo} objects in the
-     * returned list will be sorted by name. The collection is copied, so later changes to it do not affect this
-     * list. Every class in the constructed list is treated as directly related.
+     * The {@link ClassInfo} objects are uniquified before they are added to the returned list, and the returned
+     * list is sorted by name. The collection is copied, so later changes to it do not affect this list. Every class
+     * in the constructed list is treated as directly related.
      *
      * @param classInfoCollection
      *            the initial collection of {@link ClassInfo} objects to add to the {@link ClassInfoList}.
      */
     public ClassInfoList(final Collection<ClassInfo> classInfoCollection) {
-        this(Objects.requireNonNull(classInfoCollection,
-                "classInfoCollection must not be null") instanceof final Set<ClassInfo> classInfoSet //
-                        ? classInfoSet
-                        : new HashSet<>(classInfoCollection), //
+        // The caller's collection is copied, not wrapped, even when it is already a Set, so that the caller cannot
+        // change this list by changing the collection afterwards
+        this(new LinkedHashSet<>(
+                Objects.requireNonNull(classInfoCollection, "classInfoCollection must not be null")),
                 /* directlyRelatedClasses = */ null, /* sortByName = */ true);
     }
 
@@ -184,7 +193,7 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      * @return The list of directly-related classes.
      */
     public ClassInfoList directOnly() {
-        return new ClassInfoList(directlyRelatedClasses, directlyRelatedClasses, sortByName);
+        return new ClassInfoList(directlyRelatedClasses, sortByName);
     }
 
     // -------------------------------------------------------------------------------------------------------------

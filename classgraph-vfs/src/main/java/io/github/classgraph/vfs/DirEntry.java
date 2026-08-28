@@ -37,6 +37,8 @@ import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.PosixFileAttributes;
 import java.nio.file.attribute.PosixFilePermission;
+import java.util.Collections;
+import java.util.EnumSet;
 import java.util.Set;
 
 import io.github.classgraph.base.internal.path.URLPaths;
@@ -158,14 +160,29 @@ final class DirEntry extends VfsEntry {
         // On a POSIX filesystem, the attributes read while listing the directory are already POSIX attributes, so
         // the permissions come for free
         if (attributes instanceof final PosixFileAttributes posixAttributes) {
-            return posixAttributes.permissions();
+            return unmodifiableEnumSet(posixAttributes.permissions());
         }
         try {
-            return Files.readAttributes(path, PosixFileAttributes.class).permissions();
+            return unmodifiableEnumSet(Files.readAttributes(path, PosixFileAttributes.class).permissions());
         } catch (final IOException | UnsupportedOperationException | SecurityException e) {
             // The filesystem does not record POSIX permissions (e.g. on Windows)
             return null;
         }
+    }
+
+    /**
+     * Copies the permissions the filesystem provider returned into an unmodifiable {@link EnumSet}, so that the
+     * caller cannot modify them, and so that they iterate in {@link PosixFilePermission} declaration order rather
+     * than in whatever order the provider's own set happens to use.
+     *
+     * @param permissions
+     *            the permissions returned by the filesystem provider.
+     * @return the permissions, as an unmodifiable {@link EnumSet}.
+     */
+    private static Set<PosixFilePermission> unmodifiableEnumSet(final Set<PosixFilePermission> permissions) {
+        final Set<PosixFilePermission> enumSet = EnumSet.noneOf(PosixFilePermission.class);
+        enumSet.addAll(permissions);
+        return Collections.unmodifiableSet(enumSet);
     }
 
     // -------------------------------------------------------------------------------------------------------------

@@ -203,8 +203,9 @@ public abstract class VfsEntry {
     /**
      * Returns the POSIX file permissions of this entry.
      *
-     * @return the permissions, or null if the root does not record them -- which is the case for a module resource,
-     *         for a jarfile written without them, and for a file in a filesystem that does not support them.
+     * @return the permissions, as an unmodifiable set that iterates in {@link PosixFilePermission} declaration
+     *         order, or null if the root does not record them -- which is the case for a module resource, for a
+     *         jarfile written without them, and for a file in a filesystem that does not support them.
      */
     public @Nullable Set<PosixFilePermission> getPosixFilePermissions() {
         return null;

@@ -47,6 +47,7 @@ import java.util.List;
 import java.util.Map.Entry;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -648,7 +649,8 @@ public final class ScanResult implements AutoCloseable {
      * found in accepted packages.
      *
      * @return An unmodifiable map from resource path to {@link Resource} for all resources (including classfiles
-     *         and non-classfiles) found in accepted packages.
+     *         and non-classfiles) found in accepted packages, sorted by resource path. Each value lists the
+     *         resources with that path in classpath order.
      * @throws IllegalStateException
      *             if this {@link ScanResult} has been closed.
      */
@@ -657,7 +659,7 @@ public final class ScanResult implements AutoCloseable {
         synchronized (this) {
             var pathToAcceptedResources = pathToAcceptedResourcesCached;
             if (pathToAcceptedResources == null) {
-                final Map<String, ResourceList> pathToAcceptedResourceListMap = new HashMap<>();
+                final Map<String, ResourceList> pathToAcceptedResourceListMap = new TreeMap<>();
                 for (final Resource res : getAllResources()) {
                     pathToAcceptedResourceListMap.computeIfAbsent(res.getPath(), k -> new ResourceList()).add(res);
                 }
@@ -946,14 +948,14 @@ public final class ScanResult implements AutoCloseable {
      * the map.
      *
      * @return A map from a {@link ClassInfo} object for each accepted class to a list of the classes referenced by
-     *         that class (i.e. returns a map from dependents to dependencies). Each map value is the result of
-     *         calling {@link ClassInfo#getClassDependencies()} on the corresponding key.
+     *         that class (i.e. returns a map from dependents to dependencies), sorted by class name. Each map value
+     *         is the result of calling {@link ClassInfo#getClassDependencies()} on the corresponding key.
      * @throws IllegalStateException
      *             if this {@link ScanResult} has been closed, or if {@link ClassGraph#enableClassInfo()} was not
      *             called before scanning.
      */
     public Map<ClassInfo, ClassInfoList> getClassDependencyMap() {
-        final Map<ClassInfo, ClassInfoList> map = new HashMap<>();
+        final Map<ClassInfo, ClassInfoList> map = new TreeMap<>();
         for (final ClassInfo ci : getAllClasses()) {
             map.put(ci, ci.getClassDependencies());
         }
@@ -970,7 +972,7 @@ public final class ScanResult implements AutoCloseable {
      *
      * @return A map from a {@link ClassInfo} object for each dependency class (accepted or not) to a list of the
      *         accepted classes that referenced that class as a dependency (i.e. returns a map from dependencies to
-     *         dependents).
+     *         dependents), sorted by class name.
      * @throws IllegalStateException
      *             if this {@link ScanResult} has been closed, or if {@link ClassGraph#enableClassInfo()} was not
      *             called before scanning.
@@ -982,7 +984,7 @@ public final class ScanResult implements AutoCloseable {
                 revMapSet.computeIfAbsent(dep, k -> new HashSet<>()).add(ci);
             }
         }
-        final Map<ClassInfo, ClassInfoList> revMapList = new HashMap<>();
+        final Map<ClassInfo, ClassInfoList> revMapList = new TreeMap<>();
         for (final Entry<ClassInfo, Set<ClassInfo>> ent : revMapSet.entrySet()) {
             revMapList.put(ent.getKey(), new ClassInfoList(ent.getValue(), /* sortByName = */ true));
         }
@@ -1055,14 +1057,16 @@ public final class ScanResult implements AutoCloseable {
      * during the scan.
      *
      * @return An unmodifiable map from class name to {@link ClassInfo} object for all classes, interfaces and
-     *         annotations found during the scan.
+     *         annotations found during the scan, sorted by class name.
      * @throws IllegalStateException
      *             if this {@link ScanResult} has been closed, or if {@link ClassGraph#enableClassInfo()} was not
      *             called before scanning.
      */
     public Map<String, ClassInfo> getAllClassesAsMap() {
         checkClassInfoEnabled();
-        return Collections.unmodifiableMap(classNameToClassInfo);
+        // Copied into a sorted map rather than wrapped, since classes are collected into a hash map by the
+        // scanning threads, which leaves the hash map's iteration order undefined
+        return Collections.unmodifiableMap(new TreeMap<>(classNameToClassInfo));
     }
 
     /**

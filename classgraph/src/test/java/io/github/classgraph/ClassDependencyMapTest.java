@@ -3,6 +3,7 @@ package io.github.classgraph;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.util.Comparator;
 import java.util.List;
 
 import org.junit.jupiter.api.AfterAll;
@@ -96,6 +97,15 @@ public class ClassDependencyMapTest {
                 .flatMap(ent -> ent.getValue().stream().map(dependent -> List.of(dependent, ent.getKey())))
                 .toList();
         assertThat(reverseEdges).containsExactlyInAnyOrderElementsOf(forwardEdges);
+    }
+
+    /** Both maps are sorted by class name, so that iterating over either of them is repeatable. */
+    @Test
+    public void bothMapsAreSortedByClassName() {
+        assertThat(scanResult.getClassDependencyMap().keySet()).containsExactly(classInfo(AlsoUsesLeaf.class),
+                classInfo(Leaf.class), classInfo(UsesLeaf.class));
+        assertThat(List.copyOf(scanResult.getReverseClassDependencyMap().keySet()))
+                .isSortedAccordingTo(Comparator.naturalOrder());
     }
 
     /** Both maps are read-only views of the scan result, so they cannot be changed. */

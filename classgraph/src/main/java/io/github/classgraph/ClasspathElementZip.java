@@ -92,6 +92,8 @@ class ClasspathElementZip extends ClasspathElement {
      */
     @Nullable
     String moduleNameFromManifestFile;
+    /** The automatic module name, derived from the jarfile filename. */
+    private @Nullable String derivedAutomaticModuleName;
 
     /**
      * A jarfile classpath element.
@@ -683,15 +685,27 @@ class ClasspathElementZip extends ClasspathElement {
     }
 
     /**
-     * Get the module name explicitly declared by the jarfile. A filename-derived automatic module name applies only
-     * when a jar is resolved on a module path; a jar scanned as a traditional classpath element remains in the
-     * unnamed module and must not acquire one merely because of its filename.
+     * Get the module name declared by the jarfile, or, if it declares none, the automatic module name that the
+     * module system would derive from the jar's filename.
      *
-     * @return the declared module name, or null if there is none.
+     * <p>
+     * A jar scanned as a traditional classpath element is in the unnamed module at runtime, so the derived name is
+     * the name the jar <i>would</i> be given if it were placed on the module path, not a name it currently has. The
+     * two cases are told apart by {@link ModuleInfo#getModuleReference()}, which is null for any name that came
+     * from a classpath jar rather than from a module resolved in a {@link ModuleLayer}.
+     *
+     * @return the module name, or null if the jar declares none and no name can be derived from its filename.
      */
     @Override
     public @Nullable String getModuleName() {
-        return getDeclaredModuleName();
+        final var declaredModuleName = getDeclaredModuleName();
+        if (declaredModuleName != null) {
+            return declaredModuleName;
+        }
+        if (derivedAutomaticModuleName == null) {
+            derivedAutomaticModuleName = AutomaticModuleName.derive(zipFilePath);
+        }
+        return derivedAutomaticModuleName.isEmpty() ? null : derivedAutomaticModuleName;
     }
 
     /**

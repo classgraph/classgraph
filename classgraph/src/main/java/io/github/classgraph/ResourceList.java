@@ -39,11 +39,11 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
+import java.util.TreeMap;
 import java.util.function.Predicate;
 
 import io.github.classgraph.base.internal.utils.Assert;
@@ -87,7 +87,7 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
     /**
      * Create a new modifiable empty list of {@link Resource} objects.
      */
-    public ResourceList() {
+    ResourceList() {
         super();
     }
 
@@ -97,12 +97,13 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
      * @param sizeHint
      *            the expected number of elements
      */
-    public ResourceList(final int sizeHint) {
+    ResourceList(final int sizeHint) {
         super(sizeHint);
     }
 
     /**
-     * Create a new modifiable empty {@link ResourceList}, given an initial collection of {@link Resource} objects.
+     * Create a new unmodifiable {@link ResourceList} from a completed collection of {@link Resource} objects. The
+     * collection is copied.
      *
      * @param resourceCollection
      *            the collection of {@link Resource} objects.
@@ -110,7 +111,8 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
     public ResourceList(final Collection<Resource> resourceCollection) {
         // Objects.requireNonNull rather than Assert.notNull, since Assert.notNull returns void, and so cannot be
         // called before the super() call
-        super(Objects.requireNonNull(resourceCollection, "resourceCollection must not be null"));
+        super(Objects.requireNonNull(resourceCollection, "resourceCollection must not be null"),
+                /* modifiable = */ false);
     }
 
     /**
@@ -237,10 +239,11 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
      * {@link ResourceList} of {@link Resource} objects that have that path.
      *
      * @return This {@link ResourceList} as a map from resource path (obtained from {@link Resource#getPath()}) to a
-     *         {@link ResourceList} of {@link Resource} objects that have that path.
+     *         {@link ResourceList} of {@link Resource} objects that have that path, sorted by resource path. Each
+     *         map value lists the resources with that path in the order they appear in this list.
      */
     public Map<String, ResourceList> asMap() {
-        final Map<String, ResourceList> pathToResourceList = new HashMap<>();
+        final Map<String, ResourceList> pathToResourceList = new TreeMap<>();
         for (final Resource resource : this) {
             pathToResourceList.computeIfAbsent(resource.getPath(), path -> new ResourceList(1)).add(resource);
         }

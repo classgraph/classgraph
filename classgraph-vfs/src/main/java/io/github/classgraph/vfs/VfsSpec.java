@@ -33,8 +33,8 @@ import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.Set;
+import java.util.TreeSet;
 
 import io.github.classgraph.base.internal.path.URLPaths;
 import io.github.classgraph.base.internal.utils.Assert;
@@ -206,7 +206,7 @@ public final class VfsSpec {
         final var normalizedScheme = URLPaths.normalizeURLScheme(scheme);
         // Copy on write, rather than adding to the set in place, so that a thread reading the set while this one
         // denies a further scheme sees either the old set or the new one, never a set part-way through an insert
-        final Set<String> updated = new HashSet<>(deniedURLSchemes);
+        final Set<String> updated = new TreeSet<>(deniedURLSchemes);
         updated.add(normalizedScheme);
         deniedURLSchemes = Collections.unmodifiableSet(updated);
         return this;
@@ -236,7 +236,7 @@ public final class VfsSpec {
             return this;
         }
         // Copy on write, for the same reason as disableURLScheme()
-        final Set<String> updated = new HashSet<>(deniedURLSchemes);
+        final Set<String> updated = new TreeSet<>(deniedURLSchemes);
         updated.remove(normalizedScheme);
         deniedURLSchemes = Collections.unmodifiableSet(updated);
         return this;
@@ -246,7 +246,8 @@ public final class VfsSpec {
      * The URL schemes that jarfiles may not be fetched from. Every other scheme the JVM has a handler for is
      * allowed, as are {@code file:} and {@code jar:}, which denying has no effect on.
      *
-     * @return the denied schemes, as an unmodifiable set, which is empty if no scheme has been denied.
+     * @return the denied schemes, sorted by scheme name, as an unmodifiable set, which is empty if no scheme has
+     *         been denied.
      */
     public Set<String> getDeniedURLSchemes() {
         return deniedURLSchemes;

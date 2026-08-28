@@ -1,6 +1,7 @@
 package io.github.classgraph;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.assertj.core.api.Assertions.assertThatIOException;
 
 import java.io.IOException;
@@ -79,10 +80,8 @@ public class ResourceListTest {
             final var copy = new ResourceList(allResources);
             assertThat(copy).containsExactlyElementsOf(allResources);
 
-            // Unlike the list returned by a scan, a list built this way is modifiable
-            copy.clear();
-            assertThat(copy).isEmpty();
-            assertThat(new ResourceList(4)).isEmpty();
+            // Like every other list the API hands out, a list built this way is unmodifiable
+            assertThatExceptionOfType(UnsupportedOperationException.class).isThrownBy(copy::clear);
         }
     }
 

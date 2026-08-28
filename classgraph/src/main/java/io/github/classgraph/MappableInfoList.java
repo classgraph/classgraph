@@ -31,8 +31,8 @@ package io.github.classgraph;
 import java.io.Serial;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.TreeMap;
 
 import io.github.classgraph.base.internal.utils.Assert;
 import org.jspecify.annotations.Nullable;
@@ -92,10 +92,10 @@ public class MappableInfoList<T extends HasName> extends InfoList<T> {
      * on each list item) to the list item.
      *
      * @return An index for this list, as a map from the name of each list item (obtained by calling
-     *         {@code getName()} on each list item) to the list item.
+     *         {@code getName()} on each list item) to the list item, sorted by name.
      */
     public Map<String, T> asMap() {
-        final Map<String, T> nameToInfoObject = new HashMap<>();
+        final Map<String, T> nameToInfoObject = new TreeMap<>();
         for (final T i : this) {
             if (i != null) {
                 nameToInfoObject.put(i.getName(), i);

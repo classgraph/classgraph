@@ -32,10 +32,10 @@ import java.io.Serial;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.function.Predicate;
 
 import io.github.classgraph.base.LogNode;
@@ -125,13 +125,14 @@ public class MethodInfoList extends InfoList<MethodInfo> {
      * name.
      *
      * @return This {@link MethodInfoList} as a map from method name to a {@link MethodInfoList} of methods with
-     *         that name.
+     *         that name, sorted by method name. Each map value lists the methods with that name in the order they
+     *         appear in this list.
      */
     public Map<String, MethodInfoList> asMap() {
         // Note that MethodInfoList extends InfoList rather than MappableInfoList, because one name can be shared by
         // multiple MethodInfo objects (so asMap() needs to be of type Map<String, MethodInfoList> rather than
         // Map<String, MethodInfo>)
-        final Map<String, MethodInfoList> methodNameToMethodInfoList = new HashMap<>();
+        final Map<String, MethodInfoList> methodNameToMethodInfoList = new TreeMap<>();
         for (final MethodInfo methodInfo : this) {
             methodNameToMethodInfoList.computeIfAbsent(methodInfo.getName(), k -> new MethodInfoList(1))
                     .add(methodInfo);

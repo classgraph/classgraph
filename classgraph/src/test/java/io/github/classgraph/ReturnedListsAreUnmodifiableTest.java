@@ -168,6 +168,7 @@ public class ReturnedListsAreUnmodifiableTest {
         assertThat(isUnmodifiable(new FieldInfoList(List.of()))).isTrue();
         assertThat(isUnmodifiable(new PackageInfoList(List.of()))).isTrue();
         assertThat(isUnmodifiable(new ModuleInfoList(List.of()))).isTrue();
+        assertThat(isUnmodifiable(new ResourceList(List.of()))).isTrue();
     }
 
     /** A public info-list constructor snapshots the caller's completed collection. */

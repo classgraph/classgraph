@@ -33,7 +33,8 @@ import java.io.InputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.attribute.PosixFilePermission;
-import java.util.HashSet;
+import java.util.Collections;
+import java.util.EnumSet;
 import java.util.Set;
 
 import io.github.classgraph.base.internal.path.URLPaths;
@@ -123,13 +124,15 @@ final class ArchiveEntry extends VfsEntry {
             // Zip entries written by tools that do not record Unix mode bits have zero file attributes
             return null;
         }
-        final Set<PosixFilePermission> permissions = new HashSet<>();
+        // An EnumSet iterates in PosixFilePermission declaration order, i.e. owner then group then others, and
+        // read then write then execute within each
+        final Set<PosixFilePermission> permissions = EnumSet.noneOf(PosixFilePermission.class);
         for (var i = 0; i < POSIX_FILE_PERMISSION_BITS.length; i++) {
             if ((fileAttributes & (0400 >> i)) != 0) {
                 permissions.add(POSIX_FILE_PERMISSION_BITS[i]);
             }
         }
-        return permissions;
+        return Collections.unmodifiableSet(permissions);
     }
 
     // -------------------------------------------------------------------------------------------------------------

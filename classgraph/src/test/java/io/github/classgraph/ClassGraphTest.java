@@ -424,15 +424,22 @@ public class ClassGraphTest {
                 .extracting(moduleReference -> moduleReference.descriptor().name()).contains("java.base");
     }
 
-    /** Packaging a traditional classpath entry as a plain jar does not turn it into a named module. */
+    /**
+     * A plain classpath jar that declares no module name is reported under the automatic module name that the
+     * module system would derive from its filename, and that {@link ModuleInfo} has no
+     * {@link java.lang.module.ModuleReference}, since the jar was not resolved as a module.
+     */
     @Test
-    public void aPlainClasspathJarRemainsInTheUnnamedModule() {
+    public void aPlainClasspathJarIsReportedUnderItsDerivedAutomaticModuleName() {
         try (var scanResult = new ClassGraph().enableClasspathEntries(jarFile.toString()).enableClassInfo()
                 .scan()) {
             final var classInfo = scanResult.getClassInfo(PACKAGE_NAME + ".InJar");
             assertThat(classInfo).isNotNull();
-            assertThat(classInfo.getModuleInfo()).isNull();
-            assertThat(scanResult.getModuleInfo()).isEmpty();
+            final var moduleInfo = classInfo.getModuleInfo();
+            assertThat(moduleInfo).isNotNull();
+            assertThat(moduleInfo.getName()).isEqualTo(AutomaticModuleName.derive(jarFile.toString()));
+            assertThat(moduleInfo.getModuleReference()).isNull();
+            assertThat(scanResult.getModuleInfo()).containsExactly(moduleInfo);
         }
     }
 

@@ -55,10 +55,10 @@ public final class Classpath implements AutoCloseable, Iterable<ClasspathEntry> 
     /** The classpath elements, in the order the classloaders would search them. */
     private final List<ClasspathEntry> entries;
 
-    /** The system modules, in discovery order. */
+    /** The system modules, in module layer order, and by module name within each layer. */
     private final List<ModuleReference> systemModules;
 
-    /** The non-system modules, in discovery order. */
+    /** The non-system modules, in module layer order, and by module name within each layer. */
     private final List<ModuleReference> nonSystemModules;
 
     /** The module path switches the JVM was launched with. */
@@ -141,10 +141,10 @@ public final class Classpath implements AutoCloseable, Iterable<ClasspathEntry> 
 
     /**
      * Returns the module references discovered in the enabled module layers, system modules first, each group in
-     * discovery order. The system-module group may include references that were retained to complete the class
-     * graph but were not themselves selected for scanning. Traditional classpath jars are not modules and are not
-     * included. The list is empty unless a module source was enabled, using
-     * {@link ClasspathFinder#enableModules()}, {@link ClasspathFinder#enableSystemModules()},
+     * module layer order, and by module name within each layer. The system-module group may include references that
+     * were retained to complete the class graph but were not themselves selected for scanning. Traditional
+     * classpath jars are not modules and are not included. The list is empty unless a module source was enabled,
+     * using {@link ClasspathFinder#enableModules()}, {@link ClasspathFinder#enableSystemModules()},
      * {@link ClasspathFinder#enableNonSystemModules()} or
      * {@link ClasspathFinder#enableModuleLayers(ModuleLayer...)}.
      *
@@ -158,9 +158,10 @@ public final class Classpath implements AutoCloseable, Iterable<ClasspathEntry> 
     }
 
     /**
-     * Returns the modules supplied by the running JVM, in discovery order. These are identified against
-     * {@link java.lang.module.ModuleFinder#ofSystem()}, rather than inferred from their names. They may include
-     * references retained to complete the class graph even when system-module scanning was not enabled.
+     * Returns the modules supplied by the running JVM, in module layer order, and by module name within each layer.
+     * These are identified against {@link java.lang.module.ModuleFinder#ofSystem()}, rather than inferred from
+     * their names. They may include references retained to complete the class graph even when system-module
+     * scanning was not enabled.
      *
      * @return the system modules, as an unmodifiable list.
      */
@@ -169,7 +170,8 @@ public final class Classpath implements AutoCloseable, Iterable<ClasspathEntry> 
     }
 
     /**
-     * Returns the modules other than the system modules, in discovery order.
+     * Returns the modules other than the system modules, in module layer order, and by module name within each
+     * layer.
      *
      * @return the non-system modules, as an unmodifiable list.
      */

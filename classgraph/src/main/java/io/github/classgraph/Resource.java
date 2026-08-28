@@ -462,7 +462,8 @@ public abstract class Resource implements AutoCloseable, Comparable<Resource> {
      * zipfile entry. POSIX file permissions are not available for resources obtained from system modules or jlink'd
      * modules, and may not be available on non-POSIX-compliant operating systems or non-POSIX filesystems.
      *
-     * @return The set of {@link PosixFilePermission} permission flags for the resource, or null if unknown.
+     * @return The set of {@link PosixFilePermission} permission flags for the resource, as an unmodifiable set that
+     *         iterates in {@link PosixFilePermission} declaration order, or null if unknown.
      */
     public @Nullable Set<PosixFilePermission> getPosixFilePermissions() {
         return entry.getPosixFilePermissions();

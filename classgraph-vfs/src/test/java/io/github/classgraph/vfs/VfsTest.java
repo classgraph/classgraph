@@ -19,6 +19,8 @@ import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermission;
+import java.util.Comparator;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -324,6 +326,40 @@ public class VfsTest {
         }
     }
 
+    /**
+     * The Unix mode bits of a jarfile entry are decoded into an unmodifiable set of POSIX permissions that iterates
+     * in {@link PosixFilePermission} declaration order.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the jarfile could not be written or read.
+     */
+    @Test
+    public void theUnixModeBitsOfAJarfileEntryAreDecoded(@TempDir final File tempDir) throws IOException {
+        // A jarfile written by ZipOutputStream records no mode bits, so write this one through the zip filesystem
+        // provider, which does record them
+        final var jarFile = new File(tempDir, "permissions.jar");
+        final var written = EnumSet.of(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE,
+                PosixFilePermission.GROUP_READ, PosixFilePermission.OTHERS_EXECUTE);
+        try (var zipFileSystem = FileSystems.newFileSystem(jarFile.toPath(),
+                Map.of("create", "true", "enablePosixFileAttributes", "true"))) {
+            final var entry = zipFileSystem.getPath("com/xyz/widget.txt");
+            Files.createDirectories(entry.getParent());
+            Files.writeString(entry, RESOURCE_CONTENT);
+            Files.setPosixFilePermissions(entry, written);
+        }
+
+        try (var vfs = new Vfs()) {
+            final var permissions = Objects
+                    .requireNonNull(vfs.open(jarFile.getPath()).getEntry("com/xyz/widget.txt"))
+                    .getPosixFilePermissions();
+            assertThat(permissions).containsExactlyElementsOf(written);
+            assertThatThrownBy(() -> Objects.requireNonNull(permissions).clear())
+                    .isInstanceOf(UnsupportedOperationException.class);
+        }
+    }
+
     /** The Automatic-Module-Name manifest entry is reported as the module name of a jarfile. */
     @Test
     public void theAutomaticModuleNameIsRead(@TempDir final File tempDir) throws IOException {
@@ -600,6 +636,10 @@ public class VfsTest {
             if (permissions != null) {
                 // Windows does not record POSIX permissions, and reports null rather than an empty set
                 assertThat(permissions).contains(PosixFilePermission.OWNER_READ);
+                // The permissions are unmodifiable, and iterate in PosixFilePermission declaration order
+                assertThat(List.copyOf(permissions)).isSortedAccordingTo(Comparator.naturalOrder());
+                assertThatThrownBy(() -> permissions.add(PosixFilePermission.OTHERS_WRITE))
+                        .isInstanceOf(UnsupportedOperationException.class);
             }
 
             // A name cannot reach outside the directory it is resolved against

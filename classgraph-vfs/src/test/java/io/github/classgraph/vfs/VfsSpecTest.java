@@ -37,11 +37,14 @@ public class VfsSpecTest {
         assertThat(vfsSpec.getDeniedURLSchemes()).isEmpty();
     }
 
-    /** A URL scheme is lowercased, added to the schemes already denied, and published as an unmodifiable set. */
+    /**
+     * A URL scheme is lowercased, added to the schemes already denied, and published as an unmodifiable set, sorted
+     * by scheme name rather than in the order the schemes were denied.
+     */
     @Test
     public void deniedURLSchemesAccumulate() {
         final var vfsSpec = new VfsSpec().disableURLScheme("HTTPS").disableURLScheme("http");
-        assertThat(vfsSpec.getDeniedURLSchemes()).containsExactlyInAnyOrder("https", "http");
+        assertThat(vfsSpec.getDeniedURLSchemes()).containsExactly("http", "https");
         assertThatThrownBy(() -> vfsSpec.getDeniedURLSchemes().add("ftp"))
                 .isInstanceOf(UnsupportedOperationException.class);
     }
