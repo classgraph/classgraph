@@ -62,7 +62,7 @@ public class AnnotationParameterValueList extends MappableInfoList<AnnotationPar
     /**
      * Construct a new modifiable empty list of {@link AnnotationParameterValue} objects.
      */
-    public AnnotationParameterValueList() {
+    AnnotationParameterValueList() {
         super();
     }
 
@@ -72,13 +72,14 @@ public class AnnotationParameterValueList extends MappableInfoList<AnnotationPar
      * @param sizeHint
      *            the expected number of elements
      */
-    public AnnotationParameterValueList(final int sizeHint) {
+    AnnotationParameterValueList(final int sizeHint) {
         super(sizeHint);
     }
 
     /**
-     * Construct a new modifiable empty {@link AnnotationParameterValueList}, given an initial list of
-     * {@link AnnotationParameterValue} objects.
+     * Construct a new unmodifiable {@link AnnotationParameterValueList}, given an initial collection of
+     * {@link AnnotationParameterValue} objects. The collection is copied, so changing it afterwards does not change
+     * this list.
      *
      * @param annotationParameterValueCollection
      *            the collection of {@link AnnotationParameterValue} objects.
@@ -86,7 +87,7 @@ public class AnnotationParameterValueList extends MappableInfoList<AnnotationPar
     public AnnotationParameterValueList(
             final Collection<AnnotationParameterValue> annotationParameterValueCollection) {
         super(Objects.requireNonNull(annotationParameterValueCollection,
-                "annotationParameterValueCollection must not be null"));
+                "annotationParameterValueCollection must not be null"), /* modifiable = */ false);
     }
 
     // -------------------------------------------------------------------------------------------------------------
