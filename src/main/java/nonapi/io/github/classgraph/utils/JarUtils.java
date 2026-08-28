@@ -512,16 +512,20 @@ public final class JarUtils {
         final int endIdx = nestedJarSepIdx >= 0 ? nestedJarSepIdx : path.length();
         int leafStartIdx = 1 + (File.separatorChar == '/' ? path.lastIndexOf('/', endIdx)
                 : Math.max(path.lastIndexOf('/', endIdx), path.lastIndexOf(File.separatorChar, endIdx)));
-        // In case of temp files (for jars extracted from within jars), remove the temp filename prefix -- see
-        // NestedJarHandler.makeTempFile(). The separator is only looked for within the leafname itself: searching
-        // the whole path found a "---" in a directory name or in a path nested within the jar, which left the
-        // leafname truncated or empty, so the jar matched no accept or reject criterion and was silently skipped
-        final int tempSepIdx = path.indexOf(NestedJarHandler.TEMP_FILENAME_LEAF_SEPARATOR, leafStartIdx);
-        if (tempSepIdx >= 0
-                && tempSepIdx + NestedJarHandler.TEMP_FILENAME_LEAF_SEPARATOR.length() <= endIdx) {
-            leafStartIdx = tempSepIdx + NestedJarHandler.TEMP_FILENAME_LEAF_SEPARATOR.length();
-        }
         leafStartIdx = Math.min(leafStartIdx, endIdx);
+        // In case of temp files (for jars extracted from within jars), remove the temp filename prefix -- see
+        // NestedJarHandler.makeTempFile(). The prefix is only stripped from a leafname that actually starts with
+        // the temporary filename prefix, and only at the first separator after it: looking for the separator
+        // anywhere truncated the name of a file genuinely named "a---b.jar" to "b.jar", and looking for it anywhere
+        // in the whole path found a "---" in a directory name or in a path nested within the jar, which left the
+        // leafname empty, so the jar matched no accept or reject criterion and was silently skipped
+        if (path.startsWith(NestedJarHandler.TEMP_FILENAME_PREFIX, leafStartIdx)) {
+            final int tempSepIdx = path.indexOf(NestedJarHandler.TEMP_FILENAME_LEAF_SEPARATOR,
+                    leafStartIdx + NestedJarHandler.TEMP_FILENAME_PREFIX.length());
+            if (tempSepIdx >= 0 && tempSepIdx + NestedJarHandler.TEMP_FILENAME_LEAF_SEPARATOR.length() <= endIdx) {
+                leafStartIdx = tempSepIdx + NestedJarHandler.TEMP_FILENAME_LEAF_SEPARATOR.length();
+            }
+        }
         return path.substring(leafStartIdx, endIdx);
     }
 

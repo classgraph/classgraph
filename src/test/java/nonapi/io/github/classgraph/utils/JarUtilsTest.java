@@ -163,6 +163,27 @@ public class JarUtilsTest {
     }
 
     /**
+     * Only a leafname that begins with the temp filename prefix is read as a temporary filename. Honoring the "---"
+     * separator wherever it appeared truncated the name of a file genuinely named "x---y.jar" to "y.jar", and that
+     * truncated name is what accept and reject criteria are matched against.
+     */
+    @Test
+    public void aTempSeparatorOnlyTruncatesANameThatBeginsWithTheTempPrefix(@TempDir final Path tempDir)
+            throws IOException {
+        final Path dirWithTempSep = Files
+                .createDirectory(tempDir.resolve("a" + NestedJarHandler.TEMP_FILENAME_LEAF_SEPARATOR + "b"));
+        final String jarPath = Files
+                .write(dirWithTempSep.resolve("x" + NestedJarHandler.TEMP_FILENAME_LEAF_SEPARATOR + "y.jar"),
+                        new byte[] { 'P', 'K' })
+                .toString().replace(File.separatorChar, '/');
+        assertThat(JarUtils.leafName(jarPath)).isEqualTo("x---y.jar");
+        // A real temporary filename is still stripped, at the first separator after the prefix
+        assertThat(JarUtils.leafName("/tmp/" + NestedJarHandler.TEMP_FILENAME_PREFIX + "12345"
+                + NestedJarHandler.TEMP_FILENAME_LEAF_SEPARATOR + "x" + NestedJarHandler.TEMP_FILENAME_LEAF_SEPARATOR
+                + "y.jar")).isEqualTo("x---y.jar");
+    }
+
+    /**
      * A '!' in a directory name is an ordinary filename character, not a nested jar separator, so it does not end
      * the leafname. Ending the leafname at the first '!' regardless made the leafname of a jar below such a
      * directory the directory's name, so the jar matched no accept or reject criterion and was silently skipped.

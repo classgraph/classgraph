@@ -429,6 +429,12 @@ public class NestedJarHandler {
     /** The separator between random temp filename part and leafname. */
     public static final String TEMP_FILENAME_LEAF_SEPARATOR = "---";
 
+    /**
+     * The prefix that every ClassGraph temporary filename begins with. A leafname is only read as a temporary
+     * filename if it starts with this, so that a file genuinely named "a---b.jar" keeps its whole name.
+     */
+    public static final String TEMP_FILENAME_PREFIX = "ClassGraph--";
+
     /** True if {@link #close(LogNode)} has been called. */
     private final AtomicBoolean closed = new AtomicBoolean(false);
 
@@ -516,7 +522,7 @@ public class NestedJarHandler {
      *             If the temporary file could not be created.
      */
     public File makeTempFile(final String filePathBase, final boolean onlyUseLeafname) throws IOException {
-        final File tempFile = File.createTempFile("ClassGraph--", TEMP_FILENAME_LEAF_SEPARATOR
+        final File tempFile = File.createTempFile(TEMP_FILENAME_PREFIX, TEMP_FILENAME_LEAF_SEPARATOR
                 + sanitizeFilename(onlyUseLeafname ? leafname(filePathBase) : filePathBase));
         tempFile.deleteOnExit();
         tempFiles.add(tempFile);
