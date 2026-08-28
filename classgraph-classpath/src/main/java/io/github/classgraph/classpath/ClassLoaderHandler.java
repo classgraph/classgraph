@@ -178,12 +178,13 @@ public interface ClassLoaderHandler {
      * The default is {@link #NO_PACKAGE_ROOT_PREFIXES}, since a classloader normally loads classes only from the
      * classpath elements it was given -- {@link java.net.URLClassLoader} has no automatic package roots at all.
      * Override this only for a classloader whose own code goes looking for classes in a dir with a fixed name, and
-     * declare exactly the dirs that code looks in: a package root prefix that is also a legal package name (e.g.
-     * {@code "classes/"}) otherwise causes a real package of that name to be misread as a package root.
+     * declare exactly the dirs that code looks in. The declaration is taken at face value: a prefix that is also a
+     * legal package name (e.g. {@code "classes/"}) is stripped from any classpath element this classloader yields
+     * that has a dir of that name, so declaring one that the classloader does not really look in makes a real
+     * package of that name be read as a package root.
      *
      * @return the package root prefixes, each ending in a slash.
      */
-    // #929
     default List<String> getPackageRootPrefixes() {
         return NO_PACKAGE_ROOT_PREFIXES;
     }

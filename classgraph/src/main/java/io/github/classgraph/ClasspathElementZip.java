@@ -56,7 +56,6 @@ import io.github.classgraph.vfs.Vfs;
 import io.github.classgraph.vfs.VfsEntry;
 import io.github.classgraph.vfs.VfsRoot;
 import io.github.classgraph.vfs.VfsVisitor;
-import io.github.classgraph.vfs.internal.slice.reader.RandomAccessOrSequentialReader;
 import org.jspecify.annotations.Nullable;
 
 /** A zip/jarfile classpath element. */
@@ -382,66 +381,6 @@ class ClasspathElementZip extends ClasspathElement {
     }
 
     /**
-     * Filter out any candidate package root prefix that is really a package with the same name as the prefix, e.g.
-     * a package named {@code classes} in a jar that has no {@code classes/} package root.
-     *
-     * @param root
-     *            the jarfile, as a root of the virtual filesystem
-     * @param log
-     *            the log node, or null to skip logging
-     * @return the package root prefixes that were not disproved
-     */
-    // #929
-    private List<String> getVerifiedPackageRootPrefixes(final VfsRoot root, final @Nullable LogNode log) {
-        final List<VfsEntry> entries;
-        try {
-            entries = root.getEntries();
-        } catch (final IOException e) {
-            // The walk that follows lists the same entries, and logs the reason if they cannot be listed
-            return ClassLoaderHandler.NO_PACKAGE_ROOT_PREFIXES;
-        }
-        // Find the first classfile beneath each candidate package root prefix
-        final var firstClassfileEntry = new VfsEntry[packageRootPrefixes.size()];
-        for (final VfsEntry entry : entries) {
-            final var entryName = entry.getName();
-            if (!ClassNames.isClassfilePath(entryName)) {
-                continue;
-            }
-            for (var i = 0; i < packageRootPrefixes.size(); i++) {
-                final var prefix = packageRootPrefixes.get(i);
-                if (firstClassfileEntry[i] == null && entryName.startsWith(prefix)
-                // The path of a classfile below META-INF (e.g. in a multi-release jar) does not necessarily
-                // correspond to the name of the class it declares
-                        && !entryName.startsWith("META-INF/", prefix.length())) {
-                    firstClassfileEntry[i] = entry;
-                }
-            }
-        }
-        // Check the class declared by each of those classfiles against its path
-        final List<String> verifiedPackageRootPrefixes = new ArrayList<>(packageRootPrefixes.size());
-        for (var i = 0; i < packageRootPrefixes.size(); i++) {
-            final var prefix = packageRootPrefixes.get(i);
-            final var entry = firstClassfileEntry[i];
-            String disprovingClassName = null;
-            if (entry != null) {
-                try (var classfileReader = new RandomAccessOrSequentialReader(entry)) {
-                    disprovingClassName = getClassNameDisprovingPackageRoot(classfileReader,
-                            entry.getName().substring(prefix.length()));
-                } catch (final IOException e) {
-                    // If the classfile cannot be read, give the candidate package root the benefit of the doubt
-                }
-            }
-            if (disprovingClassName == null) {
-                verifiedPackageRootPrefixes.add(prefix);
-            } else if (log != null) {
-                log.log("\"" + prefix + "\" is a package, not a package root, since a classfile beneath it "
-                        + "declares the class " + disprovingClassName);
-            }
-        }
-        return verifiedPackageRootPrefixes;
-    }
-
-    /**
      * Applies the scan spec to the entries of the jarfile as the virtual filesystem enumerates them, and records
      * the accepted ones.
      */
@@ -560,11 +499,8 @@ class ClasspathElementZip extends ClasspathElement {
         final var isModularJar = getDeclaredModuleName() != null;
 
         // An explicit package root has already been stripped from the names of the entries by the virtual
-        // filesystem, and rules out stripping an automatic package root prefix as well. "classes/" and
-        // "test-classes/" are legal package names, so only strip an automatic package root prefix from the relative
-        // path of an entry if the prefix is not simply a package with the same name (#929)
-        final var automaticPackageRootPrefixes = packageRootPrefix.isEmpty() && !packageRootPrefixes.isEmpty()
-                ? getVerifiedPackageRootPrefixes(root, subLog)
+        // filesystem, and rules out stripping an automatic package root prefix as well
+        final var automaticPackageRootPrefixes = packageRootPrefix.isEmpty() ? packageRootPrefixes
                 : ClassLoaderHandler.NO_PACKAGE_ROOT_PREFIXES;
 
         try {

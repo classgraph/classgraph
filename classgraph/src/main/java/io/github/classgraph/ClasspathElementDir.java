@@ -45,7 +45,6 @@ import io.github.classgraph.classpath.internal.ClasspathExpander;
 import io.github.classgraph.vfs.Vfs;
 import io.github.classgraph.vfs.VfsEntry;
 import io.github.classgraph.vfs.VfsVisitor;
-import io.github.classgraph.vfs.internal.slice.reader.RandomAccessOrSequentialReader;
 import org.jspecify.annotations.Nullable;
 
 /** A directory classpath element, using the {@link Path} API. */
@@ -106,18 +105,6 @@ class ClasspathElementDir extends ClasspathElement {
                 for (final String packageRootPrefix : packageRootPrefixes) {
                     final var packageRoot = classpathEltPath.resolve(packageRootPrefix);
                     if (FileUtils.canReadAndIsDir(packageRoot)) {
-                        // "classes/" and "test-classes/" are legal package names, so check that the candidate
-                        // package root is not simply a package with the same name (#929)
-                        final var disprovingClassName = getClassNameDisprovingPackageRoot(packageRoot);
-                        if (disprovingClassName != null) {
-                            if (log != null) {
-                                log(classpathElementIdx,
-                                        "\"" + packageRootPrefix + "\" is a package, not a package root, since a "
-                                                + "classfile beneath it declares the class " + disprovingClassName,
-                                        log);
-                            }
-                            continue;
-                        }
                         if (log != null) {
                             log(classpathElementIdx, "Found package root: " + packageRootPrefix, log);
                         }
@@ -134,66 +121,6 @@ class ClasspathElementDir extends ClasspathElement {
                         "Skipping classpath element, since dir cannot be accessed: " + classpathEltPath, log);
             }
             skipClasspathElement = true;
-        }
-    }
-
-    /**
-     * Find the first classfile beneath a directory, so that the class it declares can be compared to its path.
-     *
-     * @param packageRoot
-     *            the directory to search.
-     * @return the first classfile found beneath the directory, or null if there are none. Classfiles beneath a
-     *         {@code META-INF} directory are ignored, since the path of a classfile in a multi-release jar layout
-     *         ({@code META-INF/versions/N/}) does not correspond to the name of the class it declares.
-     */
-    private @Nullable VfsEntry findFirstClassfile(final Path packageRoot) {
-        final var firstClassfile = new VfsEntry[1];
-        try {
-            vfs.open(packageRoot).walk(new VfsVisitor() {
-                @Override
-                public boolean enterDirectory(final String dirName) {
-                    return !dirName.equals("META-INF/") && !dirName.endsWith("/META-INF/");
-                }
-
-                @Override
-                public boolean visitEntry(final VfsEntry entry) {
-                    if (!ClassNames.isClassfilePath(entry.getName())) {
-                        return true;
-                    }
-                    firstClassfile[0] = entry;
-                    // The first classfile is all that is needed, so stop the walk
-                    return false;
-                }
-            });
-        } catch (final IOException e) {
-            // A directory that cannot be listed has no classfiles to check
-        }
-        return firstClassfile[0];
-    }
-
-    /**
-     * Check whether a candidate package root directory is really a package root, or is simply a package that has
-     * the same name as one of the automatic package root prefixes.
-     *
-     * @param packageRoot
-     *            the candidate package root directory.
-     * @return null if the candidate is a package root, otherwise the name of the class that disproves it (see
-     *         {@link ClasspathElement#getClassNameDisprovingPackageRoot(RandomAccessOrSequentialReader, String)}).
-     */
-    // #929
-    private @Nullable String getClassNameDisprovingPackageRoot(final Path packageRoot) {
-        final var classfileEntry = findFirstClassfile(packageRoot);
-        if (classfileEntry == null) {
-            // There are no classfiles beneath the candidate package root, so there is nothing to check
-            return null;
-        }
-        try (var classfileReader = new RandomAccessOrSequentialReader(classfileEntry)) {
-            // The entry is named relative to the candidate package root, which is the path to compare the class
-            // declared by the classfile against
-            return getClassNameDisprovingPackageRoot(classfileReader, classfileEntry.getName());
-        } catch (final IOException e) {
-            // If the classfile cannot be read, give the candidate package root the benefit of the doubt
-            return null;
         }
     }
 

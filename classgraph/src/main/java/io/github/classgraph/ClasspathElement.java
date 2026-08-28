@@ -49,7 +49,6 @@ import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.path.FileUtils;
 import io.github.classgraph.base.internal.path.PathSyntax;
 import io.github.classgraph.vfs.VfsSpec;
-import io.github.classgraph.vfs.internal.slice.reader.RandomAccessOrSequentialReader;
 import org.jspecify.annotations.Nullable;
 
 /** A classpath element (a directory or jarfile on the classpath). */
@@ -375,38 +374,6 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
                 || (parentMatchStatus == ScanSpecPathMatch.AT_ACCEPTED_CLASS_PACKAGE
                         && ClassNames.isClassfilePath(relativePath) && scanSpec.classfileIsSpecificallyAccepted(
                                 ClassNames.withLowerCaseClassfileExtension(relativePath)));
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Check whether a candidate package root within a classpath element really is a package root, and not simply a
-     * package that happens to have the same name as one of the automatic package root prefixes.
-     *
-     * <p>
-     * {@code classes/} and {@code test-classes/} are both legal Java package names, so the layout of a classpath
-     * element cannot by itself distinguish (for example) the Ant layout {@code <root>/classes/com/xyz/Foo.class}
-     * from the Maven output directory {@code target/classes/}, which contains a package named {@code classes} at
-     * {@code target/classes/classes/Foo.class}. The two cases can however be told apart by reading the name of the
-     * class declared by any classfile beneath the candidate package root: if the candidate really is a package
-     * root, then the class name matches the path of the classfile relative to the candidate root; if the candidate
-     * is really a package, then the class name has the candidate's name as a package prefix, so it does not match.
-     *
-     * @param classfileReader
-     *            a reader for a classfile found beneath the candidate package root.
-     * @param classfileRelativePath
-     *            the path of that classfile, relative to the candidate package root.
-     * @return null if the candidate is a package root, or if the class name could not be read from the classfile
-     *         (in which case the candidate is given the benefit of the doubt); otherwise the name of the class
-     *         declared by the classfile, which disproves that the candidate is a package root.
-     */
-    // #929
-    static @Nullable String getClassNameDisprovingPackageRoot(final RandomAccessOrSequentialReader classfileReader,
-            final String classfileRelativePath) {
-        final var className = Classfile.readClassName(classfileReader);
-        return className == null || ClassNames.classfilePathMatchesClassName(classfileRelativePath, className)
-                ? null
-                : className.replace('/', '.');
     }
 
     // -------------------------------------------------------------------------------------------------------------
