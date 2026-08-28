@@ -382,10 +382,20 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         }
         baseClassName = baseClassName.replace('/', '.');
 
-        ClassInfo classInfo = classNameToClassInfo.get(className);
+        // Key the map by the class name that the ClassInfo will be given, not by the string that was passed in, so
+        // that a class descriptor and the equivalent class name map to the same entry rather than to two ClassInfo
+        // objects for the same class
+        final StringBuilder canonicalClassNameBuf = new StringBuilder(baseClassName);
+        for (int i = 0; i < numArrayDims; i++) {
+            canonicalClassNameBuf.append("[]");
+        }
+        final String canonicalClassName = canonicalClassNameBuf.toString();
+
+        ClassInfo classInfo = classNameToClassInfo.get(canonicalClassName);
         if (classInfo == null) {
             if (numArrayDims == 0) {
-                classInfo = new ClassInfo(baseClassName, /* classModifiers = */ 0, /* classfileResource = */ null);
+                classInfo = new ClassInfo(canonicalClassName, /* classModifiers = */ 0,
+                        /* classfileResource = */ null);
             } else {
                 final StringBuilder arrayTypeSigStrBuf = new StringBuilder();
                 for (int i = 0; i < numArrayDims; i++) {
@@ -417,7 +427,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                 classInfo = new ArrayClassInfo(
                         new ArrayTypeSignature(elementTypeSignature, numArrayDims, arrayTypeSigStrBuf.toString()));
             }
-            classNameToClassInfo.put(className, classInfo);
+            classNameToClassInfo.put(canonicalClassName, classInfo);
         }
         return classInfo;
     }

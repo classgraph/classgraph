@@ -159,4 +159,17 @@ public final class LinkedIdentitySet<E> extends AbstractSet<E> {
     public boolean retainAll(final Collection<?> elements) {
         throw new UnsupportedOperationException(CANNOT_REMOVE);
     }
+
+    /**
+     * Not supported: elements cannot be removed.
+     *
+     * @throws UnsupportedOperationException
+     *             always.
+     */
+    @Override
+    public void clear() {
+        // AbstractCollection#clear removes through the iterator, which refuses removal, so clearing a non-empty
+        // set already threw -- but clearing an empty set had nothing to remove and returned quietly
+        throw new UnsupportedOperationException(CANNOT_REMOVE);
+    }
 }

@@ -226,7 +226,9 @@ public final class LogNode {
                     buf);
         }
         if (stackTrace != null && !stackTrace.isEmpty()) {
-            final String[] parts = stackTrace.split("\n");
+            // A stack trace is written by PrintWriter#println, which ends each line with the platform line
+            // separator, so on Windows the lines are separated by "\r\n" rather than by "\n"
+            final String[] parts = stackTrace.split("\\r?\\n");
             for (final String part : parts) {
                 appendLine(timeStampStr, indentLevel, part, buf);
             }
