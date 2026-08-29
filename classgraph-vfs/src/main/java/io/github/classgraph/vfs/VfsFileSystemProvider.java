@@ -51,6 +51,7 @@ import java.nio.file.FileSystem;
 import java.nio.file.FileSystemAlreadyExistsException;
 import java.nio.file.FileSystemException;
 import java.nio.file.FileSystemNotFoundException;
+import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.NotDirectoryException;
@@ -509,17 +510,45 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
      * inside a zipfs filesystem can be opened by handing its {@link Path} to this method.
      *
      * <p>
+     * A path this provider cannot read as a filesystem -- one that names a file which is not an archive, or an
+     * archive too damaged to read -- is declined with {@link UnsupportedOperationException}, carrying the reason as
+     * its cause. That is what the contract of this method asks for, and it matters beyond this provider:
+     * {@link java.nio.file.FileSystems#newFileSystem(Path)} tries each installed provider in turn and moves on to
+     * the next only when one throws {@link UnsupportedOperationException}, so a provider that reports an
+     * unrecognized file as an {@link IOException} instead would end that search and hide every provider behind it.
+     * A path that does not exist or cannot be read at all is still reported as an {@link IOException}, since no
+     * provider could open it.
+     *
+     * <p>
+     * Note that this does leave one difference from a JVM without this provider installed:
+     * {@link java.nio.file.FileSystems#newFileSystem(Path)} over a <i>directory</i> returns a filesystem here,
+     * where it would otherwise throw {@link java.nio.file.ProviderNotFoundException}, since no built-in provider
+     * reads a directory as a filesystem. An archive still goes to the JDK's own zipfs, which is tried first.
+     *
+     * <p>
      * The returned filesystem owns the {@link Vfs} this creates to open the path, so closing the filesystem
      * releases what reading through it took. The env map is read the same way {@link #newFileSystem(URI, Map)}
      * reads it.
      *
      * @throws FileSystemAlreadyExistsException
      *             if a filesystem created from a URI is already open at that path.
+     * @throws UnsupportedOperationException
+     *             if the path exists but cannot be read as a filesystem by this provider.
      */
     @Override
     public FileSystem newFileSystem(final Path path, final Map<String, ?> env) throws IOException {
         Assert.notNull(path, "path");
-        final var root = openRoot(env, vfs -> vfs.open(path));
+        final VfsRoot root;
+        try {
+            root = openRoot(env, vfs -> vfs.open(path));
+        } catch (final IOException e) {
+            if (!Files.isReadable(path)) {
+                // Nothing is there to open, or it cannot be read at all, which is not this provider declining the
+                // path -- no provider could open it
+                throw e;
+            }
+            throw new UnsupportedOperationException("Cannot read " + path + " as a filesystem", e);
+        }
         // Registered under the path the root reports itself at, rather than under the given Path's own spelling,
         // because a Path of another provider's filesystem -- a jarfile inside a zipfs filesystem, say -- has no
         // spelling that this provider could resolve back to it

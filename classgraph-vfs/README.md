@@ -182,6 +182,14 @@ One filesystem is open at a path at a time: a second `newFileSystem` at the same
 finds the open one or throws `FileSystemNotFoundException`. A filesystem created this way owns the
 `Vfs` behind it, so closing it releases everything that `Vfs` took.
 
+Installing the scheme changes one thing outside it. `FileSystems.newFileSystem(path)` tries each
+installed provider in turn and takes the first that does not decline the file, and this provider
+accepts a *directory*, which no built-in provider reads as a filesystem — so with `classgraph-vfs`
+on the classpath that call returns a `cgvfs:` filesystem over the directory where it would otherwise
+throw `ProviderNotFoundException`. Nothing else moves: an archive still goes to the JDK's own zipfs,
+which is tried first, and a file this provider cannot read as a filesystem is declined with
+`UnsupportedOperationException` so that the search carries on to the providers behind it.
+
 Two options can be passed in the `env` map: `"vfsSpec"`, a `VfsSpec` configuring the `Vfs` that will
 be created (see [Options](#options)), and `"layer"`, a `ModuleLayer` to resolve a `cgvfs:jrt:/...`
 module name against instead of the boot layer.

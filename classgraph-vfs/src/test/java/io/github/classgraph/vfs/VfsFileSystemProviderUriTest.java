@@ -17,6 +17,7 @@ import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.ProviderNotFoundException;
 import java.nio.file.spi.FileSystemProvider;
 import java.util.List;
 import java.util.Map;
@@ -360,6 +361,33 @@ public class VfsFileSystemProviderUriTest {
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> provider.getFileSystem(URI.create("cgvfs:")))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    /**
+     * A path this provider cannot read as a filesystem is declined with {@link UnsupportedOperationException}
+     * rather than reported as an {@link IOException}, so that {@link FileSystems#newFileSystem(Path, ClassLoader)}
+     * goes on to try the providers installed after this one instead of ending its search here. A path that is not
+     * there at all is still an {@link IOException}, since that is not this provider declining it.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the file could not be written.
+     */
+    @Test
+    public void aPathThatIsNotAnArchiveIsDeclinedRatherThanFailed(@TempDir final Path tempDir) throws IOException {
+        final var notAnArchive = Files.writeString(tempDir.resolve("notes.txt"), "not an archive");
+        final var provider = new VfsFileSystemProvider();
+        assertThatThrownBy(() -> provider.newFileSystem(notAnArchive, Map.of()))
+                .isInstanceOf(UnsupportedOperationException.class).hasCauseInstanceOf(IOException.class);
+        assertThatThrownBy(() -> provider.newFileSystem(tempDir.resolve("absent.jar"), Map.of()))
+                .isInstanceOf(IOException.class);
+
+        // The consequence that matters: the search over the installed providers reaches its end, rather than
+        // being cut short by this one
+        assumeTrue(VfsFileSystemProvider.isInstalled(), "The \"cgvfs:\" scheme is not installed");
+        assertThatThrownBy(() -> FileSystems.newFileSystem(notAnArchive, (ClassLoader) null))
+                .isInstanceOf(ProviderNotFoundException.class);
     }
 
     /**
