@@ -28,11 +28,11 @@
  */
 package io.github.classgraph;
 
-import static io.github.classgraph.PotentiallyUnmodifiableList.unmodifiable;
-
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -98,7 +98,7 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName, HasAnnotat
      * @param packageAnnotations
      *            the package annotations
      */
-    void addAnnotations(final @Nullable AnnotationInfoList packageAnnotations) {
+    void addAnnotations(final @Nullable List<AnnotationInfo> packageAnnotations) {
         // Add class annotations from the package-info.class file
         if (packageAnnotations != null && !packageAnnotations.isEmpty()) {
             var annotations = annotationInfoSet;
@@ -162,11 +162,9 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName, HasAnnotat
             if (annotationSet == null) {
                 annotations = AnnotationInfoList.EMPTY_LIST;
             } else {
-                final AnnotationInfoList directAnnotations = new AnnotationInfoList(annotationSet.size());
-                directAnnotations.addAll(annotationSet);
                 // A package has no superclass, so there are no @Inherited annotations to add
-                annotations = unmodifiable(
-                        AnnotationInfoList.getIndirectAnnotations(directAnnotations, /* annotatedClass = */ null));
+                annotations = AnnotationInfoList.getIndirectAnnotations(new ArrayList<>(annotationSet),
+                        /* annotatedClass = */ null);
             }
             annotationInfo = annotations;
         }

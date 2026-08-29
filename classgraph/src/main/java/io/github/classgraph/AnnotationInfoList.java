@@ -28,7 +28,6 @@
  */
 package io.github.classgraph;
 
-import java.io.Serial;
 import java.lang.annotation.Annotation;
 import java.lang.annotation.Inherited;
 import java.lang.annotation.Repeatable;
@@ -67,17 +66,10 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
      * annotation. This field is nullable, as the annotation info list is incrementally built. See
      * {@link #directOnly()}.
      */
-    private @Nullable AnnotationInfoList directlyRelatedAnnotations;
-
-    /** serialVersionUID. */
-    @Serial
-    private static final long serialVersionUID = 1L;
+    private final @Nullable AnnotationInfoList directlyRelatedAnnotations;
 
     /** An unmodifiable empty {@link AnnotationInfoList}. */
-    static final AnnotationInfoList EMPTY_LIST = new AnnotationInfoList();
-    static {
-        EMPTY_LIST.makeUnmodifiable();
-    }
+    static final AnnotationInfoList EMPTY_LIST = new AnnotationInfoList(List.of());
 
     /**
      * Return an unmodifiable empty {@link AnnotationInfoList}.
@@ -89,50 +81,44 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     }
 
     /**
-     * Construct a new modifiable empty list of {@link AnnotationInfo} objects.
-     */
-    AnnotationInfoList() {
-        super();
-    }
-
-    /**
-     * Construct a new modifiable empty list of {@link AnnotationInfo} objects, given a size hint.
-     *
-     * @param sizeHint
-     *            the expected number of elements
-     */
-    AnnotationInfoList(final int sizeHint) {
-        super(sizeHint);
-    }
-
-    /**
      * Construct a new unmodifiable {@link AnnotationInfoList} from a completed collection of {@link AnnotationInfo}
-     * objects. The collection is copied.
+     * objects. The collection is copied, and the annotations are sorted by name.
      *
      * @param annotationInfoCollection
      *            the annotations to add to the list. All of them are treated as directly present on the annotated
      *            item, rather than as meta-annotations.
      */
     public AnnotationInfoList(final Collection<AnnotationInfo> annotationInfoCollection) {
-        super(Objects.requireNonNull(annotationInfoCollection, "annotationInfoCollection must not be null"),
-                /* modifiable = */ false);
+        this(CollectionUtils.sortCopy(
+                Objects.requireNonNull(annotationInfoCollection, "annotationInfoCollection must not be null")));
+    }
+
+    /**
+     * Constructor for a list all of whose annotations are treated as directly present on the annotated item. As in
+     * {@link InfoList#InfoList(List)}, this list claims the given list, and the caller is responsible for having
+     * sorted it.
+     *
+     * @param annotationInfo
+     *            the annotations to add to the list
+     */
+    AnnotationInfoList(final List<AnnotationInfo> annotationInfo) {
+        super(annotationInfo);
         // If only reachable annotations are given, treat all of them as direct
         directlyRelatedAnnotations = this;
     }
 
     /**
-     * Constructor.
+     * Constructor for two lists that the caller has already ordered.
      *
      * @param reachableAnnotations
      *            the reachable annotations
      * @param directlyRelatedAnnotations
-     *            the directly related annotations
+     *            the directly related annotations, or null if this is already a list of direct annotations
      */
     AnnotationInfoList(final AnnotationInfoList reachableAnnotations,
             final @Nullable AnnotationInfoList directlyRelatedAnnotations) {
-        super(reachableAnnotations, /* modifiable = */ false);
-        this.directlyRelatedAnnotations = directlyRelatedAnnotations == null ? null
-                : new AnnotationInfoList(directlyRelatedAnnotations);
+        super(reachableAnnotations);
+        this.directlyRelatedAnnotations = directlyRelatedAnnotations;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -161,6 +147,7 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
                 }
             }
         }
+        // Filtering preserves the order of this list, which is already sorted, so don't sort again
         final var reachableResult = new AnnotationInfoList(reachableFiltered);
         return directlyRelatedFiltered == null ? reachableResult
                 : new AnnotationInfoList(reachableResult, new AnnotationInfoList(directlyRelatedFiltered));
@@ -190,6 +177,8 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     /**
      * Handle {@link Repeatable} annotations.
      *
+     * @param annotations
+     *            the annotations to search for repeatable annotations
      * @param allRepeatableAnnotationNames
      *            the names of all repeatable annotations
      * @param containingClassInfo
@@ -201,19 +190,19 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
      * @param reverseRelType1
      *            the second reverse relationship type for linking (or null for none)
      */
-    void handleRepeatableAnnotations(final Set<String> allRepeatableAnnotationNames,
-            final @Nullable ClassInfo containingClassInfo, final RelType forwardRelType,
-            final RelType reverseRelType0, final @Nullable RelType reverseRelType1) {
+    static void handleRepeatableAnnotations(final List<AnnotationInfo> annotations,
+            final Set<String> allRepeatableAnnotationNames, final @Nullable ClassInfo containingClassInfo,
+            final RelType forwardRelType, final RelType reverseRelType0, final @Nullable RelType reverseRelType1) {
         List<AnnotationInfo> repeatableAnnotations = null;
-        for (var i = size() - 1; i >= 0; --i) {
-            final var ai = get(i);
+        for (var i = annotations.size() - 1; i >= 0; --i) {
+            final var ai = annotations.get(i);
             if (allRepeatableAnnotationNames.contains(ai.getName())) {
                 if (repeatableAnnotations == null) {
                     repeatableAnnotations = new ArrayList<>();
                 }
                 repeatableAnnotations.add(ai);
                 // Remove repeatable annotation
-                remove(i);
+                annotations.remove(i);
             }
         }
         // Add the component annotations in each of the parameters of the repeatable annotation
@@ -227,7 +216,7 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
                         if (arr instanceof final Object[] arrValues) {
                             for (final Object value : arrValues) {
                                 if (value instanceof final AnnotationInfo ai) {
-                                    add(ai);
+                                    annotations.add(ai);
 
                                     // Link annotation, if necessary
                                     if (forwardRelType != null
@@ -288,7 +277,8 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
      */
     // #559
     private static void addReachableAnnotation(final AnnotationInfo ai, final Directness directness,
-            final AnnotationInfoList reachableAnnotationOut, final Map<AnnotationInfo, Directness> directnessOut) {
+            final List<AnnotationInfo> reachableAnnotationOut,
+            final Map<AnnotationInfo, Directness> directnessOut) {
         final var prevDirectness = directnessOut.get(ai);
         if (prevDirectness == null) {
             directnessOut.put(ai, directness);
@@ -310,7 +300,7 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
      * @param directnessOut
      *            the map from annotation to how directly it is related to the annotated element
      */
-    private static void findMetaAnnotations(final AnnotationInfo ai, final AnnotationInfoList allAnnotationsOut,
+    private static void findMetaAnnotations(final AnnotationInfo ai, final List<AnnotationInfo> allAnnotationsOut,
             final Set<ClassInfo> visited, final Map<AnnotationInfo, Directness> directnessOut) {
         final var annotationClassInfo = ai.getClassInfo();
         if (annotationClassInfo != null && annotationClassInfo.annotationInfo != null
@@ -341,12 +331,12 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
      *            for class annotations, this is the annotated class, else null.
      * @return the indirect annotations
      */
-    static AnnotationInfoList getIndirectAnnotations(final @Nullable AnnotationInfoList directAnnotationInfo,
+    static AnnotationInfoList getIndirectAnnotations(final @Nullable List<AnnotationInfo> directAnnotationInfo,
             final @Nullable ClassInfo annotatedClass) {
         // Add direct annotations
         final Set<ClassInfo> directOrInheritedAnnotationClasses = new HashSet<>();
         final Set<ClassInfo> reachedAnnotationClasses = new HashSet<>();
-        final AnnotationInfoList reachableAnnotationInfo = new AnnotationInfoList(
+        final List<AnnotationInfo> reachableAnnotationInfo = new ArrayList<>(
                 directAnnotationInfo == null ? 2 : directAnnotationInfo.size());
         // Record how directly each annotation is related to the annotated element, so that an annotation that is
         // reached in more than one way is listed only once, and is sorted according to the most direct of those
@@ -367,7 +357,7 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
                         // Don't add inherited superclass annotation if it is overridden in a subclass
                         if (sai.isInherited() && directOrInheritedAnnotationClasses.add(sai.getClassInfo())) {
                             addReachableAnnotation(sai, Directness.INHERITED, reachableAnnotationInfo, directness);
-                            final AnnotationInfoList reachableMetaAnnotationInfo = new AnnotationInfoList(2);
+                            final List<AnnotationInfo> reachableMetaAnnotationInfo = new ArrayList<>(2);
                             findMetaAnnotations(sai, reachableMetaAnnotationInfo, reachedAnnotationClasses,
                                     new IdentityHashMap<>());
                             // Meta-annotations also have to have @Inherited to be inherited
@@ -390,10 +380,12 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
                 Comparator.comparing(AnnotationInfo::getName).thenComparing(
                         (final AnnotationInfo ai) -> directness.getOrDefault(ai, Directness.META_ANNOTATION))
                         .thenComparing(Comparator.naturalOrder()));
-        final List<AnnotationInfo> directAnnotationInfoSorted = directAnnotationInfo == null ? List.of()
-                : new ArrayList<>(directAnnotationInfo);
-        CollectionUtils.sortIfNotEmpty(directAnnotationInfoSorted);
-        return new AnnotationInfoList(reachableAnnotationInfo, new AnnotationInfoList(directAnnotationInfoSorted));
+        // The reachable annotations have just been sorted into an order that the AnnotationInfoList constructor
+        // cannot produce, so don't let the constructor sort them again; the direct annotations are sorted by the
+        // constructor, since they only need to be in name order
+        return new AnnotationInfoList(new AnnotationInfoList(reachableAnnotationInfo),
+                new AnnotationInfoList(directAnnotationInfo == null ? List.<AnnotationInfo> of()
+                        : CollectionUtils.sortCopy(directAnnotationInfo)));
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -457,6 +449,7 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
                 matchingAnnotations.add(ai);
             }
         }
+        // The matching annotations are a subsequence of this list, which is already sorted
         return new AnnotationInfoList(matchingAnnotations);
     }
 }

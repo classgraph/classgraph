@@ -28,9 +28,7 @@
  */
 package io.github.classgraph;
 
-import java.io.Serial;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
@@ -38,61 +36,23 @@ import java.util.List;
  * A list of named objects.
  *
  * <p>
- * Lists returned by the ClassGraph API are unmodifiable: any attempt to add, remove, replace or sort their elements
- * throws {@link UnsupportedOperationException}. Copy the list if you need a modifiable version of it, e.g.
- * {@code new ArrayList<>(list)}.
- *
- * <p>
- * A list of this type cannot be serialized, even though it extends {@link ArrayList}: the objects it holds do not
- * implement {@link java.io.Serializable Serializable}, so writing a non-empty list to an
- * {@link java.io.ObjectOutputStream ObjectOutputStream} throws {@link java.io.NotSerializableException
- * NotSerializableException}.
+ * Lists returned by the ClassGraph API are unmodifiable: their elements are fixed when the list is created, and
+ * every method that would add, remove, replace or sort an element throws {@link UnsupportedOperationException}.
+ * Copy the list if you need a modifiable version of it, e.g. {@code new ArrayList<>(list)}.
  *
  * @param <T>
  *            the element type
  */
-public class InfoList<T extends HasName> extends PotentiallyUnmodifiableList<T> {
-    /** serialVersionUID. */
-    @Serial
-    private static final long serialVersionUID = 1L;
-
+public class InfoList<T extends HasName> extends UnmodifiableList<T> {
     /**
-     * Constructor.
-     */
-    InfoList() {
-        super();
-    }
-
-    /**
-     * Constructor.
+     * Constructor. As in {@link UnmodifiableList#UnmodifiableList(List)}, this list claims the given list rather
+     * than copying it, and the caller is responsible for having sorted it.
      *
-     * @param sizeHint
-     *            the expected number of elements
+     * @param elements
+     *            the elements of the list
      */
-    InfoList(final int sizeHint) {
-        super(sizeHint);
-    }
-
-    /**
-     * Constructor.
-     *
-     * @param infoCollection
-     *            the initial elements.
-     */
-    InfoList(final Collection<T> infoCollection) {
-        super(infoCollection);
-    }
-
-    /**
-     * Constructor.
-     *
-     * @param infoCollection
-     *            the initial elements
-     * @param modifiable
-     *            whether the list may be modified after construction
-     */
-    InfoList(final Collection<T> infoCollection, final boolean modifiable) {
-        super(infoCollection, modifiable);
+    InfoList(final List<T> elements) {
+        super(elements);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -108,9 +68,7 @@ public class InfoList<T extends HasName> extends PotentiallyUnmodifiableList<T> 
         } else {
             final List<String> names = new ArrayList<>(this.size());
             for (final T i : this) {
-                if (i != null) {
-                    names.add(i.getName());
-                }
+                names.add(i.getName());
             }
             return Collections.unmodifiableList(names);
         }
@@ -129,7 +87,7 @@ public class InfoList<T extends HasName> extends PotentiallyUnmodifiableList<T> 
         } else {
             final List<String> toStringVals = new ArrayList<>(this.size());
             for (final T i : this) {
-                toStringVals.add(i == null ? "null" : i.toString());
+                toStringVals.add(i.toString());
             }
             return Collections.unmodifiableList(toStringVals);
         }
@@ -152,10 +110,9 @@ public class InfoList<T extends HasName> extends PotentiallyUnmodifiableList<T> 
         } else {
             final List<String> toStringVals = new ArrayList<>(this.size());
             for (final T i : this) {
-                toStringVals.add(i == null ? "null"
-                        : i instanceof final ScanResultObject scanResultObject
-                                ? scanResultObject.toStringWithSimpleNames()
-                                : i.toString());
+                toStringVals.add(i instanceof final ScanResultObject scanResultObject
+                        ? scanResultObject.toStringWithSimpleNames()
+                        : i.toString());
             }
             return Collections.unmodifiableList(toStringVals);
         }

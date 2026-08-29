@@ -258,7 +258,7 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
         if (!(obj instanceof final ArrayTypeSignature other)) {
             return false;
         }
-        return Objects.equals(this.typeAnnotationInfo, other.typeAnnotationInfo)
+        return Objects.equals(this.typeAnnotations, other.typeAnnotations)
                 && this.nestedType.equals(other.nestedType);
     }
 
@@ -277,13 +277,13 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
 
     @Override
     protected void toStringInternal(final boolean useSimpleNames,
-            final @Nullable AnnotationInfoList annotationsToExclude, final StringBuilder buf) {
+            final @Nullable List<AnnotationInfo> annotationsToExclude, final StringBuilder buf) {
         // Start with innermost array element type
         getElementTypeSignature().toStringInternal(useSimpleNames, annotationsToExclude, buf);
 
         // Append array dimensions
         for (var curr = this;;) {
-            final var typeAnnotations = curr.typeAnnotationInfo;
+            final var typeAnnotations = curr.typeAnnotations;
             if (typeAnnotations != null && !typeAnnotations.isEmpty()) {
                 for (final AnnotationInfo annotationInfo : typeAnnotations) {
                     if (buf.isEmpty() || buf.charAt(buf.length() - 1) != ' ') {
@@ -315,7 +315,7 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
      * @param buf
      *            the buffer to append to
      */
-    void toStringVarArgs(final boolean useSimpleNames, final @Nullable AnnotationInfoList annotationsToExclude,
+    void toStringVarArgs(final boolean useSimpleNames, final @Nullable List<AnnotationInfo> annotationsToExclude,
             final StringBuilder buf) {
         // The rendering of an array type always ends in "[]", since an array has at least one dimension
         toStringInternal(useSimpleNames, annotationsToExclude, buf);

@@ -229,7 +229,7 @@ public class Issue153Test {
             assertThat(
                     classInfo.getFieldInfo("testFieldWithAndWitoutDefault").getAllAnnotationInfo().getAsStrings()) //
                     .containsExactly("@" + AnnotationWithAndWithoutDefaultValue.class.getName()
-                            + "(valueWithoutDefault=\"x\", valueWithDefault=5)");
+                            + "(valueWithDefault=5, valueWithoutDefault=\"x\")");
 
             assertThat(classInfo.getFieldInfo("testFieldWithOnlyDefault").getAllAnnotationInfo().getAsStrings()) //
                     .containsExactly("@" + AnnotationWithOnlyDefaultValue.class.getName() + "(6)");

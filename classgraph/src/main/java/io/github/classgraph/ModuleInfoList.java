@@ -28,9 +28,9 @@
  */
 package io.github.classgraph;
 
-import java.io.Serial;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.Objects;
 import java.util.function.Predicate;
 
@@ -39,15 +39,8 @@ import io.github.classgraph.base.internal.utils.CollectionUtils;
 
 /** A list of {@link ModuleInfo} objects, which can be indexed by module name. */
 public class ModuleInfoList extends MappableInfoList<ModuleInfo> {
-    /** serialVersionUID. */
-    @Serial
-    private static final long serialVersionUID = 1L;
-
     /** An unmodifiable empty {@link ModuleInfoList}. */
-    static final ModuleInfoList EMPTY_LIST = new ModuleInfoList();
-    static {
-        EMPTY_LIST.makeUnmodifiable();
-    }
+    static final ModuleInfoList EMPTY_LIST = new ModuleInfoList(List.of());
 
     /**
      * Return an unmodifiable empty {@link ModuleInfoList}.
@@ -59,33 +52,26 @@ public class ModuleInfoList extends MappableInfoList<ModuleInfo> {
     }
 
     /**
-     * Construct a new modifiable empty list of {@link ModuleInfo} objects.
-     */
-    ModuleInfoList() {
-        super();
-    }
-
-    /**
-     * Construct a new modifiable empty list of {@link ModuleInfo} objects, given a size hint.
-     *
-     * @param sizeHint
-     *            the expected number of elements
-     */
-    ModuleInfoList(final int sizeHint) {
-        super(sizeHint);
-    }
-
-    /**
      * Construct a new unmodifiable {@link ModuleInfoList} from a completed collection of {@link ModuleInfo}
-     * objects. The collection is copied.
+     * objects. The collection is copied, and the modules are sorted by name.
      *
      * @param moduleInfoCollection
      *            the module info collection
      */
     public ModuleInfoList(final Collection<ModuleInfo> moduleInfoCollection) {
-        super(CollectionUtils
-                .sortCopy(Objects.requireNonNull(moduleInfoCollection, "moduleInfoCollection must not be null")),
-                /* modifiable = */ false);
+        this(CollectionUtils
+                .sortCopy(Objects.requireNonNull(moduleInfoCollection, "moduleInfoCollection must not be null")));
+    }
+
+    /**
+     * Constructor. As in {@link InfoList#InfoList(List)}, this list claims the given list, and the caller is
+     * responsible for having sorted it.
+     *
+     * @param moduleInfo
+     *            the elements of the list
+     */
+    ModuleInfoList(final List<ModuleInfo> moduleInfo) {
+        super(moduleInfo);
     }
 
     // -------------------------------------------------------------------------------------------------------------

@@ -28,8 +28,8 @@
  */
 package io.github.classgraph;
 
-import java.io.Serial;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -66,17 +66,10 @@ import org.jspecify.annotations.Nullable;
  */
 public class ClassInfoList extends MappableInfoList<ClassInfo> {
     /** Directly related classes. */
-    // Marked transient because this class extends ArrayList, which is Serializable, so javac requires every field
-    // to be of a serializable type, and Set is not one. Nothing is lost by that: a non-empty list of this type
-    // cannot be serialized anyway, since ClassInfo is not serializable either.
-    private final transient Set<ClassInfo> directlyRelatedClasses;
+    private final Set<ClassInfo> directlyRelatedClasses;
 
     /** Whether to sort by name. */
     private final boolean sortByName;
-
-    /** serialVersionUID. */
-    @Serial
-    private static final long serialVersionUID = 1L;
 
     /** An unmodifiable empty {@link ClassInfoList}. */
     static final ClassInfoList EMPTY_LIST = new ClassInfoList(Set.of(), /* sortByName = */ false);
@@ -102,9 +95,9 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      */
     ClassInfoList(final Set<ClassInfo> reachableClasses, final @Nullable Set<ClassInfo> directlyRelatedClasses,
             final boolean sortByName) {
-        // Sort a copy of the classes before handing them to the superclass constructor, rather than sorting this
-        // list once it has been built, so that a partly-initialized instance is never passed to another method
-        super(sortByName ? CollectionUtils.sortCopy(reachableClasses) : reachableClasses, /* modifiable = */ false);
+        // Build the list of elements here rather than in the superclass constructor, so that the list is sorted
+        // exactly once, and so that a partly-initialized instance is never passed to another method
+        super(sortByName ? CollectionUtils.sortCopy(reachableClasses) : new ArrayList<>(reachableClasses));
         this.sortByName = sortByName;
         if (directlyRelatedClasses == null) {
             // If directlyRelatedClasses was not provided, then every reachable class is directly related, so the
@@ -153,13 +146,16 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      * duplicates when sorting is disabled. Every class is treated as directly related. This is used for a throws
      * clause, where two declared types can resolve to the same {@link ClassInfo} through a type-variable bound.
      *
+     * <p>
+     * As in {@link InfoList#InfoList(List)}, this list claims the given list when it is not sorted here.
+     *
      * @param reachableClasses
      *            the completed list
      * @param sortByName
      *            whether to sort by name
      */
     ClassInfoList(final List<ClassInfo> reachableClasses, final boolean sortByName) {
-        super(sortByName ? CollectionUtils.sortCopy(reachableClasses) : reachableClasses, /* modifiable = */ false);
+        super(sortByName ? CollectionUtils.sortCopy(reachableClasses) : reachableClasses);
         this.sortByName = sortByName;
         directlyRelatedClasses = new LinkedHashSet<>(reachableClasses);
     }

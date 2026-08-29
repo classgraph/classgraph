@@ -300,7 +300,7 @@ public final class TypeArgument extends HierarchicalTypeSignature {
         if (!(obj instanceof final TypeArgument other)) {
             return false;
         }
-        return Objects.equals(this.typeAnnotationInfo, other.typeAnnotationInfo)
+        return Objects.equals(this.typeAnnotations, other.typeAnnotations)
                 && (Objects.equals(this.typeSignature, other.typeSignature) && other.wildcard == this.wildcard);
     }
 
@@ -308,10 +308,10 @@ public final class TypeArgument extends HierarchicalTypeSignature {
 
     @Override
     protected void toStringInternal(final boolean useSimpleNames,
-            final @Nullable AnnotationInfoList annotationsToExclude, final StringBuilder buf) {
-        final var typeAnnotations = typeAnnotationInfo;
-        if (typeAnnotations != null) {
-            for (final AnnotationInfo annotationInfo : typeAnnotations) {
+            final @Nullable List<AnnotationInfo> annotationsToExclude, final StringBuilder buf) {
+        final var typeAnnotationList = typeAnnotations;
+        if (typeAnnotationList != null) {
+            for (final AnnotationInfo annotationInfo : typeAnnotationList) {
                 if (annotationsToExclude == null || !annotationsToExclude.contains(annotationInfo)) {
                     annotationInfo.toString(useSimpleNames, buf);
                     buf.append(' ');

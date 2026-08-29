@@ -85,7 +85,7 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
      */
     FieldInfo(final String definingClassName, final String fieldName, final int modifiers,
             final String typeDescriptorStr, final @Nullable String typeSignatureStr,
-            final @Nullable Object constantInitializerValue, final @Nullable AnnotationInfoList annotationInfo,
+            final @Nullable Object constantInitializerValue, final @Nullable List<AnnotationInfo> annotationInfo,
             final @Nullable List<TypeAnnotationDecorator> typeAnnotationDecorators) {
         super(definingClassName, fieldName, modifiers, typeDescriptorStr, typeSignatureStr, annotationInfo);
         this.constantInitializerValue = constantInitializerValue;
@@ -258,8 +258,8 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
      */
     void handleRepeatableAnnotations(final Set<String> allRepeatableAnnotationNames) {
         if (annotationInfo != null) {
-            annotationInfo.handleRepeatableAnnotations(allRepeatableAnnotationNames, getClassInfo(),
-                    RelType.FIELD_ANNOTATIONS, RelType.CLASSES_WITH_FIELD_ANNOTATION,
+            AnnotationInfoList.handleRepeatableAnnotations(annotationInfo, allRepeatableAnnotationNames,
+                    getClassInfo(), RelType.FIELD_ANNOTATIONS, RelType.CLASSES_WITH_FIELD_ANNOTATION,
                     RelType.CLASSES_WITH_NONPRIVATE_FIELD_ANNOTATION);
         }
     }

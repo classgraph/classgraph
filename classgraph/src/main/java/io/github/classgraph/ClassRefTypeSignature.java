@@ -36,6 +36,7 @@ import java.util.Objects;
 import java.util.Set;
 
 import io.github.classgraph.Classfile.TypePathNode;
+import io.github.classgraph.base.internal.utils.CollectionUtils;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -57,8 +58,11 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
     /** The suffix type arguments. */
     private final List<List<TypeArgument>> suffixTypeArguments;
 
-    /** The suffix type annotations. */
-    private @Nullable List<AnnotationInfoList> suffixTypeAnnotations;
+    /** The suffix type annotations, in the order they were read, one list per suffix. */
+    private @Nullable List<List<AnnotationInfo>> suffixTypeAnnotations;
+
+    /** The value returned by {@link #getSuffixTypeAnnotationInfo()}, or null if it has not been built yet. */
+    private @Nullable List<AnnotationInfoList> suffixTypeAnnotationInfoRef;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -184,14 +188,21 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
      *         or null if none.
      */
     public @Nullable List<AnnotationInfoList> getSuffixTypeAnnotationInfo() {
-        final var typeAnnotations = suffixTypeAnnotations;
-        if (typeAnnotations == null) {
-            return null;
+        synchronized (this) {
+            if (suffixTypeAnnotationInfoRef == null) {
+                final var typeAnnotations = suffixTypeAnnotations;
+                if (typeAnnotations == null) {
+                    return null;
+                }
+                final List<AnnotationInfoList> suffixTypeAnnotationInfo = new ArrayList<>(typeAnnotations.size());
+                for (final List<AnnotationInfo> annotations : typeAnnotations) {
+                    // The order of type annotations in a classfile is not specified, so sort them by name
+                    suffixTypeAnnotationInfo.add(new AnnotationInfoList(CollectionUtils.sortCopy(annotations)));
+                }
+                suffixTypeAnnotationInfoRef = Collections.unmodifiableList(suffixTypeAnnotationInfo);
+            }
+            return suffixTypeAnnotationInfoRef;
         }
-        for (final AnnotationInfoList annotationInfoList : typeAnnotations) {
-            annotationInfoList.makeUnmodifiable();
-        }
-        return Collections.unmodifiableList(typeAnnotations);
     }
 
     /**
@@ -208,7 +219,7 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
         if (typeAnnotations == null) {
             suffixTypeAnnotations = typeAnnotations = new ArrayList<>(suffixes.size());
             for (var i = 0; i < suffixes.size(); i++) {
-                typeAnnotations.add(new AnnotationInfoList(1));
+                typeAnnotations.add(new ArrayList<>(1));
             }
         }
         typeAnnotations.get(suffixIdx).add(annotationInfo);
@@ -346,7 +357,7 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
     @Override
     public int hashCode() {
         return className.hashCode() + 7 * typeArguments.hashCode() + 15 * suffixTypeArguments.hashCode()
-                + 31 * (typeAnnotationInfo == null ? 0 : typeAnnotationInfo.hashCode())
+                + 31 * (typeAnnotations == null ? 0 : typeAnnotations.hashCode())
                 + 64 * (suffixTypeAnnotations == null ? 0 : suffixTypeAnnotations.hashCode());
     }
 
@@ -375,7 +386,7 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
             return false;
         }
         return o.className.equals(this.className) && o.typeArguments.equals(this.typeArguments)
-                && Objects.equals(this.typeAnnotationInfo, o.typeAnnotationInfo) && suffixesMatch(o, this);
+                && Objects.equals(this.typeAnnotations, o.typeAnnotations) && suffixesMatch(o, this);
     }
 
     @Override
@@ -388,7 +399,7 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
         if (!(other instanceof final ClassRefTypeSignature o)) {
             return false;
         }
-        return o.className.equals(this.className) && Objects.equals(this.typeAnnotationInfo, o.typeAnnotationInfo)
+        return o.className.equals(this.className) && Objects.equals(this.typeAnnotations, o.typeAnnotations)
                 && suffixesMatch(o, this);
     }
 
@@ -396,13 +407,13 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
 
     @Override
     protected void toStringInternal(final boolean useSimpleNames,
-            final @Nullable AnnotationInfoList annotationsToExclude, final StringBuilder buf) {
+            final @Nullable List<AnnotationInfo> annotationsToExclude, final StringBuilder buf) {
         // Only render the base class if not using simple names, or if there are no suffixes
         if (!useSimpleNames || suffixes.isEmpty()) {
             // Append type annotations
-            final var typeAnnotations = typeAnnotationInfo;
-            if (typeAnnotations != null) {
-                for (final AnnotationInfo annotationInfo : typeAnnotations) {
+            final var typeAnnotationList = typeAnnotations;
+            if (typeAnnotationList != null) {
+                for (final AnnotationInfo annotationInfo : typeAnnotationList) {
                     if (annotationsToExclude == null || !annotationsToExclude.contains(annotationInfo)) {
                         annotationInfo.toString(useSimpleNames, buf);
                         buf.append(' ');

@@ -28,11 +28,9 @@
  */
 package io.github.classgraph;
 
-import static io.github.classgraph.PotentiallyUnmodifiableList.unmodifiable;
-
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
-import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
 
 import org.jspecify.annotations.Nullable;
@@ -205,10 +203,8 @@ public class MethodParameterInfo implements HasAnnotations {
         if (annotationInfo == null || annotationInfo.length == 0) {
             return AnnotationInfoList.EMPTY_LIST;
         } else {
-            final AnnotationInfoList annotationInfoList = new AnnotationInfoList(annotationInfo.length);
-            Collections.addAll(annotationInfoList, annotationInfo);
-            return unmodifiable(
-                    AnnotationInfoList.getIndirectAnnotations(annotationInfoList, /* annotatedClass = */ null));
+            return AnnotationInfoList.getIndirectAnnotations(Arrays.asList(annotationInfo),
+                    /* annotatedClass = */ null);
         }
     }
 
@@ -317,12 +313,11 @@ public class MethodParameterInfo implements HasAnnotations {
     protected void toString(final boolean useSimpleNames, final StringBuilder buf) {
         // Exclude the parameter annotations from the type annotations at the toplevel of the type signature, so
         // that a TYPE_USE annotation on the parameter is not listed twice
-        final AnnotationInfoList annotationsToExclude;
+        final List<AnnotationInfo> annotationsToExclude;
         if (annotationInfo == null || annotationInfo.length == 0) {
             annotationsToExclude = null;
         } else {
-            annotationsToExclude = new AnnotationInfoList(annotationInfo.length);
-            annotationsToExclude.addAll(Arrays.asList(annotationInfo));
+            annotationsToExclude = Arrays.asList(annotationInfo);
             for (final AnnotationInfo anAnnotationInfo : annotationInfo) {
                 anAnnotationInfo.toString(useSimpleNames, buf);
                 buf.append(' ');

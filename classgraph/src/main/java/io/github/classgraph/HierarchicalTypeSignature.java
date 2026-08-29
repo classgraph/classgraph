@@ -28,11 +28,11 @@
  */
 package io.github.classgraph;
 
-import static io.github.classgraph.PotentiallyUnmodifiableList.unmodifiable;
-
+import java.util.ArrayList;
 import java.util.List;
 
 import io.github.classgraph.Classfile.TypePathNode;
+import io.github.classgraph.base.internal.utils.CollectionUtils;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -41,9 +41,12 @@ import org.jspecify.annotations.Nullable;
  * {@link TypeParameter} and {@link TypeArgument}.
  */
 public abstract class HierarchicalTypeSignature extends ScanResultObject {
-    /** The type annotations on this type, or null if none. */
+    /** The type annotations on this type, in the order they were read, or null if none. */
     @Nullable
-    AnnotationInfoList typeAnnotationInfo;
+    List<AnnotationInfo> typeAnnotations;
+
+    /** The value returned by {@link #getTypeAnnotationInfo()}, or null if it has not been built yet. */
+    private @Nullable AnnotationInfoList typeAnnotationInfoRef;
 
     /** A hierarchical type signature. */
     HierarchicalTypeSignature() {
@@ -57,23 +60,23 @@ public abstract class HierarchicalTypeSignature extends ScanResultObject {
      *            the annotation
      */
     void addTypeAnnotation(final AnnotationInfo annotationInfo) {
-        var typeAnnotations = typeAnnotationInfo;
-        if (typeAnnotations == null) {
-            typeAnnotationInfo = typeAnnotations = new AnnotationInfoList(1);
+        var typeAnnotationList = typeAnnotations;
+        if (typeAnnotationList == null) {
+            typeAnnotations = typeAnnotationList = new ArrayList<>(1);
         }
         // Type annotations are applied by a decorator that runs when the type signature is first requested, which
         // is after the signature has been given its ScanResult, so the annotation has to be given the ScanResult
         // here rather than by setScanResult
         annotationInfo.setScanResult(scanResult);
-        typeAnnotations.add(annotationInfo);
+        typeAnnotationList.add(annotationInfo);
     }
 
     @Override
     void setScanResult(final @Nullable ScanResult scanResult) {
         super.setScanResult(scanResult);
-        final var typeAnnotations = typeAnnotationInfo;
-        if (typeAnnotations != null) {
-            for (final AnnotationInfo annotationInfo : typeAnnotations) {
+        final var typeAnnotationList = typeAnnotations;
+        if (typeAnnotationList != null) {
+            for (final AnnotationInfo annotationInfo : typeAnnotationList) {
                 annotationInfo.setScanResult(scanResult);
             }
         }
@@ -85,7 +88,17 @@ public abstract class HierarchicalTypeSignature extends ScanResultObject {
      * @return a list of {@link AnnotationInfo} objects for any type annotations on this type, or null if none.
      */
     public @Nullable AnnotationInfoList getTypeAnnotationInfo() {
-        return typeAnnotationInfo == null ? null : unmodifiable(typeAnnotationInfo);
+        synchronized (this) {
+            if (typeAnnotationInfoRef == null) {
+                final var typeAnnotationList = typeAnnotations;
+                if (typeAnnotationList == null) {
+                    return null;
+                }
+                // The order of type annotations in a classfile is not specified, so sort them by name
+                typeAnnotationInfoRef = new AnnotationInfoList(CollectionUtils.sortCopy(typeAnnotationList));
+            }
+            return typeAnnotationInfoRef;
+        }
     }
 
     /**
@@ -110,7 +123,7 @@ public abstract class HierarchicalTypeSignature extends ScanResultObject {
      *            the buffer to append to
      */
     protected abstract void toStringInternal(final boolean useSimpleNames,
-            @Nullable AnnotationInfoList annotationsToExclude, StringBuilder buf);
+            @Nullable List<AnnotationInfo> annotationsToExclude, StringBuilder buf);
 
     /**
      * Render type signature to string.

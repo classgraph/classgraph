@@ -130,7 +130,7 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
      *            exceptions thrown by this method.
      */
     MethodInfo(final String definingClassName, final String methodName,
-            final @Nullable AnnotationInfoList methodAnnotationInfo, final int modifiers,
+            final @Nullable List<AnnotationInfo> methodAnnotationInfo, final int modifiers,
             final String typeDescriptorStr, final @Nullable String typeSignatureStr,
             final @Nullable String @Nullable [] parameterNames, final int @Nullable [] parameterModifiers,
             final AnnotationInfo @Nullable [][] parameterAnnotationInfo, final boolean hasBody,
@@ -743,8 +743,8 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
      */
     void handleRepeatableAnnotations(final Set<String> allRepeatableAnnotationNames) {
         if (annotationInfo != null) {
-            annotationInfo.handleRepeatableAnnotations(allRepeatableAnnotationNames, getClassInfo(),
-                    RelType.METHOD_ANNOTATIONS, RelType.CLASSES_WITH_METHOD_ANNOTATION,
+            AnnotationInfoList.handleRepeatableAnnotations(annotationInfo, allRepeatableAnnotationNames,
+                    getClassInfo(), RelType.METHOD_ANNOTATIONS, RelType.CLASSES_WITH_METHOD_ANNOTATION,
                     RelType.CLASSES_WITH_NONPRIVATE_METHOD_ANNOTATION);
         }
         if (parameterAnnotationInfo != null) {
@@ -759,10 +759,9 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
                         }
                     }
                     if (hasRepeatableAnnotation) {
-                        final var aiList = new AnnotationInfoList(pai.length);
-                        aiList.addAll(Arrays.asList(pai));
-                        aiList.handleRepeatableAnnotations(allRepeatableAnnotationNames, getClassInfo(),
-                                RelType.METHOD_PARAMETER_ANNOTATIONS,
+                        final List<AnnotationInfo> aiList = new ArrayList<>(Arrays.asList(pai));
+                        AnnotationInfoList.handleRepeatableAnnotations(aiList, allRepeatableAnnotationNames,
+                                getClassInfo(), RelType.METHOD_PARAMETER_ANNOTATIONS,
                                 RelType.CLASSES_WITH_METHOD_PARAMETER_ANNOTATION,
                                 RelType.CLASSES_WITH_NONPRIVATE_METHOD_PARAMETER_ANNOTATION);
                         parameterAnnotationInfo[i] = aiList.toArray(AnnotationInfo[]::new);
@@ -1029,12 +1028,11 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
             if (paramTypeSignature != null) {
                 // Exclude parameter annotations from type annotations at toplevel of type signature, so that
                 // annotation is not listed twice
-                final AnnotationInfoList annotationsToExclude;
+                final List<AnnotationInfo> annotationsToExclude;
                 if (paramInfo.annotationInfo == null || paramInfo.annotationInfo.length == 0) {
                     annotationsToExclude = null;
                 } else {
-                    annotationsToExclude = new AnnotationInfoList(paramInfo.annotationInfo.length);
-                    annotationsToExclude.addAll(Arrays.asList(paramInfo.annotationInfo));
+                    annotationsToExclude = Arrays.asList(paramInfo.annotationInfo);
                 }
                 // The variadic parameter of a variadic method has an array type, but is shown as "T..." not "T[]"
                 if (i == varArgsParamIndex && paramTypeSignature instanceof final ArrayTypeSignature arrayType) {

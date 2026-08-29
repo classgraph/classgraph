@@ -358,7 +358,7 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
      */
     @Override
     protected void toStringInternal(final boolean useSimpleNames,
-            final @Nullable AnnotationInfoList annotationsToExclude, final StringBuilder buf) {
+            final @Nullable List<AnnotationInfo> annotationsToExclude, final StringBuilder buf) {
         appendClassDeclaration(useSimpleNames, buf);
     }
 

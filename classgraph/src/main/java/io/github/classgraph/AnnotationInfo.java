@@ -28,10 +28,10 @@
  */
 package io.github.classgraph;
 
-import static io.github.classgraph.PotentiallyUnmodifiableList.unmodifiable;
-
 import java.lang.annotation.Inherited;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -130,7 +130,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
         }
         // Lazily convert any Object[] arrays of boxed types to primitive arrays
         if (paramValues != null && !annotationParamValuesHasBeenConvertedToPrimitive) {
-            paramValues.convertWrapperArraysToPrimitiveArrays(classInfo);
+            AnnotationParameterValueList.convertWrapperArraysToPrimitiveArrays(paramValues, classInfo);
             annotationParamValuesHasBeenConvertedToPrimitive = true;
         }
         if (!includeDefaultValues) {
@@ -140,7 +140,8 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
         if (annotationParamValuesWithDefaults == null) {
             if (classInfo.annotationDefaultParamValues != null
                     && !classInfo.annotationDefaultParamValuesHasBeenConvertedToPrimitive) {
-                classInfo.annotationDefaultParamValues.convertWrapperArraysToPrimitiveArrays(classInfo);
+                AnnotationParameterValueList
+                        .convertWrapperArraysToPrimitiveArrays(classInfo.annotationDefaultParamValues, classInfo);
                 classInfo.annotationDefaultParamValuesHasBeenConvertedToPrimitive = true;
             }
 
@@ -168,8 +169,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
                 // scanSpec.enableMethodInfo is true)
                 throw new IllegalStateException("Could not find methods for annotation " + classInfo.getName());
             }
-            final var withDefaults = new AnnotationParameterValueList();
-            annotationParamValuesWithDefaults = withDefaults;
+            final List<AnnotationParameterValue> withDefaults = new ArrayList<>();
             for (final MethodInfo mi : classInfo.methodInfo) {
                 final var paramName = mi.getName();
                 switch (paramName) {
@@ -189,6 +189,8 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
                 }
                 }
             }
+            // The methods of a class are sorted by name, so the parameter values are already in name order
+            annotationParamValuesWithDefaults = new AnnotationParameterValueList(withDefaults);
         }
         return Objects.requireNonNull(annotationParamValuesWithDefaults);
     }
@@ -201,7 +203,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
      *         annotation class definition, or the empty list if none.
      */
     public AnnotationParameterValueList getParameterValues() {
-        return unmodifiable(getParameterValues(/* includeDefaultValues = */ true));
+        return getParameterValues(/* includeDefaultValues = */ true);
     }
 
     /**
@@ -212,7 +214,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
      * @return The parameter values given explicitly at the annotation use site, or the empty list if none.
      */
     public AnnotationParameterValueList getDeclaredParameterValues() {
-        return unmodifiable(getParameterValues(/* includeDefaultValues = */ false));
+        return getParameterValues(/* includeDefaultValues = */ false);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -277,7 +279,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
     void convertWrapperArraysToPrimitiveArrays() {
         final var paramValues = annotationParamValues;
         if (paramValues != null) {
-            paramValues.convertWrapperArraysToPrimitiveArrays(getClassInfo());
+            AnnotationParameterValueList.convertWrapperArraysToPrimitiveArrays(paramValues, getClassInfo());
         }
     }
 

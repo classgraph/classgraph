@@ -131,11 +131,10 @@ public class DeclaredVsNonDeclaredTest {
             assertThat(B.getFieldInfo("z").getClassInfo().getName()).isEqualTo(A.class.getName());
             assertThat(A.getFieldInfo().get(0).getTypeDescriptor().toString()).isEqualTo("float");
             assertThat(B.getFieldInfo().get(0).getTypeDescriptor().toString()).isEqualTo("int");
-            assertThat(B.getMethodInfo().toString())
-                    .isEqualTo("[void y(final int x, final int y), void w(), abstract void y(java.lang.String x), "
-                            + "abstract void y(java.lang.Integer x)]");
+            assertThat(B.getMethodInfo().toString()).isEqualTo("[void w(), void y(final int x, final int y), "
+                    + "abstract void y(java.lang.Integer x), abstract void y(java.lang.String x)]");
             assertThat(B.getDeclaredMethodInfo().toString())
-                    .isEqualTo("[void y(final int x, final int y), void w()]");
+                    .isEqualTo("[void w(), void y(final int x, final int y)]");
         }
     }
 

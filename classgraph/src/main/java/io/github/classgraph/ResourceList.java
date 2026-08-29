@@ -30,7 +30,6 @@ package io.github.classgraph;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.Serial;
 import java.net.URI;
 import java.net.URL;
 import java.nio.ByteBuffer;
@@ -54,26 +53,13 @@ import io.github.classgraph.base.internal.utils.CollectionUtils;
  * {@link Resource} in the list, releasing any open file handles or memory mappings.
  *
  * <p>
- * Lists returned by the ClassGraph API are unmodifiable: any attempt to add, remove, replace or sort their elements
- * throws {@link UnsupportedOperationException}. Copy the list if you need a modifiable version of it, e.g.
- * {@code new ArrayList<>(list)}.
- *
- * <p>
- * A {@link ResourceList} cannot be serialized, even though it extends {@link ArrayList}: {@link Resource} does not
- * implement {@link java.io.Serializable Serializable}, so writing a non-empty list to an
- * {@link java.io.ObjectOutputStream ObjectOutputStream} throws {@link java.io.NotSerializableException
- * NotSerializableException}.
+ * Lists returned by the ClassGraph API are unmodifiable: their elements are fixed when the list is created, and
+ * every method that would add, remove, replace or sort an element throws {@link UnsupportedOperationException}.
+ * Copy the list if you need a modifiable version of it, e.g. {@code new ArrayList<>(list)}.
  */
-public class ResourceList extends PotentiallyUnmodifiableList<Resource> implements AutoCloseable {
-    /** serialVersionUID. */
-    @Serial
-    private static final long serialVersionUID = 1L;
-
+public class ResourceList extends UnmodifiableList<Resource> implements AutoCloseable {
     /** An unmodifiable empty {@link ResourceList}. */
-    static final ResourceList EMPTY_LIST = new ResourceList();
-    static {
-        EMPTY_LIST.makeUnmodifiable();
-    }
+    static final ResourceList EMPTY_LIST = new ResourceList(List.of());
 
     /**
      * Return an unmodifiable empty {@link ResourceList}.
@@ -85,23 +71,6 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
     }
 
     /**
-     * Create a new modifiable empty list of {@link Resource} objects.
-     */
-    ResourceList() {
-        super();
-    }
-
-    /**
-     * Create a new modifiable empty list of {@link Resource} objects, given a size hint.
-     *
-     * @param sizeHint
-     *            the expected number of elements
-     */
-    ResourceList(final int sizeHint) {
-        super(sizeHint);
-    }
-
-    /**
      * Create a new unmodifiable {@link ResourceList} from a completed collection of {@link Resource} objects. The
      * collection is copied.
      *
@@ -109,10 +78,20 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
      *            the collection of {@link Resource} objects.
      */
     public ResourceList(final Collection<Resource> resourceCollection) {
-        // Objects.requireNonNull rather than Assert.notNull, since Assert.notNull returns void, and so cannot be
-        // called before the super() call
-        super(Objects.requireNonNull(resourceCollection, "resourceCollection must not be null"),
-                /* modifiable = */ false);
+        // Copy the caller's collection, since the caller may modify it after this constructor returns
+        this(new ArrayList<>(Objects.requireNonNull(resourceCollection, "resourceCollection must not be null")));
+    }
+
+    /**
+     * Constructor. This list claims the given list rather than copying it, so the caller must not use the list
+     * again after handing it over. Resources are listed in the order they were found on the classpath and module
+     * path, so unlike an {@link InfoList}, a {@link ResourceList} is never sorted.
+     *
+     * @param resources
+     *            the elements of the list
+     */
+    ResourceList(final List<Resource> resources) {
+        super(resources);
     }
 
     /**
@@ -139,13 +118,13 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
         if (!hasResourceWithPath) {
             return EMPTY_LIST;
         } else {
-            final var matchingResources = new ResourceList(2);
+            final List<Resource> matchingResources = new ArrayList<>(2);
             for (final Resource res : this) {
                 if (res.getPath().equals(resourcePath)) {
                     matchingResources.add(res);
                 }
             }
-            return unmodifiable(matchingResources);
+            return new ResourceList(matchingResources);
         }
     }
 
@@ -243,12 +222,13 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
      *         map value lists the resources with that path in the order they appear in this list.
      */
     public Map<String, ResourceList> asMap() {
-        final Map<String, ResourceList> pathToResourceList = new TreeMap<>();
+        final Map<String, List<Resource>> pathToResources = new TreeMap<>();
         for (final Resource resource : this) {
-            pathToResourceList.computeIfAbsent(resource.getPath(), path -> new ResourceList(1)).add(resource);
+            pathToResources.computeIfAbsent(resource.getPath(), path -> new ArrayList<>(1)).add(resource);
         }
-        for (final ResourceList resourceList : pathToResourceList.values()) {
-            resourceList.makeUnmodifiable();
+        final Map<String, ResourceList> pathToResourceList = new TreeMap<>();
+        for (final Map.Entry<String, List<Resource>> ent : pathToResources.entrySet()) {
+            pathToResourceList.put(ent.getKey(), new ResourceList(ent.getValue()));
         }
         return Collections.unmodifiableMap(pathToResourceList);
     }
@@ -286,13 +266,13 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
      */
     public ResourceList filter(final Predicate<Resource> filter) {
         Assert.notNull(filter, "filter");
-        final var resourcesFiltered = new ResourceList();
+        final List<Resource> resourcesFiltered = new ArrayList<>();
         for (final Resource resource : this) {
             if (filter.test(resource)) {
                 resourcesFiltered.add(resource);
             }
         }
-        return unmodifiable(resourcesFiltered);
+        return new ResourceList(resourcesFiltered);
     }
 
     // -------------------------------------------------------------------------------------------------------------

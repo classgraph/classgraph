@@ -28,9 +28,9 @@
  */
 package io.github.classgraph;
 
-import java.io.Serial;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -38,19 +38,13 @@ import java.util.function.Predicate;
 
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.utils.Assert;
+import io.github.classgraph.base.internal.utils.CollectionUtils;
 import org.jspecify.annotations.Nullable;
 
 /** A list of {@link FieldInfo} objects, which can be indexed by field name. */
 public class FieldInfoList extends MappableInfoList<FieldInfo> {
-    /** serialVersionUID. */
-    @Serial
-    private static final long serialVersionUID = 1L;
-
     /** An unmodifiable empty {@link FieldInfoList}. */
-    static final FieldInfoList EMPTY_LIST = new FieldInfoList();
-    static {
-        EMPTY_LIST.makeUnmodifiable();
-    }
+    static final FieldInfoList EMPTY_LIST = new FieldInfoList(List.of());
 
     /**
      * Return an unmodifiable empty {@link FieldInfoList}.
@@ -62,32 +56,26 @@ public class FieldInfoList extends MappableInfoList<FieldInfo> {
     }
 
     /**
-     * Construct a new modifiable empty list of {@link FieldInfo} objects.
-     */
-    FieldInfoList() {
-        super();
-    }
-
-    /**
-     * Construct a new modifiable empty list of {@link FieldInfo} objects, given a size hint.
-     *
-     * @param sizeHint
-     *            the expected number of elements
-     */
-    FieldInfoList(final int sizeHint) {
-        super(sizeHint);
-    }
-
-    /**
      * Construct a new unmodifiable {@link FieldInfoList} from a completed collection of {@link FieldInfo} objects.
-     * The collection is copied.
+     * The collection is copied, and the fields are sorted by name.
      *
      * @param fieldInfoCollection
      *            the collection of {@link FieldInfo} objects.
      */
     public FieldInfoList(final Collection<FieldInfo> fieldInfoCollection) {
-        super(Objects.requireNonNull(fieldInfoCollection, "fieldInfoCollection must not be null"),
-                /* modifiable = */ false);
+        this(CollectionUtils
+                .sortCopy(Objects.requireNonNull(fieldInfoCollection, "fieldInfoCollection must not be null")));
+    }
+
+    /**
+     * Constructor. As in {@link InfoList#InfoList(List)}, this list claims the given list, and the caller is
+     * responsible for having sorted it.
+     *
+     * @param fieldInfo
+     *            the elements of the list
+     */
+    FieldInfoList(final List<FieldInfo> fieldInfo) {
+        super(fieldInfo);
     }
 
     // -------------------------------------------------------------------------------------------------------------

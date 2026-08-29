@@ -28,8 +28,6 @@
  */
 package io.github.classgraph;
 
-import static io.github.classgraph.PotentiallyUnmodifiableList.unmodifiable;
-
 import java.io.File;
 import java.lang.annotation.Annotation;
 import java.lang.module.ModuleReference;
@@ -228,10 +226,11 @@ public final class ScanResult implements AutoCloseable {
         final Set<String> allRepeatableAnnotationNames = new HashSet<>();
         for (final ClassInfo classInfo : classNameToClassInfo.values()) {
             if (classInfo.isAnnotation() && classInfo.annotationInfo != null) {
-                final var repeatableMetaAnnotation = classInfo.annotationInfo
-                        .get("java.lang.annotation.Repeatable");
-                if (repeatableMetaAnnotation != null) {
-                    final var vals = repeatableMetaAnnotation.getParameterValues();
+                for (final AnnotationInfo metaAnnotation : classInfo.annotationInfo) {
+                    if (!metaAnnotation.getName().equals("java.lang.annotation.Repeatable")) {
+                        continue;
+                    }
+                    final var vals = metaAnnotation.getParameterValues();
                     if (!vals.isEmpty()) {
                         final var val = vals.getValue("value");
                         if (val instanceof final AnnotationClassRef classRef) {
@@ -281,9 +280,8 @@ public final class ScanResult implements AutoCloseable {
                 final Set<ClassInfo> refdClassesFiltered = new HashSet<>();
                 for (final ClassInfo refdClassInfo : ci.findReferencedClassInfo(log)) {
                     // Don't add self-references, or references to Object
-                    if (refdClassInfo != null && !ci.equals(refdClassInfo)
-                            && !"java.lang.Object".equals(refdClassInfo.getName())
-                            // Only add class to result if it is accepted, or external classes are enabled
+                    if (!ci.equals(refdClassInfo) && !"java.lang.Object".equals(refdClassInfo.getName())
+                    // Only add class to result if it is accepted, or external classes are enabled
                             && (!refdClassInfo.isExternalClass() || scanSpec.enableExternalClasses)) {
                         refdClassInfo.setScanResult(this);
                         refdClassesFiltered.add(refdClassInfo);
@@ -632,13 +630,12 @@ public final class ScanResult implements AutoCloseable {
             var allAcceptedResources = allAcceptedResourcesCached;
             if (allAcceptedResources == null) {
                 // Index Resource objects by path
-                final var acceptedResourcesList = new ResourceList();
+                final List<Resource> acceptedResourcesList = new ArrayList<>();
                 for (final ClasspathElement classpathElt : classpathOrder()) {
                     acceptedResourcesList.addAll(classpathElt.acceptedResources);
                 }
-                acceptedResourcesList.makeUnmodifiable();
                 // Set atomically for thread safety
-                allAcceptedResourcesCached = allAcceptedResources = acceptedResourcesList;
+                allAcceptedResourcesCached = allAcceptedResources = new ResourceList(acceptedResourcesList);
             }
             return allAcceptedResources;
         }
@@ -659,12 +656,13 @@ public final class ScanResult implements AutoCloseable {
         synchronized (this) {
             var pathToAcceptedResources = pathToAcceptedResourcesCached;
             if (pathToAcceptedResources == null) {
-                final Map<String, ResourceList> pathToAcceptedResourceListMap = new TreeMap<>();
+                final Map<String, List<Resource>> pathToResources = new TreeMap<>();
                 for (final Resource res : getAllResources()) {
-                    pathToAcceptedResourceListMap.computeIfAbsent(res.getPath(), k -> new ResourceList()).add(res);
+                    pathToResources.computeIfAbsent(res.getPath(), k -> new ArrayList<>(1)).add(res);
                 }
-                for (final ResourceList resourceList : pathToAcceptedResourceListMap.values()) {
-                    resourceList.makeUnmodifiable();
+                final Map<String, ResourceList> pathToAcceptedResourceListMap = new TreeMap<>();
+                for (final Entry<String, List<Resource>> ent : pathToResources.entrySet()) {
+                    pathToAcceptedResourceListMap.put(ent.getKey(), new ResourceList(ent.getValue()));
                 }
                 // Set atomically for thread safety
                 pathToAcceptedResourcesCached = pathToAcceptedResources = pathToAcceptedResourceListMap;
@@ -689,24 +687,21 @@ public final class ScanResult implements AutoCloseable {
         Assert.notNull(resourcePath, "resourcePath");
         final var path = PathSyntax.sanitizeEntryPath(resourcePath, /* removeInitialSlash = */ true,
                 /* removeFinalSlash = */ true);
-        ResourceList matchingResources = null;
         if (getResourcesWithPathCallCount.incrementAndGet() > 3) {
             // If numerous calls are made, produce and cache a single HashMap for O(1) access time
-            matchingResources = getAllResourcesAsMap().get(path);
-        } else {
-            // If just a few calls are made, directly search for resource with the requested path
-            for (final ClasspathElement classpathElt : classpathOrder()) {
-                for (final Resource res : classpathElt.acceptedResources) {
-                    if (res.getPath().equals(path)) {
-                        if (matchingResources == null) {
-                            matchingResources = new ResourceList();
-                        }
-                        matchingResources.add(res);
-                    }
+            final var matchingResources = getAllResourcesAsMap().get(path);
+            return matchingResources == null ? ResourceList.EMPTY_LIST : matchingResources;
+        }
+        // If just a few calls are made, directly search for resource with the requested path
+        final List<Resource> matchingResources = new ArrayList<>(1);
+        for (final ClasspathElement classpathElt : classpathOrder()) {
+            for (final Resource res : classpathElt.acceptedResources) {
+                if (res.getPath().equals(path)) {
+                    matchingResources.add(res);
                 }
             }
         }
-        return matchingResources == null ? ResourceList.EMPTY_LIST : unmodifiable(matchingResources);
+        return matchingResources.isEmpty() ? ResourceList.EMPTY_LIST : new ResourceList(matchingResources);
     }
 
     /**
@@ -734,14 +729,14 @@ public final class ScanResult implements AutoCloseable {
         Assert.notNull(resourcePath, "resourcePath");
         final var path = PathSyntax.sanitizeEntryPath(resourcePath, /* removeInitialSlash = */ true,
                 /* removeFinalSlash = */ true);
-        final var matchingResources = new ResourceList();
+        final List<Resource> matchingResources = new ArrayList<>();
         for (final ClasspathElement classpathElt : classpathOrder()) {
             final var matchingResource = classpathElt.getResource(path);
             if (matchingResource != null) {
                 matchingResources.add(matchingResource);
             }
         }
-        return unmodifiable(matchingResources);
+        return new ResourceList(matchingResources);
     }
 
     /**
@@ -760,7 +755,7 @@ public final class ScanResult implements AutoCloseable {
         if (allAcceptedResources.isEmpty()) {
             return ResourceList.EMPTY_LIST;
         } else {
-            final var filteredResources = new ResourceList();
+            final List<Resource> filteredResources = new ArrayList<>();
             for (final Resource classpathResource : allAcceptedResources) {
                 final var relativePath = classpathResource.getPath();
                 final var lastSlashIdx = relativePath.lastIndexOf('/');
@@ -768,7 +763,8 @@ public final class ScanResult implements AutoCloseable {
                     filteredResources.add(classpathResource);
                 }
             }
-            return unmodifiable(filteredResources);
+            // Filtering preserves classpath order, which is the order of a ResourceList
+            return new ResourceList(filteredResources);
         }
     }
 
@@ -792,7 +788,7 @@ public final class ScanResult implements AutoCloseable {
             while (bareExtension.startsWith(".")) {
                 bareExtension = bareExtension.substring(1);
             }
-            final var filteredResources = new ResourceList();
+            final List<Resource> filteredResources = new ArrayList<>();
             for (final Resource classpathResource : allAcceptedResources) {
                 final var relativePath = classpathResource.getPath();
                 final var lastSlashIdx = relativePath.lastIndexOf('/');
@@ -802,7 +798,8 @@ public final class ScanResult implements AutoCloseable {
                     filteredResources.add(classpathResource);
                 }
             }
-            return unmodifiable(filteredResources);
+            // Filtering preserves classpath order, which is the order of a ResourceList
+            return new ResourceList(filteredResources);
         }
     }
 
@@ -823,14 +820,15 @@ public final class ScanResult implements AutoCloseable {
         if (allAcceptedResources.isEmpty()) {
             return ResourceList.EMPTY_LIST;
         } else {
-            final var filteredResources = new ResourceList();
+            final List<Resource> filteredResources = new ArrayList<>();
             for (final Resource classpathResource : allAcceptedResources) {
                 final var relativePath = classpathResource.getPath();
                 if (pattern.matcher(relativePath).matches()) {
                     filteredResources.add(classpathResource);
                 }
             }
-            return unmodifiable(filteredResources);
+            // Filtering preserves classpath order, which is the order of a ResourceList
+            return new ResourceList(filteredResources);
         }
     }
 

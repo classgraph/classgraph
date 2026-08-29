@@ -223,7 +223,7 @@ public class BaseTypeSignature extends TypeSignature {
         if (!(obj instanceof final BaseTypeSignature other)) {
             return false;
         }
-        return Objects.equals(this.typeAnnotationInfo, other.typeAnnotationInfo)
+        return Objects.equals(this.typeAnnotations, other.typeAnnotations)
                 && other.typeSignatureChar == this.typeSignatureChar;
     }
 
@@ -239,9 +239,9 @@ public class BaseTypeSignature extends TypeSignature {
 
     @Override
     protected void toStringInternal(final boolean useSimpleNames,
-            final @Nullable AnnotationInfoList annotationsToExclude, final StringBuilder buf) {
-        if (typeAnnotationInfo != null) {
-            for (final AnnotationInfo annotationInfo : typeAnnotationInfo) {
+            final @Nullable List<AnnotationInfo> annotationsToExclude, final StringBuilder buf) {
+        if (typeAnnotations != null) {
+            for (final AnnotationInfo annotationInfo : typeAnnotations) {
                 if (annotationsToExclude == null || !annotationsToExclude.contains(annotationInfo)) {
                     annotationInfo.toString(useSimpleNames, buf);
                     buf.append(' ');

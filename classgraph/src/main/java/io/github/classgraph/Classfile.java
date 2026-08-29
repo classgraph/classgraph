@@ -117,7 +117,7 @@ class Classfile {
     private @Nullable List<String> implementedInterfaces;
 
     /** The class annotations. */
-    private @Nullable AnnotationInfoList classAnnotations;
+    private @Nullable List<AnnotationInfo> classAnnotations;
 
     /** The fully qualified name of the defining method. */
     private @Nullable String fullyQualifiedDefiningMethodName;
@@ -126,16 +126,16 @@ class Classfile {
     private @Nullable List<ClassContainment> classContainmentEntries;
 
     /** Annotation default parameter values. */
-    private @Nullable AnnotationParameterValueList annotationParamDefaultValues;
+    private @Nullable List<AnnotationParameterValue> annotationParamDefaultValues;
 
     /** Referenced class names. */
     private @Nullable Set<String> refdClassNames;
 
     /** The field info list. */
-    private @Nullable FieldInfoList fieldInfoList;
+    private @Nullable List<FieldInfo> fieldInfoList;
 
     /** The method info list. */
-    private @Nullable MethodInfoList methodInfoList;
+    private @Nullable List<MethodInfo> methodInfoList;
 
     /** The type signature. */
     private @Nullable String typeSignatureStr;
@@ -1039,13 +1039,16 @@ class Classfile {
         final var numElementValuePairs = reader().readUnsignedShort();
         AnnotationParameterValueList paramVals = null;
         if (numElementValuePairs > 0) {
-            paramVals = new AnnotationParameterValueList(numElementValuePairs);
+            final List<AnnotationParameterValue> paramValList = new ArrayList<>(numElementValuePairs);
             for (var i = 0; i < numElementValuePairs; i++) {
                 final var paramName = requireConstantPoolString(getConstantPoolString(reader().readUnsignedShort()),
                         "annotation parameter name");
                 final var paramValue = readAnnotationElementValue();
-                paramVals.add(new AnnotationParameterValue(paramName, paramValue));
+                paramValList.add(new AnnotationParameterValue(paramName, paramValue));
             }
+            // The order of the elements of an annotation in a classfile is not specified, so sort them by name
+            CollectionUtils.sortIfNotEmpty(paramValList);
+            paramVals = new AnnotationParameterValueList(paramValList);
         }
         return new AnnotationInfo(annotationClassName, paramVals);
     }
@@ -1287,13 +1290,13 @@ class Classfile {
      * @throws IOException
      *             if an I/O exception occurs.
      */
-    private @Nullable AnnotationInfoList readAnnotations(final @Nullable AnnotationInfoList annotationInfoList)
+    private @Nullable List<AnnotationInfo> readAnnotations(final @Nullable List<AnnotationInfo> annotationInfoList)
             throws IOException {
         final var annotationCount = reader().readUnsignedShort();
         if (annotationCount == 0) {
             return annotationInfoList;
         }
-        final var annotations = annotationInfoList == null ? new AnnotationInfoList(annotationCount)
+        final var annotations = annotationInfoList == null ? new ArrayList<AnnotationInfo>(annotationCount)
                 : annotationInfoList;
         for (var i = 0; i < annotationCount; i++) {
             annotations.add(readAnnotation());
@@ -1646,7 +1649,7 @@ class Classfile {
         List<TypeAnnotationDecorator> fieldTypeAnnotationDecorators = null;
         String fieldTypeSignatureStr = null;
         Object fieldConstValue = null;
-        AnnotationInfoList fieldAnnotationInfo = null;
+        List<AnnotationInfo> fieldAnnotationInfo = null;
         final var attributesCount = reader().readUnsignedShort();
         for (var i = 0; i < attributesCount; i++) {
             final var attributeNameCpIdx = reader().readUnsignedShort();
@@ -1685,7 +1688,7 @@ class Classfile {
 
         if (scanSpec.enableFieldInfo) {
             if (fieldInfoList == null) {
-                fieldInfoList = new FieldInfoList();
+                fieldInfoList = new ArrayList<>();
             }
             fieldInfoList.add(new FieldInfo(className, fieldName, fieldModifierFlags, fieldTypeDescriptor,
                     fieldTypeSignatureStr, fieldConstValue, fieldAnnotationInfo, fieldTypeAnnotationDecorators));
@@ -1788,7 +1791,7 @@ class Classfile {
 
         List<MethodTypeAnnotationDecorator> methodTypeAnnotationDecorators = null;
         String methodTypeSignatureStr = null;
-        AnnotationInfoList methodAnnotationInfo = null;
+        List<AnnotationInfo> methodAnnotationInfo = null;
         AnnotationInfo[][] methodParameterAnnotations = null;
         @Nullable
         String[] methodParameterNames = null;
@@ -1832,7 +1835,7 @@ class Classfile {
                 methodTypeSignatureStr = getConstantPoolString(reader().readUnsignedShort());
             } else if (constantPoolStringEquals(attributeNameCpIdx, "AnnotationDefault")) {
                 if (annotationParamDefaultValues == null) {
-                    annotationParamDefaultValues = new AnnotationParameterValueList();
+                    annotationParamDefaultValues = new ArrayList<>();
                 }
                 this.annotationParamDefaultValues.add(new AnnotationParameterValue(methodName,
                         // Get annotation parameter default value
@@ -1857,7 +1860,7 @@ class Classfile {
 
         // Create MethodInfo
         if (methodInfoList == null) {
-            methodInfoList = new MethodInfoList();
+            methodInfoList = new ArrayList<>();
         }
         methodInfoList.add(new MethodInfo(className, methodName, methodAnnotationInfo, methodModifierFlags,
                 methodTypeDescriptor, methodTypeSignatureStr, methodParameterNames, methodParameterModifiers,

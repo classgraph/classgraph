@@ -279,7 +279,7 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
         if (!(obj instanceof final TypeVariableSignature other)) {
             return false;
         }
-        return other.name.equals(this.name) && Objects.equals(other.typeAnnotationInfo, this.typeAnnotationInfo);
+        return other.name.equals(this.name) && Objects.equals(other.typeAnnotations, this.typeAnnotations);
     }
 
     @Override
@@ -392,9 +392,9 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
 
     @Override
     protected void toStringInternal(final boolean useSimpleNames,
-            final @Nullable AnnotationInfoList annotationsToExclude, final StringBuilder buf) {
-        if (typeAnnotationInfo != null) {
-            for (final AnnotationInfo annotationInfo : typeAnnotationInfo) {
+            final @Nullable List<AnnotationInfo> annotationsToExclude, final StringBuilder buf) {
+        if (typeAnnotations != null) {
+            for (final AnnotationInfo annotationInfo : typeAnnotations) {
                 if (annotationsToExclude == null || !annotationsToExclude.contains(annotationInfo)) {
                     annotationInfo.toString(useSimpleNames, buf);
                     buf.append(' ');

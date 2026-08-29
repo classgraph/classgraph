@@ -28,27 +28,21 @@
  */
 package io.github.classgraph;
 
-import java.io.Serial;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.utils.Assert;
+import io.github.classgraph.base.internal.utils.CollectionUtils;
 import org.jspecify.annotations.Nullable;
 
 /** A list of {@link AnnotationParameterValue} objects, which can be indexed by annotation parameter name. */
 public class AnnotationParameterValueList extends MappableInfoList<AnnotationParameterValue> {
-    /** serialVersionUID. */
-    @Serial
-    private static final long serialVersionUID = 1L;
-
     /** An unmodifiable empty {@link AnnotationParameterValueList}. */
-    static final AnnotationParameterValueList EMPTY_LIST = new AnnotationParameterValueList();
-    static {
-        EMPTY_LIST.makeUnmodifiable();
-    }
+    static final AnnotationParameterValueList EMPTY_LIST = new AnnotationParameterValueList(List.of());
 
     /**
      * Return an unmodifiable empty {@link AnnotationParameterValueList}.
@@ -60,34 +54,28 @@ public class AnnotationParameterValueList extends MappableInfoList<AnnotationPar
     }
 
     /**
-     * Construct a new modifiable empty list of {@link AnnotationParameterValue} objects.
-     */
-    AnnotationParameterValueList() {
-        super();
-    }
-
-    /**
-     * Construct a new modifiable empty list of {@link AnnotationParameterValue} objects, given a size hint.
-     *
-     * @param sizeHint
-     *            the expected number of elements
-     */
-    AnnotationParameterValueList(final int sizeHint) {
-        super(sizeHint);
-    }
-
-    /**
      * Construct a new unmodifiable {@link AnnotationParameterValueList}, given an initial collection of
      * {@link AnnotationParameterValue} objects. The collection is copied, so changing it afterwards does not change
-     * this list.
+     * this list, and the parameter values are sorted by name.
      *
      * @param annotationParameterValueCollection
      *            the collection of {@link AnnotationParameterValue} objects.
      */
     public AnnotationParameterValueList(
             final Collection<AnnotationParameterValue> annotationParameterValueCollection) {
-        super(Objects.requireNonNull(annotationParameterValueCollection,
-                "annotationParameterValueCollection must not be null"), /* modifiable = */ false);
+        this(CollectionUtils.sortCopy(Objects.requireNonNull(annotationParameterValueCollection,
+                "annotationParameterValueCollection must not be null")));
+    }
+
+    /**
+     * Constructor. As in {@link InfoList#InfoList(List)}, this list claims the given list, and the caller is
+     * responsible for having sorted it.
+     *
+     * @param annotationParameterValues
+     *            the elements of the list
+     */
+    AnnotationParameterValueList(final List<AnnotationParameterValue> annotationParameterValues) {
+        super(annotationParameterValues);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -115,11 +103,14 @@ public class AnnotationParameterValueList extends MappableInfoList<AnnotationPar
      * For primitive array type params, replace Object[] arrays containing boxed types with primitive arrays (need
      * to check the type of each method of the annotation class to determine if it is a primitive array type).
      *
+     * @param paramValues
+     *            the annotation parameter values to convert
      * @param annotationClassInfo
      *            the annotation class info
      */
-    void convertWrapperArraysToPrimitiveArrays(final @Nullable ClassInfo annotationClassInfo) {
-        for (final AnnotationParameterValue apv : this) {
+    static void convertWrapperArraysToPrimitiveArrays(final List<AnnotationParameterValue> paramValues,
+            final @Nullable ClassInfo annotationClassInfo) {
+        for (final AnnotationParameterValue apv : paramValues) {
             apv.convertWrapperArraysToPrimitiveArrays(annotationClassInfo);
         }
     }

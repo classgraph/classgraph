@@ -218,7 +218,7 @@ public final class TypeParameter extends HierarchicalTypeSignature {
         if (!(obj instanceof final TypeParameter other)) {
             return false;
         }
-        return other.name.equals(this.name) && Objects.equals(other.typeAnnotationInfo, this.typeAnnotationInfo)
+        return other.name.equals(this.name) && Objects.equals(other.typeAnnotations, this.typeAnnotations)
                 && ((other.classBound == null && this.classBound == null)
                         || (other.classBound != null && other.classBound.equals(this.classBound)))
                 && other.interfaceBounds.equals(this.interfaceBounds);
@@ -228,10 +228,10 @@ public final class TypeParameter extends HierarchicalTypeSignature {
 
     @Override
     protected void toStringInternal(final boolean useSimpleNames,
-            final @Nullable AnnotationInfoList annotationsToExclude, final StringBuilder buf) {
-        final var typeAnnotations = typeAnnotationInfo;
-        if (typeAnnotations != null) {
-            for (final AnnotationInfo annotationInfo : typeAnnotations) {
+            final @Nullable List<AnnotationInfo> annotationsToExclude, final StringBuilder buf) {
+        final var typeAnnotationList = typeAnnotations;
+        if (typeAnnotationList != null) {
+            for (final AnnotationInfo annotationInfo : typeAnnotationList) {
                 if (annotationsToExclude == null || !annotationsToExclude.contains(annotationInfo)) {
                     annotationInfo.toString(useSimpleNames, buf);
                     buf.append(' ');

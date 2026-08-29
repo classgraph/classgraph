@@ -28,10 +28,10 @@
  */
 package io.github.classgraph;
 
-import java.io.Serial;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -40,6 +40,7 @@ import java.util.function.Predicate;
 
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.utils.Assert;
+import io.github.classgraph.base.internal.utils.CollectionUtils;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -53,15 +54,8 @@ import org.jspecify.annotations.Nullable;
  * name.
  */
 public class MethodInfoList extends InfoList<MethodInfo> {
-    /** serialVersionUID. */
-    @Serial
-    private static final long serialVersionUID = 1L;
-
     /** An unmodifiable empty {@link MethodInfoList}. */
-    static final MethodInfoList EMPTY_LIST = new MethodInfoList();
-    static {
-        EMPTY_LIST.makeUnmodifiable();
-    }
+    static final MethodInfoList EMPTY_LIST = new MethodInfoList(List.of());
 
     /**
      * Return an unmodifiable empty {@link MethodInfoList}.
@@ -72,31 +66,28 @@ public class MethodInfoList extends InfoList<MethodInfo> {
         return EMPTY_LIST;
     }
 
-    /** Construct a new modifiable empty list of {@link MethodInfo} objects. */
-    MethodInfoList() {
-        super();
-    }
-
-    /**
-     * Construct a new modifiable empty list of {@link MethodInfo} objects, given a size hint.
-     *
-     * @param sizeHint
-     *            the expected number of elements
-     */
-    MethodInfoList(final int sizeHint) {
-        super(sizeHint);
-    }
-
     /**
      * Construct a new unmodifiable {@link MethodInfoList} from a completed collection of {@link MethodInfo}
-     * objects. The collection is copied.
+     * objects. The collection is copied, and the methods are sorted by name, then by type descriptor, so that
+     * overloads of the same method name are listed in a deterministic order.
      *
      * @param methodInfoCollection
      *            the collection of {@link MethodInfo} objects.
      */
     public MethodInfoList(final Collection<MethodInfo> methodInfoCollection) {
-        super(Objects.requireNonNull(methodInfoCollection, "methodInfoCollection must not be null"),
-                /* modifiable = */ false);
+        this(CollectionUtils
+                .sortCopy(Objects.requireNonNull(methodInfoCollection, "methodInfoCollection must not be null")));
+    }
+
+    /**
+     * Constructor. As in {@link InfoList#InfoList(List)}, this list claims the given list, and the caller is
+     * responsible for having sorted it.
+     *
+     * @param methodInfo
+     *            the elements of the list
+     */
+    MethodInfoList(final List<MethodInfo> methodInfo) {
+        super(methodInfo);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -132,13 +123,14 @@ public class MethodInfoList extends InfoList<MethodInfo> {
         // Note that MethodInfoList extends InfoList rather than MappableInfoList, because one name can be shared by
         // multiple MethodInfo objects (so asMap() needs to be of type Map<String, MethodInfoList> rather than
         // Map<String, MethodInfo>)
-        final Map<String, MethodInfoList> methodNameToMethodInfoList = new TreeMap<>();
+        final Map<String, List<MethodInfo>> methodNameToMethods = new TreeMap<>();
         for (final MethodInfo methodInfo : this) {
-            methodNameToMethodInfoList.computeIfAbsent(methodInfo.getName(), k -> new MethodInfoList(1))
-                    .add(methodInfo);
+            methodNameToMethods.computeIfAbsent(methodInfo.getName(), k -> new ArrayList<>(1)).add(methodInfo);
         }
-        for (final MethodInfoList methodInfoList : methodNameToMethodInfoList.values()) {
-            methodInfoList.makeUnmodifiable();
+        final Map<String, MethodInfoList> methodNameToMethodInfoList = new TreeMap<>();
+        for (final Map.Entry<String, List<MethodInfo>> ent : methodNameToMethods.entrySet()) {
+            // The methods with a given name are a subsequence of this list, which is already sorted
+            methodNameToMethodInfoList.put(ent.getKey(), new MethodInfoList(ent.getValue()));
         }
         return Collections.unmodifiableMap(methodNameToMethodInfoList);
     }
@@ -185,13 +177,14 @@ public class MethodInfoList extends InfoList<MethodInfo> {
         if (!hasMethodWithName) {
             return EMPTY_LIST;
         } else {
-            final MethodInfoList matchingMethods = new MethodInfoList(2);
+            final List<MethodInfo> matchingMethods = new ArrayList<>(2);
             for (final MethodInfo mi : this) {
                 if (mi.getName().equals(methodName)) {
                     matchingMethods.add(mi);
                 }
             }
-            return unmodifiable(matchingMethods);
+            // The matching methods are a subsequence of this list, which is already sorted
+            return new MethodInfoList(matchingMethods);
         }
     }
 

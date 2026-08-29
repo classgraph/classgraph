@@ -28,9 +28,9 @@
  */
 package io.github.classgraph;
 
-import java.io.Serial;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.Objects;
 import java.util.function.Predicate;
 
@@ -39,15 +39,8 @@ import io.github.classgraph.base.internal.utils.CollectionUtils;
 
 /** A list of {@link PackageInfo} objects, which can be indexed by package name. */
 public class PackageInfoList extends MappableInfoList<PackageInfo> {
-    /** serialVersionUID. */
-    @Serial
-    private static final long serialVersionUID = 1L;
-
     /** An unmodifiable empty {@link PackageInfoList}. */
-    static final PackageInfoList EMPTY_LIST = new PackageInfoList();
-    static {
-        EMPTY_LIST.makeUnmodifiable();
-    }
+    static final PackageInfoList EMPTY_LIST = new PackageInfoList(List.of());
 
     /**
      * Return an unmodifiable empty {@link PackageInfoList}.
@@ -59,33 +52,26 @@ public class PackageInfoList extends MappableInfoList<PackageInfo> {
     }
 
     /**
-     * Construct a new modifiable empty list of {@link PackageInfo} objects.
-     */
-    PackageInfoList() {
-        super();
-    }
-
-    /**
-     * Construct a new modifiable empty list of {@link PackageInfo} objects, given a size hint.
-     *
-     * @param sizeHint
-     *            the expected number of elements
-     */
-    PackageInfoList(final int sizeHint) {
-        super(sizeHint);
-    }
-
-    /**
      * Construct a new unmodifiable {@link PackageInfoList} from a completed collection of {@link PackageInfo}
-     * objects. The collection is copied.
+     * objects. The collection is copied, and the packages are sorted by name.
      *
      * @param packageInfoCollection
      *            the package info collection
      */
     public PackageInfoList(final Collection<PackageInfo> packageInfoCollection) {
-        super(CollectionUtils
-                .sortCopy(Objects.requireNonNull(packageInfoCollection, "packageInfoCollection must not be null")),
-                /* modifiable = */ false);
+        this(CollectionUtils
+                .sortCopy(Objects.requireNonNull(packageInfoCollection, "packageInfoCollection must not be null")));
+    }
+
+    /**
+     * Constructor. As in {@link InfoList#InfoList(List)}, this list claims the given list, and the caller is
+     * responsible for having sorted it.
+     *
+     * @param packageInfo
+     *            the elements of the list
+     */
+    PackageInfoList(final List<PackageInfo> packageInfo) {
+        super(packageInfo);
     }
 
     // -------------------------------------------------------------------------------------------------------------

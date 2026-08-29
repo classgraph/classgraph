@@ -28,9 +28,8 @@
  */
 package io.github.classgraph;
 
-import java.io.Serial;
-import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -44,47 +43,15 @@ import org.jspecify.annotations.Nullable;
  *            the element type
  */
 public class MappableInfoList<T extends HasName> extends InfoList<T> {
-    /** serialVersionUID. */
-    @Serial
-    private static final long serialVersionUID = 1L;
-
     /**
-     * Constructor.
-     */
-    MappableInfoList() {
-        super();
-    }
-
-    /**
-     * Constructor.
+     * Constructor. As in {@link InfoList#InfoList(List)}, this list claims the given list, and the caller is
+     * responsible for having sorted it.
      *
-     * @param sizeHint
-     *            the expected number of elements
+     * @param elements
+     *            the elements of the list
      */
-    MappableInfoList(final int sizeHint) {
-        super(sizeHint);
-    }
-
-    /**
-     * Constructor.
-     *
-     * @param infoCollection
-     *            the initial elements
-     */
-    MappableInfoList(final Collection<T> infoCollection) {
-        super(infoCollection);
-    }
-
-    /**
-     * Constructor.
-     *
-     * @param infoCollection
-     *            the initial elements
-     * @param modifiable
-     *            whether the list may be modified after construction
-     */
-    MappableInfoList(final Collection<T> infoCollection, final boolean modifiable) {
-        super(infoCollection, modifiable);
+    MappableInfoList(final List<T> elements) {
+        super(elements);
     }
 
     /**
@@ -97,9 +64,7 @@ public class MappableInfoList<T extends HasName> extends InfoList<T> {
     public Map<String, T> asMap() {
         final Map<String, T> nameToInfoObject = new TreeMap<>();
         for (final T i : this) {
-            if (i != null) {
-                nameToInfoObject.put(i.getName(), i);
-            }
+            nameToInfoObject.put(i.getName(), i);
         }
         return Collections.unmodifiableMap(nameToInfoObject);
     }
@@ -114,7 +79,7 @@ public class MappableInfoList<T extends HasName> extends InfoList<T> {
     public boolean containsName(final String name) {
         Assert.notNull(name, "name");
         for (final T i : this) {
-            if (i != null && i.getName().equals(name)) {
+            if (i.getName().equals(name)) {
                 return true;
             }
         }
@@ -131,7 +96,7 @@ public class MappableInfoList<T extends HasName> extends InfoList<T> {
     public @Nullable T get(final String name) {
         Assert.notNull(name, "name");
         for (final T i : this) {
-            if (i != null && i.getName().equals(name)) {
+            if (i.getName().equals(name)) {
                 return i;
             }
         }

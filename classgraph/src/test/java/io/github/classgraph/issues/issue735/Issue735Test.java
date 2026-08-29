@@ -37,7 +37,11 @@ public class Issue735Test {
                 .acceptPackages(Issue735Test.class.getPackage().getName()).enableAllInfo().ignoreClassVisibility()
                 .ignoreMethodVisibility().scan()) {
             final var ci1 = scanResult.getClassInfo(Derived1.class.getName());
-            assertThat(ci1.getMethodInfo().get(0).getTypeSignatureOrTypeDescriptor().getResultType().toString())
+            // Derived1 also has a compiler-generated bridge method get() with result type Object, which sorts
+            // before the declared method, since methods of the same name are sorted by type descriptor
+            final var get1 = ci1.getMethodInfo("get").stream().filter(mi -> !mi.isBridge()).findFirst()
+                    .orElseThrow();
+            assertThat(get1.getTypeSignatureOrTypeDescriptor().getResultType().toString())
                     .isEqualTo(String.class.getName());
             final var ci2 = scanResult.getClassInfo(Derived2.class.getName());
             assertThat(ci2.getMethodInfo().get(0).getTypeSignatureOrTypeDescriptor().getResultType().toString())

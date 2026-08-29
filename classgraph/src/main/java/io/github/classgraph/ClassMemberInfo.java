@@ -28,9 +28,8 @@
  */
 package io.github.classgraph;
 
-import static io.github.classgraph.PotentiallyUnmodifiableList.unmodifiable;
-
 import java.lang.reflect.Modifier;
+import java.util.List;
 
 import org.jspecify.annotations.Nullable;
 
@@ -61,9 +60,9 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
     @Nullable
     String typeSignatureStr;
 
-    /** The annotation on the class member, if any. */
+    /** The annotations on the class member, in the order they were read, or null if none. */
     @Nullable
-    AnnotationInfoList annotationInfo;
+    List<AnnotationInfo> annotationInfo;
 
     /** The annotation infos, once they are loaded */
     private @Nullable AnnotationInfoList annotationInfoRef;
@@ -86,7 +85,7 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
      */
     ClassMemberInfo(final String definingClassName, final String memberName, final int modifiers,
             final String typeDescriptorStr, final @Nullable String typeSignatureStr,
-            final @Nullable AnnotationInfoList annotationInfo) {
+            final @Nullable List<AnnotationInfo> annotationInfo) {
         super();
         this.declaringClassName = definingClassName;
         this.name = memberName;
@@ -294,8 +293,7 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
             scanResult().scanSpec.checkAnnotationInfoEnabled();
 
             annotationInfoRef = annotationInfo == null ? AnnotationInfoList.EMPTY_LIST
-                    : unmodifiable(
-                            AnnotationInfoList.getIndirectAnnotations(annotationInfo, /* annotatedClass = */ null));
+                    : AnnotationInfoList.getIndirectAnnotations(annotationInfo, /* annotatedClass = */ null);
             return annotationInfoRef;
         }
     }

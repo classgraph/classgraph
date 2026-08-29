@@ -29,6 +29,11 @@ public class EnumTest {
         }
     }
 
+    /** An enum whose constants are not declared in alphabetical order. */
+    private enum UnsortedEnum {
+        ZEBRA, APPLE, MANGO
+    }
+
     /** Test regular enum */
     @Test
     public void enumWithoutMethod() throws Exception {
@@ -55,6 +60,23 @@ public class EnumTest {
             // is not a constant of the enum
             assertThat(constantNames.stream().map(EnumWithMethod::valueOf).map(EnumWithMethod::getVal).toList())
                     .containsExactly(1, 2);
+        }
+    }
+
+    /**
+     * Enum constants are listed in declaration order, which is their ordinal order, even though the fields of a
+     * class are otherwise listed in name order.
+     */
+    @Test
+    public void enumConstantsAreInOrdinalOrder() {
+        try (var scanResult = new ClassGraph().enableClasspath().acceptClasses(UnsortedEnum.class.getName())
+                .enableAllInfo().scan()) {
+            final var myEnum = scanResult.getClassInfo(UnsortedEnum.class.getName());
+            assertThat(myEnum.getEnumConstants().getNames()).containsExactly("ZEBRA", "APPLE", "MANGO");
+            // The fields of the enum class, in contrast, are sorted by name (the synthetic $VALUES field is
+            // visible here because enableAllInfo() also ignores field visibility)
+            assertThat(myEnum.getDeclaredFieldInfo().getNames()).containsExactly("$VALUES", "APPLE", "MANGO",
+                    "ZEBRA");
         }
     }
 }

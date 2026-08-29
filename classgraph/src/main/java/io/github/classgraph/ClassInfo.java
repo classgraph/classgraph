@@ -28,8 +28,6 @@
  */
 package io.github.classgraph;
 
-import static io.github.classgraph.PotentiallyUnmodifiableList.unmodifiable;
-
 import java.io.File;
 import java.lang.annotation.Annotation;
 import java.lang.annotation.Inherited;
@@ -58,6 +56,7 @@ import io.github.classgraph.Classfile.ClassTypeAnnotationDecorator;
 import io.github.classgraph.TypeUtils.ModifierType;
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.utils.Assert;
+import io.github.classgraph.base.internal.utils.CollectionUtils;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -161,19 +160,29 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     @Nullable
     PackageInfo packageInfo;
 
-    /** Info on class annotations, including optional annotation param values. */
+    /**
+     * Info on class annotations, including optional annotation param values, in the order they were read, or null
+     * if none.
+     */
     @Nullable
-    AnnotationInfoList annotationInfo;
+    List<AnnotationInfo> annotationInfo;
 
-    /** Info on fields. */
+    /** Info on fields, sorted by name, or null if none. */
     @Nullable
     FieldInfoList fieldInfo;
 
-    /** Info on methods. */
+    /**
+     * For enums, the enum constants, in the order they were declared, which is their ordinal order, or null if this
+     * class is not an enum (or if field info was not enabled).
+     */
+    @Nullable
+    FieldInfoList enumConstants;
+
+    /** Info on methods, sorted by name, or null if none. */
     @Nullable
     MethodInfoList methodInfo;
 
-    /** For annotations, the default values of parameters. */
+    /** For annotations, the default values of parameters, sorted by name, or null if none. */
     @Nullable
     AnnotationParameterValueList annotationDefaultParamValues;
 
@@ -644,7 +653,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         final var annotationClassInfo = getOrCreateClassInfo(classAnnotationInfo.getName(), classNameToClassInfo);
         annotationClassInfo.setModifiers(ANNOTATION_CLASS_MODIFIER);
         if (this.annotationInfo == null) {
-            this.annotationInfo = new AnnotationInfoList(2);
+            this.annotationInfo = new ArrayList<>(2);
         }
         this.annotationInfo.add(classAnnotationInfo);
 
@@ -669,7 +678,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @param classNameToClassInfo
      *            the map from class name to class info
      */
-    private void addFieldOrMethodAnnotationInfo(final @Nullable AnnotationInfoList annotationInfoList,
+    private void addFieldOrMethodAnnotationInfo(final @Nullable List<AnnotationInfo> annotationInfoList,
             final boolean isField, final int modifiers, final Map<String, ClassInfo> classNameToClassInfo) {
         if (annotationInfoList != null) {
             for (final AnnotationInfo fieldAnnotationInfo : annotationInfoList) {
@@ -699,17 +708,40 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @param classNameToClassInfo
      *            the map from class name to class info
      */
-    void addFieldInfo(final FieldInfoList fieldInfoList, final Map<String, ClassInfo> classNameToClassInfo) {
+    void addFieldInfo(final List<FieldInfo> fieldInfoList, final Map<String, ClassInfo> classNameToClassInfo) {
         for (final FieldInfo fi : fieldInfoList) {
             // Index field annotations
             addFieldOrMethodAnnotationInfo(fi.annotationInfo, /* isField = */ true, fi.getModifiers(),
                     classNameToClassInfo);
         }
-        if (this.fieldInfo == null) {
-            this.fieldInfo = fieldInfoList;
-        } else {
-            this.fieldInfo.addAll(fieldInfoList);
+        if (this.enumConstants == null) {
+            // The enum constants of an enum are written into the classfile in declaration order, which is their
+            // ordinal order, so record them before the fields are sorted by name, since sorting loses that order
+            List<FieldInfo> enumConstantList = null;
+            for (final FieldInfo fi : fieldInfoList) {
+                if (fi.isEnum()) {
+                    if (enumConstantList == null) {
+                        enumConstantList = new ArrayList<>();
+                    }
+                    enumConstantList.add(fi);
+                }
+            }
+            if (enumConstantList != null) {
+                this.enumConstants = new FieldInfoList(enumConstantList);
+            }
         }
+        // The order of the fields in a classfile is not specified, so sort them by name. If this class has already
+        // been given a list of fields (which happens only if the class was read from more than one classfile), the
+        // two lists have to be merged, since a FieldInfoList cannot be added to.
+        final List<FieldInfo> allFieldInfo;
+        if (this.fieldInfo == null) {
+            allFieldInfo = fieldInfoList;
+        } else {
+            allFieldInfo = new ArrayList<>(this.fieldInfo);
+            allFieldInfo.addAll(fieldInfoList);
+        }
+        CollectionUtils.sortIfNotEmpty(allFieldInfo);
+        this.fieldInfo = new FieldInfoList(allFieldInfo);
     }
 
     /**
@@ -720,7 +752,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @param classNameToClassInfo
      *            the map from class name to class info
      */
-    void addMethodInfo(final MethodInfoList methodInfoList, final Map<String, ClassInfo> classNameToClassInfo) {
+    void addMethodInfo(final List<MethodInfo> methodInfoList, final Map<String, ClassInfo> classNameToClassInfo) {
         for (final MethodInfo mi : methodInfoList) {
             // Index method annotations
             addFieldOrMethodAnnotationInfo(mi.annotationInfo, /* isField = */ false, mi.getModifiers(),
@@ -747,11 +779,18 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                 }
             }
         }
+        // The order of the methods in a classfile is not specified, so sort them by name. If this class has already
+        // been given a list of methods (which happens only if the class was read from more than one classfile), the
+        // two lists have to be merged, since a MethodInfoList cannot be added to.
+        final List<MethodInfo> allMethodInfo;
         if (this.methodInfo == null) {
-            this.methodInfo = methodInfoList;
+            allMethodInfo = methodInfoList;
         } else {
-            this.methodInfo.addAll(methodInfoList);
+            allMethodInfo = new ArrayList<>(this.methodInfo);
+            allMethodInfo.addAll(methodInfoList);
         }
+        CollectionUtils.sortIfNotEmpty(allMethodInfo);
+        this.methodInfo = new MethodInfoList(allMethodInfo);
     }
 
     /**
@@ -771,13 +810,18 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @param paramNamesAndValues
      *            the default param names and values, if this is an annotation
      */
-    void addAnnotationParamDefaultValues(final AnnotationParameterValueList paramNamesAndValues) {
+    void addAnnotationParamDefaultValues(final List<AnnotationParameterValue> paramNamesAndValues) {
         setIsAnnotation(true);
+        // The order of the annotation elements in a classfile is not specified, so sort them by name
+        final List<AnnotationParameterValue> allParamNamesAndValues;
         if (this.annotationDefaultParamValues == null) {
-            this.annotationDefaultParamValues = paramNamesAndValues;
+            allParamNamesAndValues = paramNamesAndValues;
         } else {
-            this.annotationDefaultParamValues.addAll(paramNamesAndValues);
+            allParamNamesAndValues = new ArrayList<>(this.annotationDefaultParamValues);
+            allParamNamesAndValues.addAll(paramNamesAndValues);
         }
+        CollectionUtils.sortIfNotEmpty(allParamNamesAndValues);
+        this.annotationDefaultParamValues = new AnnotationParameterValueList(allParamNamesAndValues);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -2544,7 +2588,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
 
             scanResult().scanSpec.checkAnnotationInfoEnabled();
 
-            annotationInfoRef = unmodifiable(AnnotationInfoList.getIndirectAnnotations(annotationInfo, this));
+            annotationInfoRef = AnnotationInfoList.getIndirectAnnotations(annotationInfo, this);
             return annotationInfoRef;
         }
     }
@@ -2568,10 +2612,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                 return AnnotationParameterValueList.EMPTY_LIST;
             }
             if (!annotationDefaultParamValuesHasBeenConvertedToPrimitive) {
-                annotationDefaultParamValues.convertWrapperArraysToPrimitiveArrays(this);
+                AnnotationParameterValueList.convertWrapperArraysToPrimitiveArrays(annotationDefaultParamValues,
+                        this);
                 annotationDefaultParamValuesHasBeenConvertedToPrimitive = true;
             }
-            return unmodifiable(annotationDefaultParamValues);
+            return annotationDefaultParamValues;
         }
     }
 
@@ -2634,7 +2679,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         if (methodInfo == null) {
             return MethodInfoList.EMPTY_LIST;
         }
-        final var methodInfoList = new MethodInfoList();
+        final List<MethodInfo> methodInfoList = new ArrayList<>();
         for (final MethodInfo mi : methodInfo) {
             final var miName = mi.getName();
             final var isConstructor = "<init>".equals(miName);
@@ -2643,7 +2688,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                 methodInfoList.add(mi);
             }
         }
-        return unmodifiable(methodInfoList);
+        // The selected methods are a subsequence of the declared methods, which are already sorted
+        return new MethodInfoList(methodInfoList);
     }
 
     /**
@@ -2660,13 +2706,14 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         if (methodInfo == null) {
             return MethodInfoList.EMPTY_LIST;
         }
-        final var methodInfoList = new MethodInfoList();
+        final List<MethodInfo> methodInfoList = new ArrayList<>();
         for (final MethodInfo mi : methodInfo) {
             if (mi.getName().equals(methodName)) {
                 methodInfoList.add(mi);
             }
         }
-        return methodInfoList.isEmpty() ? MethodInfoList.EMPTY_LIST : unmodifiable(methodInfoList);
+        // The matching methods are a subsequence of the declared methods, which are already sorted
+        return methodInfoList.isEmpty() ? MethodInfoList.EMPTY_LIST : new MethodInfoList(methodInfoList);
     }
 
     /**
@@ -2680,7 +2727,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     private MethodInfoList mergeDeclaredMethodsInOverrideOrder(
             final Function<ClassInfo, MethodInfoList> declaredMethodsOf) {
         scanResult().scanSpec.checkMethodInfoEnabled();
-        final var methodInfoList = new MethodInfoList();
+        final List<MethodInfo> methodInfoList = new ArrayList<>();
         final Set<Entry<String, String>> nameAndTypeDescriptorSet = new HashSet<>();
         for (final ClassInfo ci : getMethodOverrideOrder()) {
             for (final MethodInfo mi : declaredMethodsOf.apply(ci)) {
@@ -2691,7 +2738,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                 }
             }
         }
-        return unmodifiable(methodInfoList);
+        // Method override order is meaningful, so don't sort the merged list
+        return new MethodInfoList(methodInfoList);
     }
 
     /**
@@ -3262,7 +3310,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     public FieldInfoList getDeclaredFieldInfo() {
         scanResult().scanSpec.checkFieldInfoEnabled();
-        return fieldInfo == null ? FieldInfoList.EMPTY_LIST : unmodifiable(fieldInfo);
+        return fieldInfo == null ? FieldInfoList.EMPTY_LIST : fieldInfo;
     }
 
     /**
@@ -3290,7 +3338,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     public FieldInfoList getFieldInfo() {
         scanResult().scanSpec.checkFieldInfoEnabled();
         // Implement field overriding
-        final FieldInfoList fieldInfoList = new FieldInfoList();
+        final List<FieldInfo> fieldInfoList = new ArrayList<>();
         final Set<String> fieldNameSet = new HashSet<>();
         for (final ClassInfo ci : getFieldOverrideOrder()) {
             for (final FieldInfo fi : ci.getDeclaredFieldInfo()) {
@@ -3301,14 +3349,16 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                 }
             }
         }
-        return unmodifiable(fieldInfoList);
+        // Field override order is meaningful, so don't sort the merged list
+        return new FieldInfoList(fieldInfoList);
     }
 
     /**
      * Get the enum constants of an enum class.
      *
      * @return All enum constants of an enum class as a list of {@link FieldInfo} objects (enum constants are stored
-     *         as fields in Java classes).
+     *         as fields in Java classes), in declaration order, which is the order of their ordinals. (Note that
+     *         this is unlike the other lists of fields and methods, which are sorted by name.)
      * @throws IllegalStateException
      *             if this class is not an enum, or if {@link ClassGraph#enableFieldInfo()} was not called before
      *             scanning.
@@ -3317,7 +3367,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         if (!isEnum()) {
             throw new IllegalStateException("Class " + getName() + " is not an enum");
         }
-        return getFieldInfo().filter(FieldInfo::isEnum);
+        scanResult().scanSpec.checkFieldInfoEnabled();
+        return enumConstants == null ? FieldInfoList.EMPTY_LIST : enumConstants;
     }
 
     /**
@@ -3828,7 +3879,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     void handleRepeatableAnnotations(final Set<String> allRepeatableAnnotationNames) {
         if (annotationInfo != null) {
-            annotationInfo.handleRepeatableAnnotations(allRepeatableAnnotationNames, this,
+            AnnotationInfoList.handleRepeatableAnnotations(annotationInfo, allRepeatableAnnotationNames, this,
                     RelType.CLASS_ANNOTATIONS, RelType.CLASSES_WITH_ANNOTATION, null);
         }
         if (fieldInfo != null) {

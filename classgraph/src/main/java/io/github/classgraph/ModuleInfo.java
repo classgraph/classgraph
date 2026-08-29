@@ -28,12 +28,12 @@
  */
 package io.github.classgraph;
 
-import static io.github.classgraph.PotentiallyUnmodifiableList.unmodifiable;
-
 import java.lang.module.ModuleReference;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -264,7 +264,7 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName, HasAnnotatio
      * @param moduleAnnotations
      *            the module annotations
      */
-    void addAnnotations(final @Nullable AnnotationInfoList moduleAnnotations) {
+    void addAnnotations(final @Nullable List<AnnotationInfo> moduleAnnotations) {
         // Currently only class annotations are used in the module-info.class file
         if (moduleAnnotations != null && !moduleAnnotations.isEmpty()) {
             var annotations = annotationInfoSet;
@@ -295,11 +295,9 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName, HasAnnotatio
             if (annotationSet == null) {
                 annotations = AnnotationInfoList.EMPTY_LIST;
             } else {
-                final AnnotationInfoList directAnnotations = new AnnotationInfoList(annotationSet.size());
-                directAnnotations.addAll(annotationSet);
                 // A module has no superclass, so there are no @Inherited annotations to add
-                annotations = unmodifiable(
-                        AnnotationInfoList.getIndirectAnnotations(directAnnotations, /* annotatedClass = */ null));
+                annotations = AnnotationInfoList.getIndirectAnnotations(new ArrayList<>(annotationSet),
+                        /* annotatedClass = */ null);
             }
             annotationInfo = annotations;
         }
