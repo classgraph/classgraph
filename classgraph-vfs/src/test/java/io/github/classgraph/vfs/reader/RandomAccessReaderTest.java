@@ -1,10 +1,11 @@
-package io.github.classgraph.vfs.internal.slice.reader;
+package io.github.classgraph.vfs.reader;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -19,11 +20,12 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
 /**
- * Tests that the three little-endian {@link RandomAccessReader} implementations read the same values from the same
- * bytes. A file is read through {@link RandomAccessByteBufferReader} when it is memory-mapped and through
- * {@link RandomAccessFileChannelReader} when it is not, and through {@link RandomAccessArrayReader} when it was
- * read into RAM, so the three of them have to agree. ({@link RandomAccessOrSequentialReader} also implements the
- * interface, but reads in big-endian order, as the classfile format requires, so it is tested separately.)
+ * Tests that the three {@link RandomAccessReader} implementations that read a range of already-addressable bytes
+ * read the same values from the same bytes. A file is read through {@link RandomAccessByteBufferReader} when it is
+ * memory-mapped and through {@link RandomAccessFileChannelReader} when it is not, and through
+ * {@link RandomAccessArrayReader} when it was read into RAM, so the three of them have to agree. (
+ * {@link RandomAccessOrSequentialReader} also implements the interface, but reads content that has to be streamed
+ * before it can be addressed, so it is tested separately.)
  */
 public class RandomAccessReaderTest {
     /** The kinds of {@link RandomAccessReader}. */
@@ -79,17 +81,79 @@ public class RandomAccessReaderTest {
      */
     private RandomAccessReader reader(final ReaderKind readerKind, final byte[] content, final int sliceStartPos,
             final int sliceLength) throws IOException {
+        return reader(readerKind, content, sliceStartPos, sliceLength, ByteOrder.LITTLE_ENDIAN);
+    }
+
+    /**
+     * Create a reader of the given kind, reading a range of the given content in a given byte order.
+     *
+     * @param readerKind
+     *            the kind of reader to create
+     * @param content
+     *            the content to read
+     * @param sliceStartPos
+     *            the start position of the range to read
+     * @param sliceLength
+     *            the length of the range to read
+     * @param byteOrder
+     *            the byte order to read multi-byte values in
+     * @return the reader
+     * @throws IOException
+     *             if the content could not be written to a file, for the file channel reader
+     */
+    private RandomAccessReader reader(final ReaderKind readerKind, final byte[] content, final int sliceStartPos,
+            final int sliceLength, final ByteOrder byteOrder) throws IOException {
         switch (readerKind) {
         case ARRAY:
-            return new RandomAccessArrayReader(content, sliceStartPos, sliceLength);
+            return new RandomAccessArrayReader(content, sliceStartPos, sliceLength, byteOrder);
         case BYTE_BUFFER:
-            return new RandomAccessByteBufferReader(ByteBuffer.wrap(content), sliceStartPos, sliceLength);
+            return new RandomAccessByteBufferReader(ByteBuffer.wrap(content), sliceStartPos, sliceLength,
+                    byteOrder);
         default:
             final var file = Files.write(tempDir.resolve("content.bin"), content);
             final var fileChannel = FileChannel.open(file, StandardOpenOption.READ);
             fileChannels.add(fileChannel);
-            return new RandomAccessFileChannelReader(fileChannel, sliceStartPos, sliceLength);
+            return new RandomAccessFileChannelReader(fileChannel, sliceStartPos, sliceLength, byteOrder);
         }
+    }
+
+    /**
+     * Every reader can be told which byte order to read in, and reports the order it was given. The byte order of
+     * the machine the test runs on does not enter into it: the same bytes read in the same order give the same
+     * values on a big-endian machine as on a little-endian one, which is what lets the classfile format (big
+     * endian) and the zipfile format (little endian) both be read correctly wherever ClassGraph is running.
+     *
+     * @param readerKind
+     *            the kind of reader to read through
+     * @throws IOException
+     *             if the content could not be read
+     */
+    @ParameterizedTest
+    @EnumSource(ReaderKind.class)
+    public void valuesCanBeReadInEitherByteOrder(final ReaderKind readerKind) throws IOException {
+        final var bigEndian = reader(readerKind, PATTERN, 0, PATTERN.length, ByteOrder.BIG_ENDIAN);
+        assertThat(bigEndian.byteOrder()).isEqualTo(ByteOrder.BIG_ENDIAN);
+        assertThat(bigEndian.readByte(0)).isEqualTo((byte) 0x01);
+        assertThat(bigEndian.readUnsignedShort(0)).isEqualTo(0x0123);
+        assertThat(bigEndian.readShort(6)).isEqualTo((short) 0xCDEF);
+        assertThat(bigEndian.readInt(0)).isEqualTo(0x01234567);
+        assertThat(bigEndian.readUnsignedInt(4)).isEqualTo(0x89ABCDEFL);
+        assertThat(bigEndian.readLong(0)).isEqualTo(0x0123456789ABCDEFL);
+
+        final var littleEndian = reader(readerKind, PATTERN, 0, PATTERN.length, ByteOrder.LITTLE_ENDIAN);
+        assertThat(littleEndian.byteOrder()).isEqualTo(ByteOrder.LITTLE_ENDIAN);
+        assertThat(littleEndian.readByte(0)).isEqualTo((byte) 0x01);
+        assertThat(littleEndian.readUnsignedShort(0)).isEqualTo(0x2301);
+        assertThat(littleEndian.readShort(6)).isEqualTo((short) 0xEFCD);
+        assertThat(littleEndian.readInt(0)).isEqualTo(0x67452301);
+        assertThat(littleEndian.readUnsignedInt(4)).isEqualTo(0xEFCDAB89L);
+        assertThat(littleEndian.readLong(0)).isEqualTo(0xEFCDAB8967452301L);
+
+        // The machine's own order is one of the two, and reads the same values as whichever one it is
+        final var nativeOrder = reader(readerKind, PATTERN, 0, PATTERN.length, ByteOrder.nativeOrder());
+        assertThat(nativeOrder.byteOrder()).isEqualTo(ByteOrder.nativeOrder());
+        assertThat(nativeOrder.readLong(0)).isEqualTo(
+                ByteOrder.nativeOrder() == ByteOrder.BIG_ENDIAN ? 0x0123456789ABCDEFL : 0xEFCDAB8967452301L);
     }
 
     /**
@@ -191,7 +255,34 @@ public class RandomAccessReaderTest {
     }
 
     /**
-     * A read that runs past the end of the slice is rejected, rather than reading whatever follows the slice.
+     * A bulk read that runs past the end of the slice stops at the end of it and reports how far it got, rather
+     * than reading whatever follows the slice, and reports end of content once there is nothing left to read.
+     *
+     * @param readerKind
+     *            the kind of reader to read through
+     * @throws IOException
+     *             if the content could not be read
+     */
+    @ParameterizedTest
+    @EnumSource(ReaderKind.class)
+    public void aBulkReadStopsAtTheEndOfTheSlice(final ReaderKind readerKind) throws IOException {
+        // A slice of the first four bytes only, so the rest of the content is out of bounds
+        final var reader = reader(readerKind, PATTERN, 0, 4);
+        final var dstArr = new byte[PATTERN.length];
+
+        // Only the four bytes of the slice are read, and the rest of the destination is left alone
+        assertThat(reader.read(0, dstArr, 0, 8)).isEqualTo(4);
+        assertThat(dstArr).containsExactly(0x01, 0x23, 0x45, 0x67, 0x00, 0x00, 0x00, 0x00);
+        // A read that starts within the slice and ends past it is cut down to what is left of the slice
+        assertThat(reader.read(2, dstArr, 0, 4)).isEqualTo(2);
+        // A read that starts at or past the end of the slice reports end of content
+        assertThat(reader.read(4, dstArr, 0, 4)).isEqualTo(-1);
+        assertThat(reader.read(100, dstArr, 0, 4)).isEqualTo(-1);
+    }
+
+    /**
+     * A read of a value or a string that runs past the end of the slice is rejected, rather than reading whatever
+     * follows the slice, since half of a value is not a value.
      *
      * @param readerKind
      *            the kind of reader to read through
@@ -205,10 +296,6 @@ public class RandomAccessReaderTest {
         final var reader = reader(readerKind, PATTERN, 0, 4);
         final var dstArr = new byte[PATTERN.length];
 
-        assertThatThrownBy(() -> reader.read(0, dstArr, 0, 8)).isInstanceOf(IOException.class)
-                .hasMessage("Read index out of bounds");
-        assertThatThrownBy(() -> reader.read(2, dstArr, 0, 4)).isInstanceOf(IOException.class)
-                .hasMessage("Read index out of bounds");
         assertThatThrownBy(() -> reader.read(-1, dstArr, 0, 1)).isInstanceOf(IOException.class)
                 .hasMessage("Read index out of bounds");
         assertThatThrownBy(() -> reader.readString(0, 8)).isInstanceOf(IOException.class)

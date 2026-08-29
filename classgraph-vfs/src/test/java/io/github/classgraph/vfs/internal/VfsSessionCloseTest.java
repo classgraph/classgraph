@@ -42,7 +42,7 @@ import org.junit.jupiter.api.Test;
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
 import io.github.classgraph.vfs.internal.slice.Slice;
-import io.github.classgraph.vfs.internal.slice.reader.RandomAccessReader;
+import io.github.classgraph.vfs.reader.RandomAccessReader;
 
 /**
  * Tests the teardown of a {@link VfsSession}: that it releases everything it owns even if one of the resources

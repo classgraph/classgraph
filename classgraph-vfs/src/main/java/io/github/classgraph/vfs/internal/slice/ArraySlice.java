@@ -32,8 +32,8 @@ import java.io.IOException;
 import java.util.Arrays;
 
 import io.github.classgraph.vfs.internal.VfsSession;
-import io.github.classgraph.vfs.internal.slice.reader.RandomAccessArrayReader;
-import io.github.classgraph.vfs.internal.slice.reader.RandomAccessReader;
+import io.github.classgraph.vfs.reader.RandomAccessArrayReader;
+import io.github.classgraph.vfs.reader.RandomAccessReader;
 
 /** A byte array slice. */
 public final class ArraySlice extends Slice {

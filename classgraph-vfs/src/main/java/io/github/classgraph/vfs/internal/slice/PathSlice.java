@@ -43,9 +43,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.path.FileUtils;
 import io.github.classgraph.vfs.internal.VfsSession;
-import io.github.classgraph.vfs.internal.slice.reader.RandomAccessByteBufferReader;
-import io.github.classgraph.vfs.internal.slice.reader.RandomAccessFileChannelReader;
-import io.github.classgraph.vfs.internal.slice.reader.RandomAccessReader;
+import io.github.classgraph.vfs.reader.RandomAccessByteBufferReader;
+import io.github.classgraph.vfs.reader.RandomAccessFileChannelReader;
+import io.github.classgraph.vfs.reader.RandomAccessReader;
 import org.jspecify.annotations.Nullable;
 
 /** A {@link Path} slice. */

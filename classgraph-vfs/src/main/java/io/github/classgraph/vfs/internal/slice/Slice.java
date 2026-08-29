@@ -41,7 +41,7 @@ import java.util.Arrays;
 
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.vfs.internal.VfsSession;
-import io.github.classgraph.vfs.internal.slice.reader.RandomAccessReader;
+import io.github.classgraph.vfs.reader.RandomAccessReader;
 import org.jspecify.annotations.Nullable;
 
 /**

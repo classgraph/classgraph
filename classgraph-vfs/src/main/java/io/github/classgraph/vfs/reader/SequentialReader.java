@@ -26,14 +26,32 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.classgraph.vfs.internal.slice.reader;
+package io.github.classgraph.vfs.reader;
 
 import java.io.IOException;
+import java.nio.ByteOrder;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
-/** Interface for sequentially reading values in byte order. */
+/**
+ * Reads values of a fixed width from the current position of some content, advancing the position by the width of
+ * each value read.
+ *
+ * <p>
+ * The byte order is a property of the content and is fixed when the reader is constructed -- see
+ * {@link RandomAccessReader} for what that means and why none of these readers follows the byte order of the
+ * machine. A value that is not wholly within the content throws an {@link IOException}, since half of a value is
+ * not a value.
+ */
 public interface SequentialReader {
+    /**
+     * The byte order this reader reads multi-byte values in, which is fixed when the reader is constructed and does
+     * not follow the byte order of the machine.
+     *
+     * @return the byte order.
+     */
+    ByteOrder byteOrder();
+
     /**
      * Read a byte at the current cursor position.
      *

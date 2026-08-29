@@ -227,7 +227,7 @@ final class DirEntry extends VfsEntry {
         try {
             // The slice holds the open file channel that the reader reads, so it is closed when the caller has
             // finished with the reader
-            return new RandomAccessContent(slice.randomAccessReader(), slice.sliceLength, slice::close);
+            return new RandomAccessContent(slice.randomAccessReader(), slice::close);
         } catch (final IOException | RuntimeException | Error e) {
             // The caller never sees the reader if this throws, so nothing else can close the file channel
             slice.close();

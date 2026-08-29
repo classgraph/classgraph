@@ -26,7 +26,7 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.classgraph.vfs.internal.slice.reader;
+package io.github.classgraph.vfs.reader;
 
 import java.io.IOException;
 import java.nio.BufferUnderflowException;
@@ -41,8 +41,12 @@ import org.jspecify.annotations.Nullable;
 import io.github.classgraph.base.internal.utils.StringUtils;
 
 /**
- * {@link RandomAccessReader} for a {@link ByteBuffer}. Reads in <b>little endian</b> order, as required by the
- * zipfile format.
+ * {@link RandomAccessReader} for a {@link ByteBuffer}. Reads in <b>little endian</b> order by default, as required
+ * by the zipfile format, which is what this reader was written for; pass a {@link ByteOrder} to read content
+ * written in the other order. The byte order of the buffer that is passed in is not consulted and is not changed --
+ * this reader duplicates the buffer and sets the order on the duplicate -- since the order the bytes were written
+ * in is a property of the content rather than of the buffer holding it. See {@link RandomAccessReader} for why that
+ * is not the byte order of the machine either.
  *
  * <p>
  * The buffer may be a memory mapping of a file that the {@code Vfs} releases when it is closed, which can happen
@@ -81,7 +85,7 @@ public class RandomAccessByteBufferReader implements RandomAccessReader {
      */
     public RandomAccessByteBufferReader(final ByteBuffer byteBuffer, final long sliceStartPos,
             final long sliceLength) {
-        this(byteBuffer, sliceStartPos, sliceLength, /* isReleased = */ null);
+        this(byteBuffer, sliceStartPos, sliceLength, ByteOrder.LITTLE_ENDIAN, /* isReleased = */ null);
     }
 
     /**
@@ -99,15 +103,64 @@ public class RandomAccessByteBufferReader implements RandomAccessReader {
      */
     public RandomAccessByteBufferReader(final ByteBuffer byteBuffer, final long sliceStartPos,
             final long sliceLength, final @Nullable BooleanSupplier isReleased) {
+        this(byteBuffer, sliceStartPos, sliceLength, ByteOrder.LITTLE_ENDIAN, isReleased);
+    }
+
+    /**
+     * Constructor for slicing a byte buffer, reading in a given byte order.
+     *
+     * @param byteBuffer
+     *            the byte buffer
+     * @param sliceStartPos
+     *            the slice start pos
+     * @param sliceLength
+     *            the slice length
+     * @param byteOrder
+     *            the byte order to read multi-byte values in. Pass {@link ByteOrder#nativeOrder()} for content
+     *            written in the byte order of the machine this is running on.
+     */
+    public RandomAccessByteBufferReader(final ByteBuffer byteBuffer, final long sliceStartPos,
+            final long sliceLength, final ByteOrder byteOrder) {
+        this(byteBuffer, sliceStartPos, sliceLength, byteOrder, /* isReleased = */ null);
+    }
+
+    /**
+     * Constructor.
+     *
+     * @param byteBuffer
+     *            the byte buffer
+     * @param sliceStartPos
+     *            the slice start pos
+     * @param sliceLength
+     *            the slice length
+     * @param byteOrder
+     *            the byte order to read multi-byte values in. Pass {@link ByteOrder#nativeOrder()} for content
+     *            written in the byte order of the machine this is running on.
+     * @param isReleased
+     *            whether the file the buffer is a view of has been released, or null if it cannot be released while
+     *            this reader is alive
+     */
+    public RandomAccessByteBufferReader(final ByteBuffer byteBuffer, final long sliceStartPos,
+            final long sliceLength, final ByteOrder byteOrder, final @Nullable BooleanSupplier isReleased) {
         this.isReleased = isReleased;
-        // Take a read-only duplicate, so that this reader has its own position and limit, and cannot write through
-        // to a buffer that may be a memory mapping shared by every thread reading the same file
+        // Take a read-only duplicate, so that this reader has its own position, limit and byte order, and cannot
+        // write through to a buffer that may be a memory mapping shared by every thread reading the same file
         this.byteBuffer = byteBuffer.asReadOnlyBuffer();
-        this.byteBuffer.order(ByteOrder.LITTLE_ENDIAN);
+        this.byteBuffer.order(byteOrder);
         this.sliceStartPos = (int) sliceStartPos;
         this.sliceLength = (int) sliceLength;
         this.byteBuffer.position(this.sliceStartPos);
         this.byteBuffer.limit(this.sliceStartPos + this.sliceLength);
+    }
+
+    @Override
+    public ByteOrder byteOrder() {
+        return byteBuffer.order();
+    }
+
+    @Override
+    public long length() {
+        return sliceLength;
     }
 
     /**
@@ -147,15 +200,42 @@ public class RandomAccessByteBufferReader implements RandomAccessReader {
         return new IOException("Cannot read a file that has been unmapped by closing the Vfs", e);
     }
 
+    /**
+     * The number of bytes a bulk read starting at the given offset can transfer, which is the number asked for, cut
+     * down to what is left of the slice.
+     *
+     * @param srcOffset
+     *            the offset to read from, relative to the start of the slice.
+     * @param numBytes
+     *            the number of bytes asked for.
+     * @return the number of bytes that can be read, which is zero at or past the end of the slice.
+     * @throws IOException
+     *             if the file has been released, or the offset or the number of bytes is negative.
+     */
+    private int numBytesAvailable(final long srcOffset, final int numBytes) throws IOException {
+        if (isReleased != null && isReleased.getAsBoolean()) {
+            throw new IOException("Cannot read a file that has been unmapped by closing the Vfs");
+        }
+        if (srcOffset < 0L || numBytes < 0) {
+            throw new IOException("Read index out of bounds");
+        }
+        // A bulk read stops at the end of the slice and reports how far it got, rather than throwing, since a
+        // caller copying the content out does not necessarily know how long it is
+        return (int) Math.max(Math.min(numBytes, sliceLength - srcOffset), 0L);
+    }
+
     @Override
     public int read(final long srcOffset, final byte[] dstArr, final int dstArrStart, final int numBytes)
             throws IOException {
         if (numBytes == 0) {
             return 0;
         }
-        checkReadable(srcOffset, numBytes);
+        final var numBytesInSlice = numBytesAvailable(srcOffset, numBytes);
+        if (numBytesInSlice == 0) {
+            return -1;
+        }
         try {
-            final var numBytesToRead = Math.max(Math.min(numBytes, dstArr.length - dstArrStart), 0);
+            final var numBytesToRead = Math.max(Math.min(numBytesInSlice, dstArr.length - dstArrStart), 0);
             if (numBytesToRead == 0) {
                 return -1;
             }
@@ -177,9 +257,12 @@ public class RandomAccessByteBufferReader implements RandomAccessReader {
         if (numBytes == 0) {
             return 0;
         }
-        checkReadable(srcOffset, numBytes);
+        final var numBytesInSlice = numBytesAvailable(srcOffset, numBytes);
+        if (numBytesInSlice == 0) {
+            return -1;
+        }
         try {
-            final var numBytesToRead = Math.max(Math.min(numBytes, dstBuf.capacity() - dstBufStart), 0);
+            final var numBytesToRead = Math.max(Math.min(numBytesInSlice, dstBuf.capacity() - dstBufStart), 0);
             if (numBytesToRead == 0) {
                 return -1;
             }

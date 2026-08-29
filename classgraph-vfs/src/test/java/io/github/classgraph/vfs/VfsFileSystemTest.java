@@ -6,7 +6,9 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.FilterInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.module.ModuleDescriptor;
 import java.lang.module.ModuleFinder;
 import java.lang.module.ModuleReader;
@@ -44,6 +46,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
 import java.util.zip.CRC32;
 import java.util.zip.ZipEntry;
@@ -682,6 +685,125 @@ public class VfsFileSystemTest {
     }
 
     /**
+     * A channel over a resource of a module streams it only as far as the furthest offset that is read, buffering
+     * what it has read so far, even though a {@link ModuleReader} cannot say how long a resource is without reading
+     * it. A caller that reads a header therefore reads only the header, and a caller that asks how long the
+     * resource is reads the whole of it, once.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the module could not be written or read.
+     */
+    @Test
+    public void aModuleResourceIsReadInPiecesThroughAChannel(@TempDir final Path tempDir) throws IOException {
+        // A resource long enough that reading a header out of it is a different amount of work from reading all of
+        // it
+        final var expected = new byte[256 * 1024];
+        for (var i = 0; i < expected.length; i++) {
+            expected[i] = (byte) (i % 251);
+        }
+        final var entryName = "com/xyz/big.dat";
+        final var moduleDir = tempDir.resolve("mod");
+        Files.createDirectories(moduleDir.resolve("com/xyz"));
+        Files.write(moduleDir.resolve(entryName), expected);
+        // The number of bytes the module reader has been asked for, so that reading a header can be told apart from
+        // reading the whole resource
+        final var numBytesStreamed = new AtomicLong();
+
+        try (var vfs = new Vfs()) {
+            final var path = vfs.open(countingModule(moduleDir, entryName, numBytesStreamed)).asFileSystem()
+                    .getPath("/" + entryName);
+
+            final var channel = Files.newByteChannel(path);
+            try (channel) {
+                // A header is read without the rest of the resource being streamed
+                final var header = ByteBuffer.allocate(64);
+                assertThat(channel.read(header)).isEqualTo(64);
+                assertThat(header.array()).isEqualTo(Arrays.copyOfRange(expected, 0, 64));
+                assertThat(numBytesStreamed.get()).isLessThan(expected.length);
+
+                // A part that has already been read is handed back a second time
+                assertThat(channel.position(0).read(header.clear())).isEqualTo(64);
+                assertThat(header.array()).isEqualTo(Arrays.copyOfRange(expected, 0, 64));
+
+                // The size is the length of the resource, which the channel only knows once it has read all of it
+                assertThat(channel.size()).isEqualTo(expected.length);
+
+                // Reading the whole resource in pieces gives back exactly what was written, and stops at the end
+                final var readBack = ByteBuffer.allocate(expected.length);
+                final var piece = ByteBuffer.allocate(3000);
+                channel.position(0);
+                while (channel.read(piece.clear()) > 0) {
+                    readBack.put(piece.flip());
+                }
+                assertThat(readBack.array()).isEqualTo(expected);
+                assertThat(channel.position(expected.length + 10L).read(ByteBuffer.allocate(8))).isEqualTo(-1);
+            }
+            assertThatThrownBy(() -> channel.read(ByteBuffer.allocate(8)))
+                    .isInstanceOf(ClosedChannelException.class);
+
+            // The whole resource is read the same way it would be through a stream
+            assertThat(Files.readAllBytes(path)).isEqualTo(expected);
+        }
+    }
+
+    /**
+     * Create a module that is exploded into a directory and that counts the bytes that are streamed out of it.
+     *
+     * @param moduleDir
+     *            the directory the module was exploded into.
+     * @param entryName
+     *            the name of the module's only resource.
+     * @param numBytesStreamed
+     *            the counter to add the number of bytes streamed to.
+     * @return the module.
+     */
+    private static ModuleReference countingModule(final Path moduleDir, final String entryName,
+            final AtomicLong numBytesStreamed) {
+        return new ModuleReference(ModuleDescriptor.newModule("test.module").build(), moduleDir.toUri()) {
+            @Override
+            public ModuleReader open() {
+                return new ModuleReader() {
+                    @Override
+                    public Optional<URI> find(final String name) {
+                        final var file = moduleDir.resolve(name);
+                        return Files.exists(file) ? Optional.of(file.toUri()) : Optional.empty();
+                    }
+
+                    @Override
+                    public Optional<InputStream> open(final String name) throws IOException {
+                        if (!name.equals(entryName)) {
+                            return Optional.empty();
+                        }
+                        final var fileStream = Files.newInputStream(moduleDir.resolve(name));
+                        return Optional.of(new FilterInputStream(fileStream) {
+                            @Override
+                            public int read(final byte[] buf, final int off, final int len) throws IOException {
+                                final var numRead = super.read(buf, off, len);
+                                if (numRead > 0) {
+                                    numBytesStreamed.addAndGet(numRead);
+                                }
+                                return numRead;
+                            }
+                        });
+                    }
+
+                    @Override
+                    public Stream<String> list() {
+                        return Stream.of(entryName);
+                    }
+
+                    @Override
+                    public void close() {
+                        // A reader that reads through the default filesystem holds nothing open between reads
+                    }
+                };
+            }
+        };
+    }
+
+    /**
      * Create a module that is exploded into a directory, the way {@link ModuleFinder#of(Path...)} reports one.
      *
      * @param moduleDir
@@ -1122,9 +1244,6 @@ public class VfsFileSystemTest {
 
             final var channel = Files.newByteChannel(path);
             try (channel) {
-                // The size is the inflated length, which the channel reports without inflating anything
-                assertThat(channel.size()).isEqualTo(expected.length);
-
                 // A header can be read without the rest of the entry being inflated
                 final var header = ByteBuffer.allocate(64);
                 assertThat(channel.read(header)).isEqualTo(64);
@@ -1133,6 +1252,10 @@ public class VfsFileSystemTest {
                 // A part that has already been read is handed back a second time
                 assertThat(channel.position(0).read(header.clear())).isEqualTo(64);
                 assertThat(header.array()).isEqualTo(Arrays.copyOfRange(expected, 0, 64));
+
+                // The size is the inflated length, which the channel only knows once it has inflated the whole
+                // entry, since the uncompressed size a zip entry declares for itself is not trustworthy
+                assertThat(channel.size()).isEqualTo(expected.length);
 
                 // Seeking forwards inflates as far as the offset asked for, and no further than the entry
                 final var tail = ByteBuffer.allocate(32);

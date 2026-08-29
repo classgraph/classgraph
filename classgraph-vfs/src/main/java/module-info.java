@@ -49,9 +49,10 @@ import org.jspecify.annotations.NullMarked;
 module io.github.classgraph.vfs {
     exports io.github.classgraph.vfs;
 
-    // The internal packages are the internals of ClassGraph. They are only exported to the modules that are built on
-    // top of this one, and they are not covered by the project's API compatibility guarantees.
-    exports io.github.classgraph.vfs.internal.slice.reader to io.github.classgraph;
+    // The readers that the virtual filesystem reads its own content through. They are exported because they are
+    // useful on their own: any content that has to be read a value at a time, in a given byte order, and either at
+    // an offset or from front to back, can be read through them.
+    exports io.github.classgraph.vfs.reader;
 
     // N.B. make sure the "Import-Package" entries in the manifest (in pom.xml) match these "requires" statements.
 

@@ -222,6 +222,25 @@ public class Zip64ExtraFieldTest {
         return entries;
     }
 
+    /**
+     * Read back the name and declared uncompressed size of every entry of a zipfile, without reading any content.
+     *
+     * @param jarFile
+     *            the zipfile to read
+     * @return one {@code "name: length"} string per entry
+     * @throws Exception
+     *             if the zipfile could not be read
+     */
+    private static List<String> entryLengthsReadBack(final File jarFile) throws Exception {
+        final List<String> entries = new ArrayList<>();
+        try (var vfs = new Vfs()) {
+            for (final var entry : vfs.open(jarFile.getPath()).getEntries()) {
+                entries.add(entry.getPathFromRoot() + ": " + entry.getLength());
+            }
+        }
+        return entries;
+    }
+
     /** An entry that did not overflow any of its central directory fields has no Zip64 extra field at all. */
     @Test
     public void noZip64ExtraField(@TempDir final File tempDir) throws Exception {
@@ -288,5 +307,40 @@ public class Zip64ExtraFieldTest {
                 zip64ExtraField((long) CONTENTS.length, null, null, null));
         assertThatThrownBy(() -> entriesReadBack(jarFile)).rootCause()
                 .hasMessageContaining("Zip64 extra field is missing the compressed size");
+    }
+
+    /**
+     * A central directory field that overflowed in an entry that has no Zip64 extra field at all has nothing to
+     * replace it either, so the entry is rejected the same way as one whose extra field is too short. Without this,
+     * the overflow marker is left in place and read as a size of just under 4GB, which is not a size the entry
+     * could have had and still have been written this way.
+     */
+    @Test
+    public void noZip64ExtraFieldToReplaceAnOverflowedValue(@TempDir final File tempDir) throws Exception {
+        final var noSize = writeZip(tempDir, "no-extra-field-size.jar", OVERFLOWED, CONTENTS.length, 0,
+                new byte[0]);
+        assertThatThrownBy(() -> entriesReadBack(noSize)).rootCause()
+                .hasMessageContaining("Zip64 extra field is missing the uncompressed size");
+
+        // The same when the entry has extra fields, but none of them is the Zip64 one
+        final var otherField = new ByteArrayOutputStream();
+        write16(otherField, 0x7855); // Info-ZIP Unix UID and GID
+        write16(otherField, 0);
+        final var noOffset = writeZip(tempDir, "no-extra-field-offset.jar", CONTENTS.length, CONTENTS.length,
+                OVERFLOWED, otherField.toByteArray());
+        assertThatThrownBy(() -> entriesReadBack(noOffset)).rootCause()
+                .hasMessageContaining("Zip64 extra field is missing the local file header offset");
+    }
+
+    /**
+     * A value of exactly 0xffffffff is one of the values that has to be moved into the Zip64 extra field, because
+     * the central directory field it came from cannot hold it without being read as the overflow marker. Such a
+     * value is therefore a real value once it has been read back out of the extra field, and the entry that
+     * declares it must not be mistaken for one that left the marker behind.
+     */
+    @Test
+    public void aZip64ValueThatIsItselfTheOverflowMarker(@TempDir final File tempDir) throws Exception {
+        assertThat(entryLengthsReadBack(writeZip(tempDir, "size-is-the-marker.jar", OVERFLOWED, CONTENTS.length, 0,
+                zip64ExtraField(OVERFLOWED, null, null, null)))).containsExactly(ENTRY_NAME + ": " + OVERFLOWED);
     }
 }

@@ -43,8 +43,8 @@ import java.util.Set;
 
 import io.github.classgraph.base.internal.path.PathSyntax;
 import io.github.classgraph.base.internal.utils.Assert;
-import io.github.classgraph.vfs.internal.slice.reader.RandomAccessByteBufferReader;
-import io.github.classgraph.vfs.internal.slice.reader.RandomAccessReader;
+import io.github.classgraph.vfs.reader.RandomAccessOrSequentialReader;
+import io.github.classgraph.vfs.reader.RandomAccessReader;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -280,14 +280,14 @@ public abstract class VfsEntry {
      *
      * @param reader
      *            the reader, which reads the content of the entry, and which is not safe to use from more than one
-     *            thread at a time.
-     * @param length
-     *            the number of bytes of content the reader can read.
+     *            thread at a time. Its {@link RandomAccessReader#length()} is the number of bytes of content there
+     *            are, which for an entry that is inflated or streamed is only known once it has been read to the
+     *            end.
      * @param closeAction
      *            the action that releases whatever the reader holds -- an open file, a view of a memory mapping, or
      *            a buffer of what has been read so far -- which the caller must run once it has finished reading.
      */
-    record RandomAccessContent(RandomAccessReader reader, long length, Runnable closeAction) {
+    record RandomAccessContent(RandomAccessReader reader, Runnable closeAction) {
     }
 
     /**
@@ -305,9 +305,11 @@ public abstract class VfsEntry {
      * inflated lazily, only as far as the furthest offset that has been read, and what has been inflated so far is
      * buffered so that a read of a part already passed does not have to inflate it again. A caller that reads only
      * a header therefore inflates only the header.</li>
-     * <li>An entry that can neither be read at an offset nor inflated as a stream of known length -- a module
-     * resource, whose length a {@code ModuleReader} cannot report without reading it -- is brought into memory in
-     * full.</li>
+     * <li>An entry that cannot be read at an offset and does not know how long it is -- a module resource, whose
+     * length a {@code ModuleReader} cannot report without reading it -- is read as a stream and buffered up to the
+     * furthest offset that has been read, in the same way as a compressed entry. Not knowing the length up front
+     * costs nothing until the caller asks for it: a caller that reads a header reads only the header, and a caller
+     * that reads the whole of the entry reads it once from beginning to end.</li>
      * </ul>
      *
      * @return the view, which the caller owns and must release by running its close action.
@@ -315,22 +317,10 @@ public abstract class VfsEntry {
      *             if the entry could not be opened, or if the {@link Vfs} has been closed.
      */
     RandomAccessContent openRandomAccess() throws IOException {
-        // The length of this entry is not known without reading it, and the caller has to be told how long the
-        // content is before it can read the end of it, so there is nothing to be gained by reading it lazily
-        final var content = read();
-        try {
-            final var byteBuffer = content.getByteBuffer();
-            if (byteBuffer == null) {
-                throw new IOException("Could not read " + getPath());
-            }
-            return new RandomAccessContent(
-                    new RandomAccessByteBufferReader(byteBuffer, byteBuffer.position(), byteBuffer.remaining()),
-                    byteBuffer.remaining(), content::close);
-        } catch (final IOException | RuntimeException | Error e) {
-            // The caller never sees the content if this throws, so nothing else would release it
-            content.close();
-            throw e;
-        }
+        // This entry cannot be read at an offset, so read it as a stream, buffering what has been read so far. The
+        // reader closes the stream that it opened on this entry when its close action is run.
+        final var reader = new RandomAccessOrSequentialReader(this);
+        return new RandomAccessContent(reader, reader::close);
     }
 
     /**

@@ -48,7 +48,7 @@ import io.github.classgraph.vfs.internal.ManifestParser;
 import io.github.classgraph.vfs.internal.VfsSession;
 import io.github.classgraph.vfs.internal.slice.ArraySlice;
 import io.github.classgraph.vfs.internal.slice.Slice;
-import io.github.classgraph.vfs.internal.slice.reader.RandomAccessReader;
+import io.github.classgraph.vfs.reader.RandomAccessReader;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -241,6 +241,14 @@ public class LogicalZipFile extends ZipFileSlice {
 
         /** True if the Info-ZIP Unicode path extra field renamed the entry to a directory, or to nothing. */
         boolean renamedToDirectoryEntry;
+
+        /**
+         * True if the entry has a Zip64 extra field. This is not the same as any of the three fields above having
+         * been replaced: a value moved into the Zip64 extra field can itself be {@link #ZIP64_OVERFLOWED}, since a
+         * value of exactly that is one of the values that has to be moved there, so whether a field still holds the
+         * overflow marker does not say whether it was replaced.
+         */
+        boolean hasZip64ExtraField;
 
         /** The offset of the entry's name within the central directory, before it was decoded or sanitized. */
         final long filenameStartOff;
@@ -623,6 +631,7 @@ public class LogicalZipFile extends ZipFileSlice {
      */
     private static void readZip64ExtraField(final RandomAccessReader cenReader, final long tagOff, final int size,
             final EntryFields entryFields) throws IOException {
+        entryFields.hasZip64ExtraField = true;
         var valueOff = tagOff + 4;
         final var dataEndOff = valueOff + size;
         if (entryFields.uncompressedSize == ZIP64_OVERFLOWED) {
@@ -647,6 +656,44 @@ public class LogicalZipFile extends ZipFileSlice {
                         + entryFields.entryNameSanitized);
             }
             entryFields.pos = cenReader.readLong(valueOff);
+        }
+    }
+
+    /**
+     * Check that no central directory field of an entry was left holding {@link #ZIP64_OVERFLOWED} by an entry that
+     * has no Zip64 extra field at all.
+     *
+     * <p>
+     * The overflow marker says that the real value is in the Zip64 extra field, so an entry that carries the marker
+     * without carrying that extra field has no real value for the field at all. The marker must not be mistaken for
+     * one: it would be read as a size or an offset of just under 4GB, which is not a value the entry could have had
+     * and still have been written this way. An entry whose Zip64 extra field is present but too short to hold a
+     * value that overflowed is rejected by {@link #readZip64ExtraField} instead, with the same message; this covers
+     * the case where the extra field is missing entirely, which that method never sees.
+     *
+     * @param entryFields
+     *            the fields of the entry, after every extra field has been read
+     * @throws IOException
+     *             If a central directory field overflowed but the entry has no Zip64 extra field.
+     */
+    private static void checkNoOverflowMarkerWasLeftBehind(final EntryFields entryFields) throws IOException {
+        if (entryFields.hasZip64ExtraField) {
+            // Every field that overflowed was either replaced, or reported as missing while the extra field was
+            // being read. A field that still holds the marker was replaced by a value that is the marker, which is
+            // one of the values that has to be moved into the Zip64 extra field in the first place.
+            return;
+        }
+        if (entryFields.uncompressedSize == ZIP64_OVERFLOWED) {
+            throw new IOException(
+                    "Zip64 extra field is missing the uncompressed size: " + entryFields.entryNameSanitized);
+        }
+        if (entryFields.compressedSize == ZIP64_OVERFLOWED) {
+            throw new IOException(
+                    "Zip64 extra field is missing the compressed size: " + entryFields.entryNameSanitized);
+        }
+        if (entryFields.pos == ZIP64_OVERFLOWED) {
+            throw new IOException(
+                    "Zip64 extra field is missing the local file header offset: " + entryFields.entryNameSanitized);
         }
     }
 
@@ -796,6 +843,7 @@ public class LogicalZipFile extends ZipFileSlice {
         if (extraFieldLen > 0) {
             readExtraFields(cenReader, filenameStartOff + filenameLen, extraFieldLen, entryFields, log);
         }
+        checkNoOverflowMarkerWasLeftBehind(entryFields);
         if (entryFields.renamedToDirectoryEntry) {
             // Skip directory entries, as above -- the Unicode path extra field can rename an entry into one
             return null;

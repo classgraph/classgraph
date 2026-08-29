@@ -26,17 +26,74 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.classgraph.vfs.internal.slice.reader;
+package io.github.classgraph.vfs.reader;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
-/** Interface for random access to values in byte order. */
+/**
+ * Reads values of a fixed width at any offset of some content, which may be a byte array, a {@link ByteBuffer}, a
+ * file, or a stream buffered up to the point it has been read to.
+ *
+ * <h2>Byte order</h2>
+ *
+ * <p>
+ * The byte order a reader reads multi-byte values in is a property of the <i>content</i>, not of the machine: it is
+ * fixed by whatever wrote the bytes. The zipfile format is defined as little endian and the Java classfile format
+ * as big endian, on every platform, so a reader of either reads the same values on a little endian and on a big
+ * endian machine. Every reader in this package therefore has a byte order that is fixed when it is constructed and
+ * reported by {@link #byteOrder()}, and none of them follows the byte order of the machine unless the caller asks
+ * for that explicitly by passing {@link ByteOrder#nativeOrder()}.
+ *
+ * <p>
+ * Each reader has a default byte order, which is the one the content it was written for is defined in, and a
+ * constructor that takes a {@link ByteOrder} for content in the other order. Reading content whose byte order is
+ * recorded in the content itself -- a TIFF file, or a machine-endian memory dump -- means reading the marker first
+ * and then opening a second reader in the order it names.
+ *
+ * <h2>Reading past the end of the content</h2>
+ *
+ * <p>
+ * The two {@code read} methods that fill a destination stop at the end of the content and report how far they got,
+ * the way {@link java.io.InputStream#read(byte[], int, int)} does, because a caller that is copying content out
+ * does not necessarily know how long it is -- and, for a deflated zip entry, neither does the reader until it has
+ * inflated it. The methods that read a single value of a fixed width throw an {@link IOException} instead if the
+ * value is not wholly within the content, since half of a value is not a value.
+ *
+ * <p>
+ * No method ever reports content that is not there. A reader whose length is overstated -- by a zip entry that
+ * declares an uncompressed size larger than what its deflate stream actually holds -- stops at the last byte that
+ * could really be read, rather than padding with zeroes.
+ */
 public interface RandomAccessReader {
     /**
-     * Read bytes into a {@link ByteBuffer}.
+     * The byte order this reader reads multi-byte values in, which is fixed when the reader is constructed and does
+     * not follow the byte order of the machine.
+     *
+     * @return the byte order.
+     */
+    ByteOrder byteOrder();
+
+    /**
+     * The number of bytes of content this reader can read.
+     *
+     * <p>
+     * For a reader over content whose length is already known -- an array, a buffer, a file, or a zip entry stored
+     * uncompressed -- this is a field read. For a reader over a stream whose length is not known until the end of
+     * it is reached -- a deflated zip entry, or a module resource -- the whole of the content has to be read to
+     * answer, and is buffered, so a caller that does not need the length should not ask for it.
+     *
+     * @return the number of bytes of content.
+     * @throws IOException
+     *             If the content had to be read to find its length, and could not be read.
+     */
+    long length() throws IOException;
+
+    /**
+     * Read bytes into a {@link ByteBuffer}, stopping at the end of the content.
      *
      * @param srcOffset
      *            The offset to start reading from.
@@ -45,15 +102,17 @@ public interface RandomAccessReader {
      * @param dstBufStart
      *            The offset within the destination buffer to start writing at.
      * @param numBytes
-     *            The number of bytes to read.
-     * @return The number of bytes actually read, or -1 if no more bytes could be read.
+     *            The maximum number of bytes to read.
+     * @return The number of bytes actually read, which is fewer than {@code numBytes} if the content ended first;
+     *         or -1 if {@code srcOffset} is at or past the end of the content, or the destination has no room left
+     *         at {@code dstBufStart}.
      * @throws IOException
      *             If there was an exception while reading.
      */
     int read(long srcOffset, ByteBuffer dstBuf, int dstBufStart, int numBytes) throws IOException;
 
     /**
-     * Read bytes into a byte array.
+     * Read bytes into a byte array, stopping at the end of the content.
      *
      * @param srcOffset
      *            The offset to start reading from.
@@ -62,8 +121,10 @@ public interface RandomAccessReader {
      * @param dstArrStart
      *            The offset within the destination array to start writing at.
      * @param numBytes
-     *            The number of bytes to read.
-     * @return The number of bytes actually read, or -1 if no more bytes could be read.
+     *            The maximum number of bytes to read.
+     * @return The number of bytes actually read, which is fewer than {@code numBytes} if the content ended first;
+     *         or -1 if {@code srcOffset} is at or past the end of the content, or the destination has no room left
+     *         at {@code dstArrStart}.
      * @throws IOException
      *             If there was an exception while reading.
      */

@@ -1225,13 +1225,15 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
          */
         synchronized int read(final ByteBuffer dst, final long fromPosition) throws IOException {
             checkOpen();
-            if (fromPosition >= content.length()) {
-                return -1;
-            }
-            final var numBytes = (int) Math.min(dst.remaining(), content.length() - fromPosition);
+            final var numBytes = dst.remaining();
             if (numBytes == 0) {
                 return 0;
             }
+            // The end of the content is where the reader says it is, rather than being checked against a length
+            // first: a deflated entry or a module resource does not know its own length until it has been read to
+            // the end, and reading a header should not have to inflate or stream the whole of the entry to find
+            // out where it ends
+
             // The reader leaves the destination's position and limit around the range it wrote, so both are put
             // back to what the contract of this method asks for: the limit untouched, and the position advanced
             // by the number of bytes that were read
@@ -1244,7 +1246,9 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
                 dst.limit(dstLimit);
                 dst.position(dstStart + numBytesRead);
             }
-            return numBytesRead;
+            // The reader returns -1, which Math#max above turned into 0, once the read starts at or past the end
+            // of the content
+            return numBytesRead == 0 ? -1 : numBytesRead;
         }
 
         @Override
@@ -1273,7 +1277,10 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
         @Override
         public long size() throws IOException {
             checkOpen();
-            return content.length();
+            // For an entry that is inflated or streamed, this reads the whole of the content, since that is the
+            // only way to find out how long it is. That is what Files#readAllBytes and Files#readString do first,
+            // so those read the entry once from beginning to end, and then copy it out of the reader's buffer.
+            return content.reader().length();
         }
 
         @Override

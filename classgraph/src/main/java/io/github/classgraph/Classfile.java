@@ -45,7 +45,7 @@ import io.github.classgraph.Scanner.ClassfileScanWorkUnit;
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.utils.CollectionUtils;
 import io.github.classgraph.base.internal.utils.StringUtils;
-import io.github.classgraph.vfs.internal.slice.reader.RandomAccessOrSequentialReader;
+import io.github.classgraph.vfs.reader.RandomAccessOrSequentialReader;
 import org.jspecify.annotations.Nullable;
 
 /**

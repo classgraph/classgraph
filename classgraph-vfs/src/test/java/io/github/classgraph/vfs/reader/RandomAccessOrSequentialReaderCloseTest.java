@@ -1,4 +1,4 @@
-package io.github.classgraph.vfs.internal.slice.reader;
+package io.github.classgraph.vfs.reader;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;

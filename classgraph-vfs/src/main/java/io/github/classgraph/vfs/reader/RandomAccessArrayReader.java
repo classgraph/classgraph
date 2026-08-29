@@ -26,19 +26,22 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.classgraph.vfs.internal.slice.reader;
+package io.github.classgraph.vfs.reader;
 
 import java.io.IOException;
 import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.ReadOnlyBufferException;
 import java.nio.charset.Charset;
 
 import io.github.classgraph.base.internal.utils.StringUtils;
 
 /**
- * {@link RandomAccessReader} backed by a byte array. Reads in <b>little endian</b> order, as required by the
- * zipfile format.
+ * {@link RandomAccessReader} backed by a byte array. Reads in <b>little endian</b> order by default, as required by
+ * the zipfile format, which is what this reader was written for; pass a {@link ByteOrder} to read content written
+ * in the other order. See {@link RandomAccessReader} for why the byte order is a property of the content and not of
+ * the machine.
  */
 public class RandomAccessArrayReader implements RandomAccessReader {
     /** The array. */
@@ -50,8 +53,16 @@ public class RandomAccessArrayReader implements RandomAccessReader {
     /** The length of the slice within the array. */
     private final int sliceLength;
 
+    /** The byte order multi-byte values are read in. */
+    private final ByteOrder byteOrder;
+
     /**
-     * Constructor for slicing an array.
+     * Whether {@link #byteOrder} is {@link ByteOrder#BIG_ENDIAN}, kept as a field to keep the reads branch-free.
+     */
+    private final boolean bigEndian;
+
+    /**
+     * Constructor for slicing an array, reading in little endian order, as the zipfile format requires.
      *
      * @param arr
      *            the array to slice.
@@ -61,9 +72,39 @@ public class RandomAccessArrayReader implements RandomAccessReader {
      *            the length of the slice within the array.
      */
     public RandomAccessArrayReader(final byte[] arr, final int sliceStartPos, final int sliceLength) {
+        this(arr, sliceStartPos, sliceLength, ByteOrder.LITTLE_ENDIAN);
+    }
+
+    /**
+     * Constructor for slicing an array, reading in a given byte order.
+     *
+     * @param arr
+     *            the array to slice.
+     * @param sliceStartPos
+     *            the start index of the slice within the array.
+     * @param sliceLength
+     *            the length of the slice within the array.
+     * @param byteOrder
+     *            the byte order to read multi-byte values in. Pass {@link ByteOrder#nativeOrder()} for content
+     *            written in the byte order of the machine this is running on.
+     */
+    public RandomAccessArrayReader(final byte[] arr, final int sliceStartPos, final int sliceLength,
+            final ByteOrder byteOrder) {
         this.arr = arr;
         this.sliceStartPos = sliceStartPos;
         this.sliceLength = sliceLength;
+        this.byteOrder = byteOrder;
+        this.bigEndian = byteOrder == ByteOrder.BIG_ENDIAN;
+    }
+
+    @Override
+    public ByteOrder byteOrder() {
+        return byteOrder;
+    }
+
+    @Override
+    public long length() {
+        return sliceLength;
     }
 
     /**
@@ -85,15 +126,39 @@ public class RandomAccessArrayReader implements RandomAccessReader {
         }
     }
 
+    /**
+     * The number of bytes a bulk read starting at the given offset can transfer, which is the number asked for, cut
+     * down to what is left of the slice.
+     *
+     * @param srcOffset
+     *            the offset to read from, relative to the start of the slice.
+     * @param numBytes
+     *            the number of bytes asked for.
+     * @return the number of bytes that can be read, which is zero at or past the end of the slice.
+     * @throws IOException
+     *             if the offset or the number of bytes is negative.
+     */
+    private int numBytesAvailable(final long srcOffset, final int numBytes) throws IOException {
+        if (srcOffset < 0L || numBytes < 0) {
+            throw new IOException("Read index out of bounds");
+        }
+        // A bulk read stops at the end of the slice and reports how far it got, rather than throwing, since a
+        // caller copying the content out does not necessarily know how long it is
+        return (int) Math.max(Math.min(numBytes, sliceLength - srcOffset), 0L);
+    }
+
     @Override
     public int read(final long srcOffset, final byte[] dstArr, final int dstArrStart, final int numBytes)
             throws IOException {
         if (numBytes == 0) {
             return 0;
         }
-        checkInBounds(srcOffset, numBytes);
+        final var numBytesInSlice = numBytesAvailable(srcOffset, numBytes);
+        if (numBytesInSlice == 0) {
+            return -1;
+        }
         try {
-            final var numBytesToRead = Math.max(Math.min(numBytes, dstArr.length - dstArrStart), 0);
+            final var numBytesToRead = Math.max(Math.min(numBytesInSlice, dstArr.length - dstArrStart), 0);
             if (numBytesToRead == 0) {
                 return -1;
             }
@@ -111,9 +176,12 @@ public class RandomAccessArrayReader implements RandomAccessReader {
         if (numBytes == 0) {
             return 0;
         }
-        checkInBounds(srcOffset, numBytes);
+        final var numBytesInSlice = numBytesAvailable(srcOffset, numBytes);
+        if (numBytesInSlice == 0) {
+            return -1;
+        }
         try {
-            final var numBytesToRead = Math.max(Math.min(numBytes, dstBuf.capacity() - dstBufStart), 0);
+            final var numBytesToRead = Math.max(Math.min(numBytesInSlice, dstBuf.capacity() - dstBufStart), 0);
             if (numBytesToRead == 0) {
                 return -1;
             }
@@ -154,18 +222,20 @@ public class RandomAccessArrayReader implements RandomAccessReader {
     public int readUnsignedShort(final long offset) throws IOException {
         checkInBounds(offset, 2);
         final var idx = sliceStartPos + (int) offset;
-        return ((arr[idx + 1] & 0xff) << 8) //
-                | (arr[idx] & 0xff);
+        final var bigEndianVal = (short) (((arr[idx] & 0xff) << 8) //
+                | (arr[idx + 1] & 0xff));
+        return (bigEndian ? bigEndianVal : Short.reverseBytes(bigEndianVal)) & 0xffff;
     }
 
     @Override
     public int readInt(final long offset) throws IOException {
         checkInBounds(offset, 4);
         final var idx = sliceStartPos + (int) offset;
-        return ((arr[idx + 3] & 0xff) << 24) //
-                | ((arr[idx + 2] & 0xff) << 16) //
-                | ((arr[idx + 1] & 0xff) << 8) //
-                | (arr[idx] & 0xff);
+        final var bigEndianVal = ((arr[idx] & 0xff) << 24) //
+                | ((arr[idx + 1] & 0xff) << 16) //
+                | ((arr[idx + 2] & 0xff) << 8) //
+                | (arr[idx + 3] & 0xff);
+        return bigEndian ? bigEndianVal : Integer.reverseBytes(bigEndianVal);
     }
 
     @Override
@@ -177,14 +247,15 @@ public class RandomAccessArrayReader implements RandomAccessReader {
     public long readLong(final long offset) throws IOException {
         checkInBounds(offset, 8);
         final var idx = sliceStartPos + (int) offset;
-        return ((arr[idx + 7] & 0xffL) << 56) //
-                | ((arr[idx + 6] & 0xffL) << 48) //
-                | ((arr[idx + 5] & 0xffL) << 40) //
-                | ((arr[idx + 4] & 0xffL) << 32) //
-                | ((arr[idx + 3] & 0xffL) << 24) //
-                | ((arr[idx + 2] & 0xffL) << 16) //
-                | ((arr[idx + 1] & 0xffL) << 8) //
-                | (arr[idx] & 0xffL);
+        final var bigEndianVal = ((arr[idx] & 0xffL) << 56) //
+                | ((arr[idx + 1] & 0xffL) << 48) //
+                | ((arr[idx + 2] & 0xffL) << 40) //
+                | ((arr[idx + 3] & 0xffL) << 32) //
+                | ((arr[idx + 4] & 0xffL) << 24) //
+                | ((arr[idx + 5] & 0xffL) << 16) //
+                | ((arr[idx + 6] & 0xffL) << 8) //
+                | (arr[idx + 7] & 0xffL);
+        return bigEndian ? bigEndianVal : Long.reverseBytes(bigEndianVal);
     }
 
     @Override

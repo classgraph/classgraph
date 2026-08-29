@@ -38,7 +38,7 @@ import java.util.EnumSet;
 import java.util.Set;
 
 import io.github.classgraph.base.internal.path.URLPaths;
-import io.github.classgraph.vfs.internal.slice.reader.RandomAccessOrSequentialReader;
+import io.github.classgraph.vfs.reader.RandomAccessOrSequentialReader;
 import io.github.classgraph.vfs.internal.zip.FastZipEntry;
 import org.jspecify.annotations.Nullable;
 
@@ -170,14 +170,14 @@ final class ArchiveEntry extends VfsEntry {
             // The content has to be inflated from the beginning to reach any given offset, so it is inflated only
             // as far as the furthest offset that is read, and what has been inflated so far is buffered
             final var reader = new RandomAccessOrSequentialReader(this);
-            return new RandomAccessContent(reader, zipEntry.uncompressedSize, reader::close);
+            return new RandomAccessContent(reader, reader::close);
         }
         // The slice of a zip entry owns no resources of its own, but if the zipfile is memory-mapped, the reader
         // reads that mapping, so the mapping has to be held open until the caller has finished with the reader
         // #939
         final var releaseMappingView = slice.acquireMappingView();
         try {
-            return new RandomAccessContent(slice.randomAccessReader(), slice.sliceLength, releaseMappingView);
+            return new RandomAccessContent(slice.randomAccessReader(), releaseMappingView);
         } catch (final IOException | RuntimeException | Error e) {
             // The caller never sees the reader if this throws, so nothing else would release the view
             releaseMappingView.run();

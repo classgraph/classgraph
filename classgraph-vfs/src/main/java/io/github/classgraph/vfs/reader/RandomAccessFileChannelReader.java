@@ -26,12 +26,13 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.classgraph.vfs.internal.slice.reader;
+package io.github.classgraph.vfs.reader;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
 import java.nio.charset.Charset;
 
@@ -39,8 +40,10 @@ import io.github.classgraph.base.internal.utils.StringUtils;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@link RandomAccessReader} for a {@link File}. Reads in <b>little endian</b> order, as required by the zipfile
- * format.
+ * {@link RandomAccessReader} for a {@link File}. Reads in <b>little endian</b> order by default, as required by the
+ * zipfile format, which is what this reader was written for; pass a {@link ByteOrder} to read content written in
+ * the other order. See {@link RandomAccessReader} for why the byte order is a property of the content and not of
+ * the machine.
  */
 public class RandomAccessFileChannelReader implements RandomAccessReader {
 
@@ -65,6 +68,14 @@ public class RandomAccessFileChannelReader implements RandomAccessReader {
     /** The reusable buffer that strings are read into, or null until the first string read. */
     private byte @Nullable [] stringBytes;
 
+    /** The byte order multi-byte values are read in. */
+    private final ByteOrder byteOrder;
+
+    /**
+     * Whether {@link #byteOrder} is {@link ByteOrder#BIG_ENDIAN}, kept as a field to keep the reads branch-free.
+     */
+    private final boolean bigEndian;
+
     /**
      * Constructor.
      *
@@ -77,9 +88,39 @@ public class RandomAccessFileChannelReader implements RandomAccessReader {
      */
     public RandomAccessFileChannelReader(final FileChannel fileChannel, final long sliceStartPos,
             final long sliceLength) {
+        this(fileChannel, sliceStartPos, sliceLength, ByteOrder.LITTLE_ENDIAN);
+    }
+
+    /**
+     * Constructor.
+     *
+     * @param fileChannel
+     *            the file channel
+     * @param sliceStartPos
+     *            the slice start pos
+     * @param sliceLength
+     *            the slice length
+     * @param byteOrder
+     *            the byte order to read multi-byte values in. Pass {@link ByteOrder#nativeOrder()} for content
+     *            written in the byte order of the machine this is running on.
+     */
+    public RandomAccessFileChannelReader(final FileChannel fileChannel, final long sliceStartPos,
+            final long sliceLength, final ByteOrder byteOrder) {
         this.fileChannel = fileChannel;
         this.sliceStartPos = sliceStartPos;
         this.sliceLength = sliceLength;
+        this.byteOrder = byteOrder;
+        this.bigEndian = byteOrder == ByteOrder.BIG_ENDIAN;
+    }
+
+    @Override
+    public ByteOrder byteOrder() {
+        return byteOrder;
+    }
+
+    @Override
+    public long length() {
+        return sliceLength;
     }
 
     @Override
@@ -89,12 +130,18 @@ public class RandomAccessFileChannelReader implements RandomAccessReader {
             return 0;
         }
         try {
-            if (srcOffset < 0L || numBytes < 0 || numBytes > sliceLength - srcOffset) {
+            if (srcOffset < 0L || numBytes < 0) {
                 throw new IOException("Read index out of bounds");
+            }
+            // A bulk read stops at the end of the slice and reports how far it got, rather than throwing, since a
+            // caller copying the content out does not necessarily know how long it is
+            final var numBytesInSlice = (int) Math.max(Math.min(numBytes, sliceLength - srcOffset), 0L);
+            if (numBytesInSlice == 0) {
+                return -1;
             }
             // Read no more than the destination has room for, as the array-backed and ByteBuffer-backed readers
             // also do, rather than letting ByteBuffer#limit throw IllegalArgumentException
-            final var numBytesToRead = Math.max(Math.min(numBytes, dstBuf.capacity() - dstBufStart), 0);
+            final var numBytesToRead = Math.max(Math.min(numBytesInSlice, dstBuf.capacity() - dstBufStart), 0);
             if (numBytesToRead == 0) {
                 return -1;
             }
@@ -132,7 +179,7 @@ public class RandomAccessFileChannelReader implements RandomAccessReader {
             return 0;
         }
         try {
-            if (srcOffset < 0L || numBytes < 0 || numBytes > sliceLength - srcOffset) {
+            if (srcOffset < 0L || numBytes < 0) {
                 throw new IOException("Read index out of bounds");
             }
             var byteBuffer = reusableByteBuffer;
@@ -149,8 +196,28 @@ public class RandomAccessFileChannelReader implements RandomAccessReader {
         }
     }
 
+    /**
+     * Check that a read of a value stays within the slice, so that it cannot read the bytes that surround the slice
+     * in the file. (A zipfile can ask for a read at any offset, since offsets are read from the zipfile itself.)
+     *
+     * @param offset
+     *            the offset to read from, relative to the start of the slice
+     * @param numBytes
+     *            the number of bytes to read
+     * @throws IOException
+     *             if the read would run past either end of the slice
+     */
+    private void checkInBounds(final long offset, final int numBytes) throws IOException {
+        // Compare by subtraction rather than addition, so that a large offset plus a large numBytes cannot
+        // overflow and slip past the check
+        if (offset < 0L || numBytes < 0 || numBytes > sliceLength - offset) {
+            throw new IOException("Read index out of bounds");
+        }
+    }
+
     @Override
     public byte readByte(final long offset) throws IOException {
+        checkInBounds(offset, 1);
         if (read(offset, scratchByteBuf, 0, 1) < 1) {
             throw new IOException("Premature EOF");
         }
@@ -159,6 +226,7 @@ public class RandomAccessFileChannelReader implements RandomAccessReader {
 
     @Override
     public int readUnsignedByte(final long offset) throws IOException {
+        checkInBounds(offset, 1);
         if (read(offset, scratchByteBuf, 0, 1) < 1) {
             throw new IOException("Premature EOF");
         }
@@ -172,22 +240,26 @@ public class RandomAccessFileChannelReader implements RandomAccessReader {
 
     @Override
     public int readUnsignedShort(final long offset) throws IOException {
+        checkInBounds(offset, 2);
         if (read(offset, scratchByteBuf, 0, 2) < 2) {
             throw new IOException("Premature EOF");
         }
-        return ((scratchArr[1] & 0xff) << 8) //
-                | (scratchArr[0] & 0xff);
+        final var bigEndianVal = (short) (((scratchArr[0] & 0xff) << 8) //
+                | (scratchArr[1] & 0xff));
+        return (bigEndian ? bigEndianVal : Short.reverseBytes(bigEndianVal)) & 0xffff;
     }
 
     @Override
     public int readInt(final long offset) throws IOException {
+        checkInBounds(offset, 4);
         if (read(offset, scratchByteBuf, 0, 4) < 4) {
             throw new IOException("Premature EOF");
         }
-        return ((scratchArr[3] & 0xff) << 24) //
-                | ((scratchArr[2] & 0xff) << 16) //
-                | ((scratchArr[1] & 0xff) << 8) //
-                | (scratchArr[0] & 0xff);
+        final var bigEndianVal = ((scratchArr[0] & 0xff) << 24) //
+                | ((scratchArr[1] & 0xff) << 16) //
+                | ((scratchArr[2] & 0xff) << 8) //
+                | (scratchArr[3] & 0xff);
+        return bigEndian ? bigEndianVal : Integer.reverseBytes(bigEndianVal);
     }
 
     @Override
@@ -197,17 +269,19 @@ public class RandomAccessFileChannelReader implements RandomAccessReader {
 
     @Override
     public long readLong(final long offset) throws IOException {
+        checkInBounds(offset, 8);
         if (read(offset, scratchByteBuf, 0, 8) < 8) {
             throw new IOException("Premature EOF");
         }
-        return ((scratchArr[7] & 0xffL) << 56) //
-                | ((scratchArr[6] & 0xffL) << 48) //
-                | ((scratchArr[5] & 0xffL) << 40) //
-                | ((scratchArr[4] & 0xffL) << 32) //
-                | ((scratchArr[3] & 0xffL) << 24) //
-                | ((scratchArr[2] & 0xffL) << 16) //
-                | ((scratchArr[1] & 0xffL) << 8) //
-                | (scratchArr[0] & 0xffL);
+        final var bigEndianVal = ((scratchArr[0] & 0xffL) << 56) //
+                | ((scratchArr[1] & 0xffL) << 48) //
+                | ((scratchArr[2] & 0xffL) << 40) //
+                | ((scratchArr[3] & 0xffL) << 32) //
+                | ((scratchArr[4] & 0xffL) << 24) //
+                | ((scratchArr[5] & 0xffL) << 16) //
+                | ((scratchArr[6] & 0xffL) << 8) //
+                | (scratchArr[7] & 0xffL);
+        return bigEndian ? bigEndianVal : Long.reverseBytes(bigEndianVal);
     }
 
     /**
