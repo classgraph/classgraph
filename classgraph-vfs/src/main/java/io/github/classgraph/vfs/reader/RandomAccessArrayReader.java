@@ -29,7 +29,6 @@
 package io.github.classgraph.vfs.reader;
 
 import java.io.IOException;
-import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.ReadOnlyBufferException;
@@ -171,7 +170,7 @@ public class RandomAccessArrayReader implements RandomAccessReader {
     @Override
     public int read(final long srcOffset, final ByteBuffer dstBuf, final int dstBufStart, final int numBytes)
             throws IOException {
-        final var dstRoom = ReaderBounds.numBytesFree(dstBuf.capacity(), dstBufStart);
+        final var dstRoom = ReaderBounds.numBytesFree(dstBuf.limit(), dstBufStart);
         if (numBytes == 0 || dstRoom == 0) {
             return 0;
         }
@@ -182,15 +181,10 @@ public class RandomAccessArrayReader implements RandomAccessReader {
         try {
             final var numBytesToRead = Math.min(numBytesInSlice, dstRoom);
             final var srcStart = (int) (sliceStartPos + srcOffset);
-            // Open the limit up to the capacity before positioning, since the destination buffer may still carry
-            // the limit that a previous read left on it, and positioning past a stale limit throws
-            // IllegalArgumentException
-            dstBuf.limit(dstBuf.capacity());
-            dstBuf.position(dstBufStart);
-            dstBuf.limit(dstBufStart + numBytesToRead);
-            dstBuf.put(arr, srcStart, numBytesToRead);
+            // An absolute put, so the destination's position and limit are neither read nor changed
+            dstBuf.put(dstBufStart, arr, srcStart, numBytesToRead);
             return numBytesToRead;
-        } catch (BufferUnderflowException | IndexOutOfBoundsException | ReadOnlyBufferException e) {
+        } catch (IndexOutOfBoundsException | ReadOnlyBufferException e) {
             throw new IOException("Read index out of bounds");
         }
     }

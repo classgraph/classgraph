@@ -1234,18 +1234,11 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
             // the end, and reading a header should not have to inflate or stream the whole of the entry to find
             // out where it ends
 
-            // The reader leaves the destination's position and limit around the range it wrote, so both are put
-            // back to what the contract of this method asks for: the limit untouched, and the position advanced
-            // by the number of bytes that were read
+            // The reader writes at an index and leaves the destination's position and limit alone, so the position
+            // is advanced here over what it wrote, which is what the contract of this method asks for
             final var dstStart = dst.position();
-            final var dstLimit = dst.limit();
-            var numBytesRead = 0;
-            try {
-                numBytesRead = Math.max(content.reader().read(fromPosition, dst, dstStart, numBytes), 0);
-            } finally {
-                dst.limit(dstLimit);
-                dst.position(dstStart + numBytesRead);
-            }
+            final var numBytesRead = Math.max(content.reader().read(fromPosition, dst, dstStart, numBytes), 0);
+            dst.position(dstStart + numBytesRead);
             // The reader returns -1, which Math#max above turned into 0, once the read starts at or past the end
             // of the content
             return numBytesRead == 0 ? -1 : numBytesRead;

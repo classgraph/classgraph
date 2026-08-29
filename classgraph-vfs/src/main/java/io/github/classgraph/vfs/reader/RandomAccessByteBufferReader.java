@@ -29,7 +29,6 @@
 package io.github.classgraph.vfs.reader;
 
 import java.io.IOException;
-import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.ReadOnlyBufferException;
@@ -238,9 +237,8 @@ public class RandomAccessByteBufferReader implements RandomAccessReader {
         try {
             final var numBytesToRead = Math.min(numBytesInSlice, dstRoom);
             final var srcStart = (int) srcOffset;
-            byteBuffer.position(sliceStartPos + srcStart);
-            byteBuffer.get(dstArr, dstArrStart, numBytesToRead);
-            byteBuffer.position(sliceStartPos);
+            // An absolute get, so this reader's own position and limit stay where the constructor put them
+            byteBuffer.get(sliceStartPos + srcStart, dstArr, dstArrStart, numBytesToRead);
             return numBytesToRead;
         } catch (final IndexOutOfBoundsException e) {
             throw new IOException("Read index out of bounds");
@@ -252,7 +250,7 @@ public class RandomAccessByteBufferReader implements RandomAccessReader {
     @Override
     public int read(final long srcOffset, final ByteBuffer dstBuf, final int dstBufStart, final int numBytes)
             throws IOException {
-        final var dstRoom = ReaderBounds.numBytesFree(dstBuf.capacity(), dstBufStart);
+        final var dstRoom = ReaderBounds.numBytesFree(dstBuf.limit(), dstBufStart);
         if (numBytes == 0 || dstRoom == 0) {
             return 0;
         }
@@ -263,25 +261,11 @@ public class RandomAccessByteBufferReader implements RandomAccessReader {
         try {
             final var numBytesToRead = Math.min(numBytesInSlice, dstRoom);
             final var srcStart = (int) (sliceStartPos + srcOffset);
-            try {
-                byteBuffer.position(srcStart);
-                // Limit the source to the bytes that were asked for, otherwise the rest of the slice is copied
-                // too, overflowing the destination
-                byteBuffer.limit(srcStart + numBytesToRead);
-                // Open the destination's limit up to its capacity before positioning, since it may still carry
-                // the limit that a previous read left on it, and positioning past a stale limit throws
-                // IllegalArgumentException
-                dstBuf.limit(dstBuf.capacity());
-                dstBuf.position(dstBufStart);
-                dstBuf.limit(dstBufStart + numBytesToRead);
-                dstBuf.put(byteBuffer);
-            } finally {
-                // Restore the window on the slice, even if the read failed, since the reader can be read again
-                byteBuffer.limit(sliceStartPos + sliceLength);
-                byteBuffer.position(sliceStartPos);
-            }
+            // An absolute put, so neither buffer's position or limit is read or changed. Both ends of the copy are
+            // named by index, so nothing has to be windowed first and nothing has to be put back afterwards.
+            dstBuf.put(dstBufStart, byteBuffer, srcStart, numBytesToRead);
             return numBytesToRead;
-        } catch (BufferUnderflowException | IndexOutOfBoundsException | ReadOnlyBufferException e) {
+        } catch (IndexOutOfBoundsException | ReadOnlyBufferException e) {
             throw new IOException("Read index out of bounds");
         } catch (final IllegalStateException e) {
             throw unmapped(e);

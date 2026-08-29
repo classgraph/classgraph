@@ -41,7 +41,10 @@ final class ReaderBounds {
      * asked to start writing at.
      *
      * @param dstSize
-     *            the number of bytes the destination holds -- the length of an array, or the capacity of a buffer.
+     *            the number of bytes the destination can be written to -- the length of an array, or the limit of a
+     *            buffer. The limit, not the capacity: an absolute {@link java.nio.ByteBuffer} transfer is bounded
+     *            by the limit, and a caller that lowered it did so to say that the bytes past it are not to be
+     *            written.
      * @param dstStart
      *            the offset within the destination to start writing at.
      * @return the number of bytes free at that offset, which is zero if the destination is full there.

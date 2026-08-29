@@ -429,4 +429,70 @@ public class RandomAccessReaderTest {
         assertThatThrownBy(() -> reader.read(0, dstBuf, -1, 4)).isInstanceOf(IOException.class)
                 .hasMessageContaining("out of bounds");
     }
+
+    /**
+     * A read into a {@link ByteBuffer} writes at the index it is given, so it must leave the destination's position
+     * and limit exactly where the caller left them. A caller that then reads the buffer relatively, or hands it to
+     * something that does, gets the whole of it rather than just the window of the last read.
+     *
+     * @param readerKind
+     *            the kind of reader to read through
+     * @throws IOException
+     *             if the content could not be read
+     */
+    @ParameterizedTest
+    @EnumSource(ReaderKind.class)
+    public void aBufferReadLeavesThePositionAndLimitAlone(final ReaderKind readerKind) throws IOException {
+        final var reader = reader(readerKind, PATTERN, 0, PATTERN.length);
+        final var dstBuf = ByteBuffer.allocate(16);
+        dstBuf.position(3);
+        dstBuf.limit(12);
+
+        assertThat(reader.read(0, dstBuf, 4, 4)).isEqualTo(4);
+        assertThat(dstBuf.position()).isEqualTo(3);
+        assertThat(dstBuf.limit()).isEqualTo(12);
+        // The bytes really did land at the index that was asked for, not at the position
+        assertThat(dstBuf.get(4)).isEqualTo(PATTERN[0]);
+        assertThat(dstBuf.get(7)).isEqualTo(PATTERN[3]);
+
+        // A second read is not affected by where the first one wrote
+        assertThat(reader.read(4, dstBuf, 8, 4)).isEqualTo(4);
+        assertThat(dstBuf.position()).isEqualTo(3);
+        assertThat(dstBuf.limit()).isEqualTo(12);
+        assertThat(dstBuf.get(8)).isEqualTo(PATTERN[4]);
+    }
+
+    /**
+     * The room in a {@link ByteBuffer} destination ends at its limit, not at its capacity: a caller that lowered
+     * the limit did so to say that the bytes past it are not to be written.
+     *
+     * @param readerKind
+     *            the kind of reader to read through
+     * @throws IOException
+     *             if the content could not be read
+     */
+    @ParameterizedTest
+    @EnumSource(ReaderKind.class)
+    public void aBufferReadStopsAtTheLimitRatherThanTheCapacity(final ReaderKind readerKind) throws IOException {
+        final var reader = reader(readerKind, PATTERN, 0, PATTERN.length);
+        final var dstBuf = ByteBuffer.allocate(16);
+        dstBuf.limit(6);
+
+        // Only 2 of the 8 bytes asked for fit between index 4 and the limit
+        assertThat(reader.read(0, dstBuf, 4, 8)).isEqualTo(2);
+
+        // The limit is full at index 6, which is not the end of the content
+        assertThat(reader.read(0, dstBuf, 6, 8)).isZero();
+
+        // An index between the limit and the capacity is outside the destination, not merely full
+        assertThatThrownBy(() -> reader.read(0, dstBuf, 7, 8)).isInstanceOf(IOException.class)
+                .hasMessageContaining("out of bounds");
+
+        // The bytes past the limit were not written. (The limit has to be opened up to look at them, since an
+        // absolute read of a buffer is bounded by the limit too.)
+        dstBuf.limit(dstBuf.capacity());
+        assertThat(dstBuf.get(5)).isEqualTo(PATTERN[1]);
+        assertThat(dstBuf.get(6)).isZero();
+        assertThat(dstBuf.get(7)).isZero();
+    }
 }

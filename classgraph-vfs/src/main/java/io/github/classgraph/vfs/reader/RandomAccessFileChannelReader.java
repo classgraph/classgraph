@@ -126,7 +126,7 @@ public class RandomAccessFileChannelReader implements RandomAccessReader {
     @Override
     public int read(final long srcOffset, final ByteBuffer dstBuf, final int dstBufStart, final int numBytes)
             throws IOException {
-        final var dstRoom = ReaderBounds.numBytesFree(dstBuf.capacity(), dstBufStart);
+        final var dstRoom = ReaderBounds.numBytesFree(dstBuf.limit(), dstBufStart);
         if (numBytes == 0 || dstRoom == 0) {
             return 0;
         }
@@ -144,24 +144,30 @@ public class RandomAccessFileChannelReader implements RandomAccessReader {
             // also do, rather than letting ByteBuffer#limit throw IllegalArgumentException
             final var numBytesToRead = Math.min(numBytesInSlice, dstRoom);
             final var srcStart = sliceStartPos + srcOffset;
-            // Open the limit up to the capacity before positioning, since the destination buffer may still carry
-            // the limit that a previous read left on it, and positioning past a stale limit throws
-            // IllegalArgumentException
-            dstBuf.limit(dstBuf.capacity());
-            dstBuf.position(dstBufStart);
-            dstBuf.limit(dstBufStart + numBytesToRead);
-            // FileChannel#read is not required to transfer the whole of the requested range in a single call, and
-            // a read from a network filesystem can be short, so keep reading until the requested number of bytes
-            // has been read or the end of the file is reached. (Every caller treats a short read as a truncated
-            // file, so a short read that is not at the end of the file has to be completed here.)
+            // FileChannel#read transfers relative to the destination's position, so unlike the other readers this
+            // one has to window the destination, and put its position and limit back afterwards -- including when
+            // the read throws, since a caller that catches the exception is left holding the buffer
+            final var dstPosition = dstBuf.position();
+            final var dstLimit = dstBuf.limit();
             var numBytesRead = 0;
-            while (numBytesRead < numBytesToRead) {
-                final var numBytesReadThisCall = fileChannel.read(dstBuf, srcStart + numBytesRead);
-                if (numBytesReadThisCall <= 0) {
-                    // -1 => end of file; 0 => the destination buffer has no space left
-                    break;
+            try {
+                dstBuf.position(dstBufStart);
+                dstBuf.limit(dstBufStart + numBytesToRead);
+                // FileChannel#read is not required to transfer the whole of the requested range in a single call,
+                // and a read from a network filesystem can be short, so keep reading until the requested number of
+                // bytes has been read or the end of the file is reached. (Every caller treats a short read as a
+                // truncated file, so a short read that is not at the end of the file has to be completed here.)
+                while (numBytesRead < numBytesToRead) {
+                    final var numBytesReadThisCall = fileChannel.read(dstBuf, srcStart + numBytesRead);
+                    if (numBytesReadThisCall <= 0) {
+                        // -1 => end of file; 0 => the destination buffer has no space left
+                        break;
+                    }
+                    numBytesRead += numBytesReadThisCall;
                 }
-                numBytesRead += numBytesReadThisCall;
+            } finally {
+                dstBuf.limit(dstLimit);
+                dstBuf.position(dstPosition);
             }
             return numBytesRead == 0 ? -1 : numBytesRead;
 

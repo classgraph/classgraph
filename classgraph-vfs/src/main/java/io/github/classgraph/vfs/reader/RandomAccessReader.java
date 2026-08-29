@@ -73,6 +73,18 @@ import java.nio.charset.StandardCharsets;
  * -1 means the end of the content was reached; 0 means the end of the destination was reached. A read-copy loop
  * must break on 0, since continuing until -1 loops forever, reading 0 bytes each time.
  *
+ * <h2>Writing into a {@link ByteBuffer}</h2>
+ *
+ * <p>
+ * The {@code read} method that fills a {@link ByteBuffer} writes at the index it is given, and does not change the
+ * destination's position or limit -- it is an absolute transfer, like
+ * {@link ByteBuffer#put(int, byte[], int, int)}. A caller that wants the position advanced over what was read, the
+ * way a {@link java.nio.channels.SeekableByteChannel} advances it, has to do that itself.
+ *
+ * <p>
+ * It writes no further than the destination's limit, not its capacity, since a caller that lowered the limit did so
+ * to say that the bytes past it are not to be written. A read that would start past the limit is out of bounds.
+ *
  * <p>
  * No method ever reports content that is not there. A reader whose length is overstated -- by a zip entry that
  * declares an uncompressed size larger than what its deflate stream actually holds -- stops at the last byte that
@@ -110,7 +122,8 @@ public interface RandomAccessReader {
      * @param dstBuf
      *            The {@link ByteBuffer} to write into.
      * @param dstBufStart
-     *            The offset within the destination buffer to start writing at.
+     *            The index within the destination buffer to start writing at, which is not affected by, and does
+     *            not affect, the destination's position.
      * @param numBytes
      *            The maximum number of bytes to read.
      * @return The number of bytes actually read, which is fewer than {@code numBytes} if the content ended first; 0
