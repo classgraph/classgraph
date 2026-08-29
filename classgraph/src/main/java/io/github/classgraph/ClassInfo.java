@@ -3793,6 +3793,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         if (this.typeSignature != null) {
             this.typeSignature.setScanResult(scanResult);
         }
+        if (this.typeDescriptor != null) {
+            this.typeDescriptor.setScanResult(scanResult);
+        }
         if (annotationInfo != null) {
             for (final AnnotationInfo ai : annotationInfo) {
                 ai.setScanResult(scanResult);

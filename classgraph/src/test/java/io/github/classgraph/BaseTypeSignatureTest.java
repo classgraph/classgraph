@@ -114,7 +114,6 @@ public class BaseTypeSignatureTest {
     }
 
     /** A type annotation on a primitive type is shown before the type name. */
-    // #419: a base type does not hold onto the ScanResult, so that closing the scan can free it
     @Test
     public void typeAnnotationsAreShownBeforeTheTypeName() {
         try (var scanResult = new ClassGraph().enableClasspath().acceptClasses(AnnotatedPrimitives.class.getName())
@@ -127,8 +126,12 @@ public class BaseTypeSignatureTest {
             assertThat(classInfo.getMethodInfo("annotatedMethod").get(0).getTypeSignatureOrTypeDescriptor()
                     .getResultType().toString()).isEqualTo(annotation + " long");
 
-            // The base type holds no reference to the ScanResult, even though it was created by the scan
-            assertThat(((BaseTypeSignature) fieldType).scanResult).isNull();
+            // A base type is given the ScanResult like any other type signature, so that a type annotation on a
+            // primitive type can reach its own annotation class. (#419 used to suppress this, back when a single
+            // BaseTypeSignature instance was shared between all uses of a given primitive type; instances are no
+            // longer shared, and a base type is reachable from the ScanResult anyway, so suppressing it only broke
+            // type annotations.)
+            assertThat(((BaseTypeSignature) fieldType).scanResult).isSameAs(scanResult);
         }
     }
 }
