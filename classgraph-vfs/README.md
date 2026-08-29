@@ -384,8 +384,8 @@ you pay before reading anything at all.
 
 | Archive | zipfs | cgvfs | speedup |
 | --- | ---: | ---: | ---: |
-| `random.zip` | 18.68 ms | 5.14 ms | 3.63× |
-| `books.zip` | 17.82 ms | 4.74 ms | 3.76× |
+| `random.zip` | 18.68 ms | **5.14 ms** | 3.63× |
+| `books.zip` | 17.82 ms | **4.74 ms** | 3.76× |
 
 Opening an archive and listing it costs about a quarter of what it costs under zipfs.
 
@@ -397,18 +397,18 @@ that the two never contend with each other. Total wall time for all 5120 entries
 
 | Archive | Threads | zipfs | cgvfs | speedup |
 | --- | ---: | ---: | ---: | ---: |
-| `random.zip` (stored, 5.0GB) | 1 | 2526 ms | 1182 ms | 2.14× |
-| | 2 | 1727 ms | 780 ms | 2.21× |
-| | 4 | 1442 ms | 669 ms | 2.16× |
-| | 8 | 1382 ms | 618 ms | 2.23× |
-| | 16 | 1440 ms | 681 ms | 2.11× |
-| | 32 | 1605 ms | 1063 ms | 1.51× |
-| `books.zip` (deflated, 2.6GB) | 1 | 7480 ms | 6624 ms | 1.13× |
-| | 2 | 3856 ms | 3437 ms | 1.12× |
-| | 4 | 2038 ms | 1784 ms | 1.14× |
-| | 8 | 1151 ms | 980 ms | 1.17× |
-| | 16 | 797 ms | 617 ms | 1.29× |
-| | 32 | 841 ms | 639 ms | 1.31× |
+| `random.zip` (stored, 5.0GB) | 1 | 2526 ms | **1182 ms** | 2.14× |
+| | 2 | 1727 ms | **780 ms** | 2.21× |
+| | 4 | 1442 ms | **669 ms** | 2.16× |
+| | 8 | 1382 ms | **618 ms** | 2.23× |
+| | 16 | 1440 ms | **681 ms** | 2.11× |
+| | 32 | 1605 ms | **1063 ms** | 1.51× |
+| `books.zip` (deflated, 2.6GB) | 1 | 7480 ms | **6624 ms** | 1.13× |
+| | 2 | 3856 ms | **3437 ms** | 1.12× |
+| | 4 | 2038 ms | **1784 ms** | 1.14× |
+| | 8 | 1151 ms | **980 ms** | 1.17× |
+| | 16 | 797 ms | **617 ms** | 1.29× |
+| | 32 | 841 ms | **639 ms** | 1.31× |
 
 Reading a stored archive is a little over twice as fast; reading a deflated one is 1.1-1.3× as fast,
 since both providers spend most of that time in the same inflater. Neither provider improves beyond
@@ -424,12 +424,12 @@ first 64 bytes of each of the 5120 entries of `books.zip` through `Files.newByte
 
 | Threads | zipfs | cgvfs | speedup |
 | ---: | ---: | ---: | ---: |
-| 1 | 7133 ms | 212 ms | 33.7× |
-| 2 | 3669 ms | 114 ms | 32.2× |
-| 4 | 1878 ms | 58 ms | 32.4× |
-| 8 | 993 ms | 31 ms | 32.0× |
-| 16 | 606 ms | 20 ms | 30.4× |
-| 32 | 564 ms | 16 ms | 34.8× |
+| 1 | 7133 ms | **212 ms** | 33.7× |
+| 2 | 3669 ms | **114 ms** | 32.2× |
+| 4 | 1878 ms | **58 ms** | 32.4× |
+| 8 | 993 ms | **31 ms** | 32.0× |
+| 16 | 606 ms | **20 ms** | 30.4× |
+| 32 | 564 ms | **16 ms** | 34.8× |
 
 Reading a small part of a deflated entry costs about 32× less than under zipfs, at every thread
 count.
@@ -439,18 +439,18 @@ count.
 Looking up every one of the 26970 entries of `kotlin-compiler-embeddable-2.4.10.jar` by name, 400
 times over.
 
-| Threads | `java.util.zip` (shared) | `java.util.zip` (per thread) | cgvfs | speedup |
-| ---: | ---: | ---: | ---: | ---: |
-| 1 | 927 ms | 969 ms | 153 ms | 6.1× |
-| 2 | 1081 ms | 459 ms | 74 ms | 14.6× |
-| 4 | 1615 ms | 230 ms | 41 ms | 39.4× |
-| 8 | 1496 ms | 145 ms | 35 ms | 42.7× |
-| 16 | 1593 ms | 102 ms | 14 ms | 113.8× |
-| 32 | 1552 ms | 74 ms | 11 ms | 141.1× |
+| Threads | `java.util.zip` (shared) | `java.util.zip` (per thread) | cgvfs | speedup vs shared | speedup vs per thread |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | 927 ms | 969 ms | **153 ms** | 6.1× | 6.3× |
+| 2 | 1081 ms | 459 ms | **74 ms** | 14.6× | 6.2× |
+| 4 | 1615 ms | 230 ms | **41 ms** | 39.4× | 5.6× |
+| 8 | 1496 ms | 145 ms | **35 ms** | 42.7× | 4.1× |
+| 16 | 1593 ms | 102 ms | **14 ms** | 113.8× | 7.3× |
+| 32 | 1552 ms | 74 ms | **11 ms** | 141.1× | 6.7× |
 
 Lookup under one shared `ZipFile` gets *slower* as threads are added; the middle column shows the
 same work scaling once each thread has its own `ZipFile`, at the cost of parsing the central
-directory and holding a file handle per thread. The speedup column is against the shared `ZipFile`.
+directory and holding a file handle per thread.
 
 ### Bulk inflation
 
@@ -458,12 +458,12 @@ Inflating every entry of the same jarfile, 20 times over.
 
 | Threads | `java.util.zip` (shared) | cgvfs | speedup |
 | ---: | ---: | ---: | ---: |
-| 1 | 9342 ms | 8593 ms | 1.09× |
-| 2 | 5123 ms | 4532 ms | 1.13× |
-| 4 | 3215 ms | 2457 ms | 1.31× |
-| 8 | 3081 ms | 1510 ms | 2.04× |
-| 16 | 3103 ms | 978 ms | 3.17× |
-| 32 | 3206 ms | 941 ms | 3.41× |
+| 1 | 9342 ms | **8593 ms** | 1.09× |
+| 2 | 5123 ms | **4532 ms** | 1.13× |
+| 4 | 3215 ms | **2457 ms** | 1.31× |
+| 8 | 3081 ms | **1510 ms** | 2.04× |
+| 16 | 3103 ms | **978 ms** | 3.17× |
+| 32 | 3206 ms | **941 ms** | 3.41× |
 
 Inflation under a shared `ZipFile` stops scaling at four threads, while cgvfs keeps scaling to 16.
 
