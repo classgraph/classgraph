@@ -158,6 +158,27 @@ public class ClasspathOrderTest {
     }
 
     /**
+     * A classpath entry given as a {@link URI} whose path holds a character that a URI cannot hold unquoted is
+     * still added once its package root suffix has been stripped. The suffix is stripped from the resolved path,
+     * which is percent-decoded, so neither {@code new URI(path)} nor {@code new URI("file:" + path)} can parse it
+     * back; the entry degrades to its path string, as a {@link File} or {@link Path} entry does, rather than being
+     * dropped. Every path on Windows holds such characters, since a backslash is one.
+     */
+    @Test
+    public void aUriEntryWhosePathNeedsQuotingIsNotDropped(@TempDir final Path tempDir) throws Exception {
+        final var dir = Files.createDirectory(tempDir.resolve("lib dir"));
+        final var jar = createFile(dir.resolve("x.jar"));
+        classpathOrder.setPackageRootPrefixes(List.of("BOOT-INF/classes/"));
+
+        final var uri = new URI(Path.of(jar).toUri() + "!/BOOT-INF/classes");
+        assertThat(classpathOrder.addClasspathEntry(uri, null, null)).isTrue();
+        assertThat(locations()).containsExactly(jar);
+        // The same jar without the package root suffix is now a duplicate, so the entry really was added under the
+        // path the suffix was stripped from
+        assertThat(classpathOrder.addClasspathEntry(jar, null, null)).isFalse();
+    }
+
+    /**
      * A dir that no classloader declares as an automatic package root is not stripped from the end of a classpath
      * entry, so the entry is scanned as the package root the caller named.
      */

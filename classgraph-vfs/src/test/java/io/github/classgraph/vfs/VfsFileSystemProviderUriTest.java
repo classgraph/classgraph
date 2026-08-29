@@ -9,6 +9,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystemAlreadyExistsException;
@@ -106,12 +107,22 @@ public class VfsFileSystemProviderUriTest {
     /**
      * The {@code "cgvfs:"} URI of a path string.
      *
+     * <p>
+     * This is built with the {@link URI#URI(String, String, String)} constructor, which quotes the characters that
+     * a URI cannot hold, rather than by concatenating the scheme onto the path: a Windows path holds backslashes,
+     * which are illegal in the scheme-specific part of an opaque URI, so concatenation would throw. This is what
+     * {@link VfsPath#toCgvfsUri()} does, and {@code pathOf} decodes the quoting back out again.
+     *
      * @param path
      *            the path.
      * @return the URI.
      */
     private static URI cgvfsUri(final String path) {
-        return URI.create("cgvfs:" + path);
+        try {
+            return new URI(VfsFileSystemProvider.SCHEME, path, /* fragment = */ null);
+        } catch (final URISyntaxException e) {
+            throw new IllegalArgumentException("Path cannot be written as a URI: " + path, e);
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -320,6 +331,35 @@ public class VfsFileSystemProviderUriTest {
             final var rootUri = ((VfsPath) fileSystem.getPath("/")).toCgvfsUri();
             assertThat(rootUri.getSchemeSpecificPart()).endsWith("library.jar");
             assertThat(Paths.get(rootUri)).isEqualTo(fileSystem.getPath("/"));
+        }
+    }
+
+    /**
+     * A jarfile whose path holds characters that a URI cannot hold unquoted can be opened by URI, and its paths can
+     * be written back as URIs. A space is such a character on every platform, and a Windows path holds two more of
+     * them in every path it names: the backslash separator, and the colon after the drive letter.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the jarfile could not be read.
+     */
+    @Test
+    public void aPathThatNeedsQuotingInAUriCanBeOpened(@TempDir final Path tempDir) throws IOException {
+        // Characters that are legal in a filename on every platform ClassGraph supports, but that a URI has to
+        // quote. '!' is left out, since that is the nested jar separator rather than part of the name
+        final var awkwardDir = Files.createDirectory(tempDir.resolve("lib dir & more#1"));
+        final var jarFile = awkwardDir.resolve("library.jar").toFile();
+        writeJar(jarFile);
+
+        try (var fileSystem = FileSystems.newFileSystem(cgvfsUri(jarFile.getPath()), Map.of())) {
+            assertThat(Files.readAllBytes(fileSystem.getPath("/root.txt"))).isEqualTo(contentOf("root.txt"));
+
+            // The quoting round-trips: the URI of a path names that path again, with the characters decoded
+            final var path = (VfsPath) fileSystem.getPath("/com/xyz/Widget.class");
+            final var uri = path.toCgvfsUri();
+            assertThat(uri.getSchemeSpecificPart()).contains("lib dir & more#1");
+            assertThat(Paths.get(uri)).isEqualTo(path);
         }
     }
 

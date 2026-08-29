@@ -468,7 +468,12 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
                 } catch (MalformedURLException | URISyntaxException e2) {
                     // (Path.of() is not retried, since prefixing an invalid path with "file:" cannot fix it --
                     // the Path degrades to a path string, as a File does)
-                    return false;
+                    //
+                    // Neither spelling could be parsed, which a path holding a character that a URI cannot hold
+                    // unquoted does: a space makes both new URI(path) and new URI("file:" + path) throw, since
+                    // the resolved path is percent-decoded. Degrade to the path string, as the File and Path
+                    // branches above do, rather than dropping the classpath element entirely
+                    pathElementWithoutSuffix = pathElementStrWithoutSuffix;
                 }
             }
         }
