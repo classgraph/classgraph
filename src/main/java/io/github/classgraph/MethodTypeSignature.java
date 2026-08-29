@@ -138,6 +138,9 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
         if (receiverTypeAnnotationInfo == null) {
             receiverTypeAnnotationInfo = new AnnotationInfoList(1);
         }
+        // Set the ScanResult as the annotation is added, for the same reason as in
+        // HierarchicalTypeSignature#addTypeAnnotation
+        annotationInfo.setScanResult(scanResult);
         receiverTypeAnnotationInfo.add(annotationInfo);
     }
 
@@ -191,6 +194,11 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
         if (throwsSignatures != null) {
             for (final ClassRefOrTypeVariableSignature throwsSignature : throwsSignatures) {
                 throwsSignature.setScanResult(scanResult);
+            }
+        }
+        if (receiverTypeAnnotationInfo != null) {
+            for (final AnnotationInfo annotationInfo : receiverTypeAnnotationInfo) {
+                annotationInfo.setScanResult(scanResult);
             }
         }
     }

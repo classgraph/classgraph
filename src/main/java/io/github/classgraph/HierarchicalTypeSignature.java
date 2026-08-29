@@ -54,6 +54,10 @@ public abstract class HierarchicalTypeSignature extends ScanResultObject {
         if (typeAnnotationInfo == null) {
             typeAnnotationInfo = new AnnotationInfoList(1);
         }
+        // Type annotations are applied by a decorator that runs when the type signature is first requested, which
+        // is after the signature has been given its ScanResult, so the annotation has to be given the ScanResult
+        // here rather than by setScanResult
+        annotationInfo.setScanResult(scanResult);
         typeAnnotationInfo.add(annotationInfo);
     }
 
