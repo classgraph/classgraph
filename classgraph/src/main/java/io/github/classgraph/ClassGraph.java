@@ -118,11 +118,18 @@ public class ClassGraph {
     static final int DEFAULT_NUM_WORKER_THREADS = Math.max(
             // Always scan with at least 2 threads
             2, //
-            (int) Math.ceil(
-                    // Num IO threads (top out at 4, since most I/O devices won't scale better than this)
-                    Math.min(4.0, Runtime.getRuntime().availableProcessors() * 0.75) +
-                    // Num scanning threads (higher than available processors, because some threads can be blocked)
-                            Runtime.getRuntime().availableProcessors() * 1.25) //
+            Math.min(
+                    // Top out at 16 threads: reading a zipfile stops getting faster somewhere below that on the
+                    // machines this was measured on, and past it the extra threads only contend for memory
+                    // bandwidth and for cores that the JVM's own GC and JIT threads also need. See the benchmarks
+                    // in classgraph-vfs/README.md.
+                    16, //
+                    (int) Math.ceil(
+                            // Num IO threads (top out at 4, since most I/O devices won't scale better than this)
+                            Math.min(4.0, Runtime.getRuntime().availableProcessors() * 0.75) +
+                            // Num scanning threads (higher than available processors, because some threads can be
+                            // blocked)
+                                    Runtime.getRuntime().availableProcessors() * 1.25)) //
     );
 
     /**
