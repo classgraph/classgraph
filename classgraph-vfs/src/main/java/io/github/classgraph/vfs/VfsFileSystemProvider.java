@@ -632,8 +632,9 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
     }
 
     /**
-     * Open a read-only channel over the content of an entry: one that reads straight from the archive or the file
-     * if the content is stored uncompressed, and otherwise one over the whole content brought into memory.
+     * Open a read-only channel over the content of an entry. How much of the content is brought into memory to
+     * serve a read at an offset is decided by the entry -- see {@link VfsEntry#openRandomAccess()} -- since a
+     * caller that opens a channel rather than a stream is one that may not read the content straight through.
      *
      * @param entry
      *            the entry.
@@ -641,10 +642,8 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
      * @throws IOException
      *             if the entry could not be read.
      */
-    private static VfsPositionalChannel channelOver(final VfsEntry entry) throws IOException {
-        final var randomAccessContent = entry.openRandomAccessContent();
-        return randomAccessContent == null ? new VfsByteChannel(entry.read())
-                : new VfsRandomAccessChannel(randomAccessContent);
+    private static VfsRandomAccessChannel channelOver(final VfsEntry entry) throws IOException {
+        return new VfsRandomAccessChannel(entry.openRandomAccess());
     }
 
     /**
@@ -1002,7 +1001,7 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
      */
     private static final class VfsFileChannel extends FileChannel {
         /** The channel that holds the content, closed when this channel is closed. */
-        private final VfsPositionalChannel content;
+        private final VfsRandomAccessChannel content;
 
         /** The read position, which is allowed to be beyond the end of the content. */
         private long position;
@@ -1013,7 +1012,7 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
          * @param content
          *            the channel that holds the content of the entry.
          */
-        VfsFileChannel(final VfsPositionalChannel content) {
+        VfsFileChannel(final VfsRandomAccessChannel content) {
             this.content = content;
         }
 
@@ -1164,29 +1163,9 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
     /**
      * A read-only {@link SeekableByteChannel} over the content of one {@link VfsEntry} that can also be read at an
      * absolute position, without moving the position of the channel, so that {@link VfsFileChannel} can be built
-     * over it. Reading at an absolute position is safe to do from several threads at once, which is what
-     * {@link FileChannel} promises.
+     * over it.
      */
-    private interface VfsPositionalChannel extends SeekableByteChannel {
-        /**
-         * Read from a given position, without moving the position of the channel.
-         *
-         * @param dst
-         *            the buffer to read into.
-         * @param fromPosition
-         *            the position to read from, which is allowed to be beyond the end of the content.
-         * @return the number of bytes read, or -1 at end of file.
-         * @throws IOException
-         *             if the content could not be read.
-         */
-        int read(ByteBuffer dst, long fromPosition) throws IOException;
-    }
-
-    /**
-     * A read-only {@link VfsPositionalChannel} that reads the content of an entry where it lies, rather than
-     * bringing the whole of it into memory first, which only an entry stored uncompressed allows.
-     */
-    private static final class VfsRandomAccessChannel implements VfsPositionalChannel {
+    private static final class VfsRandomAccessChannel implements SeekableByteChannel {
         /** The content of the entry, released when this channel is closed. */
         private final VfsEntry.RandomAccessContent content;
 
@@ -1229,12 +1208,22 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
             return numBytes;
         }
 
-        // The reader keeps state of its own between reads, and is not safe to use from more than one thread at
-        // once, so every read through this channel is serialized. There is one reader per open channel, so this
-        // does not serialize threads that are reading different files, or even the same file through channels of
-        // their own
-        @Override
-        public synchronized int read(final ByteBuffer dst, final long fromPosition) throws IOException {
+        /**
+         * Read from a given position, without moving the position of the channel. This is safe to do from several
+         * threads at once, which is what {@link FileChannel} promises: the reader keeps state of its own between
+         * reads, and is not safe to use from more than one thread at a time, so every read through this channel is
+         * serialized. There is one reader per open channel, so this does not serialize threads that are reading
+         * different files, or even the same file through channels of their own.
+         *
+         * @param dst
+         *            the buffer to read into.
+         * @param fromPosition
+         *            the position to read from, which is allowed to be beyond the end of the content.
+         * @return the number of bytes read, or -1 at end of file.
+         * @throws IOException
+         *             if the content could not be read.
+         */
+        synchronized int read(final ByteBuffer dst, final long fromPosition) throws IOException {
             checkOpen();
             if (fromPosition >= content.length()) {
                 return -1;
@@ -1301,140 +1290,6 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
         public void close() {
             if (open.compareAndSet(true, false)) {
                 content.closeAction().run();
-            }
-        }
-    }
-
-    /** A read-only {@link VfsPositionalChannel} over the whole content of one {@link VfsEntry}, held in memory. */
-    private static final class VfsByteChannel implements VfsPositionalChannel {
-        /** The content of the entry, closed when this channel is closed. */
-        private final CloseableByteBuffer content;
-
-        /** The content of the entry. */
-        private final ByteBuffer buffer;
-
-        /**
-         * The read position, which is allowed to be beyond the end of the content, where reads return end-of-file.
-         * It is tracked separately from the position of {@link #buffer}, which cannot exceed its limit.
-         */
-        private long position;
-
-        /** Whether this channel is still open. */
-        private final AtomicBoolean open = new AtomicBoolean(true);
-
-        /**
-         * Constructor.
-         *
-         * @param content
-         *            the content of the entry.
-         * @throws IOException
-         *             if the content could not be read.
-         */
-        VfsByteChannel(final CloseableByteBuffer content) throws IOException {
-            this.content = content;
-            final var byteBuffer = content.getByteBuffer();
-            if (byteBuffer == null) {
-                content.close();
-                throw new IOException("Could not read entry content");
-            }
-            // Slice rather than duplicate, so that the content starts at index 0 whatever position the buffer
-            // arrived at, which is what the absolute indexing in read() and size() assumes
-            this.buffer = byteBuffer.slice();
-        }
-
-        /**
-         * Check that this channel is still open.
-         *
-         * @throws java.nio.channels.ClosedChannelException
-         *             if it is not.
-         */
-        private void checkOpen() throws IOException {
-            if (!open.get()) {
-                throw new java.nio.channels.ClosedChannelException();
-            }
-        }
-
-        @Override
-        public int read(final ByteBuffer dst) throws IOException {
-            final var numBytes = read(dst, position);
-            if (numBytes > 0) {
-                position += numBytes;
-            }
-            return numBytes;
-        }
-
-        /**
-         * Read from a given position, without moving {@link #position}.
-         *
-         * @param dst
-         *            the buffer to read into.
-         * @param fromPosition
-         *            the position to read from, which is allowed to be beyond the end of the content.
-         * @return the number of bytes read, or -1 at end of file.
-         * @throws IOException
-         *             if the content could not be read.
-         */
-        @Override
-        public int read(final ByteBuffer dst, final long fromPosition) throws IOException {
-            checkOpen();
-            if (fromPosition >= buffer.limit()) {
-                return -1;
-            }
-            final var numBytes = Math.min(dst.remaining(), buffer.limit() - (int) fromPosition);
-            final var slice = buffer.slice((int) fromPosition, numBytes);
-            try {
-                dst.put(slice);
-            } catch (final IllegalStateException e) {
-                // The buffer aliases a memory mapping that was unmapped by closing the Vfs while this read was
-                // in flight -- fail the same documented way as a read through a closed FileChannel
-                throw new IOException("Cannot read a file that has been unmapped by closing the Vfs", e);
-            }
-            return numBytes;
-        }
-
-        @Override
-        public int write(final ByteBuffer src) {
-            throw new NonWritableChannelException();
-        }
-
-        @Override
-        public long position() throws IOException {
-            checkOpen();
-            return position;
-        }
-
-        @Override
-        public SeekableByteChannel position(final long newPosition) throws IOException {
-            checkOpen();
-            if (newPosition < 0) {
-                throw new IllegalArgumentException("Negative position: " + newPosition);
-            }
-            // Seeking beyond the end is allowed, the position reads back as the one that was asked for, and reads
-            // there return -1
-            position = newPosition;
-            return this;
-        }
-
-        @Override
-        public long size() throws IOException {
-            checkOpen();
-            return buffer.limit();
-        }
-
-        @Override
-        public SeekableByteChannel truncate(final long size) {
-            throw new NonWritableChannelException();
-        }
-
-        @Override
-        public boolean isOpen() {
-            return open.get();
-        }
-
-        @Override
-        public void close() throws IOException {
-            if (open.getAndSet(false)) {
-                content.close();
             }
         }
     }

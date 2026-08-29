@@ -38,6 +38,7 @@ import java.util.EnumSet;
 import java.util.Set;
 
 import io.github.classgraph.base.internal.path.URLPaths;
+import io.github.classgraph.vfs.internal.slice.reader.RandomAccessOrSequentialReader;
 import io.github.classgraph.vfs.internal.zip.FastZipEntry;
 import org.jspecify.annotations.Nullable;
 
@@ -162,13 +163,14 @@ final class ArchiveEntry extends VfsEntry {
     }
 
     @Override
-    @Nullable
-    RandomAccessContent openRandomAccessContent() throws IOException {
+    RandomAccessContent openRandomAccess() throws IOException {
         getRoot().checkNotClosed(getPath());
         final var slice = zipEntry.getSlice();
         if (slice.isDeflatedZipEntry) {
-            // The content has to be inflated before any of it can be read at an offset
-            return null;
+            // The content has to be inflated from the beginning to reach any given offset, so it is inflated only
+            // as far as the furthest offset that is read, and what has been inflated so far is buffered
+            final var reader = new RandomAccessOrSequentialReader(this);
+            return new RandomAccessContent(reader, zipEntry.uncompressedSize, reader::close);
         }
         // The slice of a zip entry owns no resources of its own, but if the zipfile is memory-mapped, the reader
         // reads that mapping, so the mapping has to be held open until the caller has finished with the reader

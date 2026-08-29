@@ -75,10 +75,18 @@ public class RandomAccessOrSequentialReader implements RandomAccessReader, Seque
     private int lengthHint = -1;
 
     /**
-     * Initial buffer size. For most content only a prefix is read -- for a classfile, the first 16-64kb, since the
-     * bytecodes are not read.
+     * The size the buffer is grown to the first time anything is read, unless the first read is of more than this,
+     * or the content is shorter than this. For most content only a prefix is read -- for a classfile, the first
+     * 16-64kb, since the bytecodes are not read.
      */
     private static final int INITIAL_BUF_SIZE = 16384;
+
+    /**
+     * The buffer before anything has been read. Nothing is allocated until the first read, so that a caller that
+     * asks for the whole of the content in one read gets a buffer of exactly that size, rather than a buffer of
+     * {@link #INITIAL_BUF_SIZE} that is thrown away and copied into a larger one straight afterwards.
+     */
+    private static final byte[] EMPTY_BUF = {};
 
     /**
      * Read this many bytes each time there is a buffer underrun. This is smaller than 8k by 8 bytes to prevent the
@@ -106,7 +114,7 @@ public class RandomAccessOrSequentialReader implements RandomAccessReader, Seque
         // The entry opens whatever it has to in order to be read, and this reader closes it
         ownsInputStream = true;
         inputStream = entry.open();
-        arr = new byte[INITIAL_BUF_SIZE];
+        arr = EMPTY_BUF;
         // Telling the reader how long the entry is saves it from growing the buffer to find out
         final var length = entry.getLength();
         lengthHint = length < 0L ? -1 : (int) Math.min(length, Slice.MAX_BUFFER_SIZE);
@@ -122,7 +130,7 @@ public class RandomAccessOrSequentialReader implements RandomAccessReader, Seque
     public RandomAccessOrSequentialReader(final InputStream inputStream) {
         ownsInputStream = false;
         this.inputStream = inputStream;
-        arr = new byte[INITIAL_BUF_SIZE];
+        arr = EMPTY_BUF;
     }
 
     /**
@@ -171,8 +179,9 @@ public class RandomAccessOrSequentialReader implements RandomAccessReader, Seque
         final var maxNewArrUsed = (int) Math.min(Math.max(targetArrUsed, (long) arrUsed + (long) BUF_CHUNK_SIZE),
                 maxArrLen);
 
-        // Double the size of the array if it's too small to contain the new chunk of bytes
-        long newArrLength = arr.length;
+        // Double the size of the array if it's too small to contain the new chunk of bytes, starting from the
+        // initial buffer size on the first read, when nothing has been allocated yet
+        long newArrLength = Math.max(arr.length, INITIAL_BUF_SIZE);
         while (newArrLength < maxNewArrUsed) {
             newArrLength = Math.min(maxNewArrUsed, newArrLength * 2L);
         }

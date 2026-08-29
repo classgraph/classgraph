@@ -17,6 +17,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
@@ -78,6 +79,41 @@ public class RandomAccessOrSequentialReaderTest {
         @Override
         public int read(final byte[] buf, final int off, final int len) throws IOException {
             return len == 0 ? 0 : wrapped.read(buf, off, 1);
+        }
+
+        @Override
+        public void close() throws IOException {
+            wrapped.close();
+        }
+    }
+
+    /** An {@link InputStream} that counts how many bytes have been pulled out of the stream underneath it. */
+    private static final class CountingInputStream extends InputStream {
+        private final InputStream wrapped;
+
+        /** The number of bytes transferred so far. */
+        private int numBytesRead;
+
+        CountingInputStream(final InputStream wrapped) {
+            this.wrapped = wrapped;
+        }
+
+        @Override
+        public int read() throws IOException {
+            final var byteRead = wrapped.read();
+            if (byteRead >= 0) {
+                numBytesRead++;
+            }
+            return byteRead;
+        }
+
+        @Override
+        public int read(final byte[] buf, final int off, final int len) throws IOException {
+            final var numRead = wrapped.read(buf, off, len);
+            if (numRead > 0) {
+                numBytesRead += numRead;
+            }
+            return numRead;
         }
 
         @Override
@@ -540,6 +576,42 @@ public class RandomAccessOrSequentialReaderTest {
             assertThatThrownBy(() -> reader.contentEqualsAscii(offset, numBytes + 1, "ConstantValueX"))
                     .isInstanceOf(IOException.class);
             assertThatThrownBy(() -> reader.contentEqualsAscii(-1, 1, "C")).isInstanceOf(IOException.class);
+        }
+    }
+
+    /**
+     * The reader pulls from the stream underneath it only as far as the furthest offset that has been read, so a
+     * caller that reads a header out of a large entry pays for the header rather than for the whole entry, and a
+     * caller that goes back over a part it has already read does not pull it a second time.
+     *
+     * @throws IOException
+     *             if the content could not be read.
+     */
+    @Test
+    public void onlyReadsAsFarAsTheFurthestOffsetThatIsRead() throws IOException {
+        final var content = new byte[1024 * 1024];
+        for (var i = 0; i < content.length; i++) {
+            content[i] = (byte) i;
+        }
+        final var countingStream = new CountingInputStream(new ByteArrayInputStream(content));
+        try (var reader = new RandomAccessOrSequentialReader(countingStream)) {
+            // A read of the first few bytes pulls the initial buffer's worth, and no more
+            assertThat(reader.readByte(0)).isEqualTo(content[0]);
+            final var numBytesReadForHeader = countingStream.numBytesRead;
+            assertThat(numBytesReadForHeader).isLessThanOrEqualTo(16384);
+
+            // Going back over a part that has already been read pulls nothing further
+            assertThat(reader.readByte(numBytesReadForHeader - 1)).isEqualTo(content[numBytesReadForHeader - 1]);
+            assertThat(countingStream.numBytesRead).isEqualTo(numBytesReadForHeader);
+
+            // Reading further pulls only as far as the offset that was asked for, rounded up to a whole chunk
+            final var furtherOffset = numBytesReadForHeader + 1024;
+            assertThat(reader.readByte(furtherOffset)).isEqualTo(content[furtherOffset]);
+            assertThat(countingStream.numBytesRead).isGreaterThan(furtherOffset).isLessThan(furtherOffset + 65536);
+
+            // The rest of the content is still there to be read
+            assertThat(reader.readByte(content.length - 1)).isEqualTo(content[content.length - 1]);
+            assertThat(countingStream.numBytesRead).isEqualTo(content.length);
         }
     }
 }

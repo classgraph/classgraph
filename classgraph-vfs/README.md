@@ -402,8 +402,8 @@ you pay before reading anything at all:
 
 | Archive | zipfs | cgvfs | speedup |
 | --- | ---: | ---: | ---: |
-| `random.zip` | 18.38 ms | 4.94 ms | 3.72× |
-| `books.zip` | 16.64 ms | 4.66 ms | 3.57× |
+| `random.zip` | 17.17 ms | 4.52 ms | 3.80× |
+| `books.zip` | 16.60 ms | 4.25 ms | 3.91× |
 
 ### Reading every file
 
@@ -413,24 +413,24 @@ that the two never contend with each other. Total wall time for all 5120 entries
 
 | Archive | Threads | zipfs | cgvfs | speedup |
 | --- | ---: | ---: | ---: | ---: |
-| `random.zip` (stored, 5.0GB) | 1 | 2353 ms | 1060 ms | 2.22× |
-| | 2 | 1545 ms | 694 ms | 2.23× |
-| | 4 | 1346 ms | 609 ms | 2.21× |
-| | 8 | 1343 ms | 591 ms | 2.27× |
-| | 16 | 1372 ms | 616 ms | 2.23× |
-| | 32 | 1570 ms | 1047 ms | 1.50× |
-| `books.zip` (deflated, 2.6GB) | 1 | 7197 ms | 6449 ms | 1.12× |
-| | 2 | 3790 ms | 3373 ms | 1.12× |
-| | 4 | 2051 ms | 1806 ms | 1.14× |
-| | 8 | 1069 ms | 913 ms | 1.17× |
-| | 16 | 740 ms | 564 ms | 1.31× |
-| | 32 | 791 ms | 608 ms | 1.30× |
+| `random.zip` (stored, 5.0GB) | 1 | 2306 ms | 1093 ms | 2.11× |
+| | 2 | 1532 ms | 691 ms | 2.22× |
+| | 4 | 1324 ms | 602 ms | 2.20× |
+| | 8 | 1355 ms | 600 ms | 2.26× |
+| | 16 | 1355 ms | 600 ms | 2.26× |
+| | 32 | 1540 ms | 1055 ms | 1.46× |
+| `books.zip` (deflated, 2.6GB) | 1 | 7214 ms | 6627 ms | 1.09× |
+| | 2 | 3786 ms | 3363 ms | 1.13× |
+| | 4 | 2042 ms | 1843 ms | 1.11× |
+| | 8 | 1062 ms | 941 ms | 1.13× |
+| | 16 | 741 ms | 618 ms | 1.20× |
+| | 32 | 788 ms | 698 ms | 1.13× |
 
 (32-core Linux box, JDK 26, archives in `/tmp`, which is `tmpfs` here, so every read comes out of
-memory and no disk is in the picture. A repeat run agreed to within 2% on every cell of this table
-and to within 0.05× on every speedup, which is what the archives were sized for; the open/list/close
-numbers above are single-digit milliseconds and vary by up to 9% between runs. Both providers were
-checked to have read the same number of bytes: 5368709120 and 2828491700.)
+memory and no disk is in the picture. Every number above is the mean of two runs, which agreed to
+within 6% on every cell and to within 0.2× on every speedup; the open/list/close numbers are
+single-digit milliseconds and are the noisiest of them. Both providers were checked to have read the
+same number of bytes: 5368709120 and 2828491700.)
 
 #### Reading a stored archive
 
@@ -469,11 +469,10 @@ reproduces the old cgvfs curve almost cell for cell, including the climb above f
 `load()` row tracks the raw `pread` row throughout, so the vfs read path itself was never the
 problem -- only the nio provider layered on top of it. The fix is that `newByteChannel` and
 `FileChannel.open` now read a **stored** entry where it lies, at the offset asked for, straight into
-the caller's buffer, instead of bringing the whole entry into memory to copy out of. A deflated
-entry still has to be inflated in full before any of it can be read at an offset, so it keeps the old
-path. After the fix the provider sits on the raw `pread` floor, and a stored entry larger than 2GB
-can be read through a channel at all, which it could not be when the whole entry had to fit in one
-array first.
+the caller's buffer, instead of bringing the whole entry into memory to copy out of. After the fix
+the provider sits on the raw `pread` floor, and a stored entry larger than 2GB can be read through a
+channel at all, which it could not be when the whole entry had to fit in one array first. (What a
+channel over a *deflated* entry does instead is the subject of the next section but one.)
 
 The third row is why zipfs's curve has a different shape: zipfs reads an entry in small pieces into a
 reused buffer and joins them, which costs more per entry but spreads the memory traffic out, so it
@@ -493,7 +492,7 @@ which accumulates the entry in chunks and joins them at the end.
 #### Reading a deflated archive
 
 Both providers spend most of their time in the same `java.util.zip.Inflater`, so the single-threaded
-gap is small -- but it *widens* as threads are added, from 1.12× to about 1.30×, which is the
+gap is small -- but it *widens* as threads are added, from 1.09× to 1.20× at 16 threads, which is the
 opposite of what a shared fixed cost would do.
 
 zipfs is not `java.util.zip` internally, and does not have its instance monitor: its own reads are
@@ -506,9 +505,55 @@ through a lock-free queue and takes no lock to look an entry up, so it has no su
 grow. (The mechanism is read from the zipfs source; the attribution of the widening gap to it is
 inferred from the shape of the curve, not measured directly.)
 
-The benchmark is
+#### Reading part of a deflated archive
+
+The tables above read every entry from beginning to end, which is the case a channel is *least*
+suited to. A caller that opens a channel rather than a stream often wants a header, a footer, or a
+field at a known offset -- and a deflated entry cannot be read at an offset without inflating
+everything up to it.
+
+The obvious way to serve that is to inflate the whole entry into an array when the channel is opened
+and read at an offset out of the array, which is what cgvfs did. It costs the whole entry however
+few bytes are asked for. cgvfs now inflates lazily instead: only as far as the furthest offset that
+has been read, buffering what it has inflated so far, so that going back over a part already read
+does not inflate it again. Reading the first 64 bytes of each of the 5120 entries of `books.zip`:
+
+| Read path | 1 thread | 32 threads |
+| --- | ---: | ---: |
+| inflate the whole entry when the channel is opened | 6371 ms | 621 ms |
+| inflate only as far as the offset that is read | 228 ms | 30 ms |
+
+That is 28× and 21×, and it is the same shape of win for any caller that reads less than all of a
+deflated entry. The buffering is the same code that ClassGraph's own classfile parser reads through
+(`RandomAccessOrSequentialReader`), which is exactly this problem: the constant pool is read
+sequentially, then indexed into, and the bytecode at the end of the file is never read at all.
+
+The lazy path costs a little on the case it does not help. Reading every entry of `books.zip` in
+full through a channel, measured as five paired runs of each against the other:
+
+| Threads | inflate on open | inflate lazily | cost |
+| ---: | ---: | ---: | ---: |
+| 1 | 6650 ms | 6739 ms | +1% |
+| 16 | 623 ms | 656 ms | +5% |
+| 32 | 643 ms | 736 ms | +14% |
+
+The two paths allocate the same number of bytes (5442 MB per pass, measured per thread), issue the
+same number of `pread` calls (520148 against 520146), and run the same inflater over the same
+compressed input, so nothing extra is being done -- the difference only appears once the machine is
+oversubscribed, and single-threaded it is within noise. The likeliest explanation is the order the
+two large arrays are touched in: inflating on open fills the entry's array and then allocates the
+caller's, while inflating lazily allocates the caller's array first and fills the entry's array
+afterwards, so the copy at the end finds a colder destination. That last step is inferred from the
+shape of the numbers, not measured directly.
+
+Trading up to 14% on full reads at 32 threads for 20-28× on partial reads is worth it, and the full
+read of a deflated entry through a channel is in any case the case a caller should use
+`newInputStream` for.
+
+The benchmarks are
 [`ZipfsVsCgvfsBenchmark`](src/test/perf/io/github/classgraph/vfs/perf/ZipfsVsCgvfsBenchmark.java),
-which documents how to build the two archives and how to run it.
+which documents how to build the two archives and how to run it, and the partial-read numbers, which
+were measured with a throwaway harness rather than a checked-in benchmark.
 
 ## Recipes
 

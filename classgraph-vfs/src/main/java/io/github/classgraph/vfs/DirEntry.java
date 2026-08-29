@@ -222,8 +222,7 @@ final class DirEntry extends VfsEntry {
     }
 
     @Override
-    @Nullable
-    RandomAccessContent openRandomAccessContent() throws IOException {
+    RandomAccessContent openRandomAccess() throws IOException {
         final var slice = openSlice();
         try {
             // The slice holds the open file channel that the reader reads, so it is closed when the caller has

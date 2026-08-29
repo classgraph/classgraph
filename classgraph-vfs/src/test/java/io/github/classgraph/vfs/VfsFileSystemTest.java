@@ -1086,6 +1086,87 @@ public class VfsFileSystemTest {
     }
 
     /**
+     * A channel over an entry that is stored compressed inflates it only as far as the furthest offset that is
+     * read, buffering what it has inflated so far, so this checks that the channel still keeps every promise a
+     * channel makes: it reports the size of the entry, hands back the content in whatever size of pieces it is
+     * asked for, hands back a part that has already been read a second time, reads at an absolute position without
+     * moving the position of the channel, reports end-of-file past the end of the entry, and refuses to read once
+     * it has been closed.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the jarfile could not be written or read.
+     */
+    @Test
+    public void aDeflatedEntryIsReadInPiecesThroughAChannel(@TempDir final Path tempDir) throws IOException {
+        // An entry long enough that reading a header out of it is a different amount of work from reading all of
+        // it, and compressible enough to be stored deflated
+        final var expected = new byte[256 * 1024];
+        for (var i = 0; i < expected.length; i++) {
+            expected[i] = (byte) (i % 251);
+        }
+        final var entryName = "com/xyz/big.dat";
+        final var jarFile = tempDir.resolve("deflated.jar").toFile();
+        try (var fileOut = new FileOutputStream(jarFile); var zipOut = new ZipOutputStream(fileOut)) {
+            final var zipEntry = new ZipEntry(entryName);
+            zipEntry.setMethod(ZipEntry.DEFLATED);
+            zipOut.putNextEntry(zipEntry);
+            zipOut.write(expected);
+            zipOut.closeEntry();
+        }
+
+        try (var vfs = new Vfs()) {
+            final var path = vfs.open(jarFile).asFileSystem().getPath("/" + entryName);
+            assertThat(Files.readAllBytes(path)).isEqualTo(expected);
+
+            final var channel = Files.newByteChannel(path);
+            try (channel) {
+                // The size is the inflated length, which the channel reports without inflating anything
+                assertThat(channel.size()).isEqualTo(expected.length);
+
+                // A header can be read without the rest of the entry being inflated
+                final var header = ByteBuffer.allocate(64);
+                assertThat(channel.read(header)).isEqualTo(64);
+                assertThat(header.array()).isEqualTo(Arrays.copyOfRange(expected, 0, 64));
+
+                // A part that has already been read is handed back a second time
+                assertThat(channel.position(0).read(header.clear())).isEqualTo(64);
+                assertThat(header.array()).isEqualTo(Arrays.copyOfRange(expected, 0, 64));
+
+                // Seeking forwards inflates as far as the offset asked for, and no further than the entry
+                final var tail = ByteBuffer.allocate(32);
+                assertThat(channel.position(expected.length - 32L).read(tail)).isEqualTo(32);
+                assertThat(tail.array())
+                        .isEqualTo(Arrays.copyOfRange(expected, expected.length - 32, expected.length));
+                assertThat(channel.position()).isEqualTo(expected.length);
+                assertThat(channel.read(ByteBuffer.allocate(8))).isEqualTo(-1);
+                assertThat(channel.position(expected.length + 10L).read(ByteBuffer.allocate(8))).isEqualTo(-1);
+
+                // Reading the whole entry in pieces gives back exactly what was written
+                final var readBack = ByteBuffer.allocate(expected.length);
+                final var piece = ByteBuffer.allocate(3000);
+                channel.position(0);
+                while (channel.read(piece.clear()) > 0) {
+                    readBack.put(piece.flip());
+                }
+                assertThat(readBack.array()).isEqualTo(expected);
+            }
+            assertThatThrownBy(() -> channel.read(ByteBuffer.allocate(8)))
+                    .isInstanceOf(ClosedChannelException.class);
+
+            // A FileChannel over the same entry reads at an absolute position without moving its own position
+            try (var fileChannel = FileChannel.open(path)) {
+                final var window = ByteBuffer.allocate(16);
+                assertThat(fileChannel.read(window, 1024)).isEqualTo(16);
+                assertThat(window.array()).isEqualTo(Arrays.copyOfRange(expected, 1024, 1040));
+                assertThat(fileChannel.position()).isZero();
+                assertThat(fileChannel.size()).isEqualTo(expected.length);
+            }
+        }
+    }
+
+    /**
      * A {@link FileChannel} over an entry that is stored uncompressed can be read at an absolute position from
      * several threads at once, which is what {@link FileChannel} promises, even though the reader underneath it
      * keeps state between reads.
