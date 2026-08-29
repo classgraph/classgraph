@@ -43,6 +43,7 @@ import java.util.Set;
 
 import io.github.classgraph.base.internal.path.PathSyntax;
 import io.github.classgraph.base.internal.utils.Assert;
+import io.github.classgraph.vfs.internal.slice.reader.RandomAccessReader;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -272,6 +273,42 @@ public abstract class VfsEntry {
      *             than 2GB, the largest a {@link java.nio.ByteBuffer} can be.
      */
     public abstract CloseableByteBuffer read() throws IOException;
+
+    /**
+     * A view of the content of an entry that can be read at any offset, without the whole of the content first
+     * being brought into memory.
+     *
+     * @param reader
+     *            the reader, which reads the content of the entry, and which is not safe to use from more than one
+     *            thread at a time.
+     * @param length
+     *            the number of bytes of content the reader can read.
+     * @param closeAction
+     *            the action that releases whatever the reader holds -- an open file, or a view of a memory mapping
+     *            -- which the caller must run once it has finished reading.
+     */
+    record RandomAccessContent(RandomAccessReader reader, long length, Runnable closeAction) {
+    }
+
+    /**
+     * Open a view of this entry's content that can be read at any offset, if the content is stored uncompressed, so
+     * that a read of part of it does not have to bring the whole of it into memory first.
+     *
+     * <p>
+     * This is what lets {@link java.nio.file.Files#newByteChannel} over a stored entry read straight into the
+     * caller's buffer. The alternative, which is what an entry that is stored compressed still has to do, is to
+     * inflate the whole entry into an array and copy out of that array -- twice the memory traffic, and a limit of
+     * 2GB on the size of an entry that can be read at all.
+     *
+     * @return the view, which the caller owns and must release by running its close action, or null if the content
+     *         of this entry cannot be read without being brought into memory first.
+     * @throws IOException
+     *             if the entry could not be opened, or if the {@link Vfs} has been closed.
+     */
+    @Nullable
+    RandomAccessContent openRandomAccessContent() throws IOException {
+        return null;
+    }
 
     /**
      * Read this entry's whole content into a byte array, decompressing it if it is stored compressed. Unlike

@@ -14,6 +14,8 @@ import java.lang.module.ModuleReference;
 import java.lang.ref.WeakReference;
 import java.net.URI;
 import java.nio.ByteBuffer;
+import java.nio.channels.ClosedChannelException;
+import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.ClosedFileSystemException;
 import java.nio.file.DirectoryStream;
@@ -32,11 +34,13 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileTime;
 import java.nio.file.attribute.FileAttribute;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
@@ -47,6 +51,8 @@ import java.util.zip.ZipOutputStream;
 
 import io.github.classgraph.base.internal.utils.VersionFinder;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.jupiter.api.io.TempDir;
 
 /** Tests the read-only {@link FileSystem} view of a {@link VfsRoot}. */
@@ -1019,6 +1025,143 @@ public class VfsFileSystemTest {
 
             assertThatThrownBy(() -> channel.read(ByteBuffer.allocate(4))).isInstanceOf(IOException.class)
                     .hasMessageContaining("unmapped by closing the Vfs");
+        }
+    }
+
+    /**
+     * A channel over an entry that is stored uncompressed reads it where it lies, rather than bringing the whole
+     * entry into memory first, so this checks that the channel still keeps every promise a channel makes: it
+     * reports the size of the entry, hands back the content in whatever size of pieces it is asked for, leaves the
+     * limit of the destination buffer alone, reports end-of-file past the end of the entry, and refuses to read
+     * once it has been closed.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the jarfile could not be written or read.
+     */
+    @Test
+    public void aStoredEntryIsReadInPiecesThroughAChannel(@TempDir final Path tempDir) throws IOException {
+        final var jarFile = tempDir.resolve("stored.jar").toFile();
+        writeStoredJar(jarFile);
+        final var entryName = "com/xyz/sub/Nested.class";
+        final var expected = contentOf(entryName);
+
+        try (var vfs = new Vfs()) {
+            final var path = vfs.open(jarFile).asFileSystem().getPath("/" + entryName);
+            assertThat(Files.readAllBytes(path)).isEqualTo(expected);
+
+            final var channel = Files.newByteChannel(path);
+            try (channel) {
+                assertThat(channel.size()).isEqualTo(expected.length);
+
+                // Read the whole entry five bytes at a time, which is a size that does not divide the length of
+                // the entry, so the last read is short
+                final var readBack = ByteBuffer.allocate(expected.length);
+                final var piece = ByteBuffer.allocate(5);
+                for (var numRead = 0; (numRead = channel.read(piece.clear())) > 0;) {
+                    assertThat(numRead).isEqualTo(Math.min(5, expected.length - readBack.position()));
+                    readBack.put(piece.flip());
+                }
+                assertThat(readBack.array()).isEqualTo(expected);
+                assertThat(channel.position()).isEqualTo(expected.length);
+                // The end of the entry reads as end-of-file, and so does any position past it
+                assertThat(channel.read(ByteBuffer.allocate(5))).isEqualTo(-1);
+                assertThat(channel.position(expected.length + 10L).position()).isEqualTo(expected.length + 10L);
+                assertThat(channel.read(ByteBuffer.allocate(5))).isEqualTo(-1);
+
+                // A read fills the destination between its position and its limit, and moves neither the limit nor
+                // any byte outside that window
+                final var window = ByteBuffer.allocate(expected.length + 8);
+                window.position(3).limit(9);
+                assertThat(channel.position(0).read(window)).isEqualTo(6);
+                assertThat(window.position()).isEqualTo(9);
+                assertThat(window.limit()).isEqualTo(9);
+                assertThat(window.array()[2]).isZero();
+                assertThat(Arrays.copyOfRange(window.array(), 3, 9)).isEqualTo(Arrays.copyOfRange(expected, 0, 6));
+            }
+            assertThatThrownBy(() -> channel.read(ByteBuffer.allocate(5)))
+                    .isInstanceOf(ClosedChannelException.class);
+        }
+    }
+
+    /**
+     * A {@link FileChannel} over an entry that is stored uncompressed can be read at an absolute position from
+     * several threads at once, which is what {@link FileChannel} promises, even though the reader underneath it
+     * keeps state between reads.
+     *
+     * @param memoryMapped
+     *            whether the jarfile is memory-mapped, which decides which reader the channel reads through.
+     * @param tempDir
+     *            a temporary directory.
+     * @throws Exception
+     *             if the jarfile could not be written or read.
+     */
+    @ParameterizedTest
+    @ValueSource(booleans = { false, true })
+    public void aStoredEntryCanBeReadAtAPositionFromSeveralThreadsAtOnce(final boolean memoryMapped,
+            @TempDir final Path tempDir) throws Exception {
+        // A long entry, so that a read takes long enough for two threads to be inside it at the same time
+        final var entryName = "big.bin";
+        final var expected = new byte[512 * 1024];
+        for (var i = 0; i < expected.length; i++) {
+            expected[i] = (byte) i;
+        }
+        final var jarFile = tempDir.resolve("stored.jar").toFile();
+        try (var fileOut = new FileOutputStream(jarFile); var zipOut = new ZipOutputStream(fileOut)) {
+            final var entry = new ZipEntry(entryName);
+            entry.setMethod(ZipEntry.STORED);
+            entry.setSize(expected.length);
+            entry.setCompressedSize(expected.length);
+            final var crc = new CRC32();
+            crc.update(expected);
+            entry.setCrc(crc.getValue());
+            zipOut.putNextEntry(entry);
+            zipOut.write(expected);
+            zipOut.closeEntry();
+        }
+        final var numThreads = 8;
+        final var numRepetitions = 200;
+        final var chunkLength = expected.length / numThreads;
+
+        // The reader underneath the channel differs between the two: an unmapped file is read through the shared
+        // file channel, which is thread-safe in itself, while a memory-mapped file is read through a buffer whose
+        // position and limit the reader moves, which is not
+        try (var vfs = new Vfs(new VfsSpec().setMemoryMappingFiles(memoryMapped))) {
+            final var path = vfs.open(jarFile).asFileSystem().getPath("/" + entryName);
+            try (var channel = FileChannel.open(path)) {
+                final var barrier = new CyclicBarrier(numThreads);
+                final var executor = Executors.newFixedThreadPool(numThreads);
+                try {
+                    final List<Callable<Integer>> tasks = new ArrayList<>();
+                    for (var threadIdx = 0; threadIdx < numThreads; threadIdx++) {
+                        final var thisThreadIdx = threadIdx;
+                        tasks.add(() -> {
+                            // Every thread reads a different part of the entry, and a different number of bytes of
+                            // it, so that two threads racing inside the reader ask it for different windows on the
+                            // content, and one of them gets the other's bytes if the reader's state is shared
+                            final var numBytesToRead = chunkLength - thisThreadIdx;
+                            final var buf = ByteBuffer.allocate(numBytesToRead);
+                            barrier.await();
+                            for (var repetition = 0; repetition < numRepetitions; repetition++) {
+                                final var fromPosition = ((thisThreadIdx + repetition) % numThreads) * chunkLength;
+                                buf.clear();
+                                while (buf.hasRemaining() && channel.read(buf, fromPosition + buf.position()) > 0) {
+                                    // Keep reading until the whole chunk has been read
+                                }
+                                assertThat(buf.array()).isEqualTo(
+                                        Arrays.copyOfRange(expected, fromPosition, fromPosition + numBytesToRead));
+                            }
+                            return numRepetitions;
+                        });
+                    }
+                    for (final var future : executor.invokeAll(tasks)) {
+                        assertThat(future.get()).isEqualTo(numRepetitions);
+                    }
+                } finally {
+                    executor.shutdown();
+                }
+            }
         }
     }
 

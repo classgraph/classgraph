@@ -222,6 +222,21 @@ final class DirEntry extends VfsEntry {
     }
 
     @Override
+    @Nullable
+    RandomAccessContent openRandomAccessContent() throws IOException {
+        final var slice = openSlice();
+        try {
+            // The slice holds the open file channel that the reader reads, so it is closed when the caller has
+            // finished with the reader
+            return new RandomAccessContent(slice.randomAccessReader(), slice.sliceLength, slice::close);
+        } catch (final IOException | RuntimeException | Error e) {
+            // The caller never sees the reader if this throws, so nothing else can close the file channel
+            slice.close();
+            throw e;
+        }
+    }
+
+    @Override
     public byte[] load() throws IOException {
         try (var slice = openSlice()) {
             return slice.load();

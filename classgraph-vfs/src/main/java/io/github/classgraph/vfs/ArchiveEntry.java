@@ -162,6 +162,28 @@ final class ArchiveEntry extends VfsEntry {
     }
 
     @Override
+    @Nullable
+    RandomAccessContent openRandomAccessContent() throws IOException {
+        getRoot().checkNotClosed(getPath());
+        final var slice = zipEntry.getSlice();
+        if (slice.isDeflatedZipEntry) {
+            // The content has to be inflated before any of it can be read at an offset
+            return null;
+        }
+        // The slice of a zip entry owns no resources of its own, but if the zipfile is memory-mapped, the reader
+        // reads that mapping, so the mapping has to be held open until the caller has finished with the reader
+        // #939
+        final var releaseMappingView = slice.acquireMappingView();
+        try {
+            return new RandomAccessContent(slice.randomAccessReader(), slice.sliceLength, releaseMappingView);
+        } catch (final IOException | RuntimeException | Error e) {
+            // The caller never sees the reader if this throws, so nothing else would release the view
+            releaseMappingView.run();
+            throw e;
+        }
+    }
+
+    @Override
     public byte[] load() throws IOException {
         getRoot().checkNotClosed(getPath());
         return zipEntry.getSlice().load();
