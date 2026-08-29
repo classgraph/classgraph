@@ -326,7 +326,11 @@ public class ClasspathOrder {
                                 : pathElement instanceof URI ? new URI("file:" + pathElementStrWithoutSuffix)
                                         : pathElementStrWithoutSuffix;
                     } catch (MalformedURLException | URISyntaxException | InvalidPathException e2) {
-                        return false;
+                        // Neither spelling could be parsed, which a path holding a character that a URI cannot
+                        // hold unquoted does: a space makes both new URI(path) and new URI("file:" + path)
+                        // throw, since the resolved path is percent-decoded. Degrade to the path string, as the
+                        // File branch above does, rather than dropping the classpath element entirely
+                        pathElementWithoutSuffix = pathElementStrWithoutSuffix;
                     }
                 }
             }
