@@ -54,9 +54,17 @@ import java.util.stream.Stream;
  *
  * <pre>
  * mkdir -p /tmp/cgvfs-bench/random
- * for i in $(seq -w 1 256); do head -c 1048576 /dev/urandom &gt; /tmp/cgvfs-bench/random/file-$i.bin; done
+ * for i in $(seq -w 1 5120); do head -c 1048576 /dev/urandom &gt; /tmp/cgvfs-bench/random/file-$i.bin; done
  * (cd /tmp/cgvfs-bench/random &amp;&amp; zip -q -0 ../random.zip *.bin)
- * (cd /tmp/cgvfs-bench/books &amp;&amp; zip -q -9 ../books.zip *)
+ *
+ * # /tmp/cgvfs-bench/books holds 256 ebooks downloaded from Project Gutenberg; they are replicated
+ * # to 5120 entries, which costs what 5120 downloaded ebooks would, since a zip does not
+ * # deduplicate between entries
+ * mkdir -p /tmp/cgvfs-bench/books20
+ * for c in $(seq -w 1 20); do
+ *     for f in /tmp/cgvfs-bench/books/*.txt; do cp "$f" "/tmp/cgvfs-bench/books20/copy$c-$(basename $f)"; done
+ * done
+ * (cd /tmp/cgvfs-bench/books20 &amp;&amp; zip -q -9 ../books.zip *.txt)
  * </pre>
  *
  * <p>

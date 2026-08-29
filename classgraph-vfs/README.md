@@ -339,25 +339,30 @@ buffer to be closed unmaps the file instead. This matters on Windows, which refu
 rename or overwrite a file while it is mapped: a close that returned with the files it had mapped
 still mapped would leave them locked.)
 
-What that is worth depends on the access pattern. Bulk decompression still parallelizes reasonably
-well under `ZipFile`, because inflation happens outside the monitor and dominates the time. Entry
-lookup does not parallelize at all -- it gets *slower* as threads are added:
+What that is worth depends on the access pattern. Bulk decompression parallelizes under `ZipFile`
+while there are few enough threads that inflation dominates, since inflation happens outside the
+monitor -- but it stops scaling at about four threads, where the serialized part around the inflater
+becomes the limit, and no further thread helps. Entry lookup does not parallelize at all: it gets
+*slower* as threads are added, since the threads only contend for the monitor:
 
 ```
-getEntry() on 27874 entries, x20      1 thd    2 thd    4 thd    8 thd   16 thd
-java.util.zip, one shared ZipFile      46ms     55ms     84ms     77ms     82ms
-java.util.zip, one ZipFile per thread  40ms     23ms     13ms     13ms     12ms
-classgraph-vfs, one shared VfsRoot     12ms      4ms      2ms      2ms      1ms
+getEntry() on 26970 entries, x400      1 thd    2 thd    4 thd    8 thd   16 thd   32 thd
+java.util.zip, one shared ZipFile     739ms    922ms   1253ms   1353ms   1395ms   1392ms
+java.util.zip, one ZipFile per thread 709ms    395ms    212ms    128ms     62ms     77ms
+classgraph-vfs, one shared VfsRoot    135ms     74ms     39ms     19ms     12ms     11ms
 
-inflate every entry                   1 thd    2 thd    4 thd    8 thd
-java.util.zip, one shared ZipFile     433ms    247ms    153ms    142ms
-classgraph-vfs, one shared VfsRoot    486ms    276ms    154ms    104ms
+inflate every entry, x20               1 thd    2 thd    4 thd    8 thd   16 thd   32 thd
+java.util.zip, one shared ZipFile    8937ms   4933ms   2956ms   2801ms   2942ms   2973ms
+classgraph-vfs, one shared VfsRoot   8492ms   4423ms   2461ms   1363ms    908ms    871ms
 ```
 
-(32-core Linux box, `kotlin-compiler-embeddable-2.3.20.jar`, 27874 entries, JDK 26. The middle row
+(32-core Linux box, `kotlin-compiler-embeddable-2.4.10.jar`, 26970 entries, JDK 26. The middle row
 of the first block isolates the instance monitor as the cause: the same work scales fine once each
 thread has its own `ZipFile`, at the cost of parsing the central directory once per thread and
-holding one file handle per thread.)
+holding one file handle per thread. A repeat run agreed to within 3% on every cell above 100ms; the
+cells below that vary by up to 40% between runs, so read them as "small" rather than as exact. The
+benchmark is
+[`ZipFileLockingBenchmark`](src/test/perf/io/github/classgraph/vfs/perf/ZipFileLockingBenchmark.java).)
 
 A `Vfs` and everything it hands out is safe to use from many threads at once. This is what lets
 ClassGraph scan a jarfile in parallel.
@@ -374,14 +379,16 @@ FileSystems.newFileSystem(zipFile, Map.of());                        // zipfs
 FileSystems.newFileSystem(URI.create("cgvfs:" + zipFile), Map.of()); // cgvfs
 ```
 
-Two archives, 256 files each, both built in `/tmp` and neither checked into the repository:
+Two archives, 5120 entries each, both built in `/tmp` and neither checked into the repository:
 
-* `random.zip` -- 256 files of 1MB each from `/dev/urandom`, **stored** uncompressed
-  (256MB). Random data does not compress, so this measures the read path with the inflater out of
-  the picture.
-* `books.zip` -- 256 ebooks from Project Gutenberg, **deflated** at level 9 (141MB of text
-  compressed to 50MB). Here inflation dominates, and both providers use the same
-  `java.util.zip.Inflater`.
+* `random.zip` -- 5120 files of 1MB each from `/dev/urandom`, **stored** uncompressed (5.0GB, which
+  makes it a ZIP64 archive). Random data does not compress, so this measures the read path with the
+  inflater out of the picture.
+* `books.zip` -- 256 ebooks downloaded from Project Gutenberg, replicated to 5120 entries under
+  distinct names, **deflated** at level 9 (2.6GB of text compressed to 0.9GB). Here inflation
+  dominates, and both providers use the same `java.util.zip.Inflater`. A zip does not deduplicate
+  between entries, so the replicated archive costs exactly what 5120 separately downloaded ebooks of
+  the same size distribution would; it saves 12000 requests against a volunteer Gutenberg mirror.
 
 ### Opening, enumerating and closing
 
@@ -391,41 +398,50 @@ you pay before reading anything at all:
 
 | Archive | zipfs | cgvfs | speedup |
 | --- | ---: | ---: | ---: |
-| `random.zip` | 1.30 ms | 0.77 ms | 1.68× |
-| `books.zip` | 1.13 ms | 0.34 ms | 3.36× |
+| `random.zip` | 17.33 ms | 4.68 ms | 3.70× |
+| `books.zip` | 16.96 ms | 4.36 ms | 3.89× |
 
 ### Reading every file
 
 Every file in the archive is read in full with `Files.readAllBytes`, spread across a fixed thread
 pool. One provider is benchmarked at a time, with its own filesystem open for the whole sweep, so
-that the two never contend with each other. Total wall time for all 256 files:
+that the two never contend with each other. Total wall time for all 5120 entries:
 
 | Archive | Threads | zipfs | cgvfs | speedup |
 | --- | ---: | ---: | ---: | ---: |
-| `random.zip` (stored, 256MB) | 1 | 226.8 ms | 125.7 ms | 1.80× |
-| | 2 | 93.3 ms | 66.9 ms | 1.39× |
-| | 4 | 74.0 ms | 55.1 ms | 1.34× |
-| | 8 | 87.1 ms | 62.6 ms | 1.39× |
-| | 16 | 78.0 ms | 70.4 ms | 1.11× |
-| | 32 | 88.2 ms | 98.8 ms | 0.89× |
-| `books.zip` (deflated, 141MB) | 1 | 496.8 ms | 332.8 ms | 1.49× |
-| | 2 | 219.8 ms | 185.3 ms | 1.19× |
-| | 4 | 153.3 ms | 98.7 ms | 1.55× |
-| | 8 | 92.5 ms | 51.8 ms | 1.79× |
-| | 16 | 57.3 ms | 35.8 ms | 1.60× |
-| | 32 | 55.1 ms | 40.9 ms | 1.35× |
+| `random.zip` (stored, 5.0GB) | 1 | 2359 ms | 1599 ms | 1.48× |
+| | 2 | 1510 ms | 1108 ms | 1.36× |
+| | 4 | 1363 ms | 1048 ms | 1.30× |
+| | 8 | 1360 ms | 1092 ms | 1.25× |
+| | 16 | 1362 ms | 1166 ms | 1.17× |
+| | 32 | 1535 ms | 1831 ms | 0.84× |
+| `books.zip` (deflated, 2.6GB) | 1 | 7335 ms | 6624 ms | 1.11× |
+| | 2 | 3795 ms | 3397 ms | 1.12× |
+| | 4 | 2026 ms | 1809 ms | 1.12× |
+| | 8 | 1059 ms | 907 ms | 1.17× |
+| | 16 | 733 ms | 582 ms | 1.26× |
+| | 32 | 784 ms | 604 ms | 1.30× |
 
-(32-core Linux box, JDK 26, files in the operating system's cache. A repeat run agreed to within
-about 20% on the read timings, and reproduced every sign in the table, including the last row of the
-first block. Both providers were checked to have read the same number of bytes.)
+(32-core Linux box, JDK 26, archives in `/tmp`, which is `tmpfs` here, so every read comes out of
+memory and no disk is in the picture. A repeat run agreed to within 3% on every cell and to within
+0.04× on every speedup, which is what the archives were sized for. Both providers were checked to
+have read the same number of bytes: 5368709120 and 2828491700.)
 
 Reading a **stored** archive is where the design shows: with no inflater in the way, the cost is the
-locking, and cgvfs is 1.8× faster single-threaded. Adding threads closes the gap, because 256MB of
-`memcpy` saturates memory bandwidth long before it saturates 32 cores -- and at 32 threads cgvfs is
-slightly *slower*, since there is nothing left to win and the extra threads only add scheduling
-noise. On a **deflated** archive both providers spend most of their time in the same inflater, so
-the single-threaded gap is smaller, but cgvfs stays ahead as threads are added, because the inflater
-work is all that scales for zipfs while the lookups and reads around it do not.
+locking, and cgvfs is 1.5× faster single-threaded. Adding threads closes the gap, because 5GB of
+`memcpy` saturates memory bandwidth at about four threads, long before it saturates 32 cores -- from
+there on both providers sit at the same bandwidth ceiling, and at 32 threads cgvfs is *slower*, since
+there is nothing left to win and the extra threads only add contention. On a **deflated** archive
+both providers spend most of their time in the same inflater, so the single-threaded gap is small,
+but it widens as threads are added, because the inflater work is all that scales for zipfs while the
+lookups and reads around it do not.
+
+zipfs is not `java.util.zip` internally, and does not have its instance monitor: its own reads are
+positional and unlocked whenever the archive is a `FileChannel`. What it does hold is a pool of
+`Inflater` instances behind `synchronized (inflaters)`, taken and returned once per entry, plus a
+read lock on a shared `ReentrantReadWriteLock` around each lookup. That is why the deflated gap
+*widens* with threads rather than closing: the pool is a serialization point that every entry has to
+pass through, and `classgraph-vfs` recycles its inflaters through a lock-free queue instead.
 
 The benchmark is
 [`ZipfsVsCgvfsBenchmark`](src/test/perf/io/github/classgraph/vfs/perf/ZipfsVsCgvfsBenchmark.java),
