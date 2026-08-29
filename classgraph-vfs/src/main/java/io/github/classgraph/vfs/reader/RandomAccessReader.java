@@ -116,7 +116,7 @@ public interface RandomAccessReader {
      * @return The number of bytes actually read, which is fewer than {@code numBytes} if the content ended first; 0
      *         if {@code numBytes} is zero, or the destination has no room left at {@code dstBufStart}; or -1 if
      *         {@code srcOffset} is at or past the end of the content. A read-copy loop must break on 0, or it loops
-     *         forever: see the class documentation.
+     *         forever: see {@link RandomAccessReader}.
      * @throws IOException
      *             If there was an exception while reading, or if {@code dstBufStart} is not within the destination.
      */
@@ -136,7 +136,7 @@ public interface RandomAccessReader {
      * @return The number of bytes actually read, which is fewer than {@code numBytes} if the content ended first; 0
      *         if {@code numBytes} is zero, or the destination has no room left at {@code dstArrStart}; or -1 if
      *         {@code srcOffset} is at or past the end of the content. A read-copy loop must break on 0, or it loops
-     *         forever: see the class documentation.
+     *         forever: see {@link RandomAccessReader}.
      * @throws IOException
      *             If there was an exception while reading, or if {@code dstArrStart} is not within the destination.
      */
