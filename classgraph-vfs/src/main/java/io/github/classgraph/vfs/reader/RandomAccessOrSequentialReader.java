@@ -62,6 +62,12 @@ import org.jspecify.annotations.Nullable;
  * nothing else: the zipfile format does not guarantee that field is right, and the JDK's own {@code ZipFile} and
  * {@code jdk.nio.zipfs} do not trust it either, so the end of the content is where the stream ends, whether that is
  * before or after the declared length.
+ *
+ * <p>
+ * Because the content is buffered in a {@code byte[]}, this reader cannot go further into content than the largest
+ * array the JVM can allocate, which is just under 2GB. Content that runs on past that point is not truncated
+ * silently: any read that would have to go past the limit throws an {@link IOException} saying so. To read content
+ * larger than 2GB, stream it with {@link VfsEntry#open()} instead, which has no such limit.
  */
 public class RandomAccessOrSequentialReader implements RandomAccessReader, SequentialReader, AutoCloseable {
     /**
@@ -97,6 +103,13 @@ public class RandomAccessOrSequentialReader implements RandomAccessReader, Seque
 
     /** The number of bytes the buffer is next grown by. Doubles up to {@link #MAX_CHUNK_SIZE}. */
     private int chunkSize = MIN_CHUNK_SIZE;
+
+    /**
+     * The largest buffer this reader will grow, which is the largest array the JVM can allocate. Held as a field
+     * rather than read from {@link Slice#MAX_BUFFER_SIZE} directly so that a test can lower it and reach the
+     * behavior at the limit without allocating two gigabytes; nothing outside a test changes it.
+     */
+    private int maxBufferSize = Slice.MAX_BUFFER_SIZE;
 
     /** The byte order multi-byte values are read in. */
     private final ByteOrder byteOrder;
@@ -179,6 +192,11 @@ public class RandomAccessOrSequentialReader implements RandomAccessReader, Seque
 
     /** The message of the {@link IOException} thrown when a read runs past the end of the content. */
     private static final String END_OF_CONTENT = "Tried to read past the end of the content";
+
+    /**
+     * The message of the {@link IOException} thrown when the content runs on past the 2GB that can be buffered.
+     */
+    private static final String CONTENT_TOO_LARGE = "Content is larger than the 2GB that can be buffered";
 
     /**
      * Constructor for reading an entry of a virtual filesystem. Whatever the entry has to open in order to be read
@@ -327,6 +345,18 @@ public class RandomAccessOrSequentialReader implements RandomAccessReader, Seque
     }
 
     /**
+     * Lower the largest buffer this reader will grow, so that a test can reach the behavior at the limit without
+     * allocating two gigabytes. Must be called before anything is read.
+     *
+     * @param maxBufferSize
+     *            the limit to apply in place of the largest array the JVM can allocate.
+     */
+    // Package-private rather than private so that only a test in this package can call it
+    void setMaxBufferSize(final int maxBufferSize) {
+        this.maxBufferSize = maxBufferSize;
+    }
+
+    /**
      * Grow the buffer array, if needed, so that it can hold at least the given number of bytes.
      *
      * @param minArrLength
@@ -358,7 +388,7 @@ public class RandomAccessOrSequentialReader implements RandomAccessReader, Seque
             // cost one bounded allocation.
             newArrLength = lengthHint;
         }
-        arr = Arrays.copyOf(arr, (int) Math.min(newArrLength, Slice.MAX_BUFFER_SIZE));
+        arr = Arrays.copyOf(arr, (int) Math.min(newArrLength, maxBufferSize));
     }
 
     /**
@@ -371,8 +401,7 @@ public class RandomAccessOrSequentialReader implements RandomAccessReader, Seque
     private void grow(final long targetArrUsed) {
         // The chunk end is computed in long arithmetic, because arrUsed can be within a chunk of the 2GB limit,
         // and an int sum would wrap negative there rather than being clamped by the Math.min below
-        ensureCapacity(
-                (int) Math.min(Math.max(targetArrUsed, (long) arrUsed + (long) chunkSize), Slice.MAX_BUFFER_SIZE));
+        ensureCapacity((int) Math.min(Math.max(targetArrUsed, (long) arrUsed + (long) chunkSize), maxBufferSize));
         // The next growth is twice as large, up to the maximum chunk size, so that a caller reading a long way
         // into the content pays a decreasing number of allocations for it, while a caller that stops after a
         // header has allocated only one small buffer
@@ -391,7 +420,7 @@ public class RandomAccessOrSequentialReader implements RandomAccessReader, Seque
      *             Signals that an I/O exception has occurred.
      */
     private void readTo(final long targetArrUsed) throws IOException {
-        if (targetArrUsed > Slice.MAX_BUFFER_SIZE || targetArrUsed < 0) {
+        if (targetArrUsed > maxBufferSize || targetArrUsed < 0) {
             throw new IOException("Hit 2GB limit while trying to grow buffer array");
         }
         if (arrUsed >= targetArrUsed || eof) {
@@ -447,6 +476,34 @@ public class RandomAccessOrSequentialReader implements RandomAccessReader, Seque
     }
 
     /**
+     * Check that the content really ended where the buffer stops, rather than running on past the 2GB that a buffer
+     * array can hold. Called wherever a read would otherwise report the end of the content at the 2GB limit: the
+     * caller cannot tell that apart from the real end of the content, so reporting it would hand back a silently
+     * truncated copy of a longer entry.
+     *
+     * <p>
+     * Content that ends exactly at the limit is not truncated, and a stream only reports its end once a read asks
+     * it for a byte it does not have, so the stream is asked for one more byte before this concludes anything. The
+     * byte is discarded, since there is nowhere left to put it, but that only happens on the path that throws.
+     *
+     * @throws IOException
+     *             if the content is longer than can be buffered.
+     */
+    private void checkContentEndedWithinBuffer() throws IOException {
+        if (eof || arrUsed < maxBufferSize) {
+            // Either the stream ended, so the buffer holds the whole of the content, or the buffer stopped short of
+            // the limit, which readTo only does at the end of the content
+            return;
+        }
+        final var inputStream = this.inputStream;
+        if (inputStream != null && inputStream.read() < 0) {
+            eof = true;
+            return;
+        }
+        throw new IOException(CONTENT_TOO_LARGE);
+    }
+
+    /**
      * Read the whole of the content into the buffer, so that {@link #arrUsed} is its true length. Does nothing if
      * the end of the stream has already been reached.
      *
@@ -467,10 +524,13 @@ public class RandomAccessOrSequentialReader implements RandomAccessReader, Seque
             // pulling chunks until the stream really ends. Asking for one chunk beyond what has been read makes
             // readTo probe for a single byte before it grows the buffer, so reaching the end of content that did
             // declare its length correctly costs one read call and no allocation.
-            if (arrUsed == Slice.MAX_BUFFER_SIZE) {
-                throw new IOException("Hit 2GB limit while trying to grow buffer array");
+            if (arrUsed == maxBufferSize) {
+                // The buffer is full to the limit. Either the content ends exactly there, in which case this sets
+                // eof and the loop stops, or it runs on past what can be buffered, in which case this throws
+                checkContentEndedWithinBuffer();
+                break;
             }
-            readTo(Math.min((long) arrUsed + chunkSize, Slice.MAX_BUFFER_SIZE));
+            readTo(Math.min((long) arrUsed + chunkSize, maxBufferSize));
         }
     }
 
@@ -489,7 +549,7 @@ public class RandomAccessOrSequentialReader implements RandomAccessReader, Seque
     private int bufferFor(final long srcOffset, final int numBytes) throws IOException {
         // The offset is range-checked before it is narrowed to an int, since narrowing it silently would turn a
         // read from outside the content into a read from within it
-        if (srcOffset < 0L || srcOffset > Slice.MAX_BUFFER_SIZE) {
+        if (srcOffset < 0L || srcOffset > maxBufferSize) {
             throw new IOException("Read offset out of range: " + srcOffset);
         }
         final var idx = (int) srcOffset;
@@ -499,7 +559,9 @@ public class RandomAccessOrSequentialReader implements RandomAccessReader, Seque
         if (numBytes > arrUsed - idx) {
             readTo((long) idx + numBytes);
             if (numBytes > arrUsed - idx) {
-                // The content ended before the whole of the value could be read, and half of a value is not a value
+                // The content ended before the whole of the value could be read, and half of a value is not a
+                // value -- unless what ran out was the buffer rather than the content, which this reports instead
+                checkContentEndedWithinBuffer();
                 throw new IOException(END_OF_CONTENT);
             }
         }
@@ -524,16 +586,28 @@ public class RandomAccessOrSequentialReader implements RandomAccessReader, Seque
         if (srcOffset < 0L || numBytes < 0) {
             throw new IOException("Read index out of bounds");
         }
-        if (srcOffset > Slice.MAX_BUFFER_SIZE) {
-            // Nothing can be buffered at an offset past the largest buffer, so this is past the end of the content
+        if (srcOffset > maxBufferSize) {
+            // Nothing can be buffered at an offset past the largest buffer, so this read cannot be served either
+            // way -- but content that ends before the offset is at its end there, which a bulk read reports by
+            // returning zero, while content that runs on past the limit is not, and reporting the end of it would
+            // hand back a truncated copy. Telling those apart means finding where the content ends, and the only
+            // way to do that is to read it, which is why this is the one read path that buffers the whole of the
+            // content. It is reached only by seeking past 2GB, which no read of content that fits in a buffer
+            // does.
+            readToEof();
             return 0;
         }
         final var idx = (int) srcOffset;
         if (numBytes > arrUsed - idx) {
-            readTo(Math.min((long) idx + numBytes, Slice.MAX_BUFFER_SIZE));
+            readTo(Math.min((long) idx + numBytes, maxBufferSize));
         }
         // The bytes that are there may be fewer than the bytes that were asked for, if the content ended first
-        return (int) Math.max(Math.min(numBytes, (long) arrUsed - idx), 0L);
+        final var numBytesAvailable = (int) Math.max(Math.min(numBytes, (long) arrUsed - idx), 0L);
+        if (numBytesAvailable < numBytes) {
+            // The read stopped short, so check that it was the content that ran out and not the buffer
+            checkContentEndedWithinBuffer();
+        }
+        return numBytesAvailable;
     }
 
     @Override
@@ -705,7 +779,7 @@ public class RandomAccessOrSequentialReader implements RandomAccessReader, Seque
         // buffer rather than being rejected here
         final var targetIdx = currIdx + (long) bytesToSkip;
         if (targetIdx > arrUsed) {
-            if (targetIdx > Slice.MAX_BUFFER_SIZE) {
+            if (targetIdx > maxBufferSize) {
                 throw new IOException("Tried to skip past the 2GB limit");
             }
             readTo(targetIdx);
