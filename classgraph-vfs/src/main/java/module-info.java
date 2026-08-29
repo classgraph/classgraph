@@ -67,4 +67,9 @@ module io.github.classgraph.vfs {
     // downstream project to put JSpecify on its own module path, which is what broke Log4j 2.24.0 for its users.
     // A downstream module that depends on JSpecify itself still sees the annotations.
     requires static org.jspecify;
+
+    // Register the "cgvfs:" URL scheme, so that a "cgvfs:" URI can be opened through java.nio.file.FileSystems
+    // without the caller having to install anything. The equivalent registration for the classpath is the file
+    // src/main/resources/META-INF/services/java.nio.file.spi.FileSystemProvider -- change both together.
+    provides java.nio.file.spi.FileSystemProvider with io.github.classgraph.vfs.VfsFileSystemProvider;
 }

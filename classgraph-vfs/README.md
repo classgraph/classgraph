@@ -41,6 +41,7 @@ way in produces the same `VfsRoot`, and every `VfsEntry` reads out in every way.
 | A `java.nio.file.Path`, in any filesystem | `vfs.open(path)` |
 | A `java.net.URI` or `java.net.URL` | `vfs.open(uri)`, `vfs.open(url)` |
 | A `java.lang.module.ModuleReference` | `vfs.open(moduleReference)` |
+| A module name, in the boot layer or a given `ModuleLayer` | `vfs.openModule("java.logging")`, `vfs.openModule(name, layer)` |
 | An `InputStream`, for a jarfile that is not on disk | `vfs.open(inputStream, "name.jar")` |
 | A byte array holding a jarfile | `vfs.open(jarBytes, "name.jar")` |
 
@@ -120,8 +121,8 @@ the next, but that requires knowing the depth in advance, and each level is read
 whether or not anything is read from it.
 
 The separator is `/` and the root directory is `/`, whichever kind of root it is a view of. Files
-are read with `Files.newInputStream`, `Files.newByteChannel`, `Files.readAllBytes` and
-`Files.readString`; directories are listed with `Files.newDirectoryStream`, `Files.list` and
+are read with `Files.newInputStream`, `Files.newByteChannel`, `FileChannel.open`,
+`Files.readAllBytes` and `Files.readString`; directories are listed with `Files.newDirectoryStream`, `Files.list` and
 `Files.walk`, and are synthesized from the names of the entries below them, since a jarfile need not
 contain an entry for every directory whose contents it holds. `getPathMatcher` supports both `glob:`
 and `regex:`. `basic` is the only attribute view.
@@ -130,16 +131,68 @@ It is a read-only filesystem: everything that would write -- `Files.delete`, `Fi
 `Files.copy`, `Files.move`, `Files.createDirectory`, `Files.newOutputStream`, `setTimes`, and
 `newByteChannel` with a write option -- throws `ReadOnlyFileSystemException`.
 
-`root.asFileSystem()` returns the same view every time, until that view is closed. Closing it closes
-only that view -- after which `isOpen()` returns false and every read of it throws
-`ClosedFileSystemException`, as `java.nio.file.FileSystem` specifies -- and leaves the root working,
-so the next `asFileSystem()` builds a new view rather than handing out the closed one. That means
-the view can go in a try-with-resources without taking anything away from anything else holding the
-root. It releases no storage either way: the file handles, memory mappings and temporary files
-belong to the `Vfs`, and are released when the `Vfs` is closed -- which makes every filesystem view
-it handed out report itself closed, and makes `asFileSystem()` itself throw
-`ClosedFileSystemException`, since there is nothing left to hand out a view of. `entry.asPath()`
-asks the root for that view, so it throws the same thing at the same point.
+`root.asFileSystem()` returns the same view every time. A filesystem is a view of the `Vfs` behind
+it and shares its lifetime, the way a wrapping stream shares the lifetime of the stream it wraps:
+closing the filesystem closes the `Vfs`, releasing every file handle, memory mapping and temporary
+file it took, and with them every other root that `Vfs` had opened. Closing is idempotent, and
+nothing is usable afterwards -- `isOpen()` returns false, every read through the filesystem throws
+`ClosedFileSystemException` as `java.nio.file.FileSystem` specifies, reading a root or an entry
+throws `IOException`, and `asFileSystem()` and `entry.asPath()` throw `ClosedFileSystemException`,
+since there is nothing left to hand out a view of. Closing the `Vfs` first has the same effect from
+the other direction.
+
+So put either the `Vfs` or the filesystem in a try-with-resources, not both -- and give a `Vfs`
+whose roots are read independently one filesystem view at a time, or open each root from its own
+`Vfs`, which is what `FileSystems.newFileSystem` does for a `cgvfs:` URI.
+
+## The `cgvfs:` URL scheme
+
+`classgraph-vfs` registers a `java.nio.file.spi.FileSystemProvider` for the `cgvfs:` scheme, so
+anything that can name a filesystem by URI can name one of these. Registration happens through
+`ServiceLoader`, so putting the jar on the classpath or the module path is all that is needed:
+
+```java
+try (FileSystem fs = FileSystems.newFileSystem(
+        URI.create("cgvfs:/path/to/outer.jar!/BOOT-INF/lib/inner.jar"), Map.of())) {
+    byte[] classfile = Files.readAllBytes(fs.getPath("/com/xyz/Widget.class"));
+}
+```
+
+Everything after `cgvfs:` is a path in the syntax `Vfs.open(String)` takes, so all of these work:
+
+| URI | Names |
+| --- | --- |
+| `cgvfs:/path/to/app.jar` | a jarfile |
+| `cgvfs:file:/path/to/app.jar` | the same jarfile -- the inner scheme is optional |
+| `cgvfs:/path/to/classes` | a directory |
+| `cgvfs:/path/to/outer.jar!/lib/inner.jar` | a jarfile nested inside another jarfile |
+| `cgvfs:/path/to/app.jar!/BOOT-INF/classes` | a package root within a jarfile |
+| `cgvfs:jrt:/java.logging` | a module of the boot layer |
+| `cgvfs:https://example.com/app.jar` | a jarfile at a URL |
+
+Which of `newFileSystem` and `getPath` you call decides whether the last `!/` section is opened as a
+filesystem of its own or read as a path within the enclosing one, the same way a `jar:` URI works
+for zipfs. `FileSystems.newFileSystem(uri, env)` opens the whole path as a filesystem;
+`Paths.get(uri)` reads the last `!/` section against the longest prefix that already has a
+filesystem open, so with the filesystem above open, `cgvfs:/path/to/outer.jar!/lib/inner.jar!/com/xyz/Widget.class`
+is a path *inside* `inner.jar`, not inside `outer.jar`.
+
+One filesystem is open at a path at a time: a second `newFileSystem` at the same path throws
+`FileSystemAlreadyExistsException` until the first is closed, and `FileSystems.getFileSystem(uri)`
+finds the open one or throws `FileSystemNotFoundException`. A filesystem created this way owns the
+`Vfs` behind it, so closing it releases everything that `Vfs` took.
+
+Two options can be passed in the `env` map: `"vfsSpec"`, a `VfsSpec` configuring the `Vfs` that will
+be created (see [Options](#options)), and `"layer"`, a `ModuleLayer` to resolve a `cgvfs:jrt:/...`
+module name against instead of the boot layer.
+
+`VfsPath.toCgvfsUri()` writes a path back out as a `cgvfs:` URI, and throws
+`FileSystemNotFoundException` if the scheme is not installed in this JVM, rather than handing back a
+URI that nothing could resolve. (`ServiceLoader` only finds the provider if `classgraph-vfs` is
+loaded by the system class loader, so the scheme is silently absent inside a servlet container, a
+Spring Boot fat jar or an OSGi bundle, which load it in a child loader.) `Path.toUri()` is
+unchanged, and still returns the `file:`, `jar:` or `jrt:` URI of the underlying storage, which
+names the same bytes to code that has never heard of ClassGraph.
 
 ## What it reads that `java.util.zip` does not
 
@@ -300,6 +353,75 @@ holding one file handle per thread.)
 
 A `Vfs` and everything it hands out is safe to use from many threads at once. This is what lets
 ClassGraph scan a jarfile in parallel.
+
+## Benchmark against zipfs
+
+The JDK's own zip filesystem provider is the closest thing to compare against, since both are
+`java.nio.file.FileSystem` implementations over a zipfile, and the same `java.nio.file.Files` calls
+read either one. The benchmark below runs identical code against both, differing only in how the
+filesystem was opened:
+
+```java
+FileSystems.newFileSystem(zipFile, Map.of());                        // zipfs
+FileSystems.newFileSystem(URI.create("cgvfs:" + zipFile), Map.of()); // cgvfs
+```
+
+Two archives, 256 files each, both built in `/tmp` and neither checked into the repository:
+
+* `random.zip` -- 256 files of 1MB each from `/dev/urandom`, **stored** uncompressed
+  (256MB). Random data does not compress, so this measures the read path with the inflater out of
+  the picture.
+* `books.zip` -- 256 ebooks from Project Gutenberg, **deflated** at level 9 (141MB of text
+  compressed to 50MB). Here inflation dominates, and both providers use the same
+  `java.util.zip.Inflater`.
+
+### Opening, enumerating and closing
+
+The archive is opened, every regular file in it is enumerated with `Files.walk`, and it is closed --
+100 times, after 20 warmup iterations. This measures parsing the central directory, which is what
+you pay before reading anything at all:
+
+| Archive | zipfs | cgvfs | speedup |
+| --- | ---: | ---: | ---: |
+| `random.zip` | 1.30 ms | 0.77 ms | 1.68× |
+| `books.zip` | 1.13 ms | 0.34 ms | 3.36× |
+
+### Reading every file
+
+Every file in the archive is read in full with `Files.readAllBytes`, spread across a fixed thread
+pool. One provider is benchmarked at a time, with its own filesystem open for the whole sweep, so
+that the two never contend with each other. Total wall time for all 256 files:
+
+| Archive | Threads | zipfs | cgvfs | speedup |
+| --- | ---: | ---: | ---: | ---: |
+| `random.zip` (stored, 256MB) | 1 | 226.8 ms | 125.7 ms | 1.80× |
+| | 2 | 93.3 ms | 66.9 ms | 1.39× |
+| | 4 | 74.0 ms | 55.1 ms | 1.34× |
+| | 8 | 87.1 ms | 62.6 ms | 1.39× |
+| | 16 | 78.0 ms | 70.4 ms | 1.11× |
+| | 32 | 88.2 ms | 98.8 ms | 0.89× |
+| `books.zip` (deflated, 141MB) | 1 | 496.8 ms | 332.8 ms | 1.49× |
+| | 2 | 219.8 ms | 185.3 ms | 1.19× |
+| | 4 | 153.3 ms | 98.7 ms | 1.55× |
+| | 8 | 92.5 ms | 51.8 ms | 1.79× |
+| | 16 | 57.3 ms | 35.8 ms | 1.60× |
+| | 32 | 55.1 ms | 40.9 ms | 1.35× |
+
+(32-core Linux box, JDK 26, files in the operating system's cache. A repeat run agreed to within
+about 20% on the read timings, and reproduced every sign in the table, including the last row of the
+first block. Both providers were checked to have read the same number of bytes.)
+
+Reading a **stored** archive is where the design shows: with no inflater in the way, the cost is the
+locking, and cgvfs is 1.8× faster single-threaded. Adding threads closes the gap, because 256MB of
+`memcpy` saturates memory bandwidth long before it saturates 32 cores -- and at 32 threads cgvfs is
+slightly *slower*, since there is nothing left to win and the extra threads only add scheduling
+noise. On a **deflated** archive both providers spend most of their time in the same inflater, so
+the single-threaded gap is smaller, but cgvfs stays ahead as threads are added, because the inflater
+work is all that scales for zipfs while the lookups and reads around it do not.
+
+The benchmark is
+[`ZipfsVsCgvfsBenchmark`](src/test/perf/io/github/classgraph/vfs/perf/ZipfsVsCgvfsBenchmark.java),
+which documents how to build the two archives and how to run it.
 
 ## Recipes
 

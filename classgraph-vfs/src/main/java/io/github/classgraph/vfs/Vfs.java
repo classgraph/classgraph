@@ -35,10 +35,12 @@ import java.io.InputStream;
 import java.lang.module.ModuleReference;
 import java.net.URI;
 import java.net.URL;
+import java.nio.file.FileSystemNotFoundException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -502,6 +504,88 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
             return alreadyOpened;
         }
         return cacheRoot(rootsByModule, moduleReference, new ModuleRoot(this, moduleReference), moduleName);
+    }
+
+    /**
+     * Open a module of the boot {@link ModuleLayer} by name, e.g. {@code "java.logging"}.
+     *
+     * <p>
+     * This reads a module that the JVM has already resolved, whether it came from the runtime image, from the
+     * module path, or from an automatic module on the classpath.
+     *
+     * @param moduleName
+     *            the name of the module to open.
+     * @return the opened root.
+     * @throws FileSystemNotFoundException
+     *             if the boot layer has no module of that name.
+     * @throws IOException
+     *             if this {@link Vfs} has been closed. The module itself is not opened until its entries are listed
+     *             or read.
+     */
+    public VfsRoot openModule(final String moduleName) throws IOException {
+        return openModule(moduleName, ModuleLayer.boot());
+    }
+
+    /**
+     * Open a module of a given {@link ModuleLayer} by name.
+     *
+     * <p>
+     * The layer's own modules are searched first, then the modules of its parent layers, breadth-first, since a
+     * layer can see the modules of the layers it was built on top of. The first module found with the given name
+     * wins, which is the module a class loaded from that layer would resolve to.
+     *
+     * @param moduleName
+     *            the name of the module to open.
+     * @param layer
+     *            the layer to resolve the name in.
+     * @return the opened root.
+     * @throws FileSystemNotFoundException
+     *             if neither the layer nor any of its ancestors has a module of that name.
+     * @throws IOException
+     *             if this {@link Vfs} has been closed. The module itself is not opened until its entries are listed
+     *             or read.
+     */
+    public VfsRoot openModule(final String moduleName, final ModuleLayer layer) throws IOException {
+        Assert.notNull(moduleName, "moduleName");
+        Assert.notNull(layer, "layer");
+        checkNotClosed(moduleName);
+        final var moduleReference = findModule(moduleName, layer);
+        if (moduleReference == null) {
+            throw new FileSystemNotFoundException("No module named " + moduleName + " in the module layer");
+        }
+        return open(moduleReference);
+    }
+
+    /**
+     * Find a module by name in a layer, or, failing that, in the layer's ancestors.
+     *
+     * @param moduleName
+     *            the name of the module to find.
+     * @param layer
+     *            the layer to search.
+     * @return the module, or null if no layer reachable from the given one has a module of that name.
+     */
+    private static @Nullable ModuleReference findModule(final String moduleName, final ModuleLayer layer) {
+        // Breadth-first, so that a module of the layer itself shadows one of the same name in an ancestor, and so
+        // that a diamond of layers does not search the shared ancestor more than once
+        final var toSearch = new ArrayDeque<ModuleLayer>();
+        final var alreadySearched = Collections.newSetFromMap(new IdentityHashMap<ModuleLayer, Boolean>());
+        toSearch.add(layer);
+        alreadySearched.add(layer);
+        while (!toSearch.isEmpty()) {
+            final var currLayer = toSearch.remove();
+            for (final var resolvedModule : currLayer.configuration().modules()) {
+                if (resolvedModule.name().equals(moduleName)) {
+                    return resolvedModule.reference();
+                }
+            }
+            for (final var parent : currLayer.parents()) {
+                if (alreadySearched.add(parent)) {
+                    toSearch.add(parent);
+                }
+            }
+        }
+        return null;
     }
 
     /**

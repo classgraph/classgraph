@@ -30,6 +30,8 @@ package io.github.classgraph.vfs;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.file.FileSystemNotFoundException;
 import java.nio.file.LinkOption;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
@@ -49,8 +51,13 @@ import org.jspecify.annotations.Nullable;
 /**
  * A path within a {@link VfsFileSystem}. Paths are separated by {@code '/'}, whichever kind of root the filesystem
  * is a view of, and the root directory is {@code "/"}.
+ *
+ * <p>
+ * Paths are made by {@link VfsFileSystem#getPath(String, String...)} and by every method that returns a
+ * {@link Path} of such a filesystem, rather than being constructed directly. The type is public only because
+ * {@link #toCgvfsUri()} has no equivalent on {@link Path}: cast to this type to call it.
  */
-final class VfsPath implements Path {
+public final class VfsPath implements Path {
     /** The filesystem this path belongs to. */
     private final VfsFileSystem fileSystem;
 
@@ -300,9 +307,56 @@ final class VfsPath implements Path {
         return new VfsPath(fileSystem, false, relative.toArray(new String[0]));
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>
+     * This is the URI of the storage the path is read from -- a {@code "file:"} URI for a file in a directory, a
+     * {@code "jar:"} URI for an entry of a jarfile, a {@code "jrt:"} URI for a file of a module -- and not a
+     * {@code "cgvfs:"} URI, so it names the same bytes to code that has never heard of ClassGraph. See
+     * {@link #toCgvfsUri()} for the URI that names this path through this provider.
+     */
     @Override
     public URI toUri() {
         return fileSystem.uriOf(this);
+    }
+
+    /**
+     * Returns the {@code "cgvfs:"} URI of this path, which names it through this provider, so that
+     * {@link Path#of(URI)} and {@link java.nio.file.Paths#get(URI)} give back an equal path.
+     *
+     * <p>
+     * Resolving the returned URI needs the filesystem to still be open, and to have been created by
+     * {@link java.nio.file.FileSystems#newFileSystem(URI, Map)} rather than by {@link VfsRoot#asFileSystem()},
+     * since only those are registered under their path -- the same rule zipfs follows for {@code "jar:"} URIs.
+     *
+     * <p>
+     * See {@link #toUri()} for the URI of the underlying storage, which is what an unrelated library can read.
+     *
+     * @return the {@code "cgvfs:"} URI of this path.
+     * @throws FileSystemNotFoundException
+     *             if the {@code "cgvfs:"} scheme is not installed in this JVM, so that the returned URI could not
+     *             be resolved by anything. This happens when classgraph-vfs was loaded by a class loader other than
+     *             the system class loader, since that is the only one {@link java.nio.file.spi.FileSystemProvider}
+     *             searches for installed providers.
+     */
+    public URI toCgvfsUri() {
+        if (!VfsFileSystemProvider.isInstalled()) {
+            throw new FileSystemNotFoundException("The \"" + VfsFileSystemProvider.SCHEME
+                    + ":\" scheme is not installed in this JVM, so this URI could not be resolved. It is installed"
+                    + " by ServiceLoader when classgraph-vfs is loaded by the system class loader, which is not the"
+                    + " case here.");
+        }
+        final var rootPath = fileSystem.getRoot().reportedPath();
+        final var name = ((VfsPath) toAbsolutePath().normalize()).entryName();
+        try {
+            // This URI constructor quotes the characters that a URI cannot hold, so a path with a space in it
+            // gives a URI with "%20" in it, which pathOf decodes back to the space
+            return new URI(VfsFileSystemProvider.SCHEME, rootPath + (name.isEmpty() ? "" : "!/" + name),
+                    /* fragment = */ null);
+        } catch (final URISyntaxException e) {
+            throw new IllegalArgumentException("Path cannot be written as a URI: " + this, e);
+        }
     }
 
     @Override

@@ -758,11 +758,15 @@ public abstract class VfsRoot implements Iterable<VfsEntry> {
      *
      * <p>
      * The filesystem is read-only: every operation that would write throws
-     * {@link java.nio.file.ReadOnlyFileSystemException}. Its {@link FileSystem#close()} closes only that view of
-     * this root, and not the root itself, which other callers may be reading through -- so the returned filesystem
-     * can be used in a try-with-resources, and the next caller is handed a new view rather than the closed one. It
-     * releases no file handle, memory mapping or temporary file either way: those belong to the {@link Vfs}, so
-     * close the {@link Vfs} to release them.
+     * {@link java.nio.file.ReadOnlyFileSystemException}.
+     *
+     * <p>
+     * A filesystem is a view of the {@link Vfs} that opened this root and shares its lifetime, so its
+     * {@link FileSystem#close()} closes that {@link Vfs}, releasing every file handle, memory mapping and temporary
+     * file it took -- and with it every other root the same {@link Vfs} has opened. Give a {@link Vfs} whose roots
+     * are read independently one filesystem view at a time, or open each root from its own {@link Vfs}, which is
+     * what {@link java.nio.file.FileSystems#newFileSystem(java.net.URI, java.util.Map)} does for a {@code "cgvfs:"}
+     * URI.
      *
      * @return a {@link FileSystem} view of this root. The same instance is returned every time, until it is closed.
      * @throws ClosedFileSystemException

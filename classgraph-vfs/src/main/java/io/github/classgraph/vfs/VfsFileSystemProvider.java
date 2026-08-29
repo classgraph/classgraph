@@ -33,8 +33,14 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.nio.ByteBuffer;
+import java.nio.MappedByteBuffer;
+import java.nio.channels.ClosedChannelException;
+import java.nio.channels.FileChannel;
+import java.nio.channels.FileLock;
 import java.nio.channels.NonWritableChannelException;
+import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.SeekableByteChannel;
+import java.nio.channels.WritableByteChannel;
 import java.nio.file.AccessDeniedException;
 import java.nio.file.AccessMode;
 import java.nio.file.CopyOption;
@@ -42,6 +48,7 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.DirectoryStream.Filter;
 import java.nio.file.FileStore;
 import java.nio.file.FileSystem;
+import java.nio.file.FileSystemAlreadyExistsException;
 import java.nio.file.FileSystemException;
 import java.nio.file.FileSystemNotFoundException;
 import java.nio.file.LinkOption;
@@ -63,35 +70,113 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import io.github.classgraph.base.internal.path.FastPathResolver;
+import io.github.classgraph.base.internal.utils.Assert;
 import org.jspecify.annotations.Nullable;
 
 /**
- * The {@link FileSystemProvider} of the read-only {@link VfsFileSystem} views handed out by
- * {@link VfsRoot#asFileSystem()}.
+ * The {@link FileSystemProvider} of the read-only {@link VfsFileSystem} views of a {@link VfsRoot}, registered
+ * under the {@code "cgvfs:"} URL scheme.
  *
  * <p>
- * This provider is not installed in the JVM, and is not reachable through {@link java.nio.file.FileSystems}: a
- * virtual filesystem is always reached from the {@link VfsRoot} it is a view of, because a {@link Vfs} has to be
- * told how to open a root before there is anything to address.
+ * The scheme is installed by {@link java.util.ServiceLoader}, so putting classgraph-vfs on the classpath or the
+ * module path is enough to make {@code cgvfs:} URIs work -- but only if it is loaded by the system class loader,
+ * since that is the loader {@link FileSystemProvider#installedProviders()} searches. A copy loaded by a child class
+ * loader -- a servlet container's per-application loader, a fat-jar loader, an OSGi bundle -- is not installed, and
+ * {@link #isInstalled()} reports that.
+ *
+ * <p>
+ * A URI is {@code "cgvfs:"} followed by anything {@link Vfs#open(String)} accepts, so {@code "file:"} is optional
+ * and {@code "!/"} separates a jarfile from a nested jarfile or a package root within it:
+ *
+ * <pre>
+ * cgvfs:/path/app.jar
+ * cgvfs:file:/path/app.jar
+ * cgvfs:/path/outer.jar!/lib/inner.jar
+ * cgvfs:/path/spring-boot-app.jar!/BOOT-INF/classes
+ * cgvfs:jrt:/java.logging
+ * </pre>
+ *
+ * <p>
+ * Which part of a URI names the filesystem and which part names a path within it is decided the same way
+ * {@link Vfs#open(String)} decides it, by reading what is actually in storage rather than by looking at the
+ * spelling, and by which method the URI is passed to -- exactly as with {@code jar:} URIs and zipfs.
+ * {@link #newFileSystem(URI, Map)} and {@link #getFileSystem(URI)} read the whole URI as the name of a root, so
+ * {@code "cgvfs:/path/outer.jar!/lib/inner.jar"} is the nested jarfile's filesystem, and
+ * {@code "cgvfs:/path/spring-boot-app.jar!/BOOT-INF/classes"} is the package root's filesystem.
+ * {@link #getPath(URI)} reads the last {@code "!/"} section as a path within the filesystem named by everything
+ * before it, so {@code "cgvfs:/path/app.jar!/META-INF/MANIFEST.MF"} is a file of {@code app.jar}, and
+ * {@code "cgvfs:/path/outer.jar!/lib/inner.jar!/com/xyz/W.class"} is a file of the nested jarfile.
  *
  * <p>
  * Every method that reads a path's filesystem throws {@link java.nio.file.ClosedFileSystemException} once that
  * filesystem, or the {@link Vfs} behind it, has been closed. The purely syntactic {@link Path} methods go on
  * working, since they need nothing from the filesystem's content.
  */
-final class VfsFileSystemProvider extends FileSystemProvider {
-    /** The single instance of this provider. */
+public final class VfsFileSystemProvider extends FileSystemProvider {
+    /** The instance used by {@link VfsRoot#asFileSystem()}, which is the installed one where there is one. */
     static final VfsFileSystemProvider INSTANCE = new VfsFileSystemProvider();
 
-    /** Constructor. */
-    private VfsFileSystemProvider() {
+    /**
+     * The filesystems created from a URI by {@link #newFileSystem(URI, Map)}, keyed by every path they can be named
+     * by. This is static rather than per-instance because {@link java.util.ServiceLoader} constructs an instance of
+     * its own, so the instance a caller reaches through {@link FileSystemProvider#installedProviders()} need not be
+     * the one a {@link VfsPath} reports from {@link VfsPath#getFileSystem()}.
+     */
+    private static final Map<String, VfsFileSystem> FILESYSTEMS_BY_PATH = new ConcurrentHashMap<>();
+
+    /** Whether {@link #isInstalled()} has looked the provider up yet, and what it found. */
+    private static volatile @Nullable Boolean installed;
+
+    /**
+     * Constructor.
+     *
+     * <p>
+     * This is public only because {@link java.util.ServiceLoader} has to be able to call it. Use
+     * {@link java.nio.file.FileSystems} to reach the provider, or {@link Vfs} and {@link VfsRoot#asFileSystem()} to
+     * bypass it. Constructing one directly gives a provider that shares the filesystem registry with the installed
+     * one, so it behaves the same, but a {@link Path} of a filesystem it created will not be recognized by code
+     * that compares providers by identity.
+     */
+    public VfsFileSystemProvider() {
+    }
+
+    /**
+     * Returns whether the {@code "cgvfs:"} scheme is installed in this JVM, i.e. whether this provider is one of
+     * {@link FileSystemProvider#installedProviders()}, so that {@code cgvfs:} URIs can be resolved through
+     * {@link java.nio.file.FileSystems} and {@link Path#of(URI)}.
+     *
+     * <p>
+     * It is installed by {@link java.util.ServiceLoader} when classgraph-vfs is loaded by the system class loader,
+     * and not installed when it is loaded by a child class loader. The answer cannot change during the life of the
+     * JVM, since {@link FileSystemProvider#installedProviders()} loads the providers once, on its first call.
+     *
+     * @return true if the {@code "cgvfs:"} scheme is installed.
+     */
+    public static boolean isInstalled() {
+        var isInstalled = installed;
+        if (isInstalled == null) {
+            // Not synchronized: two threads that race here look the answer up twice and reach the same answer,
+            // which is cheaper than locking around a call that itself takes a lock inside the JDK
+            isInstalled = false;
+            for (final var provider : FileSystemProvider.installedProviders()) {
+                if (provider instanceof VfsFileSystemProvider) {
+                    isInstalled = true;
+                    break;
+                }
+            }
+            installed = isInstalled;
+        }
+        return isInstalled;
     }
 
     /**
@@ -163,45 +248,338 @@ final class VfsFileSystemProvider extends FileSystemProvider {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /** The URL scheme this provider is registered under. */
+    static final String SCHEME = "cgvfs";
+
+    /** The env key that names the {@link ModuleLayer} a {@code "cgvfs:jrt:/<module>"} URI is resolved in. */
+    private static final String LAYER_ENV_KEY = "layer";
+
+    /** The env key that names the {@link VfsSpec} the created {@link Vfs} reads storage with. */
+    private static final String VFS_SPEC_ENV_KEY = "vfsSpec";
+
     @Override
     public String getScheme() {
-        return "vfs";
+        return SCHEME;
+    }
+
+    /**
+     * Returns the part of a {@code "cgvfs:"} URI that names what to open, which is a path in the form
+     * {@link Vfs#open(String)} takes.
+     *
+     * @param uri
+     *            the URI.
+     * @return the path the URI names.
+     * @throws IllegalArgumentException
+     *             if the URI is not a {@code "cgvfs:"} URI, or names nothing.
+     */
+    private static String pathOf(final URI uri) {
+        Assert.notNull(uri, "uri");
+        if (!SCHEME.equalsIgnoreCase(uri.getScheme())) {
+            throw new IllegalArgumentException("Not a \"" + SCHEME + ":\" URI: " + uri);
+        }
+        // The decoded form, so that a path written with "%20" for a space names the file that has a space in its
+        // name. A "cgvfs:" URI is opaque, so the whole of it after the scheme is the scheme-specific part -- that
+        // is what allows the nested "file:" or "jrt:" scheme, and the "!/" separators, to be written unescaped
+        final var path = uri.getSchemeSpecificPart();
+        if (path == null || path.isEmpty()) {
+            throw new IllegalArgumentException("URI names no path: " + uri);
+        }
+        if (uri.getFragment() != null) {
+            throw new IllegalArgumentException("A \"" + SCHEME + ":\" URI cannot have a fragment: " + uri);
+        }
+        return path;
+    }
+
+    /** Opens one root of a {@link Vfs}, so that both {@code newFileSystem} overloads share the same plumbing. */
+    @FunctionalInterface
+    private interface RootOpener {
+        /**
+         * Open the root.
+         *
+         * @param vfs
+         *            the {@link Vfs} to open the root in.
+         * @return the opened root.
+         * @throws IOException
+         *             if the root could not be opened.
+         */
+        VfsRoot open(Vfs vfs) throws IOException;
+    }
+
+    /**
+     * Create a {@link Vfs} configured by an env map, and open one root of it.
+     *
+     * @param env
+     *            the env map, which may hold a {@link VfsSpec} under {@code "vfsSpec"}. Any other key is ignored,
+     *            since a caller that also drives zipfs passes the keys zipfs takes.
+     * @param opener
+     *            opens the root.
+     * @return the opened root, whose {@link Vfs} was created by this method and is owned by the root's filesystem
+     *         view.
+     * @throws IOException
+     *             if the root could not be opened.
+     */
+    private static VfsRoot openRoot(final Map<String, ?> env, final RootOpener opener) throws IOException {
+        final var vfsSpec = envValue(env, VFS_SPEC_ENV_KEY, VfsSpec.class);
+        final var vfs = new Vfs(vfsSpec == null ? new VfsSpec() : vfsSpec);
+        var opened = false;
+        try {
+            final var root = opener.open(vfs);
+            opened = true;
+            return root;
+        } finally {
+            if (!opened) {
+                // The Vfs was created here, so nothing else can release the file handles and temporary files it
+                // took while it was failing to open the root
+                vfs.close();
+            }
+        }
+    }
+
+    /**
+     * Turn an opened root into a registered filesystem, closing the {@link Vfs} behind it if it could not be
+     * registered.
+     *
+     * @param root
+     *            the opened root.
+     * @param requestedPath
+     *            the path the caller named the root by.
+     * @return the filesystem view of the root.
+     * @throws FileSystemAlreadyExistsException
+     *             if a filesystem is already open at that path.
+     */
+    private static FileSystem registeredFileSystemOf(final VfsRoot root, final String requestedPath) {
+        final var fileSystem = (VfsFileSystem) root.asFileSystem();
+        var registered = false;
+        try {
+            fileSystem.setRegisteredPath(requestedPath);
+            register(fileSystem, requestedPath);
+            registered = true;
+            return fileSystem;
+        } finally {
+            if (!registered) {
+                // This closes the Vfs that openRoot created, since a filesystem owns the Vfs behind it
+                fileSystem.close();
+            }
+        }
+    }
+
+    /**
+     * Returns the module name a {@code "jrt:/<module>"} path names.
+     *
+     * @param path
+     *            the path.
+     * @return the module name, or null if the path does not name a module.
+     */
+    private static @Nullable String moduleNameOf(final String path) {
+        // "jrt:/java.logging", and also "jrt:/java.logging/" -- but not "jrt:/java.logging/java/util/logging",
+        // which names an entry of the module rather than the module, and is left to Vfs#open
+        if (!path.startsWith("jrt:/")) {
+            return null;
+        }
+        final var name = path.substring("jrt:/".length());
+        final var end = name.endsWith("/") ? name.length() - 1 : name.length();
+        final var moduleName = name.substring(0, end);
+        return moduleName.isEmpty() || moduleName.indexOf('/') >= 0 ? null : moduleName;
+    }
+
+    /**
+     * Read a value of an expected type out of an env map.
+     *
+     * @param <T>
+     *            the expected type.
+     * @param env
+     *            the env map.
+     * @param key
+     *            the key to read.
+     * @param type
+     *            the expected type.
+     * @return the value, or null if the map has no value under that key.
+     * @throws IllegalArgumentException
+     *             if the map has a value under that key that is not of the expected type.
+     */
+    private static <T> @Nullable T envValue(final Map<String, ?> env, final String key, final Class<T> type) {
+        final var value = env == null ? null : env.get(key);
+        if (value == null) {
+            return null;
+        }
+        if (!type.isInstance(value)) {
+            throw new IllegalArgumentException("The \"" + key + "\" option must be a " + type.getName() + ", not a "
+                    + value.getClass().getName());
+        }
+        return type.cast(value);
+    }
+
+    /**
+     * Register a filesystem under every path it can be named by, so that {@link #getFileSystem(URI)} finds it
+     * whichever of those names the caller writes.
+     *
+     * @param fileSystem
+     *            the filesystem to register.
+     * @param requestedPath
+     *            the path the caller named it by, which need not be the path the root reports itself at -- an alias
+     *            through a symlink, or a {@code "file:"} URL of the same jarfile, resolve to the same root.
+     * @throws FileSystemAlreadyExistsException
+     *             if a filesystem is already open under one of those names.
+     */
+    private static void register(final VfsFileSystem fileSystem, final String requestedPath) {
+        for (final var key : keysOf(fileSystem, requestedPath)) {
+            final var existing = FILESYSTEMS_BY_PATH.putIfAbsent(key, fileSystem);
+            if (existing != null && existing != fileSystem) {
+                // Roll back the keys that were claimed before the clash was found, so that a rejected filesystem
+                // leaves nothing of itself behind in the registry
+                unregister(fileSystem, requestedPath);
+                throw new FileSystemAlreadyExistsException(
+                        "A filesystem is already open at " + key + "; close it before opening another");
+            }
+        }
+    }
+
+    /**
+     * Take a filesystem back out of the registry, so that its name can be opened again.
+     *
+     * @param fileSystem
+     *            the filesystem to deregister.
+     * @param requestedPath
+     *            the path the caller named it by.
+     */
+    static void unregister(final VfsFileSystem fileSystem, final String requestedPath) {
+        for (final var key : keysOf(fileSystem, requestedPath)) {
+            FILESYSTEMS_BY_PATH.remove(key, fileSystem);
+        }
+    }
+
+    /**
+     * Returns the registry keys of a filesystem: the path it was named by, and the path its root reports itself at,
+     * which differ when it was named through a symlink, by URL, or by a Windows short name.
+     *
+     * @param fileSystem
+     *            the filesystem.
+     * @param requestedPath
+     *            the path the caller named it by.
+     * @return the keys, without duplicates.
+     */
+    private static Collection<String> keysOf(final VfsFileSystem fileSystem, final String requestedPath) {
+        final var keys = new LinkedHashSet<String>(4);
+        keys.add(FastPathResolver.resolve(requestedPath));
+        keys.add(fileSystem.getRoot().reportedPath());
+        return keys;
     }
 
     /**
      * {@inheritDoc}
      *
-     * @throws UnsupportedOperationException
-     *             always: a virtual filesystem is created by {@link VfsRoot#asFileSystem()}, not by URI.
+     * <p>
+     * The URI is {@code "cgvfs:"} followed by anything {@link Vfs#open(String)} accepts, and names a root: a
+     * directory, a jarfile, a jarfile nested inside another jarfile, or a package root.
+     * {@code "cgvfs:jrt:/<module>"} names a module of a {@link ModuleLayer} instead.
+     *
+     * <p>
+     * The returned filesystem owns the {@link Vfs} this creates to open the root, so closing the filesystem
+     * releases the file handles, memory mappings and temporary files that reading through it took, and the name
+     * becomes free to open again.
+     *
+     * <p>
+     * Two options are read out of the env map: {@code "vfsSpec"}, a {@link VfsSpec} to read storage with, and
+     * {@code "layer"}, the {@link ModuleLayer} to resolve a {@code "jrt:/<module>"} URI in, which defaults to
+     * {@link ModuleLayer#boot()}. Any other key is ignored rather than rejected, so that a caller which drives both
+     * this provider and zipfs from one env map does not have to strip the keys zipfs takes.
+     *
+     * @throws FileSystemAlreadyExistsException
+     *             if a filesystem created by this method is already open at that path.
      */
     @Override
-    public FileSystem newFileSystem(final URI uri, final Map<String, ?> env) {
-        throw new UnsupportedOperationException(
-                "A virtual filesystem cannot be created from a URI; call Vfs#open and then VfsRoot#asFileSystem");
+    public FileSystem newFileSystem(final URI uri, final Map<String, ?> env) throws IOException {
+        final var path = pathOf(uri);
+        final var moduleName = moduleNameOf(path);
+        final var root = openRoot(env, vfs -> {
+            if (moduleName == null) {
+                return vfs.open(path);
+            }
+            final var layer = envValue(env, LAYER_ENV_KEY, ModuleLayer.class);
+            return vfs.openModule(moduleName, layer == null ? ModuleLayer.boot() : layer);
+        });
+        return registeredFileSystemOf(root, path);
     }
 
     /**
      * {@inheritDoc}
      *
+     * <p>
+     * The path may name a directory or a jarfile of any filesystem, not only of the default one, so a jarfile
+     * inside a zipfs filesystem can be opened by handing its {@link Path} to this method.
+     *
+     * <p>
+     * The returned filesystem owns the {@link Vfs} this creates to open the path, so closing the filesystem
+     * releases what reading through it took. The env map is read the same way {@link #newFileSystem(URI, Map)}
+     * reads it.
+     *
+     * @throws FileSystemAlreadyExistsException
+     *             if a filesystem created from a URI is already open at that path.
+     */
+    @Override
+    public FileSystem newFileSystem(final Path path, final Map<String, ?> env) throws IOException {
+        Assert.notNull(path, "path");
+        final var root = openRoot(env, vfs -> vfs.open(path));
+        // Registered under the path the root reports itself at, rather than under the given Path's own spelling,
+        // because a Path of another provider's filesystem -- a jarfile inside a zipfs filesystem, say -- has no
+        // spelling that this provider could resolve back to it
+        return registeredFileSystemOf(root, root.reportedPath());
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>
+     * Only a filesystem created by {@link #newFileSystem(URI, Map)} can be looked up by URI. A filesystem reached
+     * through {@link VfsRoot#asFileSystem()} is not registered under its path, since the {@link Vfs} that opened
+     * the root belongs to the caller, and two of them can have the same path open at once.
+     *
      * @throws FileSystemNotFoundException
-     *             always: a virtual filesystem is reached from the {@link VfsRoot} it is a view of, not by URI.
+     *             if no filesystem created from a URI is open at that path.
      */
     @Override
     public FileSystem getFileSystem(final URI uri) {
-        throw new FileSystemNotFoundException(
-                "A virtual filesystem cannot be looked up by URI; call Vfs#open and then VfsRoot#asFileSystem");
+        final var path = pathOf(uri);
+        final var fileSystem = FILESYSTEMS_BY_PATH.get(FastPathResolver.resolve(path));
+        if (fileSystem == null) {
+            throw new FileSystemNotFoundException("No filesystem is open at " + path
+                    + "; create one with FileSystems#newFileSystem, or open it through Vfs#open");
+        }
+        return fileSystem;
     }
 
     /**
      * {@inheritDoc}
      *
+     * <p>
+     * The longest prefix of the URI that names an open filesystem is the filesystem, and the rest is the path
+     * within it, so {@code "cgvfs:/path/app.jar!/META-INF/MANIFEST.MF"} is a file of the filesystem of
+     * {@code app.jar}, and {@code "cgvfs:/path/outer.jar!/lib/inner.jar!/com/xyz/W.class"} is a file of the
+     * filesystem of the nested jarfile. A URI that names an open filesystem exactly, with nothing after it, is that
+     * filesystem's root directory.
+     *
      * @throws FileSystemNotFoundException
-     *             always: a virtual filesystem is reached from the {@link VfsRoot} it is a view of, not by URI.
+     *             if no prefix of the URI names a filesystem created from a URI.
      */
     @Override
     public Path getPath(final URI uri) {
-        throw new FileSystemNotFoundException(
-                "A virtual filesystem cannot be looked up by URI; call Vfs#open and then VfsRoot#asFileSystem");
+        final var path = pathOf(uri);
+        // Longest prefix first, so that the path of a nested jarfile is read against the nested jarfile's own
+        // filesystem rather than against the enclosing jarfile that also has a filesystem open. The whole path is
+        // tried before any prefix of it, so a URI that names a filesystem exactly is that filesystem's root
+        var separatorIdx = path.length();
+        while (separatorIdx > 0) {
+            final var prefix = path.substring(0, separatorIdx);
+            final var fileSystem = FILESYSTEMS_BY_PATH.get(FastPathResolver.resolve(prefix));
+            if (fileSystem != null) {
+                final var entryName = separatorIdx == path.length() ? ""
+                        : path.substring(separatorIdx + "!/".length());
+                return fileSystem.getPath("/" + entryName);
+            }
+            separatorIdx = path.lastIndexOf("!/", separatorIdx - 1);
+        }
+        throw new FileSystemNotFoundException("No filesystem is open at " + path
+                + ", nor at any prefix of it; create one with FileSystems#newFileSystem");
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -222,6 +600,28 @@ final class VfsFileSystemProvider extends FileSystemProvider {
                     "File attributes are not supported by this read-only filesystem");
         }
         return new VfsByteChannel(entryOf(check(path)).read());
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>
+     * The returned channel is read-only, so every method that would write throws
+     * {@link NonWritableChannelException}. {@link FileChannel#map(FileChannel.MapMode, long, long)} and the file
+     * locking methods throw {@link UnsupportedOperationException}: an entry of an archive has no region of a file
+     * of its own that could be mapped or locked, since it is usually stored compressed. Read the entry through
+     * {@link #newInputStream} or {@link #newByteChannel} where a channel is not needed -- the content is already in
+     * memory or memory-mapped by then, so mapping it again would buy nothing.
+     */
+    @Override
+    public FileChannel newFileChannel(final Path path, final Set<? extends OpenOption> options,
+            final FileAttribute<?>... attrs) throws IOException {
+        checkReadOnly(options);
+        if (attrs.length != 0) {
+            throw new UnsupportedOperationException(
+                    "File attributes are not supported by this read-only filesystem");
+        }
+        return new VfsFileChannel(new VfsByteChannel(entryOf(check(path)).read()));
     }
 
     @Override
@@ -552,6 +952,171 @@ final class VfsFileSystemProvider extends FileSystemProvider {
         }
     }
 
+    /**
+     * A read-only {@link FileChannel} over the content of one {@link VfsEntry}, so that an entry can be read by
+     * code that asks for a {@link FileChannel} rather than for a {@link SeekableByteChannel}.
+     */
+    private static final class VfsFileChannel extends FileChannel {
+        /** The channel that holds the content, closed when this channel is closed. */
+        private final VfsByteChannel content;
+
+        /** The read position, which is allowed to be beyond the end of the content. */
+        private long position;
+
+        /**
+         * Constructor.
+         *
+         * @param content
+         *            the channel that holds the content of the entry.
+         */
+        VfsFileChannel(final VfsByteChannel content) {
+            this.content = content;
+        }
+
+        @Override
+        public int read(final ByteBuffer dst) throws IOException {
+            final var numBytes = content.read(dst, position);
+            if (numBytes > 0) {
+                position += numBytes;
+            }
+            return numBytes;
+        }
+
+        @Override
+        public long read(final ByteBuffer[] dsts, final int offset, final int length) throws IOException {
+            Objects.checkFromIndexSize(offset, length, dsts.length);
+            var total = 0L;
+            for (var i = offset; i < offset + length; i++) {
+                final var numBytes = read(dsts[i]);
+                if (numBytes < 0) {
+                    // Only end-of-file before anything was read is reported as end-of-file, which is what a
+                    // scattering read of a file does
+                    return total == 0 ? -1 : total;
+                }
+                total += numBytes;
+            }
+            return total;
+        }
+
+        @Override
+        public int read(final ByteBuffer dst, final long fromPosition) throws IOException {
+            if (fromPosition < 0) {
+                throw new IllegalArgumentException("Negative position: " + fromPosition);
+            }
+            return content.read(dst, fromPosition);
+        }
+
+        @Override
+        public int write(final ByteBuffer src) {
+            throw new NonWritableChannelException();
+        }
+
+        @Override
+        public long write(final ByteBuffer[] srcs, final int offset, final int length) {
+            throw new NonWritableChannelException();
+        }
+
+        @Override
+        public int write(final ByteBuffer src, final long atPosition) {
+            throw new NonWritableChannelException();
+        }
+
+        @Override
+        public long position() throws IOException {
+            checkOpen();
+            return position;
+        }
+
+        @Override
+        public FileChannel position(final long newPosition) throws IOException {
+            checkOpen();
+            if (newPosition < 0) {
+                throw new IllegalArgumentException("Negative position: " + newPosition);
+            }
+            position = newPosition;
+            return this;
+        }
+
+        @Override
+        public long size() throws IOException {
+            return content.size();
+        }
+
+        @Override
+        public FileChannel truncate(final long size) {
+            throw new NonWritableChannelException();
+        }
+
+        @Override
+        public void force(final boolean metaData) throws IOException {
+            // Nothing to flush, since nothing can be written, but a closed channel still has to be reported
+            checkOpen();
+        }
+
+        @Override
+        public long transferTo(final long fromPosition, final long count, final WritableByteChannel target)
+                throws IOException {
+            if (fromPosition < 0 || count < 0) {
+                throw new IllegalArgumentException("Negative position or count");
+            }
+            checkOpen();
+            if (!target.isOpen()) {
+                throw new ClosedChannelException();
+            }
+            final var remaining = size() - fromPosition;
+            if (remaining <= 0) {
+                return 0;
+            }
+            final var buf = ByteBuffer.allocate((int) Math.min(count, remaining));
+            final var numBytes = content.read(buf, fromPosition);
+            if (numBytes <= 0) {
+                return 0;
+            }
+            buf.flip();
+            // A partial write is reported as such, rather than looped over, which is what a file channel does when
+            // the target is a non-blocking channel that will not take the whole buffer
+            return target.write(buf);
+        }
+
+        @Override
+        public long transferFrom(final ReadableByteChannel src, final long atPosition, final long count) {
+            throw new NonWritableChannelException();
+        }
+
+        @Override
+        public MappedByteBuffer map(final MapMode mode, final long fromPosition, final long size) {
+            throw new UnsupportedOperationException(
+                    "An entry of an archive has no region of a file of its own that could be mapped");
+        }
+
+        @Override
+        public FileLock lock(final long fromPosition, final long size, final boolean shared) {
+            throw new UnsupportedOperationException("This read-only filesystem does not support file locking");
+        }
+
+        @Override
+        public @Nullable FileLock tryLock(final long fromPosition, final long size, final boolean shared) {
+            throw new UnsupportedOperationException("This read-only filesystem does not support file locking");
+        }
+
+        /**
+         * Check that this channel is still open.
+         *
+         * @throws ClosedChannelException
+         *             if it is not.
+         */
+        private void checkOpen() throws IOException {
+            if (!content.isOpen()) {
+                throw new ClosedChannelException();
+            }
+        }
+
+        @Override
+        protected void implCloseChannel() throws IOException {
+            content.close();
+        }
+    }
+
     /** A read-only {@link SeekableByteChannel} over the content of one {@link VfsEntry}. */
     private static final class VfsByteChannel implements SeekableByteChannel {
         /** The content of the entry, closed when this channel is closed. */
@@ -603,12 +1168,31 @@ final class VfsFileSystemProvider extends FileSystemProvider {
 
         @Override
         public int read(final ByteBuffer dst) throws IOException {
+            final var numBytes = read(dst, position);
+            if (numBytes > 0) {
+                position += numBytes;
+            }
+            return numBytes;
+        }
+
+        /**
+         * Read from a given position, without moving {@link #position}.
+         *
+         * @param dst
+         *            the buffer to read into.
+         * @param fromPosition
+         *            the position to read from, which is allowed to be beyond the end of the content.
+         * @return the number of bytes read, or -1 at end of file.
+         * @throws IOException
+         *             if the content could not be read.
+         */
+        int read(final ByteBuffer dst, final long fromPosition) throws IOException {
             checkOpen();
-            if (position >= buffer.limit()) {
+            if (fromPosition >= buffer.limit()) {
                 return -1;
             }
-            final var numBytes = Math.min(dst.remaining(), buffer.limit() - (int) position);
-            final var slice = buffer.slice((int) position, numBytes);
+            final var numBytes = Math.min(dst.remaining(), buffer.limit() - (int) fromPosition);
+            final var slice = buffer.slice((int) fromPosition, numBytes);
             try {
                 dst.put(slice);
             } catch (final IllegalStateException e) {
@@ -616,7 +1200,6 @@ final class VfsFileSystemProvider extends FileSystemProvider {
                 // in flight -- fail the same documented way as a read through a closed FileChannel
                 throw new IOException("Cannot read a file that has been unmapped by closing the Vfs", e);
             }
-            position += numBytes;
             return numBytes;
         }
 
