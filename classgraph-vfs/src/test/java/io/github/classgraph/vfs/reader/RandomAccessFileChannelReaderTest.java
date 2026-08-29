@@ -207,8 +207,9 @@ class RandomAccessFileChannelReaderTest {
             assertThat(dstBuf.get(4)).isEqualTo((byte) 0);
             assertThat(dstBuf.get(7)).isEqualTo((byte) 3);
 
-            // No room left at all
-            assertThat(reader.read(0, dstBuf, 8, 64)).isEqualTo(-1);
+            // No room left at all, which is not the end of the content, so it reads nothing rather than reporting
+            // that the content has ended
+            assertThat(reader.read(0, dstBuf, 8, 64)).isZero();
         }
     }
 

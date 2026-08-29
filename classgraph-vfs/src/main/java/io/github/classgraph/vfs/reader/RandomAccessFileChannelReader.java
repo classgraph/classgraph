@@ -126,7 +126,8 @@ public class RandomAccessFileChannelReader implements RandomAccessReader {
     @Override
     public int read(final long srcOffset, final ByteBuffer dstBuf, final int dstBufStart, final int numBytes)
             throws IOException {
-        if (numBytes == 0) {
+        final var dstRoom = ReaderBounds.numBytesFree(dstBuf.capacity(), dstBufStart);
+        if (numBytes == 0 || dstRoom == 0) {
             return 0;
         }
         try {
@@ -141,10 +142,7 @@ public class RandomAccessFileChannelReader implements RandomAccessReader {
             }
             // Read no more than the destination has room for, as the array-backed and ByteBuffer-backed readers
             // also do, rather than letting ByteBuffer#limit throw IllegalArgumentException
-            final var numBytesToRead = Math.max(Math.min(numBytesInSlice, dstBuf.capacity() - dstBufStart), 0);
-            if (numBytesToRead == 0) {
-                return -1;
-            }
+            final var numBytesToRead = Math.min(numBytesInSlice, dstRoom);
             final var srcStart = sliceStartPos + srcOffset;
             // Open the limit up to the capacity before positioning, since the destination buffer may still carry
             // the limit that a previous read left on it, and positioning past a stale limit throws

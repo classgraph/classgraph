@@ -64,6 +64,12 @@ import java.nio.charset.StandardCharsets;
  * value is not wholly within the content, since half of a value is not a value.
  *
  * <p>
+ * Only the end of the content is reported as the end of the content. A read that was asked for no bytes, or that
+ * was given a destination with no room left in it, has not reached the end of anything, and returns zero -- the way
+ * {@link java.io.InputStream#read(byte[], int, int)} returns zero for a zero-length read, even at the end of the
+ * stream.
+ *
+ * <p>
  * No method ever reports content that is not there. A reader whose length is overstated -- by a zip entry that
  * declares an uncompressed size larger than what its deflate stream actually holds -- stops at the last byte that
  * could really be read, rather than padding with zeroes.
@@ -103,11 +109,11 @@ public interface RandomAccessReader {
      *            The offset within the destination buffer to start writing at.
      * @param numBytes
      *            The maximum number of bytes to read.
-     * @return The number of bytes actually read, which is fewer than {@code numBytes} if the content ended first;
-     *         or -1 if {@code srcOffset} is at or past the end of the content, or the destination has no room left
-     *         at {@code dstBufStart}.
+     * @return The number of bytes actually read, which is fewer than {@code numBytes} if the content ended first; 0
+     *         if {@code numBytes} is zero, or the destination has no room left at {@code dstBufStart}; or -1 if
+     *         {@code srcOffset} is at or past the end of the content.
      * @throws IOException
-     *             If there was an exception while reading.
+     *             If there was an exception while reading, or if {@code dstBufStart} is not within the destination.
      */
     int read(long srcOffset, ByteBuffer dstBuf, int dstBufStart, int numBytes) throws IOException;
 
@@ -122,11 +128,11 @@ public interface RandomAccessReader {
      *            The offset within the destination array to start writing at.
      * @param numBytes
      *            The maximum number of bytes to read.
-     * @return The number of bytes actually read, which is fewer than {@code numBytes} if the content ended first;
-     *         or -1 if {@code srcOffset} is at or past the end of the content, or the destination has no room left
-     *         at {@code dstArrStart}.
+     * @return The number of bytes actually read, which is fewer than {@code numBytes} if the content ended first; 0
+     *         if {@code numBytes} is zero, or the destination has no room left at {@code dstArrStart}; or -1 if
+     *         {@code srcOffset} is at or past the end of the content.
      * @throws IOException
-     *             If there was an exception while reading.
+     *             If there was an exception while reading, or if {@code dstArrStart} is not within the destination.
      */
     int read(long srcOffset, byte[] dstArr, int dstArrStart, int numBytes) throws IOException;
 

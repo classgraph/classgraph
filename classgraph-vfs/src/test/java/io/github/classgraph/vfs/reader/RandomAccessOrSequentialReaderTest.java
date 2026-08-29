@@ -952,4 +952,48 @@ public class RandomAccessOrSequentialReaderTest {
                     .isInstanceOf(IOException.class).hasMessageContaining(TOO_LARGE);
         }
     }
+
+    /**
+     * A destination with no room left in it is not the end of the content. A caller copying content out in blocks
+     * fills its destination and then hands the reader the offset just past the last byte it wrote, so a reader that
+     * answered -1 there would tell that caller its content had ended, and the copy would be silently truncated.
+     *
+     * @throws IOException
+     *             if the content could not be read.
+     */
+    @Test
+    public void aFullDestinationIsNotTheEndOfTheContent() throws IOException {
+        try (var reader = new RandomAccessOrSequentialReader(new ByteArrayInputStream(PATTERN))) {
+            final var dstArr = new byte[4];
+            assertThat(reader.read(0, dstArr, dstArr.length, 4)).isZero();
+            final var dstBuf = ByteBuffer.allocate(4);
+            assertThat(reader.read(0, dstBuf, dstBuf.capacity(), 4)).isZero();
+
+            // The content really has not ended: a read with room for it still reads it
+            assertThat(reader.read(0, dstArr, 0, 4)).isEqualTo(4);
+        }
+    }
+
+    /**
+     * An offset that is not within the destination at all is a mistake on the caller's part, and is reported rather
+     * than answered with the zero that a destination which is merely full is answered with.
+     *
+     * @throws IOException
+     *             if the content could not be read.
+     */
+    @Test
+    public void anOffsetOutsideTheDestinationIsRejected() throws IOException {
+        try (var reader = new RandomAccessOrSequentialReader(new ByteArrayInputStream(PATTERN))) {
+            final var dstArr = new byte[4];
+            final var dstBuf = ByteBuffer.allocate(4);
+            assertThatThrownBy(() -> reader.read(0, dstArr, dstArr.length + 1, 4)).isInstanceOf(IOException.class)
+                    .hasMessageContaining("out of bounds");
+            assertThatThrownBy(() -> reader.read(0, dstArr, -1, 4)).isInstanceOf(IOException.class)
+                    .hasMessageContaining("out of bounds");
+            assertThatThrownBy(() -> reader.read(0, dstBuf, dstBuf.capacity() + 1, 4))
+                    .isInstanceOf(IOException.class).hasMessageContaining("out of bounds");
+            assertThatThrownBy(() -> reader.read(0, dstBuf, -1, 4)).isInstanceOf(IOException.class)
+                    .hasMessageContaining("out of bounds");
+        }
+    }
 }

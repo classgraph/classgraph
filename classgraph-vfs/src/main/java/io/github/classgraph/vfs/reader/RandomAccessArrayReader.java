@@ -150,7 +150,8 @@ public class RandomAccessArrayReader implements RandomAccessReader {
     @Override
     public int read(final long srcOffset, final byte[] dstArr, final int dstArrStart, final int numBytes)
             throws IOException {
-        if (numBytes == 0) {
+        final var dstRoom = ReaderBounds.numBytesFree(dstArr.length, dstArrStart);
+        if (numBytes == 0 || dstRoom == 0) {
             return 0;
         }
         final var numBytesInSlice = numBytesAvailable(srcOffset, numBytes);
@@ -158,10 +159,7 @@ public class RandomAccessArrayReader implements RandomAccessReader {
             return -1;
         }
         try {
-            final var numBytesToRead = Math.max(Math.min(numBytesInSlice, dstArr.length - dstArrStart), 0);
-            if (numBytesToRead == 0) {
-                return -1;
-            }
+            final var numBytesToRead = Math.min(numBytesInSlice, dstRoom);
             final var srcStart = (int) (sliceStartPos + srcOffset);
             System.arraycopy(arr, srcStart, dstArr, dstArrStart, numBytesToRead);
             return numBytesToRead;
@@ -173,7 +171,8 @@ public class RandomAccessArrayReader implements RandomAccessReader {
     @Override
     public int read(final long srcOffset, final ByteBuffer dstBuf, final int dstBufStart, final int numBytes)
             throws IOException {
-        if (numBytes == 0) {
+        final var dstRoom = ReaderBounds.numBytesFree(dstBuf.capacity(), dstBufStart);
+        if (numBytes == 0 || dstRoom == 0) {
             return 0;
         }
         final var numBytesInSlice = numBytesAvailable(srcOffset, numBytes);
@@ -181,10 +180,7 @@ public class RandomAccessArrayReader implements RandomAccessReader {
             return -1;
         }
         try {
-            final var numBytesToRead = Math.max(Math.min(numBytesInSlice, dstBuf.capacity() - dstBufStart), 0);
-            if (numBytesToRead == 0) {
-                return -1;
-            }
+            final var numBytesToRead = Math.min(numBytesInSlice, dstRoom);
             final var srcStart = (int) (sliceStartPos + srcOffset);
             // Open the limit up to the capacity before positioning, since the destination buffer may still carry
             // the limit that a previous read left on it, and positioning past a stale limit throws

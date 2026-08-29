@@ -203,6 +203,10 @@ public class RandomAccessOrSequentialReader implements RandomAccessReader, Seque
      * is opened by this reader, and closed by {@link #close()}, so the entry itself does not need to be opened by
      * the caller.
      *
+     * <p>
+     * An entry larger than 2GB cannot be read through this reader, which buffers what it has read in a
+     * {@code byte[]}: see the class documentation. Read such an entry as a stream, with {@link VfsEntry#open()}.
+     *
      * @param entry
      *            the {@link VfsEntry} to read.
      * @throws IOException
@@ -216,6 +220,10 @@ public class RandomAccessOrSequentialReader implements RandomAccessReader, Seque
      * Constructor for reading an entry of a virtual filesystem in a given byte order. Whatever the entry has to
      * open in order to be read is opened by this reader, and closed by {@link #close()}, so the entry itself does
      * not need to be opened by the caller.
+     *
+     * <p>
+     * An entry larger than 2GB cannot be read through this reader, which buffers what it has read in a
+     * {@code byte[]}: see the class documentation. Read such an entry as a stream, with {@link VfsEntry#open()}.
      *
      * @param entry
      *            the {@link VfsEntry} to read.
@@ -286,6 +294,10 @@ public class RandomAccessOrSequentialReader implements RandomAccessReader, Seque
      * Constructor for reading content that is already open as a stream. The stream belongs to the caller, which
      * opens it in a try-with-resources and closes it once the reader has been closed.
      *
+     * <p>
+     * Content larger than 2GB cannot be read through this reader, which buffers what it has read in a
+     * {@code byte[]}: see the class documentation. Read such content from the stream directly.
+     *
      * @param inputStream
      *            the {@link InputStream} to read from.
      */
@@ -296,6 +308,10 @@ public class RandomAccessOrSequentialReader implements RandomAccessReader, Seque
     /**
      * Constructor for reading content that is already open as a stream, in a given byte order. The stream belongs
      * to the caller, which opens it in a try-with-resources and closes it once the reader has been closed.
+     *
+     * <p>
+     * Content larger than 2GB cannot be read through this reader, which buffers what it has read in a
+     * {@code byte[]}: see the class documentation. Read such content from the stream directly.
      *
      * @param inputStream
      *            the {@link InputStream} to read from.
@@ -613,7 +629,8 @@ public class RandomAccessOrSequentialReader implements RandomAccessReader, Seque
     @Override
     public int read(final long srcOffset, final byte[] dstArr, final int dstArrStart, final int numBytes)
             throws IOException {
-        if (numBytes == 0) {
+        final var dstRoom = ReaderBounds.numBytesFree(dstArr.length, dstArrStart);
+        if (numBytes == 0 || dstRoom == 0) {
             return 0;
         }
         final var idx = (int) srcOffset;
@@ -621,10 +638,7 @@ public class RandomAccessOrSequentialReader implements RandomAccessReader, Seque
         if (numBytesInContent == 0) {
             return -1;
         }
-        final var numBytesToRead = Math.max(Math.min(numBytesInContent, dstArr.length - dstArrStart), 0);
-        if (numBytesToRead == 0) {
-            return -1;
-        }
+        final var numBytesToRead = Math.min(numBytesInContent, dstRoom);
         try {
             System.arraycopy(arr, idx, dstArr, dstArrStart, numBytesToRead);
             return numBytesToRead;
@@ -636,7 +650,8 @@ public class RandomAccessOrSequentialReader implements RandomAccessReader, Seque
     @Override
     public int read(final long srcOffset, final ByteBuffer dstBuf, final int dstBufStart, final int numBytes)
             throws IOException {
-        if (numBytes == 0) {
+        final var dstRoom = ReaderBounds.numBytesFree(dstBuf.capacity(), dstBufStart);
+        if (numBytes == 0 || dstRoom == 0) {
             return 0;
         }
         final var idx = (int) srcOffset;
@@ -644,10 +659,7 @@ public class RandomAccessOrSequentialReader implements RandomAccessReader, Seque
         if (numBytesInContent == 0) {
             return -1;
         }
-        final var numBytesToRead = Math.max(Math.min(numBytesInContent, dstBuf.capacity() - dstBufStart), 0);
-        if (numBytesToRead == 0) {
-            return -1;
-        }
+        final var numBytesToRead = Math.min(numBytesInContent, dstRoom);
         try {
             // Open the limit up to the capacity before positioning, since the destination buffer may still carry
             // the limit that a previous read left on it, and positioning past a stale limit throws
