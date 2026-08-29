@@ -70,10 +70,8 @@ import java.nio.charset.StandardCharsets;
  * stream.
  *
  * <p>
- * A caller that copies content in a loop has to handle that zero, exactly as it would for an
- * {@link java.io.InputStream}: only -1 means the content ended. Calling again with the same arguments after a zero
- * return reads zero bytes again, and will do so every time, so a loop that treats zero as "try again" never
- * terminates. Either make room in the destination before reading again, or stop.
+ * -1 means the end of the content was reached; 0 means the end of the destination was reached. A read-copy loop
+ * must break on 0, since continuing until -1 loops forever, reading 0 bytes each time.
  *
  * <p>
  * No method ever reports content that is not there. A reader whose length is overstated -- by a zip entry that
@@ -117,8 +115,8 @@ public interface RandomAccessReader {
      *            The maximum number of bytes to read.
      * @return The number of bytes actually read, which is fewer than {@code numBytes} if the content ended first; 0
      *         if {@code numBytes} is zero, or the destination has no room left at {@code dstBufStart}; or -1 if
-     *         {@code srcOffset} is at or past the end of the content. A copy loop has to handle the 0 by making
-     *         room or by stopping, since repeating the same call returns 0 again: see the class documentation.
+     *         {@code srcOffset} is at or past the end of the content. A read-copy loop must break on 0, or it loops
+     *         forever: see the class documentation.
      * @throws IOException
      *             If there was an exception while reading, or if {@code dstBufStart} is not within the destination.
      */
@@ -137,8 +135,8 @@ public interface RandomAccessReader {
      *            The maximum number of bytes to read.
      * @return The number of bytes actually read, which is fewer than {@code numBytes} if the content ended first; 0
      *         if {@code numBytes} is zero, or the destination has no room left at {@code dstArrStart}; or -1 if
-     *         {@code srcOffset} is at or past the end of the content. A copy loop has to handle the 0 by making
-     *         room or by stopping, since repeating the same call returns 0 again: see the class documentation.
+     *         {@code srcOffset} is at or past the end of the content. A read-copy loop must break on 0, or it loops
+     *         forever: see the class documentation.
      * @throws IOException
      *             If there was an exception while reading, or if {@code dstArrStart} is not within the destination.
      */
