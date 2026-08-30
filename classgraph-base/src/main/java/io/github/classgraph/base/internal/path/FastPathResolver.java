@@ -166,6 +166,31 @@ public final class FastPathResolver {
     }
 
     /**
+     * Decode runs of percent encoding, e.g. "%20" -&gt; " ", changing nothing else in the path. A separator is
+     * never produced by decoding: {@code "%2F"} and {@code "%5C"} are left as they are written, since a name that
+     * contains one of them is a name that was escaped, not a path with another separator in it (#255).
+     *
+     * @param path
+     *            The path to decode.
+     * @return The decoded path.
+     */
+    public static String decodePercentEncoding(final String path) {
+        if (path.indexOf('%') < 0) {
+            return path;
+        }
+        final StringBuilder buf = new StringBuilder();
+        var prevEndMatchIdx = 0;
+        final var matcher = percentMatcher.matcher(path);
+        while (matcher.find()) {
+            buf.append(path, prevEndMatchIdx, matcher.start());
+            unescapePercentEncoding(path, matcher.start(), matcher.end(), buf);
+            prevEndMatchIdx = matcher.end();
+        }
+        buf.append(path, prevEndMatchIdx, path.length());
+        return buf.toString();
+    }
+
+    /**
      * Parse percent encoding, e.g. "%20" -&gt; " "; convert '/' or '\\' to SEP; remove trailing separator char if
      * present.
      *

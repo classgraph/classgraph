@@ -278,17 +278,25 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
         if (!SCHEME.equalsIgnoreCase(uri.getScheme())) {
             throw new IllegalArgumentException("Not a \"" + SCHEME + ":\" URI: " + uri);
         }
-        // The decoded form, so that a path written with "%20" for a space names the file that has a space in its
-        // name. A "cgvfs:" URI is opaque, so the whole of it after the scheme is the scheme-specific part -- that
-        // is what allows the nested "file:" or "jrt:" scheme, and the "!/" separators, to be written unescaped
-        final var path = uri.getSchemeSpecificPart();
-        if (path == null || path.isEmpty()) {
+        // A "cgvfs:" URI is opaque, so the whole of it after the scheme is the scheme-specific part -- that is
+        // what allows the nested "file:" or "jrt:" scheme, and the "!/" separators, to be written unescaped
+        final var rawPath = uri.getRawSchemeSpecificPart();
+        if (rawPath == null || rawPath.isEmpty()) {
             throw new IllegalArgumentException("URI names no path: " + uri);
         }
         if (uri.getFragment() != null) {
             throw new IllegalArgumentException("A \"" + SCHEME + ":\" URI cannot have a fragment: " + uri);
         }
-        return path;
+        // Decoded, so that a path written with "%20" for a space names the file that has a space in its name. This
+        // decodes by ClassGraph's rule rather than URI#getSchemeSpecificPart's: a separator is never produced by
+        // decoding, so "%2F" and "%5C" stay as they are written. Under the rules of a URI they are a slash and a
+        // backslash that are not separators, but no filesystem allows either character in a name, so decoding one
+        // could only introduce a separator that was never in the path, and name a different file than the same
+        // path string handed to Vfs#open -- which does not percent-decode a path at all, since a path is not
+        // percent-encoded. That is what made a Coursier cache path unscannable in #255. Nothing but the percent
+        // encoding is changed here: the separators are left for FastPathResolver#resolve, which knows which of
+        // them belong to a nested URL's scheme and authority
+        return FastPathResolver.decodePercentEncoding(rawPath);
     }
 
     /** Opens one root of a {@link Vfs}, so that both {@code newFileSystem} overloads share the same plumbing. */

@@ -28,6 +28,8 @@ import java.util.zip.ZipOutputStream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import io.github.classgraph.base.internal.path.FastPathResolver;
+
 /**
  * Tests of the {@code "cgvfs:"} URL scheme: that it is registered by {@link java.util.ServiceLoader}, that a URI
  * names the same things {@link Vfs#open(String)} names, and that a filesystem created from a URI owns the
@@ -108,10 +110,15 @@ public class VfsFileSystemProviderUriTest {
      * The {@code "cgvfs:"} URI of a path string.
      *
      * <p>
-     * This is built with the {@link URI#URI(String, String, String)} constructor, which quotes the characters that
-     * a URI cannot hold, rather than by concatenating the scheme onto the path: a Windows path holds backslashes,
-     * which are illegal in the scheme-specific part of an opaque URI, so concatenation would throw. This is what
-     * {@link VfsPath#toCgvfsUri()} does, and {@code pathOf} decodes the quoting back out again.
+     * The separators of the path are translated first, so that the URI holds the path in the syntax the virtual
+     * filesystem uses. Without that, a Windows path would be written with its backslashes quoted as {@code "%5C"},
+     * and a separator that is quoted is not a separator: it names a file whose name holds those three characters.
+     * This is why {@link VfsPath#toCgvfsUri()} builds its URIs from a resolved path.
+     *
+     * <p>
+     * The URI is then built with the {@link URI#URI(String, String, String)} constructor, which quotes the
+     * characters that a URI cannot hold, rather than by concatenating the scheme onto the path: a space is illegal
+     * in the scheme-specific part of an opaque URI, so concatenation would throw.
      *
      * @param path
      *            the path.
@@ -119,7 +126,8 @@ public class VfsFileSystemProviderUriTest {
      */
     private static URI cgvfsUri(final String path) {
         try {
-            return new URI(VfsFileSystemProvider.SCHEME, path, /* fragment = */ null);
+            return new URI(VfsFileSystemProvider.SCHEME,
+                    FastPathResolver.normalizePath(path, /* percentDecode = */ false), /* fragment = */ null);
         } catch (final URISyntaxException e) {
             throw new IllegalArgumentException("Path cannot be written as a URI: " + path, e);
         }
@@ -360,6 +368,65 @@ public class VfsFileSystemProviderUriTest {
             final var uri = path.toCgvfsUri();
             assertThat(uri.getSchemeSpecificPart()).contains("lib dir & more#1");
             assertThat(Paths.get(uri)).isEqualTo(path);
+        }
+    }
+
+    /**
+     * A percent escape in a URI is never decoded into a separator, so a jarfile whose name holds the three
+     * characters of one is named by a URI that holds them, and is the file that {@link Vfs#open(String)} opens for
+     * the same path string. Decoding {@code "%2F"} into a slash would name a file in a directory that was never in
+     * the path: no filesystem allows a slash in a name, so that reading can only name the wrong thing.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the jarfile could not be read.
+     */
+    @Test
+    public void aPercentEscapeInANameIsNotDecodedIntoASeparator(@TempDir final Path tempDir) throws IOException {
+        // Coursier writes cache paths that percent-escape characters of a name like this (#255)
+        final var jarFile = tempDir.resolve("a%2Fb.jar").toFile();
+        writeJar(jarFile);
+
+        // Written by hand, with the escape left as it is: the URI constructor would quote the '%' itself, which is
+        // the unambiguous spelling that VfsPath#toCgvfsUri emits
+        final var dir = cgvfsUri(tempDir.toString()).getRawSchemeSpecificPart();
+        final var uri = URI.create(VfsFileSystemProvider.SCHEME + ":" + dir + "/a%2Fb.jar");
+
+        try (var fileSystem = FileSystems.newFileSystem(uri, Map.of())) {
+            assertThat(Files.readAllBytes(fileSystem.getPath("/root.txt"))).isEqualTo(contentOf("root.txt"));
+        }
+        // The same file, named the way Vfs#open names it
+        try (var vfs = new Vfs()) {
+            assertThat(vfs.open(jarFile.getPath()).reportedPath()).endsWith("a%2Fb.jar");
+        }
+    }
+
+    /**
+     * An entry name that a URI has to quote is decoded when the URI is read, so the URI of a path names that path
+     * again. Only a separator is left quoted; every other character a URI cannot hold is decoded back.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the jarfile could not be read.
+     */
+    @Test
+    public void anEntryNameThatNeedsQuotingRoundTrips(@TempDir final Path tempDir) throws IOException {
+        final var entryName = "com/xyz/a b.class";
+        final var jarFile = tempDir.resolve("library.jar").toFile();
+        try (var fileOut = new FileOutputStream(jarFile); var zipOut = new ZipOutputStream(fileOut)) {
+            zipOut.putNextEntry(new ZipEntry(entryName));
+            zipOut.write(contentOf(entryName));
+            zipOut.closeEntry();
+        }
+
+        try (var fileSystem = FileSystems.newFileSystem(cgvfsUri(jarFile.getPath()), Map.of())) {
+            final var path = (VfsPath) fileSystem.getPath("/" + entryName);
+            final var uri = path.toCgvfsUri();
+            assertThat(uri.getRawSchemeSpecificPart()).endsWith("!/com/xyz/a%20b.class");
+            assertThat(Paths.get(uri)).isEqualTo(path);
+            assertThat(Files.readAllBytes(Paths.get(uri))).isEqualTo(contentOf(entryName));
         }
     }
 
