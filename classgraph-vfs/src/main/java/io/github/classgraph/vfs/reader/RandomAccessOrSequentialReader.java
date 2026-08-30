@@ -658,7 +658,7 @@ public class RandomAccessOrSequentialReader implements RandomAccessReader, Seque
             // Checked here rather than left to the put below, so that every RandomAccessReader reports a
             // read-only destination the same way -- the file channel reader cannot catch it, since FileChannel
             // rejects a read-only destination with an IllegalArgumentException of its own
-            throw new IOException("Cannot read into a read-only buffer");
+            throw new IOException("The destination buffer is read-only");
         }
         final var idx = (int) srcOffset;
         final var numBytesInContent = bufferForBulkRead(srcOffset, numBytes);

@@ -514,6 +514,6 @@ public class RandomAccessReaderTest {
         final var reader = reader(readerKind, PATTERN, 0, PATTERN.length);
         final var dstBuf = ByteBuffer.allocate(PATTERN.length).asReadOnlyBuffer();
         assertThatThrownBy(() -> reader.read(0, dstBuf, 0, PATTERN.length)).isInstanceOf(IOException.class)
-                .hasMessage("Cannot read into a read-only buffer");
+                .hasMessage("The destination buffer is read-only");
     }
 }
