@@ -145,11 +145,6 @@ class ClasspathElementDir extends ClasspathElement {
         DirResource(final VfsEntry entry) {
             super(ClasspathElementDir.this, entry, stripLeadingSlashes(entry.getPathFromRoot()));
         }
-
-        @Override
-        public String getPathRelativeToClasspathElement() {
-            return packageRootPrefix.isEmpty() ? getPath() : packageRootPrefix + getPath();
-        }
     }
 
     /**

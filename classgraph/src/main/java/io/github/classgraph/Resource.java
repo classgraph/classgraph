@@ -305,12 +305,16 @@ public abstract class Resource implements AutoCloseable, Comparable<Resource> {
     /**
      * Get the full path of this classpath resource relative to the root of the classpath element.
      *
-     * @return the full path of this classpath resource within the classpath element. For example, will return the
-     *         full path of {@code "BOOT-INF/classes/com/xyz/resource.xml"} or
-     *         {@code "META-INF/versions/11/com/xyz/resource.xml"}, not {@code "com/xyz/resource.xml"}.
+     * <p>
+     * This differs from {@link #getPath()} only for an entry of a multi-release jar, where it returns the versioned
+     * path the entry is stored under, e.g. {@code "META-INF/versions/11/com/xyz/resource.xml"} rather than
+     * {@code "com/xyz/resource.xml"}. A package root such as {@code "BOOT-INF/classes/"} is a classpath element in
+     * its own right, so a resource beneath one is addressed relative to it by both methods.
+     *
+     * @return the full path of this classpath resource within the classpath element.
      */
     public String getPathRelativeToClasspathElement() {
-        // Only overridden for jars
+        // Only overridden for jars, to name a multi-release entry by the versioned path it is stored under
         return getPath();
     }
 

@@ -44,6 +44,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.path.PathSyntax;
@@ -663,6 +664,49 @@ public abstract class VfsRoot implements Iterable<VfsEntry> {
             }
         });
         return Collections.unmodifiableList(matchingEntries);
+    }
+
+    /**
+     * Returns whether there is any entry under the package root whose name starts with the given prefix. This
+     * answers the same question as {@code !getEntries(pathPrefix).isEmpty()}, but stops at the first matching entry
+     * rather than listing them all.
+     *
+     * <p>
+     * A directory is not itself an entry, so a prefix that names an empty directory is not found, whether the
+     * directory is a real one on disk or an entry of a jarfile that only records the directory.
+     *
+     * @param pathPrefix
+     *            the prefix to match, relative to the package root, with {@code '/'} as the separator and no
+     *            leading {@code '/'}, e.g. {@code "BOOT-INF/classes/"}. The empty string matches every entry, so it
+     *            reports whether the root holds any entry at all.
+     * @return true if there is an entry whose name starts with the prefix.
+     * @throws IOException
+     *             if the entries could not be listed, or if the {@link Vfs} has been closed.
+     */
+    public final boolean hasEntries(final String pathPrefix) throws IOException {
+        Assert.notNull(pathPrefix, "pathPrefix");
+        // Only the directories on the way to the prefix, and the directories below it, can hold a matching entry
+        final var dirPrefix = pathPrefix.substring(0, pathPrefix.lastIndexOf('/') + 1);
+        final var found = new AtomicBoolean();
+        walk(new VfsVisitor() {
+            @Override
+            public boolean enterDirectory(final String dirName) {
+                // The root directory is reported as "/", which is the empty prefix
+                final var dir = dirName.equals("/") ? "" : dirName;
+                return dir.startsWith(dirPrefix) || dirPrefix.startsWith(dir);
+            }
+
+            @Override
+            public boolean visitEntry(final VfsEntry entry) {
+                if (entry.getPathFromRoot().startsWith(pathPrefix)) {
+                    found.set(true);
+                    // Stop the walk -- one matching entry is the whole answer
+                    return false;
+                }
+                return true;
+            }
+        });
+        return found.get();
     }
 
     // -------------------------------------------------------------------------------------------------------------

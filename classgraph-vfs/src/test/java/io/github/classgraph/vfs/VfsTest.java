@@ -516,6 +516,37 @@ public class VfsTest {
         }
     }
 
+    /**
+     * Whether a root holds any entry under a prefix is answered the same way for a jarfile and for a directory, and
+     * gives the same answer as listing the entries under the prefix and asking whether the list is empty.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the jarfile or the directory could not be written or read.
+     */
+    @Test
+    public void whetherARootHoldsAnyEntryUnderAPrefixIsReported(@TempDir final File tempDir) throws IOException {
+        final var jarFile = new File(tempDir, "app.jar");
+        writeJarWithEntries(jarFile, "root.txt", "BOOT-INF/classes/com/xyz/App.class", "BOOT-INF/lib/a.jar");
+        final var dir = new File(tempDir, "exploded");
+        writeDirWithFiles(dir, "root.txt", "BOOT-INF/classes/com/xyz/App.class", "BOOT-INF/lib/a.jar");
+
+        try (var vfs = new Vfs()) {
+            for (final var root : List.of(vfs.open(jarFile.getPath()), vfs.open(dir.getPath()))) {
+                assertThat(root.hasEntries("BOOT-INF/classes/")).isTrue();
+                assertThat(root.hasEntries("BOOT-INF/")).isTrue();
+                // A prefix is matched against the whole entry name, so it need not end at a directory boundary
+                assertThat(root.hasEntries("root")).isTrue();
+                // The empty prefix asks whether the root holds any entry at all
+                assertThat(root.hasEntries("")).isTrue();
+                assertThat(root.hasEntries("nothing/")).isFalse();
+                // A directory is not itself an entry, so a prefix that reaches no file is not found
+                assertThat(root.hasEntries("BOOT-INF/classes/com/xyz/App.class/")).isFalse();
+            }
+        }
+    }
+
     /** Opening the same path twice returns the same root. */
     @Test
     public void aRootIsOnlyOpenedOnce(@TempDir final File tempDir) throws IOException {
