@@ -421,7 +421,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                         }
                     } catch (final ParseException e) {
                         throw new IllegalArgumentException(
-                                "Could not form array base type signature for class " + baseClassName);
+                                "Could not form array base type signature for class " + baseClassName, e);
                     }
                 }
                 classInfo = new ArrayClassInfo(

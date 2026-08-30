@@ -281,7 +281,7 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
             try {
                 return loadClass().getDeclaredField(getName());
             } catch (final NoSuchFieldException e2) {
-                throw new IllegalArgumentException("No such field: " + getClassName() + "." + getName());
+                throw new IllegalArgumentException("No such field: " + getClassName() + "." + getName(), e2);
             }
         }
     }

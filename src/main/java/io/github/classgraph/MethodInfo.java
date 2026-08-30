@@ -737,7 +737,7 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
             try {
                 return loadClass().getDeclaredMethod(getName(), parameterClassesArr);
             } catch (final NoSuchMethodException e2) {
-                throw new IllegalArgumentException("Method not found: " + getClassName() + "." + getName());
+                throw new IllegalArgumentException("Method not found: " + getClassName() + "." + getName(), e2);
             }
         } catch (final NoClassDefFoundError e3) {
             // The method returns an unknown class
@@ -773,7 +773,7 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
             try {
                 return loadClass().getDeclaredConstructor(parameterClassesArr);
             } catch (final NoSuchMethodException e2) {
-                throw new IllegalArgumentException("Constructor not found for class " + getClassName());
+                throw new IllegalArgumentException("Constructor not found for class " + getClassName(), e2);
             }
         }
     }

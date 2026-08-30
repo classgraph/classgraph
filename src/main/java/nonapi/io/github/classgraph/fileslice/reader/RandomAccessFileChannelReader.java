@@ -122,7 +122,7 @@ public class RandomAccessFileChannelReader implements RandomAccessReader {
             return numBytesRead == 0 ? -1 : numBytesRead;
 
         } catch (BufferUnderflowException | IndexOutOfBoundsException e) {
-            throw new IOException("Read index out of bounds");
+            throw new IOException("Read index out of bounds", e);
         }
     }
 
@@ -145,7 +145,7 @@ public class RandomAccessFileChannelReader implements RandomAccessReader {
             return read(srcOffset, reusableByteBuffer, dstArrStart, numBytes);
 
         } catch (BufferUnderflowException | IndexOutOfBoundsException e) {
-            throw new IOException("Read index out of bounds");
+            throw new IOException("Read index out of bounds", e);
         }
     }
 

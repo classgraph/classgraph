@@ -107,7 +107,7 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
                 // Currently URL cannot handle the "jrt:" scheme, used by system modules.
                 throw new IllegalArgumentException("Could not create URL from URI with \"jrt:\" scheme "
                         + "(\"jrt:\" is not supported by the URL class without a custom URL protocol handler): "
-                        + uri);
+                        + uri, e);
             } else {
                 throw new IllegalArgumentException("Could not create URL from URI: " + uri + " : " + e, e);
             }

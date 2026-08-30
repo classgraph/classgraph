@@ -163,7 +163,7 @@ public class RandomAccessByteBufferReader implements RandomAccessReader {
             bb.position(sliceStartPos);
             return numBytesToRead;
         } catch (final IndexOutOfBoundsException e) {
-            throw new IOException("Read index out of bounds");
+            throw new IOException("Read index out of bounds", e);
         } catch (final IllegalStateException e) {
             throw unmapped(e);
         }
@@ -203,7 +203,7 @@ public class RandomAccessByteBufferReader implements RandomAccessReader {
             }
             return numBytesToRead;
         } catch (BufferUnderflowException | IndexOutOfBoundsException | ReadOnlyBufferException e) {
-            throw new IOException("Read index out of bounds");
+            throw new IOException("Read index out of bounds", e);
         } catch (final IllegalStateException e) {
             throw unmapped(e);
         }

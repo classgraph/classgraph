@@ -102,7 +102,7 @@ public class RandomAccessArrayReader implements RandomAccessReader {
             System.arraycopy(arr, srcStart, dstArr, dstArrStart, numBytesToRead);
             return numBytesToRead;
         } catch (final IndexOutOfBoundsException e) {
-            throw new IOException("Read index out of bounds");
+            throw new IOException("Read index out of bounds", e);
         }
     }
 
@@ -129,7 +129,7 @@ public class RandomAccessArrayReader implements RandomAccessReader {
             dstBuf.put(arr, srcStart, numBytesToRead);
             return numBytesToRead;
         } catch (BufferUnderflowException | IndexOutOfBoundsException | ReadOnlyBufferException e) {
-            throw new IOException("Read index out of bounds");
+            throw new IOException("Read index out of bounds", e);
         }
     }
 

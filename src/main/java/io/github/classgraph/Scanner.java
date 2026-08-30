@@ -498,7 +498,13 @@ class Scanner implements Callable<ScanResult> {
                         } // else this is a remote jar URI
 
                     } catch (final URISyntaxException e1) {
-                        throw new IOException("Malformed URI: " + classpathEntryObjNormalized + " : " + e1);
+                        // Both attempts failed, so both are recorded: e1 as the cause, since it is the one that
+                        // says where the entry stopped parsing, and e suppressed by it, since without it there
+                        // is no sign that the entry was rejected as a URL before it was rejected as a URI
+                        final IOException uriException = new IOException(
+                                "Malformed URI: " + classpathEntryObjNormalized + " : " + e1, e1);
+                        uriException.addSuppressed(e);
+                        throw uriException;
                     } catch (final IllegalArgumentException | SecurityException e1) {
                         // URI cannot be represented as a Path
                     } catch (final FileSystemNotFoundException e1) {
@@ -514,7 +520,10 @@ class Scanner implements Callable<ScanResult> {
                     try {
                         classpathEntryObjNormalized = Paths.get((String) classpathEntryObjNormalized);
                     } catch (final InvalidPathException e2) {
-                        throw new IOException("Malformed path: " + classpathEntryObj + " : " + e2);
+                        final IOException pathException = new IOException(
+                                "Malformed path: " + classpathEntryObj + " : " + e2, e2);
+                        pathException.addSuppressed(e);
+                        throw pathException;
                     }
                 }
             }
