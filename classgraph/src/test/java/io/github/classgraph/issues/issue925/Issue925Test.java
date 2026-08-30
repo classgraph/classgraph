@@ -7,6 +7,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.List;
@@ -158,6 +159,25 @@ public class Issue925Test {
                         .registerClassLoaderHandler(new WarClassLoaderHandler()).enableClassInfo().scan()) {
             assertThat(scanResult.getAllClasses().getNames()).containsExactlyInAnyOrder(Widget.class.getName(),
                     LibWidget.class.getName());
+        }
+    }
+
+    /**
+     * A package root that ClassGraph finds for itself within a jarfile is named by the same kind of URI as one that
+     * was named on the classpath: a {@code "jar:"} URI, which is the only form that names a directory inside a
+     * jarfile and can be opened.
+     *
+     * @throws IOException
+     *             if the classloader could not be closed.
+     */
+    @Test
+    public void anAutomaticPackageRootIsNamedByAJarURI() throws IOException {
+        try (var classLoader = new WarClassLoader(war.toURI().toURL());
+                var scanResult = new ClassGraph().enableClassLoaders(classLoader)
+                        .registerClassLoaderHandler(new WarClassLoaderHandler()).enableClassInfo().scan()) {
+            assertThat(scanResult.getClasspathURIs()).extracting(URI::toString)
+                    .anyMatch(uri -> uri.startsWith("jar:file:") && uri.endsWith("!/WEB-INF/classes"))
+                    .noneMatch(uri -> uri.startsWith("file:") && uri.endsWith("!/WEB-INF/classes"));
         }
     }
 

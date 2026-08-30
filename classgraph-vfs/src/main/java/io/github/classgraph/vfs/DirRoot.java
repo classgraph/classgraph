@@ -111,13 +111,12 @@ final class DirRoot extends VfsRoot {
 
     @Override
     public URI getURI() {
-        try {
-            // On Windows, Path#toUri() puts the server of a UNC path in the URI authority, where java.net.URL does
-            // not find it again
-            return URLPaths.moveUNCServerIntoPath(dir.toUri());
-        } catch (final IOError | SecurityException e) {
-            throw new IllegalStateException("Could not form URI for " + dir + " : " + e, e);
-        }
+        return URLPaths.toURI(dir);
+    }
+
+    @Override
+    public URI resolveURI(final String pathWithinRoot) {
+        return URLPaths.toURI(dir.resolve(pathWithinRoot));
     }
 
     @Override

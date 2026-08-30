@@ -29,7 +29,6 @@
 package io.github.classgraph;
 
 import java.io.File;
-import java.io.IOError;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Path;
@@ -44,6 +43,7 @@ import io.github.classgraph.base.internal.path.URLPaths;
 import io.github.classgraph.classpath.internal.ClasspathExpander;
 import io.github.classgraph.vfs.Vfs;
 import io.github.classgraph.vfs.VfsEntry;
+import io.github.classgraph.vfs.VfsRoot;
 import io.github.classgraph.vfs.VfsVisitor;
 import org.jspecify.annotations.Nullable;
 
@@ -54,6 +54,12 @@ class ClasspathElementDir extends ClasspathElement {
 
     /** The virtual filesystem that the directory is enumerated and read through. */
     private final Vfs vfs;
+
+    /**
+     * The root whose manifest describes this classpath element, or null until {@link #open} has been called (or if
+     * it could not be opened).
+     */
+    private @Nullable VfsRoot manifestRoot;
 
     /**
      * A directory classpath element.
@@ -86,8 +92,10 @@ class ClasspathElementDir extends ClasspathElement {
             // declares -- an exploded jarfile in a directory declares the same classpath elements that the jarfile
             // it was exploded from declares. The child classpath entries are added in the order they were found,
             // since the classpath order determines which of two copies of the same class masks the other.
+            final var root = vfs.open(classpathEltPath);
+            this.manifestRoot = openManifestRoot(root);
             var childClasspathEntryIdx = 0;
-            for (final var childEntry : ClasspathExpander.childEntries(vfs.open(classpathEltPath), libDirPrefixes,
+            for (final var childEntry : ClasspathExpander.childEntries(root, libDirPrefixes,
                     vfsSpec.isNestedJarsEnabled(), log)) {
                 if (log != null) {
                     log(classpathElementIdx, childEntry.origin().getLogMessage() + ": " + childEntry.location(),
@@ -122,18 +130,6 @@ class ClasspathElementDir extends ClasspathElement {
             }
             skipClasspathElement = true;
         }
-    }
-
-    /**
-     * Create a new {@link Resource} object for a file discovered while scanning the directory, or looked up by
-     * path.
-     *
-     * @param entry
-     *            the entry in the virtual filesystem
-     * @return the resource
-     */
-    private Resource newResource(final VfsEntry entry) {
-        return new DirResource(entry);
     }
 
     /**
@@ -185,7 +181,7 @@ class ClasspathElementDir extends ClasspathElement {
     Resource getResource(final String relativePath) {
         try {
             final var entry = vfs.open(classpathEltPath).getEntry(relativePath);
-            return entry == null ? null : newResource(entry);
+            return entry == null ? null : new DirResource(entry);
         } catch (final IOException | SecurityException e) {
             return null;
         }
@@ -335,7 +331,7 @@ class ClasspathElementDir extends ClasspathElement {
                 // the module descriptor of the package root is always read, so that the module name is known even
                 // when the package root is not accepted
                 if (isPackageRootDir && scanSpec.enableClassInfo && "module-info.class".equals(entryName)) {
-                    addAcceptedResource(newResource(entry), parentMatchStatus, /* isClassfileOnly = */ true,
+                    addAcceptedResource(new DirResource(entry), parentMatchStatus, /* isClassfileOnly = */ true,
                             subLog);
                     recordLastModified(entry);
                 }
@@ -349,7 +345,8 @@ class ClasspathElementDir extends ClasspathElement {
                 return false;
             }
             if (isAcceptedResourcePath(entryName, parentMatchStatus)) {
-                addAcceptedResource(newResource(entry), parentMatchStatus, /* isClassfileOnly = */ false, subLog);
+                addAcceptedResource(new DirResource(entry), parentMatchStatus, /* isClassfileOnly = */ false,
+                        subLog);
                 recordLastModified(entry);
             } else if (subLog != null) {
                 subLog.log("Skipping non-accepted file: " + entryName);
@@ -389,14 +386,59 @@ class ClasspathElementDir extends ClasspathElement {
     }
 
     /**
-     * Get the module name from module descriptor.
+     * Get the module name declared by the directory, either by its {@code module-info.class} module descriptor, or
+     * by the {@code Automatic-Module-Name} attribute of its manifest file, so that a jarfile exploded into a
+     * directory is named the same way the jarfile it was exploded from is.
      *
-     * @return the module name
+     * <p>
+     * Unlike {@link ClasspathElementZip#getModuleName()}, no name is derived from the name of the directory when it
+     * declares none: the module system derives an automatic module name from the filename of a <i>jarfile</i>, and
+     * a directory placed on the module path without a module descriptor is not a module at all, so there is no name
+     * that a directory would be given if it were placed on the module path.
+     *
+     * @return the module name, or null if the directory declares none.
      */
     @Override
     public @Nullable String getModuleName() {
-        return moduleNameFromModuleDescriptor == null || moduleNameFromModuleDescriptor.isEmpty() ? null
-                : moduleNameFromModuleDescriptor;
+        return getDeclaredModuleName();
+    }
+
+    @Override
+    @Nullable
+    VfsRoot getManifestRoot() {
+        return manifestRoot;
+    }
+
+    /**
+     * Open the root whose manifest describes this classpath element: the directory itself, or, if this classpath
+     * element is a package root within a directory, the directory that the package root lies within. A directory
+     * opened at a package root is opened as the subdirectory it is, with nothing linking it back to the directory
+     * it lies within, so the container is reached by climbing back out of it.
+     *
+     * @param root
+     *            the directory, as a root of the virtual filesystem.
+     * @return the root whose manifest describes this classpath element, or null if the container could not be
+     *         opened.
+     */
+    private @Nullable VfsRoot openManifestRoot(final VfsRoot root) {
+        if (packageRootPrefix.isEmpty()) {
+            return root;
+        }
+        // Climb out of the package root by one directory per segment of the prefix. The prefix has a trailing '/',
+        // so the number of segments is the number of separators in it
+        Path containerPath = classpathEltPath;
+        for (var i = packageRootPrefix.indexOf('/'); i >= 0 && containerPath != null; //
+                i = packageRootPrefix.indexOf('/', i + 1)) {
+            containerPath = containerPath.getParent();
+        }
+        if (containerPath == null) {
+            return null;
+        }
+        try {
+            return vfs.open(containerPath);
+        } catch (final IOException | SecurityException e) {
+            return null;
+        }
     }
 
     /**
@@ -416,13 +458,7 @@ class ClasspathElementDir extends ClasspathElement {
 
     @Override
     URI getURI() {
-        try {
-            // On Windows, Path#toUri() puts the server of a UNC path in the URI authority, where java.net.URL
-            // does not find it again
-            return URLPaths.moveUNCServerIntoPath(classpathEltPath.toUri());
-        } catch (IOError | SecurityException e) {
-            throw new IllegalStateException("Could not convert to URI: " + classpathEltPath, e);
-        }
+        return URLPaths.toURI(classpathEltPath);
     }
 
     @Override
@@ -440,7 +476,7 @@ class ClasspathElementDir extends ClasspathElement {
         try {
             // Path.toString() does not include the URI scheme for some reason
             return getURI().toString();
-        } catch (IOError | SecurityException e) {
+        } catch (final IllegalStateException e) {
             return classpathEltPath.toString();
         }
     }

@@ -87,6 +87,24 @@ final class ModuleRoot extends VfsRoot {
     }
 
     @Override
+    public URI resolveURI(final String pathWithinRoot) {
+        // Only the module can say how it names something within itself: a module of the running JDK names its
+        // resources with "jrt:" URIs that have nothing to do with the module's own location
+        try {
+            final var recycler = moduleReaderRecycler();
+            final var reader = recycler.acquire();
+            try {
+                return ModuleReaderUtils.find(reader, pathWithinRoot);
+            } finally {
+                recycler.recycle(reader);
+            }
+        } catch (final IOException | SecurityException e) {
+            throw new IllegalStateException(
+                    "Could not form URI for " + getPath() + "/" + pathWithinRoot + " : " + e, e);
+        }
+    }
+
+    @Override
     public @Nullable Path getNioPath() {
         final var uri = moduleReference.location().orElse(null);
         if (uri == null || !"file".equals(uri.getScheme())) {

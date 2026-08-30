@@ -48,6 +48,7 @@ import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.path.FileUtils;
 import io.github.classgraph.base.internal.path.PathSyntax;
+import io.github.classgraph.vfs.VfsRoot;
 import io.github.classgraph.vfs.VfsSpec;
 import org.jspecify.annotations.Nullable;
 
@@ -175,6 +176,13 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      */
     @Nullable
     String moduleNameFromModuleDescriptor;
+
+    /**
+     * The name of the module from the {@code Automatic-Module-Name} manifest attribute, if one is present in the
+     * root of the classpath element.
+     */
+    @Nullable
+    String moduleNameFromManifestFile;
 
     /** The scan spec. */
     final ScanSpec scanSpec;
@@ -764,4 +772,33 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      * @return the module name
      */
     abstract @Nullable String getModuleName();
+
+    /**
+     * Get the root of the virtual filesystem whose manifest describes this classpath element. For a classpath
+     * element opened at a package root, this is the container that the package root lies within, since it is the
+     * manifest at the root of a jarfile that describes the jarfile as a whole -- a Spring Boot jar's
+     * {@code Automatic-Module-Name} is declared in the manifest of the jarfile, not in anything under
+     * {@code "BOOT-INF/classes/"}.
+     *
+     * @return the root, or null if this classpath element is not read through the virtual filesystem, or has not
+     *         been opened, or could not be opened.
+     */
+    @Nullable
+    VfsRoot getManifestRoot() {
+        return null;
+    }
+
+    /**
+     * Get the module name that this classpath element declares, either by its {@code module-info.class} module
+     * descriptor, or by the {@code Automatic-Module-Name} attribute of its manifest file.
+     *
+     * @return the declared module name, or null if this classpath element declares none.
+     */
+    protected @Nullable String getDeclaredModuleName() {
+        if (moduleNameFromModuleDescriptor != null && !moduleNameFromModuleDescriptor.isEmpty()) {
+            return moduleNameFromModuleDescriptor;
+        }
+        return moduleNameFromManifestFile == null || moduleNameFromManifestFile.isEmpty() ? null
+                : moduleNameFromManifestFile;
+    }
 }

@@ -957,6 +957,22 @@ class Scanner implements Callable<ScanResult> {
         final List<SimpleEntry<String, ClasspathElement>> classpathEltDirs = new ArrayList<>();
         final List<SimpleEntry<String, ClasspathElement>> classpathEltZips = new ArrayList<>();
         for (final ClasspathElement classpathElt : finalTraditionalClasspathEltOrder) {
+            // Retrieve the explicitly declared automatic module name, if present. This is read for a directory as
+            // well as for a jarfile, so that a jarfile exploded into a directory declares the same module name that
+            // the jarfile it was exploded from declares
+            final var root = classpathElt.getManifestRoot();
+            if (root != null) {
+                try {
+                    final var moduleName = root.getModuleName();
+                    if (moduleName != null) {
+                        classpathElt.moduleNameFromManifestFile = moduleName;
+                    }
+                } catch (final IOException e) {
+                    if (classLoaderProbeLog != null) {
+                        classLoaderProbeLog.log("Could not read the manifest of " + classpathElt + " : " + e);
+                    }
+                }
+            }
             if (classpathElt instanceof ClasspathElementDir) {
                 // Separate out ClasspathElementFileDir and ClasspathElementPathDir elements from other types
                 final var file = classpathElt.getFile();
@@ -969,22 +985,6 @@ class Scanner implements Callable<ScanResult> {
             } else if (classpathElt instanceof final ClasspathElementZip classpathEltZip) {
                 // Separate out ClasspathElementZip elements from other types
                 classpathEltZips.add(new SimpleEntry<>(classpathEltZip.getZipFilePath(), classpathElt));
-
-                // Retrieve the explicitly declared automatic module name, if present
-                final var zipRoot = classpathEltZip.vfsRoot;
-                if (zipRoot != null) {
-                    try {
-                        final var moduleName = zipRoot.getModuleName();
-                        if (moduleName != null) {
-                            classpathEltZip.moduleNameFromManifestFile = moduleName;
-                        }
-                    } catch (final IOException e) {
-                        if (classLoaderProbeLog != null) {
-                            classLoaderProbeLog
-                                    .log("Could not read the manifest of " + classpathEltZip + " : " + e);
-                        }
-                    }
-                }
             }
             // (Ignore ClasspathElementModule, no preprocessing to perform)
         }

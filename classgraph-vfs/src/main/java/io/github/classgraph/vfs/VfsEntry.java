@@ -159,7 +159,11 @@ public abstract class VfsEntry {
      * @throws IllegalStateException
      *             if the {@link URI} could not be formed.
      */
-    public abstract URI getURI();
+    public URI getURI() {
+        // How a URI is spelled depends on the kind of storage the entry is held in, not on the entry, so the root
+        // is asked -- and it can name a path that no entry was looked up for, which is why this is its job
+        return getRoot().resolveURI(getRawPathFromRoot());
+    }
 
     /**
      * Returns the {@link URL} of this entry.

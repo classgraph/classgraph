@@ -175,6 +175,28 @@ public abstract class VfsRoot implements Iterable<VfsEntry> {
     public abstract URI getURI();
 
     /**
+     * Returns the {@link URI} of a path within this root: a {@code file:} URI for a file in a directory, a
+     * {@code jar:} URI for a path within a jarfile, and whatever the module names it as for a path within a module,
+     * which is a {@code jrt:} URI for a module of the running JDK. The path is percent-encoded here, so it is
+     * passed in unencoded, exactly as {@link VfsEntry#getRawPathFromRoot()} reports it.
+     *
+     * <p>
+     * This is what {@link VfsEntry#getURI()} is built on, and is offered separately from it so that a path can be
+     * named by URI without an entry first being looked up: a directory, a package root, or a name that may not be
+     * there at all. For a directory or a jarfile the URI is formed from the path alone, and names the path whether
+     * or not anything is stored there. A module is the exception, since only the module itself can say how it names
+     * something, and it will only name a resource it actually contains.
+     *
+     * @param pathWithinRoot
+     *            the path, relative to this root, with {@code '/'} as the separator.
+     * @return the {@link URI} of the path.
+     * @throws IllegalStateException
+     *             if the {@link URI} could not be formed, which for a module includes the case of a path that the
+     *             module does not contain.
+     */
+    public abstract URI resolveURI(String pathWithinRoot);
+
+    /**
      * Returns the {@link URL} of this root.
      *
      * @return the {@link URL} of the root.

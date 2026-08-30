@@ -30,14 +30,11 @@ package io.github.classgraph.vfs;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.nio.file.attribute.PosixFilePermission;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.Set;
 
-import io.github.classgraph.base.internal.path.URLPaths;
 import io.github.classgraph.vfs.reader.RandomAccessOrSequentialReader;
 import io.github.classgraph.vfs.internal.zip.FastZipEntry;
 import org.jspecify.annotations.Nullable;
@@ -89,18 +86,6 @@ final class ArchiveEntry extends VfsEntry {
     @Override
     public String getPath() {
         return zipEntry.getPath();
-    }
-
-    @Override
-    public URI getURI() {
-        final var rootURIStr = getRoot().getURI().toString();
-        try {
-            // A jarfile nested within another jarfile already has a "jar:" URI, and must not be given a second one
-            return new URI((rootURIStr.startsWith("jar:") ? "" : "jar:") + rootURIStr + "!/"
-                    + URLPaths.encodePath(zipEntry.entryName));
-        } catch (final URISyntaxException e) {
-            throw new IllegalStateException("Could not form URI for " + getPath() + " : " + e, e);
-        }
     }
 
     @Override

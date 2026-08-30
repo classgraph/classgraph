@@ -1485,4 +1485,46 @@ public class VfsTest {
             assertThatThrownBy(() -> entry.loadAsString(null)).isInstanceOf(NullPointerException.class);
         }
     }
+
+    /**
+     * A root can name a path within itself by URI without an entry first being looked up, which is how a directory,
+     * a package root, or a name that is not there at all can be named.
+     */
+    @Test
+    public void aRootCanNameAPathWithinItselfByURI(@TempDir final File tempDir) throws IOException {
+        final var jarFile = new File(tempDir, "widget.jar");
+        writeJar(jarFile, "com/xyz/widget.txt");
+        final var dir = new File(tempDir, "classes");
+        assertThat(new File(dir, "com/xyz").mkdirs()).isTrue();
+        Files.writeString(new File(dir, "com/xyz/widget.txt").toPath(), RESOURCE_CONTENT);
+
+        try (var vfs = new Vfs()) {
+            // The URI of an entry is the URI its root gives the path the entry is stored under
+            final var jarRoot = vfs.open(jarFile.getPath());
+            final var jarEntry = Objects.requireNonNull(jarRoot.getEntry("com/xyz/widget.txt"));
+            assertThat(jarRoot.resolveURI(jarEntry.getRawPathFromRoot())).isEqualTo(jarEntry.getURI());
+
+            final var dirRoot = vfs.open(dir.getPath());
+            final var dirEntry = Objects.requireNonNull(dirRoot.getEntry("com/xyz/widget.txt"));
+            assertThat(dirRoot.resolveURI(dirEntry.getRawPathFromRoot())).isEqualTo(dirEntry.getURI());
+
+            // A path that no entry is stored at is still named, since nothing is looked up to name it
+            assertThat(jarRoot.resolveURI("com/xyz").toString()).endsWith("!/com/xyz");
+            assertThat(jarRoot.resolveURI("no/such/entry.txt").toString()).endsWith("!/no/such/entry.txt");
+            assertThat(dirRoot.resolveURI("no/such/entry.txt").toString()).endsWith("/no/such/entry.txt");
+
+            // A path that cannot be held by a URI as it stands is percent-encoded, so that the URI still names the
+            // path it was given rather than a different one
+            assertThat(jarRoot.resolveURI("a b/c#d.txt").toString()).endsWith("!/a%20b/c%23d.txt");
+            assertThat(dirRoot.resolveURI("a b/c#d.txt").toString()).endsWith("/a%20b/c%23d.txt");
+
+            // Only a module can say how it names something within itself, so a module names what it contains and
+            // nothing else
+            final var moduleRoot = vfs.open(ModuleFinder.ofSystem().find("java.logging").orElseThrow());
+            final var moduleEntry = Objects.requireNonNull(moduleRoot.getEntry("java/util/logging/Logger.class"));
+            assertThat(moduleRoot.resolveURI("java/util/logging/Logger.class")).isEqualTo(moduleEntry.getURI());
+            assertThatThrownBy(() -> moduleRoot.resolveURI("no/such/entry.txt"))
+                    .isInstanceOf(IllegalStateException.class);
+        }
+    }
 }

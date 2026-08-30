@@ -106,11 +106,22 @@ final class ArchiveRoot extends VfsRoot {
 
     @Override
     public URI getURI() {
-        final var path = getPath();
+        return URLPaths.toURI(getPath());
+    }
+
+    @Override
+    public URI resolveURI(final String pathWithinRoot) {
+        final var rootURIStr = getURI().toString();
+        // A jarfile nested within another jarfile already has a "jar:" URI, and must not be given a second one
+        final var uriStr = (rootURIStr.startsWith("jar:") ? "" : "jar:") + rootURIStr + "!/"
+                + URLPaths.encodePath(pathWithinRoot);
         try {
-            return new URI(URLPaths.normalizeURLPath(path));
+            // Built directly rather than through URLPaths#toURI(String), since the root's part of this is already
+            // a URI: normalizing it a second time would strip the scheme prefixes off it and re-encode what is
+            // encoded already
+            return new URI(uriStr);
         } catch (final URISyntaxException e) {
-            throw new IllegalStateException("Could not form URI for " + path + " : " + e, e);
+            throw new IllegalStateException("Could not form URI for " + uriStr + " : " + e, e);
         }
     }
 

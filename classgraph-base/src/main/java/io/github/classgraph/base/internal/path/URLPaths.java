@@ -29,8 +29,11 @@
 package io.github.classgraph.base.internal.path;
 
 import io.github.classgraph.base.internal.utils.VersionFinder;
+import java.io.IOError;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.util.Locale;
 import java.util.regex.Pattern;
 
@@ -275,6 +278,45 @@ public final class URLPaths {
             urlPathNormalized = "jar:" + urlPathNormalized;
         }
         return encodePath(urlPathNormalized);
+    }
+
+    /**
+     * Form the {@link URI} of a path, normalizing and percent-encoding it first, so that a path containing a
+     * character that a URI cannot hold, or a {@code "!/"} section that names something nested inside a jarfile,
+     * still produces a URI that names the same thing the path does.
+     *
+     * @param path
+     *            the path
+     * @return the {@link URI} of the path
+     * @throws IllegalStateException
+     *             if the path could not be turned into a {@link URI}
+     */
+    public static URI toURI(final String path) {
+        final var normalized = normalizeURLPath(path);
+        try {
+            return new URI(normalized);
+        } catch (final URISyntaxException e) {
+            throw new IllegalStateException("Could not form URI for " + path + " : " + e, e);
+        }
+    }
+
+    /**
+     * Form the {@link URI} of a filesystem path, in the spelling that reads back as the path it came from.
+     *
+     * @param path
+     *            the path
+     * @return the {@link URI} of the path
+     * @throws IllegalStateException
+     *             if the path could not be turned into a {@link URI}
+     */
+    public static URI toURI(final Path path) {
+        try {
+            // On Windows, Path#toUri() puts the server of a UNC path in the URI authority, where java.net.URL does
+            // not find it again
+            return moveUNCServerIntoPath(path.toUri());
+        } catch (final IOError | SecurityException e) {
+            throw new IllegalStateException("Could not form URI for " + path + " : " + e, e);
+        }
     }
 
     /**

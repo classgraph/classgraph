@@ -32,7 +32,6 @@ import java.io.File;
 import java.io.IOError;
 import java.io.IOException;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -85,12 +84,6 @@ class ClasspathElementZip extends ClasspathElement {
      */
     @Nullable
     VfsRoot vfsRoot;
-    /**
-     * The name of the module from the {@code Automatic-Module-Name} manifest attribute, if one is present in the
-     * root of the classpath element.
-     */
-    @Nullable
-    String moduleNameFromManifestFile;
     /** The automatic module name, derived from the jarfile filename. */
     private @Nullable String derivedAutomaticModuleName;
 
@@ -324,19 +317,6 @@ class ClasspathElementZip extends ClasspathElement {
             }
         }
         return true;
-    }
-
-    /**
-     * Create a new {@link Resource} object for a resource or classfile discovered while scanning paths.
-     *
-     * @param entry
-     *            the entry in the virtual filesystem
-     * @param pathRelativeToPackageRoot
-     *            the path relative to package root
-     * @return the resource
-     */
-    private Resource newResource(final VfsEntry entry, final String pathRelativeToPackageRoot) {
-        return new ZipResource(entry, pathRelativeToPackageRoot);
     }
 
     /**
@@ -593,7 +573,7 @@ class ClasspathElementZip extends ClasspathElement {
      */
     private void addZipEntryResource(final VfsEntry entry, final String relativePath,
             final ScanSpecPathMatch parentMatchStatus, final @Nullable LogNode log) {
-        final var resource = newResource(entry, relativePath);
+        final var resource = new ZipResource(entry, relativePath);
         if (relativePathToResource.putIfAbsent(relativePath, resource) == null) {
             if (isAcceptedResourcePath(relativePath, parentMatchStatus)) {
                 // Resource is accepted
@@ -604,20 +584,6 @@ class ClasspathElementZip extends ClasspathElement {
                 addAcceptedResource(resource, parentMatchStatus, /* isClassfileOnly = */ true, log);
             }
         }
-    }
-
-    /**
-     * Get the module name declared by the jarfile, either by its {@code module-info.class} module descriptor, or by
-     * the {@code Automatic-Module-Name} attribute of its manifest file.
-     *
-     * @return the declared module name, or null if the jarfile does not declare one.
-     */
-    private @Nullable String getDeclaredModuleName() {
-        if (moduleNameFromModuleDescriptor != null && !moduleNameFromModuleDescriptor.isEmpty()) {
-            return moduleNameFromModuleDescriptor;
-        }
-        return moduleNameFromManifestFile == null || moduleNameFromManifestFile.isEmpty() ? null
-                : moduleNameFromManifestFile;
     }
 
     /**
@@ -644,6 +610,13 @@ class ClasspathElementZip extends ClasspathElement {
         return derivedAutomaticModuleName.isEmpty() ? null : derivedAutomaticModuleName;
     }
 
+    @Override
+    @Nullable
+    VfsRoot getManifestRoot() {
+        // An ArchiveRoot opened at a package root already reports the manifest of the whole jarfile
+        return vfsRoot;
+    }
+
     /**
      * Get the zipfile path.
      *
@@ -656,11 +629,7 @@ class ClasspathElementZip extends ClasspathElement {
 
     @Override
     URI getURI() {
-        try {
-            return new URI(URLPaths.normalizeURLPath(getZipFilePath()));
-        } catch (final URISyntaxException e) {
-            throw new IllegalStateException("Could not form URI for " + getZipFilePath() + " : " + e, e);
-        }
+        return URLPaths.toURI(getZipFilePath());
     }
 
     /**
@@ -672,23 +641,16 @@ class ClasspathElementZip extends ClasspathElement {
         if (strippedAutomaticPackageRootPrefixes.isEmpty()) {
             return List.of(getURI());
         } else {
-            final var uri = getURI();
             final List<URI> uris = new ArrayList<>();
-            uris.add(uri);
-            final var uriStr = uri.toString();
+            uris.add(getURI());
             for (final String prefix : strippedAutomaticPackageRootPrefixes) {
-                // The prefix is the name of a directory in the jarfile, so it is percent-encoded like any other
-                // entry name before it is appended to a URI. A package root is almost always named in ASCII, so
+                // The prefix is appended to the path of the jarfile and the whole path is turned into a URI, rather
+                // than being spliced onto the URI of the jarfile: a package root is the name of a directory in the
+                // jarfile, so it needs percent-encoding like any other entry name, and it needs the same "jar:"
+                // notation the path of a jarfile entry gets. A package root is almost always named in ASCII, so
                 // this almost never changes anything -- but "almost never" is not a reason to append it raw and
                 // produce a URI that names a different directory, or one that will not parse at all
-                final var prefixURI = uriStr + "!/" + URLPaths.encodePath(prefix);
-                try {
-                    uris.add(new URI(prefixURI));
-                } catch (final URISyntaxException e) {
-                    // Dropping the URI silently would leave the package root unreachable by URI with no sign of
-                    // why, and getURI() above already reports the same failure this way
-                    throw new IllegalStateException("Could not form URI for " + prefixURI + " : " + e, e);
-                }
+                uris.add(URLPaths.toURI(getZipFilePath() + "!/" + prefix));
             }
             return uris;
         }

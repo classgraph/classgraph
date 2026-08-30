@@ -28,10 +28,8 @@
  */
 package io.github.classgraph.vfs;
 
-import java.io.IOError;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
@@ -41,7 +39,6 @@ import java.util.Collections;
 import java.util.EnumSet;
 import java.util.Set;
 
-import io.github.classgraph.base.internal.path.URLPaths;
 import io.github.classgraph.vfs.internal.slice.PathSlice;
 import org.jspecify.annotations.Nullable;
 
@@ -97,17 +94,6 @@ final class DirEntry extends VfsEntry {
     @Override
     public String getPath() {
         return getRoot().getPath() + "/" + name;
-    }
-
-    @Override
-    public URI getURI() {
-        try {
-            // On Windows, Path#toUri() puts the server of a UNC path in the URI authority, where java.net.URL does
-            // not find it again
-            return URLPaths.moveUNCServerIntoPath(path.toUri());
-        } catch (final IOError | SecurityException e) {
-            throw new IllegalStateException("Could not form URI for " + path + " : " + e, e);
-        }
     }
 
     @Override

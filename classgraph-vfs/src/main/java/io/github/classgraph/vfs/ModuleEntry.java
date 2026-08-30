@@ -31,7 +31,6 @@ package io.github.classgraph.vfs;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.module.ModuleReader;
-import java.net.URI;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.github.classgraph.base.internal.utils.ProxyingInputStream;
@@ -74,21 +73,6 @@ final class ModuleEntry extends VfsEntry {
     public String getPath() {
         // This is the notation the JDK itself uses to name something within a module, e.g. "java.base/java/lang"
         return getRoot().getPath() + "/" + name;
-    }
-
-    @Override
-    public URI getURI() {
-        try {
-            final var recycler = getRoot().moduleReaderRecycler();
-            final var reader = recycler.acquire();
-            try {
-                return ModuleReaderUtils.find(reader, name);
-            } finally {
-                recycler.recycle(reader);
-            }
-        } catch (final IOException | SecurityException e) {
-            throw new IllegalStateException("Could not form URI for " + getPath() + " : " + e, e);
-        }
     }
 
     @Override
