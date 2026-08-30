@@ -655,14 +655,6 @@ class ClasspathElementZip extends ClasspathElement {
     }
 
     @Override
-    String getResourcePathSeparator() {
-        // A package root named as part of the classpath entry, e.g. "app.jar!/BOOT-INF/classes", is a directory
-        // within the jarfile rather than a jarfile nested inside it, so a resource beneath it is not separated
-        // from it by "!/" -- a URL with two "!/" separators but only one archive in it does not resolve
-        return packageRootPrefix.isEmpty() ? "!/" : "/";
-    }
-
-    @Override
     URI getURI() {
         try {
             return new URI(URLPaths.normalizeURLPath(getZipFilePath()));
@@ -685,10 +677,17 @@ class ClasspathElementZip extends ClasspathElement {
             uris.add(uri);
             final var uriStr = uri.toString();
             for (final String prefix : strippedAutomaticPackageRootPrefixes) {
+                // The prefix is the name of a directory in the jarfile, so it is percent-encoded like any other
+                // entry name before it is appended to a URI. A package root is almost always named in ASCII, so
+                // this almost never changes anything -- but "almost never" is not a reason to append it raw and
+                // produce a URI that names a different directory, or one that will not parse at all
+                final var prefixURI = uriStr + "!/" + URLPaths.encodePath(prefix);
                 try {
-                    uris.add(new URI(uriStr + "!/" + prefix));
+                    uris.add(new URI(prefixURI));
                 } catch (final URISyntaxException e) {
-                    // Ignore
+                    // Dropping the URI silently would leave the package root unreachable by URI with no sign of
+                    // why, and getURI() above already reports the same failure this way
+                    throw new IllegalStateException("Could not form URI for " + prefixURI + " : " + e, e);
                 }
             }
             return uris;

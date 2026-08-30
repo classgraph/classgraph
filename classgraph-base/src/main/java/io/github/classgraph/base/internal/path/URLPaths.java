@@ -29,8 +29,6 @@
 package io.github.classgraph.base.internal.path;
 
 import io.github.classgraph.base.internal.utils.VersionFinder;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
@@ -108,85 +106,6 @@ public final class URLPaths {
             throw new IllegalArgumentException("Not a valid URL scheme: \"" + scheme + "\"");
         }
         return scheme.toLowerCase(Locale.ROOT);
-    }
-
-    /**
-     * Unescape chars in a URL. URLDecoder.decode is broken: https://bugs.openjdk.java.net/browse/JDK-8179507
-     *
-     * @param str
-     *            the string to unescape
-     * @param isQuery
-     *            true if the string is a query string, in which case {@code '+'} is decoded as a space
-     * @param buf
-     *            the buffer to write the decoded bytes to
-     */
-    private static void unescapeChars(final String str, final boolean isQuery, final ByteArrayOutputStream buf) {
-        if (str.isEmpty()) {
-            return;
-        }
-        for (int chrIdx = 0, len = str.length(); chrIdx < len; chrIdx++) {
-            final var c = str.charAt(chrIdx);
-            if (c == '%') {
-                // Decode %-escaped char sequence, e.g. %5D
-                if (chrIdx <= len - 3) {
-                    final var c1 = str.charAt(++chrIdx);
-                    final var digit1 = c1 >= '0' && c1 <= '9' ? (c1 - '0')
-                            : c1 >= 'a' && c1 <= 'f' ? (c1 - 'a' + 10)
-                                    : c1 >= 'A' && c1 <= 'F' ? (c1 - 'A' + 10) : -1;
-                    final var c2 = str.charAt(++chrIdx);
-                    final var digit2 = c2 >= '0' && c2 <= '9' ? (c2 - '0')
-                            : c2 >= 'a' && c2 <= 'f' ? (c2 - 'a' + 10)
-                                    : c2 >= 'A' && c2 <= 'F' ? (c2 - 'A' + 10) : -1;
-                    if (digit1 < 0 || digit2 < 0) {
-                        try {
-                            buf.write(str.substring(chrIdx - 2, chrIdx + 1).getBytes(StandardCharsets.UTF_8));
-                        } catch (final IOException e) {
-                            // Ignore
-                        }
-                    } else {
-                        buf.write((byte) ((digit1 << 4) | digit2));
-                    }
-                } else {
-                    // A '%' too close to the end of the string to be followed by two hexadecimal digits does not
-                    // introduce an escape sequence, so write it out as it is, the same as the branch above does for
-                    // a '%' that is not followed by two hexadecimal digits. The following characters are then
-                    // handled by the rest of this loop, so nothing is dropped
-                    buf.write((byte) c);
-                }
-            } else if (isQuery && c == '+') {
-                buf.write((byte) ' ');
-            } else if (c <= 0x7f) {
-                buf.write((byte) c);
-            } else {
-                // A character outside the Basic Multilingual Plane is stored as a surrogate pair, and the two
-                // surrogates only encode as UTF-8 together -- encoding each of them on its own produces '?' for
-                // both, silently renaming the path
-                final var codePoint = str.codePointAt(chrIdx);
-                chrIdx += Character.charCount(codePoint) - 1;
-                try {
-                    buf.write(Character.toString(codePoint).getBytes(StandardCharsets.UTF_8));
-                } catch (final IOException e) {
-                    // Ignore
-                }
-            }
-        }
-    }
-
-    /**
-     * Unescape a URL segment, and turn it from UTF-8 bytes into a Java string.
-     *
-     * @param str
-     *            the str
-     * @return the string
-     */
-    public static String decodePath(final String str) {
-        final var queryIdx = str.indexOf('?');
-        final var partBeforeQuery = queryIdx < 0 ? str : str.substring(0, queryIdx);
-        final var partFromQuery = queryIdx < 0 ? "" : str.substring(queryIdx);
-        final ByteArrayOutputStream buf = new ByteArrayOutputStream();
-        unescapeChars(partBeforeQuery, /* isQuery = */ false, buf);
-        unescapeChars(partFromQuery, /* isQuery = */ true, buf);
-        return buf.toString(StandardCharsets.UTF_8);
     }
 
     /**

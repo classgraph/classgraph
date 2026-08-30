@@ -34,7 +34,6 @@ import java.io.InputStream;
 import java.lang.module.ModuleReference;
 import java.net.MalformedURLException;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
@@ -46,7 +45,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.zip.ZipEntry;
 
 import io.github.classgraph.base.LogNode;
-import io.github.classgraph.base.internal.path.URLPaths;
 import io.github.classgraph.base.internal.utils.ProxyingInputStream;
 import io.github.classgraph.vfs.CloseableByteBuffer;
 import io.github.classgraph.vfs.Vfs;
@@ -175,26 +173,14 @@ public abstract class Resource implements AutoCloseable, Comparable<Resource> {
      *
      * @return A {@link URI} representing the resource's location.
      * @throws IllegalStateException
-     *             if the resource was obtained from a module and the module's location URI is null.
+     *             if the {@link URI} could not be formed, which includes the case of a resource obtained from a
+     *             module that does not report where its resources are.
      */
     public URI getURI() {
-        final var locationURI = getClasspathElementURI();
-        final var locationURIStr = locationURI.toString();
-        final var resourcePath = getPathRelativeToClasspathElement();
-        // Check if this is a directory-based module (location URI will end in "/")
-        final var isDir = locationURIStr.endsWith("/");
-        try {
-            return new URI(
-                    (isDir || locationURIStr.startsWith("jar:") || locationURIStr.startsWith("jrt:") ? "" : "jar:")
-                            + locationURIStr
-                            + (isDir ? ""
-                                    : locationURIStr.startsWith("jrt:") ? "/"
-                                            : classpathElement.getResourcePathSeparator())
-                            + URLPaths.encodePath(resourcePath));
-        } catch (final URISyntaxException e) {
-            throw new IllegalStateException("Could not form URI for classpath element: " + locationURIStr
-                    + " ; path: " + resourcePath + " : " + e, e);
-        }
+        // The entry knows where it is, and knows it as a URI rather than as a string, so it is asked rather than
+        // rebuilt from the classpath element's URI and this resource's path -- taking a URI apart into strings and
+        // putting it back together again is how a path ends up encoded twice, or not at all
+        return entry.getURI();
     }
 
     /**
@@ -202,11 +188,12 @@ public abstract class Resource implements AutoCloseable, Comparable<Resource> {
      *
      * @return A {@link URL} representing the resource's location.
      * @throws IllegalStateException
-     *             if the resource was obtained from a module and the module's location URI is null, or if the
-     *             location URI could not be converted to a {@link URL}.
+     *             if the {@link URL} could not be formed, which includes the case of a resource obtained from a
+     *             module that does not report where its resources are, and the case of a {@link URI} whose scheme
+     *             has no protocol handler installed.
      */
     public URL getURL() {
-        return uriToURL(getURI());
+        return entry.getURL();
     }
 
     /**

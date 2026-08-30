@@ -143,13 +143,6 @@ class ClasspathElementModule extends ClasspathElement {
         ModuleResource(final VfsEntry entry) {
             super(ClasspathElementModule.this, entry, entry.getPathFromRoot());
         }
-
-        @Override
-        public URI getURI() {
-            // A module can have no location, in which case the classpath element has no URI to build this URI on
-            // top of, so ask the module itself where the resource is
-            return getVfsEntry().getURI();
-        }
     }
 
     /**

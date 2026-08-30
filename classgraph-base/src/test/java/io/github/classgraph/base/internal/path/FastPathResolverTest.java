@@ -481,4 +481,67 @@ public class FastPathResolverTest {
         // Off Windows there is no UNC path, so a leading doubled separator is an empty segment like any other
         assertThat(resolveAsLinux(null, "//server//share//dir")).isEqualTo("/server/share/dir");
     }
+
+    /** Percent-escaped sequences are decoded, in either case, and back into UTF-8 characters. */
+    @Test
+    public void escapedCharactersAreDecoded() {
+        assertThat(FastPathResolver.decodePercentEncoding("/tmp/a%20b.jar")).isEqualTo("/tmp/a b.jar");
+        assertThat(FastPathResolver.decodePercentEncoding("/tmp/a%5b1%5D.jar")).isEqualTo("/tmp/a[1].jar");
+        assertThat(FastPathResolver.decodePercentEncoding("/tmp/%C3%A9.jar")).isEqualTo("/tmp/é.jar");
+        assertThat(FastPathResolver.decodePercentEncoding("/tmp/x.jar")).isEqualTo("/tmp/x.jar");
+        assertThat(FastPathResolver.decodePercentEncoding("")).isEmpty();
+    }
+
+    /**
+     * A {@code '+'} is a real filename character, so decoding it as a space would stop a jar named "a+b.jar" from
+     * being found. Only a query string gives {@code '+'} the other meaning, and a path is not a query string.
+     */
+    // #468
+    @Test
+    public void plusIsNeverDecodedAsASpace() {
+        assertThat(FastPathResolver.decodePercentEncoding("/tmp/a+b.jar")).isEqualTo("/tmp/a+b.jar");
+        assertThat(FastPathResolver.decodePercentEncoding("/tmp/a+b.jar?x=1+2")).isEqualTo("/tmp/a+b.jar?x=1+2");
+    }
+
+    /**
+     * A '%' that does not introduce two hexadecimal digits is not an escape sequence, so it is passed through as it
+     * is, rather than decoding to a wrong character or throwing.
+     */
+    @Test
+    public void malformedEscapeSequencesArePassedThrough() {
+        assertThat(FastPathResolver.decodePercentEncoding("/tmp/100%zz.jar")).isEqualTo("/tmp/100%zz.jar");
+        // A '%' too close to the end of the string to be followed by two hexadecimal digits is passed through the
+        // same way. This used to drop the '%' but keep the digits after it, silently renaming the path
+        assertThat(FastPathResolver.decodePercentEncoding("/tmp/100%2")).isEqualTo("/tmp/100%2");
+        assertThat(FastPathResolver.decodePercentEncoding("/tmp/100%")).isEqualTo("/tmp/100%");
+    }
+
+    /**
+     * Decoding never manufactures a separator: a name that was written with an escaped slash in it is a name, not a
+     * path with another segment in it.
+     */
+    // #255
+    @Test
+    public void decodingNeverProducesASeparator() {
+        assertThat(FastPathResolver.decodePercentEncoding("/tmp/a%2Fb.jar")).isEqualTo("/tmp/a%2Fb.jar");
+        assertThat(FastPathResolver.decodePercentEncoding("/tmp/a%5Cb.jar")).isEqualTo("/tmp/a%5Cb.jar");
+        // The escape is put back in the case it is written in the output, whatever case it was written in
+        assertThat(FastPathResolver.decodePercentEncoding("/tmp/a%2fb%20c.jar")).isEqualTo("/tmp/a%2Fb c.jar");
+    }
+
+    /** Whether the percent encoding of a path is decoded by resolve() is decided by the innermost scheme. */
+    @Test
+    public void whetherResolveDecodesIsDecidedByTheScheme() {
+        // A bare path is not percent-encoded in the first place, so resolve() leaves it alone
+        assertThat(FastPathResolver.resolveDecodesPercentEncoding("/tmp/x.jar")).isFalse();
+        // These leave a filesystem path behind, which is decoded
+        assertThat(FastPathResolver.resolveDecodesPercentEncoding("file:/tmp/x.jar")).isTrue();
+        assertThat(FastPathResolver.resolveDecodesPercentEncoding("jar:file:/tmp/x.jar!/a")).isTrue();
+        assertThat(FastPathResolver.resolveDecodesPercentEncoding("jar:/tmp/x.jar!/a")).isTrue();
+        // These are still URLs after the prefix is stripped, and a URL keeps its encoding
+        assertThat(FastPathResolver.resolveDecodesPercentEncoding("http://host/x.jar")).isFalse();
+        assertThat(FastPathResolver.resolveDecodesPercentEncoding("https://host/x.jar")).isFalse();
+        assertThat(FastPathResolver.resolveDecodesPercentEncoding("jrt:/java.base")).isFalse();
+        assertThat(FastPathResolver.resolveDecodesPercentEncoding("jar:http://host/x.jar!/a")).isFalse();
+    }
 }

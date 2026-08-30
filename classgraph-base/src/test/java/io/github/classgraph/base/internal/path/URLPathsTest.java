@@ -228,58 +228,23 @@ public class URLPathsTest {
         assertThat(URLPaths.encodePath("/tmp/a:b.jar")).isEqualTo("/tmp/a%3ab.jar");
     }
 
-    /** Percent-escaped sequences are decoded, in either case, and back into UTF-8 characters. */
-    @Test
-    public void escapedCharactersAreDecoded() {
-        assertThat(URLPaths.decodePath("/tmp/a%20b.jar")).isEqualTo("/tmp/a b.jar");
-        assertThat(URLPaths.decodePath("/tmp/a%5b1%5D.jar")).isEqualTo("/tmp/a[1].jar");
-        assertThat(URLPaths.decodePath("/tmp/%C3%A9.jar")).isEqualTo("/tmp/é.jar");
-        assertThat(URLPaths.decodePath("/tmp/x.jar")).isEqualTo("/tmp/x.jar");
-        assertThat(URLPaths.decodePath("")).isEmpty();
-    }
-
-    /**
-     * {@code '+'} means a space only in the query string, not in the path -- a jar named "a+b.jar" is a real
-     * filename, and decoding its '+' as a space would stop it from being found.
-     */
-    // #468
-    @Test
-    public void plusIsOnlyASpaceInTheQueryString() {
-        assertThat(URLPaths.decodePath("/tmp/a+b.jar")).isEqualTo("/tmp/a+b.jar");
-        assertThat(URLPaths.decodePath("/tmp/a+b.jar?x=1+2")).isEqualTo("/tmp/a+b.jar?x=1 2");
-    }
-
-    /**
-     * A '%' that does not introduce two hexadecimal digits is not an escape sequence, so it is passed through as it
-     * is, rather than decoding to a wrong character or throwing.
-     */
-    @Test
-    public void malformedEscapeSequencesArePassedThrough() {
-        assertThat(URLPaths.decodePath("/tmp/100%zz.jar")).isEqualTo("/tmp/100%zz.jar");
-        // A '%' too close to the end of the string to be followed by two hexadecimal digits is passed through the
-        // same way. This used to drop the '%' but keep the digits after it, silently renaming the path
-        assertThat(URLPaths.decodePath("/tmp/100%2")).isEqualTo("/tmp/100%2");
-        assertThat(URLPaths.decodePath("/tmp/100%")).isEqualTo("/tmp/100%");
-    }
-
     /** Encoding and then decoding a path returns the original path. */
     @Test
     public void encodingThenDecodingRoundTrips() {
         final var path = "/tmp/a b[1]+é.jar";
-        assertThat(URLPaths.decodePath(URLPaths.encodePath(path))).isEqualTo(path);
+        assertThat(FastPathResolver.decodePercentEncoding(URLPaths.encodePath(path))).isEqualTo(path);
     }
 
     /**
-     * A character outside the Basic Multilingual Plane survives decoding. Such a character is stored as a surrogate
-     * pair, and the two surrogates only encode as UTF-8 together, so encoding each of them on its own turns the
-     * character into "??", renaming the path.
+     * A character outside the Basic Multilingual Plane survives being encoded and decoded again. Such a character
+     * is stored as a surrogate pair, and the two surrogates only encode as UTF-8 together, so encoding each of them
+     * on its own turns the character into "??", renaming the path.
      */
     @Test
-    public void charactersOutsideTheBasicMultilingualPlaneAreDecoded() {
+    public void charactersOutsideTheBasicMultilingualPlaneRoundTrip() {
         // U+1D54F MATHEMATICAL DOUBLE-STRUCK CAPITAL X, and U+1F600 GRINNING FACE
         final var path = "/tmp/𝕏😀.jar";
-        assertThat(URLPaths.decodePath(path)).isEqualTo(path);
-        assertThat(URLPaths.decodePath(URLPaths.encodePath(path))).isEqualTo(path);
+        assertThat(FastPathResolver.decodePercentEncoding(URLPaths.encodePath(path))).isEqualTo(path);
     }
 
     /**
