@@ -130,6 +130,12 @@ public class RandomAccessFileChannelReader implements RandomAccessReader {
         if (numBytes == 0 || dstRoom == 0) {
             return 0;
         }
+        if (dstBuf.isReadOnly()) {
+            // Checked here rather than left to the put below, so that every RandomAccessReader reports a
+            // read-only destination the same way -- the file channel reader cannot catch it, since FileChannel
+            // rejects a read-only destination with an IllegalArgumentException of its own
+            throw new IOException("Cannot read into a read-only buffer");
+        }
         try {
             if (srcOffset < 0L || numBytes < 0) {
                 throw new IOException("Read index out of bounds");
@@ -171,8 +177,10 @@ public class RandomAccessFileChannelReader implements RandomAccessReader {
             }
             return numBytesRead == 0 ? -1 : numBytesRead;
 
-        } catch (BufferUnderflowException | IndexOutOfBoundsException e) {
-            throw new IOException("Read index out of bounds");
+        } catch (final BufferUnderflowException | IndexOutOfBoundsException e) {
+            // The bounds were checked above, so reaching here means a bounds check is wrong rather than that
+            // the caller asked for too much -- without the cause there is no record of which index was rejected
+            throw new IOException("Read index out of bounds", e);
         }
     }
 
@@ -195,8 +203,10 @@ public class RandomAccessFileChannelReader implements RandomAccessReader {
             // Read into reusableByteBuffer, which is backed with dstArr
             return read(srcOffset, byteBuffer, dstArrStart, numBytes);
 
-        } catch (BufferUnderflowException | IndexOutOfBoundsException e) {
-            throw new IOException("Read index out of bounds");
+        } catch (final BufferUnderflowException | IndexOutOfBoundsException e) {
+            // The bounds were checked above, so reaching here means a bounds check is wrong rather than that
+            // the caller asked for too much -- without the cause there is no record of which index was rejected
+            throw new IOException("Read index out of bounds", e);
         }
     }
 

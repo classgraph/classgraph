@@ -996,4 +996,21 @@ public class RandomAccessOrSequentialReaderTest {
                     .hasMessageContaining("out of bounds");
         }
     }
+
+    /**
+     * A read-only destination buffer is reported as an {@link IOException} naming what is wrong with it, the same
+     * way the three addressable readers report it, rather than as the "out of bounds" message that used to stand in
+     * for it.
+     *
+     * @throws IOException
+     *             if the content could not be read.
+     */
+    @Test
+    public void aReadOnlyDestinationBufferIsRejected() throws IOException {
+        try (var reader = new RandomAccessOrSequentialReader(new ByteArrayInputStream(PATTERN))) {
+            final var dstBuf = ByteBuffer.allocate(PATTERN.length).asReadOnlyBuffer();
+            assertThatThrownBy(() -> reader.read(0, dstBuf, 0, PATTERN.length)).isInstanceOf(IOException.class)
+                    .hasMessage("Cannot read into a read-only buffer");
+        }
+    }
 }

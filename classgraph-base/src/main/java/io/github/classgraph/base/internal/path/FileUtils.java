@@ -155,6 +155,8 @@ public final class FileUtils {
         try {
             return canRead(path.toFile());
         } catch (final UnsupportedOperationException ignored) {
+            // Path#toFile() throws this for a path on a filesystem other than the default one, which has no
+            // File equivalent -- fall through and ask the NIO API instead
         }
         try {
             return Files.isReadable(path);
@@ -192,6 +194,8 @@ public final class FileUtils {
         try {
             return canReadAndIsFile(path.toFile());
         } catch (final UnsupportedOperationException ignored) {
+            // Path#toFile() throws this for a path on a filesystem other than the default one, which has no
+            // File equivalent -- fall through and ask the NIO API instead
         }
         try {
             if (!Files.isReadable(path)) {
@@ -254,6 +258,8 @@ public final class FileUtils {
             checkCanReadAndIsFile(path.toFile());
             return;
         } catch (final UnsupportedOperationException ignored) {
+            // Path#toFile() throws this for a path on a filesystem other than the default one, which has no
+            // File equivalent -- fall through and ask the NIO API instead
         }
         try {
             if (!Files.isReadable(path)) {
@@ -296,6 +302,8 @@ public final class FileUtils {
         try {
             return canReadAndIsDir(path.toFile());
         } catch (final UnsupportedOperationException ignored) {
+            // Path#toFile() throws this for a path on a filesystem other than the default one, which has no
+            // File equivalent -- fall through and ask the NIO API instead
         }
         try {
             if (!Files.isReadable(path)) {
@@ -419,6 +427,8 @@ public final class FileUtils {
                     try {
                         return FileTime.fromMillis(path.toFile().lastModified());
                     } catch (final UnsupportedOperationException ignored) {
+                        // Path#toFile() throws this for a path on a filesystem other than the default one,
+                        // which has no File equivalent -- fall through and ask the NIO API instead
                     }
                     try {
                         return Files.getLastModifiedTime(path);
@@ -464,6 +474,8 @@ public final class FileUtils {
                     try {
                         return path.toFile().length();
                     } catch (final UnsupportedOperationException ignored) {
+                        // Path#toFile() throws this for a path on a filesystem other than the default one,
+                        // which has no File equivalent -- fall through and ask the NIO API instead
                     }
                     try {
                         return Files.size(path);

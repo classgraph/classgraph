@@ -495,4 +495,25 @@ public class RandomAccessReaderTest {
         assertThat(dstBuf.get(6)).isZero();
         assertThat(dstBuf.get(7)).isZero();
     }
+
+    /**
+     * Every {@link RandomAccessReader} rejects a read-only destination buffer the same way. The file channel reader
+     * used to let {@link FileChannel}'s own {@link IllegalArgumentException} escape, while the other two turned
+     * {@link java.nio.ReadOnlyBufferException} into an {@link IOException}, so the same caller mistake produced a
+     * different exception depending on how the file happened to be opened.
+     *
+     * @param readerKind
+     *            the kind of reader to test
+     * @throws IOException
+     *             if the reader could not be created
+     */
+    @ParameterizedTest
+    @EnumSource(ReaderKind.class)
+    public void aReadOnlyDestinationBufferIsRejectedTheSameWayByEveryReader(final ReaderKind readerKind)
+            throws IOException {
+        final var reader = reader(readerKind, PATTERN, 0, PATTERN.length);
+        final var dstBuf = ByteBuffer.allocate(PATTERN.length).asReadOnlyBuffer();
+        assertThatThrownBy(() -> reader.read(0, dstBuf, 0, PATTERN.length)).isInstanceOf(IOException.class)
+                .hasMessage("Cannot read into a read-only buffer");
+    }
 }

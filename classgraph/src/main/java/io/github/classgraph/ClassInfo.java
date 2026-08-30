@@ -457,8 +457,10 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                                     "Could not form array base type signature for class " + baseClassName);
                         }
                     } catch (final TypeSignatureParseException e) {
+                        // The parse exception says which character of the signature was rejected, which the
+                        // message below cannot, so it is kept as the cause rather than discarded
                         throw new IllegalArgumentException(
-                                "Could not form array base type signature for class " + baseClassName);
+                                "Could not form array base type signature for class " + baseClassName, e);
                     }
                 }
                 classInfo = new ArrayClassInfo(

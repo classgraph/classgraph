@@ -213,7 +213,8 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
                 return allUrls;
             }
         } catch (final UnsupportedOperationException e) {
-            /* ignore */
+            // A container that does not implement this method contributes no locations, which is what an empty
+            // collection says. There is no LogNode here to report it to, and nothing for a caller to do about it
         }
         return List.of();
     }

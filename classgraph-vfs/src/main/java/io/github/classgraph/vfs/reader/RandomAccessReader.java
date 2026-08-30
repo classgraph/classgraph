@@ -131,7 +131,8 @@ public interface RandomAccessReader {
      *         {@code srcOffset} is at or past the end of the content. A read-copy loop must break on 0, or it loops
      *         forever: see {@link RandomAccessReader}.
      * @throws IOException
-     *             If there was an exception while reading, or if {@code dstBufStart} is not within the destination.
+     *             If there was an exception while reading, if {@code dstBufStart} is not within the destination, or
+     *             if the destination is read-only.
      */
     int read(long srcOffset, ByteBuffer dstBuf, int dstBufStart, int numBytes) throws IOException;
 

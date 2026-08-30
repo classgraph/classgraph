@@ -31,7 +31,6 @@ package io.github.classgraph.vfs.reader;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.nio.ReadOnlyBufferException;
 import java.nio.charset.Charset;
 import java.util.function.BooleanSupplier;
 
@@ -241,7 +240,9 @@ public class RandomAccessByteBufferReader implements RandomAccessReader {
             byteBuffer.get(sliceStartPos + srcStart, dstArr, dstArrStart, numBytesToRead);
             return numBytesToRead;
         } catch (final IndexOutOfBoundsException e) {
-            throw new IOException("Read index out of bounds");
+            // The bounds were checked above, so reaching here means a bounds check is wrong rather than that
+            // the caller asked for too much -- without the cause there is no record of which index was rejected
+            throw new IOException("Read index out of bounds", e);
         } catch (final IllegalStateException e) {
             throw unmapped(e);
         }
@@ -254,6 +255,12 @@ public class RandomAccessByteBufferReader implements RandomAccessReader {
         if (numBytes == 0 || dstRoom == 0) {
             return 0;
         }
+        if (dstBuf.isReadOnly()) {
+            // Checked here rather than left to the put below, so that every RandomAccessReader reports a
+            // read-only destination the same way -- the file channel reader cannot catch it, since FileChannel
+            // rejects a read-only destination with an IllegalArgumentException of its own
+            throw new IOException("Cannot read into a read-only buffer");
+        }
         final var numBytesInSlice = numBytesAvailable(srcOffset, numBytes);
         if (numBytesInSlice == 0) {
             return -1;
@@ -265,8 +272,10 @@ public class RandomAccessByteBufferReader implements RandomAccessReader {
             // named by index, so nothing has to be windowed first and nothing has to be put back afterwards.
             dstBuf.put(dstBufStart, byteBuffer, srcStart, numBytesToRead);
             return numBytesToRead;
-        } catch (IndexOutOfBoundsException | ReadOnlyBufferException e) {
-            throw new IOException("Read index out of bounds");
+        } catch (final IndexOutOfBoundsException e) {
+            // The bounds were checked above, so reaching here means a bounds check is wrong rather than that
+            // the caller asked for too much -- without the cause there is no record of which index was rejected
+            throw new IOException("Read index out of bounds", e);
         } catch (final IllegalStateException e) {
             throw unmapped(e);
         }

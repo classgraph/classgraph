@@ -453,7 +453,9 @@ class ScanSpec {
                     }
                     scanSpecLog.log(field.getName() + ": " + value);
                 } catch (final ReflectiveOperationException e) {
-                    // Ignore
+                    // A criterion that cannot be read is named in the log rather than dropped from it: a log
+                    // that silently omits a criterion reads as if the criterion was never set
+                    scanSpecLog.log(field.getName() + ": could not be read: " + e);
                 }
             }
             classpathSpec.log(log);
