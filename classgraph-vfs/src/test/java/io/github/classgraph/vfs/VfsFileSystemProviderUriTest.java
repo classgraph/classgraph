@@ -403,6 +403,32 @@ public class VfsFileSystemProviderUriTest {
     }
 
     /**
+     * The percent encoding of a path is decoded exactly once, whether or not the path is written with a
+     * {@code "file:"} scheme -- {@code FastPathResolver#resolve} decodes the one that has a scheme, so
+     * {@code VfsFileSystemProvider#pathOf} must not decode it a second time.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the jarfile could not be read.
+     */
+    @Test
+    public void aPathWrittenWithAFileSchemeIsNotDecodedTwice(@TempDir final Path tempDir) throws IOException {
+        // A file whose name really contains the three characters "%20", rather than a space
+        final var jarFile = tempDir.resolve("a%20b.jar").toFile();
+        writeJar(jarFile);
+
+        // "%20" quoted as "%2520", so that it survives being read back out of the URI, in both spellings
+        final var dir = cgvfsUri(tempDir.toString()).getRawSchemeSpecificPart();
+        for (final var scheme : new String[] { "", "file:" }) {
+            final var uri = URI.create(VfsFileSystemProvider.SCHEME + ":" + scheme + dir + "/a%2520b.jar");
+            try (var fileSystem = FileSystems.newFileSystem(uri, Map.of())) {
+                assertThat(Files.readAllBytes(fileSystem.getPath("/root.txt"))).isEqualTo(contentOf("root.txt"));
+            }
+        }
+    }
+
+    /**
      * An entry name that a URI has to quote is decoded when the URI is read, so the URI of a path names that path
      * again. Only a separator is left quoted; every other character a URI cannot hold is decoded back.
      *

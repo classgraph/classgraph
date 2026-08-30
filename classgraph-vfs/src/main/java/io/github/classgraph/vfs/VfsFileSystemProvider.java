@@ -295,8 +295,14 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
         // path string handed to Vfs#open -- which does not percent-decode a path at all, since a path is not
         // percent-encoded. That is what made a Coursier cache path unscannable in #255. Nothing but the percent
         // encoding is changed here: the separators are left for FastPathResolver#resolve, which knows which of
-        // them belong to a nested URL's scheme and authority
-        return FastPathResolver.decodePercentEncoding(rawPath);
+        // them belong to a nested URL's scheme and authority.
+        //
+        // A path written with a "file:" or "jar:" scheme is left alone, since FastPathResolver#resolve decodes
+        // that one itself further down: decoding it here as well would look for a file whose name contains the
+        // three characters "%20" under a name with a space in it instead. Either way the path is decoded exactly
+        // once, so both spellings of a path name the same file
+        return FastPathResolver.resolveDecodesPercentEncoding(rawPath) ? rawPath
+                : FastPathResolver.decodePercentEncoding(rawPath);
     }
 
     /** Opens one root of a {@link Vfs}, so that both {@code newFileSystem} overloads share the same plumbing. */

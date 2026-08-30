@@ -191,6 +191,24 @@ public final class FastPathResolver {
     }
 
     /**
+     * Test whether {@link #resolve(String)} will decode the percent encoding of a path, which it does only for a
+     * path that names a file rather than a resource fetched over a URL. This is decided by the innermost scheme
+     * prefix, if the path has one, and is tested without asking the filesystem anything.
+     *
+     * <p>
+     * A caller that decodes a path before handing it to {@link #resolve(String)} has to ask this first, or the
+     * percent encoding of a path that names a file is decoded twice, and a file whose name contains the three
+     * characters {@code "%20"} is looked for under a name with a space in it instead.
+     *
+     * @param path
+     *            The path.
+     * @return true if {@link #resolve(String)} will decode the percent encoding of this path.
+     */
+    public static boolean resolveDecodesPercentEncoding(final String path) {
+        return stripSchemePrefixes(nestedUrlToJarUrl(warUrlToJarUrl(path))).remainderIsFilePath;
+    }
+
+    /**
      * Parse percent encoding, e.g. "%20" -&gt; " "; convert '/' or '\\' to SEP; remove trailing separator char if
      * present.
      *
