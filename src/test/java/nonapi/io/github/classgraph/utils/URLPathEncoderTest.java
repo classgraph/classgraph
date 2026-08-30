@@ -137,6 +137,36 @@ public class URLPathEncoderTest {
                 .isEqualTo("https://example.com/x.jar");
     }
 
+    /** A URL is already percent-encoded, so it must not be encoded a second time. */
+    @Test
+    public void aUrlIsNotEncodedASecondTime() {
+        assertThat(URLPathEncoder.normalizeURLPath("http://example.com/a%20b.jar"))
+                .isEqualTo("http://example.com/a%20b.jar");
+        assertThat(URLPathEncoder.normalizeURLPath("https://example.com/a%2Fb.jar"))
+                .isEqualTo("https://example.com/a%2Fb.jar");
+        // A lone '%' is not an escape sequence, so it is the one '%' that does have to be encoded
+        assertThat(URLPathEncoder.normalizeURLPath("http://example.com/100%.jar"))
+                .isEqualTo("http://example.com/100%25.jar");
+    }
+
+    /** The syntax of a URL -- the colon before a port, the query string -- is not encoded away. */
+    @Test
+    public void theSyntaxOfAUrlIsNotEncoded() throws Exception {
+        final String url = URLPathEncoder.normalizeURLPath("http://example.com:8080/dir/x.jar?v=1&t=2");
+        assertThat(url).isEqualTo("http://example.com:8080/dir/x.jar?v=1&t=2");
+        assertThat(new URI(url).getHost()).isEqualTo("example.com");
+        assertThat(new URI(url).getPort()).isEqualTo(8080);
+    }
+
+    /** What a URI cannot hold is still encoded in a URL. */
+    @Test
+    public void aCharacterAUriCannotHoldIsEncodedInAUrl() {
+        assertThat(URLPathEncoder.normalizeURLPath("http://example.com/a b.jar"))
+                .isEqualTo("http://example.com/a%20b.jar");
+        assertThat(URLPathEncoder.normalizeURLPath("http://example.com/é.jar"))
+                .isEqualTo("http://example.com/%c3%a9.jar");
+    }
+
     /**
      * The whole point of normalizing is to produce something the {@link URI} constructor accepts, so check that the
      * result parses and keeps the path intact. {@code ClasspathElementZip#getURI()} throws if this fails.
