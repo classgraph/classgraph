@@ -132,6 +132,65 @@ public class URLPathsTest {
     }
 
     /**
+     * A URL keeps the percent encoding it was written with, since a path that is still a URL is never decoded, so
+     * encoding it a second time would name a resource that does not exist. Only a lone {@code '%'} that does not
+     * introduce an escape is encoded.
+     */
+    @Test
+    public void aUrlIsNotEncodedASecondTime() {
+        assertThat(URLPaths.normalizeURLPath("http://example.com/a%20b.jar"))
+                .isEqualTo("http://example.com/a%20b.jar");
+        assertThat(URLPaths.normalizeURLPath("https://example.com/a%2Fb.jar"))
+                .isEqualTo("https://example.com/a%2Fb.jar");
+        assertThat(URLPaths.normalizeURLPath("http://example.com/100%.jar"))
+                .isEqualTo("http://example.com/100%25.jar");
+    }
+
+    /**
+     * The syntax of a URL is left intact: the colon before a port number, and the delimiters of a query string, are
+     * part of the URL rather than characters of a name. Encoding the colon would put the port number into the host
+     * name, which names a server that does not exist.
+     */
+    @Test
+    public void theSyntaxOfAUrlIsNotEncoded() throws Exception {
+        final var url = URLPaths.normalizeURLPath("http://example.com:8080/dir/x.jar?v=1&t=2");
+        assertThat(url).isEqualTo("http://example.com:8080/dir/x.jar?v=1&t=2");
+        assertThat(new URI(url).getHost()).isEqualTo("example.com");
+        assertThat(new URI(url).getPort()).isEqualTo(8080);
+    }
+
+    /**
+     * A URL that was written with a character a URI cannot hold is still encoded, so that the result parses. Only
+     * what has to be escaped is escaped.
+     */
+    @Test
+    public void aCharacterAUriCannotHoldIsEncodedInAUrl() throws Exception {
+        assertThat(URLPaths.normalizeURLPath("http://example.com/a b.jar"))
+                .isEqualTo("http://example.com/a%20b.jar");
+        assertThat(URLPaths.normalizeURLPath("http://example.com/é.jar"))
+                .isEqualTo("http://example.com/%c3%a9.jar");
+        assertThat(new URI(URLPaths.normalizeURLPath("http://example.com/a b.jar")).getPath())
+                .isEqualTo("/a b.jar");
+    }
+
+    /**
+     * A {@code "!/"} separates a jarfile from a path within it whatever the jarfile is fetched over, so a jarfile
+     * nested inside one that was fetched over http is named by a {@code "jar:"} URL, exactly as a nested jarfile on
+     * the local filesystem is.
+     */
+    @Test
+    public void aJarNestedInsideAJarFetchedOverHttpIsAJarUrl() {
+        assertThat(URLPaths.normalizeURLPath("http://example.com/outer.jar!/lib/inner.jar"))
+                .isEqualTo("jar:http://example.com/outer.jar!/lib/inner.jar");
+        // There is no filesystem to ask which '!' of a remote URL separates, so the first one does, and it is
+        // written in the "!/" spelling the "jar:" scheme requires -- the rule
+        // PathSyntax#indexOfNestedJarSeparator states for a path that could not be stat-ed. The URL names the same
+        // thing Vfs#open would open for the same string, which is what matters
+        assertThat(URLPaths.normalizeURLPath("http://example.com/with!bang/x.jar"))
+                .isEqualTo("jar:http://example.com/with!/bang/x.jar");
+    }
+
+    /**
      * The whole point of normalizing is to produce something the {@link URI} constructor accepts, so check that the
      * result parses and keeps the path intact. {@code ClasspathElementZip#getURI()} throws if this fails.
      */

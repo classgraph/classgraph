@@ -234,6 +234,62 @@ public final class URLPaths {
     }
 
     /**
+     * Test whether a character is a hexadecimal digit, i.e. whether it can be one of the two digits of a percent
+     * escape.
+     *
+     * @param c
+     *            the character.
+     * @return true if the character is a hexadecimal digit.
+     */
+    private static boolean isHexDigit(final char c) {
+        return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
+    }
+
+    /**
+     * Percent-encode only the characters that a URI cannot hold, leaving the rest of a URL as it is written.
+     *
+     * <p>
+     * This is what a path that is still a URL needs, as opposed to a file path: a URL is already percent-encoded,
+     * so {@link #encodePath(String)} would encode it a second time and turn {@code "%20"} into {@code "%2520"},
+     * naming a resource that does not exist. It would also escape the URL's own syntax -- the colon before a port
+     * number becomes {@code "%3a"}, which makes the authority name a host that does not exist, and the {@code '?'}
+     * of a query string becomes {@code "%3f"}.
+     *
+     * <p>
+     * An escape that is already written is therefore kept as it is, and only a lone {@code '%'} that does not
+     * introduce one is escaped. What is escaped besides that is what {@link URI} rejects: a space, a control
+     * character, a character outside ASCII, and the handful of ASCII characters that no part of a URI may hold.
+     *
+     * @param url
+     *            the URL.
+     * @return the URL, with the characters a URI cannot hold percent-encoded.
+     */
+    private static String encodeURL(final String url) {
+        final StringBuilder buf = new StringBuilder(url.length() + 16);
+        for (var i = 0; i < url.length(); i++) {
+            final var c = url.charAt(i);
+            if (c == '%' && i < url.length() - 2 && isHexDigit(url.charAt(i + 1))
+                    && isHexDigit(url.charAt(i + 2))) {
+                // An escape that is already written is part of the URL, and is not encoded a second time
+                buf.append(url, i, i + 3);
+                i += 2;
+            } else if (c > ' ' && c < 0x7f && "\"<>\\^`{|}%".indexOf(c) < 0) {
+                buf.append(c);
+            } else {
+                // Percent-encode the UTF-8 bytes of everything a URI cannot hold. A character outside the Basic
+                // Multilingual Plane is stored as a surrogate pair, and the two surrogates only encode as UTF-8
+                // together, so the whole code point is taken rather than one char
+                final var codePoint = url.codePointAt(i);
+                i += Character.charCount(codePoint) - 1;
+                for (final byte b : Character.toString(codePoint).getBytes(StandardCharsets.UTF_8)) {
+                    buf.append('%').append(HEXADECIMAL[(b & 0xf0) >> 4]).append(HEXADECIMAL[b & 0x0f]);
+                }
+            }
+        }
+        return buf.toString();
+    }
+
+    /**
      * Move the server of a UNC path out of the authority of a {@code "file:"} URI and back into its path, so that
      * the URI names the same file after it is converted to a {@link java.net.URL} and opened.
      *
@@ -270,8 +326,16 @@ public final class URLPaths {
      */
     public static String normalizeURLPath(final String urlPath) {
         if (urlPath.startsWith("jrt:") || urlPath.startsWith("http://") || urlPath.startsWith("https://")) {
-            // These schemes do not name a file, so there is no file path to normalize
-            return encodePath(urlPath);
+            // These schemes do not name a file, so there is no file path to normalize, and what is left is still a
+            // URL: FastPathResolver keeps the percent encoding of a URL rather than decoding it, so encoding it
+            // again here would name a resource on a host that does not exist. Only what a URI cannot hold is
+            // escaped
+            final var url = encodeURL(urlPath);
+            // A "!/" separates a jarfile from a path within it whatever the jarfile is fetched over, so a jarfile
+            // nested inside a jarfile that was fetched over http is named by a "jar:" URL, exactly as a nested
+            // jarfile on the local filesystem is
+            return PathSyntax.indexOfNestedJarSeparator(url) < 0 ? url
+                    : "jar:" + PathSyntax.toJarUrlSeparators(url);
         }
         var urlPathNormalized = stripJarAndFilePrefixes(urlPath);
 
