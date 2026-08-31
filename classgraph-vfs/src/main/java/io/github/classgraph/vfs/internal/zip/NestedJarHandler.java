@@ -501,7 +501,11 @@ public class NestedJarHandler {
      */
     private static @Nullable FastZipEntry findEntry(final LogicalZipFile logicalZipFile, final String entryName) {
         for (final FastZipEntry entry : logicalZipFile.entries) {
-            if (entry.entryName.equals(entryName)) {
+            // Match the unversioned name, since that is the name the entry is served under -- an entry stored only
+            // under "META-INF/versions/N/" is named without that prefix once multi-release versions are resolved.
+            // The unversioned name is the same as the stored name for an entry that is not versioned, and for every
+            // entry when multi-release versions are not resolved
+            if (entry.entryNameUnversioned.equals(entryName)) {
                 return entry;
             }
         }
@@ -521,7 +525,9 @@ public class NestedJarHandler {
     private static boolean hasEntriesUnderDir(final LogicalZipFile logicalZipFile, final String dirPath) {
         final var dirPathPrefix = dirPath + "/";
         for (final FastZipEntry entry : logicalZipFile.entries) {
-            if (entry.entryName.startsWith(dirPathPrefix)) {
+            // Match the unversioned name, for the same reason as findEntry(LogicalZipFile, String): a package root
+            // that exists only under "META-INF/versions/N/" is a package root of the jarfile all the same
+            if (entry.entryNameUnversioned.startsWith(dirPathPrefix)) {
                 return true;
             }
         }
