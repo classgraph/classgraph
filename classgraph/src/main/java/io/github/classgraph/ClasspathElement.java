@@ -610,9 +610,10 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
             final boolean isClassfileOnly, final @Nullable LogNode log) {
         final var path = resource.getPath();
         final var isClassFile = ClassNames.isClassfilePath(path);
-        // A classfile is only scheduled for scanning if classfile scanning is enabled, and the classfile is not
-        // specifically rejected
+        // A classfile is only scheduled for scanning if classfile scanning is enabled, the classfile is stored where
+        // the class it declares could be loaded from, and the classfile is not specifically rejected
         final var addedAsClassfile = isClassFile && scanSpec.enableClassInfo
+                && ClassNames.classfilePathHasValidPackage(path)
                 && !scanSpec.classfilePathAcceptReject.isRejected(ClassNames.withLowerCaseClassfileExtension(path));
         if (addedAsClassfile) {
             acceptedClassfileResources.add(resource);
@@ -638,9 +639,9 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
             };
             // Precede log entry sort key with "0:file:" so that file entries come before dir entries for
             // ClasspathElementDir classpath elements
-            resource.scanLog = log.log("0:" + path,
-                    logStr + path + (path.equals(resource.getPathRelativeToClasspathElement()) ? ""
-                            : " ; full path: " + resource.getPathRelativeToClasspathElement()));
+            final var pathRelativeToContainer = resource.getPathRelativeToContainer();
+            resource.scanLog = log.log("0:" + path, logStr + path
+                    + (path.equals(pathRelativeToContainer) ? "" : " ; full path: " + pathRelativeToContainer));
         }
     }
 

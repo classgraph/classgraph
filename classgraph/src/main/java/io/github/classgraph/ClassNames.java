@@ -84,6 +84,48 @@ final class ClassNames {
     }
 
     /**
+     * Check whether the directories that a classfile is stored in can be the packages that declare the class.
+     *
+     * <p>
+     * The path of a classfile has to be the name of the class it declares, in path form, so every directory of that
+     * path has to be a valid package name segment: a Java identifier. A classfile stored beneath a directory that
+     * is not one cannot be loaded from where it is stored, whatever it holds, so it is not scanned as a classfile.
+     * It is still listed as a resource, since it is still a file of the classpath element.
+     *
+     * <p>
+     * This is what keeps the versioned copies of a multi-release jarfile from being scanned when
+     * {@code disableMultiReleaseVersions()} reports each of them under the {@code "META-INF/versions/<N>/"} path it
+     * is stored under: neither {@code "META-INF"} (a hyphen is not a Java identifier character) nor {@code "<N>"}
+     * (a Java identifier cannot start with a digit) can be a package name segment, which is exactly why the JVM
+     * itself ignores those paths when it is not resolving multi-release versions.
+     *
+     * @param classfilePath
+     *            the path of a classfile, with {@code '/'} as the separator.
+     * @return true if every directory of the path can be a package name segment.
+     */
+    static boolean classfilePathHasValidPackage(final String classfilePath) {
+        final var lastSlashIdx = classfilePath.lastIndexOf('/');
+        var segStart = 0;
+        while (segStart < lastSlashIdx) {
+            final var segEnd = classfilePath.indexOf('/', segStart);
+            if (segEnd == segStart) {
+                // An empty directory name is not a package name segment
+                return false;
+            }
+            for (var i = segStart; i < segEnd;) {
+                final var codePoint = classfilePath.codePointAt(i);
+                if (!(i == segStart ? Character.isJavaIdentifierStart(codePoint)
+                        : Character.isJavaIdentifierPart(codePoint))) {
+                    return false;
+                }
+                i += Character.charCount(codePoint);
+            }
+            segStart = segEnd + 1;
+        }
+        return true;
+    }
+
+    /**
      * Lower-case the {@code ".class"} extension of the path of a classfile.
      *
      * <p>

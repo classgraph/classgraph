@@ -65,7 +65,7 @@ public class ResourceTest {
             final var resource = resource(scanResult, TEXT_FILE);
             assertThat(resource.getPath()).isEqualTo(TEXT_FILE);
             // Only jars have a package root, so the two paths are the same for a directory
-            assertThat(resource.getPathRelativeToClasspathElement()).isEqualTo(TEXT_FILE);
+            assertThat(resource.getPathRelativeToContainer()).isEqualTo(TEXT_FILE);
             assertThat(resource.loadAsString()).isEqualTo(TEXT_FILE_CONTENT);
             assertThat(resource.getLength()).isEqualTo(TEXT_FILE_CONTENT.length());
             assertThat(resource.getLastModifiedMillis()).isPositive();
@@ -463,7 +463,8 @@ public class ResourceTest {
                 .enableClasspathEntries(jarURL + "!/BOOT-INF/classes").scan()) {
             final var resource = resource(scanResult, "hello/HelloController.class");
             assertThat(resource.getPath()).isEqualTo("hello/HelloController.class");
-            assertThat(resource.getPathRelativeToClasspathElement()).isEqualTo("hello/HelloController.class");
+            assertThat(resource.getPathRelativeToContainer())
+                    .isEqualTo("BOOT-INF/classes/hello/HelloController.class");
             // The URI is formed from the classpath element URI, the "!/" separator, and the path within the jar
             assertThat(resource.getURI().toString()).startsWith("jar:file:")
                     .endsWith(JAR_NAME + "!/BOOT-INF/classes/hello/HelloController.class");

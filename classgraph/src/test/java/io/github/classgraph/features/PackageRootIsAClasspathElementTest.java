@@ -264,10 +264,9 @@ public class PackageRootIsAClasspathElementTest {
     }
 
     /**
-     * A resource that lies beneath both a multi-release version prefix and a package root reports all three of its
-     * paths. The version prefix is stored outside the package root -- a versioned copy of a package root is a copy
-     * of that whole subtree of the jarfile -- so it is not part of the path relative to the classpath element,
-     * which is the package root; only the path relative to the container reports it.
+     * A resource that lies beneath both a multi-release version prefix and a package root reports both of its
+     * paths: the logical path has both prefixes resolved away, and the path relative to the container is the name
+     * the entry is stored under, keeping both prefixes.
      *
      * @param rawTempDir
      *            a temporary directory to build the jarfile in.
@@ -275,7 +274,7 @@ public class PackageRootIsAClasspathElementTest {
      *             if the jarfile could not be written, or the classloader could not be closed.
      */
     @Test
-    public void aVersionedResourceBeneathAPackageRootReportsAllThreeOfItsPaths(@TempDir final Path rawTempDir)
+    public void aVersionedResourceBeneathAPackageRootReportsBothOfItsPaths(@TempDir final Path rawTempDir)
             throws IOException {
         final var thisVersion = Runtime.version().feature();
         final var versionPrefix = "META-INF/versions/" + thisVersion + "/";
@@ -298,7 +297,6 @@ public class PackageRootIsAClasspathElementTest {
             assertThat(resources).hasSize(1);
             final Resource resource = resources.get(0);
             assertThat(resource.getPath()).isEqualTo(CLASSFILE_PATH);
-            assertThat(resource.getPathRelativeToClasspathElement()).isEqualTo(CLASSFILE_PATH);
             assertThat(resource.getPathRelativeToContainer())
                     .isEqualTo(versionPrefix + PACKAGE_ROOT_PREFIX + CLASSFILE_PATH);
             assertThat(resource.getPackageRootPrefix()).isEqualTo(PACKAGE_ROOT_PREFIX);
@@ -358,9 +356,9 @@ public class PackageRootIsAClasspathElementTest {
         final var resources = scanResult.getAllResources();
         assertThat(resources.getPaths()).containsExactly(CLASSFILE_PATH);
         final Resource resource = resources.get(0);
-        assertThat(resource.getPathRelativeToClasspathElement()).isEqualTo(CLASSFILE_PATH);
+        assertThat(resource.getPathRelativeToContainer()).isEqualTo(packageRootPrefix + CLASSFILE_PATH);
         assertThat(resource.getClasspathElementURI().toString()).isEqualTo(packageRootURI);
-        // The package root prefix is the one prefix that is not part of the path relative to the classpath element,
+        // The package root prefix is the one prefix that is not part of the path relative to the package root,
         // since the package root is the classpath element, and it is what tells the two paths apart
         assertThat(resource.getPackageRootPrefix()).isEqualTo(packageRootPrefix);
         assertThat(resource.getPathRelativeToContainer()).isEqualTo(packageRootPrefix + CLASSFILE_PATH);

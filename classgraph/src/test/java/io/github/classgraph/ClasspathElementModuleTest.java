@@ -173,9 +173,9 @@ public class ClasspathElementModuleTest {
             final var resource = resource(scanResult, CLASSFILE_PATH);
             assertThat(resource.getLastModifiedMillis()).isZero();
             assertThat(resource.getPosixFilePermissions()).isNull();
-            // A resource in a module has no package root, so the two paths are the same
+            // A resource in a module has neither prefix, so the two paths are the same
             assertThat(resource.getPath()).isEqualTo(CLASSFILE_PATH);
-            assertThat(resource.getPathRelativeToClasspathElement()).isEqualTo(CLASSFILE_PATH);
+            assertThat(resource.getPathRelativeToContainer()).isEqualTo(CLASSFILE_PATH);
         }
     }
 

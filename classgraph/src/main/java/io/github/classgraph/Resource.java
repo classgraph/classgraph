@@ -312,18 +312,16 @@ public class Resource implements AutoCloseable, Comparable<Resource> {
      * </ul>
      *
      * <p>
-     * Each of the three paths names a real entry of the thing it is relative to:
-     * {@link #getPathRelativeToContainer()} is the name the entry is stored under, and the other two are that name
-     * with one or both prefixes taken off the front of it. The four rows below cover every combination of the two
-     * prefixes, for a jarfile scanned on JDK 11 or above:
+     * Both paths name a real entry of the thing they are relative to: {@link #getPathRelativeToContainer()} is the
+     * name the entry is stored under, and this is that name with both prefixes taken off the front of it. The four
+     * rows below cover every combination of the two prefixes, for a jarfile scanned on JDK 11 or above:
      *
      * <table>
-     * <caption>The three paths of a resource, for each combination of the two prefixes</caption>
+     * <caption>The two paths of a resource, for each combination of the two prefixes</caption>
      * <tr>
      * <th>Stored under</th>
      * <th>{@link #getPackageRootPrefix()}</th>
      * <th>{@link #getPath()}</th>
-     * <th>{@link #getPathRelativeToClasspathElement()}</th>
      * <th>{@link #getPathRelativeToContainer()}</th>
      * </tr>
      * <tr>
@@ -331,37 +329,26 @@ public class Resource implements AutoCloseable, Comparable<Resource> {
      * <td>{@code ""}</td>
      * <td>{@code "com/xyz/Widget.class"}</td>
      * <td>{@code "com/xyz/Widget.class"}</td>
-     * <td>{@code "com/xyz/Widget.class"}</td>
      * </tr>
      * <tr>
      * <td>{@code "META-INF/versions/11/com/xyz/Widget.class"}</td>
      * <td>{@code ""}</td>
      * <td>{@code "com/xyz/Widget.class"}</td>
      * <td>{@code "META-INF/versions/11/com/xyz/Widget.class"}</td>
-     * <td>{@code "META-INF/versions/11/com/xyz/Widget.class"}</td>
      * </tr>
      * <tr>
      * <td>{@code "BOOT-INF/classes/com/xyz/Widget.class"}</td>
      * <td>{@code "BOOT-INF/classes/"}</td>
-     * <td>{@code "com/xyz/Widget.class"}</td>
      * <td>{@code "com/xyz/Widget.class"}</td>
      * <td>{@code "BOOT-INF/classes/com/xyz/Widget.class"}</td>
      * </tr>
      * <tr>
      * <td>{@code "META-INF/versions/11/BOOT-INF/classes/com/xyz/Widget.class"}</td>
      * <td>{@code "BOOT-INF/classes/"}</td>
-     * <td>{@code "com/xyz/Widget.class"}</td>
      * <td>{@code "com/xyz/Widget.class"}</td>
      * <td>{@code "META-INF/versions/11/BOOT-INF/classes/com/xyz/Widget.class"}</td>
      * </tr>
      * </table>
-     *
-     * <p>
-     * A version prefix is stored outside the package root, since a versioned copy of a package root is a whole copy
-     * of that subtree of the jarfile. So the version prefix survives into
-     * {@link #getPathRelativeToClasspathElement()} only when the classpath element is not a package root: where it
-     * is one, the version prefix is not within the classpath element at all, and only
-     * {@link #getPathRelativeToContainer()} reports it.
      *
      * @return the path of this resource relative to the package root, with any multi-release version prefix
      *         resolved away.
@@ -371,34 +358,10 @@ public class Resource implements AutoCloseable, Comparable<Resource> {
     }
 
     /**
-     * Get the <i>physical</i> path of this resource within its classpath element: where the resource is stored,
-     * rather than the name it is addressed by. This is {@link #getPathRelativeToContainer()} with the package root
-     * prefix, and anything to the left of it, taken off the front.
-     *
-     * <p>
-     * It therefore differs from {@link #getPath()} in one case only: a versioned entry of a multi-release jarfile
-     * whose classpath element is not a package root, where it keeps the {@code "META-INF/versions/<version>/"}
-     * prefix that {@link #getPath()} resolves away. Where the classpath element <i>is</i> a package root, the
-     * version prefix lies outside the classpath element -- a versioned copy of a package root is stored as a copy
-     * of that whole subtree, under {@code "META-INF/versions/<version>/"} -- so it is no more part of this path
-     * than the package root prefix is, and only {@link #getPathRelativeToContainer()} reports it. See
-     * {@link #getPath()} for a worked example of every combination.
-     *
-     * @return the path of this resource within the classpath element.
-     */
-    public String getPathRelativeToClasspathElement() {
-        // Nothing to the left of the package root is part of a path relative to the package root, and a version
-        // prefix is stored to the left of it, so a version prefix survives only when there is no package root
-        return classpathElement.packageRootPrefix.isEmpty() ? multiReleaseVersionPrefix() + path : path;
-    }
-
-    /**
      * Get the <i>physical</i> path of this resource within the jarfile or directory that contains it, which for a
      * classpath element that is a package root within a jarfile or directory is not the same thing as the classpath
      * element. This keeps both prefixes that {@link #getPath()} resolves away, so it is exactly the name the entry
-     * is stored under, and taking {@link #getPackageRootPrefix()} and anything to the left of it off the front of
-     * it gives {@link #getPathRelativeToClasspathElement()}. See {@link #getPath()} for a worked example of every
-     * combination of the two prefixes.
+     * is stored under. See {@link #getPath()} for a worked example of every combination of the two prefixes.
      *
      * @return the path of this resource within the jarfile or directory that contains it.
      */

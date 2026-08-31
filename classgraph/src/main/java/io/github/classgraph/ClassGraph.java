@@ -246,9 +246,7 @@ public class ClassGraph {
     }
 
     /**
-     * Enables the scanning of classfiles, producing {@link ClassInfo} objects in the {@link ScanResult}. Implicitly
-     * undoes {@link #disableMultiReleaseVersions()}, since a classfile can only be parsed if just one version of it
-     * is served.
+     * Enables the scanning of classfiles, producing {@link ClassInfo} objects in the {@link ScanResult}.
      *
      * <p>
      * This says what is recorded about the classfiles that are scanned; it does not enable a source of classfiles.
@@ -259,7 +257,6 @@ public class ClassGraph {
      */
     public ClassGraph enableClassInfo() {
         scanSpec.enableClassInfo = true;
-        scanSpec.vfsSpec.enableMultiReleaseVersions();
         return this;
     }
 
@@ -1425,47 +1422,25 @@ public class ClassGraph {
     }
 
     /**
-     * Honor the multi-release versioning of a jarfile, so that a resource stored under
-     * {@code META-INF/versions/<N>/} is served in the highest version {@code N} that does not exceed the major
-     * version of the running JVM, masking the base entry of the same name. This is the default.
-     *
-     * <p>
-     * This undoes a previous call to {@link #disableMultiReleaseVersions()}, but does not re-enable the features
-     * that call disabled.
-     *
-     * @return this (for method chaining).
-     */
-    public ClassGraph enableMultiReleaseVersions() {
-        scanSpec.vfsSpec.enableMultiReleaseVersions();
-        return this;
-    }
-
-    /**
      * Do not honor the multi-release versioning of a jarfile: report every version of a multi-release resource
      * under the literal {@code META-INF/versions/<N>/} path it is stored under, rather than serving just the one
-     * version the running JVM would use. Implicitly disables {@link #enableClassInfo()} and all features depending
-     * on it, since the class graph cannot hold several versions of the same class, and a classfile reported under a
-     * versioned path is at a path that does not correspond to its package.
+     * version the running JVM would use, which is the default.
+     *
+     * <p>
+     * This shows a caller what a jarfile holds, rather than what the JVM would load out of it, so it is what a tool
+     * that inspects or repackages jarfiles wants. Anything that wants the classes and resources an application
+     * would actually run should leave multi-release versioning enabled.
+     *
+     * <p>
+     * Classfile scanning still works, and reports the same classes that a JVM too old to know about multi-release
+     * jarfiles would load: the versioned copies are stored beneath {@code META-INF/versions/<N>/}, and neither
+     * {@code META-INF} nor {@code <N>} can be a package name, so a classfile stored beneath one of them is not at a
+     * path any class could be loaded from, and is listed as a resource without being scanned as a classfile.
      *
      * @return this (for method chaining).
      */
     public ClassGraph disableMultiReleaseVersions() {
         scanSpec.vfsSpec.disableMultiReleaseVersions();
-
-        scanSpec.enableClassInfo = false;
-        scanSpec.ignoreClassVisibility = false;
-        scanSpec.enableMethodInfo = false;
-        scanSpec.ignoreMethodVisibility = false;
-        scanSpec.enableFieldInfo = false;
-        scanSpec.ignoreFieldVisibility = false;
-        scanSpec.enableStaticFinalFieldConstantInitializerValues = false;
-        scanSpec.enableAnnotationInfo = false;
-        scanSpec.enableInterClassDependencies = false;
-        // N.B. disableRuntimeInvisibleAnnotations is deliberately not set here -- it is only read when
-        // enableAnnotationInfo is true, which this method has just disabled, so setting it would have no effect
-        // on this scan, but would remain set if the caller subsequently re-enabled annotation info
-        scanSpec.enableExternalClasses = false;
-        scanSpec.classpathSpec.enableSystemJars = false;
         return this;
     }
 

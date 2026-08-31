@@ -73,6 +73,32 @@ public class ClassNamesTest {
                 .hasMessage("Not the path of a classfile: java/lang/.class");
     }
 
+    /**
+     * The directories a classfile is stored in have to be able to be the packages that declare the class, so each
+     * of them has to be a Java identifier.
+     */
+    @Test
+    public void theDirectoriesOfAClassfilePathHaveToBeAbleToBePackageNames() {
+        assertThat(ClassNames.classfilePathHasValidPackage("com/xyz/Widget.class")).isTrue();
+        // A classfile in the unnamed package has no directories to check
+        assertThat(ClassNames.classfilePathHasValidPackage("Widget.class")).isTrue();
+        // Only the directories are checked, not the name of the classfile itself, which is checked against the
+        // class name that the classfile declares
+        assertThat(ClassNames.classfilePathHasValidPackage("com/xyz/Widget-2.class")).isTrue();
+        // '$' and '_' are Java identifier characters, and a digit is legal after the first character
+        assertThat(ClassNames.classfilePathHasValidPackage("com/xyz$1/_pkg2/Widget.class")).isTrue();
+
+        // The versioned copies of a multi-release jarfile are stored where no class could be loaded from: a hyphen
+        // is not a Java identifier character, and a Java identifier cannot start with a digit
+        assertThat(ClassNames.classfilePathHasValidPackage("META-INF/versions/9/mrj/Cls.class")).isFalse();
+        assertThat(ClassNames.classfilePathHasValidPackage("versions/9/mrj/Cls.class")).isFalse();
+        assertThat(ClassNames.classfilePathHasValidPackage("com/x-yz/Widget.class")).isFalse();
+
+        // An empty directory name is not a package name segment
+        assertThat(ClassNames.classfilePathHasValidPackage("com//xyz/Widget.class")).isFalse();
+        assertThat(ClassNames.classfilePathHasValidPackage("/com/xyz/Widget.class")).isFalse();
+    }
+
     /** A package name converts to the path of the directory that holds its classes. */
     @Test
     public void aPackageNameConvertsToThePathOfItsDirectory() {

@@ -145,15 +145,15 @@ public class ResourceList extends UnmodifiableList<Resource> implements AutoClos
     }
 
     /**
-     * Get the paths of all resources in this list relative to the root of the classpath element.
+     * Get the paths of all resources in this list relative to the jarfile or directory that contains them.
      *
-     * @return The paths of all resources in this list relative to the root of the classpath element, by calling
-     *         {@link Resource#getPathRelativeToClasspathElement()} for each item in the list.
+     * @return The paths of all resources in this list relative to the jarfile or directory that contains them, by
+     *         calling {@link Resource#getPathRelativeToContainer()} for each item in the list.
      */
-    public List<String> getPathsRelativeToClasspathElement() {
+    public List<String> getPathsRelativeToContainer() {
         final List<String> resourcePaths = new ArrayList<>(this.size());
         for (final Resource resource : this) {
-            resourcePaths.add(resource.getPathRelativeToClasspathElement());
+            resourcePaths.add(resource.getPathRelativeToContainer());
         }
         return Collections.unmodifiableList(resourcePaths);
     }
