@@ -299,8 +299,13 @@ public class NestedJarHandler {
                             // every jarfile would generally be more expensive than performing this linear
                             // search, and unless the classpath is enormous, the overall time performance
                             // will not tend towards O(N^2).
+                            // Match the unversioned name, since that is the name the entry is served
+                            // under -- an entry stored only under "META-INF/versions/N/" is named without
+                            // that prefix once multi-release versions are resolved. The unversioned name is
+                            // the same as the stored name for an entry that is not versioned, and for every
+                            // entry when multi-release versions are not resolved.
                             for (final FastZipEntry entry : parentLogicalZipFile.entries) {
-                                if (entry.entryName.equals(childPath)) {
+                                if (entry.entryNameUnversioned.equals(childPath)) {
                                     childZipEntry = entry;
                                     break;
                                 }
@@ -312,7 +317,7 @@ public class NestedJarHandler {
                             // test to see if any entries in the zipfile have the child path as a dir prefix
                             final String childPathPrefix = childPath + "/";
                             for (final FastZipEntry entry : parentLogicalZipFile.entries) {
-                                if (entry.entryName.startsWith(childPathPrefix)) {
+                                if (entry.entryNameUnversioned.startsWith(childPathPrefix)) {
                                     isDirectory = true;
                                     break;
                                 }
