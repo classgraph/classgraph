@@ -48,17 +48,17 @@ public class MultiReleaseDirectoryTest {
      *            the directory classpath element to scan.
      * @param path
      *            the resource path to read.
-     * @param enableMultiReleaseVersions
-     *            whether to scan with {@link ClassGraph#enableMultiReleaseVersions()}.
+     * @param disableMultiReleaseVersions
+     *            whether to scan with {@link ClassGraph#disableMultiReleaseVersions()}.
      * @return the content of the resource, or null if there is no resource at that path.
      * @throws IOException
      *             if the resource could not be read.
      */
-    private static String readResource(final Path dir, final String path, final boolean enableMultiReleaseVersions)
+    private static String readResource(final Path dir, final String path, final boolean disableMultiReleaseVersions)
             throws IOException {
         final var classGraph = new ClassGraph().enableClasspathEntries(dir.toString());
-        if (enableMultiReleaseVersions) {
-            classGraph.enableMultiReleaseVersions();
+        if (disableMultiReleaseVersions) {
+            classGraph.disableMultiReleaseVersions();
         }
         try (var scanResult = classGraph.scan()) {
             final var resources = scanResult.getResourcesWithPath(path);
@@ -79,11 +79,11 @@ public class MultiReleaseDirectoryTest {
     }
 
     /**
-     * With {@link ClassGraph#enableMultiReleaseVersions()}, every version is reported under its own versioned path,
-     * exactly as for a jar.
+     * With {@link ClassGraph#disableMultiReleaseVersions()}, every version is reported under its own versioned
+     * path, exactly as for a jar.
      */
     @Test
-    void enableMultiReleaseVersionsReportsEveryVersion(@TempDir final Path tempDir) throws IOException {
+    void disableMultiReleaseVersionsReportsEveryVersion(@TempDir final Path tempDir) throws IOException {
         writeVersionedDir(tempDir);
         assertThat(readResource(tempDir, RESOURCE_PATH, true)).isEqualTo("base");
         assertThat(readResource(tempDir, VERSIONED_RESOURCE_PATH, true)).isEqualTo("9");

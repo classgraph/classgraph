@@ -347,33 +347,6 @@ class ClasspathElementZip extends ClasspathElement {
     }
 
     /**
-     * A {@link Resource} for an entry in a zipfile classpath element.
-     */
-    private final class ZipResource extends Resource {
-        /**
-         * Constructor.
-         *
-         * @param entry
-         *            the zip entry of the resource, as an entry in the virtual filesystem.
-         * @param pathRelativeToPackageRoot
-         *            the path of the resource, relative to the package root, i.e. with the package root prefix
-         *            and/or any Spring Boot prefix ({@code "BOOT-INF/classes/"} or {@code "WEB-INF/classes/"})
-         *            removed.
-         */
-        ZipResource(final VfsEntry entry, final String pathRelativeToPackageRoot) {
-            super(ClasspathElementZip.this, entry, pathRelativeToPackageRoot);
-        }
-
-        @Override
-        public String getPathRelativeToClasspathElement() {
-            // The name of the entry in the zipfile, which for an entry of a multi-release jar is the versioned name
-            final var entryName = getVfsEntry().getRawPathFromRoot();
-            return entryName.startsWith(packageRootPrefix) ? entryName.substring(packageRootPrefix.length())
-                    : entryName;
-        }
-    }
-
-    /**
      * Get the {@link Resource} for a given relative path.
      *
      * @param relativePath
@@ -551,7 +524,7 @@ class ClasspathElementZip extends ClasspathElement {
      */
     private void addZipEntryResource(final VfsEntry entry, final String relativePath,
             final ScanSpecPathMatch parentMatchStatus, final @Nullable LogNode log) {
-        final var resource = new ZipResource(entry, relativePath);
+        final var resource = new Resource(this, entry, relativePath);
         if (relativePathToResource.putIfAbsent(relativePath, resource) == null) {
             if (isAcceptedResourcePath(relativePath, parentMatchStatus)) {
                 // Resource is accepted

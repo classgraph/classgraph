@@ -68,7 +68,7 @@ public class FastZipEntryIdentityTest {
         return new FastZipEntry(parentLogicalZipFile, locHeaderPos, entryName, /* isDeflated = */ false,
                 /* compressedSize = */ 8L, /* uncompressedSize = */ 8L, /* lastModifiedTimeMillis = */ 0L,
                 /* lastModifiedTimeMSDOS = */ 0, /* lastModifiedDateMSDOS = */ 0, /* fileAttributes = */ 0,
-                /* enableMultiReleaseVersions = */ false);
+                /* multiReleaseVersionsEnabled = */ true);
     }
 
     /**

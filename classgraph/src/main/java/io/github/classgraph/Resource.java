@@ -58,10 +58,16 @@ import org.jspecify.annotations.Nullable;
  * <p>
  * A resource is read through the virtual filesystem, so that a file in a directory, an entry of a jarfile and a
  * resource in a module are all read the same way. Call {@link #getVfsEntry()} to reach the {@link VfsEntry} behind
- * the resource, which offers the rest of the {@link Vfs} API. Each kind of classpath element subclasses this only
- * to say how the resource is named or located within it, since that is all that differs between them.
+ * the resource, which offers the rest of the {@link Vfs} API. This is the one class for all three, since the
+ * virtual filesystem is what differs between them: a resource of a directory, of a jarfile and of a module are all
+ * named and located the same way once the entry behind the resource has been opened.
+ *
+ * <p>
+ * A resource has a path relative to each of the three things it can be relative to -- its package root, its
+ * classpath element and the jarfile or directory that contains it -- and {@link #getPath()} documents all three,
+ * with a worked example.
  */
-public abstract class Resource implements AutoCloseable, Comparable<Resource> {
+public class Resource implements AutoCloseable, Comparable<Resource> {
     /** The classpath element this resource was obtained from. */
     private final ClasspathElement classpathElement;
 
@@ -115,7 +121,7 @@ public abstract class Resource implements AutoCloseable, Comparable<Resource> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Check that this resource can be opened, and mark it as open. Called by the subclass methods that open the
+     * Check that this resource can be opened, and mark it as open. Called by each of the methods that open the
      * resource.
      *
      * @throws IllegalStateException
@@ -140,8 +146,8 @@ public abstract class Resource implements AutoCloseable, Comparable<Resource> {
     }
 
     /**
-     * Mark this resource as closed. Called by the subclass implementations of {@link #close()}, to guard against
-     * releasing the same resources twice.
+     * Mark this resource as closed. Called by {@link #close()}, to guard against releasing the same resources
+     * twice.
      *
      * @return true if this resource was open, and has now been marked as closed; false if it was already closed.
      */
@@ -290,32 +296,114 @@ public abstract class Resource implements AutoCloseable, Comparable<Resource> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get the path of this classpath resource relative to the package root.
+     * Get the <i>logical</i> path of this resource: the name it is addressed by, relative to the package root, with
+     * any multi-release version prefix resolved away. This is the path that corresponds to the resource's package,
+     * so it is the path to match against, and the one to pass to {@link ClassLoader#getResource(String)}.
      *
-     * @return the path of this classpath resource relative to the package root. For example, for a resource path of
-     *         {@code "BOOT-INF/classes/com/xyz/resource.xml"} and a package root of {@code "BOOT-INF/classes/"},
-     *         returns {@code "com/xyz/resource.xml"}. Also drops version prefixes for multi-version jars, for
-     *         example for a resource path of {@code "META-INF/versions/11/com/xyz/resource.xml"}, returns
-     *         {@code "com/xyz/resource.xml"}.
+     * <p>
+     * Two prefixes are absent from this path, because neither is part of the name a resource is addressed by:
+     *
+     * <ul>
+     * <li>the <b>package root prefix</b>, e.g. {@code "BOOT-INF/classes/"} in a Spring Boot jar or
+     * {@code "WEB-INF/classes/"} in a war -- a package root is a classpath element in its own right, and
+     * {@link #getClasspathElementURI()} names it, so a resource beneath one is addressed relative to it;
+     * <li>the <b>multi-release version prefix</b>, e.g. {@code "META-INF/versions/11/"} -- the versioned copy of an
+     * entry is a copy of the entry at the unversioned path, and is addressed by that path.
+     * </ul>
+     *
+     * <p>
+     * The three paths of a resource stored at {@code "META-INF/versions/11/BOOT-INF/classes/com/xyz/Widget.class"}
+     * in a jarfile whose package root is {@code "BOOT-INF/classes/"} are therefore:
+     *
+     * <table>
+     * <caption>The path of a resource, relative to each of the three things it can be relative to</caption>
+     * <tr>
+     * <th>Method</th>
+     * <th>Path</th>
+     * </tr>
+     * <tr>
+     * <td>{@link #getPath()}</td>
+     * <td>{@code "com/xyz/Widget.class"}</td>
+     * </tr>
+     * <tr>
+     * <td>{@link #getPathRelativeToClasspathElement()}</td>
+     * <td>{@code "META-INF/versions/11/com/xyz/Widget.class"}</td>
+     * </tr>
+     * <tr>
+     * <td>{@link #getPathRelativeToContainer()}</td>
+     * <td>{@code "META-INF/versions/11/BOOT-INF/classes/com/xyz/Widget.class"}</td>
+     * </tr>
+     * </table>
+     *
+     * @return the path of this resource relative to the package root, with any multi-release version prefix
+     *         resolved away.
      */
     public String getPath() {
         return path;
     }
 
     /**
-     * Get the full path of this classpath resource relative to the root of the classpath element.
+     * Get the <i>physical</i> path of this resource within its classpath element: where the resource is stored,
+     * rather than the name it is addressed by. This differs from {@link #getPath()} only for a versioned entry of a
+     * multi-release jarfile, where it keeps the {@code "META-INF/versions/<version>/"} prefix that
+     * {@link #getPath()} resolves away.
      *
      * <p>
-     * This differs from {@link #getPath()} only for an entry of a multi-release jar, where it returns the versioned
-     * path the entry is stored under, e.g. {@code "META-INF/versions/11/com/xyz/resource.xml"} rather than
-     * {@code "com/xyz/resource.xml"}. A package root such as {@code "BOOT-INF/classes/"} is a classpath element in
-     * its own right, so a resource beneath one is addressed relative to it by both methods.
+     * A package root is a classpath element in its own right, so this path does not include the package root
+     * prefix. Use {@link #getPathRelativeToContainer()} for the path that does. See {@link #getPath()} for a worked
+     * example of all three paths.
      *
-     * @return the full path of this classpath resource within the classpath element.
+     * @return the path of this resource within the classpath element.
      */
     public String getPathRelativeToClasspathElement() {
-        // Only overridden for jars, to name a multi-release entry by the versioned path it is stored under
-        return getPath();
+        return multiReleaseVersionPrefix() + path;
+    }
+
+    /**
+     * Get the <i>physical</i> path of this resource within the jarfile or directory that contains it, which for a
+     * classpath element that is a package root within a jarfile or directory is not the same thing as the classpath
+     * element. This keeps both prefixes that {@link #getPath()} resolves away, so it names where the resource is
+     * stored within the container, and {@link #getPackageRootPrefix()} can be subtracted from it to recover
+     * {@link #getPathRelativeToClasspathElement()}. See {@link #getPath()} for a worked example of all three paths.
+     *
+     * @return the path of this resource within the jarfile or directory that contains it.
+     */
+    public String getPathRelativeToContainer() {
+        return multiReleaseVersionPrefix() + classpathElement.packageRootPrefix + path;
+    }
+
+    /**
+     * Get the package root prefix of this resource's classpath element: the directory within the containing jarfile
+     * or directory that the classpath element starts at, ending in {@code '/'}, e.g. {@code "BOOT-INF/classes/"}
+     * for a Spring Boot jar or {@code "WEB-INF/classes/"} for a war. Most classpath elements are not package roots,
+     * and for those this is the empty string.
+     *
+     * @return the package root prefix, ending in {@code '/'}, or the empty string if the classpath element is not a
+     *         package root.
+     */
+    public String getPackageRootPrefix() {
+        return classpathElement.packageRootPrefix;
+    }
+
+    /**
+     * The multi-release version prefix that {@link #getPath()} resolved away, e.g. {@code "META-INF/versions/11/"},
+     * or the empty string if this resource is not a versioned entry of a multi-release jarfile.
+     *
+     * <p>
+     * A versioned entry is stored under the version prefix, then the package root prefix, then the path relative to
+     * the package root -- the version prefix is outermost, since {@code "META-INF"} cannot itself be versioned. So
+     * the version prefix is what is left of the raw path once the other two are taken off the end of it. Only a
+     * jarfile has versioned entries: the JVM loads the base copy of a class from a directory even when a versioned
+     * copy sits alongside it, so the virtual filesystem reports a directory's raw path unchanged.
+     *
+     * @return the multi-release version prefix, ending in {@code '/'}, or the empty string if there is none.
+     */
+    private String multiReleaseVersionPrefix() {
+        final var rawPath = entry.getRawPathFromRoot();
+        final var unversionedPath = classpathElement.packageRootPrefix + path;
+        return rawPath.length() > unversionedPath.length() && rawPath.endsWith(unversionedPath)
+                ? rawPath.substring(0, rawPath.length() - unversionedPath.length())
+                : "";
     }
 
     // -------------------------------------------------------------------------------------------------------------

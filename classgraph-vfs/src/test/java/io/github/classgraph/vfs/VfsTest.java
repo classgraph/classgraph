@@ -1454,7 +1454,42 @@ public class VfsTest {
     }
 
     /**
-     * With multi-release versions enabled, every versioned copy of a resource is reported separately, under the
+     * Of the versioned copies of a resource that the running JVM could use, it is the newest that is served, not
+     * merely the first or the oldest, and a copy one version too new is not used.
+     *
+     * @param tempDir
+     *            a temporary directory to write the jarfile into.
+     * @throws IOException
+     *             if the jarfile could not be written or read.
+     */
+    @Test
+    public void theNewestUsableVersionOfAResourceIsTheOneServed(@TempDir final File tempDir) throws IOException {
+        final var thisVersion = Runtime.version().feature();
+        final var jarFile = new File(tempDir, "widget.jar");
+        try (var fileOut = new FileOutputStream(jarFile); var zipOut = new ZipOutputStream(fileOut)) {
+            zipOut.putNextEntry(new ZipEntry("META-INF/MANIFEST.MF"));
+            zipOut.write("Manifest-Version: 1.0\nMulti-Release: true\n\n".getBytes(StandardCharsets.UTF_8));
+            zipOut.closeEntry();
+            // Written oldest-first, so that "the first one found" would give the wrong answer
+            for (final var version : new int[] { 9, thisVersion, thisVersion + 1 }) {
+                zipOut.putNextEntry(new ZipEntry("META-INF/versions/" + version + "/com/xyz/widget.txt"));
+                zipOut.write(("version " + version).getBytes(StandardCharsets.UTF_8));
+                zipOut.closeEntry();
+            }
+        }
+
+        try (var vfs = new Vfs()) {
+            final var root = vfs.open(jarFile.getPath());
+            assertThat(entryContent(root, "com/xyz/widget.txt")).isEqualTo("version " + thisVersion);
+            // The copy one version too new stays under its versioned path, where it masks nothing
+            assertThat(root.getEntries()).extracting(VfsEntry::getPathFromRoot).containsExactlyInAnyOrder(
+                    "META-INF/MANIFEST.MF", "com/xyz/widget.txt",
+                    "META-INF/versions/" + (thisVersion + 1) + "/com/xyz/widget.txt");
+        }
+    }
+
+    /**
+     * With multi-release versions disabled, every versioned copy of a resource is reported separately, under the
      * path it has in the jarfile, so that a caller can see all of them rather than the one the JVM would use.
      *
      * @param tempDir
@@ -1463,12 +1498,12 @@ public class VfsTest {
      *             if the jarfile could not be written or read.
      */
     @Test
-    public void everyVersionOfAResourceIsVisibleIfMultiReleaseVersionsAreEnabled(@TempDir final File tempDir)
+    public void everyVersionOfAResourceIsVisibleIfMultiReleaseVersionsAreDisabled(@TempDir final File tempDir)
             throws IOException {
         final var jarFile = new File(tempDir, "widget.jar");
         writeMultiReleaseJar(jarFile, "com/xyz/widget.txt");
 
-        try (var vfs = new Vfs(new VfsSpec().enableMultiReleaseVersions())) {
+        try (var vfs = new Vfs(new VfsSpec().disableMultiReleaseVersions())) {
             final var root = vfs.open(jarFile.getPath());
             assertThat(root.getEntries()).extracting(VfsEntry::getPathFromRoot).containsExactlyInAnyOrder(
                     "META-INF/MANIFEST.MF", "com/xyz/widget.txt", "META-INF/versions/9/com/xyz/widget.txt",

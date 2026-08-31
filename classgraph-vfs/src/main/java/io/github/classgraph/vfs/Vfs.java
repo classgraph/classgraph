@@ -139,7 +139,7 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      * volatile field.
      *
      * <pre>
-     * try (Vfs vfs = new Vfs(new VfsSpec().enableMultiReleaseVersions().setMaxBufferedJarRAMSize(65536))) {
+     * try (Vfs vfs = new Vfs(new VfsSpec().disableMultiReleaseVersions().setMaxBufferedJarRAMSize(65536))) {
      *     // ...
      * }
      * </pre>

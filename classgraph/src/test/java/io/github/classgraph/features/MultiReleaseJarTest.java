@@ -67,15 +67,15 @@ public class MultiReleaseJarTest {
     }
 
     /**
-     * Loading all versions of multi release class and text resources with `enableMultiReleaseVersions`.
+     * Loading all versions of multi release class and text resources with `disableMultiReleaseVersions`.
      *
      * @throws Exception
      *             the exception
      */
     @Test
-    public void enableMultiReleaseVersions() throws Exception {
+    public void disableMultiReleaseVersions() throws Exception {
         try (var classLoader = new URLClassLoader(new URL[] { jarURL });
-                var scanResult = new ClassGraph().enableClassLoaders(classLoader).enableMultiReleaseVersions()
+                var scanResult = new ClassGraph().enableClassLoaders(classLoader).disableMultiReleaseVersions()
                         .scan()) {
             final var java8ClassResource = scanResult.getResourcesWithPath("mrj/Cls.class");
             assertThat(java8ClassResource).hasSize(1);
@@ -95,16 +95,16 @@ public class MultiReleaseJarTest {
     }
 
     /**
-     * `enableMultiReleaseVersions` does not make sense with class info and should disable it.
+     * `disableMultiReleaseVersions` does not make sense with class info and should disable it.
      *
      * @throws Exception
      *             the exception
      */
     @Test
-    public void enableMultiReleaseVersionsWithClassInfo() throws Exception {
+    public void disableMultiReleaseVersionsWithClassInfo() throws Exception {
         try (var classLoader = new URLClassLoader(new URL[] { jarURL });
                 var scanResult = new ClassGraph().enableClassLoaders(classLoader).enableAllInfo()
-                        .enableMultiReleaseVersions().scan()) {
+                        .disableMultiReleaseVersions().scan()) {
             final var java8ClassResource = scanResult.getResourcesWithPath("mrj/Cls.class");
             assertThat(java8ClassResource).hasSize(1);
             assertThatThrownBy(() -> scanResult.getClassInfo("mrj.Cls"))
@@ -123,13 +123,13 @@ public class MultiReleaseJarTest {
     }
 
     /**
-     * `enableMultiReleaseVersions` and `enableAllInfo` cancel each other out, whichever order they are called in,
+     * `disableMultiReleaseVersions` and `enableAllInfo` cancel each other out, whichever order they are called in,
      * so calling `enableAllInfo` last must not leave runtime-invisible annotations hidden.
      */
     @Test
-    public void enableAllInfoAfterEnableMultiReleaseVersions() {
+    public void enableAllInfoAfterDisableMultiReleaseVersions() {
         try (var scanResult = new ClassGraph().enableClasspath()
-                .acceptPackages(MultiReleaseJarTest.class.getPackage().getName()).enableMultiReleaseVersions()
+                .acceptPackages(MultiReleaseJarTest.class.getPackage().getName()).disableMultiReleaseVersions()
                 .enableAllInfo().scan()) {
             assertThat(scanResult.getClassesWithAnnotation(ClassRetained.class).getNames())
                     .containsOnly(ClassRetainedAnnotated.class.getName());

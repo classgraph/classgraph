@@ -73,7 +73,7 @@ public class VfsSpecTest {
     @Test
     public void theSettingsAreDescribed() {
         assertThat(new VfsSpec().disableURLScheme("https").setMaxBufferedJarRAMSize(1024).toString()).contains(
-                "nestedJars: true", "multiReleaseVersions: false", "deniedURLSchemes: [https]",
+                "nestedJars: true", "multiReleaseVersions: true", "deniedURLSchemes: [https]",
                 "maxBufferedJarRAMSize: 1024");
     }
 }

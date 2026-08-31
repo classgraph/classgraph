@@ -79,8 +79,8 @@ public class LogicalZipFile extends ZipFileSlice {
     /** The main section of the manifest file, or null if the zipfile has no manifest file. */
     private @Nullable Map<String, String> manifest;
 
-    /** If true, multi-release versions should not be stripped in resource names. */
-    private final boolean enableMultiReleaseVersions;
+    /** If true, multi-release version prefixes are stripped from resource names, and mask the base entry. */
+    private final boolean multiReleaseVersionsEnabled;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -113,17 +113,17 @@ public class LogicalZipFile extends ZipFileSlice {
      *            the session that owns what is opened
      * @param log
      *            the log node, or null to skip logging
-     * @param enableMultiReleaseVersions
-     *            if true, multi-release versions should not be stripped from resource names
+     * @param multiReleaseVersionsEnabled
+     *            if true, multi-release version prefixes are stripped from resource names
      * @throws IOException
      *             If an I/O exception occurs.
      * @throws InterruptedException
      *             if the thread was interrupted.
      */
     LogicalZipFile(final ZipFileSlice zipFileSlice, final VfsSession session, final @Nullable LogNode log,
-            final boolean enableMultiReleaseVersions) throws IOException, InterruptedException {
+            final boolean multiReleaseVersionsEnabled) throws IOException, InterruptedException {
         super(zipFileSlice);
-        this.enableMultiReleaseVersions = enableMultiReleaseVersions;
+        this.multiReleaseVersionsEnabled = multiReleaseVersionsEnabled;
         readCentralDirectory(session, log);
     }
 
@@ -898,7 +898,7 @@ public class LogicalZipFile extends ZipFileSlice {
 
         return new FastZipEntry(this, locHeaderPos, entryFields.entryNameSanitized, isDeflated,
                 entryFields.compressedSize, entryFields.uncompressedSize, entryFields.lastModifiedMillis,
-                lastModifiedTimeMSDOS, lastModifiedDateMSDOS, fileAttributes, enableMultiReleaseVersions);
+                lastModifiedTimeMSDOS, lastModifiedDateMSDOS, fileAttributes, multiReleaseVersionsEnabled);
     }
 
     /**
@@ -1071,7 +1071,7 @@ public class LogicalZipFile extends ZipFileSlice {
             parseManifest(manifestZipEntry);
         }
 
-        if (isMultiReleaseJar) {
+        if (isMultiReleaseJar && multiReleaseVersionsEnabled) {
             maskMultiReleaseEntries(log);
         }
     }

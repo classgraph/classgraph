@@ -247,7 +247,8 @@ public class ClassGraph {
 
     /**
      * Enables the scanning of classfiles, producing {@link ClassInfo} objects in the {@link ScanResult}. Implicitly
-     * disables {@link #enableMultiReleaseVersions()}.
+     * undoes {@link #disableMultiReleaseVersions()}, since a classfile can only be parsed if just one version of it
+     * is served.
      *
      * <p>
      * This says what is recorded about the classfiles that are scanned; it does not enable a source of classfiles.
@@ -258,7 +259,7 @@ public class ClassGraph {
      */
     public ClassGraph enableClassInfo() {
         scanSpec.enableClassInfo = true;
-        scanSpec.vfsSpec.disableMultiReleaseVersions();
+        scanSpec.vfsSpec.enableMultiReleaseVersions();
         return this;
     }
 
@@ -1424,14 +1425,32 @@ public class ClassGraph {
     }
 
     /**
-     * If true, provide all versions of a multi-release resource using their multi-release path prefix, instead of
-     * just the one the running JVM would select. Implicitly disables {@link #enableClassInfo()} and all features
-     * depending on it.
+     * Honor the multi-release versioning of a jarfile, so that a resource stored under
+     * {@code META-INF/versions/<N>/} is served in the highest version {@code N} that does not exceed the major
+     * version of the running JVM, masking the base entry of the same name. This is the default.
+     *
+     * <p>
+     * This undoes a previous call to {@link #disableMultiReleaseVersions()}, but does not re-enable the features
+     * that call disabled.
      *
      * @return this (for method chaining).
      */
     public ClassGraph enableMultiReleaseVersions() {
         scanSpec.vfsSpec.enableMultiReleaseVersions();
+        return this;
+    }
+
+    /**
+     * Do not honor the multi-release versioning of a jarfile: report every version of a multi-release resource
+     * under the literal {@code META-INF/versions/<N>/} path it is stored under, rather than serving just the one
+     * version the running JVM would use. Implicitly disables {@link #enableClassInfo()} and all features depending
+     * on it, since the class graph cannot hold several versions of the same class, and a classfile reported under a
+     * versioned path is at a path that does not correspond to its package.
+     *
+     * @return this (for method chaining).
+     */
+    public ClassGraph disableMultiReleaseVersions() {
+        scanSpec.vfsSpec.disableMultiReleaseVersions();
 
         scanSpec.enableClassInfo = false;
         scanSpec.ignoreClassVisibility = false;

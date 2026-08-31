@@ -139,18 +139,14 @@ class ClasspathElementDir extends ClasspathElement {
     }
 
     /**
-     * A {@link Resource} for a file in a directory classpath element.
+     * Make a {@link Resource} for a file in this directory classpath element.
+     *
+     * @param entry
+     *            the file, as an entry in the virtual filesystem.
+     * @return the resource.
      */
-    private final class DirResource extends Resource {
-        /**
-         * Constructor.
-         *
-         * @param entry
-         *            the file, as an entry in the virtual filesystem.
-         */
-        DirResource(final VfsEntry entry) {
-            super(ClasspathElementDir.this, entry, stripLeadingSlashes(entry.getPathFromRoot()));
-        }
+    private Resource newResource(final VfsEntry entry) {
+        return new Resource(this, entry, stripLeadingSlashes(entry.getPathFromRoot()));
     }
 
     /**
@@ -182,7 +178,7 @@ class ClasspathElementDir extends ClasspathElement {
     Resource getResource(final String relativePath) {
         try {
             final var entry = vfs.open(classpathEltPath).getEntry(relativePath);
-            return entry == null ? null : new DirResource(entry);
+            return entry == null ? null : newResource(entry);
         } catch (final IOException | SecurityException e) {
             return null;
         }
@@ -209,7 +205,7 @@ class ClasspathElementDir extends ClasspathElement {
 
         // Skipping versioned sections in a directory classpath element is what makes a directory scan agree with
         // what the JVM would actually load, so no masking of versioned paths against base paths is needed (unlike
-        // in ClasspathElementZip). When enableMultiReleaseVersions() is set, every version is reported under its
+        // in ClasspathElementZip). When disableMultiReleaseVersions() is set, every version is reported under its
         // own versioned path, which recursing into these directories already does.
         if (isIgnoredVersionedPath(dirRelativePathStr)) {
             if (log != null) {
@@ -332,7 +328,7 @@ class ClasspathElementDir extends ClasspathElement {
                 // the module descriptor of the package root is always read, so that the module name is known even
                 // when the package root is not accepted
                 if (isPackageRootDir && scanSpec.enableClassInfo && "module-info.class".equals(entryName)) {
-                    addAcceptedResource(new DirResource(entry), parentMatchStatus, /* isClassfileOnly = */ true,
+                    addAcceptedResource(newResource(entry), parentMatchStatus, /* isClassfileOnly = */ true,
                             subLog);
                     recordLastModified(entry);
                 }
@@ -346,8 +342,7 @@ class ClasspathElementDir extends ClasspathElement {
                 return false;
             }
             if (isAcceptedResourcePath(entryName, parentMatchStatus)) {
-                addAcceptedResource(new DirResource(entry), parentMatchStatus, /* isClassfileOnly = */ false,
-                        subLog);
+                addAcceptedResource(newResource(entry), parentMatchStatus, /* isClassfileOnly = */ false, subLog);
                 recordLastModified(entry);
             } else if (subLog != null) {
                 subLog.log("Skipping non-accepted file: " + entryName);

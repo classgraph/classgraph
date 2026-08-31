@@ -50,7 +50,7 @@ import io.github.classgraph.vfs.internal.zip.LogicalZipFile;
  * call:
  *
  * <pre>
- * try (Vfs vfs = new Vfs(new VfsSpec().enableMultiReleaseVersions().setMaxBufferedJarRAMSize(65536))) {
+ * try (Vfs vfs = new Vfs(new VfsSpec().disableMultiReleaseVersions().setMaxBufferedJarRAMSize(65536))) {
  *     // ...
  * }
  * </pre>
@@ -65,7 +65,7 @@ public final class VfsSpec {
     public static final boolean DEFAULT_ENABLE_NESTED_JARS = true;
 
     /** The default value of {@link #isMultiReleaseVersionsEnabled()}. */
-    public static final boolean DEFAULT_ENABLE_MULTI_RELEASE_VERSIONS = false;
+    public static final boolean DEFAULT_ENABLE_MULTI_RELEASE_VERSIONS = true;
 
     /** The default value of {@link #getMaxBufferedJarRAMSize()}, in bytes. */
     public static final int DEFAULT_MAX_BUFFERED_JAR_RAM_SIZE = 64 * 1024 * 1024;
@@ -73,7 +73,7 @@ public final class VfsSpec {
     /** If true, open jarfiles nested within other jarfiles (jarfiles within jarfiles). */
     private volatile boolean nestedJarsEnabled = DEFAULT_ENABLE_NESTED_JARS;
 
-    /** If true, all multi-release versions of a resource are found. */
+    /** If true, multi-release versioning is honored, so that an entry is served in the version this JVM runs. */
     private volatile boolean multiReleaseVersionsEnabled = DEFAULT_ENABLE_MULTI_RELEASE_VERSIONS;
 
     /**
@@ -146,8 +146,9 @@ public final class VfsSpec {
     }
 
     /**
-     * Report every version of a multi-release jarfile's entries, under its {@code META-INF/versions/} path, rather
-     * than only the newest version of each entry that this JVM can run.
+     * Honor the multi-release versioning of a jarfile, as the JVM does: serve each entry that
+     * {@code "META-INF/versions/<version>/"} holds a versioned copy of in the newest version that is not newer than
+     * the running JVM, under the entry's unversioned path. This is the default.
      *
      * @return this (for method chaining).
      */
@@ -157,8 +158,14 @@ public final class VfsSpec {
     }
 
     /**
-     * Report only the newest version of each of a multi-release jarfile's entries that this JVM can run, rather
-     * than every version. This is the default.
+     * Do not honor the multi-release versioning of a jarfile: report every entry under the path it is stored under,
+     * so that the versioned copies of an entry are reported beneath {@code "META-INF/versions/"} rather than
+     * masking the entry they are copies of.
+     *
+     * <p>
+     * This shows a caller what a jarfile holds, rather than what the JVM would load out of it. Note that a
+     * versioned copy is then only reachable under a path that does not correspond to its package, e.g.
+     * {@code "META-INF/versions/11/com/xyz/Widget.class"} for a class in package {@code "com.xyz"}.
      *
      * @return this (for method chaining).
      */
@@ -168,9 +175,10 @@ public final class VfsSpec {
     }
 
     /**
-     * Whether every version of a multi-release jarfile's entries is reported.
+     * Whether the multi-release versioning of a jarfile is honored.
      *
-     * @return true if every version is reported, or false if only the newest version this JVM can run is reported.
+     * @return true if each entry is served in the newest version this JVM can run, or false if every entry is
+     *         reported under the path it is stored under.
      */
     public boolean isMultiReleaseVersionsEnabled() {
         return multiReleaseVersionsEnabled;
@@ -306,7 +314,7 @@ public final class VfsSpec {
      * @hidden
      */
     public boolean isIgnoredVersionedPath(final String relativePath) {
-        return !multiReleaseVersionsEnabled && relativePath.startsWith(LogicalZipFile.MULTI_RELEASE_PATH_PREFIX);
+        return multiReleaseVersionsEnabled && relativePath.startsWith(LogicalZipFile.MULTI_RELEASE_PATH_PREFIX);
     }
 
     /**

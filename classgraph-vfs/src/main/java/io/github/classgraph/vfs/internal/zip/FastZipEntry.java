@@ -129,15 +129,15 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
      * @param fileAttributes
      *            The high 16 bits of the external file attributes of the zip entry, which is the Unix mode of the
      *            entry if the zipfile was written on a Unix-like system, or 0 if it was not.
-     * @param enableMultiReleaseVersions
-     *            If true, leave multi-release entry names unchanged, so that every version of an entry is reported
-     *            separately; if false, strip any "META-INF/versions/{versionInt}/" prefix from the entry name, so
-     *            that the versioned entries can mask the entries they override.
+     * @param multiReleaseVersionsEnabled
+     *            If true, strip any "META-INF/versions/{versionInt}/" prefix from the entry name, so that the
+     *            versioned entries can mask the entries they override; if false, leave multi-release entry names
+     *            unchanged, so that every version of an entry is reported separately.
      */
     FastZipEntry(final LogicalZipFile parentLogicalZipFile, final long locHeaderPos, final String entryName,
             final boolean isDeflated, final long compressedSize, final long uncompressedSize,
             final long lastModifiedTimeMillis, final int lastModifiedTimeMSDOS, final int lastModifiedDateMSDOS,
-            final int fileAttributes, final boolean enableMultiReleaseVersions) {
+            final int fileAttributes, final boolean multiReleaseVersionsEnabled) {
         this.parentLogicalZipFile = parentLogicalZipFile;
         this.locHeaderPos = locHeaderPos;
         this.entryName = entryName;
@@ -185,7 +185,7 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
                 if (entryVersion < 9 || entryVersion > VersionFinder.JAVA_MAJOR_VERSION) {
                     entryVersion = 8;
                 }
-                if (!enableMultiReleaseVersions && entryVersion > 8) {
+                if (multiReleaseVersionsEnabled && entryVersion > 8) {
                     // Strip version path prefix
                     entryNameWithoutVersionPrefix = entryName.substring(nextSlashIdx + 1);
                     // For META-INF/versions/{versionInt}/META-INF/*, don't strip version prefix: "The intention is

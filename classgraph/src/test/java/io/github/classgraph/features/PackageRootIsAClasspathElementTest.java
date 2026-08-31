@@ -35,6 +35,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -159,14 +160,17 @@ public class PackageRootIsAClasspathElementTest {
         final var jarPackageRootURI = "jar:" + jar.toUri() + "!/WEB-INF/classes";
         try (var scanResult = new ClassGraph().enableClasspathEntries(List.of(jar + "!/WEB-INF/classes")).scan()) {
             assertThat(uriStrings(scanResult)).containsExactly(jarPackageRootURI);
-            assertPackageRootIsTheClasspathElement(scanResult, jarPackageRootURI);
+            assertPackageRootIsTheClasspathElement(scanResult, jarPackageRootURI, PACKAGE_ROOT_PREFIX);
         }
 
         final var dirPackageRootURI = dir.resolve(PACKAGE_ROOT_PREFIX).toUri().toString();
         try (var scanResult = new ClassGraph().enableClasspathEntries(List.of(dir.resolve(PACKAGE_ROOT_PREFIX)))
                 .scan()) {
             assertThat(uriStrings(scanResult)).containsExactly(dirPackageRootURI);
-            assertPackageRootIsTheClasspathElement(scanResult, dirPackageRootURI);
+            // A directory named directly on the classpath is the whole of the classpath element: nothing
+            // says that "WEB-INF/classes" is a package root within the directory above it rather than part of
+            // the directory's own name, so there is no container to report a path relative to
+            assertPackageRootIsTheClasspathElement(scanResult, dirPackageRootURI, "");
         }
     }
 
@@ -191,7 +195,7 @@ public class PackageRootIsAClasspathElementTest {
         final var packageRootURI = "jar:" + jar.toUri() + "!/WEB-INF/classes";
         try (var classLoader = new WebappClassLoader(jar.toUri().toURL()); var scanResult = scan(classLoader)) {
             assertThat(uriStrings(scanResult)).containsExactly(jar.toUri().toString(), packageRootURI);
-            assertPackageRootIsTheClasspathElement(scanResult, packageRootURI);
+            assertPackageRootIsTheClasspathElement(scanResult, packageRootURI, PACKAGE_ROOT_PREFIX);
         }
     }
 
@@ -214,7 +218,7 @@ public class PackageRootIsAClasspathElementTest {
         final var packageRootURI = dir.resolve(PACKAGE_ROOT_PREFIX).toUri().toString();
         try (var classLoader = new WebappClassLoader(dir.toUri().toURL()); var scanResult = scan(classLoader)) {
             assertThat(uriStrings(scanResult)).containsExactly(dir.toUri().toString(), packageRootURI);
-            assertPackageRootIsTheClasspathElement(scanResult, packageRootURI);
+            assertPackageRootIsTheClasspathElement(scanResult, packageRootURI, PACKAGE_ROOT_PREFIX);
         }
     }
 
@@ -256,6 +260,47 @@ public class PackageRootIsAClasspathElementTest {
         try (var classLoader = new WebappClassLoader(dir.toUri().toURL()); var scanResult = scan(classLoader)) {
             assertThat(uriStrings(scanResult)).containsExactly(dir.toUri().toString(),
                     dir.resolve(PACKAGE_ROOT_PREFIX).toUri().toString(), libJar.toUri().toString());
+        }
+    }
+
+    /**
+     * A resource that lies beneath both a multi-release version prefix and a package root reports all three of its
+     * paths: the logical path relative to the package root, the path relative to the classpath element, which keeps
+     * the version prefix, and the path relative to the container, which keeps both prefixes.
+     *
+     * @param rawTempDir
+     *            a temporary directory to build the jarfile in.
+     * @throws IOException
+     *             if the jarfile could not be written, or the classloader could not be closed.
+     */
+    @Test
+    public void aVersionedResourceBeneathAPackageRootReportsAllThreeOfItsPaths(@TempDir final Path rawTempDir)
+            throws IOException {
+        final var thisVersion = Runtime.version().feature();
+        final var versionPrefix = "META-INF/versions/" + thisVersion + "/";
+        final var tempDir = canonicalize(rawTempDir);
+        final var jar = tempDir.resolve("app.jar");
+        try (var zipOut = new ZipOutputStream(new FileOutputStream(jar.toFile()))) {
+            zipOut.putNextEntry(new ZipEntry("META-INF/MANIFEST.MF"));
+            zipOut.write("Manifest-Version: 1.0\nMulti-Release: true\n\n".getBytes(StandardCharsets.UTF_8));
+            zipOut.closeEntry();
+            for (final var prefix : new String[] { "", versionPrefix }) {
+                zipOut.putNextEntry(new ZipEntry(prefix + PACKAGE_ROOT_PREFIX + CLASSFILE_PATH));
+                zipOut.write(classfileContent());
+                zipOut.closeEntry();
+            }
+        }
+
+        try (var classLoader = new WebappClassLoader(jar.toUri().toURL()); var scanResult = scan(classLoader)) {
+            final var resources = scanResult.getAllResources().get(CLASSFILE_PATH);
+            // The versioned copy masks the base copy, so only one is reported, under the logical path
+            assertThat(resources).hasSize(1);
+            final Resource resource = resources.get(0);
+            assertThat(resource.getPath()).isEqualTo(CLASSFILE_PATH);
+            assertThat(resource.getPathRelativeToClasspathElement()).isEqualTo(versionPrefix + CLASSFILE_PATH);
+            assertThat(resource.getPathRelativeToContainer())
+                    .isEqualTo(versionPrefix + PACKAGE_ROOT_PREFIX + CLASSFILE_PATH);
+            assertThat(resource.getPackageRootPrefix()).isEqualTo(PACKAGE_ROOT_PREFIX);
         }
     }
 
@@ -303,14 +348,21 @@ public class PackageRootIsAClasspathElementTest {
      *            the scan result.
      * @param packageRootURI
      *            the URI of the package root.
+     * @param packageRootPrefix
+     *            the package root prefix the resource is expected to report, which is the empty string if the
+     *            classpath element was named as a directory rather than as a package root within a container.
      */
     private static void assertPackageRootIsTheClasspathElement(final ScanResult scanResult,
-            final String packageRootURI) {
+            final String packageRootURI, final String packageRootPrefix) {
         final var resources = scanResult.getAllResources();
         assertThat(resources.getPaths()).containsExactly(CLASSFILE_PATH);
         final Resource resource = resources.get(0);
         assertThat(resource.getPathRelativeToClasspathElement()).isEqualTo(CLASSFILE_PATH);
         assertThat(resource.getClasspathElementURI().toString()).isEqualTo(packageRootURI);
+        // The package root prefix is the one prefix that is not part of the path relative to the classpath element,
+        // since the package root is the classpath element, and it is what tells the two paths apart
+        assertThat(resource.getPackageRootPrefix()).isEqualTo(packageRootPrefix);
+        assertThat(resource.getPathRelativeToContainer()).isEqualTo(packageRootPrefix + CLASSFILE_PATH);
     }
 
     /** A stand-in for a servlet container's classloader, which serves a whole war as one classpath element. */

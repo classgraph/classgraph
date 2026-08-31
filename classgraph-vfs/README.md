@@ -234,7 +234,7 @@ new Vfs(new VfsSpec().disableURLScheme("https").setMaxBufferedJarRAMSize(65536))
 | Setting | Default | Effect |
 | --- | --- | --- |
 | `enableNestedJars()` / `disableNestedJars()` | enabled | Whether `!/` in a path may name a jarfile within a jarfile, rather than only a package root within a jarfile |
-| `enableMultiReleaseVersions()` / `disableMultiReleaseVersions()` | disabled | Whether to report every version of a multi-release jarfile's entries, rather than only the newest version this JVM can run |
+| `enableMultiReleaseVersions()` / `disableMultiReleaseVersions()` | enabled | Whether to serve each entry of a multi-release jarfile in the highest version that does not exceed this JVM's major version, as the JVM does, rather than reporting every version under its own `META-INF/versions/<N>/` path |
 | `disableURLScheme(String)` / `enableURLScheme(String)` | none denied | A URL scheme a jarfile may **not** be opened from, e.g. `"https"`. Every scheme the JVM has a handler for is allowed until it is denied. Denying `file:` or `jar:` has no effect, since both prefixes are stripped before a path is opened. Call once per scheme |
 | `setMaxBufferedJarRAMSize(int)` | 64MB | How many bytes of a jarfile may be held in RAM before it is spilled to a temporary file |
 

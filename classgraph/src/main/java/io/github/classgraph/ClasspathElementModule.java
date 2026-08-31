@@ -127,10 +127,7 @@ class ClasspathElementModule extends ClasspathElement {
      * @return the resource
      */
     private Resource newResource(final VfsEntry entry) {
-        // A module resource is a Resource and nothing more -- the subclass is anonymous because Resource is
-        // abstract only to stop callers constructing one, not because there is anything left to implement
-        return new Resource(this, entry, entry.getPathFromRoot()) {
-        };
+        return new Resource(this, entry, entry.getPathFromRoot());
     }
 
     /**
