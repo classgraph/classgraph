@@ -109,6 +109,21 @@ public class PackageRootIsAClasspathElementTest {
     }
 
     /**
+     * Resolve a temporary directory to its canonical form, since ClassGraph reports the canonical path of a
+     * classpath element -- on Windows a temporary directory is named by its 8.3 short name ("RUNNER~1" rather than
+     * "runneradmin"), and on macOS it lies below the "/var" symlink to "/private/var".
+     *
+     * @param dir
+     *            the directory.
+     * @return the canonical form of the directory.
+     * @throws IOException
+     *             if the directory could not be resolved.
+     */
+    private static Path canonicalize(final Path dir) throws IOException {
+        return dir.toRealPath();
+    }
+
+    /**
      * Read {@link Widget}'s classfile from the test classpath.
      *
      * @return the content of the classfile.
@@ -127,14 +142,15 @@ public class PackageRootIsAClasspathElementTest {
      * A package root named as part of a classpath entry is the classpath element, for a jarfile and for a directory
      * alike.
      *
-     * @param tempDir
+     * @param rawTempDir
      *            a temporary directory to build the jarfile and the exploded copy in.
      * @throws IOException
      *             if the jarfile or the exploded copy could not be written.
      */
     @Test
-    public void aPackageRootNamedOnTheClasspathIsTheClasspathElement(@TempDir final Path tempDir)
+    public void aPackageRootNamedOnTheClasspathIsTheClasspathElement(@TempDir final Path rawTempDir)
             throws IOException {
+        final var tempDir = canonicalize(rawTempDir);
         final var jar = tempDir.resolve("app.jar");
         writeJar(jar);
         final var dir = tempDir.resolve("app");
@@ -160,14 +176,15 @@ public class PackageRootIsAClasspathElementTest {
      * found within stays on the classpath, since a classloader that looks in a package root also loads the classes
      * stored outside it.
      *
-     * @param tempDir
+     * @param rawTempDir
      *            a temporary directory to build the jarfile in.
      * @throws IOException
      *             if the jarfile could not be written, or the classloader could not be closed.
      */
     @Test
-    public void aPackageRootFoundAutomaticallyInAJarIsAlsoTheClasspathElement(@TempDir final Path tempDir)
+    public void aPackageRootFoundAutomaticallyInAJarIsAlsoTheClasspathElement(@TempDir final Path rawTempDir)
             throws IOException {
+        final var tempDir = canonicalize(rawTempDir);
         final var jar = tempDir.resolve("app.jar");
         writeJar(jar);
 
@@ -182,14 +199,15 @@ public class PackageRootIsAClasspathElementTest {
      * The same package root, found automatically within a directory that the jarfile was exploded into, is likewise
      * the classpath element.
      *
-     * @param tempDir
+     * @param rawTempDir
      *            a temporary directory to build the exploded copy in.
      * @throws IOException
      *             if the exploded copy could not be written, or the classloader could not be closed.
      */
     @Test
-    public void aPackageRootFoundAutomaticallyInAnExplodedJarIsAlsoTheClasspathElement(@TempDir final Path tempDir)
-            throws IOException {
+    public void aPackageRootFoundAutomaticallyInAnExplodedJarIsAlsoTheClasspathElement(
+            @TempDir final Path rawTempDir) throws IOException {
+        final var tempDir = canonicalize(rawTempDir);
         final var dir = tempDir.resolve("app");
         explodeJar(dir);
 
@@ -206,13 +224,14 @@ public class PackageRootIsAClasspathElementTest {
      * class in the webapp's own classes masks a copy of it in a bundled dependency, which is what lets a webapp
      * override a class of a library it bundles.
      *
-     * @param tempDir
+     * @param rawTempDir
      *            a temporary directory to build the war and the exploded copy in.
      * @throws IOException
      *             if the war or the exploded copy could not be written, or a classloader could not be closed.
      */
     @Test
-    public void thePackageRootComesBeforeTheLibDirJars(@TempDir final Path tempDir) throws IOException {
+    public void thePackageRootComesBeforeTheLibDirJars(@TempDir final Path rawTempDir) throws IOException {
+        final var tempDir = canonicalize(rawTempDir);
         final var war = tempDir.resolve("app.war");
         try (var zipOut = new ZipOutputStream(new FileOutputStream(war.toFile()))) {
             // The lib jar is written first, so that the order of the classpath cannot come from the order of the
