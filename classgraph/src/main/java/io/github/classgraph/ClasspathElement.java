@@ -744,7 +744,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      */
     // N.B. this deliberately ignores the accept and reject criteria, because it is how the class graph is extended
     // upwards through classes that the scan did not accept (Classfile#findClassfile). Callers that must not report
-    // a rejected resource filter the result with isRejectedResourcePath(String).
+    // a rejected resource filter the result with ScanSpec#resourcePathIsRejected(String).
     abstract @Nullable Resource getResource(final String relativePath);
 
     /**
