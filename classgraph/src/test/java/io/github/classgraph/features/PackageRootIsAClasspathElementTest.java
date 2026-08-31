@@ -265,8 +265,9 @@ public class PackageRootIsAClasspathElementTest {
 
     /**
      * A resource that lies beneath both a multi-release version prefix and a package root reports all three of its
-     * paths: the logical path relative to the package root, the path relative to the classpath element, which keeps
-     * the version prefix, and the path relative to the container, which keeps both prefixes.
+     * paths. The version prefix is stored outside the package root -- a versioned copy of a package root is a copy
+     * of that whole subtree of the jarfile -- so it is not part of the path relative to the classpath element,
+     * which is the package root; only the path relative to the container reports it.
      *
      * @param rawTempDir
      *            a temporary directory to build the jarfile in.
@@ -297,7 +298,7 @@ public class PackageRootIsAClasspathElementTest {
             assertThat(resources).hasSize(1);
             final Resource resource = resources.get(0);
             assertThat(resource.getPath()).isEqualTo(CLASSFILE_PATH);
-            assertThat(resource.getPathRelativeToClasspathElement()).isEqualTo(versionPrefix + CLASSFILE_PATH);
+            assertThat(resource.getPathRelativeToClasspathElement()).isEqualTo(CLASSFILE_PATH);
             assertThat(resource.getPathRelativeToContainer())
                     .isEqualTo(versionPrefix + PACKAGE_ROOT_PREFIX + CLASSFILE_PATH);
             assertThat(resource.getPackageRootPrefix()).isEqualTo(PACKAGE_ROOT_PREFIX);
