@@ -67,7 +67,8 @@ class ClasspathElementZip extends ClasspathElement {
      */
     private String zipFilePath;
     /**
-     * A map from relative path to {@link Resource} for non-rejected zip entries.
+     * A map from relative path to {@link Resource} for every zip entry, accepted or not, so that a resource can be
+     * found by name whether or not the scan accepted it.
      */
     private final ConcurrentHashMap<String, Resource> relativePathToResource = new ConcurrentHashMap<>();
     /** The virtual filesystem that the jarfile is enumerated and read through. */
@@ -177,29 +178,15 @@ class ClasspathElementZip extends ClasspathElement {
             return;
         }
 
-        // Schedule the child classpath entries in the order they were found, since the classpath order determines
-        // which of two copies of the same class masks the other
-        final List<ChildEntry> childEntries;
-        try {
-            childEntries = ClasspathExpander.childEntries(root, libDirPrefixes, vfsSpec.isNestedJarsEnabled(),
-                    subLog);
-        } catch (final IOException e) {
-            if (subLog != null) {
-                subLog.log("Could not read the classpath elements declared by " + rawPath + " : " + e);
-            }
-            return;
-        }
+        // Schedule the child classpath elements in the order the classloader would look in them, since the classpath
+        // order determines which of two copies of the same class masks the other
         final var childScheduler = new ChildClasspathElementScheduler(workQueue);
-        for (final ChildEntry childEntry : childEntries) {
-            if (subLog != null) {
-                subLog.log(childEntry.origin().getLogMessage() + ": " + childEntry.location());
-            }
-            childScheduler.schedule(childEntry.location());
-        }
 
         // A package root within the jarfile is a classpath element in its own right, exactly as it is when the
-        // jarfile has been exploded into a directory, so schedule it as one. Only look for a package root if this
-        // classpath element is not already one, since a package root does not contain another.
+        // jarfile has been exploded into a directory, so schedule it as one. It comes first, because a classloader
+        // that serves an archive with a package root looks there before it looks in the archive's lib dirs. Only
+        // look for a package root if this classpath element is not already one, since a package root does not
+        // contain another.
         if (packageRootPrefix.isEmpty()) {
             for (final String packageRootPrefix : packageRootPrefixes) {
                 final boolean packageRootExists;
@@ -223,6 +210,24 @@ class ClasspathElementZip extends ClasspathElement {
                             zipFilePath + "!/" + packageRootPrefix.substring(0, packageRootPrefix.length() - 1));
                 }
             }
+        }
+
+        // Then the classpath entries the jarfile declares, and last the jarfiles in its lib dirs
+        final List<ChildEntry> childEntries;
+        try {
+            childEntries = ClasspathExpander.childEntries(root, libDirPrefixes, vfsSpec.isNestedJarsEnabled(),
+                    subLog);
+        } catch (final IOException e) {
+            if (subLog != null) {
+                subLog.log("Could not read the classpath elements declared by " + rawPath + " : " + e);
+            }
+            return;
+        }
+        for (final ChildEntry childEntry : childEntries) {
+            if (subLog != null) {
+                subLog.log(childEntry.origin().getLogMessage() + ": " + childEntry.location());
+            }
+            childScheduler.schedule(childEntry.location());
         }
     }
 
@@ -444,12 +449,12 @@ class ClasspathElementZip extends ClasspathElement {
                 return false;
             }
 
-            if (parentMatchStatus == ScanSpecPathMatch.HAS_REJECTED_PATH_PREFIX) {
-                // The parent dir or one of its ancestral dirs is rejected
-                if (subLog != null) {
-                    subLog.log("Skipping rejected path: " + entryName);
-                }
-                return true;
+            if (parentMatchStatus == ScanSpecPathMatch.HAS_REJECTED_PATH_PREFIX && subLog != null) {
+                // The parent dir or one of its ancestral dirs is rejected, so the entry is not accepted. It is
+                // still indexed below, so that it can be found by getResource(String), which is how the class graph
+                // is extended upwards through classes that the scan did not accept -- exactly as it is for a
+                // directory classpath element, whose lookup reads the filesystem and so reaches rejected paths too
+                subLog.log("Not accepting rejected path: " + entryName);
             }
 
             addZipEntryResource(entry, entryName, parentMatchStatus, subLog);

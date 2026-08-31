@@ -742,6 +742,9 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      * @return The {@link Resource} for the given relative path, or null if relativePath does not exist in this
      *         classpath element.
      */
+    // N.B. this deliberately ignores the accept and reject criteria, because it is how the class graph is extended
+    // upwards through classes that the scan did not accept (Classfile#findClassfile). Callers that must not report
+    // a rejected resource filter the result with isRejectedResourcePath(String).
     abstract @Nullable Resource getResource(final String relativePath);
 
     /**

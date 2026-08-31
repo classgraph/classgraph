@@ -287,6 +287,30 @@ public class ClasspathExpanderTest {
     }
 
     /**
+     * The classpath entries that a classpath element declares for itself come before the jarfiles that were merely
+     * found in one of its lib dirs. An earlier classpath element masks a later one, and a classloader that serves
+     * an archive with both loads a class from what the archive declares in preference to a copy of it in a bundled
+     * dependency.
+     *
+     * @param tempDir
+     *            the temporary directory to build the classpath element in
+     * @throws IOException
+     *             if the classpath element could not be created or read
+     */
+    @Test
+    public void declaredClasspathEntriesComeBeforeLibJars(@TempDir final Path tempDir) throws IOException {
+        createFile(tempDir, "lib/bundled.jar");
+        createFile(tempDir, "declared.jar");
+        createFile(tempDir, "osgi.jar");
+        createFile(tempDir, MANIFEST_NAME, manifest("Class-Path: declared.jar", "Bundle-ClassPath: osgi.jar"));
+        try (Vfs vfs = new Vfs()) {
+            final VfsRoot root = vfs.open(tempDir);
+            assertThat(leafNames(ClasspathExpander.childEntries(root, LIB_DIR_PREFIXES, true, null)))
+                    .containsExactly("declared.jar", "osgi.jar", "bundled.jar");
+        }
+    }
+
+    /**
      * Only the lib dirs that were asked for are looked in, since not every classloader loads from every lib dir.
      *
      * @param tempDir
@@ -641,8 +665,8 @@ public class ClasspathExpanderTest {
             final List<ChildEntry> childEntries = ClasspathExpander.childEntries(vfs.open(dir), LIB_DIR_PREFIXES,
                     true, null);
             assertThat(childEntries).hasSize(2);
-            final Path libJarPath = Objects.requireNonNull(childEntries.get(0).path());
-            final Path bundledPath = Objects.requireNonNull(childEntries.get(1).path());
+            final Path bundledPath = Objects.requireNonNull(childEntries.get(0).path());
+            final Path libJarPath = Objects.requireNonNull(childEntries.get(1).path());
             assertThat(libJarPath.getFileSystem()).isSameAs(fileSystem);
             assertThat(bundledPath.getFileSystem()).isSameAs(fileSystem);
             assertThat(libJarPath).isEqualTo(fileSystem.getPath("/app/BOOT-INF/lib/dep.jar"));

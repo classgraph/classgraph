@@ -88,27 +88,16 @@ class ClasspathElementDir extends ClasspathElement {
             return;
         }
         try {
-            // Auto-add the jarfiles in the lib dirs, and the classpath elements that the directory's manifest
-            // declares -- an exploded jarfile in a directory declares the same classpath elements that the jarfile
-            // it was exploded from declares. The child classpath entries are added in the order they were found,
-            // since the classpath order determines which of two copies of the same class masks the other.
+            // Schedule the child classpath elements in the order the classloader would look in them, since the
+            // classpath order determines which of two copies of the same class masks the other
             final var root = vfs.open(classpathEltPath);
             this.manifestRoot = openManifestRoot(root);
             var childClasspathEntryIdx = 0;
-            for (final var childEntry : ClasspathExpander.childEntries(root, libDirPrefixes,
-                    vfsSpec.isNestedJarsEnabled(), log)) {
-                if (log != null) {
-                    log(classpathElementIdx, childEntry.origin().getLogMessage() + ": " + childEntry.location(),
-                            log);
-                }
-                final var childPath = childEntry.path();
-                workQueue.addWorkUnit(
-                        new ClasspathEntryWorkUnit(childPath == null ? childEntry.location() : childPath,
-                                getClassLoaderString(), /* parentClasspathElement = */ this,
-                                /* orderWithinParentClasspathElement = */ childClasspathEntryIdx++,
-                                /* packageRootPrefix = */ "", packageRootPrefixes, libDirPrefixes));
-            }
-            // Only look for package roots if the package root is empty
+
+            // A package root within the directory is a classpath element in its own right. It comes first, because
+            // a classloader that serves a directory with a package root looks there before it looks in the
+            // directory's lib dirs. Only look for a package root if this classpath element is not already one,
+            // since a package root does not contain another.
             if (packageRootPrefix.isEmpty()) {
                 for (final String packageRootPrefix : packageRootPrefixes) {
                     final var packageRoot = classpathEltPath.resolve(packageRootPrefix);
@@ -122,6 +111,23 @@ class ClasspathElementDir extends ClasspathElement {
                                 packageRootPrefix, packageRootPrefixes, libDirPrefixes));
                     }
                 }
+            }
+
+            // Then the classpath entries the directory's manifest declares, and last the jarfiles in its lib dirs --
+            // an exploded jarfile in a directory declares the same classpath elements that the jarfile it was
+            // exploded from declares
+            for (final var childEntry : ClasspathExpander.childEntries(root, libDirPrefixes,
+                    vfsSpec.isNestedJarsEnabled(), log)) {
+                if (log != null) {
+                    log(classpathElementIdx, childEntry.origin().getLogMessage() + ": " + childEntry.location(),
+                            log);
+                }
+                final var childPath = childEntry.path();
+                workQueue.addWorkUnit(
+                        new ClasspathEntryWorkUnit(childPath == null ? childEntry.location() : childPath,
+                                getClassLoaderString(), /* parentClasspathElement = */ this,
+                                /* orderWithinParentClasspathElement = */ childClasspathEntryIdx++,
+                                /* packageRootPrefix = */ "", packageRootPrefixes, libDirPrefixes));
             }
         } catch (final IOException | SecurityException e) {
             if (log != null) {

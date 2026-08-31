@@ -729,6 +729,11 @@ public final class ScanResult implements AutoCloseable {
         Assert.notNull(resourcePath, "resourcePath");
         final var path = PathSyntax.sanitizeEntryPath(resourcePath, /* removeInitialSlash = */ true,
                 /* removeFinalSlash = */ true);
+        // ClasspathElement#getResource(String) ignores the accept and reject criteria, since it is also how the
+        // class graph is extended upwards through classes that were not accepted, so reject is applied here
+        if (scanSpec.resourcePathIsRejected(path)) {
+            return ResourceList.EMPTY_LIST;
+        }
         final List<Resource> matchingResources = new ArrayList<>();
         for (final ClasspathElement classpathElt : classpathOrder()) {
             final var matchingResource = classpathElt.getResource(path);

@@ -30,6 +30,7 @@ package io.github.classgraph.features;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.io.ByteArrayOutputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.URL;
@@ -66,6 +67,9 @@ import org.jspecify.annotations.Nullable;
 public class PackageRootIsAClasspathElementTest {
     /** The package root that the classloader of this test looks for classes in. */
     private static final String PACKAGE_ROOT_PREFIX = "WEB-INF/classes/";
+
+    /** The lib dir whose jarfiles the classloader of this test adds to the classpath. */
+    private static final String LIB_DIR_PREFIX = "WEB-INF/lib/";
 
     /** A class to scan, so that the scan finds a resource beneath the package root. */
     public static class Widget {
@@ -197,6 +201,59 @@ public class PackageRootIsAClasspathElementTest {
     }
 
     /**
+     * The package root comes before the jarfiles of the lib dir on the classpath, because that is the order the
+     * classloader looks in them in -- Tomcat serves {@code WEB-INF/classes/} ahead of {@code WEB-INF/lib/}, so a
+     * class in the webapp's own classes masks a copy of it in a bundled dependency, which is what lets a webapp
+     * override a class of a library it bundles.
+     *
+     * @param tempDir
+     *            a temporary directory to build the war and the exploded copy in.
+     * @throws IOException
+     *             if the war or the exploded copy could not be written, or a classloader could not be closed.
+     */
+    @Test
+    public void thePackageRootComesBeforeTheLibDirJars(@TempDir final Path tempDir) throws IOException {
+        final var war = tempDir.resolve("app.war");
+        try (var zipOut = new ZipOutputStream(new FileOutputStream(war.toFile()))) {
+            // The lib jar is written first, so that the order of the classpath cannot come from the order of the
+            // entries in the war
+            zipOut.putNextEntry(new ZipEntry(LIB_DIR_PREFIX + "dep.jar"));
+            zipOut.write(emptyJarContent());
+            zipOut.closeEntry();
+            zipOut.putNextEntry(new ZipEntry(PACKAGE_ROOT_PREFIX + CLASSFILE_PATH));
+            zipOut.write(classfileContent());
+            zipOut.closeEntry();
+        }
+        try (var classLoader = new WebappClassLoader(war.toUri().toURL()); var scanResult = scan(classLoader)) {
+            assertThat(uriStrings(scanResult)).containsExactly(war.toUri().toString(),
+                    "jar:" + war.toUri() + "!/WEB-INF/classes", "jar:" + war.toUri() + "!/WEB-INF/lib/dep.jar");
+        }
+
+        final var dir = tempDir.resolve("app");
+        explodeJar(dir);
+        final var libJar = dir.resolve(LIB_DIR_PREFIX + "dep.jar");
+        Files.createDirectories(libJar.getParent());
+        Files.write(libJar, emptyJarContent());
+        try (var classLoader = new WebappClassLoader(dir.toUri().toURL()); var scanResult = scan(classLoader)) {
+            assertThat(uriStrings(scanResult)).containsExactly(dir.toUri().toString(),
+                    dir.resolve(PACKAGE_ROOT_PREFIX).toUri().toString(), libJar.toUri().toString());
+        }
+    }
+
+    /**
+     * The content of a jarfile with no entries, which is enough to be opened as a classpath element.
+     *
+     * @return the content of the jarfile.
+     * @throws IOException
+     *             if the jarfile could not be written.
+     */
+    private static byte[] emptyJarContent() throws IOException {
+        final var bytes = new ByteArrayOutputStream();
+        new ZipOutputStream(bytes).close();
+        return bytes.toByteArray();
+    }
+
+    /**
      * Scan the classpath of a {@link WebappClassLoader}.
      *
      * @param classLoader
@@ -278,6 +335,11 @@ public class PackageRootIsAClasspathElementTest {
         @Override
         public List<String> getPackageRootPrefixes() {
             return List.of(PACKAGE_ROOT_PREFIX);
+        }
+
+        @Override
+        public List<String> getLibDirPrefixes() {
+            return List.of(LIB_DIR_PREFIX);
         }
     }
 }

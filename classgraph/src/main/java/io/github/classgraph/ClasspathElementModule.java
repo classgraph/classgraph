@@ -224,15 +224,15 @@ class ClasspathElementModule extends ClasspathElement {
                         return false;
                     }
 
-                    if (parentMatchStatus == ScanSpecPathMatch.HAS_REJECTED_PATH_PREFIX) {
-                        // The parent dir or one of its ancestral dirs is rejected
-                        if (subLog != null) {
-                            subLog.log("Skipping rejected path: " + relativePath);
-                        }
-                        return true;
+                    if (parentMatchStatus == ScanSpecPathMatch.HAS_REJECTED_PATH_PREFIX && subLog != null) {
+                        // The parent dir or one of its ancestral dirs is rejected, so the entry is not accepted. It
+                        // is still recorded below, so that it can be found by getResource(String), which is how the
+                        // class graph is extended upwards through classes that the scan did not accept -- exactly
+                        // as it is for a directory classpath element, whose lookup reads the filesystem and so
+                        // reaches rejected paths too
+                        subLog.log("Not accepting rejected path: " + relativePath);
                     }
 
-                    // Found non-rejected relative path
                     if (allResourcePaths.add(relativePath)) {
                         if (isAcceptedResourcePath(relativePath, parentMatchStatus)) {
                             // Add accepted resource

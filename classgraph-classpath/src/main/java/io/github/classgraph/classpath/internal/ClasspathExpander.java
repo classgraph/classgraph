@@ -154,11 +154,17 @@ public final class ClasspathExpander {
         // whole of the classpath element rather than in the part of it that the classes are loaded from
         final var container = root.getContainerRoot();
         final List<ChildEntry> childEntries = new ArrayList<>();
+        // The classpath entries a classpath element declares for itself come before the jarfiles that were merely
+        // found in one of its lib dirs, since an earlier classpath element masks a later one, and a classloader that
+        // serves an archive with both loads a class from the archive's own classes in preference to a copy of it in
+        // a bundled dependency -- Tomcat looks in "WEB-INF/classes/" before "WEB-INF/lib/", and Spring Boot's
+        // launcher looks in "BOOT-INF/classes/" before "BOOT-INF/lib/". (The package root itself is not a child
+        // classpath entry, and is added by the caller, ahead of all of these.)
+        addClassPathManifestEntries(container, childEntries, log);
+        addBundleClassPathManifestEntries(container, childEntries);
         if (enableNestedJars || container.getKind() != VfsRoot.Kind.ARCHIVE) {
             addLibJars(container, libDirPrefixes, childEntries);
         }
-        addClassPathManifestEntries(container, childEntries, log);
-        addBundleClassPathManifestEntries(container, childEntries);
         return childEntries;
     }
 
