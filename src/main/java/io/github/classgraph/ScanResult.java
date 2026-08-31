@@ -641,6 +641,11 @@ public final class ScanResult implements Closeable {
         }
         final String path = FileUtils.sanitizeEntryPath(resourcePath, /* removeInitialSlash = */ true,
                 /* removeFinalSlash = */ true);
+        // ClasspathElement#getResource(String) ignores the accept and reject criteria, since it is also how the
+        // class graph is extended upwards through classes that were not accepted, so reject is applied here
+        if (scanSpec.resourcePathIsRejected(path)) {
+            return new ResourceList();
+        }
         final ResourceList matchingResources = new ResourceList();
         for (final ClasspathElement classpathElt : classpathOrder) {
             final Resource matchingResource = classpathElt.getResource(path);

@@ -50,6 +50,7 @@ import io.github.classgraph.ScanResult;
 import nonapi.io.github.classgraph.scanspec.AcceptReject.AcceptRejectLeafname;
 import nonapi.io.github.classgraph.scanspec.AcceptReject.AcceptRejectPrefix;
 import nonapi.io.github.classgraph.scanspec.AcceptReject.AcceptRejectWholeString;
+import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.LogNode;
 
 /**
@@ -530,6 +531,27 @@ public class ScanSpec {
 
         // Not in accepted path
         return ScanSpecPathMatch.NOT_WITHIN_ACCEPTED_PATH;
+    }
+
+    /**
+     * Returns true if the resource at the given path is rejected, either because a rejected package contains it, or
+     * because the classfile itself is rejected.
+     *
+     * <p>
+     * This is for callers that look a resource up by name, rather than reaching it through a walk of a classpath
+     * element, so they do not have the {@link ScanSpecPathMatch} of the containing directory in hand.
+     *
+     * @param relativePath
+     *            the path of the resource, relative to the package root of its classpath element.
+     * @return true if the resource is rejected.
+     */
+    public boolean resourcePathIsRejected(final String relativePath) {
+        // A directory is named with a trailing '/', and the package root is named "/"
+        final int lastSlashIdx = relativePath.lastIndexOf('/');
+        final String parentDirPath = lastSlashIdx < 0 ? "/" : relativePath.substring(0, lastSlashIdx + 1);
+        return dirAcceptMatchStatus(parentDirPath) == ScanSpecPathMatch.HAS_REJECTED_PATH_PREFIX
+                || FileUtils.isClassfile(relativePath) && classfilePathAcceptReject
+                        .isRejected(FileUtils.withLowerCaseClassfileExtension(relativePath));
     }
 
     /**
