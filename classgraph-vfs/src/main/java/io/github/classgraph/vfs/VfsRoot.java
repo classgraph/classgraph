@@ -62,19 +62,22 @@ import org.jspecify.annotations.Nullable;
  * know which kind it is. {@link #getKind()} says which kind it is, for the cases that do need to know.
  *
  * <p>
- * A root is not {@link AutoCloseable}, and owns nothing that has to be released: the file handles, memory mappings
- * and temporary files it reads through belong to the {@link Vfs}, which hands out the same root to every caller
- * that asks for the same path. A root stops working once that {@link Vfs} is closed, and not before.
+ * A root is {@link AutoCloseable}: {@link #close()} releases what this root itself owns, and takes the root out of
+ * the cache of the {@link Vfs} that opened it, without disturbing that {@link Vfs} or any other root it has opened.
+ * There is rarely a reason to close a root by hand, since closing the {@link Vfs} closes every root it opened;
+ * closing one early is for a long-lived {@link Vfs} that is done reading one root and wants what that root holds
+ * released now. A closed root cannot be read: its methods throw {@link IOException}, just as every root's methods
+ * do once the {@link Vfs} itself is closed.
  *
  * <p>
  * Iterating a root iterates its entries, in the same order as {@link #getEntries()}.
  *
  * <p>
- * Every method is safe to call from multiple threads at once, and {@link Vfs#close()} takes effect the moment it is
- * called, so a thread that lists or reads entries after that -- even while the close is still running -- gets an
- * {@link IOException} rather than entries of storage that is being released.
+ * Every method is safe to call from multiple threads at once, and {@link #close()} and {@link Vfs#close()} take
+ * effect the moment they are called, so a thread that lists or reads entries after that -- even while the close is
+ * still running -- gets an {@link IOException} rather than entries of storage that is being released.
  */
-public abstract class VfsRoot implements Iterable<VfsEntry> {
+public abstract class VfsRoot implements Iterable<VfsEntry>, AutoCloseable {
     /** The {@link Vfs} that opened this root. */
     private final Vfs vfs;
 
@@ -836,12 +839,13 @@ public abstract class VfsRoot implements Iterable<VfsEntry> {
      *
      * @return a {@link FileSystem} view of this root. The same instance is returned every time, until it is closed.
      * @throws ClosedFileSystemException
-     *             if the {@link Vfs} that opened this root has been closed.
+     *             if this root, or the {@link Vfs} that opened it, has been closed.
      */
     public FileSystem asFileSystem() {
-        // A closed Vfs has released the file handles, memory mappings and temporary files that a view reads
-        // through, so there is nothing left to hand out a view of. (A Vfs closed just after this check hands back
-        // a view whose every read throws ClosedFileSystemException, which is what reading a closed root does.)
+        // A closed root or Vfs has released the file handles, memory mappings and temporary files that a view
+        // reads through, so there is nothing left to hand out a view of. (A root closed just after this check
+        // hands back a view whose every read throws ClosedFileSystemException, which is what reading a closed
+        // root does.)
         if (isClosed()) {
             throw new ClosedFileSystemException();
         }
@@ -875,24 +879,127 @@ public abstract class VfsRoot implements Iterable<VfsEntry> {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /** True once this root has been closed, whether by its own {@link #close()} or by the {@link Vfs}'s. */
+    private final AtomicBoolean closed = new AtomicBoolean();
+
     /**
-     * Returns whether the {@link Vfs} that opened this root has been closed.
-     *
-     * @return true if the {@link Vfs} has been closed.
+     * The actions that take this root back out of the caches that hold a reference to it. Recorded by whichever
+     * code publishes the reference, and drained as the first step of {@link #close(LogNode)}. Guarded by its own
+     * monitor, together with {@link #unregistrationsDrained}.
      */
-    boolean isClosed() {
-        return vfs.isClosed();
+    private final List<Runnable> unregistrations = new ArrayList<>();
+
+    /**
+     * True once {@link #close(LogNode)} has drained {@link #unregistrations}. Guarded by the monitor of that list.
+     */
+    private boolean unregistrationsDrained;
+
+    /**
+     * Record how to take this root back out of a cache that was just handed a reference to it, so that closing this
+     * root removes it from every cache that holds it. If the close has already drained the recorded actions, the
+     * reference this call is covering was published too late for the drain to see, so the action runs here instead.
+     *
+     * @param unregister
+     *            removes this root from the cache. Must be idempotent, must remove only this root (not whatever
+     *            root the cache currently maps the same key to), and must not throw.
+     */
+    void addUnregistration(final Runnable unregister) {
+        synchronized (unregistrations) {
+            if (!unregistrationsDrained) {
+                unregistrations.add(unregister);
+                return;
+            }
+        }
+        unregister.run();
     }
 
     /**
-     * Throw an {@link IOException} if the {@link Vfs} that opened this root has been closed.
+     * Close this root, releasing what it owns and removing it from the cache of the {@link Vfs} that opened it. The
+     * {@link Vfs} and every other root it has opened stay open; asking the {@link Vfs} for the same path again
+     * opens a fresh root. After the close, reading through this root -- or through a {@link VfsEntry} or
+     * {@link FileSystem} view of it -- throws {@link IOException} or {@link ClosedFileSystemException}.
+     *
+     * <p>
+     * There is rarely a reason to call this by hand, since {@link Vfs#close()} closes every root the {@link Vfs}
+     * has opened; closing one early is for a long-lived {@link Vfs} that is done reading one root and wants what
+     * that root holds released now.
+     *
+     * <p>
+     * Closing a root that is already closed does nothing. This method never throws: a resource that cannot be
+     * released is reported to the {@link Vfs} log rather than thrown, since the close releases everything else the
+     * root owns either way.
+     */
+    @Override
+    public final void close() {
+        close(vfs.log());
+    }
+
+    /**
+     * Close this root, logging to the given log node -- see {@link #close()}.
+     *
+     * @param log
+     *            the log node, or null to not log.
+     */
+    final void close(final @Nullable LogNode log) {
+        // Remove this root from every cache that holds it before anything else, so that the window in which
+        // another thread can be handed a root that is closing is as short as it can be made
+        final List<Runnable> unregistrationsToRun;
+        synchronized (unregistrations) {
+            unregistrationsDrained = true;
+            unregistrationsToRun = new ArrayList<>(unregistrations);
+            unregistrations.clear();
+        }
+        for (final var unregister : unregistrationsToRun) {
+            unregister.run();
+        }
+        // Marked closed before anything is released, so that a second close -- or the Vfs's, running concurrently
+        // -- returns rather than releasing the same resources twice, and so that a thread about to read through
+        // this root is turned away first
+        if (closed.getAndSet(true)) {
+            return;
+        }
+        // Drop the cached FileSystem view, so that this root cannot hand one out while it is closing. The view is
+        // not closed: it reports itself closed once this root is (FileSystem#isOpen consults this root), and
+        // neither close calls the other
+        synchronized (this) {
+            fileSystem = null;
+        }
+        releaseResources(log);
+    }
+
+    /**
+     * Release the resources this root owns, as the last step of {@link #close(LogNode)}. The base root owns
+     * nothing, so this does nothing; a root that owns resources overrides it. Runs at most once per root. Must not
+     * throw: a resource that cannot be released is logged, so that the rest are still released.
+     *
+     * @param log
+     *            the log node, or null to not log.
+     */
+    void releaseResources(final @Nullable LogNode log) {
+        // The base root owns nothing
+    }
+
+    /**
+     * Returns whether this root has been closed, or the {@link Vfs} that opened it has been.
+     *
+     * @return true if this root or its {@link Vfs} has been closed.
+     */
+    boolean isClosed() {
+        return closed.get() || vfs.isClosed();
+    }
+
+    /**
+     * Throw an {@link IOException} if this root has been closed, or the {@link Vfs} that opened it has been.
      *
      * @param what
      *            what was being read, for the error message.
      * @throws IOException
-     *             if the {@link Vfs} that opened this root has been closed.
+     *             if this root or its {@link Vfs} has been closed.
      */
     void checkNotClosed(final String what) throws IOException {
+        if (closed.get()) {
+            throw new IOException("Cannot read " + what + " after the root has been closed");
+        }
         vfs.checkNotClosed(what);
     }
 

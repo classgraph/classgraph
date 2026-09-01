@@ -32,7 +32,6 @@ import io.github.classgraph.vfs.VfsSpec;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.module.ModuleReader;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -55,10 +54,9 @@ import org.jspecify.annotations.Nullable;
 /**
  * One session of reading through a virtual filesystem: everything the session opens and owns, and that has to be
  * released again when the session is closed -- the {@link Slice} instances that hold open file handles or memory
- * mappings, the temporary files that extracted nested jars were spilled to, the pool of {@link Inflater} instances
- * used to inflate deflated zip entries, and the per-module pools of {@link ModuleReader} instances, which the
- * module roots own and hand out, and register here to be closed by the teardown. Also carries the {@link VfsSpec}
- * that every part of the reader needs.
+ * mappings, the temporary files that extracted nested jars were spilled to, and the pool of {@link Inflater}
+ * instances used to inflate deflated zip entries. Also carries the {@link VfsSpec} that every part of the reader
+ * needs.
  *
  * <p>
  * Once {@link #beginClose()} has been called, the methods that register a new resource throw {@link IOException}
@@ -99,15 +97,6 @@ public class VfsSession {
 
     /** Any temporary files created during the session. Drained by {@link #close(LogNode)}. */
     private final Set<File> tempFiles = Collections.newSetFromMap(new ConcurrentHashMap<>());
-
-    /**
-     * The {@link ModuleReader} recyclers of the module roots that have been read through this session. Each module
-     * root owns its recycler and hands out the pooled readers, and registers the recycler here so that the teardown
-     * force-closes it, since a module root stays readable until the session is closed -- even one that was evicted
-     * from the cache of opened roots. Drained by {@link #close(LogNode)}.
-     */
-    private final Set<Recycler<ModuleReader, IOException>> moduleReaderRecyclers = Collections
-            .newSetFromMap(new ConcurrentHashMap<>());
 
     /** A recycler for {@link Inflater} instances. */
     private final Recycler<RecyclableInflater, RuntimeException> inflaterRecycler = new Recycler<>() {
@@ -176,24 +165,6 @@ public class VfsSession {
     private void checkNotClosed() throws IOException {
         if (closed.get()) {
             throw new IOException(SESSION_CLOSED);
-        }
-    }
-
-    /**
-     * Register the {@link ModuleReader} recycler that a module root has just created, so that its pooled readers
-     * are closed when the session is closed.
-     *
-     * @param recycler
-     *            the recycler that was just created.
-     * @throws IOException
-     *             if the session has already been closed, in which case the recycler was not registered, and the
-     *             caller has to drop it, since the teardown has already passed it by.
-     */
-    public void registerModuleReaderRecycler(final Recycler<ModuleReader, IOException> recycler)
-            throws IOException {
-        synchronized (closeLock) {
-            checkNotClosed();
-            moduleReaderRecyclers.add(recycler);
         }
     }
 
@@ -367,44 +338,37 @@ public class VfsSession {
     }
 
     /**
-     * Close all open {@link Slice} instances, discard the pooled {@link ModuleReader} and {@link Inflater}
-     * instances, and delete any temporary files. Marks the session as closed if it was not already, so that nothing
-     * can register a resource that this teardown has already passed by. Calling this more than once has no further
-     * effect.
+     * Close all open {@link Slice} instances, discard the pooled {@link Inflater} instances, and delete any
+     * temporary files. Marks the session as closed if it was not already, so that nothing can register a resource
+     * that this teardown has already passed by. Calling this more than once has no further effect.
      *
      * @param log
      *            the log node, or null to skip logging
      */
     public void close(final @Nullable LogNode log) {
-        // Under the lock, so that a recycler being created concurrently either finishes before the map is read
-        // below, or sees the session as closed and is rejected
+        // Under the lock, so that a resource being registered concurrently either finishes before the snapshots
+        // below are taken, or sees the session as closed and is rejected
         synchronized (closeLock) {
             closed.set(true);
         }
 
         // Take the open resources away from anything that might still be registering: after the lock is released,
         // registration is rejected, since closed is true, so these snapshots are complete
-        final List<Recycler<ModuleReader, IOException>> moduleReaderRecyclersToClose;
         final List<Slice> slicesToClose;
         final List<File> tempFilesToDelete;
         synchronized (closeLock) {
-            moduleReaderRecyclersToClose = new ArrayList<>(moduleReaderRecyclers);
-            moduleReaderRecyclers.clear();
             slicesToClose = new ArrayList<>(openSlices);
             openSlices.clear();
             tempFilesToDelete = new ArrayList<>(tempFiles);
             tempFiles.clear();
         }
 
-        // Everything is released in the reverse of the order in which it was taken: module readers and inflaters
-        // are borrowed on top of the modules and the slices, the slices are opened over the files, and a temporary
-        // file can only be deleted once the slices over it have been closed and the file has been unmapped. Every
-        // step is run even if an earlier one failed, since a teardown that stopped at the first failure would
-        // strand a file handle, a memory mapping or a temporary file for the rest of the life of the JVM
+        // Everything is released in the reverse of the order in which it was taken: inflaters are borrowed on top
+        // of the slices, the slices are opened over the files, and a temporary file can only be deleted once the
+        // slices over it have been closed and the file has been unmapped. Every step is run even if an earlier one
+        // failed, since a teardown that stopped at the first failure would strand a file handle, a memory mapping
+        // or a temporary file for the rest of the life of the JVM
         final var teardown = new Teardown(log);
-        for (final Recycler<ModuleReader, IOException> recycler : moduleReaderRecyclersToClose) {
-            teardown.run(recycler::forceClose);
-        }
         teardown.run(inflaterRecycler::forceClose);
         for (final Slice slice : slicesToClose) {
             teardown.run(slice::close);

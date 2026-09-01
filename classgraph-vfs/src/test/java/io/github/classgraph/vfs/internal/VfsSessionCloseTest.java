@@ -34,10 +34,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.module.ModuleReader;
-import java.net.URI;
-import java.util.Optional;
-import java.util.stream.Stream;
 
 import io.github.classgraph.vfs.VfsSpec;
 import org.junit.jupiter.api.Test;
@@ -51,8 +47,7 @@ import io.github.classgraph.vfs.reader.RandomAccessReader;
  * Tests the teardown of a {@link VfsSession}: that it releases everything it owns even if one of the resources
  * cannot be released, and that once it has run, it refuses to register a resource that it has already passed by,
  * for each of the kinds of resource it owns. A resource left behind, or a registration that slipped through, would
- * strand a file handle, a temporary file or a pooled {@link java.lang.module.ModuleReader} for the rest of the life
- * of the JVM.
+ * strand a file handle or a temporary file for the rest of the life of the JVM.
  */
 class VfsSessionCloseTest {
     /** A new session. */
@@ -106,72 +101,6 @@ class VfsSessionCloseTest {
         session.close(/* log = */ null);
         assertThatThrownBy(() -> session.openInflaterInputStream(InputStream.nullInputStream()))
                 .hasMessageContaining("after the session backing it has been closed");
-    }
-
-    /**
-     * A {@link ModuleReader} recycler must not be registered with a closed session. The teardown force-closes every
-     * registered recycler, so one registered afterwards would never be force-closed, and every reader it went on to
-     * open would stay open for the life of the JVM. The module root whose registration is rejected drops the
-     * recycler, which has not opened anything yet.
-     */
-    @Test
-    void closedSessionRefusesToRegisterAModuleReaderRecycler() {
-        final var session = newSession();
-        session.close(/* log = */ null);
-        assertThatThrownBy(() -> session.registerModuleReaderRecycler(newModuleReaderRecycler()))
-                .hasMessageContaining("session has been closed");
-    }
-
-    /**
-     * A recycler registered before the close is force-closed by it: the reader waiting in the pool is closed by the
-     * teardown, and so is one that was acquired and not yet handed back. Handing that reader back afterwards must
-     * not throw, since it is a {@code close()} method that does so.
-     */
-    @Test
-    void theCloseForceClosesTheModuleReaderRecyclers() throws Exception {
-        final var session = newSession();
-        final var recycler = newModuleReaderRecycler();
-        session.registerModuleReaderRecycler(recycler);
-        final var loanedReader = (FakeModuleReader) recycler.acquire();
-        final var pooledReader = (FakeModuleReader) recycler.acquire();
-        recycler.recycle(pooledReader);
-
-        session.close(/* log = */ null);
-
-        assertThat(pooledReader.closed).isTrue();
-        assertThat(loanedReader.closed).isTrue();
-        recycler.recycle(loanedReader);
-    }
-
-    /** Builds a recycler like the one a module root creates, handing out {@link FakeModuleReader} instances. */
-    private static Recycler<ModuleReader, IOException> newModuleReaderRecycler() {
-        return new Recycler<>() {
-            @Override
-            public ModuleReader newInstance() {
-                return new FakeModuleReader();
-            }
-        };
-    }
-
-    /** A {@link ModuleReader} that records whether it has been closed. */
-    private static final class FakeModuleReader implements ModuleReader {
-        /** True once {@link #close()} has been called. */
-        private boolean closed;
-
-        @Override
-        public Optional<URI> find(final String name) {
-            return Optional.empty();
-        }
-
-        @Override
-        public Stream<String> list() {
-            return Stream.empty();
-        }
-
-        @Override
-        public void close() {
-            closed = true;
-        }
     }
 
     /**

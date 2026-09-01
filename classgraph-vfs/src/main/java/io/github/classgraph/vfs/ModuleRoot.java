@@ -60,7 +60,8 @@ final class ModuleRoot extends VfsRoot {
 
     /**
      * Guards the lazy creation of {@link #moduleReaderRecycler}, so that two threads asking for it at once share
-     * one recycler rather than each creating their own.
+     * one recycler rather than each creating their own, and the force-close of it in
+     * {@link #releaseResources(LogNode)}, so that a recycler cannot be created after the close has passed over it.
      */
     private final Object moduleReaderRecyclerLock = new Object();
 
@@ -158,18 +159,21 @@ final class ModuleRoot extends VfsRoot {
      * Get the recycler that hands out {@link ModuleReader} instances for this module. The readers the JDK supplies
      * for modular jarfiles and jmod files are thread-safe, but take a lock per read, so threads that share one
      * reader contend with each other, and opening a reader costs far more than a read does. So each thread that
-     * reads the module borrows a pooled reader of its own. The pooled readers are closed when the {@link Vfs} is
-     * closed.
+     * reads the module borrows a pooled reader of its own. The pooled readers are closed when this root is closed,
+     * which happens no later than when the {@link Vfs} is closed.
      *
      * @return the recycler.
      * @throws IOException
-     *             if the {@link Vfs} has been closed. The module itself cannot fail to open here, since a reader is
-     *             only opened when the recycler first hands one to a thread.
+     *             if this root or the {@link Vfs} has been closed. The module itself cannot fail to open here,
+     *             since a reader is only opened when the recycler first hands one to a thread.
      */
     Recycler<ModuleReader, IOException> moduleReaderRecycler() throws IOException {
         synchronized (moduleReaderRecyclerLock) {
-            // Checked even when the recycler already exists, so that a read through a root of a closed Vfs is
-            // turned away rather than opening a fresh reader from a pool that the teardown has already closed
+            // Checked under the lock that releaseResources() takes, and even when the recycler already exists, so
+            // that a read through a closed root is turned away rather than opening a fresh reader from a pool that
+            // the close has already force-closed: either this check passes and the recycler is assigned before
+            // releaseResources() can take the lock and force-close it, or the close got here first and the check
+            // throws -- before the recycler has opened anything, so a recycler dropped by the throw owns nothing
             checkNotClosed(getPath());
             var recycler = moduleReaderRecycler;
             if (recycler == null) {
@@ -179,14 +183,26 @@ final class ModuleRoot extends VfsRoot {
                         return ModuleReaderUtils.openModule(moduleReference);
                     }
                 };
-                // Registering the recycler is what closes the race against the session teardown: either the
-                // registration completes first, in which case the teardown force-closes the recycler, or the
-                // session is already closed and the registration is rejected -- before the recycler has opened
-                // anything, so the recycler dropped by the throw owns nothing
-                getVfs().session().registerModuleReaderRecycler(recycler);
                 moduleReaderRecycler = recycler;
             }
             return recycler;
+        }
+    }
+
+    @Override
+    void releaseResources(final @Nullable LogNode log) {
+        // Taking the lock that creates the recycler is what closes the race against a concurrent read: a recycler
+        // being created as this root closes is either assigned before this runs, and force-closed here, or its
+        // creation is turned away by the closed check it makes under this lock
+        synchronized (moduleReaderRecyclerLock) {
+            final var recycler = moduleReaderRecycler;
+            if (recycler != null) {
+                moduleReaderRecycler = null;
+                // forceClose closes the pooled readers and any reader still on loan -- a thread midway through a
+                // read gets an exception from the closed reader, which is what reading a closed root does -- and
+                // never throws
+                recycler.forceClose();
+            }
         }
     }
 

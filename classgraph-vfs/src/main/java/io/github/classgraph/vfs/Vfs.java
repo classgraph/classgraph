@@ -121,6 +121,13 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
     /** The roots that have been opened from a {@link ModuleReference}, keyed by that module. */
     private final Map<ModuleReference, VfsRoot> rootsByModule = new ConcurrentHashMap<>();
 
+    /**
+     * Every root this {@link Vfs} has opened and not yet closed -- including one opened from an {@link InputStream}
+     * or a byte array, which the path cache does not hold -- so that {@link #close()} can close each of them. A
+     * root removes itself from this set when it is closed.
+     */
+    private final Set<VfsRoot> openRoots = ConcurrentHashMap.newKeySet();
+
     /** The log node that {@link #verbose()} turns on, or null if not logging. */
     private volatile @Nullable LogNode log;
 
@@ -248,7 +255,7 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
         if (alreadyOpened != null) {
             return alreadyOpened;
         }
-        final var root = openUncached(resolvedPath, logNode == null ? null : logNode.log("Opening " + path));
+        final var root = adopt(openUncached(resolvedPath, logNode == null ? null : logNode.log("Opening " + path)));
         // Pick the winner under the root's canonical/reported path first. Every alias must point to this winner;
         // caching the alias first leaves a race in which the alias and canonical path can retain different roots.
         final var reportedPath = root.reportedPath();
@@ -257,7 +264,7 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
             // This is deliberately an unconditional replacement. Any existing value for this alias was produced
             // by a concurrent open of the same thing and must be reconciled with the canonical-path winner.
             rootsByPath.put(resolvedPath, cachedRoot);
-            uncacheIfClosed(rootsByPath, resolvedPath, cachedRoot);
+            cachedRoot.addUnregistration(() -> rootsByPath.remove(resolvedPath, cachedRoot));
             discardIfClosed(path, cachedRoot);
         }
         return cachedRoot;
@@ -285,7 +292,26 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
         if (alreadyOpened != null) {
             return alreadyOpened;
         }
-        return cacheRoot(rootsByPath, path, rootFactory.get(), path);
+        return cacheRoot(rootsByPath, path, adopt(rootFactory.get()), path);
+    }
+
+    /**
+     * Record a root that was just built as open, so that {@link #close()} closes it, and hand the root the action
+     * that takes it back out of the set of open roots, so that closing the root removes it. Every root this
+     * {@link Vfs} builds passes through here, whether or not it is then cached under a path. The caller must still
+     * make the closed check that discards the root if this {@link Vfs} was closed while it was being built --
+     * {@link #discardIfClosed(String, VfsRoot)} does both.
+     *
+     * @param <R>
+     *            the type of the root.
+     * @param root
+     *            the root that was just built.
+     * @return the root.
+     */
+    private <R extends VfsRoot> R adopt(final R root) {
+        openRoots.add(root);
+        root.addUnregistration(() -> openRoots.remove(root));
+        return root;
     }
 
     /**
@@ -309,34 +335,22 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
     private <K> VfsRoot cacheRoot(final Map<K, VfsRoot> cache, final K key, final VfsRoot root, final String what)
             throws IOException {
         final var openedByAnotherThread = cache.putIfAbsent(key, root);
-        final var cachedRoot = openedByAnotherThread == null ? root : openedByAnotherThread;
-        uncacheIfClosed(cache, key, cachedRoot);
-        return discardIfClosed(what, cachedRoot);
-    }
-
-    /**
-     * Take a root back out of a cache of opened roots if this {@link Vfs} was closed after the root was put in.
-     * {@link #close()} clears the caches, so a root cached after that would be left behind in the cache of a closed
-     * {@link Vfs}.
-     *
-     * @param <K>
-     *            the type of the cache key.
-     * @param cache
-     *            the cache the root was added to.
-     * @param key
-     *            the key the root was cached under.
-     * @param root
-     *            the root that was cached.
-     */
-    private <K> void uncacheIfClosed(final Map<K, VfsRoot> cache, final K key, final VfsRoot root) {
-        if (session.isClosed()) {
-            cache.remove(key, root);
+        if (openedByAnotherThread != null) {
+            // The root this thread built lost the race, and was never published, so nothing else can be holding
+            // it: close it, so that anything it took while it was being built is released now rather than held
+            // until this Vfs is closed
+            root.close();
+            return discardIfClosed(what, openedByAnotherThread);
         }
+        root.addUnregistration(() -> cache.remove(key, root));
+        return discardIfClosed(what, root);
     }
 
     /**
      * Return a root that has just been opened, unless this {@link Vfs} was closed while it was being opened, in
-     * which case throw, rather than handing back a root that is backed by storage that has already been released.
+     * which case close the root and throw, rather than handing back a root that is backed by storage that has
+     * already been released. Closing the root also takes it back out of the set of open roots and any cache it was
+     * put in, since {@link #close()} may have passed over all of those before the root was recorded in them.
      *
      * @param what
      *            what was opened, for the exception message.
@@ -347,6 +361,10 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      *             if this {@link Vfs} was closed while the root was being opened.
      */
     private VfsRoot discardIfClosed(final String what, final VfsRoot root) throws IOException {
+        if (isClosed()) {
+            // Closing a root twice is harmless, so it does not matter whether close() saw this root or not
+            root.close();
+        }
         checkNotClosed(what);
         return root;
     }
@@ -450,7 +468,7 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
                 throw new IOException("Interrupted while opening " + key, e);
             }
         }
-        return cacheRoot(rootsByPath, key, root, key);
+        return cacheRoot(rootsByPath, key, adopt(root), key);
     }
 
     /**
@@ -503,7 +521,7 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
         if (alreadyOpened != null) {
             return alreadyOpened;
         }
-        return cacheRoot(rootsByModule, moduleReference, new ModuleRoot(this, moduleReference), moduleName);
+        return cacheRoot(rootsByModule, moduleReference, adopt(new ModuleRoot(this, moduleReference)), moduleName);
     }
 
     /**
@@ -612,8 +630,12 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
         checkNotClosed(name);
         final var logNode = log == null ? null : log.log("Reading " + name + " from an InputStream");
         try {
-            return discardIfClosed(name, new ArchiveRoot(this, nestedJarHandler.openJarFromInputStream(inputStream,
-                    /* inputStreamLengthHint = */ -1L, name, logNode), /* packageRoot = */ ""));
+            return discardIfClosed(
+                    name, adopt(
+                            new ArchiveRoot(this,
+                                    nestedJarHandler.openJarFromInputStream(inputStream,
+                                            /* inputStreamLengthHint = */ -1L, name, logNode),
+                                    /* packageRoot = */ "")));
         } catch (final InterruptedException e) {
             session.interruptionChecker().interrupt();
             throw new IOException("Interrupted while reading " + name, e);
@@ -642,8 +664,11 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
         checkNotClosed(name);
         final var logNode = log == null ? null : log.log("Reading " + name + " from a byte array");
         try {
-            return discardIfClosed(name, new ArchiveRoot(this, nestedJarHandler.openJarFromInputStream(
-                    new ByteArrayInputStream(jarBytes), jarBytes.length, name, logNode), /* packageRoot = */ ""));
+            return discardIfClosed(name,
+                    adopt(new ArchiveRoot(this,
+                            nestedJarHandler.openJarFromInputStream(new ByteArrayInputStream(jarBytes),
+                                    jarBytes.length, name, logNode),
+                            /* packageRoot = */ "")));
         } catch (final InterruptedException e) {
             session.interruptionChecker().interrupt();
             throw new IOException("Interrupted while reading " + name, e);
@@ -693,8 +718,10 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      * <p>
      * This does not stop the root working. Anything still holding it -- another thread, or another part of the
      * program that opened the same path and got the same root back -- goes on reading through it exactly as before,
-     * and it becomes garbage only once the last of them lets go of it. A root owns no file handles, memory mappings
-     * or temporary files of its own: those belong to this {@link Vfs}, and are released by {@link #close()}.
+     * and it becomes garbage only once the last of them lets go of it. Whatever the root itself owns is released
+     * when the root is closed, which {@link #close()} does to every root this {@link Vfs} has opened, evicted or
+     * not; to release a root's resources now rather than then, close the root instead of evicting it -- see
+     * {@link VfsRoot#close()}.
      *
      * <p>
      * There is no need to evict anything unless a long-lived {@link Vfs} opens a great many roots, since a
@@ -854,6 +881,15 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
                 // The zipfile caches have to be dropped before the resources behind them are released, so that
                 // nothing can be handed a slice of a zipfile that is about to be closed
                 nestedJarHandler.dropCaches();
+                // Close every root this Vfs opened, releasing what each root itself owns: a module root's pooled
+                // readers are closed here, before the session teardown below releases the file handles, memory
+                // mappings and temporary files that the roots were read through. VfsRoot#close never throws, so
+                // one root that fails to release does not stop the rest from being closed
+                final var rootsToClose = new ArrayList<>(openRoots);
+                openRoots.clear();
+                for (final var root : rootsToClose) {
+                    root.close(logNode);
+                }
             } finally {
                 // The session teardown is what releases every file handle, memory mapping and temporary file that
                 // the roots were read through, so it runs even if dropping the caches failed
