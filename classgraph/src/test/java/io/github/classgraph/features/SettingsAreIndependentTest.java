@@ -32,6 +32,15 @@ public class SettingsAreIndependentTest {
         }
     }
 
+    /** Naming a module layer and asking for the detected layers as well scans both. */
+    @Test
+    public void theDetectedModuleLayersCanBeScannedAlongsideANamedOne() {
+        try (var scanResult = new ClassGraph().enableModuleLayers(ModuleLayer.empty()).enableDetectedModuleLayers()
+                .enableSystemModules().enableClassInfo().acceptPackages("java.lang").scan()) {
+            assertThat(scanResult.getAllClasses()).isNotEmpty();
+        }
+    }
+
     /**
      * Adding the JRE's own jars to the scan does not turn on the reading of class information: they can be scanned
      * for resources only.

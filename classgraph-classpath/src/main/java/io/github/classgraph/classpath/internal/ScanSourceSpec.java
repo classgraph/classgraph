@@ -102,14 +102,19 @@ public class ScanSourceSpec {
     public final List<ClasspathSource> classpathSources = new ArrayList<>();
 
     /**
-     * If true, module scanning was enabled without the caller naming the module layers to search, so the module
-     * layers that are visible from the caller, and the boot layer, are searched. Test this with
-     * {@link #searchesDetectedModuleLayers()} rather than directly, since layers the caller named replace the
-     * detected ones.
+     * If true, the caller asked for the module layers that are visible from it, and the boot layer, to be searched.
+     * Test this with {@link #searchesDetectedModuleLayers()} rather than directly, since they are also searched
+     * when module scanning was enabled and the caller named no layers of its own.
      */
     public boolean searchDetectedModuleLayers;
 
-    /** If non-null, the module layers the caller named, which are searched instead of the detected ones. */
+    /**
+     * If true, a kind of module was enabled for scanning, which searches the module layers that are visible from
+     * the caller unless the caller named the layers to search itself.
+     */
+    public boolean moduleScanningEnabled;
+
+    /** If non-null, the module layers the caller named. */
     public @Nullable List<ModuleLayer> namedModuleLayers;
 
     // -----------------------------------------------------------------------------------------------------------
@@ -192,23 +197,28 @@ public class ScanSourceSpec {
         classpathSources.add(new ClasspathString(classpath));
     }
 
-    /**
-     * Search the module layers that are visible from the caller, and the boot layer, unless the caller named the
-     * module layers to search.
-     */
+    /** Search the module layers that are visible from the caller, and the boot layer. */
     public void enableDetectedModuleLayers() {
         searchDetectedModuleLayers = true;
     }
 
     /**
-     * Whether the module layers that are visible from the caller are searched: they are, if module scanning was
-     * enabled and the caller did not name the layers to search itself. Layers the caller named replace the detected
-     * ones rather than adding to them, since naming layers is how a caller says which layers to search.
+     * Record that a kind of module was enabled for scanning, which is what makes a module layer worth searching.
+     */
+    public void enableModuleScanning() {
+        moduleScanningEnabled = true;
+    }
+
+    /**
+     * Whether the module layers that are visible from the caller are searched: they are, if the caller asked for
+     * them, and also if module scanning was enabled and the caller named no layers of its own. Layers the caller
+     * named otherwise replace the detected ones rather than adding to them, since naming layers is how a caller
+     * says which layers to search.
      *
      * @return true if the module layers detected in the environment are searched.
      */
     public boolean searchesDetectedModuleLayers() {
-        return searchDetectedModuleLayers && namedModuleLayers == null;
+        return searchDetectedModuleLayers || moduleScanningEnabled && namedModuleLayers == null;
     }
 
     /**
@@ -242,7 +252,7 @@ public class ScanSourceSpec {
         if (log != null) {
             final var subLog = log.log("ScanSourceSpec:");
             subLog.log("classpathSources: " + classpathSources);
-            subLog.log("searchDetectedModuleLayers: " + searchDetectedModuleLayers);
+            subLog.log("searchDetectedModuleLayers: " + searchesDetectedModuleLayers());
             subLog.log("namedModuleLayers: " + namedModuleLayers);
         }
     }

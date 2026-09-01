@@ -743,7 +743,7 @@ public class ClassGraph {
      * @return this (for method chaining).
      */
     public ClassGraph enableSystemModules() {
-        scanSourceSpec.enableDetectedModuleLayers();
+        scanSourceSpec.enableModuleScanning();
         scanSpec.classpathSpec.scanSystemModules = true;
         return this;
     }
@@ -756,7 +756,7 @@ public class ClassGraph {
      * @return this (for method chaining).
      */
     public ClassGraph enableNonSystemModules() {
-        scanSourceSpec.enableDetectedModuleLayers();
+        scanSourceSpec.enableModuleScanning();
         scanSpec.classpathSpec.scanNonSystemModules = true;
         return this;
     }
@@ -780,8 +780,7 @@ public class ClassGraph {
      * <p>
      * The given layers replace the ones that are visible from the caller, rather than adding to them, so
      * {@link #enableSystemModules()}, {@link #enableNonSystemModules()} and {@link #enableModules()} apply to the
-     * given layers. To scan a layer of your own as well as the layers that are visible from the caller, name
-     * {@link ModuleLayer#boot()} here too.
+     * given layers. Call {@link #enableDetectedModuleLayers()} as well to scan both.
      *
      * @param moduleLayers
      *            The ModuleLayers to scan.
@@ -791,6 +790,23 @@ public class ClassGraph {
      */
     public ClassGraph enableModuleLayers(final ModuleLayer... moduleLayers) {
         scanSourceSpec.enableModuleLayers(moduleLayers);
+        scanSpec.classpathSpec.scanNonSystemModules = true;
+        return this;
+    }
+
+    /**
+     * Scan the ModuleLayers that are visible from the caller -- the layers of the classes on the call stack, and
+     * the boot layer -- as well as any layers named by {@link #enableModuleLayers(ModuleLayer...)}.
+     *
+     * <p>
+     * These layers are searched anyway when a kind of module is enabled and no layer is named, so this is only
+     * needed alongside {@link #enableModuleLayers(ModuleLayer...)}, to scan a layer of your own without giving up
+     * the layers you can already see.
+     *
+     * @return this (for method chaining).
+     */
+    public ClassGraph enableDetectedModuleLayers() {
+        scanSourceSpec.enableDetectedModuleLayers();
         scanSpec.classpathSpec.scanNonSystemModules = true;
         return this;
     }

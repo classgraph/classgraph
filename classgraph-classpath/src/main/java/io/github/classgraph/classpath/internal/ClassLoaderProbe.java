@@ -134,7 +134,7 @@ public class ClassLoaderProbe {
         // The modules are searched before the classpath, whatever order the sources were enabled in, because that is
         // the order in which the JVM resolves a class: a builtin classloader looks the class's package up among the
         // modules before it delegates to its parent or falls back to its classpath
-        moduleFinder = scanSourceSpec.searchDetectedModuleLayers || scanSourceSpec.namedModuleLayers != null
+        moduleFinder = scanSourceSpec.searchesDetectedModuleLayers() || scanSourceSpec.namedModuleLayers != null
                 ? new ModuleFinder(callStackInfo, classpathSpec, scanSourceSpec, classLoaderProbeLog)
                 : null;
 
