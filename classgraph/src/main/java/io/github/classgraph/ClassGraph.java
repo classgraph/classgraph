@@ -222,7 +222,7 @@ public class ClassGraph {
      * and methods are all scanned.
      *
      * <p>
-     * Calls {@link #enableClassInfo()}, {@link #enableFieldInfo()}, {@link #enableMethodInfo()},
+     * Automatically calls {@link #enableClassInfo()}, {@link #enableFieldInfo()}, {@link #enableMethodInfo()},
      * {@link #enableAnnotationInfo()}, {@link #enableStaticFinalFieldConstantInitializerValues()},
      * {@link #ignoreClassVisibility()}, {@link #ignoreFieldVisibility()}, and {@link #ignoreMethodVisibility()}.
      *
@@ -763,7 +763,8 @@ public class ClassGraph {
 
     /**
      * Scan the modules of both kinds, system and non-system, of the ModuleLayers that are visible from the caller:
-     * the layers of the classes on the call stack, and the boot layer.
+     * the layers of the classes on the call stack, and the boot layer. Automatically calls
+     * {@link #enableSystemModules()} and {@link #enableNonSystemModules()}.
      *
      * @return this (for method chaining).
      */

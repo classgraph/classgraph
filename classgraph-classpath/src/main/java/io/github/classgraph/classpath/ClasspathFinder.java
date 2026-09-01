@@ -390,7 +390,8 @@ public final class ClasspathFinder {
 
     /**
      * Search for modules of both kinds, system and non-system, in the module layers that are visible from the
-     * caller: the layers of the classes on the call stack, and the boot layer.
+     * caller: the layers of the classes on the call stack, and the boot layer. Automatically calls
+     * {@link #enableSystemModules()} and {@link #enableNonSystemModules()}.
      *
      * @return this (for method chaining).
      */
