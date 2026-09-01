@@ -34,7 +34,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.module.ModuleReference;
+import java.lang.module.ModuleReader;
+import java.net.URI;
+import java.util.Optional;
+import java.util.stream.Stream;
 
 import io.github.classgraph.vfs.VfsSpec;
 import org.junit.jupiter.api.Test;
@@ -52,11 +55,6 @@ import io.github.classgraph.vfs.reader.RandomAccessReader;
  * of the JVM.
  */
 class VfsSessionCloseTest {
-    /** A module to ask for a reader recycler for. */
-    private static ModuleReference javaBase() {
-        return ModuleLayer.boot().configuration().findModule("java.base").orElseThrow().reference();
-    }
-
     /** A new session. */
     private static VfsSession newSession() {
         return new VfsSession(new VfsSpec(), new InterruptionChecker());
@@ -111,38 +109,69 @@ class VfsSessionCloseTest {
     }
 
     /**
-     * A {@link java.lang.module.ModuleReader} recycler must not be created by a closed session. The teardown
-     * force-closes every recycler in the map and then empties the map, so a recycler created afterwards would never
-     * be force-closed, and every reader it went on to open would stay open for the life of the JVM.
-     *
-     * <p>
-     * A lookup is turned away by the map itself, which was handed the session's closed flag. The check made while
-     * the recycler is created is the one that closes the race against a thread that was already inside the map when
-     * the session was closed, so it is asserted separately.
+     * A {@link ModuleReader} recycler must not be registered with a closed session. The teardown force-closes every
+     * registered recycler, so one registered afterwards would never be force-closed, and every reader it went on to
+     * open would stay open for the life of the JVM. The module root whose registration is rejected drops the
+     * recycler, which has not opened anything yet.
      */
     @Test
-    void closedSessionRefusesToCreateAModuleReaderRecycler() {
+    void closedSessionRefusesToRegisterAModuleReaderRecycler() {
         final var session = newSession();
-        final var moduleReaderRecyclerMap = session.moduleReaderRecyclerMap();
         session.close(/* log = */ null);
-        assertThatThrownBy(() -> moduleReaderRecyclerMap.get(javaBase(), /* log = */ null))
-                .hasMessageContaining("Already closed");
-        assertThatThrownBy(() -> moduleReaderRecyclerMap.newInstance(javaBase(), /* log = */ null))
+        assertThatThrownBy(() -> session.registerModuleReaderRecycler(newModuleReaderRecycler()))
                 .hasMessageContaining("session has been closed");
     }
 
     /**
-     * A recycler created before the close is force-closed by it, even for a reader that was acquired and not yet
-     * handed back, and handing that reader back afterwards must not throw, since it is a {@code close()} method
-     * that does so.
+     * A recycler registered before the close is force-closed by it: the reader waiting in the pool is closed by the
+     * teardown, and so is one that was acquired and not yet handed back. Handing that reader back afterwards must
+     * not throw, since it is a {@code close()} method that does so.
      */
     @Test
     void theCloseForceClosesTheModuleReaderRecyclers() throws Exception {
         final var session = newSession();
-        final var recycler = session.moduleReaderRecyclerMap().get(javaBase(), /* log = */ null);
-        final var reader = recycler.acquire();
+        final var recycler = newModuleReaderRecycler();
+        session.registerModuleReaderRecycler(recycler);
+        final var loanedReader = (FakeModuleReader) recycler.acquire();
+        final var pooledReader = (FakeModuleReader) recycler.acquire();
+        recycler.recycle(pooledReader);
+
         session.close(/* log = */ null);
-        recycler.recycle(reader);
+
+        assertThat(pooledReader.closed).isTrue();
+        assertThat(loanedReader.closed).isTrue();
+        recycler.recycle(loanedReader);
+    }
+
+    /** Builds a recycler like the one a module root creates, handing out {@link FakeModuleReader} instances. */
+    private static Recycler<ModuleReader, IOException> newModuleReaderRecycler() {
+        return new Recycler<>() {
+            @Override
+            public ModuleReader newInstance() {
+                return new FakeModuleReader();
+            }
+        };
+    }
+
+    /** A {@link ModuleReader} that records whether it has been closed. */
+    private static final class FakeModuleReader implements ModuleReader {
+        /** True once {@link #close()} has been called. */
+        private boolean closed;
+
+        @Override
+        public Optional<URI> find(final String name) {
+            return Optional.empty();
+        }
+
+        @Override
+        public Stream<String> list() {
+            return Stream.empty();
+        }
+
+        @Override
+        public void close() {
+            closed = true;
+        }
     }
 
     /**

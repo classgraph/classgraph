@@ -33,7 +33,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.module.ModuleReader;
-import java.lang.module.ModuleReference;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -46,11 +45,9 @@ import java.util.zip.Inflater;
 
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
-import io.github.classgraph.base.internal.concurrency.SingletonMap;
 import io.github.classgraph.base.internal.path.PathSyntax;
 import io.github.classgraph.base.internal.utils.VersionFinder;
 import io.github.classgraph.base.internal.utils.VersionFinder.OperatingSystem;
-import io.github.classgraph.vfs.internal.module.ModuleReaderUtils;
 import io.github.classgraph.vfs.internal.slice.OffHeapMemory;
 import io.github.classgraph.vfs.internal.slice.Slice;
 import org.jspecify.annotations.Nullable;
@@ -59,8 +56,9 @@ import org.jspecify.annotations.Nullable;
  * One session of reading through a virtual filesystem: everything the session opens and owns, and that has to be
  * released again when the session is closed -- the {@link Slice} instances that hold open file handles or memory
  * mappings, the temporary files that extracted nested jars were spilled to, the pool of {@link Inflater} instances
- * used to inflate deflated zip entries, and the pool of {@link ModuleReader} instances used to read modules. Also
- * carries the {@link VfsSpec} that every part of the reader needs.
+ * used to inflate deflated zip entries, and the per-module pools of {@link ModuleReader} instances, which the
+ * module roots own and hand out, and register here to be closed by the teardown. Also carries the {@link VfsSpec}
+ * that every part of the reader needs.
  *
  * <p>
  * Once {@link #beginClose()} has been called, the methods that register a new resource throw {@link IOException}
@@ -102,6 +100,15 @@ public class VfsSession {
     /** Any temporary files created during the session. Drained by {@link #close(LogNode)}. */
     private final Set<File> tempFiles = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
+    /**
+     * The {@link ModuleReader} recyclers of the module roots that have been read through this session. Each module
+     * root owns its recycler and hands out the pooled readers, and registers the recycler here so that the teardown
+     * force-closes it, since a module root stays readable until the session is closed -- even one that was evicted
+     * from the cache of opened roots. Drained by {@link #close(LogNode)}.
+     */
+    private final Set<Recycler<ModuleReader, IOException>> moduleReaderRecyclers = Collections
+            .newSetFromMap(new ConcurrentHashMap<>());
+
     /** A recycler for {@link Inflater} instances. */
     private final Recycler<RecyclableInflater, RuntimeException> inflaterRecycler = new Recycler<>() {
         @Override
@@ -117,34 +124,6 @@ public class VfsSession {
      * itself.
      */
     private final AtomicBoolean closed = new AtomicBoolean(false);
-
-    /**
-     * A singleton map from a {@link ModuleReference} to a {@link ModuleReader} recycler for the module. Emptied by
-     * {@link #close(LogNode)}, and turns a lookup away once the session is closed, since a recycler created after
-     * the teardown emptied the map would hand out {@link ModuleReader} instances that nothing would ever close.
-     */
-    private final SingletonMap<ModuleReference, Recycler<ModuleReader, IOException>, IOException> //
-    moduleReaderRecyclerMap = new SingletonMap<>(closed) {
-        @Override
-        public Recycler<ModuleReader, IOException> newInstance(final ModuleReference moduleReference,
-                final @Nullable LogNode ignored) throws IOException {
-            // The map's own check of the closed flag is only a fast path, since the session can be closed after it
-            // was made. Creating the recycler is a registration, so it is linearized against the teardown like any
-            // other: either it completes before the teardown reads the map, in which case the teardown force-closes
-            // the recycler (the map hands out a value only once its creation has completed), or it sees the session
-            // already closed and is rejected. A recycler created after the teardown emptied the map would never be
-            // force-closed, so every ModuleReader it went on to open would stay open for the life of the JVM
-            synchronized (closeLock) {
-                checkNotClosed();
-                return new Recycler<>() {
-                    @Override
-                    public ModuleReader newInstance() throws IOException {
-                        return ModuleReaderUtils.openModule(moduleReference);
-                    }
-                };
-            }
-        }
-    };
 
     /**
      * True if a file could not be unmapped as its slice closed, so that only the garbage collector can unmap it.
@@ -201,14 +180,21 @@ public class VfsSession {
     }
 
     /**
-     * Get the map from {@link ModuleReference} to {@link ModuleReader} recycler. The map itself turns away a lookup
-     * made after the session was closed, so this hands it out without checking.
+     * Register the {@link ModuleReader} recycler that a module root has just created, so that its pooled readers
+     * are closed when the session is closed.
      *
-     * @return the map
+     * @param recycler
+     *            the recycler that was just created.
+     * @throws IOException
+     *             if the session has already been closed, in which case the recycler was not registered, and the
+     *             caller has to drop it, since the teardown has already passed it by.
      */
-    public SingletonMap<ModuleReference, Recycler<ModuleReader, IOException>, IOException> //
-            moduleReaderRecyclerMap() {
-        return moduleReaderRecyclerMap;
+    public void registerModuleReaderRecycler(final Recycler<ModuleReader, IOException> recycler)
+            throws IOException {
+        synchronized (closeLock) {
+            checkNotClosed();
+            moduleReaderRecyclers.add(recycler);
+        }
     }
 
     /**
@@ -398,9 +384,12 @@ public class VfsSession {
 
         // Take the open resources away from anything that might still be registering: after the lock is released,
         // registration is rejected, since closed is true, so these snapshots are complete
+        final List<Recycler<ModuleReader, IOException>> moduleReaderRecyclersToClose;
         final List<Slice> slicesToClose;
         final List<File> tempFilesToDelete;
         synchronized (closeLock) {
+            moduleReaderRecyclersToClose = new ArrayList<>(moduleReaderRecyclers);
+            moduleReaderRecyclers.clear();
             slicesToClose = new ArrayList<>(openSlices);
             openSlices.clear();
             tempFilesToDelete = new ArrayList<>(tempFiles);
@@ -413,8 +402,9 @@ public class VfsSession {
         // step is run even if an earlier one failed, since a teardown that stopped at the first failure would
         // strand a file handle, a memory mapping or a temporary file for the rest of the life of the JVM
         final var teardown = new Teardown(log);
-        final var interrupted = new AtomicBoolean();
-        teardown.run(() -> closeModuleReaderRecyclers(teardown, interrupted));
+        for (final Recycler<ModuleReader, IOException> recycler : moduleReaderRecyclersToClose) {
+            teardown.run(recycler::forceClose);
+        }
         teardown.run(inflaterRecycler::forceClose);
         for (final Slice slice : slicesToClose) {
             teardown.run(slice::close);
@@ -462,11 +452,11 @@ public class VfsSession {
             }
         }
 
-        // An interruption during the teardown arrives one of two ways: as the flag above, set by a catch clause
-        // after the throw cleared this thread's status, or as this thread's status, where a step restored it rather
-        // than recording it. freeUnreachableBuffers() reports one the second way, being a static utility with no
-        // checker to reach, and checkAndReturn() is what routes that into the shared checker
-        if (interrupted.get() || interruptionChecker.checkAndReturn()) {
+        // An interruption during the teardown arrives as this thread's status, restored by the interrupted step
+        // rather than recorded anywhere: freeUnreachableBuffers() reports one that way, being a static utility
+        // with no checker to reach. checkAndReturn() is what routes it into the shared checker, so that every
+        // other thread reading through this session stops too
+        if (interruptionChecker.checkAndReturn()) {
             interruptionChecker.interrupt();
         }
     }
@@ -478,38 +468,6 @@ public class VfsSession {
     // #939
     public void markFileAsAwaitingUnmapping() {
         filesAwaitingUnmapping.set(true);
-    }
-
-    /**
-     * Discard the pooled {@link ModuleReader} instances of every module that was read through this session.
-     *
-     * @param teardown
-     *            the teardown that is running, so that one reader that cannot be closed does not prevent the rest
-     *            from being closed.
-     * @param interrupted
-     *            set to true if the current thread was interrupted while the readers were being closed, so that the
-     *            interruption can be signalled once the teardown is complete.
-     */
-    private void closeModuleReaderRecyclers(final Teardown teardown, final AtomicBoolean interrupted) {
-        // Take the recyclers out of the map before closing any of them, so that nothing can be handed a recycler
-        // that this teardown has already passed over. A caller asking for one after this point is asking the map
-        // to build a new one, which it refuses, since the session is already marked as closed
-        List<Recycler<ModuleReader, IOException>> recyclers = List.of();
-        var completedWithoutInterruption = false;
-        while (!completedWithoutInterruption) {
-            try {
-                // This waits for any reader that is still being opened, so that nothing is left behind. An
-                // interrupted wait empties nothing, so the whole map is still there to be taken on the retry
-                recyclers = moduleReaderRecyclerMap.drain();
-                completedWithoutInterruption = true;
-            } catch (final InterruptedException e) {
-                // Try again if interrupted
-                interrupted.set(true);
-            }
-        }
-        for (final Recycler<ModuleReader, IOException> recycler : recyclers) {
-            teardown.run(recycler::forceClose);
-        }
     }
 
     /**

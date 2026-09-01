@@ -40,8 +40,6 @@ import java.util.Collections;
 import java.util.List;
 
 import io.github.classgraph.base.LogNode;
-import io.github.classgraph.base.internal.concurrency.SingletonMap.NewInstanceException;
-import io.github.classgraph.base.internal.concurrency.SingletonMap.NullSingletonException;
 import io.github.classgraph.vfs.internal.Recycler;
 import io.github.classgraph.vfs.internal.module.ModuleReaderUtils;
 import org.jspecify.annotations.Nullable;
@@ -53,6 +51,18 @@ final class ModuleRoot extends VfsRoot {
 
     /** The entries of the module, or null until {@link #getEntries()} is first called. */
     private volatile @Nullable List<VfsEntry> entries;
+
+    /**
+     * Hands out {@link ModuleReader} instances for this module, one per thread that is reading it, or null until
+     * the first read needs one. Created and read under {@link #moduleReaderRecyclerLock}.
+     */
+    private @Nullable Recycler<ModuleReader, IOException> moduleReaderRecycler;
+
+    /**
+     * Guards the lazy creation of {@link #moduleReaderRecycler}, so that two threads asking for it at once share
+     * one recycler rather than each creating their own.
+     */
+    private final Object moduleReaderRecyclerLock = new Object();
 
     /**
      * Constructor.
@@ -145,27 +155,38 @@ final class ModuleRoot extends VfsRoot {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get the recycler that hands out {@link ModuleReader} instances for this module. A {@code ModuleReader} is not
-     * thread-safe, so each thread that reads the module needs its own, and they are pooled rather than reopened,
-     * since opening one is expensive. The recycler is closed when the {@link Vfs} is closed.
+     * Get the recycler that hands out {@link ModuleReader} instances for this module. The readers the JDK supplies
+     * for modular jarfiles and jmod files are thread-safe, but take a lock per read, so threads that share one
+     * reader contend with each other, and opening a reader costs far more than a read does. So each thread that
+     * reads the module borrows a pooled reader of its own. The pooled readers are closed when the {@link Vfs} is
+     * closed.
      *
      * @return the recycler.
      * @throws IOException
-     *             if the module could not be opened, or if the {@link Vfs} has been closed.
+     *             if the {@link Vfs} has been closed. The module itself cannot fail to open here, since a reader is
+     *             only opened when the recycler first hands one to a thread.
      */
     Recycler<ModuleReader, IOException> moduleReaderRecycler() throws IOException {
-        checkNotClosed(getPath());
-        final var vfs = getVfs();
-        try {
-            return vfs.session().moduleReaderRecyclerMap().get(moduleReference, /* log = */ null);
-        } catch (final NullSingletonException | NewInstanceException e) {
-            final var cause = e.getCause() == null ? e : e.getCause();
-            throw new IOException("Could not open module " + getPath() + " : " + cause, cause);
-        } catch (final InterruptedException e) {
-            // Route the interruption through the shared interruption checker, so that every other thread reading
-            // through this Vfs stops too, and chain the cause, for the same reason as the catch clause above
-            vfs.session().interruptionChecker().interrupt();
-            throw new IOException("Interrupted while opening module " + getPath(), e);
+        synchronized (moduleReaderRecyclerLock) {
+            // Checked even when the recycler already exists, so that a read through a root of a closed Vfs is
+            // turned away rather than opening a fresh reader from a pool that the teardown has already closed
+            checkNotClosed(getPath());
+            var recycler = moduleReaderRecycler;
+            if (recycler == null) {
+                recycler = new Recycler<>() {
+                    @Override
+                    public ModuleReader newInstance() throws IOException {
+                        return ModuleReaderUtils.openModule(moduleReference);
+                    }
+                };
+                // Registering the recycler is what closes the race against the session teardown: either the
+                // registration completes first, in which case the teardown force-closes the recycler, or the
+                // session is already closed and the registration is rejected -- before the recycler has opened
+                // anything, so the recycler dropped by the throw owns nothing
+                getVfs().session().registerModuleReaderRecycler(recycler);
+                moduleReaderRecycler = recycler;
+            }
+            return recycler;
         }
     }
 
