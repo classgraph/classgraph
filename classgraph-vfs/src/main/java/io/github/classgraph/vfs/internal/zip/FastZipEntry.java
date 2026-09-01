@@ -93,12 +93,16 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
     private volatile @Nullable Slice slice;
 
     /**
-     * The version code (&gt;= 9), or 8 for the base layer or a non-versioned jar (whether JDK 7 or 8 compatible).
+     * The version of the multi-release section this entry was resolved from (&gt;= 9), or 8 for an entry of the
+     * base layer, an entry of a jarfile that is not versioned at all, and an entry under a version prefix that this
+     * JVM would not select.
      */
     final int version;
 
     /**
-     * The unversioned entry name (i.e. entryName with "META-INF/versions/{versionInt}/" stripped)
+     * The name of the entry with its {@code "META-INF/versions/{versionInt}/"} prefix stripped, or the name it is
+     * stored under if it has no such prefix, if versioned sections are not being resolved, or if the version prefix
+     * is not one this JVM would select.
      */
     public final String entryNameUnversioned;
 
@@ -181,7 +185,9 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
                 if (versionInt != 0) {
                     entryVersion = versionInt;
                 }
-                // Set version to 8 for out-of-range version numbers or invalid paths
+                // A version number that this JVM would not select -- one below 9, one above the version of the
+                // running JVM, or a path segment that is not a version number at all -- names no version of
+                // anything, so the entry keeps the name it is stored under, and is left for the caller to hide
                 if (entryVersion < 9 || entryVersion > VersionFinder.JAVA_MAJOR_VERSION) {
                     entryVersion = 8;
                 }
@@ -200,6 +206,24 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
         }
         this.version = entryVersion;
         this.entryNameUnversioned = entryNameWithoutVersionPrefix;
+    }
+
+    /**
+     * A copy of this entry with its version prefix left in place, for a jarfile that turned out not to declare
+     * {@code Multi-Release: true} in its manifest.
+     *
+     * <p>
+     * Whether a jarfile is a multi-release jarfile is only known once its manifest has been parsed, which cannot
+     * happen until its central directory has been read, so every entry is created as if the jarfile were a
+     * multi-release jarfile, and any entry that resolved a version prefix is replaced by this copy if it turns out
+     * that it is not one.
+     *
+     * @return a copy of this entry whose unversioned name is the name it is stored under.
+     */
+    FastZipEntry withVersionPrefixUnresolved() {
+        return new FastZipEntry(parentLogicalZipFile, locHeaderPos, entryName, isDeflated, compressedSize,
+                uncompressedSize, lastModifiedTimeMillis, lastModifiedTimeMSDOS, lastModifiedDateMSDOS,
+                fileAttributes, /* multiReleaseVersionsEnabled = */ false);
     }
 
     // -------------------------------------------------------------------------------------------------------------

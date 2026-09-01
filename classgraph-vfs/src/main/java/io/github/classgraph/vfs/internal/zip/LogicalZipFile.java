@@ -1021,6 +1021,33 @@ public class LogicalZipFile extends ZipFileSlice {
     }
 
     /**
+     * For a jarfile whose manifest does not have the {@code Multi-Release} key, put back the version prefix of any
+     * entry stored beneath {@code META-INF/versions/}.
+     *
+     * <p>
+     * A jarfile is only a multi-release jarfile if its manifest says so, and the version prefixes of one that does
+     * not say so name no version of anything: the JVM reads such an entry from the path it is stored under, and
+     * loads the base entry for the path the prefix would have named. Whether the manifest has the key is only known
+     * once the manifest has been parsed, which cannot happen until the central directory has been read, so the
+     * version prefix is resolved for every entry as it is read and put back here.
+     *
+     * @param log
+     *            the log node, or null to skip logging
+     */
+    private void unresolveVersionPrefixes(final @Nullable LogNode log) {
+        for (var i = 0; i < entries.size(); i++) {
+            final var entry = entries.get(i);
+            if (!entry.entryNameUnversioned.equals(entry.entryName)) {
+                if (log != null) {
+                    log.log("Found a versioned entry in a jarfile whose manifest does not have the \""
+                            + MULTI_RELEASE_KEY + "\" key, so it overrides nothing: " + entry.entryName);
+                }
+                entries.set(i, entry.withVersionPrefixUnresolved());
+            }
+        }
+    }
+
+    /**
      * Read the central directory of the zipfile.
      *
      * @param session
@@ -1071,8 +1098,12 @@ public class LogicalZipFile extends ZipFileSlice {
             parseManifest(manifestZipEntry);
         }
 
-        if (isMultiReleaseJar && multiReleaseVersionsEnabled) {
-            maskMultiReleaseEntries(log);
+        if (multiReleaseVersionsEnabled) {
+            if (isMultiReleaseJar) {
+                maskMultiReleaseEntries(log);
+            } else {
+                unresolveVersionPrefixes(log);
+            }
         }
     }
 
