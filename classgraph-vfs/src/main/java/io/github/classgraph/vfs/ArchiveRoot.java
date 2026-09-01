@@ -52,44 +52,87 @@ final class ArchiveRoot extends VfsRoot {
     /** The package root within the jarfile, or the empty string if the whole jarfile is the package root. */
     private final String packageRoot;
 
-    /** The entries under the package root, in the order they appear in the jarfile's central directory. */
-    private final List<VfsEntry> entries;
+    /**
+     * The root this root was opened within: for a package root view, the root of the whole jarfile; for a nested
+     * jarfile, the root of the jarfile that encloses it; null for a toplevel jarfile. This is the parent this root
+     * was registered with, so closing it closes this root.
+     */
+    private final @Nullable ArchiveRoot container;
 
-    /** The entries under the package root, keyed by name. */
-    private final Map<String, VfsEntry> entriesByName;
+    /**
+     * The entries under the package root, and the same entries keyed by name, built together on first use.
+     *
+     * @param entries
+     *            the entries under the package root, in the order the jarfile lists them.
+     * @param entriesByName
+     *            the same entries, keyed by their path from the root.
+     */
+    private record EntryIndex(List<VfsEntry> entries, Map<String, VfsEntry> entriesByName) {
+    }
 
-    /** The whole jarfile, without the package root applied, created on first use. */
-    private volatile @Nullable VfsRoot containerRoot;
+    /** The index of the entries under the package root, built on first use. */
+    private volatile @Nullable EntryIndex entryIndex;
 
     /**
      * Constructor.
      *
      * @param vfs
      *            the {@link Vfs} that opened this root.
+     * @param container
+     *            the root this root is opened within -- the root of the whole jarfile for a package root view, or
+     *            of the enclosing jarfile for a nested jarfile -- or null for a toplevel jarfile.
      * @param logicalZipFile
      *            the jarfile that was opened.
      * @param packageRoot
      *            the package root within the jarfile, or the empty string if the whole jarfile is the package root.
      */
-    ArchiveRoot(final Vfs vfs, final LogicalZipFile logicalZipFile, final String packageRoot) {
-        super(vfs);
+    ArchiveRoot(final Vfs vfs, final @Nullable ArchiveRoot container, final LogicalZipFile logicalZipFile,
+            final String packageRoot) {
+        super(vfs, container);
+        this.container = container;
         this.logicalZipFile = logicalZipFile;
         this.packageRoot = packageRoot;
+    }
 
-        final var packageRootPrefix = packageRoot.isEmpty() ? "" : packageRoot + "/";
-        final List<VfsEntry> entriesTmp = new ArrayList<>(logicalZipFile.entries.size());
-        final Map<String, VfsEntry> entriesByNameTmp = new LinkedHashMap<>();
-        for (final var zipEntry : logicalZipFile.entries) {
-            if (zipEntry.entryNameUnversioned.startsWith(packageRootPrefix)) {
-                final var entry = new ArchiveEntry(this, zipEntry,
-                        zipEntry.entryNameUnversioned.substring(packageRootPrefix.length()));
-                entriesTmp.add(entry);
-                // The first entry with a given name wins, matching the order that a classloader would find them in
-                entriesByNameTmp.putIfAbsent(entry.getPathFromRoot(), entry);
+    /**
+     * Returns the index of the entries under the package root, building it the first time it is asked for. A root
+     * materialized only as the container of the root the caller asked to open may never have its entries listed at
+     * all, so the index is not built until something reads it.
+     *
+     * @return the index of the entries under the package root.
+     */
+    private EntryIndex entryIndex() {
+        var index = entryIndex;
+        if (index == null) {
+            final var packageRootPrefix = packageRoot.isEmpty() ? "" : packageRoot + "/";
+            final List<VfsEntry> entriesTmp = new ArrayList<>(logicalZipFile.entries.size());
+            final Map<String, VfsEntry> entriesByNameTmp = new LinkedHashMap<>();
+            for (final var zipEntry : logicalZipFile.entries) {
+                if (zipEntry.entryNameUnversioned.startsWith(packageRootPrefix)) {
+                    final var entry = new ArchiveEntry(this, zipEntry,
+                            zipEntry.entryNameUnversioned.substring(packageRootPrefix.length()));
+                    entriesTmp.add(entry);
+                    // The first entry with a given name wins, matching the order that a classloader would find
+                    // them in
+                    entriesByNameTmp.putIfAbsent(entry.getPathFromRoot(), entry);
+                }
             }
+            // Two threads racing here each build an equivalent index, and one wins, which is harmless -- the
+            // entries hold no resources
+            index = new EntryIndex(Collections.unmodifiableList(entriesTmp),
+                    Collections.unmodifiableMap(entriesByNameTmp));
+            entryIndex = index;
         }
-        this.entries = Collections.unmodifiableList(entriesTmp);
-        this.entriesByName = Collections.unmodifiableMap(entriesByNameTmp);
+        return index;
+    }
+
+    /**
+     * Returns the jarfile this root reads.
+     *
+     * @return the {@link LogicalZipFile}.
+     */
+    LogicalZipFile zipFile() {
+        return logicalZipFile;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -143,24 +186,11 @@ final class ArchiveRoot extends VfsRoot {
     @Override
     public VfsRoot getContainerRoot() throws IOException {
         checkNotClosed(getPath());
-        if (packageRoot.isEmpty()) {
-            return this;
-        }
-        var root = containerRoot;
-        if (root == null) {
-            synchronized (this) {
-                root = containerRoot;
-                if (root == null) {
-                    // The whole jarfile is a root in its own right, and is the root that opening the jarfile by its
-                    // own path hands back, so it goes through the same cache rather than becoming a second root
-                    // over one jarfile, with a second copy of its entry list
-                    final var vfs = getVfs();
-                    containerRoot = root = vfs.rootAtPath(logicalZipFile.getPath(),
-                            () -> new ArchiveRoot(vfs, logicalZipFile, ""));
-                }
-            }
-        }
-        return root;
+        // A root whose package root is empty is the root of its whole jarfile already, even if that jarfile is
+        // nested within another one -- its container field then holds the enclosing jarfile's root, which is its
+        // parent in the ownership tree, not the root this method describes. (The null test is only for the
+        // analyzer: a package root view is always built within the root of its whole jarfile.)
+        return packageRoot.isEmpty() || container == null ? this : container;
     }
 
     /**
@@ -180,17 +210,17 @@ final class ArchiveRoot extends VfsRoot {
 
     @Override
     void walkImpl(final VfsVisitor visitor, final @Nullable LogNode logIgnored) {
-        walkEntryList(entries, visitor);
+        walkEntryList(entryIndex().entries(), visitor);
     }
 
     @Override
     List<VfsEntry> getEntriesImpl() {
-        return entries;
+        return entryIndex().entries();
     }
 
     @Override
     @Nullable
     VfsEntry getEntryImpl(final String name) {
-        return entriesByName.get(name);
+        return entryIndex().entriesByName().get(name);
     }
 }

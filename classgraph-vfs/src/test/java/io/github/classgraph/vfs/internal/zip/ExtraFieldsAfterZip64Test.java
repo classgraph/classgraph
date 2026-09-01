@@ -196,12 +196,9 @@ public class ExtraFieldsAfterZip64Test {
         Files.write(jarFile.toPath(), zip.toByteArray());
 
         final var session = new VfsSession(new VfsSpec(), new InterruptionChecker());
-        final var nestedJarHandler = new NestedJarHandler(session);
         final List<String> entryNames = new ArrayList<>();
         try {
-            final var logicalZipFileAndPackageRoot = nestedJarHandler.nestedPathToLogicalZipFileAndPackageRootMap()
-                    .get(jarFile.getPath(), /* log = */ null);
-            for (final FastZipEntry zipEntry : logicalZipFileAndPackageRoot.getKey().entries) {
+            for (final FastZipEntry zipEntry : JarOpener.openJarFile(jarFile, session, /* log = */ null).entries) {
                 entryNames.add(zipEntry.entryName);
             }
         } finally {

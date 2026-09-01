@@ -181,11 +181,8 @@ public class ExtendedTimestampExtraFieldTest {
         Files.write(jarFile.toPath(), zip.toByteArray());
 
         final var session = new VfsSession(new VfsSpec(), new InterruptionChecker());
-        final var nestedJarHandler = new NestedJarHandler(session);
         try {
-            final var logicalZipFileAndPackageRoot = nestedJarHandler.nestedPathToLogicalZipFileAndPackageRootMap()
-                    .get(jarFile.getPath(), /* log = */ null);
-            final var entries = logicalZipFileAndPackageRoot.getKey().entries;
+            final var entries = JarOpener.openJarFile(jarFile, session, /* log = */ null).entries;
             assertThat(entries).hasSize(1);
             return entries.get(0).getLastModifiedMillis();
         } finally {

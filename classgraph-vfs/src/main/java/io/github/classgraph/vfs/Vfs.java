@@ -49,17 +49,19 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Supplier;
 
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
 import io.github.classgraph.base.internal.concurrency.SingletonMap.NewInstanceException;
 import io.github.classgraph.base.internal.concurrency.SingletonMap.NullSingletonException;
+import io.github.classgraph.base.internal.concurrency.SingletonMap;
 import io.github.classgraph.base.internal.path.FastPathResolver;
+import io.github.classgraph.base.internal.path.FileUtils;
 import io.github.classgraph.base.internal.path.PathSyntax;
 import io.github.classgraph.base.internal.utils.Assert;
 import io.github.classgraph.vfs.internal.VfsSession;
-import io.github.classgraph.vfs.internal.zip.NestedJarHandler;
+import io.github.classgraph.vfs.internal.zip.JarOpener;
+import io.github.classgraph.vfs.internal.zip.LogicalZipFile;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -112,11 +114,16 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      */
     private final VfsSession session;
 
-    /** The handler that opens jarfiles, registering what it opens with the session. */
-    private final NestedJarHandler nestedJarHandler;
-
-    /** The roots that have been opened from a path, keyed by the path they were opened from. */
-    private final Map<String, VfsRoot> rootsByPath = new ConcurrentHashMap<>();
+    /**
+     * The roots that have been opened from a path, keyed by every path that names each -- the path as it was
+     * opened, its canonical form, and the path the root reports itself at -- so that one directory or jarfile named
+     * several ways is opened once. Two threads that ask for the same path at the same time build the root only
+     * once, since a lookup for a key whose root is still being built blocks until it is ready. The enclosing
+     * jarfiles of a nested jarfile are opened through this same cache, one frame of re-entry per {@code "!"}
+     * section, so each of them is a root in its own right, cached under its own path. Initialized in the
+     * constructor, since building a root needs this {@link Vfs}.
+     */
+    private final SingletonMap<String, VfsRoot, IOException> rootsByPath;
 
     /** The roots that have been opened from a {@link ModuleReference}, keyed by that module. */
     private final Map<ModuleReference, VfsRoot> rootsByModule = new ConcurrentHashMap<>();
@@ -171,7 +178,13 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      */
     public Vfs(final VfsSpec vfsSpec, final InterruptionChecker interruptionChecker) {
         this.session = new VfsSession(vfsSpec, interruptionChecker);
-        this.nestedJarHandler = new NestedJarHandler(session);
+        this.rootsByPath = new SingletonMap<>(session.closedFlag()) {
+            @Override
+            public VfsRoot newInstance(final String resolvedPath, final @Nullable LogNode logNode)
+                    throws IOException, InterruptedException {
+                return openRootUncached(resolvedPath, logNode);
+            }
+        };
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -249,50 +262,160 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
         // named as a plain path, as a "file:" or "jar:" URL, with a trailing separator, or -- on Windows -- with
         // backslashes rather than forward slashes, and all of those name one thing that is opened once
         final var resolvedPath = FastPathResolver.resolve(path);
-        // computeIfAbsent is not used, because the mapping function must not itself open other jarfiles (the
-        // enclosing jarfiles of a nested one are opened on the way to it, which would be a recursive update)
-        final var alreadyOpened = rootsByPath.get(resolvedPath);
-        if (alreadyOpened != null) {
-            return alreadyOpened;
+        try {
+            return openThroughCache(resolvedPath, logNode, /* factory = */ null);
+        } catch (final InterruptedException e) {
+            // Route the interruption through the shared interruption checker, so that every other thread reading
+            // through this Vfs stops too, and chain the cause, so that the reason the open did not complete is
+            // reachable from the stack trace
+            session.interruptionChecker().interrupt();
+            throw new IOException("Interrupted while opening " + resolvedPath, e);
         }
-        final var root = adopt(openUncached(resolvedPath, logNode == null ? null : logNode.log("Opening " + path)));
-        // Pick the winner under the root's canonical/reported path first. Every alias must point to this winner;
-        // caching the alias first leaves a race in which the alias and canonical path can retain different roots.
-        final var reportedPath = root.reportedPath();
-        final var cachedRoot = cacheRoot(rootsByPath, reportedPath, root, path);
-        if (!reportedPath.equals(resolvedPath)) {
-            // This is deliberately an unconditional replacement. Any existing value for this alias was produced
-            // by a concurrent open of the same thing and must be reconciled with the canonical-path winner.
-            rootsByPath.put(resolvedPath, cachedRoot);
-            cachedRoot.addUnregistration(() -> rootsByPath.remove(resolvedPath, cachedRoot));
-            discardIfClosed(path, cachedRoot);
-        }
-        return cachedRoot;
     }
 
     /**
-     * Return the root that is already open at the given path, or, if there is none, cache the root the given
-     * factory builds and return that. This is how a root that was built without going through {@link #open(String)}
-     * -- the container of a root that was opened at a package root -- is shared with the callers that name the same
-     * jarfile, rather than becoming a second root over one jarfile, each with its own entry list.
+     * Look a key up in {@link #rootsByPath}, building the root if no thread has opened that key yet, and return the
+     * root open at that key. {@link InterruptedException} is deliberately let through raw rather than being wrapped
+     * in an {@link IOException} here: a build that opens the jarfile enclosing a nested one re-enters this method,
+     * and wrapping the interruption in the inner frame would leave the outer frame reporting the cancellation of
+     * the calling thread as a failure of the path it was opening. Only the public {@code open} methods convert it.
      *
-     * @param path
-     *            the path the root reports itself at, which is already in the form
-     *            {@link FastPathResolver#resolve(String)} returns, since it is the canonical path of the jarfile
-     *            that backs the root.
-     * @param rootFactory
-     *            builds the root, and is only called if no root is open at that path yet.
-     * @return the root open at that path.
+     * @param key
+     *            the cache key: a path in the form {@link FastPathResolver#resolve(String)} returns, or the URI of
+     *            a {@link Path} in a non-default filesystem.
+     * @param logNode
+     *            the log node that a build logs to, or null to skip logging.
+     * @param factory
+     *            builds the root if no thread has opened that key yet, or null to build with
+     *            {@link #openRootUncached(String, LogNode)}.
+     * @return the root open at that key.
      * @throws IOException
-     *             if this {@link Vfs} has been closed.
+     *             if the key could not be opened or read, or if this {@link Vfs} has been closed.
+     * @throws InterruptedException
+     *             if the thread was interrupted.
      */
-    VfsRoot rootAtPath(final String path, final Supplier<VfsRoot> rootFactory) throws IOException {
-        checkNotClosed(path);
-        final var alreadyOpened = rootsByPath.get(path);
-        if (alreadyOpened != null) {
-            return alreadyOpened;
+    private VfsRoot openThroughCache(final String key, final @Nullable LogNode logNode,
+            final SingletonMap.@Nullable NewInstanceFactory<VfsRoot, IOException> factory)
+            throws IOException, InterruptedException {
+        for (;;) {
+            final VfsRoot root;
+            try {
+                root = rootsByPath.get(key, logNode, factory);
+            } catch (final NullSingletonException | NewInstanceException e) {
+                // A failed open is not remembered: the cache would otherwise turn every later attempt at the same
+                // path away with the first failure, so a path that failed once could never be opened again through
+                // this Vfs -- not after whatever stopped it has been put right, and not by another route that
+                // reaches the same thing without the step that failed
+                rootsByPath.discard(key);
+                // Chain the cause, as well as naming it in the message -- otherwise the reason the path could not
+                // be opened is not reachable from the stack trace
+                final var cause = e.getCause() == null ? e : e.getCause();
+                throw new IOException("Could not open " + key + " : " + cause, cause);
+            }
+            // The path the root reports itself at -- its canonical path -- may differ from the key it was asked
+            // for by, e.g. when a multi-release jarfile's versioned entry was named by its unversioned name, and
+            // recording it as an alias makes a later open by that spelling a cache hit rather than a rebuild
+            registerAlias(root, key);
+            if (!root.isClosed()) {
+                return root;
+            }
+            // The cached root is closed. If this Vfs was closed while the root was being built, close() may have
+            // drained the set of open roots before this root was added to it, so close the root here (closing a
+            // root twice is harmless), and turn the caller away
+            if (isClosed()) {
+                root.close();
+            }
+            checkNotClosed(key);
+            // The root was closed by hand while this Vfs stayed open: discard the stale cache entry, unless
+            // another thread already replaced it, and retry, so that the caller gets a live root back
+            rootsByPath.discard(key, root);
         }
-        return cacheRoot(rootsByPath, path, adopt(rootFactory.get()), path);
+    }
+
+    /**
+     * Look a key up in {@link #rootsByPath}, building the root with {@link #openRootUncached(String, LogNode)} if
+     * no thread has opened that key yet. This is how one frame of {@link #openRootUncached(String, LogNode)}
+     * re-enters the cache to open the jarfile enclosing a nested one, or to open a non-canonical path under its
+     * canonical form; the cache allows the re-entry, since each frame locks only its own key.
+     *
+     * @param key
+     *            the cache key, in the form {@link FastPathResolver#resolve(String)} returns.
+     * @param logNode
+     *            the log node that a build logs to, or null to skip logging.
+     * @return the root open at that key.
+     * @throws IOException
+     *             if the key could not be opened or read, or if this {@link Vfs} has been closed.
+     * @throws InterruptedException
+     *             if the thread was interrupted.
+     */
+    private VfsRoot openReentrant(final String key, final @Nullable LogNode logNode)
+            throws IOException, InterruptedException {
+        return openThroughCache(key, logNode, /* factory = */ null);
+    }
+
+    /**
+     * Record the path a root reports itself at as another key it can be found by in {@link #rootsByPath}, unless
+     * that is the key it was just found by, or another root already holds that key. The root is handed the action
+     * that takes the alias back out of the cache, so that closing the root removes it.
+     *
+     * @param root
+     *            the root that was just opened or found in the cache.
+     * @param openedKey
+     *            the key it was opened or found by.
+     */
+    private void registerAlias(final VfsRoot root, final String openedKey) {
+        final var reportedPath = root.reportedPath();
+        // putIfAbsent refuses silently once this Vfs is closed, which is correct here: the caches of a closed Vfs
+        // stay empty
+        if (!reportedPath.equals(openedKey) && rootsByPath.putIfAbsent(reportedPath, root)) {
+            root.addUnregistration(() -> rootsByPath.discard(reportedPath, root));
+        }
+    }
+
+    /**
+     * Hand a root that {@link #openRootUncached(String, LogNode)} is about to return the action that takes the key
+     * it is being built under back out of {@link #rootsByPath}, so that closing the root removes it from the cache.
+     * The cache entry itself is written by the cache once the build returns, so a root closed in the narrow window
+     * between this registration and that write leaves a stale entry behind, which
+     * {@link #openThroughCache(String, LogNode, SingletonMap.NewInstanceFactory)} discards and retries when it is
+     * next looked up.
+     *
+     * @param key
+     *            the key the root is being built under.
+     * @param root
+     *            the root being returned for that key.
+     * @return the root.
+     */
+    private VfsRoot recordPathKey(final String key, final VfsRoot root) {
+        root.addUnregistration(() -> rootsByPath.discard(key, root));
+        return root;
+    }
+
+    /**
+     * Build a root within a container root: a package root view of the container's jarfile, or the root of a
+     * jarfile nested within it. The child registers itself with the container, so that closing the container closes
+     * the child; if the container was closed while the child was being built, the registration may have come too
+     * late for the container's close to see, so the child is closed here instead, and the caller -- always a build
+     * running under {@link #openThroughCache(String, LogNode, SingletonMap.NewInstanceFactory)} -- then sees a
+     * closed root, discards it, and retries or turns its caller away. The closed root is still returned rather than
+     * an exception being thrown, since the cache would record a thrown build as a permanent failure of the path,
+     * and a race with a close of the container is not one.
+     *
+     * @param container
+     *            the root the child is being built within.
+     * @param zipFile
+     *            the jarfile the child reads.
+     * @param packageRoot
+     *            the package root within that jarfile, or the empty string for the whole jarfile.
+     * @return the child root.
+     */
+    private ArchiveRoot newChildRoot(final ArchiveRoot container, final LogicalZipFile zipFile,
+            final String packageRoot) {
+        final var child = adopt(new ArchiveRoot(this, container, zipFile, packageRoot));
+        if (container.isClosed()) {
+            child.close();
+        }
+        return child;
     }
 
     /**
@@ -370,51 +493,121 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
     }
 
     /**
-     * Open a directory or a jarfile named by a path, without consulting or updating the cache of opened roots.
+     * Open a directory or a jarfile named by a path, when no root is cached under that path yet. This is only
+     * called by {@link #rootsByPath}, which holds the key while this runs, so a path is only built once however
+     * many threads ask for it at the same time.
+     *
+     * <p>
+     * A path that names something within a jarfile -- {@code "outer.jar!/lib/inner.jar"} -- is opened one
+     * {@code "!/"} section at a time: the path up to the last separator is opened through the cache, which opens
+     * the section before that, and so on down to the jarfile in the local filesystem, and each of those enclosing
+     * jarfiles is a root in its own right, cached under its own path. A path that is not the canonical spelling of
+     * what it names -- one that reaches a jarfile through a symlink, or that names a nested jarfile through a
+     * non-canonical spelling of the enclosing one -- is opened by re-entering the cache under the canonical
+     * spelling, so that both spellings share one root.
      *
      * @param resolvedPath
-     *            the path to open, in the form {@link FastPathResolver#resolve(String)} returns it, so that the
-     *            nested jar handler is keyed by the same spelling of the path that the cache of opened roots is.
-     * @param logNode
-     *            the log node, or null to skip logging.
+     *            the path to open, in the form {@link FastPathResolver#resolve(String)} returns it.
+     * @param outerLog
+     *            the log node to log under, or null to skip logging.
      * @return the opened root.
      * @throws IOException
      *             if the path could not be opened or read.
+     * @throws InterruptedException
+     *             if the thread was interrupted.
      */
-    private VfsRoot openUncached(final String resolvedPath, final @Nullable LogNode logNode) throws IOException {
-        // A path with a "!/" section in it names something within a jarfile, and a path with a URL scheme names a
-        // jarfile to download, so neither can be a directory
-        if (PathSyntax.lastIndexOfNestedJarSeparator(resolvedPath) < 0 && !PathSyntax.hasURLScheme(resolvedPath)) {
-            Path dir;
-            try {
-                dir = Path.of(resolvedPath);
-            } catch (final InvalidPathException e) {
-                // A path that this filesystem cannot represent is not a directory, so try opening it as a jarfile,
-                // which reports the failure with the reason it could not be read
-                dir = null;
+    private VfsRoot openRootUncached(final String resolvedPath, final @Nullable LogNode outerLog)
+            throws IOException, InterruptedException {
+        final var logNode = outerLog == null ? null : outerLog.log("Opening " + resolvedPath);
+        final var lastPlingIdx = PathSyntax.lastIndexOfNestedJarSeparator(resolvedPath);
+        if (lastPlingIdx < 0) {
+            // A path with a URL scheme names a jarfile to download, so it cannot be a directory
+            if (!PathSyntax.hasURLScheme(resolvedPath)) {
+                Path dir;
+                try {
+                    dir = Path.of(resolvedPath);
+                } catch (final InvalidPathException e) {
+                    // A path that this filesystem cannot represent is not a directory, so try opening it as a
+                    // jarfile, which reports the failure with the reason it could not be read
+                    dir = null;
+                }
+                if (dir != null && Files.isDirectory(dir)) {
+                    // A directory root names itself by the canonical path of the directory that backs it, which is
+                    // what the path it was reached through has to be reconciled with when the two differ -- when
+                    // the directory was reached through a symlink, or, on Windows, by an 8.3 short name. The root
+                    // that was just built is not the one to keep in that case: the root belongs under the
+                    // canonical path, where another thread may already have opened it. Nothing but the directory's
+                    // own name is read to build one, so building one to find that name out costs a stat.
+                    final var dirRoot = new DirRoot(this, dir);
+                    final var canonicalKey = dirRoot.reportedPath();
+                    if (!canonicalKey.equals(resolvedPath)) {
+                        dirRoot.close();
+                        return recordPathKey(resolvedPath, openReentrant(canonicalKey, outerLog));
+                    }
+                    return recordPathKey(resolvedPath, adopt(dirRoot));
+                }
+                // A jarfile in the local filesystem is opened under its canonical path, so that two paths that
+                // reach the same jarfile -- one of them through a symlink, or, on Windows, by an 8.3 short name --
+                // open it once
+                File canonicalFile;
+                try {
+                    canonicalFile = FileUtils.canonicalize(new File(resolvedPath));
+                } catch (final SecurityException e) {
+                    throw new IOException("Path component " + resolvedPath + " could not be canonicalized: " + e,
+                            e);
+                }
+                // This is the same spelling of the path that the opened jarfile reports itself at
+                final var canonicalKey = FastPathResolver.resolve(FileUtils.currDirPath(), canonicalFile.getPath());
+                if (!canonicalKey.equals(resolvedPath)) {
+                    return recordPathKey(resolvedPath, openReentrant(canonicalKey, outerLog));
+                }
+                return recordPathKey(resolvedPath, adopt(new ArchiveRoot(this, /* container = */ null,
+                        JarOpener.openJarFile(canonicalFile, session, logNode), /* packageRoot = */ "")));
             }
-            if (dir != null && Files.isDirectory(dir)) {
-                return new DirRoot(this, dir);
+            return recordPathKey(resolvedPath, adopt(new ArchiveRoot(this, /* container = */ null,
+                    JarOpener.openJarFromURL(resolvedPath, session, logNode), /* packageRoot = */ "")));
+        }
+
+        // The path names something within a jarfile: open the enclosing jarfile first, through the cache, so that
+        // it is opened once however many nested jarfiles or package roots are read out of it
+        final var parentPath = resolvedPath.substring(0, lastPlingIdx);
+        // The separator itself is the "!", and sanitizing the rest strips the "/" that follows it
+        final var childPath = PathSyntax.sanitizeEntryPath(resolvedPath.substring(lastPlingIdx + 1),
+                /* removeInitialSlash = */ true, /* removeFinalSlash = */ true);
+        final var parentRoot = openReentrant(parentPath, outerLog);
+        if (!(parentRoot instanceof final ArchiveRoot parentArchive)) {
+            // FastPathResolver only splits a path at a "!" that follows a jarfile, so this cannot normally happen
+            throw new IOException("Path " + parentPath + " is not a jarfile, so " + resolvedPath
+                    + " does not name anything within one");
+        }
+        // A path opened at a package root reports itself at that root, but the entry named after the "!" is looked
+        // up in the whole jarfile, so read it through the root of the whole jarfile
+        final var container = (ArchiveRoot) parentArchive.getContainerRoot();
+        final var containerZipFile = container.zipFile();
+        // The enclosing jarfile may have been reached by a non-canonical path, in which case the canonical
+        // spelling of this path names the same thing and is where the root belongs
+        final var canonicalChildKey = containerZipFile.getPath() + "!/" + childPath;
+        if (!canonicalChildKey.equals(resolvedPath)) {
+            return recordPathKey(resolvedPath, openReentrant(canonicalChildKey, outerLog));
+        }
+        final var childZipEntry = JarOpener.findEntry(containerZipFile, childPath);
+        if (childZipEntry == null) {
+            if (JarOpener.hasEntriesUnderDir(containerZipFile, childPath)) {
+                // The path names a directory within the jarfile rather than a nested jarfile, so it is a package
+                // root: the same jarfile, reporting only the entries under that directory
+                if (logNode != null && !childPath.isEmpty()) {
+                    logNode.log("Path " + childPath + " in jarfile " + containerZipFile
+                            + " is a directory, not a file -- using as package root");
+                }
+                return recordPathKey(resolvedPath, newChildRoot(container, containerZipFile, childPath));
             }
+            throw new IOException("Path " + childPath + " does not exist in jarfile " + containerZipFile);
         }
-        try {
-            // The nested jar handler caches the logical zipfile, so two threads that race here open it only once,
-            // and both get the same LogicalZipFile back
-            final var logicalZipFileAndPackageRoot = nestedJarHandler.nestedPathToLogicalZipFileAndPackageRootMap()
-                    .get(resolvedPath, logNode);
-            return new ArchiveRoot(this, logicalZipFileAndPackageRoot.getKey(),
-                    logicalZipFileAndPackageRoot.getValue());
-        } catch (final NullSingletonException | NewInstanceException e) {
-            // Chain the cause, as well as naming it in the message -- otherwise the reason the path could not be
-            // opened is not reachable from the stack trace
-            final var cause = e.getCause() == null ? e : e.getCause();
-            throw new IOException("Could not open " + resolvedPath + " : " + cause, cause);
-        } catch (final InterruptedException e) {
-            // Route the interruption through the shared interruption checker, so that every other thread reading
-            // through this Vfs stops too, and chain the cause, for the same reason as the catch clause above
-            session.interruptionChecker().interrupt();
-            throw new IOException("Interrupted while opening " + resolvedPath, e);
+        if (!session.vfsSpec.isNestedJarsEnabled()) {
+            throw new IOException("Nested jar scanning is disabled -- skipping nested jar " + resolvedPath);
         }
+        return recordPathKey(resolvedPath,
+                newChildRoot(container, JarOpener.openNestedJar(childZipEntry, logNode), /* packageRoot = */ ""));
     }
 
     /**
@@ -452,23 +645,23 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
         // filesystem, and could collide with a path in the default one
         final var key = path.toUri().toString();
         checkNotClosed(key);
-        final var alreadyOpened = rootsByPath.get(key);
-        if (alreadyOpened != null) {
-            return alreadyOpened;
+        // Read the log node once, since it is volatile and the factory below may run on another thread
+        final var logCurr = log;
+        try {
+            // The path itself is what is opened, so the cache is given a factory that opens it, rather than the
+            // default one, which would take the URI apart again and look for a file of that name
+            return openThroughCache(key, logCurr, () -> {
+                final var logNode = logCurr == null ? null : logCurr.log("Opening " + key);
+                return recordPathKey(key,
+                        Files.isDirectory(path) ? adopt(new DirRoot(this, path))
+                                : adopt(new ArchiveRoot(this, /* container = */ null,
+                                        JarOpener.openJarFromPath(path, session, logNode),
+                                        /* packageRoot = */ "")));
+            });
+        } catch (final InterruptedException e) {
+            session.interruptionChecker().interrupt();
+            throw new IOException("Interrupted while opening " + key, e);
         }
-        final var logNode = log == null ? null : log.log("Opening " + key);
-        final VfsRoot root;
-        if (Files.isDirectory(path)) {
-            root = new DirRoot(this, path);
-        } else {
-            try {
-                root = new ArchiveRoot(this, nestedJarHandler.openJarFromPath(path, logNode), "");
-            } catch (final InterruptedException e) {
-                session.interruptionChecker().interrupt();
-                throw new IOException("Interrupted while opening " + key, e);
-            }
-        }
-        return cacheRoot(rootsByPath, key, adopt(root), key);
     }
 
     /**
@@ -630,12 +823,11 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
         checkNotClosed(name);
         final var logNode = log == null ? null : log.log("Reading " + name + " from an InputStream");
         try {
-            return discardIfClosed(
-                    name, adopt(
-                            new ArchiveRoot(this,
-                                    nestedJarHandler.openJarFromInputStream(inputStream,
-                                            /* inputStreamLengthHint = */ -1L, name, logNode),
-                                    /* packageRoot = */ "")));
+            return discardIfClosed(name,
+                    adopt(new ArchiveRoot(
+                            this, /* container = */ null, JarOpener.openJarFromInputStream(inputStream,
+                                    /* inputStreamLengthHint = */ -1L, name, session, logNode),
+                            /* packageRoot = */ "")));
         } catch (final InterruptedException e) {
             session.interruptionChecker().interrupt();
             throw new IOException("Interrupted while reading " + name, e);
@@ -665,9 +857,9 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
         final var logNode = log == null ? null : log.log("Reading " + name + " from a byte array");
         try {
             return discardIfClosed(name,
-                    adopt(new ArchiveRoot(this,
-                            nestedJarHandler.openJarFromInputStream(new ByteArrayInputStream(jarBytes),
-                                    jarBytes.length, name, logNode),
+                    adopt(new ArchiveRoot(this, /* container = */ null,
+                            JarOpener.openJarFromInputStream(new ByteArrayInputStream(jarBytes), jarBytes.length,
+                                    name, session, logNode),
                             /* packageRoot = */ "")));
         } catch (final InterruptedException e) {
             session.interruptionChecker().interrupt();
@@ -690,21 +882,26 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      * <p>
      * The roots come back sorted by the path they report themselves at, and each root is reported once, however
      * many paths it was opened by. A root read from an {@link InputStream} or from a byte array is not included,
-     * since there is no path that names it, so it is not cached: reading the same bytes again builds a new root.
+     * since there is no path that names it, so it is not cached: reading the same bytes again builds a new root. A
+     * jarfile that was only opened because a nested jarfile or a package root within it was asked for is included,
+     * since it is a root in its own right, cached under its own path.
      *
      * <p>
      * The iterator is a snapshot taken when this method is called, so a root opened or evicted by another thread
-     * afterwards does not change what it reports. A closed {@link Vfs} has nothing cached, so iterating one reports
-     * nothing.
+     * afterwards does not change what it reports. A root that another thread is still opening is not included,
+     * since it is not open yet. A closed {@link Vfs} has nothing cached, so iterating one reports nothing.
      *
      * @return an iterator over the roots this {@link Vfs} has cached.
      */
     @Override
     public Iterator<VfsRoot> iterator() {
+        if (isClosed()) {
+            return Collections.emptyIterator();
+        }
         // A root can be cached under more than one path, e.g. under both the path it was opened from and the
         // canonical path of the directory or jarfile that turned out to back it, so it can be reached twice here
         final Set<VfsRoot> distinctRoots = Collections.newSetFromMap(new IdentityHashMap<>());
-        distinctRoots.addAll(rootsByPath.values());
+        distinctRoots.addAll(rootsByPath.completedValues());
         distinctRoots.addAll(rootsByModule.values());
         final var roots = new ArrayList<>(distinctRoots);
         roots.sort(Comparator.comparing(VfsRoot::reportedPath));
@@ -735,7 +932,7 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
         if (!session.isClosed()) {
             // A root can be cached under more than one key, e.g. under both the path it was opened from and the
             // canonical path of the file that turned out to back it
-            rootsByPath.values().removeIf(cachedRoot -> cachedRoot == root);
+            rootsByPath.discardValue(root);
             rootsByModule.values().removeIf(cachedRoot -> cachedRoot == root);
         }
         // If this Vfs is already closing, the caches are cleared wholesale by close(), so there is nothing to do
@@ -876,11 +1073,10 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
         }
         try {
             try {
+                // The caches have to be dropped before the resources behind them are released, so that nothing can
+                // be handed a root that is about to be closed
                 rootsByPath.clear();
                 rootsByModule.clear();
-                // The zipfile caches have to be dropped before the resources behind them are released, so that
-                // nothing can be handed a slice of a zipfile that is about to be closed
-                nestedJarHandler.dropCaches();
                 // Close every root this Vfs opened, releasing what each root itself owns: a module root's pooled
                 // readers are closed here, before the session teardown below releases the file handles, memory
                 // mappings and temporary files that the roots were read through. VfsRoot#close never throws, so

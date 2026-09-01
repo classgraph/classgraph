@@ -31,19 +31,14 @@ package io.github.classgraph.vfs.internal.zip;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.zip.CRC32;
 
 import io.github.classgraph.base.LogNode;
-import io.github.classgraph.base.internal.concurrency.SingletonMap.NewInstanceException;
-import io.github.classgraph.base.internal.concurrency.SingletonMap.NullSingletonException;
-import io.github.classgraph.base.internal.concurrency.SingletonMap;
 import io.github.classgraph.base.internal.path.PathSyntax;
 import io.github.classgraph.base.internal.utils.CollectionUtils;
 import io.github.classgraph.base.internal.utils.StringUtils;
@@ -76,9 +71,6 @@ public class LogicalZipFile extends ZipFileSlice {
     /** If true, this is a multi-release jar. */
     private boolean isMultiReleaseJar;
 
-    /** A set of classpath roots found in the classpath for this zipfile. */
-    Set<String> classpathRoots = Collections.newSetFromMap(new ConcurrentHashMap<>());
-
     /** The main section of the manifest file, or null if the zipfile has no manifest file. */
     private @Nullable Map<String, String> manifest;
 
@@ -87,14 +79,6 @@ public class LogicalZipFile extends ZipFileSlice {
 
     /** The session that owns what is opened to read this zipfile and the jarfiles nested within it. */
     private final VfsSession session;
-
-    /**
-     * The jarfiles nested within this one, keyed by the entry of this zipfile that holds each. An entry belongs to
-     * exactly one zipfile, so this is where a nested jarfile is deduplicated: two callers that ask this zipfile for
-     * the same entry are handed the same nested jarfile, and its central directory is only read once. A lookup is
-     * turned away once the session has been closed.
-     */
-    private final SingletonMap<FastZipEntry, LogicalZipFile, IOException> nestedJars;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -139,51 +123,18 @@ public class LogicalZipFile extends ZipFileSlice {
         super(zipFileSlice);
         this.session = session;
         this.multiReleaseVersionsEnabled = multiReleaseVersionsEnabled;
-        this.nestedJars = new SingletonMap<>(session.closedFlag()) {
-            @Override
-            public LogicalZipFile newInstance(final FastZipEntry zipEntry, final @Nullable LogNode nestedJarLog)
-                    throws IOException, InterruptedException {
-                return openNestedJarUncached(zipEntry, nestedJarLog);
-            }
-        };
         readCentralDirectory(session, log);
     }
 
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Open a jarfile nested within this one. Every caller that asks this zipfile for the same entry is handed the
-     * same nested jarfile, so a nested jarfile is only extracted, and its central directory only read, once.
+     * Open a jarfile nested within this one. Nothing here is cached: the caller decides how the nested jarfile is
+     * shared. The nested jarfile is wrapped in place if it is stored, or inflated to RAM or to a temporary file if
+     * it is deflated, and its central directory is then read.
      *
      * @param zipEntry
      *            the entry of this zipfile that holds the nested jarfile. It must be an entry of this zipfile.
-     * @param log
-     *            the log node, or null to skip logging
-     * @return the {@link LogicalZipFile} for the nested jarfile.
-     * @throws IOException
-     *             if the nested jarfile could not be opened, or the session has been closed.
-     * @throws InterruptedException
-     *             if the thread was interrupted.
-     */
-    LogicalZipFile openNestedJar(final FastZipEntry zipEntry, final @Nullable LogNode log)
-            throws IOException, InterruptedException {
-        try {
-            return nestedJars.get(zipEntry, log);
-        } catch (final NullSingletonException | NewInstanceException e) {
-            // Chain the cause, as well as naming it in the message, so that the reason is reachable from the stack
-            // trace
-            final var cause = e.getCause() == null ? e : e.getCause();
-            throw new IOException("Could not open nested jar " + zipEntry + " : " + cause, cause);
-        }
-    }
-
-    /**
-     * Open a jarfile nested within this one, without consulting or populating {@link #nestedJars}. The nested
-     * jarfile is wrapped in place if it is stored, or inflated to RAM or to a temporary file if it is deflated, and
-     * its central directory is then read.
-     *
-     * @param zipEntry
-     *            the entry of this zipfile that holds the nested jarfile
      * @param log
      *            the log node, or null to skip logging
      * @return the {@link LogicalZipFile} for the nested jarfile.
@@ -192,7 +143,7 @@ public class LogicalZipFile extends ZipFileSlice {
      * @throws InterruptedException
      *             if the thread was interrupted.
      */
-    private LogicalZipFile openNestedJarUncached(final FastZipEntry zipEntry, final @Nullable LogNode log)
+    LogicalZipFile openNestedJar(final FastZipEntry zipEntry, final @Nullable LogNode log)
             throws IOException, InterruptedException {
         if (!zipEntry.isDeflated) {
             // The entry holds a stored nested zipfile, so it can be read in place, as a byte range of this zipfile.
@@ -221,8 +172,8 @@ public class LogicalZipFile extends ZipFileSlice {
             return new LogicalZipFile(new ZipFileSlice(inflatedZipFile, zipEntry), session, log,
                     multiReleaseVersionsEnabled);
         } catch (final IOException | InterruptedException | RuntimeException | Error e) {
-            // The cache records the failure rather than inflating the entry again, so nothing would ever reach what
-            // was just inflated
+            // The caller's cache records the failure rather than inflating the entry again, so nothing would ever
+            // reach what was just inflated
             inflatedZipFile.releaseUnreachable(e);
             throw e;
         }

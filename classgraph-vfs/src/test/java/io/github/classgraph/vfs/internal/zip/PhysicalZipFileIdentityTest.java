@@ -94,18 +94,10 @@ public class PhysicalZipFileIdentityTest {
         writeJar(jarFile);
 
         final var session = new VfsSession(new VfsSpec(), new InterruptionChecker());
-        final var nestedJarHandler = new NestedJarHandler(session);
         final var otherSession = new VfsSession(new VfsSpec(), new InterruptionChecker());
-        final var otherNestedJarHandler = new NestedJarHandler(otherSession);
         try {
-            final var logicalZipFile = nestedJarHandler.nestedPathToLogicalZipFileAndPackageRootMap()
-                    .get(jarFile.getPath(), /* log = */ null).getKey();
-            final var openedAgain = otherNestedJarHandler.nestedPathToLogicalZipFileAndPackageRootMap()
-                    .get(jarFile.getPath(), /* log = */ null).getKey();
-
-            // Opening the same path through the same handler a second time returns the same zipfile
-            assertThat(nestedJarHandler.nestedPathToLogicalZipFileAndPackageRootMap()
-                    .get(jarFile.getPath(), /* log = */ null).getKey()).isSameAs(logicalZipFile);
+            final var logicalZipFile = JarOpener.openJarFile(jarFile, session, /* log = */ null);
+            final var openedAgain = JarOpener.openJarFile(jarFile, otherSession, /* log = */ null);
 
             // The two openings are the same physical zipfile, but not the same handle on it
             assertThat(logicalZipFile.getPhysicalFile()).isEqualTo(openedAgain.getPhysicalFile());

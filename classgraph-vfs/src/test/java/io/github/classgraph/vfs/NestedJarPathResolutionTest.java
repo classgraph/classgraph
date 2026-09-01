@@ -1,4 +1,4 @@
-package io.github.classgraph.vfs.internal.zip;
+package io.github.classgraph.vfs;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -10,17 +10,14 @@ import java.nio.file.Path;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
-import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
-import io.github.classgraph.vfs.VfsSpec;
-import io.github.classgraph.vfs.internal.VfsSession;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
- * Tests resolving a classpath element path that names something inside a jarfile, which is either a nested jarfile
- * or a package root within the jarfile.
+ * Tests opening a path that names something inside a jarfile, which is either a nested jarfile or a package root
+ * within the jarfile.
  */
 public class NestedJarPathResolutionTest {
     /** The name of the entry holding the nested jarfile. */
@@ -29,11 +26,8 @@ public class NestedJarPathResolutionTest {
     /** The directory within the outer jarfile that holds classes. */
     private static final String PACKAGE_ROOT = "BOOT-INF/classes";
 
-    /** The resources owned by the scan, closed when the test ends. */
-    private final VfsSession session = new VfsSession(new VfsSpec(), new InterruptionChecker());
-
-    /** The handler under test. */
-    private final NestedJarHandler nestedJarHandler = new NestedJarHandler(session);
+    /** The virtual filesystem under test, closed when the test ends. */
+    private final Vfs vfs = new Vfs();
 
     /** The path of the outer jarfile. */
     private String outerJarPath;
@@ -78,31 +72,17 @@ public class NestedJarPathResolutionTest {
 
     /** The jarfiles must not be left open, otherwise the temporary directory cannot be deleted on Windows. */
     @AfterEach
-    public void closeSession() {
-        session.close(/* log = */ null);
-    }
-
-    /**
-     * Resolve a path.
-     *
-     * @param path
-     *            the path to resolve
-     * @return the zipfile the path names, paired with the package root within it
-     * @throws Exception
-     *             if the path could not be resolved
-     */
-    private java.util.Map.Entry<LogicalZipFile, String> resolve(final String path) throws Exception {
-        return nestedJarHandler.nestedPathToLogicalZipFileAndPackageRootMap().get(path, /* log = */ null);
+    public void closeVfs() {
+        vfs.close();
     }
 
     /** A path naming a jarfile inside a jarfile opens the nested jarfile, with no package root within it. */
     @Test
     public void aPathNamingANestedJarfileOpensIt() throws Exception {
-        final var resolved = resolve(outerJarPath + "!/" + INNER_JAR_NAME);
+        final var root = vfs.open(outerJarPath + "!/" + INNER_JAR_NAME);
 
-        assertThat(resolved.getValue()).isEmpty();
-        assertThat(resolved.getKey().entries).extracting(entry -> entry.entryName)
-                .containsExactly("testpkg/Inner.class");
+        assertThat(root.getPackageRoot()).isEmpty();
+        assertThat(root.getEntries()).extracting(VfsEntry::getPathFromRoot).containsExactly("testpkg/Inner.class");
     }
 
     /**
@@ -111,11 +91,10 @@ public class NestedJarPathResolutionTest {
      */
     @Test
     public void aTrailingSlashDoesNotStopANestedJarfileFromBeingOpened() throws Exception {
-        final var resolved = resolve(outerJarPath + "!/" + INNER_JAR_NAME + "/");
+        final var root = vfs.open(outerJarPath + "!/" + INNER_JAR_NAME + "/");
 
-        assertThat(resolved.getValue()).isEmpty();
-        assertThat(resolved.getKey().entries).extracting(entry -> entry.entryName)
-                .containsExactly("testpkg/Inner.class");
+        assertThat(root.getPackageRoot()).isEmpty();
+        assertThat(root.getEntries()).extracting(VfsEntry::getPathFromRoot).containsExactly("testpkg/Inner.class");
     }
 
     /**
@@ -126,11 +105,12 @@ public class NestedJarPathResolutionTest {
     public void aPathNamingADirectoryIsAPackageRoot() throws Exception {
         for (final var path : new String[] { outerJarPath + "!/" + PACKAGE_ROOT,
                 outerJarPath + "!/" + PACKAGE_ROOT + "/" }) {
-            final var resolved = resolve(path);
+            final var root = vfs.open(path);
 
-            assertThat(resolved.getValue()).isEqualTo(PACKAGE_ROOT);
-            assertThat(resolved.getKey().getPath()).endsWith("outer.jar");
-            assertThat(resolved.getKey().classpathRoots).contains(PACKAGE_ROOT);
+            assertThat(root.getPackageRoot()).isEqualTo(PACKAGE_ROOT);
+            assertThat(root.getPath()).endsWith("outer.jar");
+            assertThat(root.getEntries()).extracting(VfsEntry::getPathFromRoot)
+                    .containsExactly("testpkg/Outer.class");
         }
     }
 
@@ -140,8 +120,8 @@ public class NestedJarPathResolutionTest {
      */
     @Test
     public void anEntryThatIsNotAJarfileIsReportedWithTheReasonChained() {
-        assertThatThrownBy(() -> resolve(outerJarPath + "!/" + PACKAGE_ROOT + "/testpkg/Outer.class")).cause()
-                .isInstanceOf(IOException.class).hasMessageContaining("Could not open nested jar").cause()
+        assertThatThrownBy(() -> vfs.open(outerJarPath + "!/" + PACKAGE_ROOT + "/testpkg/Outer.class"))
+                .isInstanceOf(IOException.class).hasMessageContaining("Could not open").cause()
                 .isInstanceOf(IOException.class)
                 .hasMessageContaining("Zipfile too short to have a central directory");
     }
@@ -149,7 +129,25 @@ public class NestedJarPathResolutionTest {
     /** A path that names neither an entry nor a directory of the jarfile is reported, naming the path. */
     @Test
     public void aPathThatNamesNothingInTheJarfileIsReported() {
-        assertThatThrownBy(() -> resolve(outerJarPath + "!/no/such/path")).cause().isInstanceOf(IOException.class)
+        assertThatThrownBy(() -> vfs.open(outerJarPath + "!/no/such/path")).isInstanceOf(IOException.class).cause()
+                .isInstanceOf(IOException.class)
                 .hasMessageContaining("Path no/such/path does not exist in jarfile");
+    }
+
+    /**
+     * The jarfile enclosing a nested one is opened as a root in its own right, cached under its own path, so
+     * opening it separately gives back the same root, and it is the container of the package root view of it.
+     */
+    @Test
+    public void theEnclosingJarfileIsARootInItsOwnRight() throws Exception {
+        final var packageRootView = vfs.open(outerJarPath + "!/" + PACKAGE_ROOT);
+        final var outerRoot = vfs.open(outerJarPath);
+
+        assertThat(packageRootView.getContainerRoot()).isSameAs(outerRoot);
+        assertThat(outerRoot.getPackageRoot()).isEmpty();
+        assertThat(outerRoot.getEntries()).extracting(VfsEntry::getPathFromRoot).contains(INNER_JAR_NAME,
+                PACKAGE_ROOT + "/testpkg/Outer.class");
+        // The nested jarfile's own root is a separate root, but it is read out of the same enclosing jarfile
+        assertThat(vfs.open(outerJarPath + "!/" + INNER_JAR_NAME)).isNotSameAs(outerRoot);
     }
 }

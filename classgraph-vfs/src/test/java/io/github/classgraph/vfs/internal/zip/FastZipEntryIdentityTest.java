@@ -83,10 +83,8 @@ public class FastZipEntryIdentityTest {
      */
     private static void withZipFile(final File jarFile, final ZipFileAssertions assertions) throws Exception {
         final var session = new VfsSession(new VfsSpec(), new InterruptionChecker());
-        final var nestedJarHandler = new NestedJarHandler(session);
         try {
-            assertions.run(nestedJarHandler.nestedPathToLogicalZipFileAndPackageRootMap()
-                    .get(jarFile.getPath(), /* log = */ null).getKey());
+            assertions.run(JarOpener.openJarFile(jarFile, session, /* log = */ null));
         } finally {
             // The jarfile must not be left open, otherwise the temporary directory cannot be deleted on Windows
             session.close(/* log = */ null);

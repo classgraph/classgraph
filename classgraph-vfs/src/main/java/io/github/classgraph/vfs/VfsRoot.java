@@ -44,6 +44,8 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.github.classgraph.base.LogNode;
@@ -82,13 +84,40 @@ public abstract class VfsRoot implements Iterable<VfsEntry>, AutoCloseable {
     private final Vfs vfs;
 
     /**
-     * Constructor.
+     * The roots built within this one -- the root of a jarfile nested within this root's jarfile, or a package root
+     * view of it. Closing this root closes each of them first, depth-first, so that resources are released from the
+     * innermost root outwards; a child that is closed by hand takes itself out of this set, pruning the tree at
+     * that point.
+     */
+    private final Set<VfsRoot> children = ConcurrentHashMap.newKeySet();
+
+    /**
+     * Constructor for a root that stands alone.
      *
      * @param vfs
      *            the {@link Vfs} that opened this root.
      */
     VfsRoot(final Vfs vfs) {
+        this(vfs, null);
+    }
+
+    /**
+     * Constructor.
+     *
+     * @param vfs
+     *            the {@link Vfs} that opened this root.
+     * @param parent
+     *            the root this root is built within, which closes this root when it is closed -- or null for a root
+     *            that stands alone. A creator that finds the parent was closed while this constructor ran must
+     *            close the root it just built, since a parent that has already snapshotted its children closes only
+     *            the roots in the snapshot.
+     */
+    VfsRoot(final Vfs vfs, final @Nullable VfsRoot parent) {
         this.vfs = vfs;
+        if (parent != null) {
+            parent.children.add(this);
+            addUnregistration(() -> parent.children.remove(this));
+        }
     }
 
     /** What is backing a {@link VfsRoot}. */
@@ -914,10 +943,12 @@ public abstract class VfsRoot implements Iterable<VfsEntry>, AutoCloseable {
     }
 
     /**
-     * Close this root, releasing what it owns and removing it from the cache of the {@link Vfs} that opened it. The
-     * {@link Vfs} and every other root it has opened stay open; asking the {@link Vfs} for the same path again
-     * opens a fresh root. After the close, reading through this root -- or through a {@link VfsEntry} or
-     * {@link FileSystem} view of it -- throws {@link IOException} or {@link ClosedFileSystemException}.
+     * Close this root, releasing what it owns and removing it from the cache of the {@link Vfs} that opened it.
+     * Every root built within this one -- the root of a jarfile nested within this root's jarfile, or a package
+     * root view of it -- is closed too, innermost first. The {@link Vfs} and every other root it has opened stay
+     * open; asking the {@link Vfs} for the same path again opens a fresh root. After the close, reading through
+     * this root -- or through a {@link VfsEntry} or {@link FileSystem} view of it -- throws {@link IOException} or
+     * {@link ClosedFileSystemException}.
      *
      * <p>
      * There is rarely a reason to call this by hand, since {@link Vfs#close()} closes every root the {@link Vfs}
@@ -957,6 +988,14 @@ public abstract class VfsRoot implements Iterable<VfsEntry>, AutoCloseable {
         // this root is turned away first
         if (closed.getAndSet(true)) {
             return;
+        }
+        // Close the roots built within this one, depth-first, so that resources are released from the innermost
+        // root outwards -- a nested jarfile releases what it holds of the jarfile that encloses it before the
+        // enclosing jarfile's own resources go. Each child takes itself out of the children set as it closes, so
+        // the walk is over a snapshot; a child adopted after the snapshot is closed by its creator, which sees
+        // this root closed
+        for (final var child : new ArrayList<>(children)) {
+            child.close(log);
         }
         // Drop the cached FileSystem view, so that this root cannot hand one out while it is closing. The view is
         // not closed: it reports itself closed once this root is (FileSystem#isOpen consults this root), and

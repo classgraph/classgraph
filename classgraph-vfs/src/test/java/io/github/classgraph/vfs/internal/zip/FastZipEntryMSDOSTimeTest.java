@@ -85,12 +85,9 @@ public class FastZipEntryMSDOSTimeTest {
         }
 
         final var session = new VfsSession(new VfsSpec(), new InterruptionChecker());
-        final var nestedJarHandler = new NestedJarHandler(session);
         final long lastModifiedTimeMillis;
         try {
-            final var logicalZipFileAndPackageRoot = nestedJarHandler.nestedPathToLogicalZipFileAndPackageRootMap()
-                    .get(jarFile.getPath(), /* log = */ null);
-            final var entries = logicalZipFileAndPackageRoot.getKey().entries;
+            final var entries = JarOpener.openJarFile(jarFile, session, /* log = */ null).entries;
             assertThat(entries).hasSize(1);
             assertThat(entries.get(0).entryName).isEqualTo(ENTRY_NAME);
             lastModifiedTimeMillis = entries.get(0).getLastModifiedMillis();

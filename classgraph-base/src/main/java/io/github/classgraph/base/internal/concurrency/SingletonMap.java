@@ -205,6 +205,16 @@ public abstract class SingletonMap<K, V, E extends Exception> {
             initialized.await();
             return singleton;
         }
+
+        /**
+         * Get the singleton value if it has already been set, without waiting for it.
+         *
+         * @return the singleton value, or null if the value has not been set yet, or if the creation failed.
+         */
+        @Nullable
+        V peek() {
+            return initialized.getCount() == 0 ? singleton : null;
+        }
     }
 
     /**
@@ -458,6 +468,48 @@ public abstract class SingletonMap<K, V, E extends Exception> {
     }
 
     /**
+     * Get the singleton values in the map whose creation has already completed, without blocking. A value that
+     * another thread is still creating is skipped, as is a value whose creation failed. Unlike {@link #values()},
+     * reading is allowed whether or not the owner of this map has been closed, so the caller decides what a read
+     * during a close should see.
+     *
+     * @return the singleton values whose creation has completed.
+     */
+    public List<V> completedValues() {
+        final List<V> completed = new ArrayList<>(map.size());
+        for (final SingletonHolder<V> holder : map.values()) {
+            final var value = holder.peek();
+            if (value != null) {
+                completed.add(value);
+            }
+        }
+        return completed;
+    }
+
+    /**
+     * Put a value into the map for a key that has no value yet, without running
+     * {@link #newInstance(Object, LogNode)}. This is how a value built under one key is published under a second
+     * name for the same thing; the value the map already holds wins any race, so two names that resolve to each
+     * other stay consistent. Nothing is put once the owner of this map has been closed, since the value would never
+     * be released again.
+     *
+     * @param key
+     *            the key.
+     * @param value
+     *            the value to put.
+     * @return true if the value was put into the map, or false if the map already held a value (or a creation in
+     *         flight) for the key, or the owner of this map has been closed.
+     */
+    public boolean putIfAbsent(final K key, final V value) {
+        if (closed != null && closed.get()) {
+            return false;
+        }
+        final SingletonHolder<V> newSingletonHolder = new SingletonHolder<>();
+        newSingletonHolder.set(value);
+        return map.putIfAbsent(key, newSingletonHolder) == null;
+    }
+
+    /**
      * Remove the singleton for a given key.
      *
      * @param key
@@ -483,6 +535,36 @@ public abstract class SingletonMap<K, V, E extends Exception> {
      */
     public void discard(final K key) {
         map.remove(key);
+    }
+
+    /**
+     * Discard the singleton for a given key, but only if the map still holds the given value for it. This is how a
+     * closed object leaves a cache that may since have been given a fresh value for the same key: the fresh value
+     * is left alone. Like {@link #discard(Object)}, never blocks, so it can be called from a close path.
+     *
+     * @param key
+     *            the key.
+     * @param value
+     *            the value to discard, if the map still holds it for the key.
+     */
+    public void discard(final K key, final V value) {
+        final var holder = map.get(key);
+        if (holder != null && holder.peek() == value) {
+            map.remove(key, holder);
+        }
+    }
+
+    /**
+     * Discard the given value from the map, under every key that holds it, so that a later lookup for any of those
+     * keys rebuilds the value rather than getting the discarded instance. A creation of the same value still in
+     * flight is left alone, since its creator has not published it yet. Never blocks, so it can be called from a
+     * close path.
+     *
+     * @param value
+     *            the value to discard.
+     */
+    public void discardValue(final V value) {
+        map.values().removeIf(holder -> holder.peek() == value);
     }
 
     /** Clear the map. */
