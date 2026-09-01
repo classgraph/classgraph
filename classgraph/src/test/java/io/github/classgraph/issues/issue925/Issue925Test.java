@@ -1,6 +1,7 @@
 package io.github.classgraph.issues.issue925;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.InstanceOfAssertFactories.STRING;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -178,6 +179,53 @@ public class Issue925Test {
             assertThat(scanResult.getClasspathURIs()).extracting(URI::toString)
                     .anyMatch(uri -> uri.startsWith("jar:file:") && uri.endsWith("!/WEB-INF/classes"))
                     .noneMatch(uri -> uri.startsWith("file:") && uri.endsWith("!/WEB-INF/classes"));
+        }
+    }
+
+    /**
+     * A package root of a classpath element comes before the element itself in the classpath order, so a class that
+     * both hold is reported from the package root.
+     *
+     * <p>
+     * A servlet container's classloader loads a webapp's classes only from {@code WEB-INF/classes/} and
+     * {@code WEB-INF/lib/}, and never from the root of the WAR file, even though the WAR file itself is what it
+     * puts on ClassGraph's classpath. The root of the WAR file is still scanned, since an archive can be built to
+     * be usable both ways, but the copy of a class that the classloader would load has to be the one reported.
+     *
+     * @param tempDir
+     *            a temporary directory to build the WAR file in.
+     * @throws IOException
+     *             if the WAR file could not be built, or the classloader could not be closed.
+     */
+    @Test
+    public void aPackageRootComesBeforeTheClasspathElementThatHoldsIt(@TempDir final File tempDir)
+            throws IOException {
+        final var classfilePath = Widget.class.getName().replace('.', '/') + ".class";
+        final var warWithClassesAtItsRoot = new File(tempDir, "both.war");
+        try (var zipOut = new ZipOutputStream(new FileOutputStream(warWithClassesAtItsRoot))) {
+            // The copy at the root of the WAR file is written first, so that the copy that is reported cannot be
+            // the one that is reported just by being stored first
+            zipOut.putNextEntry(new ZipEntry(classfilePath));
+            copyClassfile(classfilePath, zipOut);
+            zipOut.closeEntry();
+            zipOut.putNextEntry(new ZipEntry("WEB-INF/classes/" + classfilePath));
+            copyClassfile(classfilePath, zipOut);
+            zipOut.closeEntry();
+        }
+
+        try (var classLoader = new WarClassLoader(warWithClassesAtItsRoot.toURI().toURL());
+                var scanResult = new ClassGraph().enableClassLoaders(classLoader)
+                        .registerClassLoaderHandler(new WarClassLoaderHandler()).enableClassInfo().scan()) {
+            // The package root comes first, and the WAR file that holds it second
+            assertThat(scanResult.getClasspathURIs()).extracting(URI::toString).hasSize(2).first(STRING)
+                    .endsWith("!/WEB-INF/classes");
+
+            // So the class is reported from the package root, which is where the classloader would load it from
+            final var classInfo = scanResult.getClassInfo(Widget.class.getName());
+            assertThat(classInfo).isNotNull();
+            final var resource = classInfo.getResource();
+            assertThat(resource).isNotNull();
+            assertThat(resource.getClasspathElementURI().toString()).endsWith("!/WEB-INF/classes");
         }
     }
 

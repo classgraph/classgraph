@@ -177,8 +177,8 @@ public class PackageRootIsAClasspathElementTest {
     /**
      * A package root found automatically within a jarfile, because the classloader that yielded the jarfile
      * declares that it loads classes from a dir of that name, is the classpath element too. The jarfile it was
-     * found within stays on the classpath, since a classloader that looks in a package root also loads the classes
-     * stored outside it.
+     * found within stays on the classpath behind it, since a jarfile can be built to be usable both ways, but the
+     * package root comes first, because that is where the classloader loads its classes from.
      *
      * @param rawTempDir
      *            a temporary directory to build the jarfile in.
@@ -194,7 +194,7 @@ public class PackageRootIsAClasspathElementTest {
 
         final var packageRootURI = "jar:" + jar.toUri() + "!/WEB-INF/classes";
         try (var classLoader = new WebappClassLoader(jar.toUri().toURL()); var scanResult = scan(classLoader)) {
-            assertThat(uriStrings(scanResult)).containsExactly(jar.toUri().toString(), packageRootURI);
+            assertThat(uriStrings(scanResult)).containsExactly(packageRootURI, jar.toUri().toString());
             assertPackageRootIsTheClasspathElement(scanResult, packageRootURI, PACKAGE_ROOT_PREFIX);
         }
     }
@@ -217,7 +217,7 @@ public class PackageRootIsAClasspathElementTest {
 
         final var packageRootURI = dir.resolve(PACKAGE_ROOT_PREFIX).toUri().toString();
         try (var classLoader = new WebappClassLoader(dir.toUri().toURL()); var scanResult = scan(classLoader)) {
-            assertThat(uriStrings(scanResult)).containsExactly(dir.toUri().toString(), packageRootURI);
+            assertThat(uriStrings(scanResult)).containsExactly(packageRootURI, dir.toUri().toString());
             assertPackageRootIsTheClasspathElement(scanResult, packageRootURI, PACKAGE_ROOT_PREFIX);
         }
     }
@@ -226,7 +226,9 @@ public class PackageRootIsAClasspathElementTest {
      * The package root comes before the jarfiles of the lib dir on the classpath, because that is the order the
      * classloader looks in them in -- Tomcat serves {@code WEB-INF/classes/} ahead of {@code WEB-INF/lib/}, so a
      * class in the webapp's own classes masks a copy of it in a bundled dependency, which is what lets a webapp
-     * override a class of a library it bundles.
+     * override a class of a library it bundles. The war that holds them both comes last, since the classloader
+     * loads no classes from the root of the war, and it is scanned only in case the archive is also usable as a
+     * plain library jar.
      *
      * @param rawTempDir
      *            a temporary directory to build the war and the exploded copy in.
@@ -248,8 +250,8 @@ public class PackageRootIsAClasspathElementTest {
             zipOut.closeEntry();
         }
         try (var classLoader = new WebappClassLoader(war.toUri().toURL()); var scanResult = scan(classLoader)) {
-            assertThat(uriStrings(scanResult)).containsExactly(war.toUri().toString(),
-                    "jar:" + war.toUri() + "!/WEB-INF/classes", "jar:" + war.toUri() + "!/WEB-INF/lib/dep.jar");
+            assertThat(uriStrings(scanResult)).containsExactly("jar:" + war.toUri() + "!/WEB-INF/classes",
+                    "jar:" + war.toUri() + "!/WEB-INF/lib/dep.jar", war.toUri().toString());
         }
 
         final var dir = tempDir.resolve("app");
@@ -258,8 +260,8 @@ public class PackageRootIsAClasspathElementTest {
         Files.createDirectories(libJar.getParent());
         Files.write(libJar, emptyJarContent());
         try (var classLoader = new WebappClassLoader(dir.toUri().toURL()); var scanResult = scan(classLoader)) {
-            assertThat(uriStrings(scanResult)).containsExactly(dir.toUri().toString(),
-                    dir.resolve(PACKAGE_ROOT_PREFIX).toUri().toString(), libJar.toUri().toString());
+            assertThat(uriStrings(scanResult)).containsExactly(dir.resolve(PACKAGE_ROOT_PREFIX).toUri().toString(),
+                    libJar.toUri().toString(), dir.toUri().toString());
         }
     }
 

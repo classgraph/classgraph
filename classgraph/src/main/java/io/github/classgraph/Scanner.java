@@ -315,19 +315,42 @@ class Scanner implements Callable<ScanResult> {
     private static void findClasspathOrderRec(final ClasspathElement currClasspathElement,
             final Set<ClasspathElement> visitedClasspathElts, final List<ClasspathElement> order) {
         if (visitedClasspathElts.add(currClasspathElement)) {
-            // The classpath order requires a preorder traversal of the DAG of classpath dependencies
-            if (!currClasspathElement.skipClasspathElement) {
-                // Don't add a classpath element if it is marked to be skipped.
-                order.add(currClasspathElement);
-                // Whether or not a classpath element should be skipped, add any child classpath elements that are
-                // not marked to be skipped (i.e. keep recursing below)
-            }
-            // Sort child elements into the order they were listed in by this classpath element, then traverse to
-            // them in order
+            // Sort child elements into the order they were listed in by this classpath element
             final var childClasspathElementsSorted = CollectionUtils
                     .sortCopy(currClasspathElement.childClasspathElements);
+
+            // A package root of this classpath element comes before it, and so does everything else this element
+            // declares: a classloader that has package roots loads classes from those and from the jarfiles they
+            // name, and not from the root of the element that holds them, so a class that a package root and the
+            // root of the element both hold has to be reported from the package root. (The root of the element is
+            // still scanned, since a jarfile can be built to be usable both ways -- run as a Spring Boot
+            // application, and put on the classpath as an ordinary library -- but it is scanned last of its own
+            // subtree, since it is the only part of that subtree the classloader never looks in.)
+            var hasPackageRoot = false;
             for (final ClasspathElement.ChildClasspathElement childClasspathElt : childClasspathElementsSorted) {
-                findClasspathOrderRec(childClasspathElt.classpathElement(), visitedClasspathElts, order);
+                if (!childClasspathElt.classpathElement().packageRootPrefix.isEmpty()) {
+                    hasPackageRoot = true;
+                    findClasspathOrderRec(childClasspathElt.classpathElement(), visitedClasspathElts, order);
+                }
+            }
+
+            // The classpath order requires a preorder traversal of the DAG of classpath dependencies. Don't add a
+            // classpath element if it is marked to be skipped; whether or not it is skipped, keep recursing below,
+            // to add any child classpath elements that are not marked to be skipped.
+            if (!hasPackageRoot && !currClasspathElement.skipClasspathElement) {
+                order.add(currClasspathElement);
+            }
+
+            // Then the classpath elements that this one declares, in the order it listed them in
+            for (final ClasspathElement.ChildClasspathElement childClasspathElt : childClasspathElementsSorted) {
+                if (childClasspathElt.classpathElement().packageRootPrefix.isEmpty()) {
+                    findClasspathOrderRec(childClasspathElt.classpathElement(), visitedClasspathElts, order);
+                }
+            }
+
+            // An element that has package roots comes after everything it declares, rather than before it
+            if (hasPackageRoot && !currClasspathElement.skipClasspathElement) {
+                order.add(currClasspathElement);
             }
         }
     }
