@@ -141,6 +141,26 @@ public class ClasspathFinderTest {
         assertThat(new ClasspathFinder().enableClasspath().find().getModules()).isEmpty();
     }
 
+    /**
+     * The module layers the caller names replace the ones that are visible from the caller, so asking for the
+     * system modules of the named layers does not search the boot layer as well. An empty {@link ModuleLayer} has
+     * no modules and no parents, so any module found below came from a layer that the caller did not name.
+     */
+    @Test
+    public void namedModuleLayersReplaceTheDetectedOnes() {
+        assertThat(
+                new ClasspathFinder().enableModuleLayers(ModuleLayer.empty()).enableModules().find().getModules())
+                .isEmpty();
+    }
+
+    /** Naming a module layer and asking for the detected layers as well searches both. */
+    @Test
+    public void theDetectedModuleLayersCanBeSearchedAlongsideANamedOne() {
+        assertThat(new ClasspathFinder().enableModuleLayers(ModuleLayer.empty()).enableDetectedModuleLayers()
+                .enableModules().find().getModules())
+                .anyMatch(module -> "java.base".equals(module.descriptor().name()));
+    }
+
     /** The module path switches the JVM was launched with are reachable from the result. */
     @Test
     public void theModulePathInfoIsReachable() {

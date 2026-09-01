@@ -362,33 +362,35 @@ public final class ClasspathFinder {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Search the module layers that are visible from the caller -- the layers of the classes on the call stack, and
-     * the boot layer -- for the modules supplied by the running JVM, as identified by
-     * {@link java.lang.module.ModuleFinder#ofSystem()}.
+     * Search for the modules supplied by the running JVM, as identified by
+     * {@link java.lang.module.ModuleFinder#ofSystem()}, in the module layers that are visible from the caller: the
+     * layers of the classes on the call stack, and the boot layer. If {@link #enableModuleLayers(ModuleLayer...)}
+     * named the layers to search, the system modules of those layers are searched instead.
      *
      * @return this (for method chaining).
      */
     public ClasspathFinder enableSystemModules() {
-        scanSourceSpec.enableDetectedModuleLayers();
+        scanSourceSpec.enableModuleScanning();
         classpathSpec.scanSystemModules = true;
         return this;
     }
 
     /**
-     * Search the module layers that are visible from the caller -- the layers of the classes on the call stack, and
-     * the boot layer -- for the non-system modules.
+     * Search for the non-system modules of the module layers that are visible from the caller: the layers of the
+     * classes on the call stack, and the boot layer. If {@link #enableModuleLayers(ModuleLayer...)} named the
+     * layers to search, the non-system modules of those layers are searched instead.
      *
      * @return this (for method chaining).
      */
     public ClasspathFinder enableNonSystemModules() {
-        scanSourceSpec.enableDetectedModuleLayers();
+        scanSourceSpec.enableModuleScanning();
         classpathSpec.scanNonSystemModules = true;
         return this;
     }
 
     /**
-     * Search the module layers that are visible from the caller -- the layers of the classes on the call stack, and
-     * the boot layer -- for modules of both kinds, system and non-system.
+     * Search for modules of both kinds, system and non-system, in the module layers that are visible from the
+     * caller: the layers of the classes on the call stack, and the boot layer.
      *
      * @return this (for method chaining).
      */
@@ -399,8 +401,13 @@ public final class ClasspathFinder {
     /**
      * Search the given module layers, and their parent layers, for non-system modules, rather than the module
      * layers that are visible from the caller. Use this if the code calling this library does not itself run within
-     * the module layer whose modules are wanted. Call {@link #enableModules()} as well to search both, or
-     * {@link #enableSystemModules()} as well to find the system modules of the given layers too.
+     * the module layer whose modules are wanted. Call {@link #enableSystemModules()} as well to find the system
+     * modules of the given layers too.
+     *
+     * <p>
+     * The given layers replace the ones that are visible from the caller, rather than adding to them, so
+     * {@link #enableSystemModules()}, {@link #enableNonSystemModules()} and {@link #enableModules()} apply to the
+     * given layers. Call {@link #enableDetectedModuleLayers()} as well to search both.
      *
      * @param moduleLayers
      *            the module layers to search.
@@ -410,6 +417,23 @@ public final class ClasspathFinder {
      */
     public ClasspathFinder enableModuleLayers(final ModuleLayer... moduleLayers) {
         scanSourceSpec.enableModuleLayers(moduleLayers);
+        classpathSpec.scanNonSystemModules = true;
+        return this;
+    }
+
+    /**
+     * Search the module layers that are visible from the caller -- the layers of the classes on the call stack, and
+     * the boot layer -- as well as any layers named by {@link #enableModuleLayers(ModuleLayer...)}.
+     *
+     * <p>
+     * These layers are searched anyway when a kind of module is enabled and no layer is named, so this is only
+     * needed alongside {@link #enableModuleLayers(ModuleLayer...)}, to search a layer of your own without giving up
+     * the layers you can already see.
+     *
+     * @return this (for method chaining).
+     */
+    public ClasspathFinder enableDetectedModuleLayers() {
+        scanSourceSpec.enableDetectedModuleLayers();
         classpathSpec.scanNonSystemModules = true;
         return this;
     }
