@@ -45,7 +45,7 @@ public class Issue345Test {
      */
     @Test
     public void withoutIgnoreClassVisibility() {
-        try (var scanResult = new ClassGraph().enableClasspath()
+        try (var scanResult = new ClassGraph().enableClassInfo().enableClasspath()
                 .acceptClasses(Super.class.getName(), Sub.class.getName()).scan()) {
             final var subClassInfo = scanResult.getClassInfo(Sub.class.getName());
             assertThat(subClassInfo).isNotNull();
@@ -102,8 +102,8 @@ public class Issue345Test {
     public void issue345b() {
         // Find URL of this class' classpath element
         URL classpathURL;
-        try (var scanResult = new ClassGraph().enableClasspath().acceptClasses(Issue345Test.class.getName())
-                .scan()) {
+        try (var scanResult = new ClassGraph().enableClassInfo().enableClasspath()
+                .acceptClasses(Issue345Test.class.getName()).scan()) {
             classpathURL = scanResult.getClassInfo(Issue345Test.class.getName()).getClasspathElementURL();
         }
         // Use this to create an override URLClassLoader

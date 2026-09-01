@@ -201,18 +201,21 @@ public class ClassGraphTest {
     /** Jar scanning and directory scanning can each be disabled without affecting the other. */
     @Test
     public void jarAndDirScanningCanBeDisabledIndependently() {
-        try (var scanResult = new ClassGraph().enableClasspathEntries(classesDir.toString(), jarFile.toString())
-                .acceptPackages(PACKAGE_NAME).scan()) {
+        try (var scanResult = new ClassGraph().enableClassInfo()
+                .enableClasspathEntries(classesDir.toString(), jarFile.toString()).acceptPackages(PACKAGE_NAME)
+                .scan()) {
             assertThat(scanResult.getAllClasses().getNames()).containsExactlyInAnyOrder(PACKAGE_NAME + ".InDir",
                     PACKAGE_NAME + ".RejectMe", PACKAGE_NAME + ".InJar");
         }
-        try (var scanResult = new ClassGraph().enableClasspathEntries(classesDir.toString(), jarFile.toString())
-                .acceptPackages(PACKAGE_NAME).disableJarScanning().scan()) {
+        try (var scanResult = new ClassGraph().enableClassInfo()
+                .enableClasspathEntries(classesDir.toString(), jarFile.toString()).acceptPackages(PACKAGE_NAME)
+                .disableJarScanning().scan()) {
             assertThat(scanResult.getAllClasses().getNames()).containsExactlyInAnyOrder(PACKAGE_NAME + ".InDir",
                     PACKAGE_NAME + ".RejectMe");
         }
-        try (var scanResult = new ClassGraph().enableClasspathEntries(classesDir.toString(), jarFile.toString())
-                .acceptPackages(PACKAGE_NAME).disableDirScanning().scan()) {
+        try (var scanResult = new ClassGraph().enableClassInfo()
+                .enableClasspathEntries(classesDir.toString(), jarFile.toString()).acceptPackages(PACKAGE_NAME)
+                .disableDirScanning().scan()) {
             assertThat(scanResult.getAllClasses().getNames()).containsExactly(PACKAGE_NAME + ".InJar");
         }
     }
@@ -220,15 +223,16 @@ public class ClassGraphTest {
     /** A module is not scanned, and is not even looked for, unless a module source is enabled. */
     @Test
     public void modulesAreNotScannedUnlessEnabled() {
-        try (var scanResult = new ClassGraph().enableSystemJars().enableSystemModules().acceptModules("java.base")
-                .acceptPackages("java.time.chrono").disableJarScanning().disableDirScanning().scan()) {
+        try (var scanResult = new ClassGraph().enableClassInfo().enableSystemJars().enableSystemModules()
+                .acceptModules("java.base").acceptPackages("java.time.chrono").disableJarScanning()
+                .disableDirScanning().scan()) {
             assertThat(scanResult.getAllClasses().getNames()).contains("java.time.chrono.JapaneseEra");
             assertThat(scanResult.getModuleReferences())
                     .extracting(moduleReference -> moduleReference.descriptor().name())
                     .containsExactly("java.base");
         }
         // Without enableSystemModules(), no module is looked for, so none is scanned or even listed
-        try (var scanResult = new ClassGraph().enableSystemJars().acceptModules("java.base")
+        try (var scanResult = new ClassGraph().enableClassInfo().enableSystemJars().acceptModules("java.base")
                 .acceptPackages("java.time.chrono").disableJarScanning().disableDirScanning().scan()) {
             assertThat(scanResult.getAllClasses()).isEmpty();
             assertThat(scanResult.getModuleReferences()).isEmpty();
@@ -374,9 +378,31 @@ public class ClassGraphTest {
     /** Individual classes can be rejected, even if the package that contains them is accepted. */
     @Test
     public void classesCanBeRejected() {
-        try (var scanResult = new ClassGraph().enableClasspathEntries(classesDir.toString())
+        try (var scanResult = new ClassGraph().enableClassInfo().enableClasspathEntries(classesDir.toString())
                 .acceptPackages(PACKAGE_NAME).rejectClasses(PACKAGE_NAME + ".RejectMe").scan()) {
             assertThat(scanResult.getAllClasses().getNames()).containsExactly(PACKAGE_NAME + ".InDir");
+        }
+    }
+
+    /**
+     * A package name is another way of writing a directory path, and a class name another way of writing a
+     * classfile path, so like {@link ClassGraph#acceptPaths(String...)}, neither enables the reading of class
+     * information: the accepted packages and classes are scanned as resources only.
+     */
+    @Test
+    public void namingAPackageOrAClassDoesNotEnableClassInfo() {
+        try (var scanResult = new ClassGraph().enableClasspathEntries(classesDir.toString())
+                .acceptPackages(PACKAGE_NAME).scan()) {
+            assertThat(scanResult.getAllResources().getPaths())
+                    .containsExactlyInAnyOrder("com/xyz/cgfixture/InDir.class", "com/xyz/cgfixture/RejectMe.class");
+            assertThatIllegalStateException().isThrownBy(scanResult::getAllClasses)
+                    .withMessageContaining("enableClassInfo");
+        }
+        try (var scanResult = new ClassGraph().enableClasspathEntries(classesDir.toString())
+                .acceptClasses(PACKAGE_NAME + ".InDir").scan()) {
+            assertThat(scanResult.getAllResources().getPaths()).containsExactly("com/xyz/cgfixture/InDir.class");
+            assertThatIllegalStateException().isThrownBy(scanResult::getAllClasses)
+                    .withMessageContaining("enableClassInfo");
         }
     }
 
@@ -449,8 +475,8 @@ public class ClassGraphTest {
     /** The module layers to scan can be overridden. */
     @Test
     public void moduleLayersCanBeOverridden() {
-        try (var scanResult = new ClassGraph().enableModuleLayers(ModuleLayer.boot()).ignoreParentModuleLayers()
-                .enableSystemJars().enableSystemModules().acceptModules("java.base")
+        try (var scanResult = new ClassGraph().enableClassInfo().enableModuleLayers(ModuleLayer.boot())
+                .ignoreParentModuleLayers().enableSystemJars().enableSystemModules().acceptModules("java.base")
                 .acceptPackages("java.time.chrono").disableJarScanning().disableDirScanning().scan()) {
             assertThat(scanResult.getAllClasses().getNames()).contains("java.time.chrono.JapaneseEra");
         }
@@ -461,11 +487,11 @@ public class ClassGraphTest {
     public void aScanCanBeRunOnACallerSuppliedExecutorService() throws InterruptedException, ExecutionException {
         final var executorService = Executors.newFixedThreadPool(3);
         try {
-            try (var scanResult = new ClassGraph().enableClasspathEntries(classesDir.toString())
+            try (var scanResult = new ClassGraph().enableClassInfo().enableClasspathEntries(classesDir.toString())
                     .acceptPackages(PACKAGE_NAME).scan(executorService, 3)) {
                 assertThat(scanResult.getAllClasses().getNames()).contains(PACKAGE_NAME + ".InDir");
             }
-            try (var scanResult = new ClassGraph().enableClasspathEntries(classesDir.toString())
+            try (var scanResult = new ClassGraph().enableClassInfo().enableClasspathEntries(classesDir.toString())
                     .acceptPackages(PACKAGE_NAME).scanAsync(executorService, 3).get()) {
                 assertThat(scanResult.getAllClasses().getNames()).contains(PACKAGE_NAME + ".InDir");
             }
@@ -518,8 +544,8 @@ public class ClassGraphTest {
         try (var callerClassLoader = new URLClassLoader(new URL[] { classesDir.toUri().toURL() },
                 /* parent = */ null)) {
             Thread.currentThread().setContextClassLoader(callerClassLoader);
-            new ClassGraph().enableClasspath().acceptPackages(PACKAGE_NAME).scanAsync(executorService, 3,
-                    scanResult -> {
+            new ClassGraph().enableClassInfo().enableClasspath().acceptPackages(PACKAGE_NAME)
+                    .scanAsync(executorService, 3, scanResult -> {
                         classNames.set(scanResult.getAllClasses().getNames());
                         done.countDown();
                     }, throwable -> {
@@ -543,8 +569,8 @@ public class ClassGraphTest {
         final var done = new CountDownLatch(1);
         final var executorService = Executors.newFixedThreadPool(3);
         try {
-            new ClassGraph().enableClasspathEntries(classesDir.toString()).acceptPackages(PACKAGE_NAME)
-                    .scanAsync(executorService, 3, scanResult -> {
+            new ClassGraph().enableClassInfo().enableClasspathEntries(classesDir.toString())
+                    .acceptPackages(PACKAGE_NAME).scanAsync(executorService, 3, scanResult -> {
                         classNames.set(scanResult.getAllClasses().getNames());
                         done.countDown();
                     }, throwable -> {

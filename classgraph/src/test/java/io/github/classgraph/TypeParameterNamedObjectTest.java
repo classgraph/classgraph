@@ -53,7 +53,7 @@ public class TypeParameterNamedObjectTest {
     /** {@code class Foo<Object, T extends Object>}, where the bound of {@code T} is the type parameter. */
     @Test
     public void typeParameterNamedObjectUsedAsClassBound() {
-        try (var scanResult = new ClassGraph().enableClasspath()
+        try (var scanResult = new ClassGraph().enableClassInfo().enableClasspath()
                 .acceptClasses(TypeParameterNamedObject.class.getName()).scan()) {
             final var params = typeParameters(scanResult, TypeParameterNamedObject.class);
             assertThat(params).hasSize(2);
@@ -66,7 +66,7 @@ public class TypeParameterNamedObjectTest {
     /** A real {@code java.lang.Object} class bound is still suppressed. */
     @Test
     public void javaLangObjectClassBoundStillSuppressed() {
-        try (var scanResult = new ClassGraph().enableClasspath()
+        try (var scanResult = new ClassGraph().enableClassInfo().enableClasspath()
                 .acceptClasses(TypeParameterWithNoBound.class.getName()).scan()) {
             final var params = typeParameters(scanResult, TypeParameterWithNoBound.class);
             assertThat(params).hasSize(1);

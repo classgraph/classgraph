@@ -227,8 +227,8 @@ public class ToStringRenderingTest {
     /** A {@link ModuleInfo} names itself as a module, as {@link Module#toString()} does. */
     @Test
     public void moduleInfoNamesItselfAsAModule() {
-        try (var scanResult = new ClassGraph().enableSystemJars().enableSystemModules().acceptModules("java.base")
-                .acceptPackagesNonRecursive("java.lang").scan()) {
+        try (var scanResult = new ClassGraph().enableClassInfo().enableSystemJars().enableSystemModules()
+                .acceptModules("java.base").acceptPackagesNonRecursive("java.lang").scan()) {
             assertThat(scanResult.getModuleInfo("java.base")).hasToString("module java.base");
         }
     }

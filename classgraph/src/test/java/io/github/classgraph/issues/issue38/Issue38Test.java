@@ -23,7 +23,7 @@ class Issue38Test {
      */
     @Test
     void testImplementsSuppressWarnings() {
-        try (var scanResult = new ClassGraph().enableClasspath()
+        try (var scanResult = new ClassGraph().enableClassInfo().enableClasspath()
                 .acceptPackages(Issue38Test.class.getPackage().getName()).scan()) {
             assertThat(scanResult.getAllClassesImplementing(SuppressWarnings.class).getNames())
                     .containsOnly(ImplementsSuppressWarnings.class.getName());

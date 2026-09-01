@@ -57,7 +57,7 @@ public class Issue193Test {
         // Scan the classpath, using a new custom class loader -- used to throw an exception for Stack, since
         // companion object inherits from different class
         try (var classLoader = new URLClassLoader(new URL[] { resolvedFile.toURI().toURL() }, null);
-                var scanResult = new ClassGraph() //
+                var scanResult = new ClassGraph().enableClassInfo() //
                         .acceptPackages("scala.collection.immutable") //
                         .enableClassLoaders(classLoader) //
                         .scan()) {

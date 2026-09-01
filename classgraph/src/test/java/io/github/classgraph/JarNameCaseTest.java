@@ -59,7 +59,8 @@ public class JarNameCaseTest {
     private static int numClassesFound(final String acceptJar, final String rejectJar) {
         final var jarURL = JarNameCaseTest.class.getClassLoader().getResource(JAR_LEAF_NAME);
         assertThat(jarURL).isNotNull();
-        final var classGraph = new ClassGraph().enableClasspathEntries(jarURL).acceptPackages(JAR_PACKAGE);
+        final var classGraph = new ClassGraph().enableClassInfo().enableClasspathEntries(jarURL)
+                .acceptPackages(JAR_PACKAGE);
         if (acceptJar != null) {
             classGraph.acceptJars(acceptJar);
         }

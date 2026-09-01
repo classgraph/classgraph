@@ -833,8 +833,10 @@ public class ClassGraph {
      * the classes are looked for in the first place.
      *
      * <p>
-     * N.B. Automatically calls {@link #enableClassInfo()} -- call {@link #acceptPaths(String...)} instead if you
-     * only need to scan resources.
+     * A package name is another way of writing a directory path, so this is the same filter as
+     * {@link #acceptPaths(String...)} applied to the same directories, and like it, it does not enable the reading
+     * of class information: without {@link #enableClassInfo()}, the accepted packages are scanned for resources
+     * only.
      *
      * @param packageNames
      *            The fully-qualified names of packages to scan (using '.' as a separator). May include glob
@@ -850,7 +852,6 @@ public class ClassGraph {
      */
     public ClassGraph acceptPackages(final String... packageNames) {
         Assert.notNullElements(packageNames, "packageNames");
-        enableClassInfo();
         for (final String packageName : packageNames) {
             // A trailing "**" means "and everything below", which acceptPackages() already does -- strip it
             final var packageNameNormalized = AcceptReject
@@ -925,8 +926,10 @@ public class ClassGraph {
      * the classes are looked for in the first place.
      *
      * <p>
-     * N.B. Automatically calls {@link #enableClassInfo()} -- call {@link #acceptPathsNonRecursive(String...)}
-     * instead if you only need to scan resources.
+     * A package name is another way of writing a directory path, so this is the same filter as
+     * {@link #acceptPathsNonRecursive(String...)} applied to the same directories, and like it, it does not enable
+     * the reading of class information: without {@link #enableClassInfo()}, the accepted packages are scanned for
+     * resources only.
      *
      * <p>
      * This may be particularly useful for scanning the package root ("") without recursively scanning everything in
@@ -942,7 +945,6 @@ public class ClassGraph {
      */
     public ClassGraph acceptPackagesNonRecursive(final String... packageNames) {
         Assert.notNullElements(packageNames, "packageNames");
-        enableClassInfo();
         for (final String packageName : packageNames) {
             final var packageNameNormalized = AcceptReject.normalizePackageOrClassName(packageName);
             if (AcceptReject.containsWildcard(packageNameNormalized)) {
@@ -1003,8 +1005,9 @@ public class ClassGraph {
      * anything to the scan.
      *
      * <p>
-     * N.B. Automatically calls {@link #enableClassInfo()} -- call {@link #rejectPaths(String...)} instead if you
-     * only need to scan resources.
+     * A package name is another way of writing a directory path, so this is the same filter as
+     * {@link #rejectPaths(String...)} applied to the same directories, and like it, it does not enable the reading
+     * of class information: without {@link #enableClassInfo()}, the scan reads resources only.
      *
      * @param packageNames
      *            The fully-qualified names of packages to reject (using '.' as a separator). May include glob
@@ -1023,7 +1026,6 @@ public class ClassGraph {
      */
     public ClassGraph rejectPackages(final String... packageNames) {
         Assert.notNullElements(packageNames, "packageNames");
-        enableClassInfo();
         for (final String packageName : packageNames) {
             final var packageNameNormalized = AcceptReject
                     .stripTrailingDoubleGlob(AcceptReject.normalizePackageOrClassName(packageName), '.');
@@ -1088,8 +1090,9 @@ public class ClassGraph {
      * the classes are looked for in the first place.
      *
      * <p>
-     * N.B. Automatically calls {@link #enableClassInfo()}.
-     *
+     * A class name is another way of writing a classfile path, so like {@link #acceptPaths(String...)}, this does
+     * not enable the reading of class information: without {@link #enableClassInfo()}, the accepted classes are
+     * scanned as resources only.
      *
      * @param classNames
      *            The fully-qualified names of classes to scan (using '.' as a separator). May contain glob
@@ -1100,7 +1103,6 @@ public class ClassGraph {
      */
     public ClassGraph acceptClasses(final String... classNames) {
         Assert.notNullElements(classNames, "classNames");
-        enableClassInfo();
         for (final String className : classNames) {
             final var classNameNormalized = AcceptReject.normalizePackageOrClassName(className);
             // Accept the class itself
@@ -1126,7 +1128,9 @@ public class ClassGraph {
      * anything to the scan.
      *
      * <p>
-     * N.B. Automatically calls {@link #enableClassInfo()}.
+     * A class name is another way of writing a classfile path, so like {@link #rejectPaths(String...)}, this does
+     * not enable the reading of class information: without {@link #enableClassInfo()}, the scan reads resources
+     * only.
      *
      * @param classNames
      *            The fully-qualified names of classes to reject (using '.' as a separator). May contain glob
@@ -1137,7 +1141,6 @@ public class ClassGraph {
      */
     public ClassGraph rejectClasses(final String... classNames) {
         Assert.notNullElements(classNames, "classNames");
-        enableClassInfo();
         for (final String className : classNames) {
             final var classNameNormalized = AcceptReject.normalizePackageOrClassName(className);
             scanSpec.classAcceptReject.addToReject(classNameNormalized);

@@ -18,7 +18,7 @@ public class InternalExternalTest {
      */
     @Test
     public void testAcceptingExternalClasses() {
-        try (var scanResult = new ClassGraph().enableClasspath().acceptPackages(
+        try (var scanResult = new ClassGraph().enableClassInfo().enableClasspath().acceptPackages(
                 InternalExternalTest.class.getPackage().getName(), ExternalAnnotation.class.getName()).scan()) {
             assertThat(scanResult.getAllStandardClasses().getNames()).containsOnly(
                     InternalExternalTest.class.getName(), InternalExtendsExternal.class.getName(),

@@ -90,7 +90,8 @@ public class ClassGraphTest {
      */
     @Test
     public void scanWithAccept() {
-        try (var scanResult = new ClassGraph().enableClasspath().acceptPackages(ACCEPT_PACKAGE).scan()) {
+        try (var scanResult = new ClassGraph().enableClassInfo().enableClasspath().acceptPackages(ACCEPT_PACKAGE)
+                .scan()) {
             final var allClasses = scanResult.getAllClasses().getNames();
             assertThat(allClasses).contains(Cls.class.getName());
             assertThat(allClasses).doesNotContain(ClassGraph.class.getName());
@@ -105,7 +106,7 @@ public class ClassGraphTest {
      */
     @Test
     public void scanWithAcceptAndReject() {
-        try (var scanResult = new ClassGraph().enableClasspath().acceptPackages(ACCEPT_PACKAGE)
+        try (var scanResult = new ClassGraph().enableClassInfo().enableClasspath().acceptPackages(ACCEPT_PACKAGE)
                 .rejectPackages(RejectedSub.class.getPackage().getName()).scan()) {
             final var allClasses = scanResult.getAllClasses().getNames();
             assertThat(allClasses).contains(Cls.class.getName());
@@ -121,7 +122,8 @@ public class ClassGraphTest {
      */
     @Test
     public void scanSubAndSuperclasses() {
-        try (var scanResult = new ClassGraph().enableClasspath().acceptPackages(ACCEPT_PACKAGE).scan()) {
+        try (var scanResult = new ClassGraph().enableClassInfo().enableClasspath().acceptPackages(ACCEPT_PACKAGE)
+                .scan()) {
             final var subclasses = scanResult.getAllSubclasses(Cls.class).getNames();
             assertThat(subclasses).doesNotContain(Cls.class.getName());
             assertThat(subclasses).contains(ClsSub.class.getName());
@@ -138,7 +140,8 @@ public class ClassGraphTest {
      */
     @Test
     public void scanSubAndSuperinterface() {
-        try (var scanResult = new ClassGraph().enableClasspath().acceptPackages(ACCEPT_PACKAGE).scan()) {
+        try (var scanResult = new ClassGraph().enableClassInfo().enableClasspath().acceptPackages(ACCEPT_PACKAGE)
+                .scan()) {
             final var subinterfaces = scanResult.getAllClassesImplementing(Iface.class).getNames();
             assertThat(subinterfaces).doesNotContain(Iface.class.getName());
             assertThat(subinterfaces).contains(IfaceSub.class.getName());
@@ -155,7 +158,8 @@ public class ClassGraphTest {
      */
     @Test
     public void scanTransitiveImplements() {
-        try (var scanResult = new ClassGraph().enableClasspath().acceptPackages(ACCEPT_PACKAGE).scan()) {
+        try (var scanResult = new ClassGraph().enableClassInfo().enableClasspath().acceptPackages(ACCEPT_PACKAGE)
+                .scan()) {
             assertThat(scanResult.getAllClassesImplementing(Iface.class).getNames())
                     .doesNotContain(Iface.class.getName());
             assertThat(scanResult.getAllClassesImplementing(IfaceSubSub.class).getNames())
@@ -206,7 +210,8 @@ public class ClassGraphTest {
      */
     @Test
     public void testExternalSuperclassReturned() {
-        try (var scanResult = new ClassGraph().enableClasspath().acceptPackages(ACCEPT_PACKAGE).scan()) {
+        try (var scanResult = new ClassGraph().enableClassInfo().enableClasspath().acceptPackages(ACCEPT_PACKAGE)
+                .scan()) {
             assertThat(scanResult.getAllSuperclasses(Accepted.class.getName()).getNames()).isEmpty();
         }
         try (var scanResult = new ClassGraph().enableClasspath().acceptPackages(ACCEPT_PACKAGE)

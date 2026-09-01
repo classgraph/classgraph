@@ -56,7 +56,7 @@ public class Issue209Test {
                 // Test reading from /BOOT-INF/lib/*.jar
                 "issue209lib.Issue209Lib");
         final var jarURL = Issue209Test.class.getClassLoader().getResource("issue209.jar");
-        try (var result = new ClassGraph()
+        try (var result = new ClassGraph().enableClassInfo()
                 .acceptPackages("org.springframework.boot.loader.util", "com.foo", "issue209lib") //
                 .enableClasspathEntries(List.of(jarURL.toString(), jarURL + "!/BOOT-INF/classes",
                         jarURL + "!/BOOT-INF/lib/issue209lib.jar"))

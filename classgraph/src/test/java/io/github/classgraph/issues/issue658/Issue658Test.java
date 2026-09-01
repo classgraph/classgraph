@@ -47,7 +47,7 @@ public class Issue658Test {
     /** Rejecting one system module still leaves the other system modules scannable. */
     @Test
     public void rejectingASystemModuleDoesNotDisableTheRest() {
-        try (var scanResult = new ClassGraph().enableSystemJars().enableSystemModules()
+        try (var scanResult = new ClassGraph().enableClassInfo().enableSystemJars().enableSystemModules()
                 .rejectModules("jdk.compiler").acceptPackages("java.util", "com.sun.source.tree").scan()) {
             assertThat(scanResult.getAllClasses().getNames()).contains(ARRAY_LIST).doesNotContain(TREE);
         }

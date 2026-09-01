@@ -28,7 +28,8 @@ public class GlobTest {
 
     /** Scan with the given class name globs, and return the class names found. */
     private static Iterable<String> classesMatching(final String... classNameGlobs) {
-        try (var scanResult = new ClassGraph().enableClasspath().acceptClasses(classNameGlobs).scan()) {
+        try (var scanResult = new ClassGraph().enableClassInfo().enableClasspath().acceptClasses(classNameGlobs)
+                .scan()) {
             return scanResult.getAllClasses().getNames();
         }
     }

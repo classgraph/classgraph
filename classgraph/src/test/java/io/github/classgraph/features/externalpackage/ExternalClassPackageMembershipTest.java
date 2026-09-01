@@ -21,7 +21,8 @@ public class ExternalClassPackageMembershipTest {
     /** Only the accepted package is scanned; its classes' external superclass is read but not listed. */
     @Test
     public void externalClassIsNotListedAsAPackageMember() {
-        try (var scanResult = new ClassGraph().enableClasspath().acceptPackages(ACCEPTED_PACKAGE).scan()) {
+        try (var scanResult = new ClassGraph().enableClassInfo().enableClasspath().acceptPackages(ACCEPTED_PACKAGE)
+                .scan()) {
             // The external superclass was read, so it has a ClassInfo, but it is not reported as the superclass,
             // since enableExternalClasses() was not called
             assertThat(scanResult.getClassInfo(ExternalSuperclass.class.getName())).isNotNull();
@@ -59,8 +60,8 @@ public class ExternalClassPackageMembershipTest {
      */
     @Test
     public void externalClassIsNotListedAsAModuleMember() {
-        try (var scanResult = new ClassGraph().acceptClasses("java.util.ArrayList").enableSystemJars()
-                .enableSystemModules().scan()) {
+        try (var scanResult = new ClassGraph().enableClassInfo().acceptClasses("java.util.ArrayList")
+                .enableSystemJars().enableSystemModules().scan()) {
             assertThat(scanResult.getClassInfo("java.util.AbstractList")).isNotNull();
             assertThat(scanResult.getModuleInfo("java.base").getClassInfo().getNames())
                     .containsExactly("java.util.ArrayList");

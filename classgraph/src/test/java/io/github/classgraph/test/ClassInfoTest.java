@@ -33,7 +33,8 @@ public class ClassInfoTest {
      */
     @BeforeAll
     public static void setup() {
-        scanResult = new ClassGraph().enableClasspath().acceptPackages(Impl1.class.getPackage().getName()).scan();
+        scanResult = new ClassGraph().enableClassInfo().enableClasspath()
+                .acceptPackages(Impl1.class.getPackage().getName()).scan();
     }
 
     /**

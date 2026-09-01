@@ -58,7 +58,7 @@ public class Issue407Test {
 
         // Scan the classpath, using a new custom class loader
         try (var classLoader = new URLClassLoader(new URL[] { resolvedFile.toURI().toURL() }, null);
-                var scanResult = new ClassGraph() //
+                var scanResult = new ClassGraph().enableClassInfo() //
                         .acceptPackages("com.google.thirdparty.publicsuffix") //
                         .enableClassLoaders(classLoader) //
                         .scan()) {

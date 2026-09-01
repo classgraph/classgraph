@@ -57,7 +57,7 @@ public class RejectedClassfileResourceTest {
         final var useParentHandlers = LOGGER.getUseParentHandlers();
         LOGGER.setUseParentHandlers(false);
         LOGGER.addHandler(handler);
-        try (var scanResult = new ClassGraph().enableClasspath()
+        try (var scanResult = new ClassGraph().enableClassInfo().enableClasspath()
                 .acceptPackages(RejectedClassfileResourceTest.class.getPackageName())
                 .rejectClasses(Rejected.class.getName()).verbose().scan()) {
             resourcePaths = scanResult.getAllResources().getPaths();

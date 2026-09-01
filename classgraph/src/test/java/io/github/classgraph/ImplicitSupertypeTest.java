@@ -82,7 +82,7 @@ public class ImplicitSupertypeTest {
      */
     @Test
     public void recordWithoutFieldInfoRendersNoComponents() {
-        try (var scanResult = new ClassGraph().enableClasspath()
+        try (var scanResult = new ClassGraph().enableClassInfo().enableClasspath()
                 .acceptPackagesNonRecursive(ImplicitSupertypeTest.class.getPackage().getName()).scan()) {
             assertThat(scanResult.getClassInfo(Rec.class.getName()).toStringWithSimpleNames())
                     .isEqualTo("public static final record Rec implements Marker");

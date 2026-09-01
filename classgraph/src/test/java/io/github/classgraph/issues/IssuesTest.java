@@ -16,8 +16,8 @@ import io.github.classgraph.test.internal.InternalExtendsExternal;
 public class IssuesTest {
     @Test
     public void issue70() {
-        try (var scanResult = new ClassGraph().enableClasspath().acceptPackages(Impl1.class.getPackage().getName())
-                .scan()) {
+        try (var scanResult = new ClassGraph().enableClassInfo().enableClasspath()
+                .acceptPackages(Impl1.class.getPackage().getName()).scan()) {
             assertThat(scanResult.getAllSubclasses(Object.class).getNames()).contains(Impl1.class.getName());
         }
     }
@@ -37,7 +37,7 @@ public class IssuesTest {
      */
     @Test
     public void extendsExternal() {
-        try (var scanResult = new ClassGraph().enableClasspath()
+        try (var scanResult = new ClassGraph().enableClassInfo().enableClasspath()
                 .acceptPackages(InternalExtendsExternal.class.getPackage().getName()).scan()) {
             assertThat(scanResult.getAllSuperclasses(InternalExtendsExternal.class.getName()).getNames()).isEmpty();
         }
@@ -61,7 +61,7 @@ public class IssuesTest {
      */
     @Test
     public void extendsExternalSubclass() {
-        try (var scanResult = new ClassGraph().enableClasspath()
+        try (var scanResult = new ClassGraph().enableClassInfo().enableClasspath()
                 .acceptPackages(InternalExtendsExternal.class.getPackage().getName()).scan()) {
             assertThat(scanResult.getAllSubclasses(ExternalSuperclass.class).getNames())
                     .containsOnly(InternalExtendsExternal.class.getName());

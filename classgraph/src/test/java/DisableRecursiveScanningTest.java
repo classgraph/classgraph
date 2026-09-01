@@ -48,7 +48,8 @@ public class DisableRecursiveScanningTest {
      */
     @Test
     public void nonRootPackage() {
-        try (var scanResult = new ClassGraph().enableClasspath().acceptPackagesNonRecursive(PKG).scan()) {
+        try (var scanResult = new ClassGraph().enableClassInfo().enableClasspath().acceptPackagesNonRecursive(PKG)
+                .scan()) {
             final var allClasses = scanResult.getAllClasses().getNames();
             assertThat(allClasses).contains(Cls.class.getName());
             assertThat(allClasses).doesNotContain(RejectedSub.class.getName());
@@ -60,7 +61,8 @@ public class DisableRecursiveScanningTest {
      */
     @Test
     public void rootPackage() {
-        try (var scanResult = new ClassGraph().enableClasspath().acceptPackagesNonRecursive("").scan()) {
+        try (var scanResult = new ClassGraph().enableClassInfo().enableClasspath().acceptPackagesNonRecursive("")
+                .scan()) {
             final var allClasses = scanResult.getAllClasses().getNames();
             assertThat(allClasses).contains(ClassInDefaultPackage.class.getName());
             assertThat(allClasses).doesNotContain(Cls.class.getName());
