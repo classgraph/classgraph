@@ -100,7 +100,7 @@ public final class Main {
                     scanResult.getClassInfo("java.util.function.Function") == null);
         }
         try (ScanResult scanResult = new ClassGraph().enableSystemJars().enableSystemModules()
-                .acceptPackages("java.util.function").scan()) {
+                .acceptPackages("java.util.function").enableClassInfo().scan()) {
             final ClassInfo function = scanResult.getClassInfo("java.util.function.Function");
             check("a system module is scanned when it is asked for", function != null);
             check("the class read out of the system module is right", function != null && function.isInterface());
