@@ -196,6 +196,18 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
         this.entryNameUnversioned = entryNameWithoutVersionPrefix;
     }
 
+    /**
+     * A copy of this entry with its version prefix left in place, for a jarfile that turned out not to declare
+     * {@code Multi-Release: true} in its manifest.
+     *
+     * @return a copy of this entry whose unversioned name is the name it is stored under.
+     */
+    FastZipEntry withVersionPrefixUnresolved() {
+        return new FastZipEntry(parentLogicalZipFile, locHeaderPos, entryName, isDeflated, compressedSize,
+                uncompressedSize, lastModifiedTimeMillis, lastModifiedTimeMSDOS, lastModifiedDateMSDOS,
+                fileAttributes, /* enableMultiReleaseVersions = */ true);
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**

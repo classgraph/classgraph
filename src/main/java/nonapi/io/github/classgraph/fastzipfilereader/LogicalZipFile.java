@@ -946,6 +946,23 @@ public class LogicalZipFile extends ZipFileSlice {
                 // Override entries with version-masked entries
                 entries = unversionedZipEntriesMasked;
             }
+        } else {
+            // A jarfile is only a multi-release jarfile if its manifest has the Multi-Release key, and the version
+            // prefixes of one that does not have it name no version of anything: the JVM reads such an entry from
+            // the path it is stored under, and reads the base entry for the path the prefix would have named.
+            // Whether the manifest has the key is only known once the manifest has been parsed, which cannot happen
+            // until the entries have been read, so the version prefix is resolved for every entry as it is read,
+            // and put back here.
+            for (int i = 0; i < entries.size(); i++) {
+                final FastZipEntry entry = entries.get(i);
+                if (!entry.entryNameUnversioned.equals(entry.entryName)) {
+                    if (log != null) {
+                        log.log("Found a versioned entry in a jarfile whose manifest does not have the "
+                                + "\"Multi-Release\" key, so it overrides nothing: " + entry.entryName);
+                    }
+                    entries.set(i, entry.withVersionPrefixUnresolved());
+                }
+            }
         }
     }
 
