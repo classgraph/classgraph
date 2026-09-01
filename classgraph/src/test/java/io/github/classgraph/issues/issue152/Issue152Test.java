@@ -81,7 +81,7 @@ public class Issue152Test {
     @Test
     public void issue152Test() {
         final var pkg = Issue152Test.class.getPackage().getName();
-        try (var scanResult = new ClassGraph().enableClasspath().acceptPackages(pkg) //
+        try (var scanResult = new ClassGraph().enableClassInfo().enableClasspath().acceptPackages(pkg) //
                 .enableMethodInfo() //
                 .enableFieldInfo() //
                 .scan()) {

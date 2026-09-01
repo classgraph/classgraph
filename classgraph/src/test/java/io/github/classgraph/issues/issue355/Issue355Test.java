@@ -63,7 +63,7 @@ public class Issue355Test {
     public void test() throws IOException {
         try (var scanResult = new ClassGraph().enableClasspath()
                 .acceptPackagesNonRecursive(Issue355Test.class.getPackage().getName()).enableClassInfo()
-                .enableInterClassDependencies().scan()) {
+                .enableMethodInfo().enableAnnotationInfo().enableInterClassDependencies().scan()) {
             final var y = scanResult.getClassInfo(Y.class.getName());
             final var x = scanResult.getClassInfo(X.class.getName());
             assertThat(y).isNotNull();

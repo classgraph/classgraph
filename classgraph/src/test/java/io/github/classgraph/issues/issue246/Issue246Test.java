@@ -42,7 +42,9 @@ public class Issue246Test {
     public void testMethodParameterAnnotations() {
         try (var scanResult = new ClassGraph().enableClasspath() //
                 .acceptClasses(Issue246Test.class.getName()) //
-                .enableAllInfo() //
+                .enableClassInfo().enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
+                .ignoreMethodVisibility() //
                 .scan()) {
             assertEquals(0, //
                     scanResult.getClassInfo(Issue246Test.class.getName()) //

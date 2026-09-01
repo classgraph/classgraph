@@ -36,7 +36,8 @@
  * {@link io.github.classgraph.classpath.Classpath}:
  *
  * <pre>
- * try (Classpath classpath = new ClasspathFinder().enableModules().enableClasspath().find()) {
+ * try (Classpath classpath = new ClasspathFinder().enableSystemModules().enableNonSystemModules().enableClasspath()
+ *         .find()) {
  *     for (ClasspathEntry entry : classpath) {
  *         System.out.println(entry.getLocation());
  *     }

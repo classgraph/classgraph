@@ -30,7 +30,9 @@ public class Issue310Test {
     @Test
     public void doubleConstantInitializerValues() {
         try (var scanResult = new ClassGraph().enableClasspath().acceptClasses(Issue310Test.class.getName())
-                .enableAllInfo().scan()) {
+                .enableClassInfo().enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
+                .ignoreMethodVisibility().scan()) {
             final var classInfo = scanResult.getClassInfo(Issue310Test.class.getName());
             assertThat(classInfo).isNotNull();
             assertThat(classInfo.getFieldInfo("A").getConstantInitializerValue()).isEqualTo(3.0);

@@ -38,7 +38,7 @@ public class ClassesWithFieldAnnotationDirectOnlyTest {
      */
     @Test
     public void directOnlyReturnsClassesWithAnnotatedField() {
-        try (var scanResult = new ClassGraph().enableClasspath()
+        try (var scanResult = new ClassGraph().enableClassInfo().enableClasspath()
                 .acceptClasses(FieldOrMethodAnnotation.class.getName(), ClassWithAnnotatedField.class.getName(),
                         ClassWithAnnotatedMethod.class.getName())
                 .enableFieldInfo().enableMethodInfo().enableAnnotationInfo().scan()) {

@@ -61,8 +61,10 @@ public class MethodParameterAnnotationsTest {
     @Test
     public void annotationEquality() {
         try (var scanResult = new ClassGraph().enableClasspath()
-                .acceptPackages(MethodParameterAnnotationsTest.class.getPackage().getName()).enableAllInfo()
-                .scan()) {
+                .acceptPackages(MethodParameterAnnotationsTest.class.getPackage().getName()).enableClassInfo()
+                .enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
+                .ignoreMethodVisibility().scan()) {
             assertThat(scanResult.getClassInfo(Y.class.getName()).getMethodParameterAnnotations().getNames())
                     .containsOnly(W.class.getName());
             assertThat(scanResult.getClassInfo(Z.class.getName()).getMethodParameterAnnotations().getNames())

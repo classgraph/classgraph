@@ -11,9 +11,9 @@ class Issue854Test {
     @Test
     void getFullyQualifiedClassName() {
         final var mainClassLoader = Issue854Test.class.getClassLoader();
-        try (var scanResult = new ClassGraph().enableClassInfo().enableAnnotationInfo().ignoreClassVisibility()
-                .ignoreFieldVisibility().ignoreMethodVisibility().enableClassLoaders(mainClassLoader)
-                .acceptPackages("com.google.common.collect").scan()) {
+        try (var scanResult = new ClassGraph().enableMethodInfo().enableFieldInfo().enableClassInfo()
+                .enableAnnotationInfo().ignoreClassVisibility().ignoreFieldVisibility().ignoreMethodVisibility()
+                .enableClassLoaders(mainClassLoader).acceptPackages("com.google.common.collect").scan()) {
 
             final var anonymousClass = "com.google.common.collect.TreeRangeMap$SubRangeMap$1";
             final var classInfo = scanResult.getClassInfo(anonymousClass);

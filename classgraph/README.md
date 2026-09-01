@@ -49,7 +49,7 @@ The methods that say *where* to scan come in pairs:
 | No arguments: scan what is in the environment | Varargs: scan exactly what is named |
 | --- | --- |
 | `enableClasspath()` -- every classpath element of every classloader that can be found -- the thread context classloader, the system classloader, the classloader of the class in any frame of the call stack, and the ancestors of all of those, including `java.class.path` | `enableClassLoaders(ClassLoader...)`, `enableClasspathEntries(Object...)` |
-| `enableModules()`, `enableSystemModules()`, `enableNonSystemModules()` -- the module layers that are visible to the caller | `enableModuleLayers(ModuleLayer...)` |
+| `enableSystemModules()`, `enableNonSystemModules()` -- the modules of the module layers that are visible to the caller | `enableModuleLayers(ModuleLayer...)` -- the modules of exactly the layers named |
 
 Call the no-argument method to scan what the running application can see. Call only the varargs
 method to scan *just* what you name, and nothing from the environment. Calling both scans the
@@ -127,7 +127,8 @@ them.
 
 ```java
 try (ScanResult scanResult = new ClassGraph().enableNonSystemModules().enableClasspath()
-        .enableMethodInfo().enableAnnotationInfo().acceptPackages("com.xyz").scan()) {
+        .enableClassInfo().enableMethodInfo().enableAnnotationInfo()
+        .acceptPackages("com.xyz").scan()) {
     for (ClassInfo classInfo : scanResult.getClassesWithMethodAnnotation("com.xyz.Handler")) {
         for (MethodInfo method : classInfo.getMethodInfoWithAnnotation("com.xyz.Handler")) {
             System.out.println(classInfo.getName() + "#" + method.getName() + " returns "
@@ -138,8 +139,9 @@ try (ScanResult scanResult = new ClassGraph().enableNonSystemModules().enableCla
 ```
 
 `enableMethodInfo()` and `enableFieldInfo()` are off by default because they cost scan time and
-memory. `enableAllInfo()` switches on everything at once, which is convenient while exploring and
-wasteful in production.
+memory. No configuration method turns on another one, so each kind of information you want has to be
+asked for by name, and an option that only modifies another option -- `ignoreMethodVisibility()`, say
+-- is refused by `scan()` unless the option it modifies was enabled too.
 
 ### Find resources, not classes
 
@@ -168,16 +170,18 @@ If all you want is to list the files in a jarfile, with no scan at all, use
 
 ```java
 try (ScanResult scanResult = new ClassGraph()
-        .enableClassInfo().enableSystemJars().enableModules().scan()) {
+        .enableClassInfo().enableSystemJars().enableSystemModules().enableNonSystemModules()
+        .scan()) {
     for (ModuleInfo moduleInfo : scanResult.getModuleInfo()) {
         System.out.println(moduleInfo.getName() + ": " + moduleInfo.getClassInfo().size() + " classes");
     }
 }
 ```
 
-`enableModules()` enables both the system modules and the non-system modules; `enableSystemJars()`
-additionally allows the JDK's own jarfiles to be scanned if any are on the classpath. Neither is
-enabled by `enableNonSystemModules()`, since almost no scan wants the JDK's own classes.
+`enableSystemModules()` and `enableNonSystemModules()` enable the two kinds of module separately;
+`enableSystemJars()` additionally allows the JDK's own jarfiles to be scanned if any are on the
+classpath. Neither of the latter two is enabled by `enableNonSystemModules()`, since almost no scan
+wants the JDK's own classes.
 
 ### Read an enum's constants without loading it
 

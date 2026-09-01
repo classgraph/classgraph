@@ -14,8 +14,10 @@ public class ExtendsSelfTest {
     @Test
     public void classDoesNotExtendItself() {
         try (var scanResult = new ClassGraph().enableClasspath()
-                .acceptPackagesNonRecursive(ExtendsSelfTest.class.getPackage().getName()).enableAllInfo()
-                .enableExternalClasses().scan()) {
+                .acceptPackagesNonRecursive(ExtendsSelfTest.class.getPackage().getName()).enableClassInfo()
+                .enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
+                .ignoreMethodVisibility().enableExternalClasses().scan()) {
             final var self = scanResult.getClassInfo(ExtendsSelfTest.class.getName());
             assertThat(self).isNotNull();
             assertThat(self.extendsSuperclass(Object.class)).isTrue();

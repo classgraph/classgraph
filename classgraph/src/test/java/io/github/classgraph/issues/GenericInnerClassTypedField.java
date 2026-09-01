@@ -37,7 +37,10 @@ public class GenericInnerClassTypedField {
     @Test
     public void testGenericInnerClassTypedField() {
         try (var scanResult = new ClassGraph().enableClasspath()
-                .acceptPackages(GenericInnerClassTypedField.class.getPackage().getName()).enableAllInfo().scan()) {
+                .acceptPackages(GenericInnerClassTypedField.class.getPackage().getName()).enableClassInfo()
+                .enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
+                .ignoreMethodVisibility().scan()) {
             final var fields = scanResult.getClassInfo(GenericInnerClassTypedField.class.getName()).getFieldInfo();
             final var classRefTypeSignature = (ClassRefTypeSignature) fields.get(0).getTypeSignature();
             assertThat(classRefTypeSignature.toString()).isEqualTo(

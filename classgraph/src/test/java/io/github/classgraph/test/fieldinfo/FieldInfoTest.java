@@ -80,7 +80,7 @@ public class FieldInfoTest {
      */
     @Test
     public void testGetFieldInfo() {
-        try (var scanResult = new ClassGraph().enableClasspath()
+        try (var scanResult = new ClassGraph().enableClassInfo().enableClasspath()
                 .acceptPackages(FieldInfoTest.class.getPackage().getName()).enableFieldInfo()
                 .enableStaticFinalFieldConstantInitializerValues().enableAnnotationInfo().scan()) {
             final var fieldInfoStrs = scanResult.getClassInfo(FieldInfoTest.class.getName()).getFieldInfo()
@@ -98,7 +98,7 @@ public class FieldInfoTest {
      */
     @Test
     public void testGetFieldInfoIgnoringVisibility() {
-        try (var scanResult = new ClassGraph().enableClasspath()
+        try (var scanResult = new ClassGraph().enableClassInfo().enableClasspath()
                 .acceptPackages(FieldInfoTest.class.getPackage().getName()).enableFieldInfo()
                 .enableStaticFinalFieldConstantInitializerValues().enableAnnotationInfo().ignoreFieldVisibility()
                 .scan()) {

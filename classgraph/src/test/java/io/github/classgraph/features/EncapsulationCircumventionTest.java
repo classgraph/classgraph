@@ -18,8 +18,10 @@ class EncapsulationCircumventionTest {
         assertThat(ReflectionUtils.getStaticFieldVal(true, ReflectionUtils.class, "REFLECTION_DRIVER").getClass()
                 .getSimpleName()).isEqualTo("NarcissusReflectionDriver");
         try (var scanResult = new ClassGraph().enableClasspath()
-                .acceptPackages(EncapsulationCircumventionTest.class.getPackage().getName()).enableAllInfo()
-                .scan()) {
+                .acceptPackages(EncapsulationCircumventionTest.class.getPackage().getName()).enableClassInfo()
+                .enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
+                .ignoreMethodVisibility().scan()) {
             assertThat(scanResult.getAllClasses().getNames()).isNotEmpty();
         }
     }

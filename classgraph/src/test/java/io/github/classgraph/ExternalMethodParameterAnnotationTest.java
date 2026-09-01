@@ -19,7 +19,10 @@ public class ExternalMethodParameterAnnotationTest {
     @Test
     public void scanningIsExtendedToExternalMethodParameterAnnotation() {
         try (var scanResult = new ClassGraph().enableClasspath()
-                .acceptPackages(UsesExternalParamAnnotation.class.getPackage().getName()).enableAllInfo().scan()) {
+                .acceptPackages(UsesExternalParamAnnotation.class.getPackage().getName()).enableClassInfo()
+                .enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
+                .ignoreMethodVisibility().scan()) {
             final var annotation = scanResult.getClassInfo(ExternalParamAnnotation.class.getName());
             assertThat(annotation).isNotNull();
             assertThat(annotation.isAnnotation()).isTrue();

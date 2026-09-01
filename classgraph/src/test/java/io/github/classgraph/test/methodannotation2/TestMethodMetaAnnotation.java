@@ -102,7 +102,7 @@ public class TestMethodMetaAnnotation {
     @Test
     @ExternalAnnotation
     public void testMetaAnnotation() {
-        try (var scanResult = new ClassGraph().enableClasspath()
+        try (var scanResult = new ClassGraph().enableClassInfo().enableClasspath()
                 .acceptPackages(TestMethodMetaAnnotation.class.getPackage().getName()).enableAnnotationInfo()
                 .scan()) {
             final var testClasses = scanResult.getClassesWithAnnotation(MetaAnnotation.class).getNames();
@@ -117,7 +117,7 @@ public class TestMethodMetaAnnotation {
     @Test
     @ExternalAnnotation
     public void testMetaAnnotationStandardClassesOnly() {
-        try (var scanResult = new ClassGraph().enableClasspath()
+        try (var scanResult = new ClassGraph().enableClassInfo().enableClasspath()
                 .acceptPackages(TestMethodMetaAnnotation.class.getPackage().getName()).enableAnnotationInfo()
                 .scan()) {
             final var testClasses = scanResult.getClassesWithAnnotation(MetaAnnotation.class).getStandardClasses()
@@ -132,7 +132,7 @@ public class TestMethodMetaAnnotation {
     @Test
     @ExternalAnnotation
     public void testMethodMetaAnnotation() {
-        try (var scanResult = new ClassGraph().enableClasspath()
+        try (var scanResult = new ClassGraph().enableClassInfo().enableClasspath()
                 .acceptPackages(TestMethodMetaAnnotation.class.getPackage().getName()).enableMethodInfo()
                 .enableAnnotationInfo().scan()) {
             final var testClasses = scanResult.getClassesWithMethodAnnotation(MetaAnnotation.class).getNames();

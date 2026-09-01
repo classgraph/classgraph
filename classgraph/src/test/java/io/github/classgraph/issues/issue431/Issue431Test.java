@@ -67,7 +67,9 @@ public class Issue431Test {
     @Test
     public void primitiveConstantInitializerValues() {
         try (var scanResult = new ClassGraph().enableClasspath()
-                .acceptPackages(Issue431Test.class.getPackage().getName()).enableAllInfo().scan()) {
+                .acceptPackages(Issue431Test.class.getPackage().getName()).enableClassInfo().enableFieldInfo()
+                .enableMethodInfo().enableAnnotationInfo().enableStaticFinalFieldConstantInitializerValues()
+                .ignoreClassVisibility().ignoreFieldVisibility().ignoreMethodVisibility().scan()) {
             final var classInfo = scanResult.getClassInfo(X.class.getName());
             assertThat(classInfo).isNotNull();
             assertThat(classInfo.getFieldInfo("a").getConstantInitializerValue()).isEqualTo(Integer.MAX_VALUE);

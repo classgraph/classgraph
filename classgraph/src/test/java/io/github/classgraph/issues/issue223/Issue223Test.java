@@ -53,7 +53,9 @@ public class Issue223Test {
     @Test
     public void testInnerClasses() {
         try (var scanResult = new ClassGraph().enableClasspath()
-                .acceptPackages(Issue223Test.class.getPackage().getName()).enableAllInfo().scan()) {
+                .acceptPackages(Issue223Test.class.getPackage().getName()).enableClassInfo().enableFieldInfo()
+                .enableMethodInfo().enableAnnotationInfo().enableStaticFinalFieldConstantInitializerValues()
+                .ignoreClassVisibility().ignoreFieldVisibility().ignoreMethodVisibility().scan()) {
             // N.B. this anonymous inner class is deliberately not a lambda -- it is itself counted as one of the
             // two inner classes expected below (the other is InnerInterface).
             final var innerClasses = scanResult.getAllClasses().filter(new Predicate<ClassInfo>() {

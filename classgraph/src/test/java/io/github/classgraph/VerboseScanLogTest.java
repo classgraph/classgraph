@@ -93,7 +93,9 @@ public class VerboseScanLogTest {
         try (var scanResult = new ClassGraph().enableClasspath()
                 .acceptClasses(Tagged.class.getName(), Marker.class.getName(), Base.class.getName(),
                         Container.class.getName())
-                .enableAllInfo().enableInterClassDependencies().verbose().scan()) {
+                .enableClassInfo().enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
+                .ignoreMethodVisibility().enableInterClassDependencies().verbose().scan()) {
             assertThat(scanResult.getAllClasses()).isNotEmpty();
         } finally {
             LOGGER.removeHandler(handler);

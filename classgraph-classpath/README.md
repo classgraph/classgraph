@@ -47,7 +47,7 @@ finds nothing. The methods that say *where* to look come in pairs:
 | No arguments: find what is in the environment | Varargs: use exactly what is named |
 | --- | --- |
 | `enableClasspath()` -- every classpath element of every classloader that can be found -- the thread context classloader, the system classloader, the classloader of the class in any frame of the call stack, and the ancestors of all of those, including `java.class.path` | `enableClassLoaders(ClassLoader...)`, `enableClasspathEntries(Object...)` |
-| `enableModules()`, `enableSystemModules()`, `enableNonSystemModules()` -- the module layers that are visible to the caller | `enableModuleLayers(ModuleLayer...)` |
+| `enableSystemModules()`, `enableNonSystemModules()` -- the modules of the module layers that are visible to the caller | `enableModuleLayers(ModuleLayer...)` -- the modules of exactly the layers named |
 
 Call the no-argument method to find what the running application can see. Call only the varargs
 method to use *just* what you name, and nothing from the environment. Calling both uses the
@@ -163,8 +163,9 @@ try (Classpath classpath = new ClasspathFinder().enableNonSystemModules().find()
 Modules are a separate list from the classpath entries: `getModules()` returns all of them,
 `getSystemModules()` the ones from the JDK itself, and `getNonSystemModules()` the rest. Iterating
 the `Classpath` alone will not see them. All three lists are empty unless a module source was
-enabled: `enableNonSystemModules()`, `enableSystemModules()`, `enableModules()` for both kinds, or
-`enableModuleLayers(...)` for a layer of your own. A module's contents are read through the same virtual
+enabled: `enableNonSystemModules()`, `enableSystemModules()`, or both for both kinds.
+`enableModuleLayers(...)` names a layer of your own to look in, and finds nothing unless one of those
+two is called alongside it. A module's contents are read through the same virtual
 filesystem as a classpath element:
 
 ```java

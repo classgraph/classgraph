@@ -47,7 +47,9 @@ public class Issue400 {
         final var ramAtStart = usedRam();
         long ramAfterScan;
         try (var scanResult = new ClassGraph().enableClassLoaders(new URLClassLoader(jars))
-                .ignoreParentClassLoaders().enableAllInfo().scan()) {
+                .ignoreParentClassLoaders().enableClassInfo().enableFieldInfo().enableMethodInfo()
+                .enableAnnotationInfo().enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility()
+                .ignoreFieldVisibility().ignoreMethodVisibility().scan()) {
             ramAfterScan = usedRam();
             // There are no classes in any of the JARs.
             assertThat(scanResult.getAllClassesAsMap()).isEmpty();

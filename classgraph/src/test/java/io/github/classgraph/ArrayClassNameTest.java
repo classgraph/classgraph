@@ -56,8 +56,10 @@ public class ArrayClassNameTest {
     @Test
     public void arrayClassNameIsAClassName() {
         try (var scanResult = new ClassGraph().enableClasspath()
-                .acceptPackagesNonRecursive(ArrayClassNameTest.class.getPackage().getName()).enableAllInfo()
-                .scan()) {
+                .acceptPackagesNonRecursive(ArrayClassNameTest.class.getPackage().getName()).enableClassInfo()
+                .enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
+                .ignoreMethodVisibility().scan()) {
             final var holder = scanResult.getClassInfo(Holder.class.getName());
             assertThat(holder).isNotNull();
 
@@ -82,8 +84,10 @@ public class ArrayClassNameTest {
     @Test
     public void anArrayClassReportsItsTypeSignatureInJvmNotation() {
         try (var scanResult = new ClassGraph().enableClasspath()
-                .acceptPackagesNonRecursive(ArrayClassNameTest.class.getPackage().getName()).enableAllInfo()
-                .scan()) {
+                .acceptPackagesNonRecursive(ArrayClassNameTest.class.getPackage().getName()).enableClassInfo()
+                .enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
+                .ignoreMethodVisibility().scan()) {
             final var primitive = arrayType(scanResult, "primitiveArray").getArrayClassInfo();
             assertThat(primitive.getTypeSignatureString()).isEqualTo(int[][].class.getName());
             assertThat(primitive.getName()).isEqualTo(int[][].class.getCanonicalName());

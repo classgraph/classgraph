@@ -217,8 +217,8 @@ public class ClasspathElementModuleTest {
             zipOutputStream.closeEntry();
         }
 
-        try (var scanResult = new ClassGraph().enableModuleLayers(moduleLayerFor(jar)).ignoreParentModuleLayers()
-                .acceptPaths("modulescan").scan()) {
+        try (var scanResult = new ClassGraph().enableNonSystemModules().enableModuleLayers(moduleLayerFor(jar))
+                .ignoreParentModuleLayers().acceptPaths("modulescan").scan()) {
             final var resource = resource(scanResult, resourcePath);
             assertThat(resource.loadAsString()).isEqualTo(content);
             assertThat(resource.load()).isEqualTo(content.getBytes(StandardCharsets.UTF_8));

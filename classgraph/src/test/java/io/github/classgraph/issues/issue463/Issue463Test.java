@@ -65,8 +65,10 @@ public class Issue463Test {
      */
     @Test
     public void downwardQueriesReturnOnlyAcceptedClasses() {
-        try (var scanResult = new ClassGraph().enableClasspath().acceptClasses(Leaf.class.getName()).enableAllInfo()
-                .scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath().acceptClasses(Leaf.class.getName())
+                .enableClassInfo().enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
+                .ignoreMethodVisibility().scan()) {
             // Upwards: the external classes that Leaf's own classfile chain declares are left out too, since
             // enableExternalClasses() was not called
             assertThat(scanResult.getAllSuperclasses(Leaf.class).getNames()).isEmpty();
@@ -85,8 +87,10 @@ public class Issue463Test {
      */
     @Test
     public void queriesReturnExternalClassesIfEnabled() {
-        try (var scanResult = new ClassGraph().enableClasspath().acceptClasses(Leaf.class.getName()).enableAllInfo()
-                .enableExternalClasses().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath().acceptClasses(Leaf.class.getName())
+                .enableClassInfo().enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
+                .ignoreMethodVisibility().enableExternalClasses().scan()) {
             assertThat(scanResult.getAllSuperclasses(Leaf.class).getNames()).contains(Mid.class.getName(),
                     Base.class.getName());
             assertThat(scanResult.getAllSuperinterfaces(Leaf.class).getNames()).containsOnly(Iface.class.getName());
@@ -106,8 +110,10 @@ public class Issue463Test {
      */
     @Test
     public void acceptedClassesReachableOnlyThroughExternalClassesAreFound() {
-        try (var scanResult = new ClassGraph().enableClasspath().acceptClasses(Leaf.class.getName()).enableAllInfo()
-                .scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath().acceptClasses(Leaf.class.getName())
+                .enableClassInfo().enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
+                .ignoreMethodVisibility().scan()) {
             assertThat(scanResult.getClassesWithAnnotation(InheritedAnn.class).getNames())
                     .containsOnly(Leaf.class.getName());
             assertThat(scanResult.getClassesWithFieldAnnotation(MetaAnn.class).getNames())
@@ -121,14 +127,18 @@ public class Issue463Test {
      */
     @Test
     public void outerClassesAndFieldAnnotationsHonourExternalClasses() {
-        try (var scanResult = new ClassGraph().enableClasspath().acceptClasses(Leaf.class.getName()).enableAllInfo()
-                .scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath().acceptClasses(Leaf.class.getName())
+                .enableClassInfo().enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
+                .ignoreMethodVisibility().scan()) {
             final var leaf = scanResult.getClassInfo(Leaf.class.getName());
             assertThat(leaf.getOuterClasses().getNames()).isEmpty();
             assertThat(leaf.getFieldAnnotations().getNames()).isEmpty();
         }
-        try (var scanResult = new ClassGraph().enableClasspath().acceptClasses(Leaf.class.getName()).enableAllInfo()
-                .enableExternalClasses().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath().acceptClasses(Leaf.class.getName())
+                .enableClassInfo().enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
+                .ignoreMethodVisibility().enableExternalClasses().scan()) {
             final var leaf = scanResult.getClassInfo(Leaf.class.getName());
             assertThat(leaf.getOuterClasses().getNames()).containsOnly(Issue463Test.class.getName());
             assertThat(leaf.getFieldAnnotations().getNames()).contains(FieldAnn.class.getName());

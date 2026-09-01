@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Test;
 import io.github.classgraph.ClassGraph;
 
 /**
- * A setting changes the one thing it names, and pulls in another setting only when it would otherwise do nothing.
+ * A setting changes the one thing it names, and never turns on another setting: all config is explicit.
  */
 public class SettingsAreIndependentTest {
     /**
@@ -54,12 +54,13 @@ public class SettingsAreIndependentTest {
 
     /**
      * Ignoring the runtime invisible annotations narrows what is scanned, so it does not turn on the reading of
-     * class information, and does not turn on the reading of annotations either.
+     * annotations: it is only read by {@code enableAnnotationInfo()}, which the scan asks for explicitly.
      */
     @Test
     public void ignoringRuntimeInvisibleAnnotationsEnablesNothing() {
-        try (var scanResult = new ClassGraph().disableRuntimeInvisibleAnnotations().scan()) {
-            assertThatThrownBy(scanResult::getAllClasses).isInstanceOf(IllegalStateException.class);
-        }
+        final var classGraph = new ClassGraph().enableClassInfo().disableRuntimeInvisibleAnnotations();
+        assertThatThrownBy(classGraph::scan).isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("ClassGraph#disableRuntimeInvisibleAnnotations() has no effect unless "
+                        + "ClassGraph#enableAnnotationInfo() is also called");
     }
 }

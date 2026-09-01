@@ -86,7 +86,9 @@ public class Issue238Test {
     @Test
     public void testSuperclassInheritanceOrder() {
         try (var scanResult = new ClassGraph().enableClasspath()
-                .acceptPackages(Issue238Test.class.getPackage().getName()).enableAllInfo().scan()) {
+                .acceptPackages(Issue238Test.class.getPackage().getName()).enableClassInfo().enableFieldInfo()
+                .enableMethodInfo().enableAnnotationInfo().enableStaticFinalFieldConstantInitializerValues()
+                .ignoreClassVisibility().ignoreFieldVisibility().ignoreMethodVisibility().scan()) {
             final var classNames = scanResult.getAllClasses().get(E.class.getName()).getAllSuperclasses()
                     .getNames();
             // Object is left out, since it is an external class and external classes were not enabled

@@ -45,8 +45,10 @@ public class ImplicitSupertypeTest {
 
     private static ScanResult scan() {
         return new ClassGraph().enableClasspath()
-                .acceptPackagesNonRecursive(ImplicitSupertypeTest.class.getPackage().getName()).enableAllInfo()
-                .scan();
+                .acceptPackagesNonRecursive(ImplicitSupertypeTest.class.getPackage().getName()).enableClassInfo()
+                .enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
+                .ignoreMethodVisibility().scan();
     }
 
     /** A record does not render {@code extends java.lang.Record}, but does render its explicit superinterfaces. */
@@ -114,7 +116,9 @@ public class ImplicitSupertypeTest {
     @Test
     public void implicitSupertypesAreStillRenderedForOtherClasses() {
         try (var scanResult = new ClassGraph().acceptClasses("java.lang.Enum").enableSystemJars()
-                .enableSystemModules().enableAllInfo().scan()) {
+                .enableSystemModules().enableClassInfo().enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
+                .ignoreMethodVisibility().scan()) {
             final var enumClassInfo = scanResult.getClassInfo("java.lang.Enum");
             assertThat(enumClassInfo).isNotNull();
             // java.lang.Enum is a class, not an enum, so its own supertypes are rendered

@@ -52,7 +52,7 @@ public class Issue37Test {
     public void issue37Test() {
         final List<String> methodNames = new ArrayList<>();
         final var pkg = Issue37Test.class.getPackage().getName();
-        try (var scanResult = new ClassGraph().enableClasspath().acceptPackages(pkg) //
+        try (var scanResult = new ClassGraph().enableClassInfo().enableClasspath().acceptPackages(pkg) //
                 .enableMethodInfo() //
                 .scan()) {
             final var classes = scanResult.getAllClasses();

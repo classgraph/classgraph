@@ -74,7 +74,9 @@ public class RepeatableAnnotationTest {
     @BeforeAll
     static void scan() {
         scanResult = new ClassGraph().enableClasspath()
-                .acceptClasses(RepeatableAnnotationTest.class.getName() + "$*").enableAllInfo().scan();
+                .acceptClasses(RepeatableAnnotationTest.class.getName() + "$*").enableClassInfo().enableFieldInfo()
+                .enableMethodInfo().enableAnnotationInfo().enableStaticFinalFieldConstantInitializerValues()
+                .ignoreClassVisibility().ignoreFieldVisibility().ignoreMethodVisibility().scan();
     }
 
     /** Close the scan result. */

@@ -37,8 +37,11 @@ public class ScanResultReachabilityTest {
         final Field scanResultFld = ScanResultObject.class.getDeclaredField("scanResult");
         scanResultFld.setAccessible(true);
 
-        try (var scanResult = new ClassGraph().enableClasspath().enableAllInfo().enableInterClassDependencies()
-                .enableExternalClasses().acceptPackages("io.github.classgraph", "com.xyz").scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath().enableClassInfo().enableFieldInfo()
+                .enableMethodInfo().enableAnnotationInfo().enableStaticFinalFieldConstantInitializerValues()
+                .ignoreClassVisibility().ignoreFieldVisibility().ignoreMethodVisibility()
+                .enableInterClassDependencies().enableExternalClasses()
+                .acceptPackages("io.github.classgraph", "com.xyz").scan()) {
 
             final Map<Object, Boolean> visited = new IdentityHashMap<>();
             final Deque<Object[]> queue = new ArrayDeque<>();

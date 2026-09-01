@@ -51,7 +51,7 @@ public class Issue175Test {
         final var aJarURL = classLoader.getResource(aJarName);
         final var overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
 
-        try (var result = new ClassGraph().acceptPackages("net.corda.core.contracts") //
+        try (var result = new ClassGraph().enableClassInfo().acceptPackages("net.corda.core.contracts") //
                 .enableClassLoaders(overrideClassLoader).ignoreParentClassLoaders().ignoreMethodVisibility()
                 .ignoreFieldVisibility().enableMethodInfo().enableFieldInfo().scan()) {
             final List<String> methods = new ArrayList<>();
@@ -79,7 +79,10 @@ public class Issue175Test {
         final var overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
 
         try (var result = new ClassGraph().acceptPackages("net.corda.core") //
-                .enableClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableAllInfo().scan()) {
+                .enableClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableClassInfo()
+                .enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
+                .ignoreMethodVisibility().scan()) {
             final List<String> methods = new ArrayList<>();
             for (final String className : result.getAllClasses().getNames()) {
                 final var classInfo = result.getClassInfo(className);
@@ -104,7 +107,10 @@ public class Issue175Test {
         final var overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
 
         try (var result = new ClassGraph().acceptPackages("net.corda.core") //
-                .enableClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableAllInfo().scan()) {
+                .enableClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableClassInfo()
+                .enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
+                .ignoreMethodVisibility().scan()) {
             final List<String> methods = new ArrayList<>();
             for (final String className : result.getAllClasses().getNames()) {
                 final var classInfo = result.getClassInfo(className);
@@ -131,7 +137,10 @@ public class Issue175Test {
         final var overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
 
         try (var result = new ClassGraph().acceptPackages("net.corda.core.contracts") //
-                .enableClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableAllInfo().scan()) {
+                .enableClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableClassInfo()
+                .enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
+                .ignoreMethodVisibility().scan()) {
             final List<String> methods = new ArrayList<>();
             for (final String className : result.getAllClasses().getNames()) {
                 final var classInfo = result.getClassInfo(className);
@@ -165,7 +174,10 @@ public class Issue175Test {
         final var overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
 
         try (var result = new ClassGraph().acceptPackages("net.corda.testing.node") //
-                .enableClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableAllInfo().scan()) {
+                .enableClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableClassInfo()
+                .enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
+                .ignoreMethodVisibility().scan()) {
             final List<String> methods = new ArrayList<>();
             for (final String className : result.getAllClasses().getNames()) {
                 final var classInfo = result.getClassInfo(className);
@@ -227,7 +239,10 @@ public class Issue175Test {
         final var overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
 
         try (var result = new ClassGraph().acceptPackages("net.corda.core.node.services.vault") //
-                .enableClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableAllInfo().scan()) {
+                .enableClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableClassInfo()
+                .enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
+                .ignoreMethodVisibility().scan()) {
             final List<String> methods = new ArrayList<>();
             for (final String className : result.getAllClasses().getNames()) {
                 final var classInfo = result.getClassInfo(className);
@@ -254,7 +269,10 @@ public class Issue175Test {
         final var overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
 
         try (var result = new ClassGraph().acceptPackages("net.corda.client.jackson") //
-                .enableClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableAllInfo().scan()) {
+                .enableClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableClassInfo()
+                .enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
+                .ignoreMethodVisibility().scan()) {
             final List<String> methods = new ArrayList<>();
             for (final String className : result.getAllClasses().getNames()) {
                 final var classInfo = result.getClassInfo(className);
@@ -290,7 +308,10 @@ public class Issue175Test {
         final var overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
 
         try (var result = new ClassGraph().acceptPackages("net.corda.core.node.services.vault") //
-                .enableClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableAllInfo().scan()) {
+                .enableClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableClassInfo()
+                .enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
+                .ignoreMethodVisibility().scan()) {
             final List<String> methods = new ArrayList<>();
             for (final String className : result.getAllClasses().getNames()) {
                 final var classInfo = result.getClassInfo(className);
@@ -314,7 +335,10 @@ public class Issue175Test {
         final var overrideClassLoader = new URLClassLoader(new URL[] { aJarURL });
 
         try (var result = new ClassGraph().acceptPackages("net.corda.client.jackson") //
-                .enableClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableAllInfo().scan()) {
+                .enableClassLoaders(overrideClassLoader).ignoreParentClassLoaders().enableClassInfo()
+                .enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
+                .ignoreMethodVisibility().scan()) {
             final List<String> methods = new ArrayList<>();
             for (final String className : result.getAllClasses().getNames()) {
                 final var classInfo = result.getClassInfo(className);

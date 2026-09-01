@@ -125,7 +125,7 @@ public class ClasspathFinderTest {
     /** The modules the JVM can see are found, and split into the JDK's own modules and everything else. */
     @Test
     public void theModulesAreFoundAndSplitIntoSystemAndNonSystem() {
-        final var classpath = new ClasspathFinder().enableModules().find();
+        final var classpath = new ClasspathFinder().enableSystemModules().enableNonSystemModules().find();
         assertThat(classpath.getSystemModules()).anyMatch(module -> "java.base".equals(module.descriptor().name()));
         assertThat(classpath.getNonSystemModules())
                 .noneMatch(module -> module.descriptor().name().startsWith("java."));
@@ -148,16 +148,15 @@ public class ClasspathFinderTest {
      */
     @Test
     public void namedModuleLayersReplaceTheDetectedOnes() {
-        assertThat(
-                new ClasspathFinder().enableModuleLayers(ModuleLayer.empty()).enableModules().find().getModules())
-                .isEmpty();
+        assertThat(new ClasspathFinder().enableModuleLayers(ModuleLayer.empty()).enableSystemModules()
+                .enableNonSystemModules().find().getModules()).isEmpty();
     }
 
     /** Naming a module layer and asking for the detected layers as well searches both. */
     @Test
     public void theDetectedModuleLayersCanBeSearchedAlongsideANamedOne() {
         assertThat(new ClasspathFinder().enableModuleLayers(ModuleLayer.empty()).enableDetectedModuleLayers()
-                .enableModules().find().getModules())
+                .enableSystemModules().enableNonSystemModules().find().getModules())
                 .anyMatch(module -> "java.base".equals(module.descriptor().name()));
     }
 

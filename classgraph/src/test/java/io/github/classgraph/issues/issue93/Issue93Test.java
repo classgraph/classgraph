@@ -46,8 +46,8 @@ public class Issue93Test {
      */
     @Test
     public void classRetentionIsDefault() {
-        try (var scanResult = new ClassGraph().enableClasspath().acceptPackages(PKG).enableAnnotationInfo()
-                .ignoreClassVisibility().scan()) {
+        try (var scanResult = new ClassGraph().enableClassInfo().enableClasspath().acceptPackages(PKG)
+                .enableAnnotationInfo().ignoreClassVisibility().scan()) {
             assertThat(scanResult.getClassesWithAnnotation(RetentionClass.class).getNames())
                     .containsOnly(RetentionClassAnnotated.class.getName());
             assertThat(scanResult.getClassesWithAnnotation(RetentionRuntime.class).getNames())
@@ -61,8 +61,8 @@ public class Issue93Test {
      */
     @Test
     public void classRetentionIsNotVisibleWithRetentionPolicyRUNTIME() {
-        try (var scanResult = new ClassGraph().enableClasspath().acceptPackages(PKG).enableAnnotationInfo()
-                .ignoreClassVisibility().disableRuntimeInvisibleAnnotations().scan()) {
+        try (var scanResult = new ClassGraph().enableClassInfo().enableClasspath().acceptPackages(PKG)
+                .enableAnnotationInfo().ignoreClassVisibility().disableRuntimeInvisibleAnnotations().scan()) {
             assertThat(scanResult.getClassesWithAnnotation(RetentionClass.class).getNames()).isEmpty();
             assertThat(scanResult.getClassesWithAnnotation(RetentionRuntime.class).getNames())
                     .containsOnly(RetentionRuntimeAnnotated.class.getName());

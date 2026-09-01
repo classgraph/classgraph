@@ -116,7 +116,9 @@ public class ReturnedListsAreUnmodifiableTest {
         final var modifiableCollections = new TreeSet<String>();
         var numCollectionsChecked = 0;
         try (var scanResult = new ClassGraph().enableClasspath()
-                .acceptPackages(ClassWithMembers.class.getPackage().getName()).enableAllInfo().scan()) {
+                .acceptPackages(ClassWithMembers.class.getPackage().getName()).enableClassInfo().enableFieldInfo()
+                .enableMethodInfo().enableAnnotationInfo().enableStaticFinalFieldConstantInitializerValues()
+                .ignoreClassVisibility().ignoreFieldVisibility().ignoreMethodVisibility().scan()) {
             for (final Object object : scanResultObjects(scanResult)) {
                 for (final Method method : object.getClass().getMethods()) {
                     final Class<?> returnType = method.getReturnType();
@@ -176,7 +178,9 @@ public class ReturnedListsAreUnmodifiableTest {
     @Test
     public void aPublicInfoListConstructorCopiesAndUniquifiesItsInput() {
         try (var scanResult = new ClassGraph().enableClasspath()
-                .acceptPackages(ClassWithMembers.class.getPackage().getName()).enableAllInfo().scan()) {
+                .acceptPackages(ClassWithMembers.class.getPackage().getName()).enableClassInfo().enableFieldInfo()
+                .enableMethodInfo().enableAnnotationInfo().enableStaticFinalFieldConstantInitializerValues()
+                .ignoreClassVisibility().ignoreFieldVisibility().ignoreMethodVisibility().scan()) {
             final var classes = List.copyOf(scanResult.getAllClasses());
             assertThat(classes).hasSizeGreaterThan(1);
             final var source = new ArrayList<ClassInfo>();
@@ -196,7 +200,9 @@ public class ReturnedListsAreUnmodifiableTest {
     @Test
     public void allMutatorsAreRejectedOnReturnedLists() {
         try (var scanResult = new ClassGraph().enableClasspath()
-                .acceptPackages(ClassWithMembers.class.getPackage().getName()).enableAllInfo().scan()) {
+                .acceptPackages(ClassWithMembers.class.getPackage().getName()).enableClassInfo().enableFieldInfo()
+                .enableMethodInfo().enableAnnotationInfo().enableStaticFinalFieldConstantInitializerValues()
+                .ignoreClassVisibility().ignoreFieldVisibility().ignoreMethodVisibility().scan()) {
             final ClassInfoList classInfoList = scanResult.getAllClasses();
             assertThat(classInfoList).hasSizeGreaterThan(1);
 
@@ -224,7 +230,9 @@ public class ReturnedListsAreUnmodifiableTest {
     @Test
     public void noOpMutatorsAreRejectedOnReturnedLists() {
         try (var scanResult = new ClassGraph().enableClasspath()
-                .acceptPackages(ClassWithMembers.class.getPackage().getName()).enableAllInfo().scan()) {
+                .acceptPackages(ClassWithMembers.class.getPackage().getName()).enableClassInfo().enableFieldInfo()
+                .enableMethodInfo().enableAnnotationInfo().enableStaticFinalFieldConstantInitializerValues()
+                .ignoreClassVisibility().ignoreFieldVisibility().ignoreMethodVisibility().scan()) {
             // An empty returned list: every mutator is a no-op on it, but must still be rejected
             final ClassInfoList emptyList = scanResult.getAllClasses().filter(ci -> false);
             assertThat(emptyList).isEmpty();
@@ -254,7 +262,9 @@ public class ReturnedListsAreUnmodifiableTest {
     public void parameterizedAccessorsReturnUnmodifiableLists() {
         final String classfilePath = ClassWithMembers.class.getName().replace('.', '/') + ".class";
         try (var scanResult = new ClassGraph().enableClasspath()
-                .acceptPackages(ClassWithMembers.class.getPackage().getName()).enableAllInfo().scan()) {
+                .acceptPackages(ClassWithMembers.class.getPackage().getName()).enableClassInfo().enableFieldInfo()
+                .enableMethodInfo().enableAnnotationInfo().enableStaticFinalFieldConstantInitializerValues()
+                .ignoreClassVisibility().ignoreFieldVisibility().ignoreMethodVisibility().scan()) {
             final ClassInfo classInfo = scanResult.getClassInfo(ClassWithMembers.class.getName());
             assertThat(classInfo).isNotNull();
 

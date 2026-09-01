@@ -215,7 +215,8 @@ public class ScanSourceSpecTest {
     public void onlyTheNamedModuleLayersAreSearchedIfTheDetectedOnesAreNotEnabled(@TempDir final Path tempDir)
             throws IOException {
         final var namedJar = buildJar(tempDir, "namedmodule");
-        assertThat(nonSystemModuleNames(new ClasspathFinder().enableModuleLayers(moduleLayerFor(namedJar))))
+        assertThat(nonSystemModuleNames(
+                new ClasspathFinder().enableNonSystemModules().enableModuleLayers(moduleLayerFor(namedJar))))
                 .containsExactly("namedmodule");
     }
 
@@ -231,8 +232,8 @@ public class ScanSourceSpecTest {
     public void moduleLayersNamedBySeparateCallsAreAllSearched(@TempDir final Path tempDir) throws IOException {
         final var firstJar = buildJar(tempDir, "firstmodule");
         final var secondJar = buildJar(tempDir, "secondmodule");
-        assertThat(nonSystemModuleNames(new ClasspathFinder().enableModuleLayers(moduleLayerFor(firstJar))
-                .enableModuleLayers(moduleLayerFor(secondJar))))
+        assertThat(nonSystemModuleNames(new ClasspathFinder().enableNonSystemModules()
+                .enableModuleLayers(moduleLayerFor(firstJar)).enableModuleLayers(moduleLayerFor(secondJar))))
                 .containsExactlyInAnyOrder("firstmodule", "secondmodule");
     }
 

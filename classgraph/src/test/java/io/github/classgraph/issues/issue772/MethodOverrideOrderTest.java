@@ -18,7 +18,7 @@ public class MethodOverrideOrderTest {
 
     @BeforeAll
     public static void setup() {
-        scanResult = new ClassGraph().enableClasspath()
+        scanResult = new ClassGraph().enableClassInfo().enableClasspath()
                 .acceptPackages(MethodOverrideOrderTest.class.getPackage().getName()).enableMethodInfo().scan();
     }
 

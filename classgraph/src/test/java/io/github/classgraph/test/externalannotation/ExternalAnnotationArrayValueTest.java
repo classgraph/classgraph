@@ -43,7 +43,9 @@ public class ExternalAnnotationArrayValueTest {
             }
 
             try (var scanResult = new ClassGraph().enableClasspathEntries(tempDir.toFile().getPath())
-                    .enableAllInfo().scan()) {
+                    .enableClassInfo().enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                    .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility()
+                    .ignoreFieldVisibility().ignoreMethodVisibility().scan()) {
                 final var classInfo = scanResult.getClassInfo(ExternalAnnotationArrayValueTest.class.getName());
                 assertThat(classInfo).isNotNull();
 

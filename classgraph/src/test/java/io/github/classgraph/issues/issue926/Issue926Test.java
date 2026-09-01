@@ -26,7 +26,7 @@ public class Issue926Test {
 
     @Test
     public void bridgeMethodWithInvalidTypeAnnotationPathDoesNotThrow() {
-        try (var scanResult = new ClassGraph().enableClasspath().acceptPackages(PKG) //
+        try (var scanResult = new ClassGraph().enableClassInfo().enableClasspath().acceptPackages(PKG) //
                 .ignoreClassVisibility().enableMethodInfo().enableAnnotationInfo().scan()) {
             final var classInfo = scanResult.getClassInfo(PKG + ".BridgeImpl");
             assertThat(classInfo).isNotNull();

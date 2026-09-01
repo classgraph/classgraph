@@ -38,7 +38,9 @@ public class EnumTest {
     @Test
     public void enumWithoutMethod() throws Exception {
         try (var scanResult = new ClassGraph().enableClasspath().acceptClasses(MyEnumWithoutMethod.class.getName())
-                .enableAllInfo().scan()) {
+                .enableClassInfo().enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
+                .ignoreMethodVisibility().scan()) {
             assertThat(scanResult.getAllEnums()).hasSize(1);
             final var myEnum = scanResult.getAllEnums().get(0);
             assertThat(myEnum.getName()).isEqualTo(MyEnumWithoutMethod.class.getName());
@@ -50,7 +52,9 @@ public class EnumTest {
     @Test
     public void enumWithMethod() throws Exception {
         try (var scanResult = new ClassGraph().enableClasspath().acceptClasses(EnumWithMethod.class.getName())
-                .enableAllInfo().scan()) {
+                .enableClassInfo().enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
+                .ignoreMethodVisibility().scan()) {
             assertThat(scanResult.getAllEnums()).hasSize(1);
             final var myEnum = scanResult.getAllEnums().get(0);
             assertThat(myEnum.getName()).isEqualTo(EnumWithMethod.class.getName());
@@ -70,11 +74,13 @@ public class EnumTest {
     @Test
     public void enumConstantsAreInOrdinalOrder() {
         try (var scanResult = new ClassGraph().enableClasspath().acceptClasses(UnsortedEnum.class.getName())
-                .enableAllInfo().scan()) {
+                .enableClassInfo().enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
+                .ignoreMethodVisibility().scan()) {
             final var myEnum = scanResult.getClassInfo(UnsortedEnum.class.getName());
             assertThat(myEnum.getEnumConstants().getNames()).containsExactly("ZEBRA", "APPLE", "MANGO");
             // The fields of the enum class, in contrast, are sorted by name (the synthetic $VALUES field is
-            // visible here because enableAllInfo() also ignores field visibility)
+            // visible here because ignoreFieldVisibility() was called)
             assertThat(myEnum.getDeclaredFieldInfo().getNames()).containsExactly("$VALUES", "APPLE", "MANGO",
                     "ZEBRA");
         }

@@ -159,7 +159,7 @@ public class MethodInfoTest {
      */
     @Test
     public void testGetConstructorInfo() {
-        try (var scanResult = new ClassGraph().enableClasspath()
+        try (var scanResult = new ClassGraph().enableClassInfo().enableClasspath()
                 .acceptPackages(MethodInfoTest.class.getPackage().getName()).enableMethodInfo().scan()) {
             assertThat(scanResult.getClassInfo(MethodInfoTest.class.getName()).getConstructorInfo().getAsStrings())
                     .containsOnly("public " + MethodInfoTest.class.getName() + "()");

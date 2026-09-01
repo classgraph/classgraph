@@ -87,7 +87,10 @@ public class Bench {
             evict();
         }
         final long startTime = System.nanoTime();
-        final ClassGraph classGraph = new ClassGraph().enableClasspathEntries(classpath).enableAllInfo();
+        final ClassGraph classGraph = new ClassGraph().enableClasspathEntries(classpath).enableClassInfo()
+                .enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
+                .ignoreMethodVisibility();
         setMemoryMapping(classGraph, memoryMapping);
         try (ScanResult scanResult = classGraph.scan()) {
             numClasses = scanResult.getAllClasses().size();

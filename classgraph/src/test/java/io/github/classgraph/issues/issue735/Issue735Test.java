@@ -34,7 +34,9 @@ public class Issue735Test {
     @Test
     void genericSuperclass() {
         try (var scanResult = new ClassGraph().enableClasspath()
-                .acceptPackages(Issue735Test.class.getPackage().getName()).enableAllInfo().ignoreClassVisibility()
+                .acceptPackages(Issue735Test.class.getPackage().getName()).enableClassInfo().enableFieldInfo()
+                .enableMethodInfo().enableAnnotationInfo().enableStaticFinalFieldConstantInitializerValues()
+                .ignoreClassVisibility().ignoreFieldVisibility().ignoreMethodVisibility().ignoreClassVisibility()
                 .ignoreMethodVisibility().scan()) {
             final var ci1 = scanResult.getClassInfo(Derived1.class.getName());
             // Derived1 also has a compiler-generated bridge method get() with result type Object, which sorts
@@ -188,7 +190,10 @@ public class Issue735Test {
     @BeforeAll
     static void scan() {
         scanResult = new ClassGraph().enableClasspath().acceptPackages(Issue735Test.class.getPackage().getName())
-                .enableAllInfo().ignoreClassVisibility().ignoreMethodVisibility().ignoreFieldVisibility().scan();
+                .enableClassInfo().enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
+                .ignoreMethodVisibility().ignoreClassVisibility().ignoreMethodVisibility().ignoreFieldVisibility()
+                .scan();
     }
 
     @AfterAll

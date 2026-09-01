@@ -103,7 +103,9 @@ public class TypeVariableSignatureTest {
      * @return the scan result, which the caller must close.
      */
     private static ScanResult scan() {
-        return new ClassGraph().enableClasspath().acceptClasses(GENERIC).enableAllInfo().scan();
+        return new ClassGraph().enableClasspath().acceptClasses(GENERIC).enableClassInfo().enableFieldInfo()
+                .enableMethodInfo().enableAnnotationInfo().enableStaticFinalFieldConstantInitializerValues()
+                .ignoreClassVisibility().ignoreFieldVisibility().ignoreMethodVisibility().scan();
     }
 
     /**
@@ -166,7 +168,9 @@ public class TypeVariableSignatureTest {
     @Test
     public void aTypeVariableUsedWithinAClassTypeSignatureResolvesAgainstThatClass() {
         try (var scanResult = new ClassGraph().enableClasspath().acceptClasses(GENERIC, Sub.class.getName())
-                .enableAllInfo().scan()) {
+                .enableClassInfo().enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
+                .ignoreMethodVisibility().scan()) {
             // The bound of "W extends T" is the type variable T, which is declared by the same class
             final var typeParameters = scanResult.getClassInfo(GENERIC).getTypeSignature().getTypeParameters();
             final var bound = (TypeVariableSignature) typeParameters.get(3).getClassBound();

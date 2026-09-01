@@ -104,7 +104,9 @@ public class BaseTypeSignatureTest {
         assertThat(intSignature.equalsIgnoringTypeParams(null)).isFalse();
 
         try (var scanResult = new ClassGraph().enableClasspath().acceptClasses(AnnotatedPrimitives.class.getName())
-                .enableAllInfo().scan()) {
+                .enableClassInfo().enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
+                .ignoreMethodVisibility().scan()) {
             final var annotatedInt = scanResult.getClassInfo(AnnotatedPrimitives.class.getName())
                     .getFieldInfo("annotatedField").getTypeSignatureOrTypeDescriptor();
             // The type annotation is part of the identity of the type, but not of the type ignoring type params
@@ -117,7 +119,9 @@ public class BaseTypeSignatureTest {
     @Test
     public void typeAnnotationsAreShownBeforeTheTypeName() {
         try (var scanResult = new ClassGraph().enableClasspath().acceptClasses(AnnotatedPrimitives.class.getName())
-                .enableAllInfo().scan()) {
+                .enableClassInfo().enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
+                .ignoreMethodVisibility().scan()) {
             final var classInfo = scanResult.getClassInfo(AnnotatedPrimitives.class.getName());
             final var annotation = "@" + NonNegative.class.getName();
             final var fieldType = classInfo.getFieldInfo("annotatedField").getTypeSignatureOrTypeDescriptor();

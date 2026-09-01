@@ -63,7 +63,9 @@ public class Issue420Test {
             try (var childClassLoader = new URLClassLoader(new URL[] { memFsCopyOfJarURL },
                     getClass().getClassLoader())) {
                 final var classGraph = new ClassGraph().enableClassLoaders(childClassLoader)
-                        .ignoreParentClassLoaders().acceptPackages("mrj").enableAllInfo();
+                        .ignoreParentClassLoaders().acceptPackages("mrj").enableClassInfo().enableFieldInfo()
+                        .enableMethodInfo().enableAnnotationInfo().enableStaticFinalFieldConstantInitializerValues()
+                        .ignoreClassVisibility().ignoreFieldVisibility().ignoreMethodVisibility();
                 try (var scanResult = classGraph.scan()) {
                     assertThat(scanResult.getClassInfo("mrj.Cls")).isNotNull();
                 }
@@ -103,7 +105,9 @@ public class Issue420Test {
             try (var childClassLoader = new URLClassLoader(new URL[] { memFsDirToScanURL },
                     getClass().getClassLoader())) {
                 final var classGraph = new ClassGraph().enableClassLoaders(childClassLoader)
-                        .ignoreParentClassLoaders().acceptPackages(packageName).enableAllInfo();
+                        .ignoreParentClassLoaders().acceptPackages(packageName).enableClassInfo().enableFieldInfo()
+                        .enableMethodInfo().enableAnnotationInfo().enableStaticFinalFieldConstantInitializerValues()
+                        .ignoreClassVisibility().ignoreFieldVisibility().ignoreMethodVisibility();
                 try (var scanResult = classGraph.scan()) {
                     return scanResult.getClassInfo(classFullyQualifiedName) != null;
                 }

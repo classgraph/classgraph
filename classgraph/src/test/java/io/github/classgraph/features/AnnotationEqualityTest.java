@@ -65,7 +65,10 @@ class AnnotationEqualityTest {
     @Test
     void annotationEquality() {
         try (var scanResult = new ClassGraph().enableClasspath()
-                .acceptPackages(AnnotationEqualityTest.class.getPackage().getName()).enableAllInfo().scan()) {
+                .acceptPackages(AnnotationEqualityTest.class.getPackage().getName()).enableClassInfo()
+                .enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
+                .ignoreMethodVisibility().scan()) {
             final var classInfo = scanResult.getClassInfo(Y.class.getName());
             assertThat(classInfo).isNotNull();
             final var annotation = (X) Y.class.getAnnotations()[0];

@@ -31,7 +31,7 @@ public class InternalExternalTest {
      */
     @Test
     public void testEnableExternalClasses() {
-        try (var scanResult = new ClassGraph().enableClasspath()
+        try (var scanResult = new ClassGraph().enableClassInfo().enableClasspath()
                 .acceptPackages(InternalExternalTest.class.getPackage().getName(),
                         ExternalAnnotation.class.getName())
                 .enableExternalClasses().scan()) {
@@ -50,7 +50,9 @@ public class InternalExternalTest {
         try (var scanResult = new ClassGraph().enableClasspath()
                 .acceptPackages(InternalExternalTest.class.getPackage().getName(),
                         ExternalAnnotation.class.getName())
-                .enableAllInfo().scan()) {
+                .enableClassInfo().enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
+                .ignoreMethodVisibility().scan()) {
             assertThat(scanResult.getAllStandardClasses().getNames()).containsOnly(
                     InternalExternalTest.class.getName(), InternalExtendsExternal.class.getName(),
                     InternalImplementsExternal.class.getName(), InternalAnnotatedByExternal.class.getName());
@@ -71,7 +73,10 @@ public class InternalExternalTest {
     @Test
     public void testIncludeReferencedClasses() {
         try (var scanResult = new ClassGraph().enableClasspath()
-                .acceptPackages(InternalExternalTest.class.getPackage().getName()).enableAllInfo().scan()) {
+                .acceptPackages(InternalExternalTest.class.getPackage().getName()).enableClassInfo()
+                .enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
+                .ignoreMethodVisibility().scan()) {
             assertThat(scanResult.getAllStandardClasses().getNames())
                     .doesNotContain(ExternalSuperclass.class.getName());
             assertThat(scanResult.getAllSubclasses(ExternalSuperclass.class).getNames())

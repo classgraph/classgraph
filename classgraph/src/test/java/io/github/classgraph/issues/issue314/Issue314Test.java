@@ -28,7 +28,9 @@ public class Issue314Test {
     @Test
     public void nestedClassHierarchy() {
         try (var scanResult = new ClassGraph().enableClasspath()
-                .acceptPackages(Issue314Test.class.getPackage().getName()).enableAllInfo().scan()) {
+                .acceptPackages(Issue314Test.class.getPackage().getName()).enableClassInfo().enableFieldInfo()
+                .enableMethodInfo().enableAnnotationInfo().enableStaticFinalFieldConstantInitializerValues()
+                .ignoreClassVisibility().ignoreFieldVisibility().ignoreMethodVisibility().scan()) {
             assertThat(scanResult.getClassInfo(A.class.getName())).isNotNull();
             assertThat(scanResult.getClassInfo(B.class.getName())).isNotNull();
             assertThat(scanResult.getAllSubclasses(A.class).getNames()).containsOnly(B.class.getName());

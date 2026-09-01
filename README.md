@@ -45,7 +45,8 @@ try (ScanResult scanResult =
             .verbose()                    // Log to stderr
             .enableNonSystemModules()     // Scan the module path
             .enableClasspath()            // Scan the classpath
-            .enableAllInfo()              // Scan classes, methods, fields, annotations
+            .enableClassInfo()            // Read the classfiles
+            .enableAnnotationInfo()       // ... and the annotations on the classes
             .acceptPackages(pkg)          // Scan com.xyz and subpackages (omit to scan all packages)
             .scan()) {                    // Start the scan
     for (ClassInfo routeClassInfo : scanResult.getClassesWithAnnotation(routeAnnotation)) {
@@ -82,7 +83,7 @@ Nothing is scanned unless it is enabled, so a scan with no `enable` method calle
 | No arguments: scan what is in the environment | Varargs: scan exactly what is named |
 | --- | --- |
 | `enableClasspath()` -- every classpath element of every classloader that can be found -- the thread context classloader, the system classloader, the classloader of the class in any frame of the call stack, and the ancestors of all of those, including `java.class.path` | `enableClassLoaders(ClassLoader...)`, `enableClasspathEntries(Object...)` |
-| `enableModules()`, `enableSystemModules()`, `enableNonSystemModules()` -- the module layers that are visible to the caller | `enableModuleLayers(ModuleLayer...)` |
+| `enableSystemModules()`, `enableNonSystemModules()` -- the modules of the module layers that are visible to the caller | `enableModuleLayers(ModuleLayer...)` -- the modules of exactly the layers named |
 
 Call the no-argument method to scan what the running application can see. Call only the varargs method to scan *just* what you name, and nothing from the environment -- that is how a scan is confined to a single classloader, module layer or jarfile. Calling both scans the environment as well as what you named. Each call adds to the end of the list, so classpath sources are scanned in the order the calls were made, and modules are always scanned before any of them, since that is the order in which the JVM resolves a class.
 

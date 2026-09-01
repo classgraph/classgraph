@@ -56,8 +56,10 @@ public class Issue261Test {
     @Test
     public void issue261Test() {
         // Accept only the class Cls, so that SuperCls and SuperSuperCls are external classes
-        try (var scanResult = new ClassGraph().enableClasspath().acceptClasses(Cls.class.getName()).enableAllInfo()
-                .scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath().acceptClasses(Cls.class.getName())
+                .enableClassInfo().enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
+                .ignoreMethodVisibility().scan()) {
             // Looking upwards through the hierarchy leaves out the external classes too, since
             // enableExternalClasses() was not called
             assertThat(scanResult.getAllSuperclasses(Cls.class).getNames()).isEmpty();
@@ -71,8 +73,10 @@ public class Issue261Test {
 
     @Test
     public void issue261TestWithExternalClassesEnabled() {
-        try (var scanResult = new ClassGraph().enableClasspath().acceptClasses(Cls.class.getName()).enableAllInfo()
-                .enableExternalClasses().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath().acceptClasses(Cls.class.getName())
+                .enableClassInfo().enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
+                .ignoreMethodVisibility().enableExternalClasses().scan()) {
             assertThat(scanResult.getAllSuperclasses(Cls.class).getNames()).contains(SuperCls.class.getName(),
                     SuperSuperCls.class.getName());
             assertThat(scanResult.getAllSubclasses(SuperSuperCls.class).getNames())

@@ -124,7 +124,9 @@ public class ModifierPredicatesTest {
     @BeforeAll
     static void scan() {
         scanResult = new ClassGraph().enableClasspath().acceptClasses(ModifierPredicatesTest.class.getName() + "$*")
-                .enableAllInfo().scan();
+                .enableClassInfo().enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
+                .ignoreMethodVisibility().scan();
     }
 
     /** Close the scan result. */
@@ -266,8 +268,8 @@ public class ModifierPredicatesTest {
         assertThat(compiler.run(null, null, null, "--release", "11", "-nowarn", "-d", tempDir.toString(),
                 sourceFile.toString())).as("javac exit code").isZero();
 
-        try (var strictScanResult = new ClassGraph().enableClasspathEntries(tempDir.toString()).enableMethodInfo()
-                .scan()) {
+        try (var strictScanResult = new ClassGraph().enableClassInfo().enableClasspathEntries(tempDir.toString())
+                .enableMethodInfo().scan()) {
             final var half = strictScanResult.getClassInfo("Strict").getMethodInfo().getSingleMethod("half");
             assertThat(half.isStrict()).isTrue();
             assertThat(half.getModifiersString()).contains("strictfp");

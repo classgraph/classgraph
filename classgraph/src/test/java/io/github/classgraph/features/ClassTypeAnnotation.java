@@ -89,7 +89,10 @@ class ClassTypeAnnotation {
     @Test
     void classTypeAnnotation() {
         try (var scanResult = new ClassGraph().enableClasspath()
-                .acceptPackages(ClassTypeAnnotation.class.getPackage().getName()).enableAllInfo().scan()) {
+                .acceptPackages(ClassTypeAnnotation.class.getPackage().getName()).enableClassInfo()
+                .enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
+                .ignoreMethodVisibility().scan()) {
 
             // Type with annotations should be rendered by toString() as Y<T> extends ClassTypeAnnotation$@X Z and
             // not Y<T> extends @X ClassTypeAnnotation$Z because the annotation is on Z, not ClassTypeAnnotation

@@ -37,6 +37,7 @@ import java.nio.ByteBuffer;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CancellationException;
@@ -47,6 +48,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
@@ -75,7 +77,7 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>
  * The methods that say where to scan come in pairs: the method with no arguments enables the sources found in the
- * current runtime environment ({@link #enableClasspath()}, {@link #enableModules()},
+ * current runtime environment ({@link #enableClasspath()}, {@link #enableSystemModules()},
  * {@link #enableSystemModules()}, {@link #enableNonSystemModules()}), and the method that takes varargs enables
  * exactly the sources it is given ({@link #enableClassLoaders(ClassLoader...)},
  * {@link #enableModuleLayers(ModuleLayer...)}, {@link #enableClasspathEntries(Object...)}). Calling only the
@@ -93,8 +95,14 @@ import org.jspecify.annotations.Nullable;
  * them adds anything to the scan. {@code accept} says "don't scan everything that was enabled, but do scan this",
  * and {@code reject} says "out of what you are scanning, ignore this". So {@code acceptPackages("com.xyz").scan()}
  * on its own scans nothing, since no source of classes was enabled, and {@code acceptModules("java.base")} does not
- * cause {@code java.base} to be scanned unless {@link #enableSystemModules()} or {@link #enableModules()} was also
- * called.
+ * cause {@code java.base} to be scanned unless {@link #enableSystemModules()} was also called.
+ *
+ * <p>
+ * All configuration is explicit: no config method calls another config method for you. An option that is only read
+ * by another option therefore does nothing unless that other option is asked for too, so rather than silently
+ * ignoring it, the scan is refused with an {@link IllegalArgumentException} naming the method that is missing --
+ * for example {@code enableMethodInfo()} without {@link #enableClassInfo()}, or {@link #ignoreMethodVisibility()}
+ * without {@link #enableMethodInfo()}. The Javadoc of each such method says what it has to be called alongside.
  *
  * <p>
  * Documentation: <a href= "https://github.com/classgraph/classgraph/wiki">
@@ -157,6 +165,13 @@ public class ClassGraph {
      */
     private @Nullable LogNode topLevelLog;
 
+    /**
+     * True if {@link #enableRealtimeLogging()} was called on this instance. {@link LogNode#logInRealtime(boolean)}
+     * sets a static flag, which cannot say whether it was this instance that asked for realtime logging, so record
+     * that here, in order to check at scan time that {@link #verbose()} was called too.
+     */
+    private boolean realtimeLoggingEnabled;
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**
@@ -208,8 +223,8 @@ public class ClassGraph {
      * @return this (for method chaining).
      */
     public ClassGraph verbose(final boolean verbose) {
-        if (verbose) {
-            verbose();
+        if (verbose && topLevelLog == null) {
+            topLevelLog = new LogNode();
         }
         return this;
     }
@@ -217,41 +232,12 @@ public class ClassGraph {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Enables the scanning of all classes, fields, methods, annotations, and static final field constant
-     * initializer values, and ignores all visibility modifiers, so that both public and non-public classes, fields
-     * and methods are all scanned.
-     *
-     * <p>
-     * Automatically calls {@link #enableClassInfo()}, {@link #enableFieldInfo()}, {@link #enableMethodInfo()},
-     * {@link #enableAnnotationInfo()}, {@link #enableStaticFinalFieldConstantInitializerValues()},
-     * {@link #ignoreClassVisibility()}, {@link #ignoreFieldVisibility()}, and {@link #ignoreMethodVisibility()}.
-     *
-     * <p>
-     * This says what is recorded about the classes that are scanned; it does not enable a source of classes. Call
-     * {@link #enableClasspath()}, {@link #enableModules()} or one of the other {@code enable} methods that say
-     * where to scan.
-     *
-     * @return this (for method chaining).
-     */
-    public ClassGraph enableAllInfo() {
-        enableClassInfo();
-        enableFieldInfo();
-        enableMethodInfo();
-        enableAnnotationInfo();
-        enableStaticFinalFieldConstantInitializerValues();
-        ignoreClassVisibility();
-        ignoreFieldVisibility();
-        ignoreMethodVisibility();
-        return this;
-    }
-
-    /**
      * Enables the scanning of classfiles, producing {@link ClassInfo} objects in the {@link ScanResult}.
      *
      * <p>
      * This says what is recorded about the classfiles that are scanned; it does not enable a source of classfiles.
-     * Call {@link #enableClasspath()}, {@link #enableModules()} or one of the other {@code enable} methods that say
-     * where to scan.
+     * Call {@link #enableClasspath()}, {@link #enableSystemModules()} or one of the other {@code enable} methods
+     * that say where to scan.
      *
      * @return this (for method chaining).
      */
@@ -262,66 +248,70 @@ public class ClassGraph {
 
     /**
      * Causes class visibility to be ignored, enabling private, package-private and protected classes to be scanned.
-     * By default, only public classes are scanned. (Automatically calls {@link #enableClassInfo()}.)
+     * By default, only public classes are scanned.
+     *
+     * <p>
+     * This has no effect unless {@link #enableClassInfo()} is also called.
      *
      * @return this (for method chaining).
      */
     public ClassGraph ignoreClassVisibility() {
-        enableClassInfo();
         scanSpec.ignoreClassVisibility = true;
         return this;
     }
 
     /**
      * Enables the saving of method info during the scan. This information can be obtained using
-     * {@link ClassInfo#getMethodInfo()} etc. By default, method info is not scanned. (Automatically calls
-     * {@link #enableClassInfo()}.)
+     * {@link ClassInfo#getMethodInfo()} etc. By default, method info is not scanned.
+     *
+     * <p>
+     * This has no effect unless {@link #enableClassInfo()} is also called.
      *
      * @return this (for method chaining).
      */
     public ClassGraph enableMethodInfo() {
-        enableClassInfo();
         scanSpec.enableMethodInfo = true;
         return this;
     }
 
     /**
      * Causes method visibility to be ignored, enabling private, package-private and protected methods to be
-     * scanned. By default, only public methods are scanned. (Automatically calls {@link #enableClassInfo()} and
-     * {@link #enableMethodInfo()}.)
+     * scanned. By default, only public methods are scanned.
+     *
+     * <p>
+     * This has no effect unless {@link #enableMethodInfo()} is also called.
      *
      * @return this (for method chaining).
      */
     public ClassGraph ignoreMethodVisibility() {
-        enableClassInfo();
-        enableMethodInfo();
         scanSpec.ignoreMethodVisibility = true;
         return this;
     }
 
     /**
      * Enables the saving of field info during the scan. This information can be obtained using
-     * {@link ClassInfo#getFieldInfo()}. By default, field info is not scanned. (Automatically calls
-     * {@link #enableClassInfo()}.)
+     * {@link ClassInfo#getFieldInfo()}. By default, field info is not scanned.
+     *
+     * <p>
+     * This has no effect unless {@link #enableClassInfo()} is also called.
      *
      * @return this (for method chaining).
      */
     public ClassGraph enableFieldInfo() {
-        enableClassInfo();
         scanSpec.enableFieldInfo = true;
         return this;
     }
 
     /**
      * Causes field visibility to be ignored, enabling private, package-private and protected fields to be scanned.
-     * By default, only public fields are scanned. (Automatically calls {@link #enableClassInfo()} and
-     * {@link #enableFieldInfo()}.)
+     * By default, only public fields are scanned.
+     *
+     * <p>
+     * This has no effect unless {@link #enableFieldInfo()} is also called.
      *
      * @return this (for method chaining).
      */
     public ClassGraph ignoreFieldVisibility() {
-        enableClassInfo();
-        enableFieldInfo();
         scanSpec.ignoreFieldVisibility = true;
         return this;
     }
@@ -351,13 +341,11 @@ public class ClassGraph {
      * initializers for non-final fields.)
      *
      * <p>
-     * Automatically calls {@link #enableClassInfo()} and {@link #enableFieldInfo()}.
+     * This has no effect unless {@link #enableFieldInfo()} is also called.
      *
      * @return this (for method chaining).
      */
     public ClassGraph enableStaticFinalFieldConstantInitializerValues() {
-        enableClassInfo();
-        enableFieldInfo();
         scanSpec.enableStaticFinalFieldConstantInitializerValues = true;
         return this;
     }
@@ -366,12 +354,14 @@ public class ClassGraph {
      * Enables the saving of annotation info (for class, field, method and method parameter annotations) during the
      * scan. This information can be obtained using {@link ClassInfo#getAllAnnotationInfo()},
      * {@link FieldInfo#getAllAnnotationInfo()}, and {@link MethodParameterInfo#getAllAnnotationInfo()}. By default,
-     * annotation info is not scanned. (Automatically calls {@link #enableClassInfo()}.)
+     * annotation info is not scanned.
+     *
+     * <p>
+     * This has no effect unless {@link #enableClassInfo()} is also called.
      *
      * @return this (for method chaining).
      */
     public ClassGraph enableAnnotationInfo() {
-        enableClassInfo();
         scanSpec.enableAnnotationInfo = true;
         return this;
     }
@@ -379,20 +369,21 @@ public class ClassGraph {
     /**
      * Enables the determination of inter-class dependencies, which may be read by calling
      * {@link ClassInfo#getClassDependencies()}, {@link ScanResult#getClassDependencyMap()} or
-     * {@link ScanResult#getReverseClassDependencyMap()}. (Automatically calls {@link #enableClassInfo()},
-     * {@link #enableFieldInfo()}, {@link #enableMethodInfo()}, {@link #enableAnnotationInfo()},
-     * {@link #ignoreClassVisibility()}, {@link #ignoreFieldVisibility()} and {@link #ignoreMethodVisibility()}.)
+     * {@link ScanResult#getReverseClassDependencyMap()}.
+     *
+     * <p>
+     * This has no effect unless {@link #enableClassInfo()} is also called.
+     *
+     * <p>
+     * Only the dependencies that are recorded by the other options are found, so to see the dependencies of a
+     * class' fields, methods and annotations, call {@link #enableFieldInfo()}, {@link #enableMethodInfo()} and
+     * {@link #enableAnnotationInfo()} too; and to see the dependencies of its non-public classes, fields and
+     * methods, call {@link #ignoreClassVisibility()}, {@link #ignoreFieldVisibility()} and
+     * {@link #ignoreMethodVisibility()} as well.
      *
      * @return this (for method chaining).
      */
     public ClassGraph enableInterClassDependencies() {
-        enableClassInfo();
-        enableFieldInfo();
-        enableMethodInfo();
-        enableAnnotationInfo();
-        ignoreClassVisibility();
-        ignoreFieldVisibility();
-        ignoreMethodVisibility();
         scanSpec.enableInterClassDependencies = true;
         return this;
     }
@@ -450,7 +441,10 @@ public class ClassGraph {
     /**
      * Causes ClassGraph to return the external classes: the classes that were not accepted for scanning, but that
      * were read anyway, because an accepted class refers to them as a superclass, implemented interface or
-     * annotation. (Automatically calls {@link #enableClassInfo()}.)
+     * annotation.
+     *
+     * <p>
+     * This has no effect unless {@link #enableClassInfo()} is also called.
      *
      * <p>
      * Scanning is always extended upwards from an accepted class in this way, so that the part of the class graph
@@ -465,7 +459,6 @@ public class ClassGraph {
      * @return this (for method chaining).
      */
     public ClassGraph enableExternalClasses() {
-        enableClassInfo();
         scanSpec.enableExternalClasses = true;
         return this;
     }
@@ -550,7 +543,7 @@ public class ClassGraph {
      *
      * <p>
      * This method does not enable the scanning of modules. Classes in modules are reached by
-     * {@link #enableModules()}, {@link #enableSystemModules()}, {@link #enableNonSystemModules()} or
+     * {@link #enableSystemModules()}, {@link #enableNonSystemModules()} or
      * {@link #enableModuleLayers(ModuleLayer...)}, and modules are always scanned before the classpath.
      *
      * @return this (for method chaining).
@@ -762,26 +755,18 @@ public class ClassGraph {
     }
 
     /**
-     * Scan the modules of both kinds, system and non-system, of the ModuleLayers that are visible from the caller:
-     * the layers of the classes on the call stack, and the boot layer. Automatically calls
-     * {@link #enableSystemModules()} and {@link #enableNonSystemModules()}.
-     *
-     * @return this (for method chaining).
-     */
-    public ClassGraph enableModules() {
-        return enableSystemModules().enableNonSystemModules();
-    }
-
-    /**
      * Scan the non-system modules of the given ModuleLayers, and of their parent layers, rather than of the
      * ModuleLayers that are visible from the caller. Use this method if you define your own ModuleLayer, but the
-     * scanning code is not running within it. Call {@link #enableSystemModules()} as well to scan the system
-     * modules of the given layers too.
+     * scanning code is not running within it.
      *
      * <p>
      * The given layers replace the ones that are visible from the caller, rather than adding to them, so
-     * {@link #enableSystemModules()}, {@link #enableNonSystemModules()} and {@link #enableModules()} apply to the
-     * given layers. Call {@link #enableDetectedModuleLayers()} as well to scan both.
+     * {@link #enableSystemModules()} and {@link #enableNonSystemModules()} apply to the given layers. Call
+     * {@link #enableDetectedModuleLayers()} as well to scan both.
+     *
+     * <p>
+     * This says which layers the modules are looked for in; it does not enable a kind of module, so it has no
+     * effect unless {@link #enableSystemModules()} or {@link #enableNonSystemModules()} is also called.
      *
      * @param moduleLayers
      *            The ModuleLayers to scan.
@@ -791,7 +776,6 @@ public class ClassGraph {
      */
     public ClassGraph enableModuleLayers(final ModuleLayer... moduleLayers) {
         scanSourceSpec.enableModuleLayers(moduleLayers);
-        scanSpec.classpathSpec.scanNonSystemModules = true;
         return this;
     }
 
@@ -804,16 +788,22 @@ public class ClassGraph {
      * needed alongside {@link #enableModuleLayers(ModuleLayer...)}, to scan a layer of your own without giving up
      * the layers you can already see.
      *
+     * <p>
+     * This says which layers the modules are looked for in; it does not enable a kind of module, so it has no
+     * effect unless {@link #enableSystemModules()} or {@link #enableNonSystemModules()} is also called.
+     *
      * @return this (for method chaining).
      */
     public ClassGraph enableDetectedModuleLayers() {
         scanSourceSpec.enableDetectedModuleLayers();
-        scanSpec.classpathSpec.scanNonSystemModules = true;
         return this;
     }
 
     /**
      * Ignore parent module layers (i.e. only scan module layers that are not the parent of another module layer).
+     *
+     * <p>
+     * This has no effect unless {@link #enableSystemModules()} or {@link #enableNonSystemModules()} is also called.
      *
      * @return this (for method chaining).
      */
@@ -829,8 +819,8 @@ public class ClassGraph {
      *
      * <p>
      * This narrows what is scanned to the named packages; it does not enable a source of classes. Call
-     * {@link #enableClasspath()}, {@link #enableModules()} or one of the other {@code enable} methods to say where
-     * the classes are looked for in the first place.
+     * {@link #enableClasspath()}, {@link #enableSystemModules()} or one of the other {@code enable} methods to say
+     * where the classes are looked for in the first place.
      *
      * <p>
      * A package name is another way of writing a directory path, so this is the same filter as
@@ -881,8 +871,8 @@ public class ClassGraph {
      *
      * <p>
      * This narrows what is scanned to the named paths; it does not enable a source of resources. Call
-     * {@link #enableClasspath()}, {@link #enableModules()} or one of the other {@code enable} methods to say where
-     * the resources are looked for in the first place.
+     * {@link #enableClasspath()}, {@link #enableSystemModules()} or one of the other {@code enable} methods to say
+     * where the resources are looked for in the first place.
      *
      * @param paths
      *            The paths to scan, relative to the package root of the classpath element (with '/' as a
@@ -922,8 +912,8 @@ public class ClassGraph {
      *
      * <p>
      * This narrows what is scanned to the named packages; it does not enable a source of classes. Call
-     * {@link #enableClasspath()}, {@link #enableModules()} or one of the other {@code enable} methods to say where
-     * the classes are looked for in the first place.
+     * {@link #enableClasspath()}, {@link #enableSystemModules()} or one of the other {@code enable} methods to say
+     * where the classes are looked for in the first place.
      *
      * <p>
      * A package name is another way of writing a directory path, so this is the same filter as
@@ -966,8 +956,8 @@ public class ClassGraph {
      *
      * <p>
      * This narrows what is scanned to the named paths; it does not enable a source of resources. Call
-     * {@link #enableClasspath()}, {@link #enableModules()} or one of the other {@code enable} methods to say where
-     * the resources are looked for in the first place.
+     * {@link #enableClasspath()}, {@link #enableSystemModules()} or one of the other {@code enable} methods to say
+     * where the resources are looked for in the first place.
      *
      * <p>
      * This may be particularly useful for scanning the package root ("") without recursively scanning everything in
@@ -1086,8 +1076,8 @@ public class ClassGraph {
      *
      * <p>
      * This narrows what is scanned to the named classes; it does not enable a source of classes. Call
-     * {@link #enableClasspath()}, {@link #enableModules()} or one of the other {@code enable} methods to say where
-     * the classes are looked for in the first place.
+     * {@link #enableClasspath()}, {@link #enableSystemModules()} or one of the other {@code enable} methods to say
+     * where the classes are looked for in the first place.
      *
      * <p>
      * A class name is another way of writing a classfile path, so like {@link #acceptPaths(String...)}, this does
@@ -1211,7 +1201,7 @@ public class ClassGraph {
      * criteria).
      *
      * <p>
-     * This narrows what is scanned; it does not enable the scanning of modules. Call {@link #enableModules()},
+     * This narrows what is scanned; it does not enable the scanning of modules. Call
      * {@link #enableSystemModules()}, {@link #enableNonSystemModules()} or
      * {@link #enableModuleLayers(ModuleLayer...)} to say which modules are looked for in the first place.
      *
@@ -1478,15 +1468,18 @@ public class ClassGraph {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Enables logging by calling {@link #verbose()}, and then sets the logger to "realtime logging mode", where log
-     * entries are written out immediately to stderr, rather than only after the scan has completed. Can help to
-     * identify problems where scanning is stuck in a loop, or where one scanning step is taking much longer than it
-     * should, etc.
+     * Sets the logger to "realtime logging mode", where log entries are written out immediately to stderr, rather
+     * than only after the scan has completed. Can help to identify problems where scanning is stuck in a loop, or
+     * where one scanning step is taking much longer than it should, etc.
+     *
+     * <p>
+     * This says when the log is written, not whether there is a log, so it has no effect unless {@link #verbose()}
+     * is also called.
      *
      * @return this (for method chaining).
      */
     public ClassGraph enableRealtimeLogging() {
-        verbose();
+        realtimeLoggingEnabled = true;
         LogNode.logInRealtime(true);
         return this;
     }
@@ -1510,7 +1503,8 @@ public class ClassGraph {
      * @param failureHandler
      *            A callback to run on failed scan. It is passed any {@link Throwable} thrown during the scan.
      * @throws IllegalArgumentException
-     *             if {@code numParallelTasks} is less than 1.
+     *             if {@code numParallelTasks} is less than 1, or if a config option was enabled without the config
+     *             option that reads it.
      */
     public void scanAsync(final ExecutorService executorService, final int numParallelTasks,
             final Consumer<ScanResult> scanResultProcessor, final Consumer<Throwable> failureHandler) {
@@ -1522,6 +1516,7 @@ public class ClassGraph {
         // The result of the Future<ScanObject> object returned by launchAsyncScan is discarded below, so a
         // FailureHandler is required, so that exceptions are not silently swallowed.
         Assert.notNull(failureHandler, "failureHandler");
+        checkConfigIsExplicit();
         // Read the call stack on the calling thread, since it is the caller's classloaders and module layers that
         // are to be searched, not those of the thread that the scan happens to run on
         final var callStackInfo = CallStackInfo.read();
@@ -1561,11 +1556,13 @@ public class ClassGraph {
      * @return a {@code Future<ScanResult>}, that when resolved using get() yields a new {@link ScanResult} object
      *         representing the result of the scan.
      * @throws IllegalArgumentException
-     *             if {@code numParallelTasks} is less than 1.
+     *             if {@code numParallelTasks} is less than 1, or if a config option was enabled without the config
+     *             option that reads it.
      */
     public Future<ScanResult> scanAsync(final ExecutorService executorService, final int numParallelTasks) {
         Assert.notNull(executorService, "executorService");
         checkNumParallelTasks(numParallelTasks);
+        checkConfigIsExplicit();
         // Read the call stack on the calling thread, since it is the caller's classloaders and module layers that
         // are to be searched, not those of the thread that the scan happens to run on
         return executorService.submit(new Scanner(/* performScan = */ true, CallStackInfo.read(), scanSpec,
@@ -1598,7 +1595,8 @@ public class ClassGraph {
      * @throws ClassGraphException
      *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
      * @throws IllegalArgumentException
-     *             if {@code numParallelTasks} is less than 1.
+     *             if {@code numParallelTasks} is less than 1, or if a config option was enabled without the config
+     *             option that reads it.
      */
     public ScanResult scan(final ExecutorService executorService, final int numParallelTasks) {
         Assert.notNull(executorService, "executorService");
@@ -1615,6 +1613,68 @@ public class ClassGraph {
     private static void checkNumParallelTasks(final int numParallelTasks) {
         if (numParallelTasks < 1) {
             throw new IllegalArgumentException("numParallelTasks must be at least 1");
+        }
+    }
+
+    /**
+     * Check that every config option that is only read by another config option was asked for alongside that other
+     * option. No config method turns on another config method for you, so an option whose companion was not enabled
+     * would otherwise be silently ignored.
+     *
+     * @throws IllegalArgumentException
+     *             if a config option was enabled without the option that reads it.
+     */
+    private void checkConfigIsExplicit() {
+        final var moduleKindMethods = "enableSystemModules or enableNonSystemModules";
+        checkRequires(scanSpec.enableFieldInfo, "enableFieldInfo", scanSpec.enableClassInfo, "enableClassInfo");
+        checkRequires(scanSpec.enableMethodInfo, "enableMethodInfo", scanSpec.enableClassInfo, "enableClassInfo");
+        checkRequires(scanSpec.enableAnnotationInfo, "enableAnnotationInfo", scanSpec.enableClassInfo,
+                "enableClassInfo");
+        checkRequires(scanSpec.ignoreClassVisibility, "ignoreClassVisibility", scanSpec.enableClassInfo,
+                "enableClassInfo");
+        checkRequires(scanSpec.enableInterClassDependencies, "enableInterClassDependencies",
+                scanSpec.enableClassInfo, "enableClassInfo");
+        checkRequires(scanSpec.enableExternalClasses, "enableExternalClasses", scanSpec.enableClassInfo,
+                "enableClassInfo");
+        checkRequires(scanSpec.ignoreFieldVisibility, "ignoreFieldVisibility", scanSpec.enableFieldInfo,
+                "enableFieldInfo");
+        checkRequires(scanSpec.enableStaticFinalFieldConstantInitializerValues,
+                "enableStaticFinalFieldConstantInitializerValues", scanSpec.enableFieldInfo, "enableFieldInfo");
+        checkRequires(scanSpec.ignoreMethodVisibility, "ignoreMethodVisibility", scanSpec.enableMethodInfo,
+                "enableMethodInfo");
+        checkRequires(scanSpec.disableRuntimeInvisibleAnnotations, "disableRuntimeInvisibleAnnotations",
+                scanSpec.enableAnnotationInfo, "enableAnnotationInfo");
+        checkRequires(realtimeLoggingEnabled, "enableRealtimeLogging", topLevelLog != null, "verbose");
+        // The module layer methods say which layers to look in, so they need a kind of module to look for
+        checkRequires(scanSourceSpec.namedModuleLayers != null, "enableModuleLayers",
+                scanSourceSpec.moduleScanningEnabled, moduleKindMethods);
+        checkRequires(scanSourceSpec.searchDetectedModuleLayers, "enableDetectedModuleLayers",
+                scanSourceSpec.moduleScanningEnabled, moduleKindMethods);
+        checkRequires(scanSpec.classpathSpec.ignoreParentModuleLayers, "ignoreParentModuleLayers",
+                scanSourceSpec.moduleScanningEnabled, moduleKindMethods);
+    }
+
+    /**
+     * Throw if a config option was enabled without the option that reads it.
+     *
+     * @param enabled
+     *            true if the config option that needs a companion option was enabled.
+     * @param methodName
+     *            the name of the config method that needs a companion option.
+     * @param companionEnabled
+     *            true if the companion config option was enabled.
+     * @param companionMethodNames
+     *            the name of the companion config method, or several names separated by " or ".
+     * @throws IllegalArgumentException
+     *             if {@code enabled} is true and {@code companionEnabled} is false.
+     */
+    private static void checkRequires(final boolean enabled, final String methodName,
+            final boolean companionEnabled, final String companionMethodNames) {
+        if (enabled && !companionEnabled) {
+            final var companions = Arrays.stream(companionMethodNames.split(" or "))
+                    .map(name -> "ClassGraph#" + name + "()").collect(Collectors.joining(" or "));
+            throw new IllegalArgumentException(
+                    "ClassGraph#" + methodName + "() has no effect unless " + companions + " is also called");
         }
     }
 
@@ -1643,6 +1703,7 @@ public class ClassGraph {
      */
     private ScanResult scanOnThisThread(final boolean performScan, final ExecutorService executorService,
             final int numParallelTasks) {
+        checkConfigIsExplicit();
         // Read the call stack once, on the calling thread: the scan needs it both to decide whether loading a class
         // on a worker thread could deadlock (#933) and to find the caller's classloaders and module layers
         final var callStackInfo = CallStackInfo.read();
@@ -1722,7 +1783,8 @@ public class ClassGraph {
      * @throws ClassGraphException
      *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
      * @throws IllegalArgumentException
-     *             if {@code numThreads} is less than 1.
+     *             if {@code numThreads} is less than 1, or if a config option was enabled without the config option
+     *             that reads it.
      */
     public ScanResult scan(final int numThreads) {
         checkNumParallelTasks(numThreads);
@@ -1740,6 +1802,8 @@ public class ClassGraph {
      * @return a {@link ScanResult} object representing the result of the scan.
      * @throws ClassGraphException
      *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
+     * @throws IllegalArgumentException
+     *             if a config option was enabled without the config option that reads it.
      */
     public ScanResult scan() {
         return scan(DEFAULT_NUM_WORKER_THREADS);
@@ -1773,6 +1837,8 @@ public class ClassGraph {
      *         resolution order.
      * @throws ClassGraphException
      *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
+     * @throws IllegalArgumentException
+     *             if a config option was enabled without the config option that reads it.
      */
     public List<File> getClasspathFiles() {
         try (var executorService = new AutoCloseableExecutorService(DEFAULT_NUM_WORKER_THREADS,
@@ -1794,6 +1860,8 @@ public class ClassGraph {
      *         resolution order.
      * @throws ClassGraphException
      *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
+     * @throws IllegalArgumentException
+     *             if a config option was enabled without the config option that reads it.
      */
     public String getClasspath() {
         return PathList.join(getClasspathFiles());
@@ -1808,6 +1876,8 @@ public class ClassGraph {
      * @return the unique enabled classpath elements and modules, as a list of {@link URI} objects.
      * @throws ClassGraphException
      *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
+     * @throws IllegalArgumentException
+     *             if a config option was enabled without the config option that reads it.
      */
     public List<URI> getClasspathURIs() {
         try (var executorService = new AutoCloseableExecutorService(DEFAULT_NUM_WORKER_THREADS,
@@ -1825,6 +1895,8 @@ public class ClassGraph {
      * @return the unique enabled classpath elements and modules, as a list of {@link URL} objects.
      * @throws ClassGraphException
      *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
+     * @throws IllegalArgumentException
+     *             if a config option was enabled without the config option that reads it.
      */
     public List<URL> getClasspathURLs() {
         try (var executorService = new AutoCloseableExecutorService(DEFAULT_NUM_WORKER_THREADS,
@@ -1835,14 +1907,15 @@ public class ClassGraph {
 
     /**
      * Returns the {@link ModuleReference} for each enabled module. Only the modules that would have been scanned
-     * are returned: a module is found only if it was enabled with {@link #enableModules()},
-     * {@link #enableSystemModules()}, {@link #enableNonSystemModules()} or
-     * {@link #enableModuleLayers(ModuleLayer...)}, and was not narrowed out by {@link #acceptModules(String...)} or
-     * {@link #rejectModules(String...)}.
+     * are returned: a module is found only if it was enabled with {@link #enableSystemModules()},
+     * {@link #enableNonSystemModules()} or {@link #enableModuleLayers(ModuleLayer...)}, and was not narrowed out by
+     * {@link #acceptModules(String...)} or {@link #rejectModules(String...)}.
      *
      * @return a list of the {@link ModuleReference} for each enabled module.
      * @throws ClassGraphException
      *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
+     * @throws IllegalArgumentException
+     *             if a config option was enabled without the config option that reads it.
      */
     public List<ModuleReference> getModuleReferences() {
         try (var executorService = new AutoCloseableExecutorService(DEFAULT_NUM_WORKER_THREADS,

@@ -15,7 +15,7 @@ import io.github.classgraph.test.internal.InternalExtendsExternal;
 public class ExternalClassInfoAccessorsTest {
     /** Scan a single package, so that {@link Object} is referenced but never scanned. */
     private static ScanResult scan() {
-        return new ClassGraph().enableClasspath()
+        return new ClassGraph().enableClassInfo().enableClasspath()
                 .acceptPackages(InternalExtendsExternal.class.getPackage().getName()).enableExternalClasses()
                 .scan();
     }

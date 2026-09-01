@@ -68,7 +68,9 @@ class MixedRetentionTypeAnnotationsTest {
      * @return the scan result.
      */
     private static ScanResult scanFixture(final Class<?> cls) {
-        return new ClassGraph().enableClasspath().enableAllInfo().acceptClasses(cls.getName()).scan();
+        return new ClassGraph().enableClasspath().enableClassInfo().enableFieldInfo().enableMethodInfo()
+                .enableAnnotationInfo().enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility()
+                .ignoreFieldVisibility().ignoreMethodVisibility().acceptClasses(cls.getName()).scan();
     }
 
     /**

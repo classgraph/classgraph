@@ -16,7 +16,10 @@ public class ExternalAnnotationInfoAccessorsTest {
     /** Open a scan that reads the annotated class but not the annotation class. */
     private static ScanResult scan() {
         return new ClassGraph().enableClasspath()
-                .acceptPackages(UsesExternalTypeAnnotation.class.getPackage().getName()).enableAllInfo().scan();
+                .acceptPackages(UsesExternalTypeAnnotation.class.getPackage().getName()).enableClassInfo()
+                .enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
+                .ignoreMethodVisibility().scan();
     }
 
     /** Return the {@link AnnotationInfo} of the type annotation on the field's type. */

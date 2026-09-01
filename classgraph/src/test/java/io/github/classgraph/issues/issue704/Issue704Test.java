@@ -123,6 +123,7 @@ public class Issue704Test {
 
         try (var classLoader = new URLClassLoader(new URL[] { jarFile.toURI().toURL() }, /* parent = */ null);
                 var scanResult = new ClassGraph() //
+                        .enableNonSystemModules() //
                         .enableModuleLayers(moduleLayer) //
                         .enableClassLoaders(classLoader) //
                         .acceptPaths("stuff") //
@@ -165,6 +166,7 @@ public class Issue704Test {
 
         try (var classLoader = new URLClassLoader(new URL[] { jarFile.toURI().toURL() }, /* parent = */ null);
                 var scanResult = new ClassGraph() //
+                        .enableNonSystemModules() //
                         .enableModuleLayers(moduleLayer) //
                         .enableClassLoaders(classLoader) //
                         .acceptPaths("stuff") //
@@ -198,6 +200,7 @@ public class Issue704Test {
 
         try (var classLoader = new URLClassLoader(new URL[] { jarFile.toURI().toURL() }, /* parent = */ null);
                 var scanResult = new ClassGraph() //
+                        .enableNonSystemModules() //
                         .enableModuleLayers(moduleLayer) //
                         .enableClassLoaders(classLoader) //
                         .acceptPaths("stuff") //
@@ -227,6 +230,7 @@ public class Issue704Test {
 
         try (var classLoader = new URLClassLoader(new URL[] { jarFile.toURI().toURL() }, /* parent = */ null);
                 var scanResult = new ClassGraph() //
+                        .enableNonSystemModules() //
                         .enableModuleLayers(moduleLayer) //
                         .enableClassLoaders(classLoader) //
                         .acceptPaths("stuff") //
@@ -258,6 +262,7 @@ public class Issue704Test {
         try (var classLoader = new URLClassLoader(new URL[] { classpathJarFile.toURI().toURL() },
                 /* parent = */ null);
                 var scanResult = new ClassGraph() //
+                        .enableNonSystemModules() //
                         .enableModuleLayers(moduleLayer) //
                         .enableClassLoaders(classLoader) //
                         .acceptPaths("stuff") //

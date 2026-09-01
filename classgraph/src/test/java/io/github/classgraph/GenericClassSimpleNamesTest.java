@@ -44,7 +44,9 @@ public class GenericClassSimpleNamesTest {
     public void genericClassUsesSimpleNamesThroughout() {
         try (var scanResult = new ClassGraph().enableClasspath()
                 .acceptPackagesNonRecursive(GenericClassSimpleNamesTest.class.getPackage().getName())
-                .enableAllInfo().scan()) {
+                .enableClassInfo().enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
+                .ignoreMethodVisibility().scan()) {
             final var generic = scanResult.getClassInfo(Generic.class.getName());
             assertThat(generic).isNotNull();
             assertThat(generic.toStringWithSimpleNames())

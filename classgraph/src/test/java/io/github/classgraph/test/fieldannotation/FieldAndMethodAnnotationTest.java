@@ -54,7 +54,7 @@ public class FieldAndMethodAnnotationTest {
      */
     @Test
     public void testGetNamesOfClassesWithFieldAnnotation() {
-        try (var scanResult = new ClassGraph().enableClasspath()
+        try (var scanResult = new ClassGraph().enableClassInfo().enableClasspath()
                 .acceptPackages(FieldAndMethodAnnotationTest.class.getPackage().getName()).enableFieldInfo()
                 .enableAnnotationInfo().scan()) {
             final var testClasses = scanResult.getClassesWithFieldAnnotation(ExternalAnnotation.class).getNames();
@@ -67,7 +67,7 @@ public class FieldAndMethodAnnotationTest {
      */
     @Test
     public void testGetNamesOfClassesWithFieldAnnotationIgnoringVisibility() {
-        try (var scanResult = new ClassGraph().enableClasspath()
+        try (var scanResult = new ClassGraph().enableClassInfo().enableClasspath()
                 .acceptPackages(FieldAndMethodAnnotationTest.class.getPackage().getName()).enableFieldInfo()
                 .ignoreFieldVisibility().enableAnnotationInfo().scan()) {
             final var testClasses = scanResult.getClassesWithFieldAnnotation(ExternalAnnotation.class).getNames();
@@ -81,7 +81,7 @@ public class FieldAndMethodAnnotationTest {
     @Test
     @ExternalAnnotation
     public void testGetNamesOfClassesWithMethodAnnotation() {
-        try (var scanResult = new ClassGraph().enableClasspath()
+        try (var scanResult = new ClassGraph().enableClassInfo().enableClasspath()
                 .acceptPackages(FieldAndMethodAnnotationTest.class.getPackage().getName()).enableMethodInfo()
                 .enableAnnotationInfo().scan()) {
             final var testClasses = scanResult.getClassesWithMethodAnnotation(ExternalAnnotation.class).getNames();

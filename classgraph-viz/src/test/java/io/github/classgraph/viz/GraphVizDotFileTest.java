@@ -151,9 +151,12 @@ public class GraphVizDotFileTest {
     /** Scan the fixture classes. */
     @BeforeAll
     static void scan() {
-        scanResult = scanFixture().enableAllInfo().enableInterClassDependencies().scan();
-        // enableInterClassDependencies() would ignore the visibility modifiers, so it is not called here
-        publicOnlyScanResult = scanFixture().enableFieldInfo().enableMethodInfo().enableAnnotationInfo().scan();
+        scanResult = scanFixture().enableClassInfo().enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
+                .ignoreMethodVisibility().enableInterClassDependencies().scan();
+        // The visibility modifiers are not ignored here, so only the public members are collected
+        publicOnlyScanResult = scanFixture().enableClassInfo().enableFieldInfo().enableMethodInfo()
+                .enableAnnotationInfo().scan();
     }
 
     /** Close the scan results. */
@@ -372,7 +375,9 @@ public class GraphVizDotFileTest {
         // With no instruction either way, the graph follows the scan, which did not enable external classes
         assertThat(GraphVizDotFile.generateFromInterClassDependencies(scanResult, derivedOnly))
                 .doesNotContain(baseNode);
-        try (var withExternalClasses = scanFixture().enableAllInfo().enableInterClassDependencies()
+        try (var withExternalClasses = scanFixture().enableClassInfo().enableFieldInfo().enableMethodInfo()
+                .enableAnnotationInfo().enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility()
+                .ignoreFieldVisibility().ignoreMethodVisibility().enableInterClassDependencies()
                 .enableExternalClasses().scan()) {
             assertThat(GraphVizDotFile.generateFromInterClassDependencies(withExternalClasses,
                     withExternalClasses.getAllClasses().filter(ci -> Derived.class.getName().equals(ci.getName()))))

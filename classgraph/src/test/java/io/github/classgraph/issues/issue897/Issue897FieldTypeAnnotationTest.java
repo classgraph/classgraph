@@ -38,7 +38,7 @@ public class Issue897FieldTypeAnnotationTest {
 
     @Test
     public void unmatchableFieldTypeAnnotationIsSkipped() {
-        try (var scanResult = new ClassGraph().enableClasspath().acceptPackages(FIXTURE_PKG) //
+        try (var scanResult = new ClassGraph().enableClassInfo().enableClasspath().acceptPackages(FIXTURE_PKG) //
                 .ignoreClassVisibility().ignoreFieldVisibility() //
                 .enableFieldInfo().enableAnnotationInfo().scan()) {
             final var classInfo = scanResult.getClassInfo(FIXTURE_CLASS);

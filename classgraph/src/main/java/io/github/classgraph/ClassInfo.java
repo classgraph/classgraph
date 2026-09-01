@@ -3935,9 +3935,18 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                 refdClassInfo.add(classInfo);
             }
         }
-        getMethodInfo().findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
-        getFieldInfo().findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
-        getAllAnnotationInfo().findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
+        // Only the members that were recorded can name a dependency, and asking for a kind of member that was not
+        // enabled throws, so the dependencies of the methods, fields and annotations are found only if the scan
+        // read them
+        if (scanResult().scanSpec.enableMethodInfo) {
+            getMethodInfo().findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
+        }
+        if (scanResult().scanSpec.enableFieldInfo) {
+            getFieldInfo().findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
+        }
+        if (scanResult().scanSpec.enableAnnotationInfo) {
+            getAllAnnotationInfo().findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
+        }
         if (annotationDefaultParamValues != null) {
             annotationDefaultParamValues.findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
         }

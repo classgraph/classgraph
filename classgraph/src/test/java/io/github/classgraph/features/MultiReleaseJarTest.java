@@ -28,7 +28,10 @@ public class MultiReleaseJarTest {
     @Test
     public void multiReleaseJar() throws Exception {
         try (var classLoader = new URLClassLoader(new URL[] { jarURL });
-                var scanResult = new ClassGraph().enableClassLoaders(classLoader).enableAllInfo().scan()) {
+                var scanResult = new ClassGraph().enableClassLoaders(classLoader).enableClassInfo()
+                        .enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                        .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility()
+                        .ignoreFieldVisibility().ignoreMethodVisibility().scan()) {
             final var classInfo = scanResult.getClassInfo("mrj.Cls");
             assertThat(classInfo).isNotNull();
             final var classfileResource = classInfo.getResource();
@@ -104,8 +107,10 @@ public class MultiReleaseJarTest {
     @Test
     public void disableMultiReleaseVersionsWithClassInfo() throws Exception {
         try (var classLoader = new URLClassLoader(new URL[] { jarURL });
-                var scanResult = new ClassGraph().enableClassLoaders(classLoader).enableAllInfo()
-                        .disableMultiReleaseVersions().scan()) {
+                var scanResult = new ClassGraph().enableClassLoaders(classLoader).enableClassInfo()
+                        .enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                        .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility()
+                        .ignoreFieldVisibility().ignoreMethodVisibility().disableMultiReleaseVersions().scan()) {
             // Both copies of the classfile are listed as resources, each under the path it is stored under
             assertThat(scanResult.getResourcesWithPath("mrj/Cls.class")).hasSize(1);
             assertThat(scanResult.getResourcesWithPath("META-INF/versions/9/mrj/Cls.class")).hasSize(1);
@@ -138,28 +143,32 @@ public class MultiReleaseJarTest {
     }
 
     /**
-     * `disableMultiReleaseVersions` does not turn off any of the features `enableAllInfo` turns on, whichever order
-     * the two are called in.
+     * `disableMultiReleaseVersions` does not turn off any of the info options, whichever order the two are called
+     * in.
      */
     @Test
-    public void enableAllInfoAfterDisableMultiReleaseVersions() {
+    public void infoOptionsAfterDisableMultiReleaseVersions() {
         try (var scanResult = new ClassGraph().enableClasspath()
                 .acceptPackages(MultiReleaseJarTest.class.getPackage().getName()).disableMultiReleaseVersions()
-                .enableAllInfo().scan()) {
+                .enableClassInfo().enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
+                .ignoreMethodVisibility().scan()) {
             assertThat(scanResult.getClassesWithAnnotation(ClassRetained.class).getNames())
                     .containsOnly(ClassRetainedAnnotated.class.getName());
         }
     }
 
     /**
-     * `enableAllInfo` before `disableMultiReleaseVersions` leaves class info enabled too -- the two settings are
+     * The info options before `disableMultiReleaseVersions` leaves class info enabled too -- the two settings are
      * independent, so neither order silently turns the other off.
      */
     @Test
-    public void disableMultiReleaseVersionsAfterEnableAllInfo() {
+    public void disableMultiReleaseVersionsAfterInfoOptions() {
         try (var scanResult = new ClassGraph().enableClasspath()
-                .acceptPackages(MultiReleaseJarTest.class.getPackage().getName()).enableAllInfo()
-                .disableMultiReleaseVersions().scan()) {
+                .acceptPackages(MultiReleaseJarTest.class.getPackage().getName()).enableClassInfo()
+                .enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
+                .ignoreMethodVisibility().disableMultiReleaseVersions().scan()) {
             assertThat(scanResult.getClassesWithAnnotation(ClassRetained.class).getNames())
                     .containsOnly(ClassRetainedAnnotated.class.getName());
         }

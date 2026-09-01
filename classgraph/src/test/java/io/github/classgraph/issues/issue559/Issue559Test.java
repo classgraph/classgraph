@@ -104,7 +104,9 @@ public class Issue559Test {
      */
     private static ScanResult scan() {
         return new ClassGraph().enableClasspath().acceptPackages(Issue559Test.class.getPackage().getName())
-                .enableAllInfo().scan();
+                .enableClassInfo().enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
+                .ignoreMethodVisibility().scan();
     }
 
     /** An annotation directly present on a class wins over its own meta-annotation. */

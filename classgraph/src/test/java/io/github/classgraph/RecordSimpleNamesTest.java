@@ -20,8 +20,10 @@ public class RecordSimpleNamesTest {
     @Test
     public void recordComponentsUseSimpleNames() {
         try (var scanResult = new ClassGraph().enableClasspath()
-                .acceptPackagesNonRecursive(RecordSimpleNamesTest.class.getPackage().getName()).enableAllInfo()
-                .scan()) {
+                .acceptPackagesNonRecursive(RecordSimpleNamesTest.class.getPackage().getName()).enableClassInfo()
+                .enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
+                .ignoreMethodVisibility().scan()) {
             final var rec = scanResult.getClassInfo(Rec.class.getName());
             assertThat(rec).isNotNull();
             assertThat(rec.toStringWithSimpleNames())

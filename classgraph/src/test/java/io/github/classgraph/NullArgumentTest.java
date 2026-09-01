@@ -32,7 +32,9 @@ class NullArgumentTest {
     @BeforeAll
     static void scan() {
         scanResult = new ClassGraph().enableClasspath()
-                .acceptPackages(NullArgumentTest.class.getPackage().getName()).enableAllInfo().scan();
+                .acceptPackages(NullArgumentTest.class.getPackage().getName()).enableClassInfo().enableFieldInfo()
+                .enableMethodInfo().enableAnnotationInfo().enableStaticFinalFieldConstantInitializerValues()
+                .ignoreClassVisibility().ignoreFieldVisibility().ignoreMethodVisibility().scan();
     }
 
     /** Close the scan result. */

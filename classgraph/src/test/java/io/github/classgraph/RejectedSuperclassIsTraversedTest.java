@@ -116,8 +116,8 @@ public class RejectedSuperclassIsTraversedTest {
      * @return the scan result.
      */
     private static ScanResult scan(final Path classpathElement) {
-        return new ClassGraph().enableClasspathEntries(List.of(classpathElement)).rejectPackages(REJECTED_PACKAGE)
-                .enableExternalClasses().scan();
+        return new ClassGraph().enableClassInfo().enableClasspathEntries(List.of(classpathElement))
+                .rejectPackages(REJECTED_PACKAGE).enableExternalClasses().scan();
     }
 
     /**

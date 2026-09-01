@@ -46,20 +46,28 @@ import io.github.classgraph.vfs.VfsSpec;
  * including the locations that a container's custom classloaders load from.
  *
  * <pre>
- * Classpath classpath = new ClasspathFinder().enableModules().enableClasspath().find();
+ * Classpath classpath = new ClasspathFinder().enableSystemModules().enableNonSystemModules().enableClasspath()
+ *         .find();
  * </pre>
  *
  * <p>
  * Nothing is searched until it is enabled, so at least one of the {@code enable} methods has to be called for
  * anything to be found. They come in pairs: the method with no arguments enables the sources found in the
- * environment ({@link #enableClasspath()}, {@link #enableModules()}), and the method that takes varargs enables
- * exactly the sources it is given ({@link #enableClassLoaders(ClassLoader...)},
+ * environment ({@link #enableClasspath()}, {@link #enableSystemModules()}), and the method that takes varargs
+ * enables exactly the sources it is given ({@link #enableClassLoaders(ClassLoader...)},
  * {@link #enableModuleLayers(ModuleLayer...)}, {@link #enableClasspathEntries(Object...)}). Calling only the
  * varargs method searches only what it names, which is how the environment's own sources are left out.
  *
  * <p>
  * The classpath sources are searched in the order they were enabled in, and the modules are searched before all of
  * them, since that is the order in which the JVM resolves a class.
+ *
+ * <p>
+ * All configuration is explicit: no config method calls another config method for you. An option that is only read
+ * by another option therefore does nothing unless that other option is asked for too, so rather than silently
+ * ignoring it, {@link #find()} is refused with an {@link IllegalArgumentException} naming the method that is
+ * missing -- for example {@link #enableDetectedModuleLayers()} without {@link #enableSystemModules()} or
+ * {@link #enableNonSystemModules()}. The Javadoc of each such method says what it has to be called alongside.
  *
  * <p>
  * An instance is not thread-safe while it is being configured, but {@link #find()} may be called any number of
@@ -222,9 +230,9 @@ public final class ClasspathFinder {
      * as well as what you named.
      *
      * <p>
-     * This method does not enable the module path. Modules are found by {@link #enableModules()},
-     * {@link #enableSystemModules()}, {@link #enableNonSystemModules()} or
-     * {@link #enableModuleLayers(ModuleLayer...)}, and modules always precede the classpath.
+     * This method does not enable the module path. Modules are found by {@link #enableSystemModules()},
+     * {@link #enableNonSystemModules()} or {@link #enableModuleLayers(ModuleLayer...)}, and modules always precede
+     * the classpath.
      *
      * @return this (for method chaining).
      */
@@ -389,26 +397,18 @@ public final class ClasspathFinder {
     }
 
     /**
-     * Search for modules of both kinds, system and non-system, in the module layers that are visible from the
-     * caller: the layers of the classes on the call stack, and the boot layer. Automatically calls
-     * {@link #enableSystemModules()} and {@link #enableNonSystemModules()}.
-     *
-     * @return this (for method chaining).
-     */
-    public ClasspathFinder enableModules() {
-        return enableSystemModules().enableNonSystemModules();
-    }
-
-    /**
-     * Search the given module layers, and their parent layers, for non-system modules, rather than the module
-     * layers that are visible from the caller. Use this if the code calling this library does not itself run within
-     * the module layer whose modules are wanted. Call {@link #enableSystemModules()} as well to find the system
-     * modules of the given layers too.
+     * Search the given module layers, and their parent layers, for modules, rather than the module layers that are
+     * visible from the caller. Use this if the code calling this library does not itself run within the module
+     * layer whose modules are wanted.
      *
      * <p>
      * The given layers replace the ones that are visible from the caller, rather than adding to them, so
-     * {@link #enableSystemModules()}, {@link #enableNonSystemModules()} and {@link #enableModules()} apply to the
-     * given layers. Call {@link #enableDetectedModuleLayers()} as well to search both.
+     * {@link #enableSystemModules()} and {@link #enableNonSystemModules()} apply to the given layers. Call
+     * {@link #enableDetectedModuleLayers()} as well to search both.
+     *
+     * <p>
+     * This says which layers the modules are looked for in; it does not enable a kind of module, so it has no
+     * effect unless {@link #enableSystemModules()} or {@link #enableNonSystemModules()} is also called.
      *
      * @param moduleLayers
      *            the module layers to search.
@@ -418,7 +418,6 @@ public final class ClasspathFinder {
      */
     public ClasspathFinder enableModuleLayers(final ModuleLayer... moduleLayers) {
         scanSourceSpec.enableModuleLayers(moduleLayers);
-        classpathSpec.scanNonSystemModules = true;
         return this;
     }
 
@@ -431,11 +430,14 @@ public final class ClasspathFinder {
      * needed alongside {@link #enableModuleLayers(ModuleLayer...)}, to search a layer of your own without giving up
      * the layers you can already see.
      *
+     * <p>
+     * This says which layers the modules are looked for in; it does not enable a kind of module, so it has no
+     * effect unless {@link #enableSystemModules()} or {@link #enableNonSystemModules()} is also called.
+     *
      * @return this (for method chaining).
      */
     public ClasspathFinder enableDetectedModuleLayers() {
         scanSourceSpec.enableDetectedModuleLayers();
-        classpathSpec.scanNonSystemModules = true;
         return this;
     }
 
@@ -457,10 +459,13 @@ public final class ClasspathFinder {
      * a jarfile or directory that was never installed.
      *
      * @return the classpath.
+     * @throws IllegalArgumentException
+     *             if a config option was enabled without the option that reads it.
      * @throws IllegalStateException
      *             if the thread was interrupted while the jarfiles were being read.
      */
     public Classpath find() {
+        checkConfigIsExplicit();
         final var log = verbose ? new LogNode() : null;
         try {
             final var classLoaderProbe = new ClassLoaderProbe(classpathSpec, scanSourceSpec, log);
@@ -491,6 +496,30 @@ public final class ClasspathFinder {
         } finally {
             if (log != null) {
                 log.flush();
+            }
+        }
+    }
+
+    /**
+     * Check that every config option that is only read by another config option was asked for alongside that other
+     * option. No config method turns on another config method for you, so an option whose companion was not enabled
+     * would otherwise be silently ignored.
+     *
+     * @throws IllegalArgumentException
+     *             if a config option was enabled without the option that reads it.
+     */
+    private void checkConfigIsExplicit() {
+        if (!scanSourceSpec.moduleScanningEnabled) {
+            if (scanSourceSpec.namedModuleLayers != null) {
+                throw new IllegalArgumentException("ClasspathFinder#enableModuleLayers() has no effect unless "
+                        + "ClasspathFinder#enableSystemModules() or ClasspathFinder#enableNonSystemModules() "
+                        + "is also called");
+            }
+            if (scanSourceSpec.searchDetectedModuleLayers) {
+                throw new IllegalArgumentException(
+                        "ClasspathFinder#enableDetectedModuleLayers() has no effect unless "
+                                + "ClasspathFinder#enableSystemModules() or "
+                                + "ClasspathFinder#enableNonSystemModules() is also called");
             }
         }
     }

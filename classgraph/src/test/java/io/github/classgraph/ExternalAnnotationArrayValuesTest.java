@@ -133,9 +133,10 @@ public class ExternalAnnotationArrayValuesTest {
      */
     @BeforeAll
     static void scan(@TempDir final Path classpathDir) throws IOException {
-        withAnnotationClass = new ClassGraph().enableClasspath().acceptClasses(Annotated.class.getName(),
-                ArrayParams.class.getName(), Inner.class.getName(), Color.class.getName()).enableAnnotationInfo()
-                .scan();
+        withAnnotationClass = new ClassGraph()
+                .enableClassInfo().enableClasspath().acceptClasses(Annotated.class.getName(),
+                        ArrayParams.class.getName(), Inner.class.getName(), Color.class.getName())
+                .enableAnnotationInfo().scan();
 
         final var classfilePath = Annotated.class.getName().replace('.', '/') + ".class";
         final var target = classpathDir.resolve(classfilePath);
@@ -145,7 +146,7 @@ public class ExternalAnnotationArrayValuesTest {
             assertThat(classfile).isNotNull();
             Files.copy(classfile, target);
         }
-        withoutAnnotationClass = new ClassGraph().enableClasspathEntries(classpathDir.toString())
+        withoutAnnotationClass = new ClassGraph().enableClassInfo().enableClasspathEntries(classpathDir.toString())
                 .enableAnnotationInfo().scan();
         assertThat(withoutAnnotationClass.getAllClasses().getNames()).containsExactly(Annotated.class.getName());
     }

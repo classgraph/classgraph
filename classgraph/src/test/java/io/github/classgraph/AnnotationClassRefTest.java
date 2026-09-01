@@ -48,8 +48,8 @@ public class AnnotationClassRefTest {
      * @return the scan result.
      */
     private static ScanResult scanFixture() {
-        return new ClassGraph().enableClasspath().enableAnnotationInfo().acceptClasses(Annotated.class.getName())
-                .scan();
+        return new ClassGraph().enableClassInfo().enableClasspath().enableAnnotationInfo()
+                .acceptClasses(Annotated.class.getName()).scan();
     }
 
     /**

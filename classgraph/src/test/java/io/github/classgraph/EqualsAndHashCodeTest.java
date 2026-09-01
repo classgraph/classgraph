@@ -131,7 +131,9 @@ public class EqualsAndHashCodeTest {
      */
     private static ScanResult scan() {
         return new ClassGraph().enableClasspath().acceptPackages(EqualsAndHashCodeTest.class.getPackageName())
-                .enableAllInfo().scan();
+                .enableClassInfo().enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
+                .ignoreMethodVisibility().scan();
     }
 
     /** Scan the test classes twice. */

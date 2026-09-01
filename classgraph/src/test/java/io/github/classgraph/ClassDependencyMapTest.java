@@ -42,7 +42,7 @@ public class ClassDependencyMapTest {
     /** Scan the test classes with inter-class dependencies enabled. */
     @BeforeAll
     static void scan() {
-        scanResult = new ClassGraph().enableClasspath()
+        scanResult = new ClassGraph().enableClassInfo().enableClasspath()
                 .acceptClasses(Leaf.class.getName(), UsesLeaf.class.getName(), AlsoUsesLeaf.class.getName())
                 .enableInterClassDependencies().scan();
     }

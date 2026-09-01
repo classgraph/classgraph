@@ -37,7 +37,10 @@ public class AnnotationDefaultValuesTest {
     @Test
     public void defaultParameterValues() {
         try (var scanResult = new ClassGraph().enableClasspath()
-                .acceptPackages(AnnotationDefaultValuesTest.class.getPackage().getName()).enableAllInfo().scan()) {
+                .acceptPackages(AnnotationDefaultValuesTest.class.getPackage().getName()).enableClassInfo()
+                .enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
+                .ignoreMethodVisibility().scan()) {
             final var classInfo = scanResult.getClassInfo(MyClass.class.getName());
             assertThat(classInfo).isNotNull();
             final var annotationInfo = classInfo.getAllAnnotationInfo(MyAnnotation.class.getName());

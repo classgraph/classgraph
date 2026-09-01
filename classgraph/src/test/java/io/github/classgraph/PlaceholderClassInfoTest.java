@@ -34,7 +34,9 @@ public class PlaceholderClassInfoTest {
     /** Scan the one fixture class only, so that everything it names in {@code java.util} is unscanned. */
     private static ClassGraph classGraph() {
         return new ClassGraph().enableClasspath().acceptClasses(NamesUnscannedClasses.class.getName())
-                .enableAllInfo();
+                .enableClassInfo().enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
+                .ignoreMethodVisibility();
     }
 
     /** Get the {@link ArrayClassInfo} for the type of one of the array fields. */

@@ -50,7 +50,9 @@ public class Issue339Test {
     /** Test. */
     @Test
     public void test() {
-        try (var scanResult = new ClassGraph().enableClasspath().enableAllInfo().enableExternalClasses()
+        try (var scanResult = new ClassGraph().enableClasspath().enableClassInfo().enableFieldInfo()
+                .enableMethodInfo().enableAnnotationInfo().enableStaticFinalFieldConstantInitializerValues()
+                .ignoreClassVisibility().ignoreFieldVisibility().ignoreMethodVisibility().enableExternalClasses()
                 .acceptClasses(Cls.class.getName()).scan()) {
             final var classInfo = scanResult.getClassInfo(Cls.class.getName());
             final var annotationParamVals = classInfo.getMethodInfo("method").get(0).getAllAnnotationInfo().get(0)

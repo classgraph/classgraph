@@ -214,7 +214,7 @@ public class ClassGraphTest {
                 .scan()) {
             assertThat(scanResult.getAllSuperclasses(Accepted.class.getName()).getNames()).isEmpty();
         }
-        try (var scanResult = new ClassGraph().enableClasspath().acceptPackages(ACCEPT_PACKAGE)
+        try (var scanResult = new ClassGraph().enableClassInfo().enableClasspath().acceptPackages(ACCEPT_PACKAGE)
                 .enableExternalClasses().scan()) {
             assertThat(scanResult.getAllSuperclasses(Accepted.class.getName()).getNames())
                     .containsExactly(RejectedSuperclass.class.getName(), "java.lang.Object");
@@ -229,7 +229,7 @@ public class ClassGraphTest {
      */
     @Test
     public void testAcceptedWithoutExceptionWithoutStrictAccept() {
-        try (var scanResult = new ClassGraph().enableClasspath().acceptPackages(ACCEPT_PACKAGE)
+        try (var scanResult = new ClassGraph().enableClassInfo().enableClasspath().acceptPackages(ACCEPT_PACKAGE)
                 .enableExternalClasses().scan()) {
             assertThat(scanResult.getAllSuperclasses(Accepted.class.getName()).getNames())
                     .containsExactly(RejectedSuperclass.class.getName(), "java.lang.Object");
@@ -252,7 +252,7 @@ public class ClassGraphTest {
      */
     @Test
     public void testRejectedPlaceholderNotReturned() {
-        try (var scanResult = new ClassGraph().enableClasspath().acceptPackages(ROOT_PACKAGE)
+        try (var scanResult = new ClassGraph().enableClassInfo().enableClasspath().acceptPackages(ROOT_PACKAGE)
                 .rejectPackages(RejectedAnnotation.class.getPackage().getName()).enableAnnotationInfo()
                 .enableExternalClasses().scan()) {
             // The rejected superclass is filtered out, but Object, which is above it in the hierarchy, is not
@@ -271,7 +271,7 @@ public class ClassGraphTest {
      */
     @Test
     public void testRejectedPackageOverridesAcceptedClassWithAcceptedOverrideReturned() {
-        try (var scanResult = new ClassGraph().enableClasspath().acceptPackages(ROOT_PACKAGE)
+        try (var scanResult = new ClassGraph().enableClassInfo().enableClasspath().acceptPackages(ROOT_PACKAGE)
                 .rejectPackages(RejectedAnnotation.class.getPackage().getName())
                 .acceptClasses(RejectedAnnotation.class.getName()).enableAnnotationInfo().scan()) {
             assertThat(scanResult.getAllAnnotationsOnClass(Accepted.class.getName()).getNames()).isEmpty();
@@ -283,7 +283,7 @@ public class ClassGraphTest {
      */
     @Test
     public void testNonAcceptedAnnotationReturnedWithoutStrictAccept() {
-        try (var scanResult = new ClassGraph().enableClasspath().acceptPackages(ACCEPT_PACKAGE)
+        try (var scanResult = new ClassGraph().enableClassInfo().enableClasspath().acceptPackages(ACCEPT_PACKAGE)
                 .enableAnnotationInfo().enableExternalClasses().scan()) {
             assertThat(scanResult.getAllAnnotationsOnClass(Accepted.class.getName()).getNames())
                     .containsOnly(RejectedAnnotation.class.getName());
@@ -295,11 +295,11 @@ public class ClassGraphTest {
      */
     @Test
     public void testExternalAnnotationReturned() {
-        try (var scanResult = new ClassGraph().enableClasspath().acceptPackages(ACCEPT_PACKAGE)
+        try (var scanResult = new ClassGraph().enableClassInfo().enableClasspath().acceptPackages(ACCEPT_PACKAGE)
                 .enableAnnotationInfo().scan()) {
             assertThat(scanResult.getAllAnnotationsOnClass(Accepted.class.getName()).getNames()).isEmpty();
         }
-        try (var scanResult = new ClassGraph().enableClasspath().acceptPackages(ACCEPT_PACKAGE)
+        try (var scanResult = new ClassGraph().enableClassInfo().enableClasspath().acceptPackages(ACCEPT_PACKAGE)
                 .enableAnnotationInfo().enableExternalClasses().scan()) {
             assertThat(scanResult.getAllAnnotationsOnClass(Accepted.class.getName()).getNames())
                     .containsExactly(RejectedAnnotation.class.getName());
@@ -347,8 +347,8 @@ public class ClassGraphTest {
      */
     @Test
     public void testVisibleIfNotRejected() {
-        try (var scanResult = new ClassGraph().enableClasspath().acceptPackages(ROOT_PACKAGE).enableAnnotationInfo()
-                .scan()) {
+        try (var scanResult = new ClassGraph().enableClassInfo().enableClasspath().acceptPackages(ROOT_PACKAGE)
+                .enableAnnotationInfo().scan()) {
             // Object is left out, since it is an external class and external classes were not enabled
             assertThat(scanResult.getAllSuperclasses(Accepted.class.getName()).getNames())
                     .containsExactly(RejectedSuperclass.class.getName());
@@ -385,8 +385,8 @@ public class ClassGraphTest {
      */
     @Test
     public void scanStaticFinalFieldName() {
-        try (var scanResult = new ClassGraph().enableClasspath().acceptPackages(ACCEPT_PACKAGE)
-                .enableStaticFinalFieldConstantInitializerValues().scan()) {
+        try (var scanResult = new ClassGraph().enableClassInfo().enableFieldInfo().enableClasspath()
+                .acceptPackages(ACCEPT_PACKAGE).enableStaticFinalFieldConstantInitializerValues().scan()) {
             var numInitializers = 0;
             for (final FieldInfo fieldInfo : scanResult.getClassInfo(StaticField.class.getName()).getFieldInfo()) {
                 if (fieldInfo.getConstantInitializerValue() != null) {
@@ -410,8 +410,9 @@ public class ClassGraphTest {
                 "integerField", "booleanField" }) {
             fieldNames.add(StaticField.class.getName() + "." + fieldName);
         }
-        try (var scanResult = new ClassGraph().enableClasspath().acceptPackages(ACCEPT_PACKAGE)
-                .enableStaticFinalFieldConstantInitializerValues().ignoreFieldVisibility().scan()) {
+        try (var scanResult = new ClassGraph().enableClassInfo().enableFieldInfo().enableClasspath()
+                .acceptPackages(ACCEPT_PACKAGE).enableStaticFinalFieldConstantInitializerValues()
+                .ignoreFieldVisibility().scan()) {
             var numInitializers = 0;
             for (final FieldInfo fieldInfo : scanResult.getClassInfo(StaticField.class.getName()).getFieldInfo()) {
                 final var constInitializerValue = fieldInfo.getConstantInitializerValue();
@@ -437,8 +438,10 @@ public class ClassGraphTest {
      */
     @Test
     public void testGetClasspathElements() {
-        assertThat(new ClassGraph().enableClasspath().acceptPackages(ROOT_PACKAGE).enableAllInfo()
-                .getClasspathFiles().size()).isGreaterThan(0);
+        assertThat(new ClassGraph().enableClasspath().acceptPackages(ROOT_PACKAGE).enableClassInfo()
+                .enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
+                .ignoreMethodVisibility().getClasspathFiles().size()).isGreaterThan(0);
     }
 
     /**
@@ -447,7 +450,10 @@ public class ClassGraphTest {
     @Test
     public void testGetManifest() {
         final var foundManifest = new AtomicBoolean();
-        try (var scanResult = new ClassGraph().enableClasspath().acceptPaths("META-INF").enableAllInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath().acceptPaths("META-INF").enableClassInfo()
+                .enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
+                .ignoreMethodVisibility().scan()) {
             for (@SuppressWarnings("unused")
             final Resource res : scanResult.getResourcesWithLeafName("MANIFEST.MF")) {
                 foundManifest.set(true);

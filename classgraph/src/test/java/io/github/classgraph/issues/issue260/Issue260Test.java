@@ -39,7 +39,9 @@ public class Issue260Test {
     public void issue260Test() {
         // Scanning this package used to throw. The scan result itself is not read.
         assertThatCode(() -> new ClassGraph().enableClasspath()
-                .acceptPackages(Issue260Test.class.getPackage().getName()).enableAllInfo().scan().close())
+                .acceptPackages(Issue260Test.class.getPackage().getName()).enableClassInfo().enableFieldInfo()
+                .enableMethodInfo().enableAnnotationInfo().enableStaticFinalFieldConstantInitializerValues()
+                .ignoreClassVisibility().ignoreFieldVisibility().ignoreMethodVisibility().scan().close())
                 .doesNotThrowAnyException();
     }
 }

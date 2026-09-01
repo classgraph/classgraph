@@ -74,8 +74,8 @@ public class MethodInfoListTest {
     /** Scan the package this test is in. */
     @BeforeAll
     public static void scan() {
-        scanResult = new ClassGraph().enableClasspath().acceptPackages(MethodInfoListTest.class.getPackageName())
-                .enableMethodInfo().scan();
+        scanResult = new ClassGraph().enableClassInfo().enableClasspath()
+                .acceptPackages(MethodInfoListTest.class.getPackageName()).enableMethodInfo().scan();
         methodInfo = scanResult.getClassInfo(Sub.class.getName()).getMethodInfo();
     }
 

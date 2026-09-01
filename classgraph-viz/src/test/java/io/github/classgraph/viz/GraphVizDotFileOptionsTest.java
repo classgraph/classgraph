@@ -79,8 +79,12 @@ public class GraphVizDotFileOptionsTest {
      * @return the .dot file contents.
      */
     private static String classGraph(final GraphVizDotFileOptions options) {
-        try (var scanResult = new ClassGraph().enableClasspath().acceptClasses(GraphClassAnnotation.class.getName(),
-                GraphType.class.getName(), GraphNode.class.getName()).enableAllInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableClasspath()
+                .acceptClasses(GraphClassAnnotation.class.getName(), GraphType.class.getName(),
+                        GraphNode.class.getName())
+                .enableClassInfo().enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
+                .ignoreMethodVisibility().scan()) {
             return GraphVizDotFile.generate(scanResult, scanResult.getAllClasses(), options);
         }
     }
@@ -97,7 +101,9 @@ public class GraphVizDotFileOptionsTest {
         try (var scanResult = new ClassGraph().enableClasspath()
                 .acceptClasses(GraphClassAnnotation.class.getName(), GraphType.class.getName(),
                         GraphNode.class.getName())
-                .enableAllInfo().enableInterClassDependencies().enableExternalClasses().scan()) {
+                .enableClassInfo().enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
+                .ignoreMethodVisibility().enableInterClassDependencies().enableExternalClasses().scan()) {
             return GraphVizDotFile.generateFromInterClassDependencies(scanResult,
                     scanResult.getAllClasses().filter(ci -> ci.getName().startsWith(FIXTURE)), options);
         }

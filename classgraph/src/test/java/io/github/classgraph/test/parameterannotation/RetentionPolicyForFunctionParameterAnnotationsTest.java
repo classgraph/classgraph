@@ -89,7 +89,9 @@ public class RetentionPolicyForFunctionParameterAnnotationsTest {
     public static void beforeClass() {
         scanResult = new ClassGraph().enableClasspath()
                 .acceptPackages(RetentionPolicyForFunctionParameterAnnotationsTest.class.getPackage().getName())
-                .enableAllInfo().scan();
+                .enableClassInfo().enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
+                .ignoreMethodVisibility().scan();
         classInfo = scanResult.getClassInfo(RetentionPolicyForFunctionParameterAnnotationsTest.class.getName());
     }
 

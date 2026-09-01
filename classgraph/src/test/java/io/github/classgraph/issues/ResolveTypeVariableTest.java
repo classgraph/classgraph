@@ -26,7 +26,10 @@ public class ResolveTypeVariableTest<T extends ArrayList<Integer>> {
     @Test
     public void test() {
         try (var scanResult = new ClassGraph().enableClasspath()
-                .acceptPackages(ResolveTypeVariableTest.class.getPackage().getName()).enableAllInfo().scan()) {
+                .acceptPackages(ResolveTypeVariableTest.class.getPackage().getName()).enableClassInfo()
+                .enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
+                .ignoreMethodVisibility().scan()) {
             final var fields = scanResult.getClassInfo(ResolveTypeVariableTest.class.getName()).getFieldInfo();
             assertThat(((TypeVariableSignature) fields.get(0).getTypeSignature()).resolve().toString())
                     .isEqualTo("T extends java.util.ArrayList<java.lang.Integer>");

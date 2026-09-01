@@ -28,8 +28,8 @@ public class Issue703Test {
      */
     @Test
     public void objectIsScannedIfAccepted() {
-        try (var scanResult = new ClassGraph().acceptClasses("java.lang.Object").enableSystemJars()
-                .enableSystemModules().enableMethodInfo().scan()) {
+        try (var scanResult = new ClassGraph().enableClassInfo().acceptClasses("java.lang.Object")
+                .enableSystemJars().enableSystemModules().enableMethodInfo().scan()) {
             assertThat(scanResult.getAllClasses().getNames()).containsExactly("java.lang.Object");
             final var object = scanResult.getClassInfo("java.lang.Object");
             assertThat(object.getSuperclass()).isNull();
@@ -46,7 +46,7 @@ public class Issue703Test {
      */
     @Test
     public void objectIsTheUniversalSuperclass() {
-        try (var scanResult = new ClassGraph().enableClasspath()
+        try (var scanResult = new ClassGraph().enableClassInfo().enableClasspath()
                 .acceptPackages(Issue703Test.class.getPackage().getName()).enableExternalClasses().scan()) {
             assertThat(scanResult.getClassInfo(ExtendsNothing.class.getName()).getSuperclass().getName())
                     .isEqualTo("java.lang.Object");

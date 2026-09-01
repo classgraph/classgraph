@@ -58,8 +58,8 @@ import org.jspecify.annotations.Nullable;
 // content is read wherever a file can be mapped, are page faults, which the JVM cannot see at all.
 //
 // Nor is there idle parallelism to reclaim: the work is CPU- and memory-bound once the page cache is warm. Scanning
-// 144 jars with enableAllInfo() (61.5k classes) took 3.38s with 1 worker thread, 0.90s with 8, 0.84s with 16 and
-// 0.87s with 32, on a machine with 32 cores -- so the scan already stops scaling well below the number of cores,
+// 144 jars with all the info options enabled (61.5k classes) took 3.38s with 1 worker thread, 0.90s with 8, 0.84s
+// with 16 and 0.87s with 32, on a machine with 32 cores -- so the scan already stops scaling below the core count,
 // and adding more concurrent tasks cannot help. A thread per work unit would also mean tens of thousands of
 // threads, since a work unit is a single classfile.
 //

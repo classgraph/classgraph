@@ -41,7 +41,7 @@ public class ExternalClassPackageMembershipTest {
     /** With external classes enabled, the external superclass is a member of its package like any other class. */
     @Test
     public void externalClassIsListedAsAPackageMemberIfEnabled() {
-        try (var scanResult = new ClassGraph().enableClasspath().acceptPackages(ACCEPTED_PACKAGE)
+        try (var scanResult = new ClassGraph().enableClassInfo().enableClasspath().acceptPackages(ACCEPTED_PACKAGE)
                 .enableExternalClasses().scan()) {
             assertThat(scanResult.getClassInfo(AcceptedSubclass.class.getName()).getSuperclass().getName())
                     .isEqualTo(ExternalSuperclass.class.getName());

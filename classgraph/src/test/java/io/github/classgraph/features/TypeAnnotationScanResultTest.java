@@ -50,7 +50,10 @@ public class TypeAnnotationScanResultTest {
     @Test
     public void typeAnnotationsCanReachTheirAnnotationClass() {
         try (var scanResult = new ClassGraph().enableClasspath()
-                .acceptPackages(TypeAnnotationScanResultTest.class.getPackage().getName()).enableAllInfo().scan()) {
+                .acceptPackages(TypeAnnotationScanResultTest.class.getPackage().getName()).enableClassInfo()
+                .enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
+                .ignoreMethodVisibility().scan()) {
             final var classInfo = scanResult.getClassInfo(Annotated.class.getName());
             assertThat(classInfo).isNotNull();
 

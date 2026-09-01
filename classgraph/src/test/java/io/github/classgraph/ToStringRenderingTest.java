@@ -125,8 +125,10 @@ public class ToStringRenderingTest {
     /** Scan this test's own package. */
     private static ScanResult scan() {
         return new ClassGraph().enableClasspath()
-                .acceptPackagesNonRecursive(ToStringRenderingTest.class.getPackage().getName()).enableAllInfo()
-                .scan();
+                .acceptPackagesNonRecursive(ToStringRenderingTest.class.getPackage().getName()).enableClassInfo()
+                .enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
+                .ignoreMethodVisibility().scan();
     }
 
     /** Annotation parameter values are rendered in the Java source syntax for their type. */

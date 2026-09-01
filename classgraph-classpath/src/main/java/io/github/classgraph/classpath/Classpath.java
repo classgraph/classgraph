@@ -144,8 +144,7 @@ public final class Classpath implements AutoCloseable, Iterable<ClasspathEntry> 
      * module layer order, and by module name within each layer. The system-module group may include references that
      * were retained to complete the class graph but were not themselves selected for scanning. Traditional
      * classpath jars are not modules and are not included. The list is empty unless a module source was enabled,
-     * using {@link ClasspathFinder#enableModules()}, {@link ClasspathFinder#enableSystemModules()},
-     * {@link ClasspathFinder#enableNonSystemModules()} or
+     * using {@link ClasspathFinder#enableSystemModules()}, {@link ClasspathFinder#enableNonSystemModules()} or
      * {@link ClasspathFinder#enableModuleLayers(ModuleLayer...)}.
      *
      * @return the modules, as an unmodifiable list.

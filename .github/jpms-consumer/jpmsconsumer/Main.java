@@ -74,7 +74,9 @@ public final class Main {
         // Scanning this module requires the module path to be read, and the module to be opened to ClassGraph.
         // Nothing here is on the classpath, so it is enableNonSystemModules() that reaches it, not
         // enableClasspath().
-        try (ScanResult scanResult = new ClassGraph().enableNonSystemModules().enableAllInfo()
+        try (ScanResult scanResult = new ClassGraph().enableNonSystemModules().enableClassInfo().enableFieldInfo()
+                .enableMethodInfo().enableAnnotationInfo().enableStaticFinalFieldConstantInitializerValues()
+                .ignoreClassVisibility().ignoreFieldVisibility().ignoreMethodVisibility()
                 .acceptPackages("jpmsconsumer").scan()) {
             check("the module's own classes are scanned",
                     scanResult.getAllClasses().getNames().contains("jpmsconsumer.Main"));

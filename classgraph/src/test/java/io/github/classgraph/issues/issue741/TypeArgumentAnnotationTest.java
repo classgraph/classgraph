@@ -42,7 +42,10 @@ public class TypeArgumentAnnotationTest {
     @Test
     void typeArgumentAnnotation() {
         try (var scanResult = new ClassGraph().enableClasspath()
-                .acceptPackages(TypeArgumentAnnotationTest.class.getPackage().getName()).enableAllInfo().scan()) {
+                .acceptPackages(TypeArgumentAnnotationTest.class.getPackage().getName()).enableClassInfo()
+                .enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
+                .ignoreMethodVisibility().scan()) {
             final var cls = scanResult.getClassInfo(TypeArgumentAnnotationTest.class.getName());
             final var method = cls.getMethodInfo().get("setValueList").get(0);
             final var parameterInfo = method.getParameterInfo().get(0);

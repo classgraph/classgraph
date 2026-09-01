@@ -34,7 +34,7 @@ public class Issue696Test {
 
     @Test
     void genericSuperclass() {
-        try (var scanResult = new ClassGraph().enableClasspath()
+        try (var scanResult = new ClassGraph().enableClassInfo().enableClasspath()
                 .acceptPackages(Issue696Test.class.getPackage().getName()).enableMethodInfo().enableAnnotationInfo()
                 .scan()) {
             final var dynamic = scanResult.getClassInfo(Dynamic.class.getName());

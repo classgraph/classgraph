@@ -44,7 +44,9 @@ public class Issue216Test {
     @Test
     public void testSpringBootJarWithLibJars() {
         try (var result = new ClassGraph().enableClasspath()
-                .acceptPackages(Issue216Test.class.getPackage().getName()).enableAllInfo().scan()) {
+                .acceptPackages(Issue216Test.class.getPackage().getName()).enableClassInfo().enableFieldInfo()
+                .enableMethodInfo().enableAnnotationInfo().enableStaticFinalFieldConstantInitializerValues()
+                .ignoreClassVisibility().ignoreFieldVisibility().ignoreMethodVisibility().scan()) {
             assertThat(result.getAllClasses().filter(ci -> ci.hasAnnotation(Entity.class)).getNames())
                     .containsOnly(Issue216Test.class.getName());
         }

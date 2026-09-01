@@ -44,7 +44,8 @@ prerequisite is missing: `generate`/`write` need `enableClassInfo()`, and the
 
 ```java
 try (ScanResult scanResult = new ClassGraph().enableNonSystemModules().enableClasspath()
-        .enableAllInfo().acceptPackages("com.xyz").scan()) {
+        .enableClassInfo().enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+        .acceptPackages("com.xyz").scan()) {
     GraphVizDotFile.write(scanResult, scanResult.getAllClasses(), Path.of("classgraph.dot"));
 }
 ```
@@ -55,9 +56,10 @@ Then render it:
 dot -Tsvg classgraph.dot -o classgraph.svg
 ```
 
-`enableAllInfo()` is the easy setting here, since the graph draws fields, methods and annotations
-and each needs its own switch. `enableClassInfo()` alone produces a graph of just the classes and
-the edges between them.
+The graph draws fields, methods and annotations, and each of those needs its own switch, since no
+configuration method turns on another one. `enableClassInfo()` alone produces a graph of just the
+classes and the edges between them. Add `ignoreClassVisibility()`, `ignoreFieldVisibility()` and
+`ignoreMethodVisibility()` to draw the non-public ones too.
 
 ### Graph a subset of the classes
 
@@ -66,7 +68,8 @@ returns rather than everything that was scanned:
 
 ```java
 try (ScanResult scanResult = new ClassGraph().enableNonSystemModules().enableClasspath()
-        .enableAllInfo().acceptPackages("com.xyz").scan()) {
+        .enableClassInfo().enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+        .acceptPackages("com.xyz").scan()) {
     ClassInfoList widgets = scanResult.getAllSubclasses("com.xyz.Widget");
     GraphVizDotFile.write(scanResult, widgets, Path.of("widgets.dot"));
 }
@@ -99,7 +102,8 @@ GraphVizDotFileOptions options = new GraphVizDotFileOptions()
         .useFullyQualifiedNames();    // com.xyz.Widget rather than Widget
 
 try (ScanResult scanResult = new ClassGraph().enableNonSystemModules().enableClasspath()
-        .enableAllInfo().acceptPackages("com.xyz").scan()) {
+        .enableClassInfo().enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+        .acceptPackages("com.xyz").scan()) {
     GraphVizDotFile.write(scanResult, scanResult.getAllClasses(), Path.of("overview.dot"), options);
 }
 ```
@@ -117,7 +121,8 @@ to whichever setting is wanted: each `hide...()` has a matching `show...()`, and
 
 ```java
 try (ScanResult scanResult = new ClassGraph().enableNonSystemModules().enableClasspath()
-        .enableAllInfo().acceptPackages("com.xyz").scan()) {
+        .enableClassInfo().enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+        .acceptPackages("com.xyz").scan()) {
     String dot = GraphVizDotFile.generate(scanResult, scanResult.getAllClasses());
     // ... feed to a GraphViz binding, or to `dot` on stdin
 }

@@ -11,7 +11,9 @@ public class Issue797Test {
     public void getResourcesWithPathShouldNeverReturnNull() {
         // Jar is precompiled, since it uses a JDK 17 feature (records)
         final var url = Issue797Test.class.getResource("/issue797.jar");
-        try (var result = new ClassGraph().enableClasspathEntries(url).enableAllInfo().scan()) {
+        try (var result = new ClassGraph().enableClasspathEntries(url).enableClassInfo().enableFieldInfo()
+                .enableMethodInfo().enableAnnotationInfo().enableStaticFinalFieldConstantInitializerValues()
+                .ignoreClassVisibility().ignoreFieldVisibility().ignoreMethodVisibility().scan()) {
             final var bar = result.getClassInfo("io.github.classgraph.issues.issue797.Bar");
             assertThat(bar.toString()).isEqualTo(
                     "public final record io.github.classgraph.issues.issue797.Bar(" + "java.lang.String baz, "

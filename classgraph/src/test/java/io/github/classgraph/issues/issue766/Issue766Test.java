@@ -29,8 +29,8 @@ public class Issue766Test {
     }
 
     public static Set<String> scan(final String annotation, final String urlStr) {
-        final var classGraph = new ClassGraph().enableClasspathEntries(urlStr).disableNestedJarScanning()
-                .enableAnnotationInfo();
+        final var classGraph = new ClassGraph().enableClassInfo().enableClasspathEntries(urlStr)
+                .disableNestedJarScanning().enableAnnotationInfo();
         try (var result = classGraph.scan()) {
             return Set.copyOf(result.getClassesWithAnnotation(annotation).getStandardClasses().getNames());
         }

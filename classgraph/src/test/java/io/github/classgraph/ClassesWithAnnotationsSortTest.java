@@ -41,8 +41,8 @@ public class ClassesWithAnnotationsSortTest {
      * @return the scan result
      */
     private static ScanResult scan() {
-        return new ClassGraph().enableClasspath().acceptClasses(A.class.getName(), B.class.getName())
-                .enableAnnotationInfo().scan();
+        return new ClassGraph().enableClassInfo().enableClasspath()
+                .acceptClasses(A.class.getName(), B.class.getName()).enableAnnotationInfo().scan();
     }
 
     /** More than one class with all of the named annotations can be returned. */

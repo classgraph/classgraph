@@ -200,7 +200,7 @@ public class Issue153Test {
      */
     @Test
     public void classAnnotationParameters() {
-        try (var scanResult = new ClassGraph().enableClasspath() //
+        try (var scanResult = new ClassGraph().enableClassInfo().enableClasspath() //
                 .acceptPackages(pkg) //
                 .enableMethodInfo() //
                 .enableFieldInfo() //

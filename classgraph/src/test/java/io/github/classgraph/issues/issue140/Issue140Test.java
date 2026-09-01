@@ -47,7 +47,7 @@ public class Issue140Test {
 
     @Test
     public void issue140Test() {
-        try (var scanResult = new ClassGraph().enableClasspath()
+        try (var scanResult = new ClassGraph().enableClassInfo().enableClasspath()
                 .acceptPackages(Issue140Test.class.getPackage().getName()).enableFieldInfo().scan()) {
             final var ci = scanResult.getClassInfo(Issue140Test.class.getName());
             assertThat(ci).isNotNull();

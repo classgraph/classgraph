@@ -41,7 +41,9 @@ public class Issue101Test {
     @Test
     public void nonInheritedAnnotation() {
         try (var scanResult = new ClassGraph().enableClasspath()
-                .acceptPackages(Issue101Test.class.getPackage().getName()).enableAllInfo().scan()) {
+                .acceptPackages(Issue101Test.class.getPackage().getName()).enableClassInfo().enableFieldInfo()
+                .enableMethodInfo().enableAnnotationInfo().enableStaticFinalFieldConstantInitializerValues()
+                .ignoreClassVisibility().ignoreFieldVisibility().ignoreMethodVisibility().scan()) {
             assertThat(scanResult.getClassesWithAnnotation(NonInheritedAnnotation.class).getNames())
                     .containsOnly(AnnotatedClass.class.getName());
         }
@@ -53,7 +55,9 @@ public class Issue101Test {
     @Test
     public void inheritedMetaAnnotation() {
         try (var scanResult = new ClassGraph().enableClasspath()
-                .acceptPackages(Issue101Test.class.getPackage().getName()).enableAllInfo().scan()) {
+                .acceptPackages(Issue101Test.class.getPackage().getName()).enableClassInfo().enableFieldInfo()
+                .enableMethodInfo().enableAnnotationInfo().enableStaticFinalFieldConstantInitializerValues()
+                .ignoreClassVisibility().ignoreFieldVisibility().ignoreMethodVisibility().scan()) {
             assertThat(scanResult.getClassesWithAnnotation(InheritedMetaAnnotation.class).getStandardClasses()
                     .getNames()).containsOnly(AnnotatedClass.class.getName(), NonAnnotatedSubclass.class.getName());
         }
@@ -65,7 +69,9 @@ public class Issue101Test {
     @Test
     public void inheritedAnnotation() {
         try (var scanResult = new ClassGraph().enableClasspath()
-                .acceptPackages(Issue101Test.class.getPackage().getName()).enableAllInfo().scan()) {
+                .acceptPackages(Issue101Test.class.getPackage().getName()).enableClassInfo().enableFieldInfo()
+                .enableMethodInfo().enableAnnotationInfo().enableStaticFinalFieldConstantInitializerValues()
+                .ignoreClassVisibility().ignoreFieldVisibility().ignoreMethodVisibility().scan()) {
             assertThat(scanResult.getClassesWithAnnotation(InheritedAnnotation.class).getNames()).containsOnly(
                     AnnotatedClass.class.getName(), NonAnnotatedSubclass.class.getName(),
                     AnnotatedInterface.class.getName());

@@ -186,7 +186,7 @@ public class ClassGraphTest {
     @Test
     public void realtimeLoggingWritesEntriesAsTheyAreCreated() {
         try {
-            final var messages = captureLog(() -> new ClassGraph().enableRealtimeLogging()
+            final var messages = captureLog(() -> new ClassGraph().verbose().enableRealtimeLogging()
                     .enableClasspathEntries(markerDir.toString()).scan().close());
             // Every log entry is written twice: once in realtime, and once in the tree flushed at the end of the
             // scan

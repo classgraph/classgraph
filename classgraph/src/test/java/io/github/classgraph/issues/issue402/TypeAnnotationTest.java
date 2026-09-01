@@ -144,7 +144,9 @@ class TypeAnnotationTest {
     @Test
     void typeAnnotations() {
         try (var scanResult = new ClassGraph().enableClasspath()
-                .acceptPackages(TypeAnnotationTest.class.getPackage().getName()).enableAllInfo().scan()) {
+                .acceptPackages(TypeAnnotationTest.class.getPackage().getName()).enableClassInfo().enableFieldInfo()
+                .enableMethodInfo().enableAnnotationInfo().enableStaticFinalFieldConstantInitializerValues()
+                .ignoreClassVisibility().ignoreFieldVisibility().ignoreMethodVisibility().scan()) {
             final var classInfo = scanResult.getClassInfo(TypeAnnotationTest.class.getName());
 
             final var mapField = classInfo.getFieldInfo("map");
