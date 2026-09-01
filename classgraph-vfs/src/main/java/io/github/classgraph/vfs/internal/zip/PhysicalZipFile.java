@@ -60,6 +60,18 @@ class PhysicalZipFile {
     /** The {@link Slice} for the zipfile. */
     final Slice slice;
 
+    /** The session that owns what was opened to read this zipfile. */
+    private final VfsSession session;
+
+    /** The lock guarding {@link #logicalZipFile} and {@link #logicalZipFileFailure}. */
+    private final Object logicalZipFileLock = new Object();
+
+    /** The zipfile spanning the whole of this physical zipfile, or null if it has not been read yet. */
+    private @Nullable LogicalZipFile logicalZipFile;
+
+    /** The failure that stopped the central directory from being read, or null if it has not been tried or read. */
+    private @Nullable Throwable logicalZipFileFailure;
+
     /**
      * Construct a {@link PhysicalZipFile} from a file on disk.
      *
@@ -74,6 +86,7 @@ class PhysicalZipFile {
      */
     PhysicalZipFile(final File file, final VfsSession session, final @Nullable LogNode log) throws IOException {
         this.file = file;
+        this.session = session;
         this.pathStr = FastPathResolver.resolve(FileUtils.currDirPath(), file.getPath());
         this.slice = new PathSlice(file, session, log);
     }
@@ -92,6 +105,7 @@ class PhysicalZipFile {
      */
     PhysicalZipFile(final Path path, final VfsSession session, final @Nullable LogNode log) throws IOException {
         this.path = path;
+        this.session = session;
         this.pathStr = FileUtils.pathStr(path);
         this.slice = new PathSlice(path, session, log);
     }
@@ -117,11 +131,71 @@ class PhysicalZipFile {
     PhysicalZipFile(final InputStream inputStream, final long inputStreamLengthHint, final String pathStr,
             final VfsSession session, final @Nullable LogNode log) throws IOException {
         this.pathStr = pathStr;
+        this.session = session;
         // Try downloading the InputStream to a byte array. If this succeeds, this will result in an ArraySlice. If
         // it fails, the InputStream will be spilled to disk, resulting in a PathSlice over the temporary file.
         this.slice = Slice.fromInputStream(inputStream, /* tempFileBaseName = */ pathStr, inputStreamLengthHint,
                 session, log);
         this.file = this.slice instanceof final PathSlice pathSlice ? pathSlice.getFile() : null;
+    }
+
+    /**
+     * Get the {@link LogicalZipFile} spanning the whole of this physical zipfile, reading its central directory if
+     * this is the first call. Every caller that reaches the same physical zipfile is handed the same instance, so
+     * the central directory is only read once, and a caller that arrives while another thread is still reading it
+     * blocks until that read finishes. A failed read is recorded and rethrown rather than tried again, since a
+     * zipfile whose central directory could not be read once will not read any better on a second attempt.
+     *
+     * @param log
+     *            the log node, or null to skip logging
+     * @return the {@link LogicalZipFile} spanning the whole of this physical zipfile.
+     * @throws IOException
+     *             if the central directory could not be read, or the session has been closed.
+     * @throws InterruptedException
+     *             if the thread was interrupted.
+     */
+    LogicalZipFile getLogicalZipFile(final @Nullable LogNode log) throws IOException, InterruptedException {
+        // The zipfile is only valid while the session is open, so a lookup is turned away once it has been closed,
+        // rather than reading a central directory that nothing would ever release again
+        if (session.isClosed()) {
+            throw new IOException("Already closed");
+        }
+        synchronized (logicalZipFileLock) {
+            if (logicalZipFileFailure != null) {
+                throw new IOException(
+                        "Could not read the central directory of " + pathStr + " : " + logicalZipFileFailure,
+                        logicalZipFileFailure);
+            }
+            var zipFile = logicalZipFile;
+            if (zipFile == null) {
+                try {
+                    zipFile = new LogicalZipFile(new ZipFileSlice(this), session, log,
+                            session.vfsSpec.isMultiReleaseVersionsEnabled());
+                } catch (final IOException | RuntimeException | Error e) {
+                    logicalZipFileFailure = e;
+                    throw e;
+                }
+                logicalZipFile = zipFile;
+            }
+            return zipFile;
+        }
+    }
+
+    /**
+     * Release this zipfile, because nothing will ever be able to reach it: the operation that opened it failed.
+     * Without this, the file handle and memory mapping behind it would be held until the session is closed, even
+     * though nothing can read through them.
+     *
+     * @param failure
+     *            the failure that stopped this zipfile from being handed over, for any failure to release it to be
+     *            recorded within.
+     */
+    void releaseUnreachable(final Throwable failure) {
+        try {
+            slice.close();
+        } catch (final IOException | RuntimeException | Error e) {
+            failure.addSuppressed(e);
+        }
     }
 
     /**

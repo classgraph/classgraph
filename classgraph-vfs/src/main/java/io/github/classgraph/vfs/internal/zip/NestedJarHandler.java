@@ -77,19 +77,6 @@ public class NestedJarHandler {
     private final SingletonMap<Path, PhysicalZipFile, IOException> pathToPhysicalZipFileMap;
 
     /**
-     * A singleton map from a {@link FastZipEntry} to the {@link ZipFileSlice} wrapping either the zip entry data,
-     * if the entry is stored, or a ByteBuffer, if the zip entry was inflated to memory, or a physical file on disk
-     * if the zip entry was inflated to a temporary file. Dropped by {@link #dropCaches()}.
-     */
-    private final SingletonMap<FastZipEntry, ZipFileSlice, IOException> fastZipEntryToZipFileSliceMap;
-
-    /**
-     * A singleton map from a {@link ZipFileSlice} to the {@link LogicalZipFile} for that slice. Dropped by
-     * {@link #dropCaches()}.
-     */
-    private final SingletonMap<ZipFileSlice, LogicalZipFile, IOException> zipFileSliceToLogicalZipFileMap;
-
-    /**
      * A singleton map from nested jarfile path to a tuple of the logical zipfile for the path, and the package root
      * within the logical zipfile. Dropped by {@link #dropCaches()}.
      */
@@ -124,24 +111,6 @@ public class NestedJarHandler {
             }
         };
 
-        fastZipEntryToZipFileSliceMap = new SingletonMap<>(closed) {
-            @Override
-            public ZipFileSlice newInstance(final FastZipEntry childZipEntry, final @Nullable LogNode log)
-                    throws IOException, InterruptedException {
-                return sliceOfNestedZipEntry(childZipEntry, log);
-            }
-        };
-
-        zipFileSliceToLogicalZipFileMap = new SingletonMap<>(closed) {
-            @Override
-            public LogicalZipFile newInstance(final ZipFileSlice zipFileSlice, final @Nullable LogNode log)
-                    throws IOException, InterruptedException {
-                // Read the central directory for the zipfile
-                return new LogicalZipFile(zipFileSlice, session, log,
-                        session.vfsSpec.isMultiReleaseVersionsEnabled());
-            }
-        };
-
         nestedPathToLogicalZipFileAndPackageRootMap = new SingletonMap<>(closed) {
             @Override
             public Entry<LogicalZipFile, String> newInstance(final String nestedJarPathRaw,
@@ -170,57 +139,6 @@ public class NestedJarHandler {
     }
 
     /**
-     * Wrap a zip entry holding a nested zipfile in a {@link ZipFileSlice}, inflating the entry first if it is
-     * deflated.
-     *
-     * @param childZipEntry
-     *            the zip entry holding the nested zipfile.
-     * @param log
-     *            the log.
-     * @return the slice wrapping the nested zipfile.
-     * @throws IOException
-     *             if the entry could not be read.
-     * @throws InterruptedException
-     *             if the thread was interrupted.
-     */
-    private ZipFileSlice sliceOfNestedZipEntry(final FastZipEntry childZipEntry, final @Nullable LogNode log)
-            throws IOException, InterruptedException {
-        if (!childZipEntry.isDeflated) {
-            // The child zip entry is a stored nested zipfile -- wrap it in a new ZipFileSlice. Hopefully nested
-            // zipfiles are stored, not deflated, as this is the fast path.
-            return new ZipFileSlice(childZipEntry);
-        }
-
-        // If child entry is deflated i.e. (for a deflated nested zipfile), must inflate the contents of the
-        // entry before its central directory can be read (most of the time nested zipfiles are stored, not
-        // deflated, so this should be rare)
-        if (log != null) {
-            log.log("Inflating nested zip entry: " + childZipEntry + " ; uncompressed size: "
-                    + childZipEntry.uncompressedSize);
-        }
-
-        // Read the InputStream for the child zip entry to a RAM buffer, or spill to disk if it's too large.
-        // (The stream is opened here, so it is closed here -- PhysicalZipFile does not close what it reads.)
-        final PhysicalZipFile physicalZipFile;
-        try (InputStream childZipEntryInputStream = childZipEntry.getSlice().open()) {
-            // The uncompressed size is a length rather than a hint that may have to fit in an array: an entry too
-            // long to buffer in RAM is spilled straight to disk, which needs the real length rather than -1
-            physicalZipFile = new PhysicalZipFile(childZipEntryInputStream, childZipEntry.uncompressedSize,
-                    childZipEntry.entryName, session, log);
-        }
-
-        // Create a new logical slice of the extracted inner zipfile
-        try {
-            return new ZipFileSlice(physicalZipFile, childZipEntry);
-        } catch (final RuntimeException | Error e) {
-            // The cache records the failure rather than inflating the entry again, so nothing would ever
-            // reach what was just inflated
-            releaseUnreachable(physicalZipFile, e);
-            throw e;
-        }
-    }
-
-    /**
      * Open a jarfile named by a {@link Path}. Use this only for a {@link Path} that is not in the default
      * filesystem, since a path in the default filesystem can name a jarfile nested within another jarfile, which
      * {@link #nestedPathToLogicalZipFileAndPackageRootMap()} resolves and this method does not.
@@ -238,8 +156,7 @@ public class NestedJarHandler {
     public LogicalZipFile openJarFromPath(final Path path, final @Nullable LogNode log)
             throws IOException, InterruptedException {
         try {
-            final var physicalZipFile = pathToPhysicalZipFileMap.get(path, log);
-            return zipFileSliceToLogicalZipFileMap.get(new ZipFileSlice(physicalZipFile), log);
+            return pathToPhysicalZipFileMap.get(path, log).getLogicalZipFile(log);
         } catch (final NullSingletonException | NewInstanceException e) {
             // Chain the cause, as well as naming it in the message -- otherwise the reason the jarfile could not be
             // opened is not reachable from the stack trace
@@ -275,34 +192,15 @@ public class NestedJarHandler {
             final String name, final @Nullable LogNode log) throws IOException, InterruptedException {
         final var physicalZipFile = new PhysicalZipFile(inputStream, inputStreamLengthHint, name, session, log);
         try {
-            // The zipfile slice cache cannot be used here: two PhysicalZipFile instances compare equal if they have
-            // the same path, so two different streams read under the same name would be treated as the same jarfile
-            return new LogicalZipFile(new ZipFileSlice(physicalZipFile), session, log,
-                    session.vfsSpec.isMultiReleaseVersionsEnabled());
-        } catch (final IOException | RuntimeException | Error e) {
+            // The physical zipfile was created here rather than fetched from a cache, so nothing else can reach it,
+            // and two streams read under the same name stay two separate jarfiles even though the two physical
+            // zipfiles wrapping them compare equal
+            return physicalZipFile.getLogicalZipFile(log);
+        } catch (final IOException | InterruptedException | RuntimeException | Error e) {
             // Nothing is cached here, so the caller can only try again by reading the stream again, and nothing
             // would ever reach what was just read
-            releaseUnreachable(physicalZipFile, e);
+            physicalZipFile.releaseUnreachable(e);
             throw e;
-        }
-    }
-
-    /**
-     * Release a {@link PhysicalZipFile} that nothing will ever be able to reach, because the operation that opened
-     * it failed. Without this, the file handle and memory mapping behind it would be held until the session is
-     * closed, even though nothing can read through them.
-     *
-     * @param physicalZipFile
-     *            the zipfile to release.
-     * @param failure
-     *            the failure that stopped the zipfile from being handed over, for any failure to release it to be
-     *            recorded within.
-     */
-    private static void releaseUnreachable(final PhysicalZipFile physicalZipFile, final Throwable failure) {
-        try {
-            physicalZipFile.slice.close();
-        } catch (final IOException | RuntimeException | Error e) {
-            failure.addSuppressed(e);
         }
     }
 
@@ -370,23 +268,15 @@ public class NestedJarHandler {
             }
         }
 
-        // Create a new logical slice of the whole physical zipfile
+        // Read the central directory of the whole physical zipfile
         final LogicalZipFile logicalZipFile;
         try {
-            final var topLevelSlice = new ZipFileSlice(physicalZipFile);
-            try {
-                logicalZipFile = zipFileSliceToLogicalZipFileMap.get(topLevelSlice, log);
-            } catch (final NullSingletonException | NewInstanceException e) {
-                // Chain the cause, as well as naming it in the message, so that the reason is reachable from the
-                // stack trace
-                final var cause = e.getCause() == null ? e : e.getCause();
-                throw new IOException("Could not get toplevel slice " + topLevelSlice + " : " + cause, cause);
-            }
+            logicalZipFile = physicalZipFile.getLogicalZipFile(log);
         } catch (final IOException | InterruptedException | RuntimeException | Error e) {
             if (ownedUntilHandedOver) {
                 // The cache of resolved nested paths records the failure rather than downloading the jarfile
                 // again, so nothing would ever reach what was just downloaded
-                releaseUnreachable(physicalZipFile, e);
+                physicalZipFile.releaseUnreachable(e);
             }
             throw e;
         }
@@ -480,7 +370,7 @@ public class NestedJarHandler {
 
         // The child path corresponds to a non-directory zip entry, so it must be a nested jar (since non-jar nested
         // files cannot be used on the classpath)
-        return new SimpleEntry<>(openNestedJarEntry(childZipEntry, log), "");
+        return new SimpleEntry<>(parentLogicalZipFile.openNestedJar(childZipEntry, log), "");
     }
 
     /**
@@ -535,50 +425,6 @@ public class NestedJarHandler {
     }
 
     /**
-     * Open a zip entry that contains a nested jarfile as a {@link LogicalZipFile}. The nested jar is mapped as a
-     * new {@link ZipFileSlice} if it is stored, or inflated to RAM or to a temporary file if it is deflated, then a
-     * new {@link ZipFileSlice} is created over the temporary file or {@link java.nio.ByteBuffer ByteBuffer}.
-     *
-     * @param zipEntry
-     *            the zip entry containing the nested jarfile
-     * @param log
-     *            the log node, or null to skip logging
-     * @return the {@link LogicalZipFile} for the nested jarfile
-     * @throws IOException
-     *             if the nested jarfile could not be opened
-     * @throws InterruptedException
-     *             if the thread was interrupted
-     */
-    private LogicalZipFile openNestedJarEntry(final FastZipEntry zipEntry, final @Nullable LogNode log)
-            throws IOException, InterruptedException {
-        // Get zip entry as a ZipFileSlice, possibly inflating to disk or RAM
-        final ZipFileSlice zipEntrySlice;
-        try {
-            zipEntrySlice = fastZipEntryToZipFileSliceMap.get(zipEntry, log);
-        } catch (final NullSingletonException | NewInstanceException e) {
-            // Chain the cause, as well as naming it in the message, so that the reason is reachable from the stack
-            // trace
-            final var cause = e.getCause() == null ? e : e.getCause();
-            throw new IOException("Could not get child zip entry slice " + zipEntry + " : " + cause, cause);
-        }
-
-        final var zipSliceLog = log == null ? null
-                : log.log("Getting zipfile slice " + zipEntrySlice + " for nested jar " + zipEntry.entryName);
-
-        // Get or create a new LogicalZipFile for the child zipfile
-        try {
-            return zipFileSliceToLogicalZipFileMap.get(zipEntrySlice, zipSliceLog);
-        } catch (final NullSingletonException | NewInstanceException e) {
-            // Chain the cause, as well as naming it in the message, so that the reason is reachable from the stack
-            // trace
-            final var cause = e.getCause() == null ? e : e.getCause();
-            throw new IOException("Could not get child logical zipfile " + zipEntrySlice + " : " + cause, cause);
-        }
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
      * Drop every cached zipfile, as the first step of tearing down the session: the caller marks the session closed
      * first, so that a lookup in one of them turns away anything that would otherwise hand out a slice of a zipfile
      * that is about to be closed, then calls this, and only then releases the resources the zipfiles were backed
@@ -589,10 +435,11 @@ public class NestedJarHandler {
      * zipfiles belong to the {@link VfsSession}, and are released by {@link VfsSession#close(LogNode)}.
      */
     public void dropCaches() {
-        zipFileSliceToLogicalZipFileMap.clear();
+        // Dropping these makes every zipfile they cached unreachable, along with the toplevel zipfile each
+        // PhysicalZipFile holds and the nested jarfiles each LogicalZipFile holds, so those need no dropping of
+        // their own. A lookup in any of them is turned away anyway, since they are all handed the same closed flag.
         nestedPathToLogicalZipFileAndPackageRootMap.clear();
         canonicalFileToPhysicalZipFileMap.clear();
         pathToPhysicalZipFileMap.clear();
-        fastZipEntryToZipFileSliceMap.clear();
     }
 }

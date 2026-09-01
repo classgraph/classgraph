@@ -141,7 +141,7 @@ public class NestedJarPathResolutionTest {
     @Test
     public void anEntryThatIsNotAJarfileIsReportedWithTheReasonChained() {
         assertThatThrownBy(() -> resolve(outerJarPath + "!/" + PACKAGE_ROOT + "/testpkg/Outer.class")).cause()
-                .isInstanceOf(IOException.class).hasMessageContaining("Could not get child logical zipfile").cause()
+                .isInstanceOf(IOException.class).hasMessageContaining("Could not open nested jar").cause()
                 .isInstanceOf(IOException.class)
                 .hasMessageContaining("Zipfile too short to have a central directory");
     }
