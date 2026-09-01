@@ -253,10 +253,10 @@ public class ModuleFinder {
         final var scanSystemModules = classpathSpec.scanSystemModules;
         final var scanNonSystemModules = classpathSpec.scanNonSystemModules;
 
-        // Find the layers to search: the ones detected in the environment, if they were enabled, followed by the
-        // ones the caller named. A layer that both of them reach is searched at the first position it is reached at.
+        // Find the layers to search: the ones the caller named, or, if the caller named none, the ones detected in
+        // the environment
         final LinkedHashSet<ModuleLayer> layers = new LinkedHashSet<>();
-        if (scanSourceSpec.searchDetectedModuleLayers) {
+        if (scanSourceSpec.searchesDetectedModuleLayers()) {
             findDetectedModuleLayers(callStackInfo, scanNonSystemModules, layers);
         }
         final var namedModuleLayers = scanSourceSpec.namedModuleLayers;

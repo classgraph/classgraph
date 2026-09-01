@@ -401,12 +401,14 @@ public class ClassGraph {
 
     /**
      * Causes only runtime visible annotations to be scanned (causes runtime invisible annotations to be ignored).
-     * (Automatically calls {@link #enableClassInfo()}.)
+     *
+     * <p>
+     * This narrows what is scanned; it does not enable the scanning of annotations. Call
+     * {@link #enableAnnotationInfo()} to scan annotations in the first place.
      *
      * @return this (for method chaining).
      */
     public ClassGraph disableRuntimeInvisibleAnnotations() {
-        enableClassInfo();
         scanSpec.disableRuntimeInvisibleAnnotations = true;
         return this;
     }
@@ -735,7 +737,8 @@ public class ClassGraph {
     /**
      * Scan the modules supplied by the running JVM, as identified by
      * {@link java.lang.module.ModuleFinder#ofSystem()}, in the ModuleLayers that are visible from the caller: the
-     * layers of the classes on the call stack, and the boot layer.
+     * layers of the classes on the call stack, and the boot layer. If {@link #enableModuleLayers(ModuleLayer...)}
+     * named the layers to scan, the system modules of those layers are scanned instead.
      *
      * @return this (for method chaining).
      */
@@ -747,7 +750,8 @@ public class ClassGraph {
 
     /**
      * Scan the non-system modules of the ModuleLayers that are visible from the caller: the layers of the classes
-     * on the call stack, and the boot layer.
+     * on the call stack, and the boot layer. If {@link #enableModuleLayers(ModuleLayer...)} named the layers to
+     * scan, the non-system modules of those layers are scanned instead.
      *
      * @return this (for method chaining).
      */
@@ -770,8 +774,14 @@ public class ClassGraph {
     /**
      * Scan the non-system modules of the given ModuleLayers, and of their parent layers, rather than of the
      * ModuleLayers that are visible from the caller. Use this method if you define your own ModuleLayer, but the
-     * scanning code is not running within it. Call {@link #enableModules()} as well to scan both, or
-     * {@link #enableSystemModules()} as well to scan the system modules of the given layers too.
+     * scanning code is not running within it. Call {@link #enableSystemModules()} as well to scan the system
+     * modules of the given layers too.
+     *
+     * <p>
+     * The given layers replace the ones that are visible from the caller, rather than adding to them, so
+     * {@link #enableSystemModules()}, {@link #enableNonSystemModules()} and {@link #enableModules()} apply to the
+     * given layers. To scan a layer of your own as well as the layers that are visible from the caller, name
+     * {@link ModuleLayer#boot()} here too.
      *
      * @param moduleLayers
      *            The ModuleLayers to scan.
@@ -1352,12 +1362,13 @@ public class ClassGraph {
      * This is about jars, not modules: call {@link #enableSystemModules()} to scan the system modules.
      *
      * <p>
-     * N.B. Automatically calls {@link #enableClassInfo()}.
+     * This adds the system jars to what is scanned; like the other methods that add to the scan, it does not enable
+     * the reading of class information. Call {@link #enableClassInfo()} for that; without it, the system jars are
+     * scanned for resources only.
      *
      * @return this (for method chaining).
      */
     public ClassGraph enableSystemJars() {
-        enableClassInfo();
         scanSpec.classpathSpec.enableSystemJars = true;
         return this;
     }

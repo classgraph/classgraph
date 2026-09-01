@@ -101,10 +101,15 @@ public class ScanSourceSpec {
     /** The places classpath elements are looked for, in the order they were enabled in. */
     public final List<ClasspathSource> classpathSources = new ArrayList<>();
 
-    /** If true, search the module layers that are visible from the caller, and the boot layer. */
+    /**
+     * If true, module scanning was enabled without the caller naming the module layers to search, so the module
+     * layers that are visible from the caller, and the boot layer, are searched. Test this with
+     * {@link #searchesDetectedModuleLayers()} rather than directly, since layers the caller named replace the
+     * detected ones.
+     */
     public boolean searchDetectedModuleLayers;
 
-    /** If non-null, module layers to search as well as any that {@link #searchDetectedModuleLayers} asks for. */
+    /** If non-null, the module layers the caller named, which are searched instead of the detected ones. */
     public @Nullable List<ModuleLayer> namedModuleLayers;
 
     // -----------------------------------------------------------------------------------------------------------
@@ -187,13 +192,27 @@ public class ScanSourceSpec {
         classpathSources.add(new ClasspathString(classpath));
     }
 
-    /** Search the module layers that are visible from the caller, and the boot layer. */
+    /**
+     * Search the module layers that are visible from the caller, and the boot layer, unless the caller named the
+     * module layers to search.
+     */
     public void enableDetectedModuleLayers() {
         searchDetectedModuleLayers = true;
     }
 
     /**
-     * Search the given module layers, as well as any that {@link #enableDetectedModuleLayers()} asks for.
+     * Whether the module layers that are visible from the caller are searched: they are, if module scanning was
+     * enabled and the caller did not name the layers to search itself. Layers the caller named replace the detected
+     * ones rather than adding to them, since naming layers is how a caller says which layers to search.
+     *
+     * @return true if the module layers detected in the environment are searched.
+     */
+    public boolean searchesDetectedModuleLayers() {
+        return searchDetectedModuleLayers && namedModuleLayers == null;
+    }
+
+    /**
+     * Search the given module layers, instead of the ones that {@link #enableDetectedModuleLayers()} asks for.
      *
      * @param moduleLayers
      *            the module layers to search.
