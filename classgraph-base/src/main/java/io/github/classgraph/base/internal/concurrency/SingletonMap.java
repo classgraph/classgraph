@@ -279,23 +279,33 @@ public abstract class SingletonMap<K, V, E extends Exception> {
     public V get(final K key, final @Nullable LogNode log,
             final @Nullable NewInstanceFactory<V, E> newInstanceFactory)
             throws E, IOException, InterruptedException, NullSingletonException, NewInstanceException {
-        checkNotClosed();
-        final var singletonHolder = map.get(key);
-        @Nullable
-        V instance = null;
-        if (singletonHolder != null) {
-            // There is already a SingletonHolder in the map for this key -- get the value
-            instance = singletonHolder.get();
-        } else {
-            // There is no SingletonHolder in the map for this key, need to create one (need to handle race
-            // condition, hence the putIfAbsent call)
-            final SingletonHolder<V> newSingletonHolder = new SingletonHolder<>();
-            final var oldSingletonHolder = map.putIfAbsent(key, newSingletonHolder);
-            if (oldSingletonHolder != null) {
-                // There was already a singleton in the map for this key, due to a race condition -- return the
-                // existing singleton
-                instance = oldSingletonHolder.get();
+        while (true) {
+            checkNotClosed();
+            final var singletonHolder = map.get(key);
+            if (singletonHolder != null) {
+                // There is already a SingletonHolder in the map for this key -- get the value
+                final var instance = singletonHolder.get();
+                if (instance != null) {
+                    return instance;
+                }
+                // A null value means one of two things. Either newInstance() failed for this key, and the
+                // holder was left in the map so that the failure is remembered rather than uselessly retried;
+                // or the thread creating the value was interrupted and took the holder out of the map, since
+                // interruption says that thread was cancelled, not that the key is bad. Tell the two apart by
+                // whether the holder is still in the map, and retry the abandoned creation.
+                if (map.get(key) == singletonHolder) {
+                    throw new NullSingletonException(key);
+                }
             } else {
+                // There is no SingletonHolder in the map for this key, need to create one (need to handle race
+                // condition, hence the putIfAbsent call)
+                final SingletonHolder<V> newSingletonHolder = new SingletonHolder<>();
+                if (map.putIfAbsent(key, newSingletonHolder) != null) {
+                    // Another thread claimed the key first -- loop back and read its value
+                    continue;
+                }
+                @Nullable
+                V instance = null;
                 try {
                     // Create a new instance
                     if (newInstanceFactory != null) {
@@ -307,26 +317,32 @@ public abstract class SingletonMap<K, V, E extends Exception> {
                     }
 
                 } catch (final Throwable t) {
-                    // Initialize newSingletonHolder with the new instance. Always need to call .set() even if an
-                    // exception is thrown by newInstance() or newInstance() returns null, since .set() calls
-                    // initialized.countDown(). Otherwise threads that call .get() may end up waiting forever.
-                    newSingletonHolder.set(instance);
                     if (t instanceof final InterruptedException interruptedException) {
+                        // The creation was abandoned, not failed, so take the holder back out of the map --
+                        // before releasing the waiters, so that no new caller adopts it -- to let a later call
+                        // for this key try the creation again
+                        map.remove(key, newSingletonHolder);
+                        // Always call .set() even on failure, since .set() counts down the latch that waiting
+                        // threads block on -- otherwise threads that call .get() may end up waiting forever
+                        newSingletonHolder.set(null);
                         // Don't swallow interruption by wrapping it in a NewInstanceException -- restore the
                         // interrupt status (throwing InterruptedException cleared it) and propagate it, so that a
                         // cancelled scan is still seen as cancelled rather than as a failed instantiation
                         Thread.currentThread().interrupt();
                         throw interruptedException;
                     }
+                    // Any other failure is remembered: the holder stays in the map holding null, so that later
+                    // calls for the same key throw NullSingletonException instead of retrying a creation that
+                    // already failed
+                    newSingletonHolder.set(null);
                     throw new NewInstanceException(key, t);
                 }
                 newSingletonHolder.set(instance);
+                if (instance == null) {
+                    throw new NullSingletonException(key);
+                }
+                return instance;
             }
-        }
-        if (instance == null) {
-            throw new NullSingletonException(key);
-        } else {
-            return instance;
         }
     }
 
@@ -453,6 +469,20 @@ public abstract class SingletonMap<K, V, E extends Exception> {
     public @Nullable V remove(final K key) throws InterruptedException {
         final var val = map.remove(key);
         return val == null ? null : val.get();
+    }
+
+    /**
+     * Discard the singleton for a given key, if there is one, so that a later lookup for the key rebuilds the value
+     * rather than getting the discarded instance. This is how a closed object leaves the cache that holds it.
+     * Unlike {@link #remove(Object)}, does not wait for a value that another thread is still creating, so it can be
+     * called from a close path that must not block; a discarded in-flight creation still completes for the thread
+     * creating it, but the value is no longer in the map.
+     *
+     * @param key
+     *            the key
+     */
+    public void discard(final K key) {
+        map.remove(key);
     }
 
     /** Clear the map. */

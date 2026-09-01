@@ -4,8 +4,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.IOException;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.Test;
 
@@ -119,6 +122,91 @@ public class SingletonMapTest {
             // Don't leak the interrupt status into the next test in this thread
             Thread.interrupted();
         }
+    }
+
+    /**
+     * Interruption says the calling thread was cancelled, not that the key is bad, so unlike a {@code newInstance}
+     * failure it must not be remembered against the key: a later call for the same key on the still-open map
+     * retries the creation instead of throwing {@link NullSingletonException} forever.
+     */
+    @Test
+    public void interruptionDoesNotPoisonTheKey() throws Exception {
+        final var map = new TestMap(key -> {
+            throw new InterruptedException();
+        });
+        assertThatThrownBy(() -> map.get("theKey", null)).isInstanceOf(InterruptedException.class);
+        // Clear the interrupt status that the map restored, so the retry below is not itself interrupted
+        assertThat(Thread.interrupted()).isTrue();
+
+        assertThat(map.get("theKey", null, () -> "value")).isEqualTo("value");
+    }
+
+    /**
+     * A thread waiting for a value whose creation another thread abandoned (because it was interrupted) retries the
+     * creation itself, rather than mistaking the abandoned creation for a {@code newInstance} that failed.
+     */
+    @Test
+    public void aWaiterOnAnInterruptedCreationRetriesTheCreation() throws Exception {
+        final var creatorInNewInstance = new CountDownLatch(1);
+        final var letCreatorFail = new CountDownLatch(1);
+        final var map = new TestMap(key -> {
+            if (creatorInNewInstance.getCount() > 0) {
+                // First call: the creator thread. Hold the creation open until the waiter is waiting on it,
+                // then abandon it by throwing InterruptedException
+                creatorInNewInstance.countDown();
+                letCreatorFail.await();
+                throw new InterruptedException();
+            }
+            // Second call: the retry
+            return "value";
+        });
+
+        final var creator = new Thread(() -> {
+            try {
+                map.get("theKey", null);
+            } catch (final Exception expected) {
+                // The creator is expected to fail with InterruptedException
+            }
+        });
+        creator.start();
+        assertThat(creatorInNewInstance.await(5, TimeUnit.SECONDS)).isTrue();
+
+        final AtomicReference<Object> waiterResult = new AtomicReference<>();
+        final var waiter = new Thread(() -> {
+            try {
+                waiterResult.set(map.get("theKey", null));
+            } catch (final Exception e) {
+                waiterResult.set(e);
+            }
+        });
+        waiter.start();
+        // Give the waiter time to block on the creator's unfinished value, then abandon the creation
+        Thread.sleep(100);
+        letCreatorFail.countDown();
+
+        creator.join(5000);
+        waiter.join(5000);
+        assertThat(waiterResult.get()).isEqualTo("value");
+        assertThat(map.numNewInstanceCalls).hasValue(2);
+    }
+
+    /**
+     * {@code discard()} takes the singleton for a key out of the map without waiting, so that a later lookup
+     * rebuilds it. This is how a closed object leaves the cache that holds it, so that the cache does not keep
+     * handing out an instance that can no longer be used.
+     */
+    @Test
+    public void discardAllowsTheValueToBeRebuilt() throws Exception {
+        final var map = new TestMap(key -> new StringBuilder(key).toString());
+        final var first = map.get("a", null);
+
+        map.discard("a");
+        final var second = map.get("a", null);
+        assertThat(second).isEqualTo(first).isNotSameAs(first);
+        assertThat(map.numNewInstanceCalls).hasValue(2);
+
+        // Discarding a key that is not in the map is allowed, so a close path can call it unconditionally
+        map.discard("notInTheMap");
     }
 
     /** {@code values()} and {@code entries()} report what is in the map, and {@code values()} skips null values. */
