@@ -366,6 +366,9 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
         final var fileSystem = (VfsFileSystem) root.asFileSystem();
         var registered = false;
         try {
+            // The Vfs was created by openRoot, and this filesystem is the only reference the caller is given to
+            // it, so closing this filesystem has to close it
+            fileSystem.setOwnedVfs(root.getVfs());
             fileSystem.setRegisteredPath(requestedPath);
             register(fileSystem, requestedPath);
             registered = true;

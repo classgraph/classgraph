@@ -917,9 +917,9 @@ public class VfsFileSystemTest {
     }
 
     /**
-     * A filesystem is a view of the {@link Vfs} behind it and shares its lifetime, so closing the filesystem closes
-     * the {@link Vfs}: neither the filesystem, nor a {@link Path} of it, nor the root, nor the {@link Vfs} can be
-     * read through afterwards. Closing twice has no effect.
+     * A filesystem view of a root the caller opened owns nothing, so closing the view closes only the view: the
+     * root it was a view of, and the {@link Vfs} that opened it, stay open and readable, and another view can be
+     * taken of the same root. Closing the view twice has no effect.
      *
      * @param tempDir
      *            a temporary directory.
@@ -927,7 +927,7 @@ public class VfsFileSystemTest {
      *             if the root could not be read.
      */
     @Test
-    public void closingTheFilesystemClosesTheVfs(@TempDir final Path tempDir) throws IOException {
+    public void closingAViewOfARootLeavesTheRootOpen(@TempDir final Path tempDir) throws IOException {
         final var jarFile = tempDir.resolve("library.jar").toFile();
         writeJar(jarFile);
 
@@ -949,18 +949,50 @@ public class VfsFileSystemTest {
             assertThatThrownBy(() -> Files.newDirectoryStream(fileSystem.getPath("/")))
                     .isInstanceOf(ClosedFileSystemException.class);
 
-            // The Vfs went with the filesystem, so the root it was a view of is closed too, and nothing can be
-            // opened or read through the Vfs any more
-            assertThat(root.isClosed()).isTrue();
-            assertThatThrownBy(root::getEntries).isInstanceOf(IOException.class);
-            assertThatThrownBy(root::asFileSystem).isInstanceOf(ClosedFileSystemException.class);
-            assertThatThrownBy(() -> vfs.open(jarFile)).isInstanceOf(IOException.class);
+            // The root and its Vfs did not go with the view: both are still readable, and a second view can be
+            // taken of the same root
+            assertThat(root.isClosed()).isFalse();
+            assertThat(root.getEntries()).isNotEmpty();
+            assertThat(vfs.open(jarFile)).isSameAs(root);
+            try (var secondView = root.asFileSystem()) {
+                assertThat(Files.readAllBytes(secondView.getPath("/root.txt"))).isEqualTo(contentOf("root.txt"));
+            }
 
-            // Closing the filesystem twice has no effect. Closing the Vfs that the filesystem already closed has
-            // none either, which the try-with-resources block does on the way out
+            // Closing the view twice has no effect
             fileSystem.close();
             assertThat(fileSystem.isOpen()).isFalse();
-            assertThat(root.isClosed()).isTrue();
+            assertThat(root.isClosed()).isFalse();
+        }
+    }
+
+    /**
+     * Closing the root closes every view of it, without the root having been closed by a view: a view reports
+     * itself closed once its root is, and cannot be read through, but the {@link Vfs} that opened the root stays
+     * open and can open it again.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the root could not be read.
+     */
+    @Test
+    public void closingTheRootClosesEveryViewOfIt(@TempDir final Path tempDir) throws IOException {
+        final var jarFile = tempDir.resolve("library.jar").toFile();
+        writeJar(jarFile);
+
+        try (var vfs = new Vfs()) {
+            final var root = vfs.open(jarFile);
+            final var fileSystem = root.asFileSystem();
+            assertThat(Files.readAllBytes(fileSystem.getPath("/root.txt"))).isEqualTo(contentOf("root.txt"));
+
+            root.close();
+
+            assertThat(fileSystem.isOpen()).isFalse();
+            assertThatThrownBy(() -> Files.readAllBytes(fileSystem.getPath("/root.txt")))
+                    .isInstanceOf(ClosedFileSystemException.class);
+            assertThatThrownBy(root::asFileSystem).isInstanceOf(ClosedFileSystemException.class);
+            // The Vfs is untouched, so the jarfile can be opened through it again
+            assertThat(vfs.open(jarFile).getEntries()).isNotEmpty();
         }
     }
 

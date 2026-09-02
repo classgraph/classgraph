@@ -92,6 +92,15 @@ final class VfsFileSystem extends FileSystem {
      */
     private volatile @Nullable String registeredPath;
 
+    /**
+     * The {@link Vfs} this filesystem owns and must close, or null if it does not own one. Only a filesystem that
+     * {@link VfsFileSystemProvider} created holds one: the {@link Vfs} was created to open the root the caller
+     * named, and this filesystem is the only reference the caller is given to it, so nothing else could release
+     * what it opened. A filesystem reached through {@link VfsRoot#asFileSystem()} owns nothing -- the caller
+     * already holds the {@link Vfs}, and closes it themselves.
+     */
+    private volatile @Nullable Vfs ownedVfs;
+
     /** The regex metacharacters that have to be escaped when a glob is compiled into a {@link Pattern}. */
     private static final String REGEX_METACHARACTERS = "\\*?[]{}()+|^$.";
 
@@ -311,19 +320,24 @@ final class VfsFileSystem extends FileSystem {
      * {@inheritDoc}
      *
      * <p>
-     * A filesystem is a view of the {@link Vfs} behind it and shares its lifetime, so this closes that {@link Vfs}
-     * as well, releasing every file handle, memory mapping and temporary file it took. After it returns, neither
-     * this filesystem, nor a {@link Path} of it, nor the {@link Vfs}, nor any {@link VfsRoot} or {@link VfsEntry}
-     * the {@link Vfs} handed out can be read through: each throws {@link ClosedFileSystemException} or
-     * {@link java.io.IOException}. The purely syntactic {@link Path} methods go on working, since they read
-     * nothing.
+     * A filesystem is a view of a {@link VfsRoot}, and the two do not close each other. This closes the view: after
+     * it returns, neither this filesystem nor a {@link Path} of it can be read through, each throwing
+     * {@link ClosedFileSystemException}, while the root it was a view of stays open and readable, as does every
+     * other view of it. The purely syntactic {@link Path} methods go on working, since they read nothing. Closing
+     * the root closes this view in the same one-way manner: the view then reports itself closed, but closing it was
+     * not what closed the root.
      *
      * <p>
-     * A {@link Vfs} holds every root it has opened, so closing the filesystem view of one root also closes the
-     * others. Give a {@link Vfs} whose roots are read independently one filesystem view at a time, or open each
-     * root from its own {@link Vfs} -- which is what {@link java.nio.file.FileSystems#newFileSystem(URI, Map)}
-     * does, so a filesystem created from a {@code "cgvfs:"} URI is always the only user of the {@link Vfs} it
-     * closes.
+     * The exception is a filesystem created by {@link java.nio.file.FileSystems#newFileSystem(URI, Map)} or
+     * {@link java.nio.file.FileSystems#newFileSystem(Path, Map)}, which is the only reference the caller is given
+     * to the {@link Vfs} that was created to open the root: that filesystem owns the {@link Vfs}, and closing it
+     * closes the {@link Vfs} too, releasing every file handle, memory mapping and temporary file it took. It is
+     * still not the root that is closing it -- the root, and the {@link Vfs} that holds it, are both released
+     * because nothing else can reach them.
+     *
+     * <p>
+     * A root and a view of it are therefore closed independently, and a try-with-resources block that holds both
+     * should list the root first, so that the view is closed before the root it reads through.
      *
      * <p>
      * Closing an already-closed filesystem has no effect.
@@ -343,8 +357,13 @@ final class VfsFileSystem extends FileSystem {
         if (path != null) {
             VfsFileSystemProvider.unregister(this, path);
         }
-        // Vfs#close is itself idempotent, so a second close of this filesystem does not close a Vfs twice
-        root.getVfs().close();
+        // A filesystem created from a URI or a Path owns the Vfs that was created to open its root, and is the
+        // only reference the caller has to it. A view of a root the caller opened themselves owns nothing, and
+        // leaves the root and its Vfs open. (Vfs#close is idempotent, so closing this filesystem twice is safe)
+        final var vfsToClose = ownedVfs;
+        if (vfsToClose != null) {
+            vfsToClose.close();
+        }
     }
 
     /**
@@ -356,6 +375,18 @@ final class VfsFileSystem extends FileSystem {
      */
     void setRegisteredPath(final String path) {
         registeredPath = path;
+    }
+
+    /**
+     * Record that this filesystem owns the {@link Vfs} that was created to open its root, so that closing it closes
+     * that {@link Vfs}. Called by {@link VfsFileSystemProvider} for the filesystems it creates, which are the only
+     * reference the caller is given to the {@link Vfs} behind them.
+     *
+     * @param vfs
+     *            the {@link Vfs} this filesystem owns.
+     */
+    void setOwnedVfs(final Vfs vfs) {
+        ownedVfs = vfs;
     }
 
     @Override

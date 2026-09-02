@@ -170,6 +170,35 @@ public class VfsFileSystemProviderUriTest {
     }
 
     /**
+     * A filesystem created from a URI owns the {@link Vfs} that was created to open its root, since that filesystem
+     * is the only reference the caller is given to it, so closing the filesystem closes that {@link Vfs} and
+     * releases everything that was opened to read the jarfile. A filesystem view of a root the caller opened
+     * themselves owns nothing, and closes nothing but itself.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the jarfile could not be read.
+     */
+    @Test
+    public void closingAFilesystemCreatedFromAUriClosesTheVfsItOwns(@TempDir final Path tempDir)
+            throws IOException {
+        final var jarFile = tempDir.resolve("library.jar").toFile();
+        writeJar(jarFile);
+
+        final VfsRoot root;
+        try (var fileSystem = FileSystems.newFileSystem(cgvfsUri(jarFile.getPath()), Map.of())) {
+            root = ((VfsFileSystem) fileSystem).getRoot();
+            assertThat(Files.readAllBytes(fileSystem.getPath("/root.txt"))).isEqualTo(contentOf("root.txt"));
+            assertThat(root.getVfs().isClosed()).isFalse();
+        }
+
+        // Nothing else could have released what the Vfs opened, so closing the filesystem had to close it
+        assertThat(root.isClosed()).isTrue();
+        assertThat(root.getVfs().isClosed()).isTrue();
+    }
+
+    /**
      * A URI passed to {@code newFileSystem} names a root, and the same URI with one more {@code "!/"} section names
      * a path within it, which is how a {@code "jar:"} URI works for zipfs.
      *

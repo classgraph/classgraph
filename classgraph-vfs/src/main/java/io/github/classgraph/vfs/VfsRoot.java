@@ -859,12 +859,17 @@ public abstract class VfsRoot implements Iterable<VfsEntry>, AutoCloseable {
      * {@link java.nio.file.ReadOnlyFileSystemException}.
      *
      * <p>
-     * A filesystem is a view of the {@link Vfs} that opened this root and shares its lifetime, so its
-     * {@link FileSystem#close()} closes that {@link Vfs}, releasing every file handle, memory mapping and temporary
-     * file it took -- and with it every other root the same {@link Vfs} has opened. Give a {@link Vfs} whose roots
-     * are read independently one filesystem view at a time, or open each root from its own {@link Vfs}, which is
-     * what {@link java.nio.file.FileSystems#newFileSystem(java.net.URI, java.util.Map)} does for a {@code "cgvfs:"}
-     * URI.
+     * A filesystem is a view of this root, and the two do not close each other. Its {@link FileSystem#close()}
+     * closes only the view, leaving this root and the {@link Vfs} that opened it open and readable, and a later
+     * call here hands out a fresh view. Closing this root closes every view of it, in the same one-way manner: a
+     * view of a closed root reports itself closed and refuses to be read through, and this method then throws.
+     * Release the file handles, memory mappings and temporary files by closing this root or its {@link Vfs}, not by
+     * closing a view.
+     *
+     * <p>
+     * A filesystem created by {@link java.nio.file.FileSystems#newFileSystem(java.net.URI, java.util.Map)} for a
+     * {@code "cgvfs:"} URI is the exception: it created the {@link Vfs} behind it, and is the only reference the
+     * caller has to it, so closing that filesystem closes that {@link Vfs} too.
      *
      * @return a {@link FileSystem} view of this root. The same instance is returned every time, until it is closed.
      * @throws ClosedFileSystemException
