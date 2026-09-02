@@ -496,7 +496,7 @@ try (Vfs vfs = new Vfs()) {
     VfsRoot jar = vfs.open("/path/to/library.jar");
     VfsRoot module = vfs.open(ModuleFinder.ofSystem().find("java.logging").orElseThrow());
     for (VfsRoot root : List.of(dir, jar, module)) {
-        System.out.println(root + " (" + root.getKind() + ")");
+        System.out.println(root + " (" + root.getClass().getSimpleName() + ")");
         for (VfsEntry entry : root) {
             System.out.println("  " + entry.getName() + " (" + entry.getLength() + " bytes)");
         }
