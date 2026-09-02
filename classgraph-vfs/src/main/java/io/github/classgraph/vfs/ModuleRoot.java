@@ -234,7 +234,8 @@ final class ModuleRoot extends VfsRoot {
      *            the log node, or null to not log.
      * @return the entries.
      * @throws IOException
-     *             if the module could not be listed, or if the {@link Vfs} has been closed.
+     *             if the module could not be listed, or if the root, or the {@link Vfs} that opened it, has been
+     *             closed.
      */
     private List<VfsEntry> listEntries(final @Nullable LogNode log) throws IOException {
         final var recycler = moduleReaderRecycler();

@@ -96,8 +96,8 @@ public class PhysicalZipFileIdentityTest {
         final var vfs = new Vfs(new VfsSpec(), new InterruptionChecker());
         final var otherVfs = new Vfs(new VfsSpec(), new InterruptionChecker());
         try {
-            final var logicalZipFile = JarOpener.openJarFile(jarFile, vfs, /* log = */ null);
-            final var openedAgain = JarOpener.openJarFile(jarFile, otherVfs, /* log = */ null);
+            final var logicalZipFile = JarOpener.openJarFile(jarFile, vfs, /* log = */ null).zipFile();
+            final var openedAgain = JarOpener.openJarFile(jarFile, otherVfs, /* log = */ null).zipFile();
 
             // The two openings are the same physical zipfile, but not the same handle on it
             assertThat(logicalZipFile.getPhysicalFile()).isEqualTo(openedAgain.getPhysicalFile());

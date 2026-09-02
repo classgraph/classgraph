@@ -177,7 +177,7 @@ public class RandomAccessByteBufferReader implements RandomAccessReader {
         // A reader is not closed by anything, so this check is what stops a reader that outlived the close of its
         // slice from reading a file that has been unmapped -- which below JDK 22 is memory that is no longer there
         if (isReleased != null && isReleased.getAsBoolean()) {
-            throw new IOException("Cannot read a file that has been unmapped by closing the Vfs");
+            throw new IOException("Cannot read a file that has been unmapped by closing what it was read through");
         }
         // Compare by subtraction rather than addition, so that a large offset plus a large numBytes cannot
         // overflow and slip past the check
@@ -195,7 +195,7 @@ public class RandomAccessByteBufferReader implements RandomAccessReader {
      * @return the {@link IOException} to throw in its place
      */
     private static IOException unmapped(final IllegalStateException e) {
-        return new IOException("Cannot read a file that has been unmapped by closing the Vfs", e);
+        return new IOException("Cannot read a file that has been unmapped by closing what it was read through", e);
     }
 
     /**
@@ -212,7 +212,7 @@ public class RandomAccessByteBufferReader implements RandomAccessReader {
      */
     private int numBytesAvailable(final long srcOffset, final int numBytes) throws IOException {
         if (isReleased != null && isReleased.getAsBoolean()) {
-            throw new IOException("Cannot read a file that has been unmapped by closing the Vfs");
+            throw new IOException("Cannot read a file that has been unmapped by closing what it was read through");
         }
         if (srcOffset < 0L || numBytes < 0) {
             throw new IOException("Read index out of bounds");

@@ -47,7 +47,7 @@ import org.jspecify.annotations.Nullable;
  * A physical zipfile, backed by a {@link File} (which may be mmap'd using a {@link FileChannel}), a {@link Path},
  * or a byte array in RAM.
  */
-class PhysicalZipFile {
+public class PhysicalZipFile {
     /** The {@link Path} backing this {@link PhysicalZipFile}, if any. */
     private @Nullable Path path;
 
@@ -183,13 +183,15 @@ class PhysicalZipFile {
 
     /**
      * Release this zipfile: close the slice it is read through, releasing the file handle and the memory mapping
-     * behind it, and delete the temporary file it was extracted to, if it was extracted to one. Called by the
-     * {@link LogicalZipFile} that owns this zipfile, when the root that owns that in turn is closed.
+     * behind it, and delete the temporary file it was extracted to, if it was extracted to one. Called by the root
+     * that owns this zipfile -- the one it was opened for, handed it in a {@link JarOpener.OpenedJar} -- when that
+     * root is closed. Nothing else closes it: the jarfiles that read through it, including any stored nested
+     * jarfile read in place as a byte range of it, do not own it.
      *
      * @throws IOException
      *             if the slice could not be closed.
      */
-    void close() throws IOException {
+    public void close() throws IOException {
         slice.close();
     }
 
@@ -198,7 +200,7 @@ class PhysicalZipFile {
      *
      * @return true if this zipfile was extracted to a temporary file that has not been deleted yet.
      */
-    boolean hasTempFile() {
+    public boolean hasTempFile() {
         return slice instanceof final PathSlice pathSlice && pathSlice.hasUndeletedTempFile();
     }
 

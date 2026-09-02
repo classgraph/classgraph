@@ -119,7 +119,7 @@ public final class PathSlice extends Slice {
         // the use
         final var channel = topLevelPathSlice.fileChannel;
         if (channel == null) {
-            throw new IOException("Cannot read " + pathStr + " after the Vfs has been closed");
+            throw new IOException("Cannot read " + pathStr + " after it has been closed");
         }
         return channel;
     }
@@ -457,7 +457,7 @@ public final class PathSlice extends Slice {
             return super.acquireMappingView();
         }
         if (!mapping.acquireView()) {
-            throw new IOException("Cannot read " + pathStr + " after the Vfs has been closed");
+            throw new IOException("Cannot read " + pathStr + " after it has been closed");
         }
         return mapping::releaseView;
     }

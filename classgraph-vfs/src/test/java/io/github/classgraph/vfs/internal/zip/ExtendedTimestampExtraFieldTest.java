@@ -182,7 +182,7 @@ public class ExtendedTimestampExtraFieldTest {
 
         final var vfs = new Vfs(new VfsSpec(), new InterruptionChecker());
         try {
-            final var entries = JarOpener.openJarFile(jarFile, vfs, /* log = */ null).entries;
+            final var entries = JarOpener.openJarFile(jarFile, vfs, /* log = */ null).zipFile().entries;
             assertThat(entries).hasSize(1);
             return entries.get(0).getLastModifiedMillis();
         } finally {

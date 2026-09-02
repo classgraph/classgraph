@@ -87,7 +87,7 @@ public class FastZipEntryMSDOSTimeTest {
         final var vfs = new Vfs(new VfsSpec(), new InterruptionChecker());
         final long lastModifiedTimeMillis;
         try {
-            final var entries = JarOpener.openJarFile(jarFile, vfs, /* log = */ null).entries;
+            final var entries = JarOpener.openJarFile(jarFile, vfs, /* log = */ null).zipFile().entries;
             assertThat(entries).hasSize(1);
             assertThat(entries.get(0).entryName).isEqualTo(ENTRY_NAME);
             lastModifiedTimeMillis = entries.get(0).getLastModifiedMillis();

@@ -63,7 +63,6 @@ import io.github.classgraph.base.internal.utils.Assert;
 import io.github.classgraph.vfs.internal.RecyclableInflater;
 import io.github.classgraph.vfs.internal.Recycler;
 import io.github.classgraph.vfs.internal.zip.JarOpener;
-import io.github.classgraph.vfs.internal.zip.LogicalZipFile;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -90,7 +89,7 @@ import org.jspecify.annotations.Nullable;
  * <p>
  * A nested jarfile is read in place, without being extracted to disk, unless it is stored deflated rather than
  * uncompressed and is too large to inflate into RAM -- only then is it spilled to a temporary file, which is
- * deleted when this {@link Vfs} is closed.
+ * deleted when the root that extracted it is closed, and no later than when this {@link Vfs} is closed.
  *
  * <p>
  * A {@link Vfs} caches every root it opens, so opening the same path twice returns the same {@link VfsRoot}, and a
@@ -415,29 +414,24 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
     }
 
     /**
-     * Build a root within a container root: a package root view of the container's jarfile, or the root of a
-     * jarfile nested within it. The child registers itself with the container, so that closing the container closes
-     * the child; if the container was closed while the child was being built, the registration may have come too
-     * late for the container's close to see, so the child is closed here instead, and the caller -- always a build
-     * running under {@link #openThroughCache(String, LogNode, SingletonMap.NewInstanceFactory)} -- then sees a
-     * closed root, discards it, and retries or turns its caller away. The closed root is still returned rather than
-     * an exception being thrown, since the cache would record a thrown build as a permanent failure of the path,
-     * and a race with a close of the container is not one.
+     * Record a root that was just built within a container root -- a package root view of the container's jarfile,
+     * or the root of a jarfile nested within it -- as open. The child registered itself with the container when it
+     * was built, so that closing the container closes the child; if the container was closed while the child was
+     * being built, the registration may have come too late for the container's close to see, so the child is closed
+     * here instead, and the caller -- always a build running under
+     * {@link #openThroughCache(String, LogNode, SingletonMap.NewInstanceFactory)} -- then sees a closed root,
+     * discards it, and retries or turns its caller away. The closed root is returned rather than an exception being
+     * thrown, so that the caller retries against the container's replacement and gets a live root back: a race with
+     * a close of the container is not a failure of the path.
      *
      * @param container
-     *            the root the child is being built within.
-     * @param zipFile
-     *            the jarfile the child reads.
-     * @param packageRoot
-     *            the package root within that jarfile, or the empty string for the whole jarfile.
-     * @param ownsZipFile
-     *            true if the child owns the jarfile it reads, which it does if the jarfile was just opened for it,
-     *            and does not if it is a view of the jarfile the container reads.
+     *            the root the child was built within.
+     * @param child
+     *            the child root that was just built.
      * @return the child root.
      */
-    private ArchiveRoot newChildRoot(final ArchiveRoot container, final LogicalZipFile zipFile,
-            final String packageRoot, final boolean ownsZipFile) {
-        final var child = adopt(new ArchiveRoot(this, container, zipFile, packageRoot, ownsZipFile));
+    private ArchiveRoot adoptWithin(final ArchiveRoot container, final ArchiveRoot child) {
+        adopt(child);
         if (container.isClosed()) {
             child.close();
         }
@@ -587,15 +581,11 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
                 if (!canonicalKey.equals(resolvedPath)) {
                     return recordPathKey(resolvedPath, openReentrant(canonicalKey, outerLog));
                 }
-                return recordPathKey(resolvedPath,
-                        adopt(new ArchiveRoot(this, /* container = */ null,
-                                JarOpener.openJarFile(canonicalFile, this, logNode), /* packageRoot = */ "",
-                                /* ownsZipFile = */ true)));
+                return recordPathKey(resolvedPath, adopt(new ArchiveRoot(this, /* container = */ null,
+                        JarOpener.openJarFile(canonicalFile, this, logNode))));
             }
-            return recordPathKey(resolvedPath,
-                    adopt(new ArchiveRoot(this, /* container = */ null,
-                            JarOpener.openJarFromURL(resolvedPath, this, logNode), /* packageRoot = */ "",
-                            /* ownsZipFile = */ true)));
+            return recordPathKey(resolvedPath, adopt(new ArchiveRoot(this, /* container = */ null,
+                    JarOpener.openJarFromURL(resolvedPath, this, logNode))));
         }
 
         // The path names something within a jarfile: open the enclosing jarfile first, through the cache, so that
@@ -630,15 +620,15 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
                             + " is a directory, not a file -- using as package root");
                 }
                 return recordPathKey(resolvedPath,
-                        newChildRoot(container, containerZipFile, childPath, /* ownsZipFile = */ false));
+                        adoptWithin(container, new ArchiveRoot(this, container, childPath)));
             }
             throw new IOException("Path " + childPath + " does not exist in jarfile " + containerZipFile);
         }
         if (!vfsSpec.isNestedJarsEnabled()) {
             throw new IOException("Nested jar scanning is disabled -- skipping nested jar " + resolvedPath);
         }
-        return recordPathKey(resolvedPath, newChildRoot(container, JarOpener.openNestedJar(childZipEntry, logNode),
-                /* packageRoot = */ "", /* ownsZipFile = */ true));
+        return recordPathKey(resolvedPath, adoptWithin(container,
+                new ArchiveRoot(this, container, JarOpener.openNestedJar(childZipEntry, logNode))));
     }
 
     /**
@@ -686,8 +676,7 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
                 return recordPathKey(key,
                         Files.isDirectory(path) ? adopt(new DirRoot(this, path))
                                 : adopt(new ArchiveRoot(this, /* container = */ null,
-                                        JarOpener.openJarFromPath(path, this, logNode), /* packageRoot = */ "",
-                                        /* ownsZipFile = */ true)));
+                                        JarOpener.openJarFromPath(path, this, logNode))));
             });
         } catch (final InterruptedException e) {
             interruptionChecker.interrupt();
@@ -854,11 +843,8 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
         checkNotClosed(name);
         final var logNode = log == null ? null : log.log("Reading " + name + " from an InputStream");
         try {
-            return discardIfClosed(name,
-                    adopt(new ArchiveRoot(
-                            this, /* container = */ null, JarOpener.openJarFromInputStream(inputStream,
-                                    /* inputStreamLengthHint = */ -1L, name, this, logNode),
-                            /* packageRoot = */ "", /* ownsZipFile = */ true)));
+            return discardIfClosed(name, adopt(new ArchiveRoot(this, /* container = */ null, JarOpener
+                    .openJarFromInputStream(inputStream, /* inputStreamLengthHint = */ -1L, name, this, logNode))));
         } catch (final InterruptedException e) {
             interruptionChecker.interrupt();
             throw new IOException("Interrupted while reading " + name, e);
@@ -887,12 +873,9 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
         checkNotClosed(name);
         final var logNode = log == null ? null : log.log("Reading " + name + " from a byte array");
         try {
-            return discardIfClosed(
-                    name, adopt(
-                            new ArchiveRoot(this, /* container = */ null,
-                                    JarOpener.openJarFromInputStream(new ByteArrayInputStream(jarBytes),
-                                            jarBytes.length, name, this, logNode),
-                                    /* packageRoot = */ "", /* ownsZipFile = */ true)));
+            return discardIfClosed(name,
+                    adopt(new ArchiveRoot(this, /* container = */ null, JarOpener.openJarFromInputStream(
+                            new ByteArrayInputStream(jarBytes), jarBytes.length, name, this, logNode))));
         } catch (final InterruptedException e) {
             interruptionChecker.interrupt();
             throw new IOException("Interrupted while reading " + name, e);
@@ -1056,7 +1039,7 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
     /**
      * Check whether anything read through this {@link Vfs} had to be extracted to a temporary file. A nested
      * jarfile that is compressed, or that is too large to buffer in RAM, is extracted to a temporary file, which is
-     * deleted when this {@link Vfs} is closed.
+     * deleted when the root that extracted it is closed, and no later than when this {@link Vfs} is closed.
      *
      * @return true if at least one temporary file was created and has not yet been deleted, or false if none was
      *         created, or if this {@link Vfs} has been closed.

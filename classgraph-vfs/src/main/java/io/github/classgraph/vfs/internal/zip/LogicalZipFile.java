@@ -129,32 +129,6 @@ public class LogicalZipFile extends ZipFileSlice {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Release the resources that were opened to read this jarfile, if it owns them. A jarfile that is stored,
-     * uncompressed, within the jarfile that encloses it is read in place, as a byte range of the enclosing
-     * jarfile's physical zipfile, so it owns nothing, and this does nothing -- that physical zipfile belongs to the
-     * enclosing jarfile, which outlives this one.
-     *
-     * @throws IOException
-     *             if the physical zipfile could not be closed.
-     */
-    public void releaseOwnedResources() throws IOException {
-        if (ownsPhysicalZipFile) {
-            physicalZipFile.close();
-        }
-    }
-
-    /**
-     * Returns whether this jarfile was extracted to a temporary file that has not been deleted yet.
-     *
-     * @return true if this jarfile owns a temporary file that is still on disk.
-     */
-    public boolean hasTempFile() {
-        return ownsPhysicalZipFile && physicalZipFile.hasTempFile();
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
      * Open a jarfile nested within this one. Nothing here is cached: the caller decides how the nested jarfile is
      * shared. The nested jarfile is wrapped in place if it is stored, or inflated to RAM or to a temporary file if
      * it is deflated, and its central directory is then read.
@@ -163,18 +137,22 @@ public class LogicalZipFile extends ZipFileSlice {
      *            the entry of this zipfile that holds the nested jarfile. It must be an entry of this zipfile.
      * @param log
      *            the log node, or null to skip logging
-     * @return the {@link LogicalZipFile} for the nested jarfile.
+     * @return the nested jarfile, with the physical zipfile it was inflated to if it was deflated. A stored nested
+     *         jarfile is read in place, as a byte range of this zipfile's physical zipfile, which belongs to
+     *         whatever owns this jarfile, so nothing is handed over to own for one.
      * @throws IOException
      *             if the nested jarfile could not be opened.
      * @throws InterruptedException
      *             if the thread was interrupted.
      */
-    LogicalZipFile openNestedJar(final FastZipEntry zipEntry, final @Nullable LogNode log)
+    JarOpener.OpenedJar openNestedJar(final FastZipEntry zipEntry, final @Nullable LogNode log)
             throws IOException, InterruptedException {
         if (!zipEntry.isDeflated) {
             // The entry holds a stored nested zipfile, so it can be read in place, as a byte range of this zipfile.
             // Hopefully nested zipfiles are stored, not deflated, as this is the fast path.
-            return new LogicalZipFile(new ZipFileSlice(zipEntry), vfs, log, multiReleaseVersionsEnabled);
+            return new JarOpener.OpenedJar(
+                    new LogicalZipFile(new ZipFileSlice(zipEntry), vfs, log, multiReleaseVersionsEnabled),
+                    /* ownedPhysicalZipFile = */ null);
         }
 
         // A deflated nested zipfile has to be inflated before its central directory can be read, since a zipfile
@@ -195,11 +173,11 @@ public class LogicalZipFile extends ZipFileSlice {
         }
 
         try {
-            return new LogicalZipFile(new ZipFileSlice(inflatedZipFile, zipEntry), vfs, log,
-                    multiReleaseVersionsEnabled);
+            return new JarOpener.OpenedJar(new LogicalZipFile(new ZipFileSlice(inflatedZipFile, zipEntry), vfs, log,
+                    multiReleaseVersionsEnabled), inflatedZipFile);
         } catch (final IOException | InterruptedException | RuntimeException | Error e) {
-            // The caller's cache records the failure rather than inflating the entry again, so nothing would ever
-            // reach what was just inflated
+            // The caller gets the exception rather than the zipfile, so nothing would ever reach what was just
+            // inflated
             inflatedZipFile.releaseUnreachable(e);
             throw e;
         }

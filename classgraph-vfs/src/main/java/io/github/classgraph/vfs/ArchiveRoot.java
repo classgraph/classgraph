@@ -41,7 +41,9 @@ import java.util.Map;
 
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.path.URLPaths;
+import io.github.classgraph.vfs.internal.zip.JarOpener;
 import io.github.classgraph.vfs.internal.zip.LogicalZipFile;
+import io.github.classgraph.vfs.internal.zip.PhysicalZipFile;
 import org.jspecify.annotations.Nullable;
 
 /** A zipfile or jarfile, which may itself be nested within other jarfiles. */
@@ -60,12 +62,13 @@ final class ArchiveRoot extends VfsRoot {
     private final @Nullable ArchiveRoot container;
 
     /**
-     * True if this root owns {@link #logicalZipFile}, and must release what was opened to read it when this root is
-     * closed. False for a package root view, which reads the jarfile that the root it was opened within owns, and
-     * for a root of a jarfile nested within another one that stores it uncompressed, which is read in place as a
-     * byte range of the enclosing jarfile.
+     * The physical zipfile that was opened to read {@link #logicalZipFile}, which this root owns and closes when it
+     * is closed -- the file handle, memory mapping and temporary file behind the jarfile -- or null if this root
+     * owns nothing: a package root view reads the jarfile of the root it was opened within, and the root of a
+     * jarfile stored uncompressed within another one reads a byte range of the enclosing jarfile, and both of those
+     * belong to an ancestor of this root, which outlives it.
      */
-    private final boolean ownsZipFile;
+    private final @Nullable PhysicalZipFile ownedZipFile;
 
     /**
      * The entries under the package root, and the same entries keyed by name, built together on first use.
@@ -82,6 +85,37 @@ final class ArchiveRoot extends VfsRoot {
     private volatile @Nullable EntryIndex entryIndex;
 
     /**
+     * Constructor, for the root of a jarfile that was just opened for it. The root takes ownership of whatever was
+     * opened to read the jarfile, and closes it when it is closed.
+     *
+     * @param vfs
+     *            the {@link Vfs} that opened this root.
+     * @param container
+     *            the root of the enclosing jarfile, if the jarfile is nested within another one, or null for a
+     *            toplevel jarfile.
+     * @param openedJar
+     *            the jarfile that was opened, with the physical zipfile that was opened to read it, if any.
+     */
+    ArchiveRoot(final Vfs vfs, final @Nullable ArchiveRoot container, final JarOpener.OpenedJar openedJar) {
+        this(vfs, container, openedJar.zipFile(), /* packageRoot = */ "", openedJar.ownedPhysicalZipFile());
+    }
+
+    /**
+     * Constructor, for a package root view of a jarfile that another root owns. The view owns nothing: it reads the
+     * jarfile of the root it was opened within, which outlives it.
+     *
+     * @param vfs
+     *            the {@link Vfs} that opened this root.
+     * @param container
+     *            the root of the whole jarfile, which owns it.
+     * @param packageRoot
+     *            the package root within the jarfile.
+     */
+    ArchiveRoot(final Vfs vfs, final ArchiveRoot container, final String packageRoot) {
+        this(vfs, container, container.logicalZipFile, packageRoot, /* ownedZipFile = */ null);
+    }
+
+    /**
      * Constructor.
      *
      * @param vfs
@@ -90,20 +124,20 @@ final class ArchiveRoot extends VfsRoot {
      *            the root this root is opened within -- the root of the whole jarfile for a package root view, or
      *            of the enclosing jarfile for a nested jarfile -- or null for a toplevel jarfile.
      * @param logicalZipFile
-     *            the jarfile that was opened.
+     *            the jarfile to read.
      * @param packageRoot
      *            the package root within the jarfile, or the empty string if the whole jarfile is the package root.
-     * @param ownsZipFile
-     *            true if this root owns the jarfile, and must release what was opened to read it when it is closed.
-     *            False for a package root view, which shares the jarfile of the root it is a view of.
+     * @param ownedZipFile
+     *            the physical zipfile that was opened to read the jarfile, which this root owns and closes when it
+     *            is closed, or null if this root owns nothing.
      */
-    ArchiveRoot(final Vfs vfs, final @Nullable ArchiveRoot container, final LogicalZipFile logicalZipFile,
-            final String packageRoot, final boolean ownsZipFile) {
+    private ArchiveRoot(final Vfs vfs, final @Nullable ArchiveRoot container, final LogicalZipFile logicalZipFile,
+            final String packageRoot, final @Nullable PhysicalZipFile ownedZipFile) {
         super(vfs, container);
         this.container = container;
         this.logicalZipFile = logicalZipFile;
         this.packageRoot = packageRoot;
-        this.ownsZipFile = ownsZipFile;
+        this.ownedZipFile = ownedZipFile;
     }
 
     /**
@@ -149,13 +183,13 @@ final class ArchiveRoot extends VfsRoot {
 
     @Override
     void releaseResources(final @Nullable LogNode log) {
-        if (!ownsZipFile) {
+        if (ownedZipFile == null) {
             // A package root view, or a jarfile stored uncompressed within the jarfile that encloses it: the
             // jarfile is read through what an ancestor of this root owns, which outlives this root
             return;
         }
         try {
-            logicalZipFile.releaseOwnedResources();
+            ownedZipFile.close();
         } catch (final IOException | RuntimeException | Error e) {
             if (log != null) {
                 log.log("Could not release the resources opened to read " + getPath() + " : " + e);
@@ -165,7 +199,7 @@ final class ArchiveRoot extends VfsRoot {
 
     @Override
     boolean hasTempFile() {
-        return ownsZipFile && logicalZipFile.hasTempFile();
+        return ownedZipFile != null && ownedZipFile.hasTempFile();
     }
 
     // -------------------------------------------------------------------------------------------------------------

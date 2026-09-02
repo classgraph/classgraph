@@ -1178,7 +1178,7 @@ public class VfsFileSystemTest {
             vfs.close();
 
             assertThatThrownBy(() -> channel.read(ByteBuffer.allocate(4))).isInstanceOf(IOException.class)
-                    .hasMessageContaining("unmapped by closing the Vfs");
+                    .hasMessageContaining("unmapped by closing what it was read through");
         }
     }
 

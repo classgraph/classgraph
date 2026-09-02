@@ -45,12 +45,26 @@ import org.jspecify.annotations.Nullable;
  * owns the opened roots, and the zipfile layer, whose classes are not visible outside this package.
  *
  * <p>
- * Nothing here is cached: a jarfile is opened once per call, and the caller decides what is shared. The caller owns
- * the {@link LogicalZipFile} it is handed, and releases what was opened to read it by calling
- * {@link LogicalZipFile#releaseOwnedResources()}. If opening fails, nothing is handed back, so whatever was opened
- * before the failure is released here.
+ * Nothing here is cached: a jarfile is opened once per call, and the caller decides what is shared. Each open hands
+ * back an {@link OpenedJar}: the {@link LogicalZipFile} to read, and the {@link PhysicalZipFile} that was opened to
+ * read it, if one was, which the caller now owns and must close. If opening fails, nothing is handed back, so
+ * whatever was opened before the failure is released here.
  */
 public final class JarOpener {
+    /**
+     * A jarfile that was just opened, and the resource that was opened to read it, if any.
+     *
+     * @param zipFile
+     *            the jarfile to read.
+     * @param ownedPhysicalZipFile
+     *            the physical zipfile that was opened, downloaded, extracted or inflated to read the jarfile, which
+     *            the caller now owns, and must {@linkplain PhysicalZipFile#close() close} when it is done with the
+     *            jarfile -- or null if nothing was opened, because the jarfile is read in place through a physical
+     *            zipfile that something else owns.
+     */
+    public record OpenedJar(LogicalZipFile zipFile, @Nullable PhysicalZipFile ownedPhysicalZipFile) {
+    }
+
     /** Constructor. */
     private JarOpener() {
         // Cannot be constructed
@@ -66,20 +80,20 @@ public final class JarOpener {
      *            the {@link Vfs} that is opening this jarfile.
      * @param log
      *            the log node, or null to skip logging.
-     * @return the {@link LogicalZipFile} for the jarfile.
+     * @return the jarfile, with the physical zipfile that was opened to read it, which the caller owns.
      * @throws IOException
      *             if the jarfile could not be opened or read.
      * @throws InterruptedException
      *             if the thread was interrupted.
      */
-    public static LogicalZipFile openJarFile(final File canonicalFile, final Vfs vfs, final @Nullable LogNode log)
+    public static OpenedJar openJarFile(final File canonicalFile, final Vfs vfs, final @Nullable LogNode log)
             throws IOException, InterruptedException {
         final var physicalZipFile = new PhysicalZipFile(canonicalFile, vfs, log);
         try {
-            return physicalZipFile.getLogicalZipFile(log);
+            return new OpenedJar(physicalZipFile.getLogicalZipFile(log), physicalZipFile);
         } catch (final IOException | InterruptedException | RuntimeException | Error e) {
-            // The caller's cache records the failure rather than opening the file again, so nothing would ever
-            // reach the file handle that was just opened
+            // The caller gets the exception rather than the zipfile, so nothing would ever reach the file handle
+            // that was just opened
             physicalZipFile.releaseUnreachable(e);
             throw e;
         }
@@ -94,13 +108,13 @@ public final class JarOpener {
      *            the {@link Vfs} that is opening this jarfile.
      * @param log
      *            the log node, or null to skip logging.
-     * @return the {@link LogicalZipFile} for the jarfile.
+     * @return the jarfile, with the physical zipfile it was downloaded to, which the caller owns.
      * @throws IOException
      *             if the URL's scheme has been denied, or the jarfile could not be downloaded or read.
      * @throws InterruptedException
      *             if the thread was interrupted.
      */
-    public static LogicalZipFile openJarFromURL(final String url, final Vfs vfs, final @Nullable LogNode log)
+    public static OpenedJar openJarFromURL(final String url, final Vfs vfs, final @Nullable LogNode log)
             throws IOException, InterruptedException {
         // URL schemes are case-insensitive, and are denied in lowercase, so the scheme has to be lowercased
         // before it is looked up -- otherwise "HTTP://host/x.jar" is fetched even though "http" was denied
@@ -116,10 +130,10 @@ public final class JarOpener {
         // Download jar from URL to a ByteBuffer in RAM, or to a temp file on disk
         final var physicalZipFile = JarURLDownloader.downloadJarFromURL(url, vfs, log);
         try {
-            return physicalZipFile.getLogicalZipFile(log);
+            return new OpenedJar(physicalZipFile.getLogicalZipFile(log), physicalZipFile);
         } catch (final IOException | InterruptedException | RuntimeException | Error e) {
-            // The caller's cache records the failure rather than downloading the jarfile again, so nothing would
-            // ever reach what was just downloaded
+            // The caller gets the exception rather than the zipfile, so nothing would ever reach what was just
+            // downloaded
             physicalZipFile.releaseUnreachable(e);
             throw e;
         }
@@ -136,20 +150,20 @@ public final class JarOpener {
      *            the {@link Vfs} that is opening this jarfile.
      * @param log
      *            the log node, or null to skip logging.
-     * @return the {@link LogicalZipFile} for the jarfile.
+     * @return the jarfile, with the physical zipfile that was opened to read it, which the caller owns.
      * @throws IOException
      *             if the jarfile could not be opened or read.
      * @throws InterruptedException
      *             if the thread was interrupted.
      */
-    public static LogicalZipFile openJarFromPath(final Path path, final Vfs vfs, final @Nullable LogNode log)
+    public static OpenedJar openJarFromPath(final Path path, final Vfs vfs, final @Nullable LogNode log)
             throws IOException, InterruptedException {
         final var physicalZipFile = new PhysicalZipFile(path, vfs, log);
         try {
-            return physicalZipFile.getLogicalZipFile(log);
+            return new OpenedJar(physicalZipFile.getLogicalZipFile(log), physicalZipFile);
         } catch (final IOException | InterruptedException | RuntimeException | Error e) {
-            // The caller's cache records the failure rather than opening the path again, so nothing would ever
-            // reach the file handle that was just opened
+            // The caller gets the exception rather than the zipfile, so nothing would ever reach the file handle
+            // that was just opened
             physicalZipFile.releaseUnreachable(e);
             throw e;
         }
@@ -171,24 +185,24 @@ public final class JarOpener {
      *            the {@link Vfs} that is opening this jarfile.
      * @param log
      *            the log node, or null to skip logging.
-     * @return the {@link LogicalZipFile} for the jarfile.
+     * @return the jarfile, with the physical zipfile it was read to, which the caller owns.
      * @throws IOException
      *             if the jarfile could not be read.
      * @throws InterruptedException
      *             if the thread was interrupted.
      */
-    public static LogicalZipFile openJarFromInputStream(final InputStream inputStream,
-            final long inputStreamLengthHint, final String name, final Vfs vfs, final @Nullable LogNode log)
+    public static OpenedJar openJarFromInputStream(final InputStream inputStream, final long inputStreamLengthHint,
+            final String name, final Vfs vfs, final @Nullable LogNode log)
             throws IOException, InterruptedException {
         final var physicalZipFile = new PhysicalZipFile(inputStream, inputStreamLengthHint, name, vfs, log);
         try {
             // The physical zipfile was created here rather than fetched from a cache, so nothing else can reach it,
             // and two streams read under the same name stay two separate jarfiles even though the two physical
             // zipfiles wrapping them compare equal
-            return physicalZipFile.getLogicalZipFile(log);
+            return new OpenedJar(physicalZipFile.getLogicalZipFile(log), physicalZipFile);
         } catch (final IOException | InterruptedException | RuntimeException | Error e) {
-            // Nothing is cached here, so the caller can only try again by reading the stream again, and nothing
-            // would ever reach what was just read
+            // The caller gets the exception rather than the zipfile, so nothing would ever reach what was just
+            // read
             physicalZipFile.releaseUnreachable(e);
             throw e;
         }
@@ -202,13 +216,15 @@ public final class JarOpener {
      *            the entry that holds the nested jarfile, found with {@link #findEntry(LogicalZipFile, String)}.
      * @param log
      *            the log node, or null to skip logging.
-     * @return the {@link LogicalZipFile} for the nested jarfile.
+     * @return the nested jarfile, with the physical zipfile it was inflated to if it was deflated, which the caller
+     *         owns -- or with nothing to own if it was stored, since it is then read in place through the enclosing
+     *         jarfile's physical zipfile.
      * @throws IOException
      *             if the nested jarfile could not be opened or read.
      * @throws InterruptedException
      *             if the thread was interrupted.
      */
-    public static LogicalZipFile openNestedJar(final FastZipEntry zipEntry, final @Nullable LogNode log)
+    public static OpenedJar openNestedJar(final FastZipEntry zipEntry, final @Nullable LogNode log)
             throws IOException, InterruptedException {
         return zipEntry.parentLogicalZipFile.openNestedJar(zipEntry, log);
     }

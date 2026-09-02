@@ -42,16 +42,11 @@ public class ZipFileSlice {
      * The parent slice, or null if this is the toplevel slice (the whole zipfile).
      */
     private final @Nullable ZipFileSlice parentZipFileSlice;
-    /** The underlying physical zipfile. */
-    protected final PhysicalZipFile physicalZipFile;
-
     /**
-     * True if the {@link LogicalZipFile} built over this slice owns {@link #physicalZipFile}, and must release it
-     * when it is closed. False for a slice of a stored nested jarfile, which is read in place as a byte range of
-     * the physical zipfile of the jarfile that encloses it, and so owns nothing: that physical zipfile belongs to
-     * the enclosing jarfile.
+     * The underlying physical zipfile. This slice only reads through it: what owns it, and releases it, is the root
+     * that the zipfile was opened for -- see {@link JarOpener.OpenedJar}.
      */
-    final boolean ownsPhysicalZipFile;
+    protected final PhysicalZipFile physicalZipFile;
 
     /**
      * For the toplevel zipfile slice, the zipfile path; For nested slices, the name/path of the zipfile entry.
@@ -70,7 +65,6 @@ public class ZipFileSlice {
     ZipFileSlice(final PhysicalZipFile physicalZipFile) {
         this.parentZipFileSlice = null;
         this.physicalZipFile = physicalZipFile;
-        this.ownsPhysicalZipFile = true;
         this.slice = physicalZipFile.slice;
         this.pathWithinParentZipFileSlice = physicalZipFile.getPathString();
     }
@@ -87,7 +81,6 @@ public class ZipFileSlice {
     ZipFileSlice(final PhysicalZipFile physicalZipFile, final FastZipEntry zipEntry) {
         this.parentZipFileSlice = zipEntry.parentLogicalZipFile;
         this.physicalZipFile = physicalZipFile;
-        this.ownsPhysicalZipFile = true;
         this.slice = physicalZipFile.slice;
         this.pathWithinParentZipFileSlice = zipEntry.entryName;
     }
@@ -104,9 +97,8 @@ public class ZipFileSlice {
      */
     ZipFileSlice(final FastZipEntry zipEntry) throws IOException, InterruptedException {
         this.parentZipFileSlice = zipEntry.parentLogicalZipFile;
+        // Read in place, through the physical zipfile of the jarfile that encloses this one
         this.physicalZipFile = zipEntry.parentLogicalZipFile.physicalZipFile;
-        // The physical zipfile belongs to the jarfile that encloses this one, which outlives it
-        this.ownsPhysicalZipFile = false;
         this.slice = zipEntry.getSlice();
         this.pathWithinParentZipFileSlice = zipEntry.entryName;
     }
@@ -120,7 +112,6 @@ public class ZipFileSlice {
     ZipFileSlice(final ZipFileSlice other) {
         this.parentZipFileSlice = other.parentZipFileSlice;
         this.physicalZipFile = other.physicalZipFile;
-        this.ownsPhysicalZipFile = other.ownsPhysicalZipFile;
         this.slice = other.slice;
         this.pathWithinParentZipFileSlice = other.pathWithinParentZipFileSlice;
     }

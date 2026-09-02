@@ -164,14 +164,14 @@ public class PathSliceTest {
         slice.close();
 
         assertThatThrownBy(() -> reader.readByte(0)).isInstanceOf(IOException.class)
-                .hasMessageContaining("unmapped by closing the Vfs");
+                .hasMessageContaining("unmapped by closing what it was read through");
         assertThatThrownBy(() -> reader.readInt(0)).isInstanceOf(IOException.class)
-                .hasMessageContaining("unmapped by closing the Vfs");
+                .hasMessageContaining("unmapped by closing what it was read through");
         assertThatThrownBy(() -> reader.read(0, new byte[4], 0, 4)).isInstanceOf(IOException.class)
-                .hasMessageContaining("unmapped by closing the Vfs");
+                .hasMessageContaining("unmapped by closing what it was read through");
         // And a closed slice hands out no new reader at all, rather than one that throws on its first read
         assertThatThrownBy(slice::randomAccessReader).isInstanceOf(IOException.class)
-                .hasMessageContaining("after the Vfs has been closed");
+                .hasMessageContaining("after it has been closed");
     }
 
     /**
@@ -188,11 +188,11 @@ public class PathSliceTest {
         slice.close();
 
         assertThatThrownBy(slice::randomAccessReader).isInstanceOf(IOException.class)
-                .hasMessageContaining("after the Vfs has been closed");
+                .hasMessageContaining("after it has been closed");
         assertThatThrownBy(slice::load).isInstanceOf(IOException.class)
-                .hasMessageContaining("after the Vfs has been closed");
+                .hasMessageContaining("after it has been closed");
         assertThatThrownBy(slice::read).isInstanceOf(IOException.class)
-                .hasMessageContaining("after the Vfs has been closed");
+                .hasMessageContaining("after it has been closed");
     }
 
     /** A whole-file slice is not memory-mapped if memory mapping was not enabled. */

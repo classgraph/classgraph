@@ -65,11 +65,13 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>
  * A root is {@link AutoCloseable}: {@link #close()} releases what this root itself owns, and takes the root out of
- * the cache of the {@link Vfs} that opened it, without disturbing that {@link Vfs} or any other root it has opened.
- * There is rarely a reason to close a root by hand, since closing the {@link Vfs} closes every root it opened;
- * closing one early is for a long-lived {@link Vfs} that is done reading one root and wants what that root holds
- * released now. A closed root cannot be read: its methods throw {@link IOException}, just as every root's methods
- * do once the {@link Vfs} itself is closed.
+ * the cache of the {@link Vfs} that opened it, without disturbing that {@link Vfs} or any other root it has opened
+ * -- except the roots opened within this one, the roots of jarfiles nested within this root's jarfile and package
+ * root views of it, which read through what this root owns, and so are closed with it. There is rarely a reason to
+ * close a root by hand, since closing the {@link Vfs} closes every root it opened; closing one early is for a
+ * long-lived {@link Vfs} that is done reading one root and wants what that root holds released now. A closed root
+ * cannot be read: its methods throw {@link IOException}, just as every root's methods do once the {@link Vfs}
+ * itself is closed.
  *
  * <p>
  * Iterating a root iterates its entries, in the same order as {@link #getEntries()}.
@@ -296,7 +298,7 @@ public abstract class VfsRoot implements Iterable<VfsEntry>, AutoCloseable {
      * @return the container this root was opened within, or this root itself if it was not opened at a package
      *         root, which is always the case for a directory and for a module.
      * @throws IOException
-     *             if the {@link Vfs} has been closed.
+     *             if this root, or the {@link Vfs} that opened it, has been closed.
      */
     public VfsRoot getContainerRoot() throws IOException {
         checkNotClosed(getPath());
@@ -309,7 +311,8 @@ public abstract class VfsRoot implements Iterable<VfsEntry>, AutoCloseable {
      *
      * @return the module name, or null if there is none.
      * @throws IOException
-     *             if the manifest could not be read, or if the {@link Vfs} has been closed.
+     *             if the manifest could not be read, or if the root, or the {@link Vfs} that opened it, has been
+     *             closed.
      */
     public @Nullable String getModuleName() throws IOException {
         return getManifestEntry(AUTOMATIC_MODULE_NAME_KEY);
@@ -329,7 +332,8 @@ public abstract class VfsRoot implements Iterable<VfsEntry>, AutoCloseable {
      * @param visitor
      *            the visitor to hand the entries to.
      * @throws IOException
-     *             if the entries could not be listed, or if the {@link Vfs} has been closed.
+     *             if the entries could not be listed, or if the root, or the {@link Vfs} that opened it, has been
+     *             closed.
      */
     public final void walk(final VfsVisitor visitor) throws IOException {
         Assert.notNull(visitor, "visitor");
@@ -346,7 +350,8 @@ public abstract class VfsRoot implements Iterable<VfsEntry>, AutoCloseable {
      * @param log
      *            the log node, or null to not log.
      * @throws IOException
-     *             if the entries could not be listed, or if the {@link Vfs} has been closed.
+     *             if the entries could not be listed, or if the root, or the {@link Vfs} that opened it, has been
+     *             closed.
      */
     public final void walk(final VfsVisitor visitor, final @Nullable LogNode log) throws IOException {
         Assert.notNull(visitor, "visitor");
@@ -384,7 +389,8 @@ public abstract class VfsRoot implements Iterable<VfsEntry>, AutoCloseable {
      *
      * @return the entries, as an unmodifiable list.
      * @throws IOException
-     *             if the entries could not be listed, or if the {@link Vfs} has been closed.
+     *             if the entries could not be listed, or if the root, or the {@link Vfs} that opened it, has been
+     *             closed.
      */
     public final List<VfsEntry> getEntries() throws IOException {
         checkNotClosed(getPath());
@@ -409,7 +415,8 @@ public abstract class VfsRoot implements Iterable<VfsEntry>, AutoCloseable {
      *
      * @return an iterator over the entries.
      * @throws UncheckedIOException
-     *             if the entries could not be listed, or if the {@link Vfs} has been closed.
+     *             if the entries could not be listed, or if the root, or the {@link Vfs} that opened it, has been
+     *             closed.
      */
     @Override
     public final Iterator<VfsEntry> iterator() {
@@ -519,7 +526,8 @@ public abstract class VfsRoot implements Iterable<VfsEntry>, AutoCloseable {
      *            it, e.g. {@code "com/xyz/Widget.class"}.
      * @return the entry, or null if there is no readable entry with that name.
      * @throws IOException
-     *             if the root could not be searched, or if the {@link Vfs} has been closed.
+     *             if the root could not be searched, or if the root, or the {@link Vfs} that opened it, has been
+     *             closed.
      */
     public final @Nullable VfsEntry getEntry(final String name) throws IOException {
         Assert.notNull(name, "name");
@@ -593,7 +601,8 @@ public abstract class VfsRoot implements Iterable<VfsEntry>, AutoCloseable {
      *            it, e.g. {@code "com/xyz/Widget.class"}.
      * @return the entry, or null if no readable entry has that name when the case of both is ignored.
      * @throws IOException
-     *             if the root could not be searched, or if the {@link Vfs} has been closed.
+     *             if the root could not be searched, or if the root, or the {@link Vfs} that opened it, has been
+     *             closed.
      */
     public final @Nullable VfsEntry getEntryCaseInsensitive(final String name) throws IOException {
         Assert.notNull(name, "name");
@@ -612,7 +621,8 @@ public abstract class VfsRoot implements Iterable<VfsEntry>, AutoCloseable {
      *            it, e.g. {@code "com/xyz/Widget.class"}.
      * @return the matching entries, as an unmodifiable list.
      * @throws IOException
-     *             if the root could not be searched, or if the {@link Vfs} has been closed.
+     *             if the root could not be searched, or if the root, or the {@link Vfs} that opened it, has been
+     *             closed.
      */
     public final List<VfsEntry> getEntriesCaseInsensitive(final String name) throws IOException {
         Assert.notNull(name, "name");
@@ -629,7 +639,8 @@ public abstract class VfsRoot implements Iterable<VfsEntry>, AutoCloseable {
      *            true to stop the search at the first match.
      * @return the matching entries.
      * @throws IOException
-     *             if the root could not be searched, or if the {@link Vfs} has been closed.
+     *             if the root could not be searched, or if the root, or the {@link Vfs} that opened it, has been
+     *             closed.
      */
     private List<VfsEntry> findEntriesCaseInsensitive(final String name, final boolean firstMatchOnly)
             throws IOException {
@@ -672,7 +683,8 @@ public abstract class VfsRoot implements Iterable<VfsEntry>, AutoCloseable {
      *            leading {@code '/'}, e.g. {@code "BOOT-INF/lib/"}. The empty string matches every entry.
      * @return the matching entries, as an unmodifiable list.
      * @throws IOException
-     *             if the entries could not be listed, or if the {@link Vfs} has been closed.
+     *             if the entries could not be listed, or if the root, or the {@link Vfs} that opened it, has been
+     *             closed.
      */
     public final List<VfsEntry> getEntries(final String pathPrefix) throws IOException {
         Assert.notNull(pathPrefix, "pathPrefix");
@@ -713,7 +725,8 @@ public abstract class VfsRoot implements Iterable<VfsEntry>, AutoCloseable {
      *            reports whether the root holds any entry at all.
      * @return true if there is an entry whose name starts with the prefix.
      * @throws IOException
-     *             if the entries could not be listed, or if the {@link Vfs} has been closed.
+     *             if the entries could not be listed, or if the root, or the {@link Vfs} that opened it, has been
+     *             closed.
      */
     public final boolean hasEntries(final String pathPrefix) throws IOException {
         Assert.notNull(pathPrefix, "pathPrefix");
@@ -767,7 +780,8 @@ public abstract class VfsRoot implements Iterable<VfsEntry>, AutoCloseable {
      * @return the manifest attributes, keyed case-insensitively by attribute name, as an unmodifiable map, or null
      *         if this root has no manifest file.
      * @throws IOException
-     *             if the manifest file could not be read, or if the {@link Vfs} has been closed.
+     *             if the manifest file could not be read, or if the root, or the {@link Vfs} that opened it, has
+     *             been closed.
      */
     public synchronized @Nullable Map<String, String> getManifest() throws IOException {
         // Checked even when the manifest has already been read, so that a root of a closed Vfs reports itself as
@@ -792,7 +806,8 @@ public abstract class VfsRoot implements Iterable<VfsEntry>, AutoCloseable {
      * @return the value of the attribute, or null if this root has no manifest file, or its manifest does not
      *         declare that attribute.
      * @throws IOException
-     *             if the manifest file could not be read, or if the {@link Vfs} has been closed.
+     *             if the manifest file could not be read, or if the root, or the {@link Vfs} that opened it, has
+     *             been closed.
      */
     public final @Nullable String getManifestEntry(final String key) throws IOException {
         Assert.notNull(key, "key");
@@ -806,7 +821,8 @@ public abstract class VfsRoot implements Iterable<VfsEntry>, AutoCloseable {
      *
      * @return the manifest attributes, or null if this root has no manifest file.
      * @throws IOException
-     *             if the manifest file could not be read, or if the {@link Vfs} has been closed.
+     *             if the manifest file could not be read, or if the root, or the {@link Vfs} that opened it, has
+     *             been closed.
      */
     @Nullable
     Map<String, String> readManifest() throws IOException {

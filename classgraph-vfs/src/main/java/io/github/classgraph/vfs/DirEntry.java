@@ -178,7 +178,8 @@ final class DirEntry extends VfsEntry {
      *
      * @return the slice, which the caller owns and must close.
      * @throws IOException
-     *             if the file could not be opened, or if the {@link Vfs} has been closed.
+     *             if the file could not be opened, or if the root, or the {@link Vfs} that opened it, has been
+     *             closed.
      */
     private PathSlice openSlice() throws IOException {
         final var root = getRoot();
