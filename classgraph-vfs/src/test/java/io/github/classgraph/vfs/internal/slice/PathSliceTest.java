@@ -501,10 +501,10 @@ public class PathSliceTest {
     /**
      * The temporary file that a slice owns is deleted even when the delete has to wait for the file to be unmapped.
      * Below JDK 22 a mapping that the caller can still read a view of cannot be unmapped when the slice that owns
-     * it closes, and Windows refuses to delete a file that is still mapped, so the delete has to be retried once
-     * the last view of the mapping is released. The wait is reproduced here by taking the write permission off the
-     * directory holding the file, which is what stops the delete on the operating systems that would let a mapped
-     * file be deleted.
+     * it closes, so a delete that the mapping is in the way of has to be retried once the last view of the mapping
+     * is released. The delete is made to fail here by taking the write permission off the directory holding the
+     * file. Whichever way the delete went at close, the file has to be gone once the last view of the mapping has
+     * been released, and that is what is asserted.
      *
      * @param tempDir
      *            a temporary directory
