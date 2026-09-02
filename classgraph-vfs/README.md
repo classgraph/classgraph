@@ -22,9 +22,12 @@ Module name: `io.github.classgraph.vfs`. Requires JDK 17 or newer. No dependenci
 Three classes carry the API: `Vfs` opens things, a `VfsRoot` is one opened directory, jarfile or
 module, and a `VfsEntry` is one file within it. Three more turn up as you use them: `VfsSpec` holds
 the settings a `Vfs` is constructed with, `CloseableByteBuffer` wraps a buffer you have to close,
-and `VfsVisitor` is the callback that `VfsRoot#walk()` takes. Those six types are the whole public
-API -- `Vfs` has one further public constructor, which takes a type from a package that is exported
-only to ClassGraph's own modules, so no other module can call it. See the
+and `VfsVisitor` is the callback that `VfsRoot#walk()` takes. Those six types are the API you call.
+Two more are public only because `java.nio.file` needs them to be: `VfsFileSystemProvider`, which
+`ServiceLoader` instantiates to serve the `cgvfs:` URL scheme, and `VfsPath`, the `Path` of a
+filesystem view, whose one addition to `Path` is `toCgvfsUri()`. `Vfs` also has one further public
+constructor, which takes a type from a package that is exported only to ClassGraph's own modules, so
+no other module can call it. See the
 [Vfs API](https://github.com/classgraph/classgraph/wiki/Vfs-API) for the full reference.
 
 ## One interface over every kind of storage
