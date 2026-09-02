@@ -41,7 +41,7 @@ import java.util.Arrays;
 
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.vfs.Vfs;
-import io.github.classgraph.vfs.internal.RecycledInflaterInputStream;
+import io.github.classgraph.vfs.internal.recycler.RecycledInflaterInputStream;
 import io.github.classgraph.vfs.internal.TempFile;
 import io.github.classgraph.vfs.reader.RandomAccessReader;
 import org.jspecify.annotations.Nullable;

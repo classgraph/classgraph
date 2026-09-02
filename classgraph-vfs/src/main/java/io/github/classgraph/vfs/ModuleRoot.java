@@ -40,7 +40,7 @@ import java.util.Collections;
 import java.util.List;
 
 import io.github.classgraph.base.LogNode;
-import io.github.classgraph.vfs.internal.Recycler;
+import io.github.classgraph.vfs.internal.recycler.Recycler;
 import io.github.classgraph.vfs.internal.module.ModuleReaderUtils;
 import org.jspecify.annotations.Nullable;
 

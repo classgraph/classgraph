@@ -1,4 +1,4 @@
-package io.github.classgraph.vfs.internal;
+package io.github.classgraph.vfs.internal.recycler;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;

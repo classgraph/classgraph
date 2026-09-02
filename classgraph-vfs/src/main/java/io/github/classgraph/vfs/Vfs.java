@@ -60,8 +60,8 @@ import io.github.classgraph.base.internal.path.FastPathResolver;
 import io.github.classgraph.base.internal.path.FileUtils;
 import io.github.classgraph.base.internal.path.PathSyntax;
 import io.github.classgraph.base.internal.utils.Assert;
-import io.github.classgraph.vfs.internal.RecyclableInflater;
-import io.github.classgraph.vfs.internal.Recycler;
+import io.github.classgraph.vfs.internal.recycler.RecyclableInflater;
+import io.github.classgraph.vfs.internal.recycler.Recycler;
 import io.github.classgraph.vfs.internal.zip.JarOpener;
 import org.jspecify.annotations.Nullable;
 
