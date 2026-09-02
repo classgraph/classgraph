@@ -1127,7 +1127,10 @@ public class VfsTest {
         try (var vfs = new Vfs()) {
             final var root = vfs.open(outerJarFile);
             assertThat(root.getEntries()).isNotEmpty();
-            assertThat(root.getFile()).isEqualTo(outerJarFile);
+            // The comparison is against the canonical file, since a root reports the path it canonicalized the
+            // jarfile to, and a temporary directory is reached through a symlink on macOS and through an 8.3
+            // short name on Windows.
+            assertThat(root.getFile()).isEqualTo(outerJarFile.getCanonicalFile());
         }
 
         // The inner jarfile has to be inflated, and no RAM is allowed to hold it, so it spills to a temporary file

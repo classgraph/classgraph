@@ -231,8 +231,11 @@ class VfsCloseTest {
             final var outerRoot = vfs.open(outerJarFile);
             final var innerRoot = vfs.open(outerJarFile.getPath() + "!/lib/inner.jar");
             assertThat(innerRoot.getEntries()).isNotEmpty();
-            // The nested jarfile is read as a byte range of the jarfile that encloses it, not extracted
-            assertThat(innerRoot.getFile()).isEqualTo(outerJarFile);
+            // The nested jarfile is read as a byte range of the jarfile that encloses it, not extracted. The
+            // comparison is against the canonical file, since a root reports the path it canonicalized the
+            // jarfile to, and a temporary directory is reached through a symlink on macOS and through an 8.3
+            // short name on Windows.
+            assertThat(innerRoot.getFile()).isEqualTo(outerJarFile.getCanonicalFile());
 
             innerRoot.close();
 
