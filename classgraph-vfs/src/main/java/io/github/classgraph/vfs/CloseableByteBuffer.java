@@ -43,9 +43,10 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>
  * The wrapped buffer may be a view of a memory mapping of a file, so it must only be read while this wrapper is
- * open, and while the {@link Vfs} it was read from is open. {@link #getByteBuffer()} returns null once this wrapper
- * has been closed; a reference to the buffer taken before that close, or one that outlives {@link Vfs#close()},
- * reads memory that the file may no longer be mapped into.
+ * open, and while the {@link VfsRoot} it was read from, and the {@link Vfs} that opened that root, are open.
+ * {@link #getByteBuffer()} returns null once this wrapper has been closed; a reference to the buffer taken before
+ * that close, or one that outlives {@link VfsRoot#close()} or {@link Vfs#close()}, reads memory that the file may
+ * no longer be mapped into.
  *
  * <p>
  * This is the one place in the {@link Vfs} API where reading after a close is not reported as an

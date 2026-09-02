@@ -59,7 +59,8 @@ import org.jspecify.annotations.Nullable;
  * self-contained.
  *
  * <p>
- * Everything an entry hands out stops working once the {@link Vfs} that produced it is closed.
+ * Everything an entry hands out stops working once the root it came from, or the {@link Vfs} that opened that root,
+ * is closed.
  */
 public abstract class VfsEntry {
     /** The root this entry belongs to. */
@@ -189,7 +190,7 @@ public abstract class VfsEntry {
      *
      * @return this entry, as a {@link Path} of a read-only virtual filesystem.
      * @throws java.nio.file.ClosedFileSystemException
-     *             if the {@link Vfs} that opened the root has been closed.
+     *             if the root, or the {@link Vfs} that opened it, has been closed.
      */
     public Path asPath() {
         return getRoot().asFileSystem().getPath("/" + getPathFromRoot());
@@ -271,8 +272,9 @@ public abstract class VfsEntry {
     /**
      * Read this entry's whole content as a read-only {@link java.nio.ByteBuffer}. The caller owns the returned
      * buffer and must close it: the buffer may be a memory mapping, or may belong to the module reader that
-     * produced it, in which case it is only valid until it is closed. It is also only valid until the {@link Vfs}
-     * is closed, which unmaps any memory mapping behind it -- see {@link CloseableByteBuffer}.
+     * produced it, in which case it is only valid until it is closed. It is also only valid until the root it came
+     * from, or the {@link Vfs} that opened that root, is closed, which unmaps any memory mapping behind it -- see
+     * {@link CloseableByteBuffer}.
      *
      * @return the content of the entry, as a closeable buffer.
      * @throws IOException

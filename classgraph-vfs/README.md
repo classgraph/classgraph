@@ -67,15 +67,20 @@ always the path you opened it by.
 
 ## What owns what
 
-The `Vfs` owns everything opened through it: the file handles, the memory mappings, and the
-temporary files that a nested jarfile has to be spilled to when it cannot be read in place. Closing
-the `Vfs` releases all of them, and every root it handed out stops working at that moment, so a
-`Vfs` belongs in a try-with-resources block, as it is in every example below.
+Ownership is a tree. The `Vfs` owns every root it opens; each root owns the storage behind it -- the
+file handle, the memory mapping, and the temporary file that a nested jarfile has to be spilled to
+when it cannot be read in place -- and the roots opened within it, which read through that storage.
+Closing the `Vfs` closes every root, releasing all of it, and every root it handed out stops working
+at that moment, so a `Vfs` belongs in a try-with-resources block, as it is in every example below.
 
-A `VfsRoot` is not `AutoCloseable`, and owns nothing that has to be released. It also cannot be
-taken away from you: a `Vfs` hands out the same root to everything that opens the same path, so two
-parts of a program that open the same jarfile share one root, and neither can break it for the
-other. Nothing needs closing but the `Vfs`:
+A `VfsRoot` is `AutoCloseable` too, but rarely needs closing by hand, since closing the `Vfs` closes
+it. Closing one early is for a long-lived `Vfs` that is done reading one root and wants what it
+holds released now: `root.close()` releases the root's storage, closes the roots opened within it,
+and takes it out of the `Vfs`'s cache, leaving the `Vfs` and every other root open. A root is
+shared: a `Vfs` hands out the same root to everything that opens the same path, so two parts of a
+program that open the same jarfile share one root, and closing it in one place closes it for the
+other too. Short of that, nothing needs closing but
+the `Vfs`:
 
 ```java
 try (Vfs vfs = new Vfs()) {
@@ -131,19 +136,19 @@ It is a read-only filesystem: everything that would write -- `Files.delete`, `Fi
 `Files.copy`, `Files.move`, `Files.createDirectory`, `Files.newOutputStream`, `setTimes`, and
 `newByteChannel` with a write option -- throws `ReadOnlyFileSystemException`.
 
-`root.asFileSystem()` returns the same view every time. A filesystem is a view of the `Vfs` behind
-it and shares its lifetime, the way a wrapping stream shares the lifetime of the stream it wraps:
-closing the filesystem closes the `Vfs`, releasing every file handle, memory mapping and temporary
-file it took, and with them every other root that `Vfs` had opened. Closing is idempotent, and
-nothing is usable afterwards -- `isOpen()` returns false, every read through the filesystem throws
-`ClosedFileSystemException` as `java.nio.file.FileSystem` specifies, reading a root or an entry
-throws `IOException`, and `asFileSystem()` and `entry.asPath()` throw `ClosedFileSystemException`,
-since there is nothing left to hand out a view of. Closing the `Vfs` first has the same effect from
-the other direction.
+`root.asFileSystem()` returns the same view every time, until that view is closed. A filesystem is a
+view of its root, and the two do not close each other: `fs.close()` closes only the view, leaving
+the root and the `Vfs` open and readable, and the next `root.asFileSystem()` hands out a fresh view.
+Closing the root, or the `Vfs` that opened it, closes every view of it in the same one-way manner --
+`isOpen()` returns false, every read through the filesystem throws `ClosedFileSystemException` as
+`java.nio.file.FileSystem` specifies, and `asFileSystem()` and `entry.asPath()` throw
+`ClosedFileSystemException`, since there is nothing left to hand out a view of. Release the file
+handles, memory mappings and temporary files by closing the root or the `Vfs`, not by closing a
+view.
 
-So put either the `Vfs` or the filesystem in a try-with-resources, not both -- and give a `Vfs`
-whose roots are read independently one filesystem view at a time, or open each root from its own
-`Vfs`, which is what `FileSystems.newFileSystem` does for a `cgvfs:` URI.
+The one exception is a filesystem that `FileSystems.newFileSystem` created for a `cgvfs:` URI: it
+created the `Vfs` behind it, and is the only reference you have to it, so closing that filesystem
+closes that `Vfs` too.
 
 ## The `cgvfs:` URL scheme
 
@@ -329,7 +334,8 @@ parsed once into an immutable index. So entry lookup and entry reads take no loc
 faster on Windows and is not on Linux or macOS, where it can be slower, so it is used on Windows
 only. See the
 [memory mapping benchmark](https://github.com/classgraph/classgraph/wiki/Memory-Mapping-Benchmark).
-A mapped file is unmapped when the `Vfs` that mapped it is closed, on every JDK version: on JDK 22
+A mapped file is unmapped when the root that mapped it is closed, which closing the `Vfs` does to
+every root, on every JDK version: on JDK 22
 or later by closing the `java.lang.foreign.Arena` that mapped it, and below that by
 `Unsafe::invokeCleaner`, the only method there is that can unmap a file on demand. That method frees
 the address range whether or not anything is still reading it, and a thread that reads one byte
@@ -607,7 +613,7 @@ no copy, where the entry is stored uncompressed in a file that could be mapped. 
 `CloseableByteBuffer` because some of those buffers own storage that has to be handed back when you
 have finished with it, which `close()` does: a file read from a directory owns its mapping, and a
 module resource owns a buffer that the module reader lends out. An entry read from inside a jarfile
-owns nothing of its own -- the jarfile is released when the `Vfs` is closed -- so closing it does
+owns nothing of its own -- the jarfile is released when its root is closed -- so closing it does
 nothing, but the wrapper is the same either way, so the calling code does not have to know which
 kind of entry it is reading:
 
@@ -618,23 +624,26 @@ try (CloseableByteBuffer closeableBuffer = entry.read()) {
 }
 ```
 
-The buffer can be the mapping itself, so it must not be read after the `Vfs` is closed, even while
+The buffer can be the mapping itself, so it must not be read after the root it came from, or the
+`Vfs`, is closed, even while
 the wrapper is still open. That is the one place in this API where closing during a read is not
 reported as an `IOException`, because nothing sits between a raw `ByteBuffer` and the caller to
 translate the failure. What such a read does instead depends on how the JDK releases the mapping: on
-JDK 22 or later the file is unmapped as the `Vfs` closes, and the read throws
+JDK 22 or later the file is unmapped as the root closes, and the read throws
 `IllegalStateException`; below JDK 22 the open wrapper holds the file mapped until it is closed, so
 the read quietly returns the file content.
 
 `entry.load()` and `entry.loadAsString()` copy the content into a `byte[]` and a UTF-8 `String`
-respectively. There is nothing to close, and the result stays valid after the `Vfs` is closed:
+respectively. There is nothing to close, and the result stays valid after the root and the `Vfs`
+are closed:
 
 ```java
 byte[] classfile = entry.load();
 String manifest = entry.loadAsString();
 ```
 
-All four throw `IOException` if the entry cannot be read, or if the `Vfs` has been closed. A fifth,
+All four throw `IOException` if the entry cannot be read, or if the root, or the `Vfs`, has been
+closed. A fifth,
 `entry.openChannel()`, returns a `ReadableByteChannel` for code that reads that way.
 
 ### Read a jarfile that is not on disk
