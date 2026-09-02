@@ -673,9 +673,10 @@ public class SliceTest {
      * life of the JVM.
      *
      * <p>
-     * The delete is made to fail here the way it fails on Windows, by refusing writes to the directory the file is
-     * in, which POSIX requires in order to unlink it. On Windows the mapping itself is what refuses the delete,
-     * and the test skips itself if the delete succeeds anyway, which is what happens when running as root.
+     * On Windows the mapping itself is what refuses the delete, which is the case this test is about; everywhere
+     * else the delete has to be refused some other way, so the test clears the write permission that POSIX
+     * requires in order to unlink the file from its directory. The test skips itself if the delete succeeds
+     * anyway, which is what happens when running as root.
      *
      * @param tempDir
      *            a temporary directory
@@ -698,16 +699,23 @@ public class SliceTest {
         assertThat(slice.read().isDirect()).isTrue();
         final Runnable releaseMappingView = slice.acquireMappingView();
 
-        assumeTrue(extractedDir.setWritable(false), "the directory could not be made read-only");
+        // (setWritable returns false on a Windows directory, where it is not needed, so it is called for its
+        // effect rather than its result)
+        extractedDir.setWritable(false);
+        final boolean deleteWasRefused;
         try {
             nestedJarHandler.close(/* log = */ null);
-            assumeTrue(tempFile.exists(), "the temporary file was deleted despite the view of its mapping");
+            deleteWasRefused = tempFile.exists();
         } finally {
-            assertThat(extractedDir.setWritable(true)).isTrue();
+            extractedDir.setWritable(true);
         }
 
+        // Releasing the last view unmaps the file, which is the moment the delete can be retried. This is run
+        // before the assumption below, so that an abort leaves nothing mapped for the temporary directory
+        // cleanup to trip over.
         releaseMappingView.run();
 
+        assumeTrue(deleteWasRefused, "the delete succeeded while the file was still mapped");
         assertThat(tempFile.exists()).isFalse();
     }
 }
