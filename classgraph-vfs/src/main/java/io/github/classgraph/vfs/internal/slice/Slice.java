@@ -40,7 +40,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
 import io.github.classgraph.base.LogNode;
-import io.github.classgraph.vfs.internal.VfsSession;
+import io.github.classgraph.vfs.Vfs;
+import io.github.classgraph.vfs.internal.RecycledInflaterInputStream;
+import io.github.classgraph.vfs.internal.TempFile;
 import io.github.classgraph.vfs.reader.RandomAccessReader;
 import org.jspecify.annotations.Nullable;
 
@@ -66,8 +68,8 @@ public abstract class Slice implements AutoCloseable {
     /** The largest buffer that a length hint is allowed to allocate up front. */
     private static final int MAX_INITIAL_BUFFER_SIZE = 16 * 1024 * 1024;
 
-    /** The resources owned by the scan that opened this slice. */
-    protected final VfsSession session;
+    /** The {@link Vfs} that opened this slice, which every slice reaches its shared settings and pools through. */
+    protected final Vfs vfs;
 
     /** The parent slice, or null if this is a toplevel slice. */
     protected final @Nullable Slice parentSlice;
@@ -105,18 +107,18 @@ public abstract class Slice implements AutoCloseable {
      * @param inflatedLengthHint
      *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 if this is not a deflated
      *            zip entry.
-     * @param session
-     *            the session that owns what is opened
+     * @param vfs
+     *            the {@link Vfs} that opened this slice
      */
     protected Slice(final @Nullable Slice parentSlice, final long offset, final long length,
-            final boolean isDeflatedZipEntry, final long inflatedLengthHint, final VfsSession session) {
+            final boolean isDeflatedZipEntry, final long inflatedLengthHint, final Vfs vfs) {
         this.parentSlice = parentSlice;
         final var parentSliceStartPos = parentSlice == null ? 0L : parentSlice.sliceStartPos;
         this.sliceStartPos = parentSliceStartPos + offset;
         this.sliceLength = length;
         this.isDeflatedZipEntry = isDeflatedZipEntry;
         this.inflatedLengthHint = inflatedLengthHint;
-        this.session = session;
+        this.vfs = vfs;
 
         if (offset < 0L || sliceStartPos < 0L) {
             throw new IllegalArgumentException("Invalid startPos");
@@ -144,12 +146,12 @@ public abstract class Slice implements AutoCloseable {
      * @param inflatedLengthHint
      *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 if this is not a deflated
      *            zip entry.
-     * @param session
-     *            the session that owns what is opened
+     * @param vfs
+     *            the {@link Vfs} that opened this slice
      */
     protected Slice(final long length, final boolean isDeflatedZipEntry, final long inflatedLengthHint,
-            final VfsSession session) {
-        this(/* parentSlice = */ null, 0L, length, isDeflatedZipEntry, inflatedLengthHint, session);
+            final Vfs vfs) {
+        this(/* parentSlice = */ null, 0L, length, isDeflatedZipEntry, inflatedLengthHint, vfs);
     }
 
     // ---------------------------------------------------------------------------------------------------------
@@ -166,8 +168,8 @@ public abstract class Slice implements AutoCloseable {
      *            one is needed).
      * @param inputStreamLengthHint
      *            the length of inputStream if known, else -1L.
-     * @param session
-     *            the session that owns what is opened
+     * @param vfs
+     *            the {@link Vfs} that opened this slice
      * @param log
      *            the log node, or null to skip logging
      * @return an {@link ArraySlice}, if the {@link InputStream} could be read into a byte array, otherwise a
@@ -176,9 +178,8 @@ public abstract class Slice implements AutoCloseable {
      *             If the contents could not be read.
      */
     public static Slice fromInputStream(final InputStream inputStream, final String tempFileBaseName,
-            final long inputStreamLengthHint, final VfsSession session, final @Nullable LogNode log)
-            throws IOException {
-        final var maxBufferedJarRAMSize = session.vfsSpec.getMaxBufferedJarRAMSize();
+            final long inputStreamLengthHint, final Vfs vfs, final @Nullable LogNode log) throws IOException {
+        final var maxBufferedJarRAMSize = vfs.getVfsSpec().getMaxBufferedJarRAMSize();
         if (inputStreamLengthHint <= maxBufferedJarRAMSize) {
             // inputStreamLengthHint is unknown (-1) or no longer than maxBufferedJarRAMSize, so read the stream
             // into an array. A known length is allocated up front, since it is usually right; a length that is
@@ -216,7 +217,7 @@ public abstract class Slice implements AutoCloseable {
                     if (buf.length >= maxBufferedJarRAMSize) {
                         // The buffer is not allowed to grow any further, so the rest of the stream goes to disk
                         return spillToDisk(inputStream, tempFileBaseName, buf, bufBytesUsed,
-                                new byte[] { (byte) overflowByte }, session, log);
+                                new byte[] { (byte) overflowByte }, vfs, log);
                     }
                     // Double the size of the buffer (in long arithmetic, since the doubling can overflow an int)
                     buf = Arrays.copyOf(buf, (int) Math.min(buf.length * 2L, maxBufferedJarRAMSize));
@@ -231,12 +232,12 @@ public abstract class Slice implements AutoCloseable {
                 buf = Arrays.copyOf(buf, bufBytesUsed);
             }
             // Return buf as new ArraySlice
-            return new ArraySlice(buf, /* isDeflatedZipEntry = */ false, /* inflatedSizeHint = */ 0L, session);
+            return new ArraySlice(buf, /* isDeflatedZipEntry = */ false, /* inflatedSizeHint = */ 0L, vfs);
 
         }
         // inputStreamLengthHint is longer than maxBufferedJarRAMSize, so immediately spill to disk
         return spillToDisk(inputStream, tempFileBaseName, /* buf = */ null, /* bufBytesUsed = */ 0,
-                /* overflowBuf = */ null, session, log);
+                /* overflowBuf = */ null, vfs, log);
     }
 
     /**
@@ -253,8 +254,8 @@ public abstract class Slice implements AutoCloseable {
      * @param overflowBuf
      *            The second buffer to write to the beginning of the file, or null if none. (Should have same
      *            nullity as buf.)
-     * @param session
-     *            the session that owns what is opened
+     * @param vfs
+     *            the {@link Vfs} that opened this slice
      * @param log
      *            The log.
      * @return the file slice
@@ -262,12 +263,12 @@ public abstract class Slice implements AutoCloseable {
      *             If anything went wrong creating or writing to the temp file.
      */
     private static PathSlice spillToDisk(final InputStream inputStream, final String tempFileBaseName,
-            final byte @Nullable [] buf, final int bufBytesUsed, final byte @Nullable [] overflowBuf,
-            final VfsSession session, final @Nullable LogNode log) throws IOException {
+            final byte @Nullable [] buf, final int bufBytesUsed, final byte @Nullable [] overflowBuf, final Vfs vfs,
+            final @Nullable LogNode log) throws IOException {
         // Create temp file
         File tempFile;
         try {
-            tempFile = session.makeTempFile(tempFileBaseName, /* onlyUseLeafname = */ true);
+            tempFile = TempFile.create(tempFileBaseName, /* onlyUseLeafname = */ true);
         } catch (final IOException e) {
             // Chain the cause, so that the reason the temporary file could not be created is reachable from the
             // stack trace
@@ -278,6 +279,42 @@ public abstract class Slice implements AutoCloseable {
                     + tempFileBaseName + " -> " + tempFile);
         }
 
+        // From here on the temporary file has to be deleted by whatever fails, until it is handed to the PathSlice
+        // that owns it -- nothing else knows it exists
+        try {
+            return spillToTempFile(inputStream, tempFile, buf, bufBytesUsed, overflowBuf, vfs, log);
+        } catch (final IOException | RuntimeException | Error e) {
+            TempFile.delete(tempFile);
+            throw e;
+        }
+    }
+
+    /**
+     * Write the content of an {@link InputStream} to a temporary file that has already been created, and open a
+     * {@link PathSlice} that owns the file.
+     *
+     * @param inputStream
+     *            The {@link InputStream}.
+     * @param tempFile
+     *            The temporary file to write to.
+     * @param buf
+     *            The first buffer to write to the beginning of the file, or null if none.
+     * @param bufBytesUsed
+     *            The number of bytes of {@code buf} that were filled.
+     * @param overflowBuf
+     *            The second buffer to write to the beginning of the file, or null if none. (Should have same
+     *            nullity as buf.)
+     * @param vfs
+     *            the {@link Vfs} that opened this slice
+     * @param log
+     *            The log.
+     * @return the file slice, which owns the temporary file.
+     * @throws IOException
+     *             If anything went wrong writing to the temp file, or opening the slice over it.
+     */
+    private static PathSlice spillToTempFile(final InputStream inputStream, final File tempFile,
+            final byte @Nullable [] buf, final int bufBytesUsed, final byte @Nullable [] overflowBuf, final Vfs vfs,
+            final @Nullable LogNode log) throws IOException {
         // Copy everything read so far and the rest of the InputStream to the temporary file
         try (OutputStream outputStream = new BufferedOutputStream(new FileOutputStream(tempFile))) {
             // Write already-read buffered bytes to temp file, if anything was read (buf and overflowBuf always have
@@ -293,8 +330,8 @@ public abstract class Slice implements AutoCloseable {
             inputStream.transferTo(outputStream);
         }
 
-        // Return a new PathSlice for the temporary file
-        return new PathSlice(tempFile, session, log);
+        // Return a new PathSlice that owns the temporary file, and deletes it when it is closed
+        return PathSlice.forTempFile(tempFile, vfs, log);
     }
 
     // ---------------------------------------------------------------------------------------------------------
@@ -345,7 +382,13 @@ public abstract class Slice implements AutoCloseable {
             if (!isDeflatedZipEntry) {
                 return rawInputStream;
             }
-            return session.openInflaterInputStream(rawInputStream);
+            if (vfs.isClosed()) {
+                throw new IOException("Cannot read from a jarfile after the Vfs backing it has been closed. "
+                        + "This happens if the object that owns the jarfile was closed (e.g. by leaving the "
+                        + "try-with-resources block it was opened in) before the entry was read or the class was "
+                        + "loaded");
+            }
+            return new RecycledInflaterInputStream(rawInputStream, vfs.inflaterRecycler());
         } catch (final IOException | RuntimeException | Error e) {
             // The caller never sees a stream if this throws, so whatever was opened has to be closed here, and with
             // it resourceToClose, which the caller has already handed over
@@ -478,20 +521,6 @@ public abstract class Slice implements AutoCloseable {
      */
     public ByteBuffer read() throws IOException {
         return ByteBuffer.wrap(load()).asReadOnlyBuffer();
-    }
-
-    /**
-     * Register this slice with its session, so that the session closes it when the session is closed. Call this as
-     * the last statement of the constructor of a toplevel slice, once every field it needs to close itself has been
-     * assigned. Registration is rejected if the session has already been closed, since the session teardown has
-     * already passed this slice by -- the constructor has to close the slice itself in that case, as it does for
-     * any other failure after it took the file handle, since nothing else would ever release it.
-     *
-     * @throws IOException
-     *             if the session has already been closed.
-     */
-    protected final void registerAsOpen() throws IOException {
-        session.markSliceAsOpen(this);
     }
 
     @Override

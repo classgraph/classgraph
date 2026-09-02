@@ -35,7 +35,7 @@ import java.nio.file.Path;
 import java.util.Locale;
 
 import io.github.classgraph.base.LogNode;
-import io.github.classgraph.vfs.internal.VfsSession;
+import io.github.classgraph.vfs.Vfs;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -45,8 +45,10 @@ import org.jspecify.annotations.Nullable;
  * owns the opened roots, and the zipfile layer, whose classes are not visible outside this package.
  *
  * <p>
- * Nothing here is cached: a jarfile is opened once per call, and the caller decides what is shared. Everything that
- * is opened is registered with the {@link VfsSession} it was given, which owns those resources and releases them.
+ * Nothing here is cached: a jarfile is opened once per call, and the caller decides what is shared. The caller owns
+ * the {@link LogicalZipFile} it is handed, and releases what was opened to read it by calling
+ * {@link LogicalZipFile#releaseOwnedResources()}. If opening fails, nothing is handed back, so whatever was opened
+ * before the failure is released here.
  */
 public final class JarOpener {
     /** Constructor. */
@@ -60,8 +62,8 @@ public final class JarOpener {
      * @param canonicalFile
      *            the jarfile, as a canonical {@link File}, so that the path of the opened zipfile names the file
      *            the same way however the caller reached it.
-     * @param session
-     *            the session to register what is opened with.
+     * @param vfs
+     *            the {@link Vfs} that is opening this jarfile.
      * @param log
      *            the log node, or null to skip logging.
      * @return the {@link LogicalZipFile} for the jarfile.
@@ -70,9 +72,9 @@ public final class JarOpener {
      * @throws InterruptedException
      *             if the thread was interrupted.
      */
-    public static LogicalZipFile openJarFile(final File canonicalFile, final VfsSession session,
-            final @Nullable LogNode log) throws IOException, InterruptedException {
-        final var physicalZipFile = new PhysicalZipFile(canonicalFile, session, log);
+    public static LogicalZipFile openJarFile(final File canonicalFile, final Vfs vfs, final @Nullable LogNode log)
+            throws IOException, InterruptedException {
+        final var physicalZipFile = new PhysicalZipFile(canonicalFile, vfs, log);
         try {
             return physicalZipFile.getLogicalZipFile(log);
         } catch (final IOException | InterruptedException | RuntimeException | Error e) {
@@ -88,8 +90,8 @@ public final class JarOpener {
      *
      * @param url
      *            the URL of the jarfile, with any {@code "jar:"} prefix already stripped.
-     * @param session
-     *            the session to register what is opened with.
+     * @param vfs
+     *            the {@link Vfs} that is opening this jarfile.
      * @param log
      *            the log node, or null to skip logging.
      * @return the {@link LogicalZipFile} for the jarfile.
@@ -98,8 +100,8 @@ public final class JarOpener {
      * @throws InterruptedException
      *             if the thread was interrupted.
      */
-    public static LogicalZipFile openJarFromURL(final String url, final VfsSession session,
-            final @Nullable LogNode log) throws IOException, InterruptedException {
+    public static LogicalZipFile openJarFromURL(final String url, final Vfs vfs, final @Nullable LogNode log)
+            throws IOException, InterruptedException {
         // URL schemes are case-insensitive, and are denied in lowercase, so the scheme has to be lowercased
         // before it is looked up -- otherwise "HTTP://host/x.jar" is fetched even though "http" was denied
         final var scheme = url.substring(0, url.indexOf(':')).toLowerCase(Locale.ROOT);
@@ -107,12 +109,12 @@ public final class JarOpener {
         // scheme that nothing has registered a handler for is left to the download below, which reports the
         // JVM's own reason for not being able to open it. ("file:" and "jar:" never reach here --
         // FastPathResolver.resolve() has already stripped them)
-        if (session.vfsSpec.getDeniedURLSchemes().contains(scheme)) {
+        if (vfs.getVfsSpec().getDeniedURLSchemes().contains(scheme)) {
             throw new IOException("Fetching a jarfile over \"" + scheme
                     + ":\" is not allowed -- cannot read classpath element: " + url);
         }
         // Download jar from URL to a ByteBuffer in RAM, or to a temp file on disk
-        final var physicalZipFile = JarURLDownloader.downloadJarFromURL(url, session, log);
+        final var physicalZipFile = JarURLDownloader.downloadJarFromURL(url, vfs, log);
         try {
             return physicalZipFile.getLogicalZipFile(log);
         } catch (final IOException | InterruptedException | RuntimeException | Error e) {
@@ -130,8 +132,8 @@ public final class JarOpener {
      *
      * @param path
      *            the path of the jarfile.
-     * @param session
-     *            the session to register what is opened with.
+     * @param vfs
+     *            the {@link Vfs} that is opening this jarfile.
      * @param log
      *            the log node, or null to skip logging.
      * @return the {@link LogicalZipFile} for the jarfile.
@@ -140,9 +142,9 @@ public final class JarOpener {
      * @throws InterruptedException
      *             if the thread was interrupted.
      */
-    public static LogicalZipFile openJarFromPath(final Path path, final VfsSession session,
-            final @Nullable LogNode log) throws IOException, InterruptedException {
-        final var physicalZipFile = new PhysicalZipFile(path, session, log);
+    public static LogicalZipFile openJarFromPath(final Path path, final Vfs vfs, final @Nullable LogNode log)
+            throws IOException, InterruptedException {
+        final var physicalZipFile = new PhysicalZipFile(path, vfs, log);
         try {
             return physicalZipFile.getLogicalZipFile(log);
         } catch (final IOException | InterruptedException | RuntimeException | Error e) {
@@ -165,8 +167,8 @@ public final class JarOpener {
      *            the number of bytes to read from {@code inputStream}, or -1 if unknown.
      * @param name
      *            a name for the jarfile, used in log messages and in the paths of its entries.
-     * @param session
-     *            the session to register what is opened with.
+     * @param vfs
+     *            the {@link Vfs} that is opening this jarfile.
      * @param log
      *            the log node, or null to skip logging.
      * @return the {@link LogicalZipFile} for the jarfile.
@@ -176,9 +178,9 @@ public final class JarOpener {
      *             if the thread was interrupted.
      */
     public static LogicalZipFile openJarFromInputStream(final InputStream inputStream,
-            final long inputStreamLengthHint, final String name, final VfsSession session,
-            final @Nullable LogNode log) throws IOException, InterruptedException {
-        final var physicalZipFile = new PhysicalZipFile(inputStream, inputStreamLengthHint, name, session, log);
+            final long inputStreamLengthHint, final String name, final Vfs vfs, final @Nullable LogNode log)
+            throws IOException, InterruptedException {
+        final var physicalZipFile = new PhysicalZipFile(inputStream, inputStreamLengthHint, name, vfs, log);
         try {
             // The physical zipfile was created here rather than fetched from a cache, so nothing else can reach it,
             // and two streams read under the same name stay two separate jarfiles even though the two physical

@@ -34,12 +34,12 @@ import java.util.zip.Inflater;
  * Wrapper class that allows an {@link Inflater} instance to be reset for reuse and then recycled by a
  * {@link Recycler}.
  */
-class RecyclableInflater implements Resettable, AutoCloseable {
+public class RecyclableInflater implements Resettable, AutoCloseable {
     /** The {@link Inflater} instance, created with the "nowrap" option, which is needed for zipfile entries. */
     private final Inflater inflater = new Inflater(/* nowrap = */ true);
 
     /** Constructor. */
-    RecyclableInflater() {
+    public RecyclableInflater() {
     }
 
     /**

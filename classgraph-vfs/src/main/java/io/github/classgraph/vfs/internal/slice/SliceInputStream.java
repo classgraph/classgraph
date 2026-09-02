@@ -100,9 +100,9 @@ class SliceInputStream extends InputStream {
         if (closed.get() || reader == null) {
             throw new IOException("Already closed");
         }
-        // A stream that is still open can still be reading a file that the Vfs has released, so the session is
+        // A stream that is still open can still be reading a file that the Vfs has released, so the Vfs is
         // checked too, rather than only this stream's own state
-        if (slice.session.isClosed()) {
+        if (slice.vfs.isClosed()) {
             throw new IOException("Cannot read a file after the Vfs has been closed");
         }
         return reader;

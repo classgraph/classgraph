@@ -38,7 +38,7 @@ import java.util.Objects;
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.path.FastPathResolver;
 import io.github.classgraph.base.internal.path.FileUtils;
-import io.github.classgraph.vfs.internal.VfsSession;
+import io.github.classgraph.vfs.Vfs;
 import io.github.classgraph.vfs.internal.slice.PathSlice;
 import io.github.classgraph.vfs.internal.slice.Slice;
 import org.jspecify.annotations.Nullable;
@@ -60,8 +60,8 @@ class PhysicalZipFile {
     /** The {@link Slice} for the zipfile. */
     final Slice slice;
 
-    /** The session that owns what was opened to read this zipfile. */
-    private final VfsSession session;
+    /** The {@link Vfs} that opened this zipfile, which its slice is read through. */
+    private final Vfs vfs;
 
     /** The lock guarding {@link #logicalZipFile} and {@link #logicalZipFileFailure}. */
     private final Object logicalZipFileLock = new Object();
@@ -77,18 +77,18 @@ class PhysicalZipFile {
      *
      * @param file
      *            the file
-     * @param session
-     *            the session that owns what is opened
+     * @param vfs
+     *            the {@link Vfs} that is opening this jarfile
      * @param log
      *            the log node, or null to skip logging
      * @throws IOException
      *             if an I/O exception occurs.
      */
-    PhysicalZipFile(final File file, final VfsSession session, final @Nullable LogNode log) throws IOException {
+    PhysicalZipFile(final File file, final Vfs vfs, final @Nullable LogNode log) throws IOException {
         this.file = file;
-        this.session = session;
+        this.vfs = vfs;
         this.pathStr = FastPathResolver.resolve(FileUtils.currDirPath(), file.getPath());
-        this.slice = new PathSlice(file, session, log);
+        this.slice = new PathSlice(file, vfs, log);
     }
 
     /**
@@ -96,18 +96,18 @@ class PhysicalZipFile {
      *
      * @param path
      *            the path
-     * @param session
-     *            the session that owns what is opened
+     * @param vfs
+     *            the {@link Vfs} that is opening this jarfile
      * @param log
      *            the log node, or null to skip logging
      * @throws IOException
      *             if an I/O exception occurs.
      */
-    PhysicalZipFile(final Path path, final VfsSession session, final @Nullable LogNode log) throws IOException {
+    PhysicalZipFile(final Path path, final Vfs vfs, final @Nullable LogNode log) throws IOException {
         this.path = path;
-        this.session = session;
+        this.vfs = vfs;
         this.pathStr = FileUtils.pathStr(path);
-        this.slice = new PathSlice(path, session, log);
+        this.slice = new PathSlice(path, vfs, log);
     }
 
     /**
@@ -121,21 +121,21 @@ class PhysicalZipFile {
      * @param pathStr
      *            the source URL the InputStream was opened from, or the zip entry path of this entry in the parent
      *            zipfile
-     * @param session
-     *            the session that owns what is opened
+     * @param vfs
+     *            the {@link Vfs} that is opening this jarfile
      * @param log
      *            the log node, or null to skip logging
      * @throws IOException
      *             if an I/O exception occurs.
      */
     PhysicalZipFile(final InputStream inputStream, final long inputStreamLengthHint, final String pathStr,
-            final VfsSession session, final @Nullable LogNode log) throws IOException {
+            final Vfs vfs, final @Nullable LogNode log) throws IOException {
         this.pathStr = pathStr;
-        this.session = session;
+        this.vfs = vfs;
         // Try downloading the InputStream to a byte array. If this succeeds, this will result in an ArraySlice. If
         // it fails, the InputStream will be spilled to disk, resulting in a PathSlice over the temporary file.
         this.slice = Slice.fromInputStream(inputStream, /* tempFileBaseName = */ pathStr, inputStreamLengthHint,
-                session, log);
+                vfs, log);
         this.file = this.slice instanceof final PathSlice pathSlice ? pathSlice.getFile() : null;
     }
 
@@ -150,14 +150,14 @@ class PhysicalZipFile {
      *            the log node, or null to skip logging
      * @return the {@link LogicalZipFile} spanning the whole of this physical zipfile.
      * @throws IOException
-     *             if the central directory could not be read, or the session has been closed.
+     *             if the central directory could not be read, or the {@link Vfs} has been closed.
      * @throws InterruptedException
      *             if the thread was interrupted.
      */
     LogicalZipFile getLogicalZipFile(final @Nullable LogNode log) throws IOException, InterruptedException {
-        // The zipfile is only valid while the session is open, so a lookup is turned away once it has been closed,
+        // The zipfile is only valid while the Vfs is open, so a lookup is turned away once it has been closed,
         // rather than reading a central directory that nothing would ever release again
-        if (session.isClosed()) {
+        if (vfs.isClosed()) {
             throw new IOException("Already closed");
         }
         synchronized (logicalZipFileLock) {
@@ -169,8 +169,8 @@ class PhysicalZipFile {
             var zipFile = logicalZipFile;
             if (zipFile == null) {
                 try {
-                    zipFile = new LogicalZipFile(new ZipFileSlice(this), session, log,
-                            session.vfsSpec.isMultiReleaseVersionsEnabled());
+                    zipFile = new LogicalZipFile(new ZipFileSlice(this), vfs, log,
+                            vfs.getVfsSpec().isMultiReleaseVersionsEnabled());
                 } catch (final IOException | RuntimeException | Error e) {
                     logicalZipFileFailure = e;
                     throw e;
@@ -182,9 +182,30 @@ class PhysicalZipFile {
     }
 
     /**
+     * Release this zipfile: close the slice it is read through, releasing the file handle and the memory mapping
+     * behind it, and delete the temporary file it was extracted to, if it was extracted to one. Called by the
+     * {@link LogicalZipFile} that owns this zipfile, when the root that owns that in turn is closed.
+     *
+     * @throws IOException
+     *             if the slice could not be closed.
+     */
+    void close() throws IOException {
+        slice.close();
+    }
+
+    /**
+     * Returns whether this zipfile was extracted to a temporary file that has not been deleted yet.
+     *
+     * @return true if this zipfile was extracted to a temporary file that has not been deleted yet.
+     */
+    boolean hasTempFile() {
+        return slice instanceof final PathSlice pathSlice && pathSlice.hasUndeletedTempFile();
+    }
+
+    /**
      * Release this zipfile, because nothing will ever be able to reach it: the operation that opened it failed.
-     * Without this, the file handle and memory mapping behind it would be held until the session is closed, even
-     * though nothing can read through them.
+     * Without this, the file handle, memory mapping and temporary file behind it would be held until the
+     * {@link Vfs} is closed, even though nothing can read through them.
      *
      * @param failure
      *            the failure that stopped this zipfile from being handed over, for any failure to release it to be
@@ -192,7 +213,7 @@ class PhysicalZipFile {
      */
     void releaseUnreachable(final Throwable failure) {
         try {
-            slice.close();
+            close();
         } catch (final IOException | RuntimeException | Error e) {
             failure.addSuppressed(e);
         }

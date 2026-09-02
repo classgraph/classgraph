@@ -128,7 +128,7 @@ public class VfsInterruptTest {
             assertThat(Thread.interrupted()).isTrue();
 
             // ... and so does every other thread reading through this Vfs
-            assertThat(vfs.session().interruptionChecker().checkAndReturn()).isTrue();
+            assertThat(vfs.interruptionChecker().checkAndReturn()).isTrue();
 
             // checkAndReturn() interrupts the calling thread when the shared flag is set, so clear it again before
             // closing the Vfs

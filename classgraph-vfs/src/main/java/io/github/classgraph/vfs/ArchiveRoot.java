@@ -60,6 +60,14 @@ final class ArchiveRoot extends VfsRoot {
     private final @Nullable ArchiveRoot container;
 
     /**
+     * True if this root owns {@link #logicalZipFile}, and must release what was opened to read it when this root is
+     * closed. False for a package root view, which reads the jarfile that the root it was opened within owns, and
+     * for a root of a jarfile nested within another one that stores it uncompressed, which is read in place as a
+     * byte range of the enclosing jarfile.
+     */
+    private final boolean ownsZipFile;
+
+    /**
      * The entries under the package root, and the same entries keyed by name, built together on first use.
      *
      * @param entries
@@ -85,13 +93,17 @@ final class ArchiveRoot extends VfsRoot {
      *            the jarfile that was opened.
      * @param packageRoot
      *            the package root within the jarfile, or the empty string if the whole jarfile is the package root.
+     * @param ownsZipFile
+     *            true if this root owns the jarfile, and must release what was opened to read it when it is closed.
+     *            False for a package root view, which shares the jarfile of the root it is a view of.
      */
     ArchiveRoot(final Vfs vfs, final @Nullable ArchiveRoot container, final LogicalZipFile logicalZipFile,
-            final String packageRoot) {
+            final String packageRoot, final boolean ownsZipFile) {
         super(vfs, container);
         this.container = container;
         this.logicalZipFile = logicalZipFile;
         this.packageRoot = packageRoot;
+        this.ownsZipFile = ownsZipFile;
     }
 
     /**
@@ -133,6 +145,27 @@ final class ArchiveRoot extends VfsRoot {
      */
     LogicalZipFile zipFile() {
         return logicalZipFile;
+    }
+
+    @Override
+    void releaseResources(final @Nullable LogNode log) {
+        if (!ownsZipFile) {
+            // A package root view, or a jarfile stored uncompressed within the jarfile that encloses it: the
+            // jarfile is read through what an ancestor of this root owns, which outlives this root
+            return;
+        }
+        try {
+            logicalZipFile.releaseOwnedResources();
+        } catch (final IOException | RuntimeException | Error e) {
+            if (log != null) {
+                log.log("Could not release the resources opened to read " + getPath() + " : " + e);
+            }
+        }
+    }
+
+    @Override
+    boolean hasTempFile() {
+        return ownsZipFile && logicalZipFile.hasTempFile();
     }
 
     // -------------------------------------------------------------------------------------------------------------

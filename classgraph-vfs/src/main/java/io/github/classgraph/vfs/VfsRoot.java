@@ -1019,12 +1019,25 @@ public abstract class VfsRoot implements Iterable<VfsEntry>, AutoCloseable {
     }
 
     /**
-     * Returns whether this root has been closed, or the {@link Vfs} that opened it has been.
+     * Returns whether this root has been closed, either by {@link #close()} or by the close of the {@link Vfs} that
+     * opened it. Reading through a closed root throws {@link IOException}.
      *
      * @return true if this root or its {@link Vfs} has been closed.
      */
-    boolean isClosed() {
+    public boolean isClosed() {
         return closed.get() || vfs.isClosed();
+    }
+
+    /**
+     * Returns whether this root was extracted to a temporary file that has not yet been deleted. Only a nested
+     * jarfile that is deflated, or that is too large to buffer in RAM, is extracted to a temporary file; every
+     * other kind of root is read in place and owns none.
+     *
+     * @return true if this root owns a temporary file that has not yet been deleted.
+     */
+    boolean hasTempFile() {
+        // Only a jarfile root can have been extracted to a temporary file
+        return false;
     }
 
     /**

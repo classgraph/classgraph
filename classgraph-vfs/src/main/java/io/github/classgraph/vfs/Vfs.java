@@ -49,6 +49,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
@@ -59,7 +60,8 @@ import io.github.classgraph.base.internal.path.FastPathResolver;
 import io.github.classgraph.base.internal.path.FileUtils;
 import io.github.classgraph.base.internal.path.PathSyntax;
 import io.github.classgraph.base.internal.utils.Assert;
-import io.github.classgraph.vfs.internal.VfsSession;
+import io.github.classgraph.vfs.internal.RecyclableInflater;
+import io.github.classgraph.vfs.internal.Recycler;
 import io.github.classgraph.vfs.internal.zip.JarOpener;
 import io.github.classgraph.vfs.internal.zip.LogicalZipFile;
 import org.jspecify.annotations.Nullable;
@@ -109,10 +111,30 @@ import org.jspecify.annotations.Nullable;
  * storage that is being released.
  */
 public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
+    /** The settings that govern how storage is read. */
+    private final VfsSpec vfsSpec;
+
+    /** The interruption checker shared by every thread reading through this {@link Vfs}. */
+    private final InterruptionChecker interruptionChecker;
+
     /**
-     * The session that owns the resources the opened roots are backed by, and that tracks whether this is closed.
+     * True once {@link #close()} has been called. This is the one place the closed state of a {@link Vfs} is held:
+     * everything that has to turn a caller away once it is closing reads this same flag, either through
+     * {@link #isClosed()} or by being handed the flag itself.
      */
-    private final VfsSession session;
+    private final AtomicBoolean closed = new AtomicBoolean(false);
+
+    /**
+     * The pool of {@code Inflater} instances that deflated zip entries are inflated with. One pool per {@link Vfs}
+     * rather than one per root, since an inflater is borrowed for the length of a single read and carries nothing
+     * of the jarfile it was used on, so the roots pool them best between them. Force-closed by {@link #close()}.
+     */
+    private final Recycler<RecyclableInflater, RuntimeException> inflaterRecycler = new Recycler<>() {
+        @Override
+        public RecyclableInflater newInstance() {
+            return new RecyclableInflater();
+        }
+    };
 
     /**
      * The roots that have been opened from a path, keyed by every path that names each -- the path as it was
@@ -177,8 +199,9 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      * @hidden
      */
     public Vfs(final VfsSpec vfsSpec, final InterruptionChecker interruptionChecker) {
-        this.session = new VfsSession(vfsSpec, interruptionChecker);
-        this.rootsByPath = new SingletonMap<>(session.closedFlag()) {
+        this.vfsSpec = vfsSpec;
+        this.interruptionChecker = interruptionChecker;
+        this.rootsByPath = new SingletonMap<>(closed) {
             @Override
             public VfsRoot newInstance(final String resolvedPath, final @Nullable LogNode logNode)
                     throws IOException, InterruptedException {
@@ -268,7 +291,7 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
             // Route the interruption through the shared interruption checker, so that every other thread reading
             // through this Vfs stops too, and chain the cause, so that the reason the open did not complete is
             // reachable from the stack trace
-            session.interruptionChecker().interrupt();
+            interruptionChecker.interrupt();
             throw new IOException("Interrupted while opening " + resolvedPath, e);
         }
     }
@@ -407,11 +430,14 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      *            the jarfile the child reads.
      * @param packageRoot
      *            the package root within that jarfile, or the empty string for the whole jarfile.
+     * @param ownsZipFile
+     *            true if the child owns the jarfile it reads, which it does if the jarfile was just opened for it,
+     *            and does not if it is a view of the jarfile the container reads.
      * @return the child root.
      */
     private ArchiveRoot newChildRoot(final ArchiveRoot container, final LogicalZipFile zipFile,
-            final String packageRoot) {
-        final var child = adopt(new ArchiveRoot(this, container, zipFile, packageRoot));
+            final String packageRoot, final boolean ownsZipFile) {
+        final var child = adopt(new ArchiveRoot(this, container, zipFile, packageRoot, ownsZipFile));
         if (container.isClosed()) {
             child.close();
         }
@@ -561,11 +587,15 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
                 if (!canonicalKey.equals(resolvedPath)) {
                     return recordPathKey(resolvedPath, openReentrant(canonicalKey, outerLog));
                 }
-                return recordPathKey(resolvedPath, adopt(new ArchiveRoot(this, /* container = */ null,
-                        JarOpener.openJarFile(canonicalFile, session, logNode), /* packageRoot = */ "")));
+                return recordPathKey(resolvedPath,
+                        adopt(new ArchiveRoot(this, /* container = */ null,
+                                JarOpener.openJarFile(canonicalFile, this, logNode), /* packageRoot = */ "",
+                                /* ownsZipFile = */ true)));
             }
-            return recordPathKey(resolvedPath, adopt(new ArchiveRoot(this, /* container = */ null,
-                    JarOpener.openJarFromURL(resolvedPath, session, logNode), /* packageRoot = */ "")));
+            return recordPathKey(resolvedPath,
+                    adopt(new ArchiveRoot(this, /* container = */ null,
+                            JarOpener.openJarFromURL(resolvedPath, this, logNode), /* packageRoot = */ "",
+                            /* ownsZipFile = */ true)));
         }
 
         // The path names something within a jarfile: open the enclosing jarfile first, through the cache, so that
@@ -599,15 +629,16 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
                     logNode.log("Path " + childPath + " in jarfile " + containerZipFile
                             + " is a directory, not a file -- using as package root");
                 }
-                return recordPathKey(resolvedPath, newChildRoot(container, containerZipFile, childPath));
+                return recordPathKey(resolvedPath,
+                        newChildRoot(container, containerZipFile, childPath, /* ownsZipFile = */ false));
             }
             throw new IOException("Path " + childPath + " does not exist in jarfile " + containerZipFile);
         }
-        if (!session.vfsSpec.isNestedJarsEnabled()) {
+        if (!vfsSpec.isNestedJarsEnabled()) {
             throw new IOException("Nested jar scanning is disabled -- skipping nested jar " + resolvedPath);
         }
-        return recordPathKey(resolvedPath,
-                newChildRoot(container, JarOpener.openNestedJar(childZipEntry, logNode), /* packageRoot = */ ""));
+        return recordPathKey(resolvedPath, newChildRoot(container, JarOpener.openNestedJar(childZipEntry, logNode),
+                /* packageRoot = */ "", /* ownsZipFile = */ true));
     }
 
     /**
@@ -655,11 +686,11 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
                 return recordPathKey(key,
                         Files.isDirectory(path) ? adopt(new DirRoot(this, path))
                                 : adopt(new ArchiveRoot(this, /* container = */ null,
-                                        JarOpener.openJarFromPath(path, session, logNode),
-                                        /* packageRoot = */ "")));
+                                        JarOpener.openJarFromPath(path, this, logNode), /* packageRoot = */ "",
+                                        /* ownsZipFile = */ true)));
             });
         } catch (final InterruptedException e) {
-            session.interruptionChecker().interrupt();
+            interruptionChecker.interrupt();
             throw new IOException("Interrupted while opening " + key, e);
         }
     }
@@ -826,10 +857,10 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
             return discardIfClosed(name,
                     adopt(new ArchiveRoot(
                             this, /* container = */ null, JarOpener.openJarFromInputStream(inputStream,
-                                    /* inputStreamLengthHint = */ -1L, name, session, logNode),
-                            /* packageRoot = */ "")));
+                                    /* inputStreamLengthHint = */ -1L, name, this, logNode),
+                            /* packageRoot = */ "", /* ownsZipFile = */ true)));
         } catch (final InterruptedException e) {
-            session.interruptionChecker().interrupt();
+            interruptionChecker.interrupt();
             throw new IOException("Interrupted while reading " + name, e);
         }
     }
@@ -856,13 +887,14 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
         checkNotClosed(name);
         final var logNode = log == null ? null : log.log("Reading " + name + " from a byte array");
         try {
-            return discardIfClosed(name,
-                    adopt(new ArchiveRoot(this, /* container = */ null,
-                            JarOpener.openJarFromInputStream(new ByteArrayInputStream(jarBytes), jarBytes.length,
-                                    name, session, logNode),
-                            /* packageRoot = */ "")));
+            return discardIfClosed(
+                    name, adopt(
+                            new ArchiveRoot(this, /* container = */ null,
+                                    JarOpener.openJarFromInputStream(new ByteArrayInputStream(jarBytes),
+                                            jarBytes.length, name, this, logNode),
+                                    /* packageRoot = */ "", /* ownsZipFile = */ true)));
         } catch (final InterruptedException e) {
-            session.interruptionChecker().interrupt();
+            interruptionChecker.interrupt();
             throw new IOException("Interrupted while reading " + name, e);
         }
     }
@@ -929,7 +961,7 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      *            the root to remove from the cache.
      */
     public void evict(final VfsRoot root) {
-        if (!session.isClosed()) {
+        if (!closed.get()) {
             // A root can be cached under more than one key, e.g. under both the path it was opened from and the
             // canonical path of the file that turned out to back it
             rootsByPath.discardValue(root);
@@ -949,7 +981,7 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      *             if this {@link Vfs} has been closed.
      */
     void checkNotClosed(final String what) throws IOException {
-        if (session.isClosed()) {
+        if (closed.get()) {
             throw new IOException("Cannot read " + what + " after the Vfs has been closed");
         }
     }
@@ -962,27 +994,53 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      *             if this {@link Vfs} has been closed.
      */
     private void checkOpen() {
-        if (session.isClosed()) {
+        if (closed.get()) {
             throw new IllegalStateException("Cannot configure a Vfs after it has been closed");
         }
     }
 
     /**
-     * Returns whether this {@link Vfs} has been closed.
+     * Returns whether this {@link Vfs} has been closed. Every root it opened is closed with it, so a root of a
+     * closed {@link Vfs} reports itself closed too -- see {@link VfsRoot#isClosed()}.
      *
      * @return true if this {@link Vfs} has been closed.
      */
-    boolean isClosed() {
-        return session.isClosed();
+    public boolean isClosed() {
+        return closed.get();
     }
 
     /**
-     * Returns the session that the roots opened by this {@link Vfs} are backed by.
+     * Returns the settings that govern how this {@link Vfs} reads storage: the {@link VfsSpec} it was constructed
+     * with, or the default settings if it was constructed without one. The settings are held rather than copied, so
+     * this is the same object that was passed in, and changing a setting through it changes how this {@link Vfs}
+     * reads whatever it opens next.
      *
-     * @return the session.
+     * @return the settings that govern how this {@link Vfs} reads storage.
      */
-    VfsSession session() {
-        return session;
+    public VfsSpec getVfsSpec() {
+        return vfsSpec;
+    }
+
+    /**
+     * Returns the interruption checker shared by every thread reading through this {@link Vfs}, so that a thread
+     * that is interrupted while reading stops all the others too.
+     *
+     * @return the interruption checker.
+     * @hidden
+     */
+    public InterruptionChecker interruptionChecker() {
+        return interruptionChecker;
+    }
+
+    /**
+     * Returns the pool of {@code Inflater} instances that deflated zip entries read through this {@link Vfs} are
+     * inflated with.
+     *
+     * @return the inflater pool.
+     * @hidden
+     */
+    public Recycler<RecyclableInflater, RuntimeException> inflaterRecycler() {
+        return inflaterRecycler;
     }
 
     /**
@@ -1005,7 +1063,17 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      */
     public boolean hasTempFiles() {
         // The temporary files are deleted by close(), so a closed Vfs has none
-        return !session.isClosed() && session.hasTempFiles();
+        if (closed.get()) {
+            return false;
+        }
+        // A temporary file is owned by the root that was extracted to it, so the roots are what hold the answer.
+        // Every root this Vfs opened is in this set, including the roots of jarfiles nested within other roots
+        for (final var root : openRoots) {
+            if (root.hasTempFile()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -1063,12 +1131,11 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      *            node does.
      */
     private void doClose(final @Nullable LogNode logNode, final boolean flushLogAfterwards) {
-        // The session is marked closed atomically, so that a second call (or a concurrent one) returns rather than
-        // releasing the same resources twice, and so that a thread calling any other method the moment a close
-        // starts is turned away. It is marked before anything is released, since it is what every root checks
-        // before reading, so a thread that is midway through a read cannot get at storage that is being released
-        // out from under it.
-        if (!session.beginClose()) {
+        // Marked closed atomically, so that a second call (or a concurrent one) returns rather than releasing the
+        // same resources twice, and so that a thread calling any other method the moment a close starts is turned
+        // away. It is marked before anything is released, since it is what every root checks before reading, so a
+        // thread that is midway through a read cannot get at storage that is being released out from under it.
+        if (closed.getAndSet(true)) {
             return;
         }
         try {
@@ -1077,19 +1144,27 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
                 // be handed a root that is about to be closed
                 rootsByPath.clear();
                 rootsByModule.clear();
-                // Close every root this Vfs opened, releasing what each root itself owns: a module root's pooled
-                // readers are closed here, before the session teardown below releases the file handles, memory
-                // mappings and temporary files that the roots were read through. VfsRoot#close never throws, so
-                // one root that fails to release does not stop the rest from being closed
+                // Close every root this Vfs opened, releasing what each root owns: its pooled module readers, and
+                // the file handles, memory mappings and temporary files that its jarfile was read through.
+                // VfsRoot#close never throws, so one root that fails to release does not stop the rest from being
+                // closed
                 final var rootsToClose = new ArrayList<>(openRoots);
                 openRoots.clear();
                 for (final var root : rootsToClose) {
                     root.close(logNode);
                 }
             } finally {
-                // The session teardown is what releases every file handle, memory mapping and temporary file that
-                // the roots were read through, so it runs even if dropping the caches failed
-                session.close(logNode);
+                // The inflaters are borrowed on top of the slices the roots read through, so the pool is dropped
+                // after the roots are closed. forceClose closes the pooled inflaters and any inflater still on
+                // loan, and never throws, so this runs even if closing a root failed
+                inflaterRecycler.forceClose();
+            }
+            // An interruption during the close arrives as this thread's status, restored by the interrupted step
+            // rather than recorded anywhere: asking the garbage collector to unmap a file that a slice could not
+            // unmap reports one that way, being a static utility with no checker to reach. checkAndReturn() is
+            // what routes it into the shared checker, so that every other thread reading through this Vfs stops
+            if (interruptionChecker.checkAndReturn()) {
+                interruptionChecker.interrupt();
             }
         } finally {
             if (flushLogAfterwards && logNode != null) {

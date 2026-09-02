@@ -43,7 +43,7 @@ import io.github.classgraph.base.internal.path.PathSyntax;
 import io.github.classgraph.base.internal.utils.CollectionUtils;
 import io.github.classgraph.base.internal.utils.StringUtils;
 import io.github.classgraph.vfs.internal.ManifestParser;
-import io.github.classgraph.vfs.internal.VfsSession;
+import io.github.classgraph.vfs.Vfs;
 import io.github.classgraph.vfs.internal.slice.ArraySlice;
 import io.github.classgraph.vfs.internal.slice.Slice;
 import io.github.classgraph.vfs.reader.RandomAccessReader;
@@ -77,8 +77,8 @@ public class LogicalZipFile extends ZipFileSlice {
     /** If true, multi-release version prefixes are stripped from resource names, and mask the base entry. */
     private final boolean multiReleaseVersionsEnabled;
 
-    /** The session that owns what is opened to read this zipfile and the jarfiles nested within it. */
-    private final VfsSession session;
+    /** The vfs that owns what is opened to read this zipfile and the jarfiles nested within it. */
+    private final Vfs vfs;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -107,8 +107,8 @@ public class LogicalZipFile extends ZipFileSlice {
      *
      * @param zipFileSlice
      *            the zipfile slice
-     * @param session
-     *            the session that owns what is opened
+     * @param vfs
+     *            the {@link Vfs} that is opening this jarfile
      * @param log
      *            the log node, or null to skip logging
      * @param multiReleaseVersionsEnabled
@@ -118,12 +118,38 @@ public class LogicalZipFile extends ZipFileSlice {
      * @throws InterruptedException
      *             if the thread was interrupted.
      */
-    LogicalZipFile(final ZipFileSlice zipFileSlice, final VfsSession session, final @Nullable LogNode log,
+    LogicalZipFile(final ZipFileSlice zipFileSlice, final Vfs vfs, final @Nullable LogNode log,
             final boolean multiReleaseVersionsEnabled) throws IOException, InterruptedException {
         super(zipFileSlice);
-        this.session = session;
+        this.vfs = vfs;
         this.multiReleaseVersionsEnabled = multiReleaseVersionsEnabled;
-        readCentralDirectory(session, log);
+        readCentralDirectory(vfs, log);
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Release the resources that were opened to read this jarfile, if it owns them. A jarfile that is stored,
+     * uncompressed, within the jarfile that encloses it is read in place, as a byte range of the enclosing
+     * jarfile's physical zipfile, so it owns nothing, and this does nothing -- that physical zipfile belongs to the
+     * enclosing jarfile, which outlives this one.
+     *
+     * @throws IOException
+     *             if the physical zipfile could not be closed.
+     */
+    public void releaseOwnedResources() throws IOException {
+        if (ownsPhysicalZipFile) {
+            physicalZipFile.close();
+        }
+    }
+
+    /**
+     * Returns whether this jarfile was extracted to a temporary file that has not been deleted yet.
+     *
+     * @return true if this jarfile owns a temporary file that is still on disk.
+     */
+    public boolean hasTempFile() {
+        return ownsPhysicalZipFile && physicalZipFile.hasTempFile();
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -148,7 +174,7 @@ public class LogicalZipFile extends ZipFileSlice {
         if (!zipEntry.isDeflated) {
             // The entry holds a stored nested zipfile, so it can be read in place, as a byte range of this zipfile.
             // Hopefully nested zipfiles are stored, not deflated, as this is the fast path.
-            return new LogicalZipFile(new ZipFileSlice(zipEntry), session, log, multiReleaseVersionsEnabled);
+            return new LogicalZipFile(new ZipFileSlice(zipEntry), vfs, log, multiReleaseVersionsEnabled);
         }
 
         // A deflated nested zipfile has to be inflated before its central directory can be read, since a zipfile
@@ -165,11 +191,11 @@ public class LogicalZipFile extends ZipFileSlice {
             // The uncompressed size is a length rather than a hint that may have to fit in an array: an entry too
             // long to buffer in RAM is spilled straight to disk, which needs the real length rather than -1
             inflatedZipFile = new PhysicalZipFile(inflatedInputStream, zipEntry.uncompressedSize,
-                    zipEntry.entryName, session, log);
+                    zipEntry.entryName, vfs, log);
         }
 
         try {
-            return new LogicalZipFile(new ZipFileSlice(inflatedZipFile, zipEntry), session, log,
+            return new LogicalZipFile(new ZipFileSlice(inflatedZipFile, zipEntry), vfs, log,
                     multiReleaseVersionsEnabled);
         } catch (final IOException | InterruptedException | RuntimeException | Error e) {
             // The caller's cache records the failure rather than inflating the entry again, so nothing would ever
@@ -341,8 +367,8 @@ public class LogicalZipFile extends ZipFileSlice {
      *
      * @param reader
      *            a reader for the whole zipfile slice
-     * @param session
-     *            the session that owns what is opened
+     * @param vfs
+     *            the {@link Vfs} that is opening this jarfile
      * @return the position of the End Of Central Directory record within the zipfile slice
      * @throws IOException
      *             If an I/O exception occurs, or the record could not be found.
@@ -350,7 +376,7 @@ public class LogicalZipFile extends ZipFileSlice {
      *             if the thread was interrupted.
      */
     @SuppressWarnings("resource")
-    private long findEndOfCentralDirectoryPos(final RandomAccessReader reader, final VfsSession session)
+    private long findEndOfCentralDirectoryPos(final RandomAccessReader reader, final Vfs vfs)
             throws IOException, InterruptedException {
         // The zipfile comment is arbitrary bytes, and the entry data before it is arbitrary bytes too, so a
         // position that merely holds the EOCD signature is not necessarily the EOCD record. The real record is the
@@ -384,7 +410,7 @@ public class LogicalZipFile extends ZipFileSlice {
                 throw new IOException("Zipfile is truncated");
             }
             try (final ArraySlice arraySlice = new ArraySlice(eocdBytes, /* isDeflatedZipEntry = */ false,
-                    /* inflatedLengthHint = */ 0L, session)) {
+                    /* inflatedLengthHint = */ 0L, vfs)) {
                 final var eocdReader = arraySlice.randomAccessReader();
                 for (var i = eocdBytes.length - 22L; i >= 0L; --i) {
                     if (eocdReader.readUnsignedInt(i) == 0x06054b50L) {
@@ -524,15 +550,15 @@ public class LogicalZipFile extends ZipFileSlice {
      *            a reader for the whole zipfile slice
      * @param cen
      *            the central directory
-     * @param session
-     *            the session that owns what is opened
+     * @param vfs
+     *            the {@link Vfs} that is opening this jarfile
      * @return the reader
      * @throws IOException
      *             If an I/O exception occurs.
      */
     @SuppressWarnings("resource")
     private RandomAccessReader openCentralDirectoryReader(final RandomAccessReader reader,
-            final CentralDirectory cen, final VfsSession session) throws IOException {
+            final CentralDirectory cen, final Vfs vfs) throws IOException {
         // Read entries into a byte array, if central directory is smaller than 2GB. If central directory is larger
         // than 2GB, need to read each entry field from the file directly using ZipFileSliceReader.
         if (cen.cenSize() > Slice.MAX_BUFFER_SIZE) {
@@ -551,7 +577,7 @@ public class LogicalZipFile extends ZipFileSlice {
             // Should not happen
             throw new IOException("Zipfile is truncated");
         }
-        return new ArraySlice(entryBytes, /* isDeflatedZipEntry = */ false, /* inflatedSizeHint = */ 0L, session)
+        return new ArraySlice(entryBytes, /* isDeflatedZipEntry = */ false, /* inflatedSizeHint = */ 0L, vfs)
                 .randomAccessReader();
     }
 
@@ -1102,8 +1128,8 @@ public class LogicalZipFile extends ZipFileSlice {
     /**
      * Read the central directory of the zipfile.
      *
-     * @param session
-     *            the session that owns what is opened
+     * @param vfs
+     *            the {@link Vfs} that is opening this jarfile
      * @param log
      *            the log node, or null to skip logging
      * @throws IOException
@@ -1112,7 +1138,7 @@ public class LogicalZipFile extends ZipFileSlice {
      *             if the thread was interrupted.
      */
     @SuppressWarnings("resource")
-    private void readCentralDirectory(final VfsSession session, final @Nullable LogNode log)
+    private void readCentralDirectory(final Vfs vfs, final @Nullable LogNode log)
             throws IOException, InterruptedException {
         if (slice.sliceLength < 22) {
             throw new IOException("Zipfile too short to have a central directory");
@@ -1120,9 +1146,9 @@ public class LogicalZipFile extends ZipFileSlice {
         final var reader = slice.randomAccessReader();
 
         // Locate the central directory
-        final var eocdPos = findEndOfCentralDirectoryPos(reader, session);
+        final var eocdPos = findEndOfCentralDirectoryPos(reader, vfs);
         final var cen = readEndOfCentralDirectory(reader, eocdPos);
-        final var cenReader = openCentralDirectoryReader(reader, cen, session);
+        final var cenReader = openCentralDirectoryReader(reader, cen, vfs);
 
         // numEnt is -1 if the End Of Central Directory record and its Zip64 counterpart were inconsistent
         final var numEnt = cen.numEnt() == -1L ? countCentralDirectoryEntries(cenReader, cen.cenSize())

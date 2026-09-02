@@ -16,7 +16,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
 import io.github.classgraph.vfs.VfsSpec;
-import io.github.classgraph.vfs.internal.VfsSession;
+import io.github.classgraph.vfs.Vfs;
 
 /**
  * Zip entries are used as map keys, so two of them stand for the same entry only if they name the same entry of the
@@ -82,12 +82,12 @@ public class FastZipEntryIdentityTest {
      *             if the jarfile could not be opened
      */
     private static void withZipFile(final File jarFile, final ZipFileAssertions assertions) throws Exception {
-        final var session = new VfsSession(new VfsSpec(), new InterruptionChecker());
+        final var vfs = new Vfs(new VfsSpec(), new InterruptionChecker());
         try {
-            assertions.run(JarOpener.openJarFile(jarFile, session, /* log = */ null));
+            assertions.run(JarOpener.openJarFile(jarFile, vfs, /* log = */ null));
         } finally {
             // The jarfile must not be left open, otherwise the temporary directory cannot be deleted on Windows
-            session.close(/* log = */ null);
+            vfs.close(/* log = */ null);
         }
     }
 

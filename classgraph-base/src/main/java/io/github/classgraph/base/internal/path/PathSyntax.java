@@ -521,7 +521,7 @@ public final class PathSyntax {
                 : Math.max(path.lastIndexOf('/', endIdx), path.lastIndexOf(File.separatorChar, endIdx)));
         startIdx = Math.min(startIdx, endIdx);
         // In case of temp files (for jars extracted from within jars), remove the temp filename prefix -- see
-        // VfsSession.makeTempFile(). The prefix is only stripped from a segment that actually starts with the
+        // TempFile.create(). The prefix is only stripped from a segment that actually starts with the
         // temporary filename prefix, and only at the first separator after it: looking for the separator anywhere
         // truncated the name of a file genuinely named "a---b.jar" to "b.jar", and looking for it anywhere in the
         // whole path found a "---" in a directory name or in a path nested within the jar, which left the name

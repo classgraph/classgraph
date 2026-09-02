@@ -15,7 +15,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
 import io.github.classgraph.vfs.VfsSpec;
-import io.github.classgraph.vfs.internal.VfsSession;
+import io.github.classgraph.vfs.Vfs;
 
 /**
  * The extra field area of a central directory entry holds a sequence of extra fields, and every one of them has to
@@ -195,15 +195,15 @@ public class ExtraFieldsAfterZip64Test {
         final var jarFile = new File(tempDir, jarName);
         Files.write(jarFile.toPath(), zip.toByteArray());
 
-        final var session = new VfsSession(new VfsSpec(), new InterruptionChecker());
+        final var vfs = new Vfs(new VfsSpec(), new InterruptionChecker());
         final List<String> entryNames = new ArrayList<>();
         try {
-            for (final FastZipEntry zipEntry : JarOpener.openJarFile(jarFile, session, /* log = */ null).entries) {
+            for (final FastZipEntry zipEntry : JarOpener.openJarFile(jarFile, vfs, /* log = */ null).entries) {
                 entryNames.add(zipEntry.entryName);
             }
         } finally {
             // The jarfile must not be left open, otherwise the temporary directory cannot be deleted on Windows
-            session.close(/* log = */ null);
+            vfs.close(/* log = */ null);
         }
         return entryNames;
     }

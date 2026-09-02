@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
 import io.github.classgraph.vfs.VfsSpec;
-import io.github.classgraph.vfs.internal.VfsSession;
+import io.github.classgraph.vfs.Vfs;
 
 /**
  * Tests for the {@link InputStream} that {@link Slice#open()} returns, which is what a resource's content is read
@@ -30,29 +30,29 @@ public class SliceInputStreamTest {
      * @return the slice
      */
     private static Slice slice() {
-        final var session = new VfsSession(new VfsSpec(), new InterruptionChecker());
-        return new ArraySlice(CONTENT, /* isDeflatedZipEntry = */ false, /* inflatedLengthHint = */ 0L, session);
+        final var vfs = new Vfs(new VfsSpec(), new InterruptionChecker());
+        return new ArraySlice(CONTENT, /* isDeflatedZipEntry = */ false, /* inflatedLengthHint = */ 0L, vfs);
     }
 
     /**
      * A stream that is still open can still be reading a file that the {@link io.github.classgraph.vfs.Vfs} has
-     * released, so every read stops the moment the session is closed, rather than returning content that came from
+     * released, so every read stops the moment the vfs is closed, rather than returning content that came from
      * storage that is being released. The slice here is held in RAM and could still be read from, so this is the
-     * session's state that turns the read away, and not the slice's.
+     * vfs's state that turns the read away, and not the slice's.
      *
      * @throws IOException
      *             if the slice could not be read
      */
     @Test
     public void everyReadStopsOnceTheSessionIsClosed() throws IOException {
-        final var session = new VfsSession(new VfsSpec(), new InterruptionChecker());
+        final var vfs = new Vfs(new VfsSpec(), new InterruptionChecker());
         final var slice = new ArraySlice(CONTENT, /* isDeflatedZipEntry = */ false, /* inflatedLengthHint = */ 0L,
-                session);
+                vfs);
         try (var inputStream = slice.open()) {
             assertThat(inputStream.read()).isEqualTo(CONTENT[0] & 0xff);
             inputStream.mark(CONTENT.length);
 
-            session.close(/* log = */ null);
+            vfs.close(/* log = */ null);
 
             assertThatThrownBy(inputStream::read).isInstanceOf(IOException.class)
                     .hasMessageContaining("after the Vfs has been closed");

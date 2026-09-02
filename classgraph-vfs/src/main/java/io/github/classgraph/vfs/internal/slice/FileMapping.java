@@ -109,9 +109,9 @@ final class FileMapping {
         if (fileLength > Slice.MAX_BUFFER_SIZE) {
             return null;
         }
-        // A mapping is not released until the reading session is closed, which can happen long after the file was
-        // mapped -- so load the classes needed to release it now, while the classloader that loaded ClassGraph is
-        // certainly still alive
+        // A mapping is not released until the root that mapped the file is closed, which can happen long after the
+        // file was mapped -- so load the classes needed to release it now, while the classloader that loaded
+        // ClassGraph is certainly still alive
         // #331
         OffHeapMemory.warmUpDirectByteBufferClosing();
         Object arena = null;

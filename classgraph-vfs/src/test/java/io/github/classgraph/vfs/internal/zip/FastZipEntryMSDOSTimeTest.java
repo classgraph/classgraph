@@ -17,7 +17,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
 import io.github.classgraph.vfs.VfsSpec;
-import io.github.classgraph.vfs.internal.VfsSession;
+import io.github.classgraph.vfs.Vfs;
 
 /**
  * Tests that the month of an MS-DOS timestamp is read from all four of its bits.
@@ -84,16 +84,16 @@ public class FastZipEntryMSDOSTimeTest {
             zipOut.closeEntry();
         }
 
-        final var session = new VfsSession(new VfsSpec(), new InterruptionChecker());
+        final var vfs = new Vfs(new VfsSpec(), new InterruptionChecker());
         final long lastModifiedTimeMillis;
         try {
-            final var entries = JarOpener.openJarFile(jarFile, session, /* log = */ null).entries;
+            final var entries = JarOpener.openJarFile(jarFile, vfs, /* log = */ null).entries;
             assertThat(entries).hasSize(1);
             assertThat(entries.get(0).entryName).isEqualTo(ENTRY_NAME);
             lastModifiedTimeMillis = entries.get(0).getLastModifiedMillis();
         } finally {
             // The jarfile must not be left open, otherwise the temporary directory cannot be deleted on Windows
-            session.close(/* log = */ null);
+            vfs.close(/* log = */ null);
         }
         return lastModifiedTimeMillis;
     }

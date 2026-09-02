@@ -311,8 +311,8 @@ public final class OffHeapMemory {
      * {@link ByteBuffer} and immediately freeing it again.
      *
      * <p>
-     * Freeing a direct {@link ByteBuffer} happens when the reading session is closed, which may be long after the
-     * file was read, and possibly from a shutdown hook or a container's teardown code, by which time the
+     * Freeing a direct {@link ByteBuffer} happens when the root that mapped the file is closed, which may be long
+     * after the file was read, and possibly from a shutdown hook or a container's teardown code, by which time the
      * classloader that loaded ClassGraph may no longer be able to load anything -- one report had a Maven plugin's
      * Plexus {@code ClassRealm} already closed, so the lambda class implementing the buffer-freeing code could not
      * be defined, and closing threw {@link NoClassDefFoundError}. Loading those classes up front, while the

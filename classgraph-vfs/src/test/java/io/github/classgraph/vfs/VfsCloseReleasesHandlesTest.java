@@ -19,8 +19,8 @@ import org.junit.jupiter.api.io.TempDir;
 
 /**
  * Closing a virtual filesystem releases every file handle it opened. The caches of opened roots and of zipfiles
- * hold no handles of their own -- every handle belongs to the session -- so dropping the caches has to be enough to
- * release them all.
+ * hold no handles of their own -- every handle belongs to a root in the ownership tree -- so closing every root has
+ * to be enough to release them all.
  */
 public class VfsCloseReleasesHandlesTest {
     /** The number of times the virtual filesystem is opened and closed while the file handles are counted. */
@@ -116,7 +116,7 @@ public class VfsCloseReleasesHandlesTest {
     private static void openAndCloseAVfs(final File storedOuterJarFile, final File deflatedOuterJarFile,
             final File dir) throws IOException {
         // No RAM is allowed to hold the inflated inner jarfile, so reading it spills to a temporary file, which is
-        // another file handle that the session has to release
+        // another file handle that closing the virtual filesystem has to release
         try (var vfs = new Vfs(new VfsSpec().setMaxBufferedJarRAMSize(0))) {
             for (final var outerJarFile : new File[] { storedOuterJarFile, deflatedOuterJarFile }) {
                 assertThat(vfs.open(outerJarFile).getEntries()).isNotEmpty();
