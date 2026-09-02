@@ -184,15 +184,6 @@ class ScanSpec {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * If true, nested jarfiles (jarfiles within jarfiles) that are extracted during scanning are removed from their
-     * temporary directory (e.g. /tmp/ClassGraph-8JX2u4w) after the scan has completed. If false, temporary files
-     * are removed when the {@code ScanResult} is closed, or failing that, on JVM exit.
-     */
-    public boolean removeTemporaryFilesAfterScan;
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
      * The maximum length of time to wait for a worker thread to finish. A timeout that is zero, negative, or too
      * long to express in nanoseconds means "wait indefinitely", which was the behavior before this timeout was
      * added.

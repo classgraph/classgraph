@@ -1342,7 +1342,6 @@ class Scanner implements Callable<ScanResult> {
     public @Nullable ScanResult call() throws InterruptedException, CancellationException, ExecutionException {
         ScanResult scanResult = null;
         final var scanStart = System.nanoTime();
-        final var removeTemporaryFilesAfterScan = scanSpec.removeTemporaryFilesAfterScan;
         try {
             // Perform the scan
             scanResult = openClasspathElementsThenScan();
@@ -1415,14 +1414,6 @@ class Scanner implements Callable<ScanResult> {
                     throw failureHandlerException;
                 }
             }
-        }
-
-        if (removeTemporaryFilesAfterScan && vfs.hasTempFiles()) {
-            // Temporary files back memory-mapped slices of the extracted nested jarfiles, so they cannot be deleted
-            // without closing those slices, which closes the Vfs. If no temp files were created (i.e. if there were
-            // no nested jars), the Vfs is left open, so the returned ScanResult can still be used to read resources
-            // and load classes (#916)
-            vfs.close(topLevelLog);
         }
         return scanResult;
     }
