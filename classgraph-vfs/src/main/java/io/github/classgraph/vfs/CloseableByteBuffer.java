@@ -71,10 +71,19 @@ import org.jspecify.annotations.Nullable;
 // directly, on both JDK versions -- so the proxying itself is free and there is nothing to remove on JDK 22+.
 // What costs is the check, and only if the flag it reads is volatile: 8.4 us (4.2x) for a volatile boolean, 8.6 us
 // for an opaque read, 7.0 us for a null check on a volatile field, but 2.00 us -- free -- for a plain non-volatile
-// boolean, which the JIT hoists out of the loop. A bulk copy amortizes the check to nothing whichever flag is
-// used. A plain flag is also no weaker than a volatile one here: neither can make the check race-free, since a
-// close landing between the check and the read still frees the address range below JDK 22, and a plain flag is
-// still read correctly by a caller that closes and reads on one thread, which is the case worth reporting.
+// boolean.
+//
+// A plain flag is free because the JIT hoists the read out of the reader's loop, which is the same reason it is
+// unsafe across threads: measured separately, a reader whose loop contains no volatile read of its own never
+// noticed a plain flag being set on another thread at all, over a 20 second timeout, in either of two loop shapes,
+// while a volatile flag was noticed in about 110 us. So a plain flag reports a caller that closes and then reads on
+// one thread, which is the common misuse, and reports nothing whatsoever when one thread reads while another
+// closes. A volatile flag does not make that case safe either, since the check is still made before the read; it
+// only narrows the window.
+//
+// The way to have the volatile flag for free is to make the accessors bulk-oriented -- copyTo, getInt, remaining,
+// rather than a get(int) that callers put in a loop of their own -- since a bulk copy of 8 KB with the check
+// measured 0.089-0.130 us, which is the cost of the raw copy.
 //
 // Before any of this is worth doing, note that below JDK 22 there is currently no such race at all: an open
 // wrapper holds a view that stops the mapping being released (FileMapping#unmapIfNoViewIsOpen), so force-closing
