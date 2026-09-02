@@ -524,19 +524,29 @@ public class PathSliceTest {
         // A view of the mapping that the caller can still read, which stops the slice from unmapping the file
         final var releaseView = slice.acquireMappingView();
 
-        // Stop the delete from succeeding while the file is mapped, the way Windows stops it
-        assumeTrue(directory.toFile().setWritable(false), "the directory could not be made read-only");
+        // Stop the delete from succeeding while the file is mapped. On Windows the mapping is what stops it,
+        // which is the case this test is about; everywhere else the delete has to be refused some other way, so
+        // clear the write permission that POSIX requires in order to unlink the file from its directory.
+        // (setWritable returns false on a Windows directory, where it is not needed, so it is called for its
+        // effect rather than its result.)
+        directory.toFile().setWritable(false);
+        final boolean deleteWasRefused;
         try {
             slice.close();
-            assumeTrue(tempFile.exists(), "the read-only directory did not stop the delete");
-            assertThat(slice.hasUndeletedTempFile()).as("the file is still there, so it is undeleted").isTrue();
+            deleteWasRefused = tempFile.exists();
+            if (deleteWasRefused) {
+                assertThat(slice.hasUndeletedTempFile()).as("the file is still there, so it is undeleted").isTrue();
+            }
         } finally {
-            assertThat(directory.toFile().setWritable(true)).isTrue();
+            directory.toFile().setWritable(true);
         }
 
-        // Releasing the last view unmaps the file, which is the moment the delete can be retried
+        // Releasing the last view unmaps the file, which is the moment the delete can be retried. This is run
+        // before the assumption below, so that an abort leaves nothing mapped for the temporary directory
+        // cleanup to trip over.
         releaseView.run();
 
+        assumeTrue(deleteWasRefused, "the delete succeeded while the file was still mapped");
         assertThat(tempFile).doesNotExist();
         assertThat(slice.hasUndeletedTempFile()).isFalse();
     }
