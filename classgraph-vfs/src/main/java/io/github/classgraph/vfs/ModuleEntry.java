@@ -155,8 +155,14 @@ final class ModuleEntry extends VfsEntry {
                         // recycler forever rather than being handed back for the next read
                         recycler.recycle(reader);
                     }
-                });
+                }, getRoot());
+                // The wrapper now owns the buffer and the reader, so the recovery paths below must not release
+                // them as well
                 handedOffToCaller = true;
+                if (!getRoot().trackOpenHandle(closeableByteBuffer)) {
+                    closeableByteBuffer.close();
+                    throw new IOException("Cannot read " + getPath() + " after the root has been closed");
+                }
                 return closeableByteBuffer;
             } finally {
                 if (!handedOffToCaller) {

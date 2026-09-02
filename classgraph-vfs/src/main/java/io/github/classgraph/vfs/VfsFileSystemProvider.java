@@ -660,7 +660,23 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
      *             if the entry could not be read.
      */
     private static VfsRandomAccessChannel channelOver(final VfsEntry entry) throws IOException {
-        return new VfsRandomAccessChannel(entry.openRandomAccess());
+        final var root = entry.getRoot();
+        final var content = entry.openRandomAccess();
+        final VfsRandomAccessChannel channel;
+        try {
+            channel = new VfsRandomAccessChannel(content, root);
+        } catch (final RuntimeException | Error e) {
+            // The caller never sees the channel if this throws, so nothing else would release the content
+            content.closeAction().run();
+            throw e;
+        }
+        // From here the channel owns the content, so a failure to track it is reported by closing the channel
+        // rather than by releasing the content directly, which would release it twice
+        if (!root.trackOpenHandle(channel)) {
+            channel.close();
+            throw new IOException("Cannot read " + entry.getPath() + " after the root has been closed");
+        }
+        return channel;
     }
 
     /**
@@ -1187,6 +1203,12 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
         private final VfsEntry.RandomAccessContent content;
 
         /**
+         * The root the entry was read from, which closes this channel if it is still open when that root closes, so
+         * that a channel that reads a memory mapping stops holding that mapping open.
+         */
+        private final VfsRoot root;
+
+        /**
          * The read position, which is allowed to be beyond the end of the content, where reads return end-of-file.
          */
         private long position;
@@ -1199,9 +1221,13 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
          *
          * @param content
          *            the content of the entry.
+         * @param root
+         *            the root the entry was read from. The caller registers this channel with the root -- this
+         *            constructor does not, so that the channel is not published before it is built.
          */
-        VfsRandomAccessChannel(final VfsEntry.RandomAccessContent content) {
+        VfsRandomAccessChannel(final VfsEntry.RandomAccessContent content, final VfsRoot root) {
             this.content = content;
+            this.root = root;
         }
 
         /**
@@ -1306,6 +1332,10 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
         @Override
         public void close() {
             if (open.compareAndSet(true, false)) {
+                // Stop the root tracking this channel, so that a caller that closes its channels does not
+                // accumulate them on the root for as long as it stays open. Harmless if the root is the one doing
+                // the closing, since it drains its set before it closes what was in it
+                root.untrackOpenHandle(this);
                 content.closeAction().run();
             }
         }

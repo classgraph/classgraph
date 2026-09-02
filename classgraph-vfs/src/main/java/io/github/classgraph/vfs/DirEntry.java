@@ -197,14 +197,23 @@ final class DirEntry extends VfsEntry {
 
     @Override
     public CloseableByteBuffer read() throws IOException {
+        final var root = getRoot();
         final var slice = openSlice();
+        final CloseableByteBuffer buffer;
         try {
-            return new CloseableByteBuffer(slice.read(), slice::close);
+            buffer = new CloseableByteBuffer(slice.read(), slice::close, root);
         } catch (final IOException | RuntimeException | Error e) {
             // The caller never sees the slice if this throws, so nothing else can close its file channel
             slice.close();
             throw e;
         }
+        // From here the wrapper owns the slice, so a failure to track it is reported by closing the wrapper rather
+        // than by closing the slice directly
+        if (!root.trackOpenHandle(buffer)) {
+            buffer.close();
+            throw new IOException("Cannot read " + getPath() + " after the root has been closed");
+        }
+        return buffer;
     }
 
     @Override

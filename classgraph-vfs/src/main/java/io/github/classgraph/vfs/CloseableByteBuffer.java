@@ -49,15 +49,21 @@ import org.jspecify.annotations.Nullable;
  * no longer be mapped into.
  *
  * <p>
+ * Closing the {@link VfsRoot} this buffer was read from, or the {@link Vfs} that opened that root, closes this
+ * wrapper too, whether or not the caller has: the root closes every buffer it handed out as the step before it
+ * releases what it owns, so that a buffer that is a view of a memory mapping stops holding that mapping open and
+ * the file can be unmapped, and deleted if it was a temporary one, as the root closes. {@link #getByteBuffer()}
+ * returns null from that point on.
+ *
+ * <p>
  * This is the one place in the {@link Vfs} API where reading after a close is not reported as an
  * {@link java.io.IOException}: this is a raw {@link ByteBuffer} handed to the caller, so nothing sits between it
- * and the caller to check whether the file is still there. On JDK 22 and later such a read throws
- * {@link IllegalStateException}, since the file is unmapped by closing an arena that knows it has been closed;
- * below JDK 22 unmapping frees the address range without marking the buffer, so the read is undefined -- which is
- * why an open wrapper holds the mapping open on those JDK versions until it is closed. A wrapper that is left open
- * therefore holds the file it is a view of mapped, and if that file is a temporary file that a nested jarfile was
- * extracted to, it holds it on disk as well: on Windows a mapped file cannot be deleted, so the file is deleted
- * when this wrapper is closed rather than when the {@link VfsRoot} that owns it is.
+ * and the caller to check whether the file is still there, and a reference to it taken before the close is not
+ * revoked by the close. Reading through such a reference is a bug in the calling code, and what it does depends on
+ * the JDK: on JDK 22 and later the read throws {@link IllegalStateException}, since the file is unmapped by closing
+ * an arena that knows it has been closed, but below JDK 22 the only way to unmap a file frees the address range
+ * without marking the buffer, and the read takes a SIGSEGV that kills the JVM. Read the buffer only inside the
+ * try-with-resources block that holds this wrapper, and only while the root it came from is open.
  */
 // TODO: consider replacing getByteBuffer() with accessor methods on this class, so that the raw buffer
 // cannot escape and a read after a close can be reported rather than reading memory that is no longer mapped.
@@ -85,14 +91,15 @@ import org.jspecify.annotations.Nullable;
 // rather than a get(int) that callers put in a loop of their own -- since a bulk copy of 8 KB with the check
 // measured 0.089-0.130 us, which is the cost of the raw copy.
 //
-// Before any of this is worth doing, note that below JDK 22 there is currently no such race at all: an open
-// wrapper holds a view that stops the mapping being released (FileMapping#unmapIfNoViewIsOpen), so force-closing
-// wrappers from Vfs#close() would introduce a way to segfault that does not exist today, in exchange for deleting
-// an extracted temporary file promptly rather than when the last wrapper closes. On JDK 22+ the arena already
-// invalidates readers safely, so no check is needed there.
-//
 // Removing getByteBuffer() is also a public API break: ResourceList#forEachByteBuffer hands a raw ByteBuffer to a
 // caller-supplied consumer, and VfsFileSystemProvider reads one directly.
+//
+// TODO: revisit this, and the warning on getByteBuffer(), once the minimum supported JDK is 22 or later. From 22 a
+// file is mapped in a java.lang.foreign.Arena whose close invalidates readers rather than freeing the address
+// range under them, so a read after the close throws IllegalStateException instead of killing the JVM, and there
+// is nothing left for a check of ours to protect against. At that point the warning becomes a note that a late
+// read throws, and the buffer-tracking that VfsRoot does could be reconsidered too -- it would still be wanted for
+// dropping references promptly, but no longer for making an unmap possible.
 public final class CloseableByteBuffer implements AutoCloseable {
     /**
      * The wrapped {@link ByteBuffer}, or null once this wrapper has been closed.
@@ -106,6 +113,12 @@ public final class CloseableByteBuffer implements AutoCloseable {
     private final AtomicReference<@Nullable Runnable> onClose;
 
     /**
+     * The {@link VfsRoot} that produced this buffer and closes it if it is still open when that root closes, or
+     * null for a buffer that no root is tracking.
+     */
+    private final @Nullable VfsRoot owner;
+
+    /**
      * A wrapper for {@link ByteBuffer} that implements the {@link AutoCloseable} interface, releasing the
      * {@link ByteBuffer} when it is no longer needed.
      *
@@ -115,14 +128,47 @@ public final class CloseableByteBuffer implements AutoCloseable {
      *            The method to run when {@link #close()} is called.
      */
     public CloseableByteBuffer(final ByteBuffer byteBuffer, final Runnable onClose) {
-        this.byteBuffer = byteBuffer;
-        this.onClose = new AtomicReference<>(onClose);
+        this(byteBuffer, onClose, /* owner = */ null);
     }
 
     /**
-     * Get the wrapped ByteBuffer.
+     * A wrapper for {@link ByteBuffer} that the given {@link VfsRoot} tracks, so that closing that root closes this
+     * wrapper if the caller has not.
      *
-     * @return The wrapped {@link ByteBuffer}, or null if this wrapper has been closed.
+     * @param byteBuffer
+     *            The {@link ByteBuffer} to wrap.
+     * @param onClose
+     *            The method to run when {@link #close()} is called.
+     * @param owner
+     *            The root that produced the buffer, or null if no root is tracking it. The caller registers the
+     *            wrapper with the root -- this constructor does not, so that the wrapper is not published before it
+     *            is built.
+     */
+    CloseableByteBuffer(final ByteBuffer byteBuffer, final Runnable onClose, final @Nullable VfsRoot owner) {
+        this.byteBuffer = byteBuffer;
+        this.onClose = new AtomicReference<>(onClose);
+        this.owner = owner;
+    }
+
+    /**
+     * Get the wrapped {@link ByteBuffer}.
+     *
+     * <p>
+     * <b>The returned {@link ByteBuffer} must not be read after this wrapper is closed, or after the
+     * {@link VfsRoot} it was read from or the {@link Vfs} that opened that root is closed</b> -- any of those
+     * closes releases the buffer, and the buffer may be a memory mapping of a file rather than a copy of its
+     * content. This method returns null once any of them has happened, but a reference taken before that is not
+     * revoked, and reading through one is undefined.
+     *
+     * <p>
+     * On JDK 22 and later such a read throws {@link IllegalStateException}. Below JDK 22 there is no way to unmap a
+     * file that marks the buffers that read it, so the read takes a SIGSEGV that kills the JVM instead. That only
+     * arises where the file was memory-mapped, which is on Windows: files are read through the file channel API on
+     * every other platform, so the buffer is a copy there and reading it late is merely wrong rather than fatal. Do
+     * not rely on that -- read the buffer inside the try-with-resources block that holds this wrapper.
+     *
+     * @return The wrapped {@link ByteBuffer}, or null if this wrapper, the root it was read from, or the
+     *         {@link Vfs} that opened that root has been closed.
      */
     public @Nullable ByteBuffer getByteBuffer() {
         return byteBuffer;
@@ -135,6 +181,13 @@ public final class CloseableByteBuffer implements AutoCloseable {
         // rather than twice -- releasing the same buffer twice would hand the same memory out to two readers
         final var onCloseRunnable = onClose.getAndSet(null);
         byteBuffer = null;
+        final var ownerRoot = owner;
+        if (ownerRoot != null) {
+            // Stop the root tracking this buffer, so that a caller that closes its buffers does not accumulate
+            // them on the root for as long as it stays open. Harmless if the root is the one doing the closing,
+            // since it drains its set before it closes what was in it
+            ownerRoot.untrackOpenHandle(this);
+        }
         if (onCloseRunnable != null) {
             try {
                 onCloseRunnable.run();

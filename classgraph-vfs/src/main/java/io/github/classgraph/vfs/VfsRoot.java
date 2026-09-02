@@ -41,6 +41,7 @@ import java.nio.file.FileSystem;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -955,6 +956,83 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
     }
 
     /**
+     * The closeable things this root has handed out that the caller has not closed yet -- the
+     * {@link CloseableByteBuffer}s read from it, and the {@link java.nio.channels.SeekableByteChannel}s opened over
+     * its entries. Closing this root closes them, so that one that is a view of a memory mapping stops holding that
+     * mapping open and the file can be unmapped as this root closes rather than whenever the caller gets round to
+     * it. Guarded by its own monitor, together with {@link #openHandlesClosed}.
+     */
+    private final Set<AutoCloseable> openHandles = Collections.newSetFromMap(new IdentityHashMap<>());
+
+    /** True once {@link #close(LogNode)} has closed what was in {@link #openHandles}. Guarded by that set. */
+    private boolean openHandlesClosed;
+
+    /**
+     * Record something this root has just handed out, so that closing this root closes it if the caller has not.
+     *
+     * @param handle
+     *            the buffer or channel.
+     * @return true if it was recorded, or false if this root has already closed what it handed out, in which case
+     *         the caller must close this one itself, since nothing else will.
+     */
+    boolean trackOpenHandle(final AutoCloseable handle) {
+        synchronized (openHandles) {
+            if (openHandlesClosed) {
+                return false;
+            }
+            openHandles.add(handle);
+            return true;
+        }
+    }
+
+    /**
+     * Stop tracking something, called from its own close method so that a caller that closes what it opens does not
+     * accumulate it here for as long as this root is open.
+     *
+     * @param handle
+     *            the buffer or channel.
+     */
+    void untrackOpenHandle(final AutoCloseable handle) {
+        synchronized (openHandles) {
+            openHandles.remove(handle);
+        }
+    }
+
+    /**
+     * Close what this root handed out that the caller has not closed, as the step before
+     * {@link #releaseResources(LogNode)}. Each close drops the reference to the content and releases whatever was
+     * held -- for a view of a memory mapping, that is the view that was keeping the file mapped, so that the
+     * release of resources that follows can unmap it.
+     *
+     * @param log
+     *            the log node, or null to not log.
+     */
+    private void closeOpenHandles(final @Nullable LogNode log) {
+        final List<AutoCloseable> handlesToClose;
+        synchronized (openHandles) {
+            openHandlesClosed = true;
+            handlesToClose = new ArrayList<>(openHandles);
+            openHandles.clear();
+        }
+        if (!handlesToClose.isEmpty() && log != null) {
+            log.log("Closing " + handlesToClose.size() + " buffer(s) or channel(s) that were opened on "
+                    + reportedPath() + " and not closed by the caller");
+        }
+        for (final var handle : handlesToClose) {
+            // Each of these takes its close action out atomically, so a caller closing the same one at the same
+            // time cannot make it release what it holds twice
+            try {
+                handle.close();
+            } catch (final Exception e) {
+                // Closing a root reports nothing to the caller but the log, and there is more to close
+                if (log != null) {
+                    log.log("Could not close " + handle, e);
+                }
+            }
+        }
+    }
+
+    /**
      * Close this root, releasing what it owns and removing it from the cache of the {@link Vfs} that opened it.
      * Every root built within this one -- the root of a jarfile nested within this root's jarfile, or a package
      * root view of it -- is closed too, innermost first. The {@link Vfs} and every other root it has opened stay
@@ -1015,6 +1093,10 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
         synchronized (this) {
             fileSystem = null;
         }
+        // Close any buffer this root handed out that the caller did not close, so that a buffer that is a view of
+        // a memory mapping stops holding it open, and the unmap that releaseResources performs below is the last
+        // thing this close does
+        closeOpenHandles(log);
         releaseResources(log);
     }
 

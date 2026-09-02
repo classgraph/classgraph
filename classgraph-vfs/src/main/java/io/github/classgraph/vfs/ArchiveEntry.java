@@ -137,15 +137,24 @@ final class ArchiveEntry extends VfsEntry {
         // returned here is a
         // view of that mapping, so the mapping has to be held open until the caller closes the wrapper
         // #939
+        final var root = getRoot();
         final var slice = zipEntry.getSlice();
         final var releaseMappingView = slice.acquireMappingView();
+        final CloseableByteBuffer buffer;
         try {
-            return new CloseableByteBuffer(slice.read(), releaseMappingView);
+            buffer = new CloseableByteBuffer(slice.read(), releaseMappingView, root);
         } catch (final IOException | RuntimeException | Error e) {
             // The caller never sees the buffer if this throws, so nothing else would release the view
             releaseMappingView.run();
             throw e;
         }
+        // From here the wrapper owns the view, so a failure to track it is reported by closing the wrapper rather
+        // than by releasing the view directly, which would release it twice
+        if (!root.trackOpenHandle(buffer)) {
+            buffer.close();
+            throw new IOException("Cannot read " + getPath() + " after the root has been closed");
+        }
+        return buffer;
     }
 
     @Override

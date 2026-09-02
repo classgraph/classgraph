@@ -52,7 +52,6 @@ import java.util.zip.CRC32;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
-import io.github.classgraph.base.internal.utils.VersionFinder;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -1152,21 +1151,18 @@ public class VfsFileSystemTest {
     }
 
     /**
-     * Test that a read through a channel that was open when the {@link Vfs} was closed fails with an
-     * {@link IOException}, rather than with the {@link IllegalStateException} that reading an unmapped buffer
-     * throws.
+     * Test that a channel that was open when the {@link Vfs} was closed is closed by that close, so that a read
+     * through it afterwards is reported as a {@link ClosedChannelException} rather than reaching storage that is no
+     * longer there.
      *
      * @param tempDir
      *            a temporary directory.
      * @throws IOException
      *             if the jarfile could not be written or read.
      */
+    // #939
     @Test
     public void aChannelReadAfterTheVfsWasClosedThrowsIOException(@TempDir final Path tempDir) throws IOException {
-        // Only a memory-mapped entry can have its storage taken away under a channel that is still open, and only
-        // on JDK 22 or later -- below that the channel's own view of the mapping keeps the file mapped, so the
-        // read after the close still returns the file content, exactly as it did when the entry was not mapped
-        assumeTrue(VersionFinder.JAVA_MAJOR_VERSION >= 22);
         final var jarFile = tempDir.resolve("stored.jar").toFile();
         writeStoredJar(jarFile);
 
@@ -1174,11 +1170,12 @@ public class VfsFileSystemTest {
         try (var channel = Files.newByteChannel(vfs.open(jarFile).asFileSystem().getPath("/root.txt"))) {
             assertThat(channel.read(ByteBuffer.allocate(4))).isEqualTo(4);
 
-            // Closing the Vfs unmaps the jarfile that the channel is reading a slice of
+            // Closing the Vfs closes the channel, before it unmaps the jarfile the channel was reading a slice of
             vfs.close();
+            assertThat(channel.isOpen()).isFalse();
 
-            assertThatThrownBy(() -> channel.read(ByteBuffer.allocate(4))).isInstanceOf(IOException.class)
-                    .hasMessageContaining("unmapped by closing what it was read through");
+            assertThatThrownBy(() -> channel.read(ByteBuffer.allocate(4)))
+                    .isInstanceOf(ClosedChannelException.class);
         }
     }
 

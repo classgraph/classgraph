@@ -35,7 +35,10 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.channels.ClosedChannelException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -107,10 +110,9 @@ class VfsCloseTest {
     }
 
     /**
-     * A temporary file that a root extracted a nested jarfile to is deleted even if a buffer that the caller has
-     * not closed yet is still a view of it when the root is closed. Below JDK 22 the file cannot be unmapped while
-     * such a view is open, and Windows refuses to delete a file that is still mapped, so there the delete happens
-     * when the caller closes the buffer.
+     * Closing a root closes a buffer the caller read from it and has not closed, so that the buffer stops referring
+     * to the content and the temporary file the root extracted is deleted as the root closes, rather than whenever
+     * the caller gets round to closing the buffer.
      *
      * @param tempDir
      *            a temporary directory to write the jarfile into.
@@ -119,7 +121,7 @@ class VfsCloseTest {
      */
     // #939
     @Test
-    void theTempFileIsDeletedEvenIfTheCallerStillHoldsABufferOfIt(@TempDir final Path tempDir) throws Exception {
+    void closingTheRootClosesABufferTheCallerStillHolds(@TempDir final Path tempDir) throws Exception {
         final var outerJarFile = tempDir.resolve("outer.jar").toFile();
         writeJarContainingDeflatedJar(outerJarFile);
 
@@ -130,10 +132,49 @@ class VfsCloseTest {
             assertThat(extractedTempFile).isNotNull().exists();
 
             try (var buffer = innerRoot.getEntry("com/xyz/widget.txt").read()) {
-                innerRoot.close();
-                // The buffer is still open, so below JDK 22 the temporary file is still mapped, and on Windows a
-                // mapped file cannot be deleted
                 assertThat(buffer.getByteBuffer()).isNotNull();
+                innerRoot.close();
+                // The root closed the buffer it handed out, so it no longer refers to the content, and the
+                // temporary file is already gone rather than waiting for this try-with-resources block to end
+                assertThat(buffer.getByteBuffer()).isNull();
+                assertThat(extractedTempFile).doesNotExist();
+            }
+        }
+
+        assertThat(extractedTempFile).doesNotExist();
+    }
+
+    /**
+     * Closing a root closes a channel the caller opened on it and has not closed, for the same reason: a channel
+     * reads the memory mapping directly where the entry is stored uncompressed, so one that is left open would keep
+     * the file mapped and stop the temporary file being deleted as the root closes.
+     *
+     * @param tempDir
+     *            a temporary directory to write the jarfile into.
+     * @throws Exception
+     *             if the jarfile could not be written or read.
+     */
+    // #939
+    @Test
+    void closingTheRootClosesAChannelTheCallerStillHolds(@TempDir final Path tempDir) throws Exception {
+        final var outerJarFile = tempDir.resolve("outer.jar").toFile();
+        writeJarContainingDeflatedJar(outerJarFile);
+
+        final File extractedTempFile;
+        try (var vfs = vfsThatSpillsToDisk(/* memoryMapFiles = */ true)) {
+            final var innerRoot = vfs.open(outerJarFile.getPath() + "!/lib/inner.jar");
+            extractedTempFile = innerRoot.getFile();
+            assertThat(extractedTempFile).isNotNull().exists();
+
+            try (var channel = Files.newByteChannel(innerRoot.getEntry("com/xyz/widget.txt").asPath())) {
+                assertThat(channel.isOpen()).isTrue();
+                innerRoot.close();
+                // The root closed the channel it handed out, so it no longer reads the content, and the temporary
+                // file is already gone rather than waiting for this try-with-resources block to end
+                assertThat(channel.isOpen()).isFalse();
+                assertThatThrownBy(() -> channel.read(ByteBuffer.allocate(1)))
+                        .isInstanceOf(ClosedChannelException.class);
+                assertThat(extractedTempFile).doesNotExist();
             }
         }
 
