@@ -1917,10 +1917,12 @@ public final class ScanResult implements AutoCloseable {
      * {@link ScanResult}s will hold those resources until it exits.
      *
      * <p>
-     * Every file that was memory mapped is unmapped by this, except one that a
-     * {@link io.github.classgraph.vfs.CloseableByteBuffer} the caller has not closed yet is still a view of, which
-     * stays mapped until the last such buffer is closed -- see {@link Vfs#close()}. A temporary file that is left
-     * mapped for that reason is deleted when the last buffer of it is closed, rather than here.
+     * Every file that was memory mapped is unmapped by this, including one that a
+     * {@link io.github.classgraph.vfs.CloseableByteBuffer} the caller has not closed is still a view of: such a
+     * buffer is closed by this, so that nothing the caller left open can hold a mapping open, and every temporary
+     * file can be deleted here -- see {@link Vfs#close()}. Reading a {@link java.nio.ByteBuffer} reference taken
+     * from such a wrapper before this close is undefined; see
+     * {@link io.github.classgraph.vfs.CloseableByteBuffer#getByteBuffer()}.
      */
     @Override
     public void close() {

@@ -89,10 +89,9 @@ import org.jspecify.annotations.Nullable;
  * <p>
  * A nested jarfile is read in place, without being extracted to disk, unless it is stored deflated rather than
  * uncompressed and is too large to inflate into RAM -- only then is it spilled to a temporary file, which is
- * deleted when the root that extracted it is closed, and no later than when this {@link Vfs} is closed. The one
- * exception is a temporary file that the caller can still read a {@link CloseableByteBuffer} of when the root is
- * closed: below JDK 22 such a file stays mapped, and therefore cannot be deleted on Windows, until that buffer is
- * closed, which is when it is deleted instead.
+ * deleted when the root that extracted it is closed, and no later than when this {@link Vfs} is closed. A
+ * {@link CloseableByteBuffer} the caller has not closed does not delay that: the root closes every buffer and
+ * channel it handed out before it releases what it owns, so the file is unmapped and deleted as the root closes.
  *
  * <p>
  * A {@link Vfs} caches every root it opens, so opening the same path twice returns the same {@link VfsRoot}, and a
@@ -1050,11 +1049,11 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      * either -- see {@link CloseableByteBuffer}.
      *
      * <p>
-     * Every file that was memory mapped is unmapped before this returns, except one that a
-     * {@link CloseableByteBuffer} the caller has not closed yet is still a view of, which stays mapped until the
-     * last such buffer is closed. Windows refuses to delete, rename or overwrite a file while it is mapped, so a
-     * close that returned with the files it had mapped still mapped would leave them locked. A temporary file that
-     * is left mapped for that reason is deleted when the last buffer of it is closed, rather than here.
+     * Every file that was memory mapped is unmapped before this returns, including one that a
+     * {@link CloseableByteBuffer} or an open channel the caller has not closed is still a view of: each root closes
+     * every buffer and channel it handed out as the step before it releases what it owns, so nothing the caller
+     * left open can hold a mapping open past this. That is what lets every temporary file be deleted here, since
+     * Windows refuses to delete, rename or overwrite a file while it is mapped.
      *
      * <p>
      * Closing an already-closed {@link Vfs} has no effect.

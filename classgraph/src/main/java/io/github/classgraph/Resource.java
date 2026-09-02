@@ -457,7 +457,10 @@ public class Resource implements AutoCloseable, Comparable<Resource> {
      * <p>
      * Close the returned {@link CloseableByteBuffer} when you have finished with it, so that the {@link ByteBuffer}
      * is released or unmapped. You can also close the {@link Resource} instead, which closes the buffer -- closing
-     * both is safe, since the buffer is only released once.
+     * both is safe, since the buffer is only released once. Closing the {@link ScanResult} closes it too, whether
+     * or not the caller has, so that no file stays mapped past that close; a {@link ByteBuffer} reference taken
+     * from the wrapper beforehand is not revoked, and reading through one after any of those closes is undefined --
+     * see {@link CloseableByteBuffer#getByteBuffer()}.
      *
      * @return The allocated or mapped {@link ByteBuffer} for the resource file content, wrapped so that it can be
      *         closed.
