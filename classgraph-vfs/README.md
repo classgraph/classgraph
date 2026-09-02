@@ -76,6 +76,10 @@ when it cannot be read in place -- and the roots opened within it, which read th
 Closing the `Vfs` closes every root, releasing all of it, and every root it handed out stops working
 at that moment, so a `Vfs` belongs in a try-with-resources block, as it is in every example below.
 
+The one thing that can outlast that close is a `CloseableByteBuffer` you have not closed: below JDK
+22 it keeps the file it reads mapped, and Windows refuses to delete a mapped file, so a temporary
+file in that situation is deleted when the last buffer of it is closed rather than when its root is.
+
 A `VfsRoot` is `AutoCloseable` too, but rarely needs closing by hand, since closing the `Vfs` closes
 it. Closing one early is for a long-lived `Vfs` that is done reading one root and wants what it
 holds released now: `root.close()` releases the root's storage, closes the roots opened within it,

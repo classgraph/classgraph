@@ -46,6 +46,12 @@ import org.jspecify.annotations.Nullable;
 /**
  * A physical zipfile, backed by a {@link File} (which may be mmap'd using a {@link FileChannel}), a {@link Path},
  * or a byte array in RAM.
+ *
+ * <p>
+ * A zipfile that had to be spilled to a temporary file -- a deflated nested jarfile too large to inflate into RAM,
+ * or a jarfile downloaded from a URL that was too large to buffer -- owns that temporary file through its
+ * {@link PathSlice}, and the {@link io.github.classgraph.vfs.VfsRoot} that opened the zipfile owns the zipfile in
+ * turn, so closing that root deletes the file.
  */
 public class PhysicalZipFile {
     /** The {@link Path} backing this {@link PhysicalZipFile}, if any. */
