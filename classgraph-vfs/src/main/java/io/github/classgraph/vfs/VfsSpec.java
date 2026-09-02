@@ -30,16 +30,12 @@ package io.github.classgraph.vfs;
 
 import java.io.InputStream;
 import java.nio.ByteBuffer;
-import java.nio.MappedByteBuffer;
-import java.nio.channels.FileChannel;
 import java.util.Collections;
 import java.util.Set;
 import java.util.TreeSet;
 
 import io.github.classgraph.base.internal.path.URLPaths;
 import io.github.classgraph.base.internal.utils.Assert;
-import io.github.classgraph.base.internal.utils.VersionFinder.OperatingSystem;
-import io.github.classgraph.base.internal.utils.VersionFinder;
 import io.github.classgraph.vfs.internal.zip.LogicalZipFile;
 
 /**
@@ -85,25 +81,6 @@ public final class VfsSpec {
 
     /** The maximum size of a jarfile that may be held in RAM rather than spilled to disk, in bytes. */
     private volatile int maxBufferedJarRAMSize = DEFAULT_MAX_BUFFERED_JAR_RAM_SIZE;
-
-    /**
-     * If true, use a {@link MappedByteBuffer} rather than the {@link FileChannel} API to access file content.
-     *
-     * <p>
-     * Memory mapping is measurably faster on Windows and is not on Linux or macOS, where it can even be slower, so
-     * it is turned on for Windows only. (The measurements are at
-     * <a href="https://github.com/classgraph/classgraph/wiki/Memory-Mapping-Benchmark">Memory mapping
-     * benchmark</a>.)
-     *
-     * <p>
-     * A file is unmapped when the {@link Vfs} that mapped it is closed, on every JDK version: on JDK 22 and later
-     * by closing the {@code java.lang.foreign.Arena} that mapped it, and below that by
-     * {@code Unsafe::invokeCleaner}, the only method there is that can unmap a file on demand. That method frees
-     * the address range whether or not anything is still reading it, so below JDK 22 a file is left mapped while a
-     * {@link CloseableByteBuffer} that the caller has not closed yet is still a view of it, and the last such
-     * buffer to be closed unmaps the file instead.
-     */
-    private volatile boolean memoryMapFiles = VersionFinder.OS == OperatingSystem.Windows;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -317,32 +294,6 @@ public final class VfsSpec {
         return multiReleaseVersionsEnabled && relativePath.startsWith(LogicalZipFile.MULTI_RELEASE_PATH_PREFIX);
     }
 
-    /**
-     * Whether file content is read through a {@link MappedByteBuffer} rather than through the {@link FileChannel}
-     * API. This follows the platform -- memory mapping is only faster on Windows -- so it is not part of the API.
-     *
-     * @return true if file content is memory mapped.
-     * @hidden
-     */
-    public boolean isMemoryMappingFiles() {
-        return memoryMapFiles;
-    }
-
-    /**
-     * Override the platform's choice of whether to read file content through a {@link MappedByteBuffer} rather than
-     * through the {@link FileChannel} API. This exists so that a test can exercise both paths whatever platform it
-     * is running on, and is not part of the API.
-     *
-     * @param memoryMapFiles
-     *            true to memory map file content.
-     * @return this (for method chaining).
-     * @hidden
-     */
-    public VfsSpec setMemoryMappingFiles(final boolean memoryMapFiles) {
-        this.memoryMapFiles = memoryMapFiles;
-        return this;
-    }
-
     // -------------------------------------------------------------------------------------------------------------
 
     /**
@@ -356,7 +307,6 @@ public final class VfsSpec {
         return "VfsSpec(nestedJars: " + nestedJarsEnabled //
                 + "; multiReleaseVersions: " + multiReleaseVersionsEnabled //
                 + "; deniedURLSchemes: " + deniedURLSchemes //
-                + "; maxBufferedJarRAMSize: " + maxBufferedJarRAMSize //
-                + "; memoryMapFiles: " + memoryMapFiles + ")";
+                + "; maxBufferedJarRAMSize: " + maxBufferedJarRAMSize + ")";
     }
 }

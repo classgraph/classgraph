@@ -53,8 +53,6 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.jupiter.api.io.TempDir;
 
 /** Tests the read-only {@link FileSystem} view of a {@link VfsRoot}. */
@@ -1166,7 +1164,7 @@ public class VfsFileSystemTest {
         final var jarFile = tempDir.resolve("stored.jar").toFile();
         writeStoredJar(jarFile);
 
-        final var vfs = new Vfs(new VfsSpec().setMemoryMappingFiles(true));
+        final var vfs = new Vfs();
         try (var channel = Files.newByteChannel(vfs.open(jarFile).asFileSystem().getPath("/root.txt"))) {
             assertThat(channel.read(ByteBuffer.allocate(4))).isEqualTo(4);
 
@@ -1323,17 +1321,14 @@ public class VfsFileSystemTest {
      * several threads at once, which is what {@link FileChannel} promises, even though the reader underneath it
      * keeps state between reads.
      *
-     * @param memoryMapped
-     *            whether the jarfile is memory-mapped, which decides which reader the channel reads through.
      * @param tempDir
      *            a temporary directory.
      * @throws Exception
      *             if the jarfile could not be written or read.
      */
-    @ParameterizedTest
-    @ValueSource(booleans = { false, true })
-    public void aStoredEntryCanBeReadAtAPositionFromSeveralThreadsAtOnce(final boolean memoryMapped,
-            @TempDir final Path tempDir) throws Exception {
+    @Test
+    public void aStoredEntryCanBeReadAtAPositionFromSeveralThreadsAtOnce(@TempDir final Path tempDir)
+            throws Exception {
         // A long entry, so that a read takes long enough for two threads to be inside it at the same time
         final var entryName = "big.bin";
         final var expected = new byte[512 * 1024];
@@ -1357,10 +1352,10 @@ public class VfsFileSystemTest {
         final var numRepetitions = 200;
         final var chunkLength = expected.length / numThreads;
 
-        // The reader underneath the channel differs between the two: an unmapped file is read through the shared
-        // file channel, which is thread-safe in itself, while a memory-mapped file is read through a buffer whose
-        // position and limit the reader moves, which is not
-        try (var vfs = new Vfs(new VfsSpec().setMemoryMappingFiles(memoryMapped))) {
+        // The reader underneath the channel depends on the platform: off Windows a file is read through the shared
+        // file channel, which is thread-safe in itself, while on Windows it is memory-mapped and read through a
+        // buffer whose position and limit the reader moves, which is not
+        try (var vfs = new Vfs()) {
             final var path = vfs.open(jarFile).asFileSystem().getPath("/" + entryName);
             try (var channel = FileChannel.open(path)) {
                 final var barrier = new CyclicBarrier(numThreads);

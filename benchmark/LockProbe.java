@@ -5,26 +5,24 @@ import java.nio.file.Path;
 
 /**
  * Can a jar be deleted or replaced while ClassGraph is holding a ScanResult over it? Windows refuses to delete a
- * file that is memory-mapped, and refuses to delete an open file at all, whereas Unix allows both.
+ * file that is memory-mapped, and refuses to delete an open file at all, whereas Unix allows both. Jarfiles are
+ * memory-mapped on Windows only, so this probes whichever path the platform takes.
  *
  * Run with: java -cp <classgraph-classes> LockProbe.java <a-jar-to-copy>
  */
 public class LockProbe {
     public static void main(final String[] args) throws Exception {
-        for (final boolean memoryMapping : new boolean[] { false, true }) {
-            final Path dir = Files.createTempDirectory("lockprobe");
-            final Path jar = dir.resolve("probe.jar");
-            Files.copy(Path.of(args[0]), jar);
+        final Path dir = Files.createTempDirectory("lockprobe");
+        final Path jar = dir.resolve("probe.jar");
+        Files.copy(Path.of(args[0]), jar);
 
-            final ClassGraph classGraph = new ClassGraph().enableClasspathEntries(jar.toString()).enableClassInfo();
-            setMemoryMapping(classGraph, memoryMapping);
-            final ScanResult scanResult = classGraph.scan();
-            System.out.printf("memoryMapping=%-5s  classes=%d%n", memoryMapping, scanResult.getAllClasses().size());
-            System.out.println("  delete while the ScanResult is open:   " + tryDelete(jar, Path.of(args[0])));
-            scanResult.close();
-            System.out.println("  delete after the ScanResult is closed: " + tryDelete(jar, Path.of(args[0])));
-            deleteRecursively(dir);
-        }
+        final ClassGraph classGraph = new ClassGraph().enableClasspathEntries(jar.toString()).enableClassInfo();
+        final ScanResult scanResult = classGraph.scan();
+        System.out.printf("classes=%d%n", scanResult.getAllClasses().size());
+        System.out.println("  delete while the ScanResult is open:   " + tryDelete(jar, Path.of(args[0])));
+        scanResult.close();
+        System.out.println("  delete after the ScanResult is closed: " + tryDelete(jar, Path.of(args[0])));
+        deleteRecursively(dir);
     }
 
     /**
@@ -69,31 +67,6 @@ public class LockProbe {
             Files.delete(dir);
         } catch (final Exception e) {
             // Ignore
-        }
-    }
-
-    /**
-     * Turn memory mapping on or off. ClassGraph chooses this by platform, and the setter that overrides its choice
-     * is hidden from the API docs, so it is reached reflectively here -- setting it explicitly also means this
-     * benchmark measures both arms on Windows, where mapping is otherwise always on.
-     *
-     * @param classGraph
-     *            the ClassGraph instance to configure
-     * @param memoryMapping
-     *            whether to memory-map files
-     */
-    private static void setMemoryMapping(final ClassGraph classGraph, final boolean memoryMapping) {
-        try {
-            final java.lang.reflect.Field scanSpecField = ClassGraph.class.getDeclaredField("scanSpec");
-            scanSpecField.setAccessible(true);
-            final Object scanSpec = scanSpecField.get(classGraph);
-            // ScanSpec is not a public class, so its field has to be opened up even though the field is public
-            final java.lang.reflect.Field vfsSpecField = scanSpec.getClass().getDeclaredField("vfsSpec");
-            vfsSpecField.setAccessible(true);
-            final Object vfsSpec = vfsSpecField.get(scanSpec);
-            vfsSpec.getClass().getMethod("setMemoryMappingFiles", boolean.class).invoke(vfsSpec, memoryMapping);
-        } catch (final ReflectiveOperationException e) {
-            throw new RuntimeException("Could not set memory mapping", e);
         }
     }
 }

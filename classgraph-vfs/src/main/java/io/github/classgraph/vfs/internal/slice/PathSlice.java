@@ -42,6 +42,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.path.FileUtils;
+import io.github.classgraph.base.internal.utils.VersionFinder;
+import io.github.classgraph.base.internal.utils.VersionFinder.OperatingSystem;
 import io.github.classgraph.vfs.Vfs;
 import io.github.classgraph.vfs.internal.TempFile;
 import io.github.classgraph.vfs.reader.RandomAccessByteBufferReader;
@@ -249,9 +251,13 @@ public final class PathSlice extends Slice {
             // sliceLength
             this.sliceLength = fileLength;
 
-            if (memoryMapWholeFile && vfs.getVfsSpec().isMemoryMappingFiles()) {
+            if (memoryMapWholeFile && VersionFinder.OS == OperatingSystem.Windows) {
                 // Memory-map the whole file, if it can be mapped -- otherwise fall through and read through the
-                // FileChannel API instead
+                // FileChannel API instead. Mapping is measurably faster on Windows and is not on Linux or macOS,
+                // where it can even be slower, so it is done on Windows only. (The measurements are at
+                // https://github.com/classgraph/classgraph/wiki/Memory-Mapping-Benchmark .) Being read on Windows
+                // only is also what makes it safe for a root to unmap a file as it closes: unmapping below JDK 22
+                // frees the address range whether or not another thread is still reading it
                 final var mapping = FileMapping.map(fileChannelOpened, fileLength, pathStr, log);
                 fileMapping = mapping;
                 backingByteBuffer = mapping == null ? null : mapping.byteBuffer;

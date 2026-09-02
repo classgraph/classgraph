@@ -98,18 +98,6 @@ class VfsCloseTest {
     }
 
     /**
-     * A {@link Vfs} that spills every nested jarfile it inflates straight to disk, rather than buffering it in RAM.
-     *
-     * @param memoryMapFiles
-     *            the value to override {@code VfsSpec#memoryMapFiles} with. Files are memory-mapped on Windows
-     *            only, so a test of the memory mapping path has to override the platform's own choice.
-     * @return the {@link Vfs}.
-     */
-    private static Vfs vfsThatSpillsToDisk(final boolean memoryMapFiles) {
-        return new Vfs(new VfsSpec().setMaxBufferedJarRAMSize(0).setMemoryMappingFiles(memoryMapFiles));
-    }
-
-    /**
      * Closing a root closes a buffer the caller read from it and has not closed, so that the buffer stops referring
      * to the content and the temporary file the root extracted is deleted as the root closes, rather than whenever
      * the caller gets round to closing the buffer.
@@ -126,7 +114,7 @@ class VfsCloseTest {
         writeJarContainingDeflatedJar(outerJarFile);
 
         final File extractedTempFile;
-        try (var vfs = vfsThatSpillsToDisk(/* memoryMapFiles = */ true)) {
+        try (var vfs = vfsThatSpillsToDisk()) {
             final var innerRoot = vfs.open(outerJarFile.getPath() + "!/lib/inner.jar");
             extractedTempFile = innerRoot.getFile();
             assertThat(extractedTempFile).isNotNull().exists();
@@ -161,7 +149,7 @@ class VfsCloseTest {
         writeJarContainingDeflatedJar(outerJarFile);
 
         final File extractedTempFile;
-        try (var vfs = vfsThatSpillsToDisk(/* memoryMapFiles = */ true)) {
+        try (var vfs = vfsThatSpillsToDisk()) {
             final var innerRoot = vfs.open(outerJarFile.getPath() + "!/lib/inner.jar");
             extractedTempFile = innerRoot.getFile();
             assertThat(extractedTempFile).isNotNull().exists();

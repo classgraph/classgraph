@@ -10,12 +10,14 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * Measures how much difference memory-mapping jarfiles makes to scan time.
+ * Measures scan time over a corpus of jarfiles, with the page cache warm or cold.
  *
- * Both arms run in the same JVM, alternating, and the order within each pair is swapped every other pair, so that
- * JIT warmup and machine drift affect the two arms equally.
+ * Whether jarfiles are memory-mapped follows the platform -- it is done on Windows only -- so this measures
+ * whichever path the platform takes. The mapped-against-unmapped comparison that decided that, which this driver
+ * used to run as two arms in one JVM, is recorded at
+ * https://github.com/classgraph/classgraph/wiki/Memory-Mapping-Benchmark .
  *
- * Run with: java -cp <classgraph-classes> Bench.java <jar-dir> <warm|cold> <numPairs> <evict-command|none>
+ * Run with: java -cp <classgraph-classes> Bench.java <jar-dir> <warm|cold> <numRuns> <evict-command|none>
  */
 public class Bench {
     /** The classpath to scan: every jar in the directory named by the first argument. */
@@ -31,8 +33,8 @@ public class Bench {
      * Run the benchmark.
      *
      * @param args
-     *            the jar directory, "warm" or "cold", the number of pairs of runs, and the eviction command (which
-     *            may be several arguments, or the single argument "none")
+     *            the jar directory, "warm" or "cold", the number of runs, and the eviction command (which may be
+     *            several arguments, or the single argument "none")
      * @throws Exception
      *             if the benchmark could not be run
      */
@@ -47,42 +49,32 @@ public class Bench {
             corpusBytes += Files.size(jar);
         }
         final boolean cold = args[1].equals("cold");
-        final int numPairs = Integer.parseInt(args[2]);
+        final int numRuns = Integer.parseInt(args[2]);
         if (cold) {
             evictCommand = java.util.Arrays.copyOfRange(args, 3, args.length);
         }
 
-        final List<Double> unmapped = new ArrayList<>();
-        final List<Double> mapped = new ArrayList<>();
-        for (int i = 0; i < numPairs; i++) {
-            if (i % 2 == 0) {
-                unmapped.add(scan(false));
-                mapped.add(scan(true));
-            } else {
-                mapped.add(scan(true));
-                unmapped.add(scan(false));
-            }
+        final List<Double> times = new ArrayList<>();
+        for (int i = 0; i < numRuns; i++) {
+            times.add(scan());
         }
         // In warm mode the first third of the runs are JIT warmup, so discard them
-        final int firstSteadyPair = cold ? 0 : numPairs / 3;
+        final int firstSteadyRun = cold ? 0 : numRuns / 3;
         System.out.printf("corpus: %d jars, %.0f MB, %d classes; %s page cache%n", jars.size(), corpusBytes / 1e6,
                 numClasses, cold ? "cold" : "warm");
-        report("mmap=false", unmapped.subList(firstSteadyPair, numPairs));
-        report("mmap=true ", mapped.subList(firstSteadyPair, numPairs));
+        report("scan", times.subList(firstSteadyRun, numRuns));
     }
 
     /**
      * Run one scan.
      *
-     * @param memoryMapping
-     *            whether to memory-map files
      * @return how many milliseconds the scan took
      * @throws IOException
      *             if the corpus could not be evicted from the page cache
      * @throws InterruptedException
      *             if interrupted while evicting the corpus from the page cache
      */
-    private static double scan(final boolean memoryMapping) throws IOException, InterruptedException {
+    private static double scan() throws IOException, InterruptedException {
         if (evictCommand != null) {
             evict();
         }
@@ -91,7 +83,6 @@ public class Bench {
                 .enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
                 .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
                 .ignoreMethodVisibility();
-        setMemoryMapping(classGraph, memoryMapping);
         try (ScanResult scanResult = classGraph.scan()) {
             numClasses = scanResult.getAllClasses().size();
         }
@@ -127,30 +118,5 @@ public class Bench {
         Collections.sort(sorted);
         System.out.printf("  %s n=%2d  min=%.0f  median=%.0f  max=%.0f ms%n", label, sorted.size(), sorted.get(0),
                 sorted.get(sorted.size() / 2), sorted.get(sorted.size() - 1));
-    }
-
-    /**
-     * Turn memory mapping on or off. ClassGraph chooses this by platform, and the setter that overrides its choice
-     * is hidden from the API docs, so it is reached reflectively here -- setting it explicitly also means this
-     * benchmark measures both arms on Windows, where mapping is otherwise always on.
-     *
-     * @param classGraph
-     *            the ClassGraph instance to configure
-     * @param memoryMapping
-     *            whether to memory-map files
-     */
-    private static void setMemoryMapping(final ClassGraph classGraph, final boolean memoryMapping) {
-        try {
-            final java.lang.reflect.Field scanSpecField = ClassGraph.class.getDeclaredField("scanSpec");
-            scanSpecField.setAccessible(true);
-            final Object scanSpec = scanSpecField.get(classGraph);
-            // ScanSpec is not a public class, so its field has to be opened up even though the field is public
-            final java.lang.reflect.Field vfsSpecField = scanSpec.getClass().getDeclaredField("vfsSpec");
-            vfsSpecField.setAccessible(true);
-            final Object vfsSpec = vfsSpecField.get(scanSpec);
-            vfsSpec.getClass().getMethod("setMemoryMappingFiles", boolean.class).invoke(vfsSpec, memoryMapping);
-        } catch (final ReflectiveOperationException e) {
-            throw new RuntimeException("Could not set memory mapping", e);
-        }
     }
 }

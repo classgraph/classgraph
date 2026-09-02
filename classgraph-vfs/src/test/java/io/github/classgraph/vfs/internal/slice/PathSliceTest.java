@@ -14,6 +14,7 @@ import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledOnOs;
 import org.junit.jupiter.api.condition.EnabledOnOs;
 import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
@@ -35,15 +36,10 @@ public class PathSliceTest {
     /**
      * Create the resources owned by a scan.
      *
-     * @param memoryMapFiles
-     *            the value to override {@code VfsSpec#memoryMapFiles} with, so that both paths are tested whatever
-     *            the platform's own choice is
      * @return the vfs
      */
-    private static Vfs vfs(final boolean memoryMapFiles) {
-        final var vfsSpec = new VfsSpec();
-        vfsSpec.setMemoryMappingFiles(memoryMapFiles);
-        return new Vfs(vfsSpec, new InterruptionChecker());
+    private static Vfs vfs() {
+        return new Vfs(new VfsSpec(), new InterruptionChecker());
     }
 
     /**
@@ -61,11 +57,12 @@ public class PathSliceTest {
         return file;
     }
 
-    /** A whole-file slice is memory-mapped if memory mapping is enabled, and reads back the file content. */
+    /** A whole-file slice is memory-mapped on Windows, where files are mapped, and reads back the content. */
     @Test
-    public void aWholeFileSliceIsMemoryMappedIfMappingIsEnabled(@TempDir final Path tempDir) throws IOException {
+    @EnabledOnOs(OS.WINDOWS)
+    public void aWholeFileSliceIsMemoryMappedOnWindows(@TempDir final Path tempDir) throws IOException {
         final var file = writeTestFile(tempDir);
-        final var vfs = vfs(/* memoryMapFiles = */ true);
+        final var vfs = vfs();
         final var slice = new PathSlice(file, vfs, /* log = */ null);
         try {
             // A mapped slice is read from a direct ByteBuffer, an unmapped slice from a heap ByteBuffer
@@ -82,9 +79,10 @@ public class PathSliceTest {
 
     /** A sub-slice of a memory-mapped slice reads back the corresponding range of the file content. */
     @Test
+    @EnabledOnOs(OS.WINDOWS)
     public void aSubSliceOfAMappedSliceReadsTheRightRange(@TempDir final Path tempDir) throws IOException {
         final var file = writeTestFile(tempDir);
-        final var vfs = vfs(/* memoryMapFiles = */ true);
+        final var vfs = vfs();
         final var slice = new PathSlice(file, vfs, /* log = */ null);
         try {
             final var subSlice = slice.slice(10, 5, /* isDeflatedZipEntry = */ false,
@@ -108,23 +106,21 @@ public class PathSliceTest {
     @Test
     public void theBufferOfASubSliceCoversOnlyTheSubSlice(@TempDir final Path tempDir) throws IOException {
         final var file = writeTestFile(tempDir);
-        for (final var memoryMapFiles : new boolean[] { true, false }) {
-            final var vfs = vfs(memoryMapFiles);
-            final var slice = new PathSlice(file, vfs, /* log = */ null);
-            try {
-                final var buf = slice.slice(10, 5, /* isDeflatedZipEntry = */ false, /* inflatedLengthHint = */ 0L)
-                        .read();
-                assertThat(buf.position()).isZero();
-                assertThat(buf.capacity()).isEqualTo(5);
-                assertThat(buf.remaining()).isEqualTo(5);
-                assertThat(buf.get(0)).isEqualTo((byte) 'a');
-                assertThat(buf.isReadOnly()).isTrue();
-                // Clearing the buffer must not widen it to the rest of the file
-                buf.clear();
-                assertThat(buf.remaining()).isEqualTo(5);
-            } finally {
-                slice.close();
-            }
+        final var vfs = vfs();
+        final var slice = new PathSlice(file, vfs, /* log = */ null);
+        try {
+            final var buf = slice.slice(10, 5, /* isDeflatedZipEntry = */ false, /* inflatedLengthHint = */ 0L)
+                    .read();
+            assertThat(buf.position()).isZero();
+            assertThat(buf.capacity()).isEqualTo(5);
+            assertThat(buf.remaining()).isEqualTo(5);
+            assertThat(buf.get(0)).isEqualTo((byte) 'a');
+            assertThat(buf.isReadOnly()).isTrue();
+            // Clearing the buffer must not widen it to the rest of the file
+            buf.clear();
+            assertThat(buf.remaining()).isEqualTo(5);
+        } finally {
+            slice.close();
         }
     }
 
@@ -132,17 +128,15 @@ public class PathSliceTest {
     @Test
     public void theBufferOfAWholeFileSliceIsReadOnly(@TempDir final Path tempDir) throws IOException {
         final var file = writeTestFile(tempDir);
-        for (final var memoryMapFiles : new boolean[] { true, false }) {
-            final var vfs = vfs(memoryMapFiles);
-            final var slice = new PathSlice(file, vfs, /* log = */ null);
-            try {
-                final var buf = slice.read();
-                assertThat(buf.isReadOnly()).isTrue();
-                assertThat(buf.position()).isZero();
-                assertThat(buf.capacity()).isEqualTo(CONTENT.length);
-            } finally {
-                slice.close();
-            }
+        final var vfs = vfs();
+        final var slice = new PathSlice(file, vfs, /* log = */ null);
+        try {
+            final var buf = slice.read();
+            assertThat(buf.isReadOnly()).isTrue();
+            assertThat(buf.position()).isZero();
+            assertThat(buf.capacity()).isEqualTo(CONTENT.length);
+        } finally {
+            slice.close();
         }
     }
 
@@ -154,9 +148,10 @@ public class PathSliceTest {
      * collector has not caught up with below JDK 22.
      */
     @Test
+    @EnabledOnOs(OS.WINDOWS)
     public void readingAMappedSliceAfterItWasClosedThrows(@TempDir final Path tempDir) throws IOException {
         final var file = writeTestFile(tempDir);
-        final var vfs = vfs(/* memoryMapFiles = */ true);
+        final var vfs = vfs();
         final var slice = new PathSlice(file, vfs, /* log = */ null);
         final var reader = slice.randomAccessReader();
         assertThat(reader.readByte(0)).isEqualTo(CONTENT[0]);
@@ -179,9 +174,10 @@ public class PathSliceTest {
      * {@link NullPointerException} from the file channel it no longer has.
      */
     @Test
+    @DisabledOnOs(OS.WINDOWS)
     public void anUnmappedSliceCannotBeReadAfterItWasClosed(@TempDir final Path tempDir) throws IOException {
         final var file = writeTestFile(tempDir);
-        final var vfs = vfs(/* memoryMapFiles = */ false);
+        final var vfs = vfs();
         final var slice = new PathSlice(file, vfs, /* log = */ null);
         assertThat(slice.load()).isEqualTo(CONTENT);
 
@@ -195,11 +191,12 @@ public class PathSliceTest {
                 .hasMessageContaining("after it has been closed");
     }
 
-    /** A whole-file slice is not memory-mapped if memory mapping was not enabled. */
+    /** A whole-file slice is not memory-mapped anywhere but Windows, where files are not mapped. */
     @Test
-    public void aWholeFileSliceIsNotMappedIfMappingIsDisabled(@TempDir final Path tempDir) throws IOException {
+    @DisabledOnOs(OS.WINDOWS)
+    public void aWholeFileSliceIsNotMemoryMappedOffWindows(@TempDir final Path tempDir) throws IOException {
         final var file = writeTestFile(tempDir);
-        final var vfs = vfs(/* memoryMapFiles = */ false);
+        final var vfs = vfs();
         final var slice = new PathSlice(file, vfs, /* log = */ null);
         try {
             assertThat(slice.read().isDirect()).isFalse();
@@ -218,7 +215,7 @@ public class PathSliceTest {
     public void aSubSliceCannotBeReadAfterTheToplevelSliceWasClosed(@TempDir final Path tempDir)
             throws IOException {
         final var file = writeTestFile(tempDir);
-        final var vfs = vfs(/* memoryMapFiles = */ true);
+        final var vfs = vfs();
         final var slice = new PathSlice(file, vfs, /* log = */ null);
         final var subSlice = slice.slice(10, 5, /* isDeflatedZipEntry = */ false, /* inflatedLengthHint = */ 0L);
         final var reader = subSlice.randomAccessReader();
@@ -247,10 +244,11 @@ public class PathSliceTest {
      *             if the mapped buffer could not be read out of the slice
      */
     @Test
+    @EnabledOnOs(OS.WINDOWS)
     public void closingASliceReleasesItsMappingEvenWhileASubSliceIsAlive(@TempDir final Path tempDir)
             throws IOException, ReflectiveOperationException {
         final var file = writeTestFile(tempDir);
-        final var vfs = vfs(/* memoryMapFiles = */ true);
+        final var vfs = vfs();
         final var slice = new PathSlice(file, vfs, /* log = */ null);
         final var subSlice = slice.slice(10, 5, /* isDeflatedZipEntry = */ false, /* inflatedLengthHint = */ 0L);
         assertThat(subSlice.loadAsString()).isEqualTo("abcde");
@@ -286,10 +284,11 @@ public class PathSliceTest {
      */
     // #939
     @Test
+    @EnabledOnOs(OS.WINDOWS)
     public void closingAStreamReleasesTheViewItHeldOfTheMapping(@TempDir final Path tempDir)
             throws IOException, ReflectiveOperationException {
         final var file = writeTestFile(tempDir);
-        final var vfs = vfs(/* memoryMapFiles = */ true);
+        final var vfs = vfs();
         final var slice = new PathSlice(file, vfs, /* log = */ null);
         final var inputStream = slice.open();
         assertThat(inputStream.read()).isEqualTo(CONTENT[0]);
@@ -336,9 +335,10 @@ public class PathSliceTest {
      */
     // #939
     @Test
+    @EnabledOnOs(OS.WINDOWS)
     public void aMappedFileCanBeDeletedOnceTheSessionIsClosed(@TempDir final Path tempDir) throws IOException {
         final var file = writeTestFile(tempDir);
-        final var vfs = vfs(/* memoryMapFiles = */ true);
+        final var vfs = vfs();
         final var slice = new PathSlice(file, vfs, /* log = */ null);
         assertThat(slice.read().isDirect()).isTrue();
 
@@ -349,98 +349,14 @@ public class PathSliceTest {
         assertThat(Files.exists(file)).isFalse();
     }
 
-    /** The file through which Linux says which files this process has memory-mapped. */
-    private static final Path PROC_SELF_MAPS = Path.of("/proc/self/maps");
-
     /**
-     * Whether a file is currently memory-mapped by this JVM. Only Linux can tell, through {@code /proc/self/maps},
-     * so a test that calls this has to skip itself everywhere else.
-     *
-     * @param file
-     *            the file to look for
-     * @return true if the file is memory-mapped
-     * @throws IOException
-     *             if {@code /proc/self/maps} could not be read
-     */
-    private static boolean isMemoryMapped(final Path file) throws IOException {
-        final var fileName = file.getFileName().toString();
-        return Files.readAllLines(PROC_SELF_MAPS).stream().anyMatch(line -> line.endsWith(fileName));
-    }
-
-    /**
-     * A file that a slice memory-mapped is unmapped by the time the slice has closed, rather than at whatever later
-     * moment the garbage collector would have got to it. Windows refuses to delete, rename or overwrite a file
-     * while it is mapped, so a scan that left the files it mapped to the collector would leave them locked for as
-     * long as the JVM went without a collection -- which in a large heap can be minutes, or forever.
-     *
-     * @param tempDir
-     *            a temporary directory
-     * @throws IOException
-     *             if the test file could not be written or mapped
-     */
-    // #939
-    @Test
-    public void closingASliceUnmapsTheFileBeforeItReturns(@TempDir final Path tempDir) throws IOException {
-        assumeTrue(Files.isReadable(PROC_SELF_MAPS), "only Linux can tell whether a file is still mapped");
-        final var file = tempDir.resolve("unmapped-when-closed.bin");
-        Files.write(file, CONTENT);
-        final var vfs = vfs(/* memoryMapFiles = */ true);
-        final var slice = new PathSlice(file, vfs, /* log = */ null);
-        assertThat(slice.read().isDirect()).isTrue();
-        assertThat(isMemoryMapped(file)).isTrue();
-
-        slice.close();
-
-        assertThat(isMemoryMapped(file)).isFalse();
-        vfs.close(/* log = */ null);
-    }
-
-    /**
-     * A view of the mapping keeps the file mapped after the slice that mapped it has closed, and the file is
-     * unmapped as soon as the view is released. Below JDK 22, unmapping a file frees the address range whether or
-     * not anything is still reading it, so a buffer that was handed to a caller has to hold the mapping open --
-     * reading it after the file was unmapped would read memory that is no longer there, and take a SIGSEGV that
-     * kills the JVM. (From JDK 22 the file is unmapped by closing the arena that mapped it, which makes such a read
-     * throw {@link IllegalStateException} instead, so the arena is closed as soon as the slice is.)
-     *
-     * @param tempDir
-     *            a temporary directory
-     * @throws IOException
-     *             if the test file could not be written or mapped
-     */
-    // #939
-    @Test
-    public void aViewOfTheMappingKeepsTheFileMappedUntilItIsReleased(@TempDir final Path tempDir)
-            throws IOException {
-        assumeTrue(Files.isReadable(PROC_SELF_MAPS), "only Linux can tell whether a file is still mapped");
-        assumeTrue(VersionFinder.JAVA_MAJOR_VERSION < 22, "from JDK 22 the arena is closed with the slice");
-        final var file = tempDir.resolve("held-open-by-a-view.bin");
-        Files.write(file, CONTENT);
-        final var vfs = vfs(/* memoryMapFiles = */ true);
-        final var slice = new PathSlice(file, vfs, /* log = */ null);
-        final var releaseMappingView = slice.acquireMappingView();
-        final var byteBuffer = slice.read();
-
-        slice.close();
-
-        assertThat(isMemoryMapped(file)).isTrue();
-        // The file is still mapped, so the buffer taken before the close is still readable
-        assertThat(byteBuffer.get(0)).isEqualTo(CONTENT[0]);
-
-        releaseMappingView.run();
-
-        assertThat(isMemoryMapped(file)).isFalse();
-        vfs.close(/* log = */ null);
-    }
-
-    /**
-     * A slice of a single resource file is not memory-mapped, even if memory mapping is enabled, since mapping and
+     * A slice of a single resource file is not memory-mapped, even where files are mapped, since mapping and
      * unmapping a file that is read once and then closed costs more than reading it.
      */
     @Test
     public void aResourceSliceIsNotMemoryMapped(@TempDir final Path tempDir) throws IOException {
         final var file = writeTestFile(tempDir);
-        final var vfs = vfs(/* memoryMapFiles = */ true);
+        final var vfs = vfs();
         final var slice = new PathSlice(file, vfs, /* checkAccess = */ false, /* memoryMapWholeFile = */ false,
                 /* log = */ null);
         try {
@@ -455,7 +371,7 @@ public class PathSliceTest {
     @Test
     public void aSliceCanBeOpenedFromAFile(@TempDir final Path tempDir) throws IOException {
         final var file = writeTestFile(tempDir).toFile();
-        final var vfs = vfs(/* memoryMapFiles = */ true);
+        final var vfs = vfs();
         final var slice = new PathSlice(file, vfs, /* log = */ null);
         try {
             assertThat(slice.getFile()).isEqualTo(file);
@@ -488,7 +404,7 @@ public class PathSliceTest {
         // The stream's name is not a valid Path, which is what sends PathSlice down the File API
         assertThatThrownBy(streamFile::toPath).isInstanceOf(InvalidPathException.class);
 
-        final var vfs = vfs(/* memoryMapFiles = */ true);
+        final var vfs = vfs();
         final var slice = new PathSlice(streamFile, vfs, /* log = */ null);
         try {
             assertThat(slice.getFile()).isEqualTo(streamFile);
@@ -513,12 +429,13 @@ public class PathSliceTest {
      */
     // #939
     @Test
+    @EnabledOnOs(OS.WINDOWS)
     public void aTempFileIsDeletedOnceTheLastViewOfItsMappingIsReleased(@TempDir final Path tempDir)
             throws IOException {
         assumeTrue(VersionFinder.JAVA_MAJOR_VERSION < 22, "from JDK 22 the mapping is released with the slice");
         final var directory = Files.createDirectory(tempDir.resolve("extracted"));
         final var tempFile = Files.write(directory.resolve("extracted.jar"), CONTENT).toFile();
-        final var vfs = vfs(/* memoryMapFiles = */ true);
+        final var vfs = vfs();
         final var slice = PathSlice.forTempFile(tempFile, vfs, /* log = */ null);
         assertThat(slice.read().isDirect()).isTrue();
         // A view of the mapping that the caller can still read, which stops the slice from unmapping the file

@@ -9,11 +9,12 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * Does the advantage of memory mapping grow with the number of scanning threads? Without mapping, every thread
+ * How does scan time change with the number of scanning threads? Where jarfiles are not memory-mapped, every thread
  * reads through one shared FileChannel per jar, and FileChannel's positioned read takes a per-channel monitor
- * (sun.nio.ch.NativeThreadSet). With mapping there is no shared channel to contend on.
+ * (sun.nio.ch.NativeThreadSet); where they are mapped, which is on Windows, there is no shared channel to contend
+ * on.
  *
- * Run with: java -cp <classgraph-classes> ThreadScaling.java <jar-dir> <numPairs> <threadCount>...
+ * Run with: java -cp <classgraph-classes> ThreadScaling.java <jar-dir> <numRuns> <threadCount>...
  */
 public class ThreadScaling {
     public static void main(final String[] args) throws Exception {
@@ -22,25 +23,17 @@ public class ThreadScaling {
             jars = files.filter(f -> f.toString().endsWith(".jar")).sorted().collect(Collectors.toList());
         }
         final String classpath = jars.stream().map(Path::toString).collect(Collectors.joining(File.pathSeparator));
-        final int numPairs = Integer.parseInt(args[1]);
+        final int numRuns = Integer.parseInt(args[1]);
 
         for (int argIdx = 2; argIdx < args.length; argIdx++) {
             final int numThreads = Integer.parseInt(args[argIdx]);
-            final List<Long> withoutMapping = new ArrayList<>();
-            final List<Long> withMapping = new ArrayList<>();
-            for (int pair = 0; pair < numPairs; pair++) {
-                // Swap the order every other pair, so that neither arm always runs first
-                final boolean mappedFirst = pair % 2 == 1;
-                final long a = time(classpath, mappedFirst, numThreads);
-                final long b = time(classpath, !mappedFirst, numThreads);
-                (mappedFirst ? withMapping : withoutMapping).add(a);
-                (mappedFirst ? withoutMapping : withMapping).add(b);
+            final List<Long> times = new ArrayList<>();
+            for (int run = 0; run < numRuns; run++) {
+                times.add(time(classpath, numThreads));
             }
-            // Discard the first third of each arm as JIT warm-up
-            final int warmUp = numPairs / 3;
-            System.out.printf("threads=%-3d  mmap=false median=%4d ms   mmap=true median=%4d ms%n", numThreads,
-                    median(withoutMapping.subList(warmUp, numPairs)),
-                    median(withMapping.subList(warmUp, numPairs)));
+            // Discard the first third of the runs as JIT warm-up
+            final int warmUp = numRuns / 3;
+            System.out.printf("threads=%-3d  median=%4d ms%n", numThreads, median(times.subList(warmUp, numRuns)));
         }
     }
 
@@ -49,18 +42,15 @@ public class ThreadScaling {
      *
      * @param classpath
      *            the classpath to scan
-     * @param memoryMapping
-     *            whether to memory-map files
      * @param numThreads
      *            the number of scanning threads
      * @return the elapsed time in milliseconds
      */
-    private static long time(final String classpath, final boolean memoryMapping, final int numThreads) {
+    private static long time(final String classpath, final int numThreads) {
         final ClassGraph classGraph = new ClassGraph().enableClasspathEntries(classpath).enableClassInfo()
                 .enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
                 .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
                 .ignoreMethodVisibility();
-        setMemoryMapping(classGraph, memoryMapping);
         final long startTime = System.nanoTime();
         try (ScanResult scanResult = classGraph.scan(numThreads)) {
             scanResult.getAllClasses().size();
@@ -79,30 +69,5 @@ public class ThreadScaling {
         final List<Long> sorted = new ArrayList<>(timings);
         Collections.sort(sorted);
         return sorted.get(sorted.size() / 2);
-    }
-
-    /**
-     * Turn memory mapping on or off. ClassGraph chooses this by platform, and the setter that overrides its choice
-     * is hidden from the API docs, so it is reached reflectively here -- setting it explicitly also means this
-     * benchmark measures both arms on Windows, where mapping is otherwise always on.
-     *
-     * @param classGraph
-     *            the ClassGraph instance to configure
-     * @param memoryMapping
-     *            whether to memory-map files
-     */
-    private static void setMemoryMapping(final ClassGraph classGraph, final boolean memoryMapping) {
-        try {
-            final java.lang.reflect.Field scanSpecField = ClassGraph.class.getDeclaredField("scanSpec");
-            scanSpecField.setAccessible(true);
-            final Object scanSpec = scanSpecField.get(classGraph);
-            // ScanSpec is not a public class, so its field has to be opened up even though the field is public
-            final java.lang.reflect.Field vfsSpecField = scanSpec.getClass().getDeclaredField("vfsSpec");
-            vfsSpecField.setAccessible(true);
-            final Object vfsSpec = vfsSpecField.get(scanSpec);
-            vfsSpec.getClass().getMethod("setMemoryMappingFiles", boolean.class).invoke(vfsSpec, memoryMapping);
-        } catch (final ReflectiveOperationException e) {
-            throw new RuntimeException("Could not set memory mapping", e);
-        }
     }
 }
