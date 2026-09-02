@@ -163,9 +163,10 @@ public class SliceTest {
             final var slice = sliceOfContent(vfs, CONTENT.length);
             assertThat(slice).isInstanceOf(PathSlice.class);
             // The slice owns the temporary file it spilled to, and deletes it when it is closed
-            assertThat(((PathSlice) slice).hasUndeletedTempFile()).isTrue();
+            final var tempFile = ((PathSlice) slice).getFile();
+            assertThat(tempFile).isNotNull().exists();
             slice.close();
-            assertThat(((PathSlice) slice).hasUndeletedTempFile()).isFalse();
+            assertThat(tempFile).doesNotExist();
         } finally {
             vfs.close(/* log = */ null);
         }
@@ -197,7 +198,6 @@ public class SliceTest {
             assertThat(sliceOfContent(vfs, /* inputStreamLengthHint = */ CONTENT.length / 2))
                     .isInstanceOf(ArraySlice.class);
             assertThat(sliceOfContent(vfs, /* inputStreamLengthHint = */ 1L)).isInstanceOf(ArraySlice.class);
-            assertThat(vfs.hasTempFiles()).isFalse();
         } finally {
             vfs.close(/* log = */ null);
         }

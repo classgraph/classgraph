@@ -1109,9 +1109,15 @@ public class VfsTest {
     /**
      * A deflated nested jarfile cannot be read in place, so it is inflated, and spills to a temporary file if it is
      * not allowed to be buffered in RAM. Closing the virtual filesystem deletes the temporary file.
+     *
+     * @param tempDir
+     *            a temporary directory
+     * @throws IOException
+     *             if a jarfile could not be written or read
      */
     @Test
-    public void temporaryFilesAreReportedUntilTheyAreDeleted(@TempDir final File tempDir) throws IOException {
+    public void aDeflatedNestedJarSpillsToATemporaryFileThatTheCloseDeletes(@TempDir final File tempDir)
+            throws IOException {
         final var innerJarFile = new File(tempDir, "inner.jar");
         writeJar(innerJarFile, "com/xyz/widget.txt");
         final var outerJarFile = new File(tempDir, "outer.jar");
@@ -1119,20 +1125,21 @@ public class VfsTest {
 
         // A jarfile on disk is read in place, so no temporary file is needed
         try (var vfs = new Vfs()) {
-            assertThat(vfs.open(outerJarFile).getEntries()).isNotEmpty();
-            assertThat(vfs.hasTempFiles()).isFalse();
+            final var root = vfs.open(outerJarFile);
+            assertThat(root.getEntries()).isNotEmpty();
+            assertThat(root.getFile()).isEqualTo(outerJarFile);
         }
 
         // The inner jarfile has to be inflated, and no RAM is allowed to hold it, so it spills to a temporary file
-        final Vfs closedVfs;
+        final File tempFile;
         try (var vfs = new Vfs(new VfsSpec().setMaxBufferedJarRAMSize(0))) {
             final var root = vfs.open(outerJarFile.getPath() + "!/lib/inner.jar");
             assertThat(entryContent(root, "com/xyz/widget.txt")).isEqualTo(RESOURCE_CONTENT);
-            assertThat(vfs.hasTempFiles()).isTrue();
-            closedVfs = vfs;
+            tempFile = root.getFile();
+            assertThat(tempFile).isNotNull().isNotEqualTo(outerJarFile).exists();
         }
         // The temporary file was deleted by close()
-        assertThat(closedVfs.hasTempFiles()).isFalse();
+        assertThat(tempFile).doesNotExist();
     }
 
     /**

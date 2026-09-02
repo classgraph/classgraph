@@ -202,15 +202,6 @@ public class PhysicalZipFile {
     }
 
     /**
-     * Returns whether this zipfile was extracted to a temporary file that has not been deleted yet.
-     *
-     * @return true if this zipfile was extracted to a temporary file that has not been deleted yet.
-     */
-    public boolean hasTempFile() {
-        return slice instanceof final PathSlice pathSlice && pathSlice.hasUndeletedTempFile();
-    }
-
-    /**
      * Release this zipfile, because nothing will ever be able to reach it: the operation that opened it failed.
      * Without this, the file handle, memory mapping and temporary file behind it would be held until the
      * {@link Vfs} is closed, even though nothing can read through them.

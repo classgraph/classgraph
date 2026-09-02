@@ -524,30 +524,22 @@ public class PathSliceTest {
         // A view of the mapping that the caller can still read, which stops the slice from unmapping the file
         final var releaseView = slice.acquireMappingView();
 
-        // Stop the delete from succeeding while the file is mapped. On Windows the mapping is what stops it,
-        // which is the case this test is about; everywhere else the delete has to be refused some other way, so
-        // clear the write permission that POSIX requires in order to unlink the file from its directory.
-        // (setWritable returns false on a Windows directory, where it is not needed, so it is called for its
-        // effect rather than its result.)
+        // Take the write permission off the directory, so that the delete at close is refused and has to wait for
+        // the file to be unmapped. (setWritable returns false on a Windows directory, where the permission is not
+        // what a delete needs, so it is called for its effect rather than its result.)
         directory.toFile().setWritable(false);
-        final boolean deleteWasRefused;
         try {
             slice.close();
-            deleteWasRefused = tempFile.exists();
-            if (deleteWasRefused) {
-                assertThat(slice.hasUndeletedTempFile()).as("the file is still there, so it is undeleted").isTrue();
-            }
         } finally {
             directory.toFile().setWritable(true);
         }
 
-        // Releasing the last view unmaps the file, which is the moment the delete can be retried. This is run
-        // before the assumption below, so that an abort leaves nothing mapped for the temporary directory
-        // cleanup to trip over.
+        // Releasing the last view unmaps the file, which is the moment a delete that the mapping was in the way of
+        // can be retried
         releaseView.run();
 
-        assumeTrue(deleteWasRefused, "the delete succeeded while the file was still mapped");
+        // The temporary file is gone once the last view has been released, whether the delete had to wait for the
+        // file to be unmapped or succeeded as the slice closed
         assertThat(tempFile).doesNotExist();
-        assertThat(slice.hasUndeletedTempFile()).isFalse();
     }
 }

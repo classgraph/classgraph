@@ -1040,34 +1040,6 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
     }
 
     /**
-     * Check whether anything read through this {@link Vfs} had to be extracted to a temporary file. A nested
-     * jarfile that is compressed, or that is too large to buffer in RAM, is extracted to a temporary file, which is
-     * deleted when the root that extracted it is closed, and no later than when this {@link Vfs} is closed.
-     *
-     * <p>
-     * Only the roots that are still open are asked, so a temporary file whose delete had to wait for a
-     * {@link CloseableByteBuffer} of it to be closed -- see {@link #close()} -- is not counted here once its root
-     * has been closed.
-     *
-     * @return true if at least one temporary file was created and has not yet been deleted, or false if none was
-     *         created, or if this {@link Vfs} has been closed.
-     */
-    public boolean hasTempFiles() {
-        // The temporary files are deleted by close(), so a closed Vfs has none
-        if (closed.get()) {
-            return false;
-        }
-        // A temporary file is owned by the root that was extracted to it, so the roots are what hold the answer.
-        // Every root this Vfs opened is in this set, including the roots of jarfiles nested within other roots
-        for (final var root : openRoots) {
-            if (root.hasTempFile()) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
      * Release the file handles and memory mappings that back the roots opened by this {@link Vfs}, and delete any
      * temporary files that were created. Every {@link VfsRoot} and {@link VfsEntry} that was handed out is
      * invalidated: reading one of them, or an {@link InputStream} that was already open on one of them, throws

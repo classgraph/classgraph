@@ -197,11 +197,6 @@ final class ArchiveRoot extends VfsRoot {
         }
     }
 
-    @Override
-    boolean hasTempFile() {
-        return ownedZipFile != null && ownedZipFile.hasTempFile();
-    }
-
     // -------------------------------------------------------------------------------------------------------------
 
     @Override

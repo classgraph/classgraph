@@ -150,7 +150,6 @@ class VfsCloseTest {
             final var innerRoot = vfs.open(outerJarFile.getPath() + "!/lib/inner.jar");
             assertThat(innerRoot.getEntries()).isNotEmpty();
             // The inner jarfile was deflated, so it was inflated to a temporary file, which the root now owns
-            assertThat(vfs.hasTempFiles()).isTrue();
             extractedTempFile = innerRoot.getFile();
             assertThat(extractedTempFile).isNotNull().exists();
         }
@@ -181,8 +180,6 @@ class VfsCloseTest {
 
             assertThat(firstTempFile).doesNotExist();
             assertThat(secondTempFile).exists();
-            // The Vfs still holds the temporary file of the root that is still open
-            assertThat(vfs.hasTempFiles()).isTrue();
             assertThat(secondInnerRoot.getEntry("com/xyz/widget.txt")).isNotNull();
         }
     }
@@ -205,7 +202,6 @@ class VfsCloseTest {
 
             assertThat(innerRoot.isClosed()).isTrue();
             assertThat(tempFile).doesNotExist();
-            assertThat(vfs.hasTempFiles()).isFalse();
         }
     }
 
@@ -235,7 +231,8 @@ class VfsCloseTest {
             final var outerRoot = vfs.open(outerJarFile);
             final var innerRoot = vfs.open(outerJarFile.getPath() + "!/lib/inner.jar");
             assertThat(innerRoot.getEntries()).isNotEmpty();
-            assertThat(vfs.hasTempFiles()).isFalse();
+            // The nested jarfile is read as a byte range of the jarfile that encloses it, not extracted
+            assertThat(innerRoot.getFile()).isEqualTo(outerJarFile);
 
             innerRoot.close();
 

@@ -108,13 +108,6 @@ public final class PathSlice extends Slice {
     private final @Nullable LogNode tempFileLog;
 
     /**
-     * True once {@link #tempFile} has been deleted. Volatile, since the delete can happen on the thread that
-     * releases the last view of the memory mapping of the file, rather than on the thread that closed this slice.
-     */
-    // #939
-    private volatile boolean tempFileDeleted;
-
-    /**
      * Get the {@link FileChannel} opened on the {@link Path}.
      *
      * @return the {@link FileChannel}
@@ -558,7 +551,6 @@ public final class PathSlice extends Slice {
      */
     private void deleteTempFile(final File fileToDelete, final @Nullable FileMapping mappingStillHeldOpen) {
         if (TempFile.delete(fileToDelete)) {
-            tempFileDeleted = true;
             return;
         }
         if (mappingStillHeldOpen != null) {
@@ -579,22 +571,9 @@ public final class PathSlice extends Slice {
         // registered.
         // #939
         OffHeapMemory.freeUnreachableBuffers();
-        if (TempFile.delete(fileToDelete)) {
-            tempFileDeleted = true;
-        } else if (tempFileLog != null) {
+        if (!TempFile.delete(fileToDelete) && tempFileLog != null) {
             tempFileLog.log("Removing temporary file failed: " + fileToDelete);
         }
     }
 
-    /**
-     * Returns whether this slice owns a temporary file that has not been deleted yet.
-     *
-     * @return true if this slice owns a temporary file that has not been deleted yet.
-     */
-    public boolean hasUndeletedTempFile() {
-        // A temporary file whose delete had to wait for the last view of the memory mapping of the file to be
-        // released is still there after this slice has closed, so the closed flag is not the answer
-        // #939
-        return tempFile != null && !tempFileDeleted;
-    }
 }
