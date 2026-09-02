@@ -1919,7 +1919,8 @@ public final class ScanResult implements AutoCloseable {
      * <p>
      * Every file that was memory mapped is unmapped by this, except one that a
      * {@link io.github.classgraph.vfs.CloseableByteBuffer} the caller has not closed yet is still a view of, which
-     * stays mapped until the last such buffer is closed -- see {@link Vfs#close()}.
+     * stays mapped until the last such buffer is closed -- see {@link Vfs#close()}. A temporary file that is left
+     * mapped for that reason is deleted when the last buffer of it is closed, rather than here.
      */
     @Override
     public void close() {

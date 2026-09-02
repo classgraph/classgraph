@@ -497,4 +497,47 @@ public class PathSliceTest {
             slice.close();
         }
     }
+
+    /**
+     * The temporary file that a slice owns is deleted even when the delete has to wait for the file to be unmapped.
+     * Below JDK 22 a mapping that the caller can still read a view of cannot be unmapped when the slice that owns
+     * it closes, and Windows refuses to delete a file that is still mapped, so the delete has to be retried once
+     * the last view of the mapping is released. The wait is reproduced here by taking the write permission off the
+     * directory holding the file, which is what stops the delete on the operating systems that would let a mapped
+     * file be deleted.
+     *
+     * @param tempDir
+     *            a temporary directory
+     * @throws IOException
+     *             if the file could not be written or opened
+     */
+    // #939
+    @Test
+    public void aTempFileIsDeletedOnceTheLastViewOfItsMappingIsReleased(@TempDir final Path tempDir)
+            throws IOException {
+        assumeTrue(VersionFinder.JAVA_MAJOR_VERSION < 22, "from JDK 22 the mapping is released with the slice");
+        final var directory = Files.createDirectory(tempDir.resolve("extracted"));
+        final var tempFile = Files.write(directory.resolve("extracted.jar"), CONTENT).toFile();
+        final var vfs = vfs(/* memoryMapFiles = */ true);
+        final var slice = PathSlice.forTempFile(tempFile, vfs, /* log = */ null);
+        assertThat(slice.read().isDirect()).isTrue();
+        // A view of the mapping that the caller can still read, which stops the slice from unmapping the file
+        final var releaseView = slice.acquireMappingView();
+
+        // Stop the delete from succeeding while the file is mapped, the way Windows stops it
+        assumeTrue(directory.toFile().setWritable(false), "the directory could not be made read-only");
+        try {
+            slice.close();
+            assumeTrue(tempFile.exists(), "the read-only directory did not stop the delete");
+            assertThat(slice.hasUndeletedTempFile()).as("the file is still there, so it is undeleted").isTrue();
+        } finally {
+            assertThat(directory.toFile().setWritable(true)).isTrue();
+        }
+
+        // Releasing the last view unmaps the file, which is the moment the delete can be retried
+        releaseView.run();
+
+        assertThat(tempFile).doesNotExist();
+        assertThat(slice.hasUndeletedTempFile()).isFalse();
+    }
 }

@@ -54,7 +54,10 @@ import org.jspecify.annotations.Nullable;
  * and the caller to check whether the file is still there. On JDK 22 and later such a read throws
  * {@link IllegalStateException}, since the file is unmapped by closing an arena that knows it has been closed;
  * below JDK 22 unmapping frees the address range without marking the buffer, so the read is undefined -- which is
- * why an open wrapper holds the mapping open on those JDK versions until it is closed.
+ * why an open wrapper holds the mapping open on those JDK versions until it is closed. A wrapper that is left open
+ * therefore holds the file it is a view of mapped, and if that file is a temporary file that a nested jarfile was
+ * extracted to, it holds it on disk as well: on Windows a mapped file cannot be deleted, so the file is deleted
+ * when this wrapper is closed rather than when the {@link VfsRoot} that owns it is.
  */
 public final class CloseableByteBuffer implements AutoCloseable {
     /**

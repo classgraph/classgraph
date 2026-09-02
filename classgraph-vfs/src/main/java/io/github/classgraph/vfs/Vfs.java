@@ -89,7 +89,10 @@ import org.jspecify.annotations.Nullable;
  * <p>
  * A nested jarfile is read in place, without being extracted to disk, unless it is stored deflated rather than
  * uncompressed and is too large to inflate into RAM -- only then is it spilled to a temporary file, which is
- * deleted when the root that extracted it is closed, and no later than when this {@link Vfs} is closed.
+ * deleted when the root that extracted it is closed, and no later than when this {@link Vfs} is closed. The one
+ * exception is a temporary file that the caller can still read a {@link CloseableByteBuffer} of when the root is
+ * closed: below JDK 22 such a file stays mapped, and therefore cannot be deleted on Windows, until that buffer is
+ * closed, which is when it is deleted instead.
  *
  * <p>
  * A {@link Vfs} caches every root it opens, so opening the same path twice returns the same {@link VfsRoot}, and a
@@ -1041,6 +1044,11 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      * jarfile that is compressed, or that is too large to buffer in RAM, is extracted to a temporary file, which is
      * deleted when the root that extracted it is closed, and no later than when this {@link Vfs} is closed.
      *
+     * <p>
+     * Only the roots that are still open are asked, so a temporary file whose delete had to wait for a
+     * {@link CloseableByteBuffer} of it to be closed -- see {@link #close()} -- is not counted here once its root
+     * has been closed.
+     *
      * @return true if at least one temporary file was created and has not yet been deleted, or false if none was
      *         created, or if this {@link Vfs} has been closed.
      */
@@ -1073,10 +1081,8 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      * Every file that was memory mapped is unmapped before this returns, except one that a
      * {@link CloseableByteBuffer} the caller has not closed yet is still a view of, which stays mapped until the
      * last such buffer is closed. Windows refuses to delete, rename or overwrite a file while it is mapped, so a
-     * close that returned with the files it had mapped still mapped would leave them locked. On Windows, if a file
-     * was left mapped, this also asks the garbage collector to run, which is the only other thing that can unmap
-     * one; nothing is asked for on any other operating system, where a mapped file can be deleted or replaced
-     * anyway.
+     * close that returned with the files it had mapped still mapped would leave them locked. A temporary file that
+     * is left mapped for that reason is deleted when the last buffer of it is closed, rather than here.
      *
      * <p>
      * Closing an already-closed {@link Vfs} has no effect.

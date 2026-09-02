@@ -69,6 +69,15 @@ final class FileMapping {
     private boolean unmapped;
 
     /**
+     * The action to run once the file has been unmapped, or null if there is none. Set by the owning slice as it
+     * closes, if it found the file still mapped and has something left to do that the mapping is in the way of --
+     * deleting the temporary file it owns, which Windows refuses to do while the file is mapped. Read and written
+     * only while holding the lock on this object.
+     */
+    // #939
+    private @Nullable Runnable onUnmapped;
+
+    /**
      * The {@code java.lang.foreign.Arena} that was used to map the file, or null if the file was mapped without an
      * arena (on a JDK older than 22), or once {@link #unmap()} has closed it. Typed as {@link Object}, since
      * ClassGraph needs to compile and run on JDK 17+.
@@ -205,10 +214,48 @@ final class FileMapping {
     /** Release a view taken by {@link #acquireView()}, unmapping the file if it was the last one. */
     // #939
     void releaseView() {
-        if (openViews.decrementAndGet() == 0 && released) {
+        if (openViews.decrementAndGet() == 0 && released && unmapIfNoViewIsOpen()) {
             // The owning slice closed while this view was open, so releasing it is the last chance to unmap the
-            // file -- nothing else will look at this mapping again
-            unmapIfNoViewIsOpen();
+            // file -- nothing else will look at this mapping again -- and therefore also the last chance to do
+            // whatever the owning slice left waiting for the file to be unmapped
+            runOnUnmapped();
+        }
+    }
+
+    /**
+     * Run the given action once the file has been unmapped, or now if it has been unmapped already. Only the owning
+     * slice calls this, as it closes, and only if {@link #unmap()} left the file mapped because a view of the
+     * mapping that the caller can still read is open: releasing the last view is what unmaps the file then, so that
+     * is where the action runs.
+     *
+     * @param action
+     *            the action to run once the file has been unmapped.
+     */
+    // #939
+    void runWhenUnmapped(final Runnable action) {
+        final boolean fileIsUnmapped;
+        synchronized (this) {
+            // The last view can be released between unmap() reporting the file still mapped and this call
+            fileIsUnmapped = unmapped;
+            if (!fileIsUnmapped) {
+                onUnmapped = action;
+            }
+        }
+        if (fileIsUnmapped) {
+            action.run();
+        }
+    }
+
+    /** Run the action that {@link #runWhenUnmapped(Runnable)} registered, if there is one, and drop it. */
+    // #939
+    private void runOnUnmapped() {
+        final Runnable action;
+        synchronized (this) {
+            action = onUnmapped;
+            onUnmapped = null;
+        }
+        if (action != null) {
+            action.run();
         }
     }
 

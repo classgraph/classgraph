@@ -94,6 +94,52 @@ class VfsCloseTest {
         return new Vfs(new VfsSpec().setMaxBufferedJarRAMSize(0));
     }
 
+    /**
+     * A {@link Vfs} that spills every nested jarfile it inflates straight to disk, rather than buffering it in RAM.
+     *
+     * @param memoryMapFiles
+     *            the value to override {@code VfsSpec#memoryMapFiles} with. Files are memory-mapped on Windows
+     *            only, so a test of the memory mapping path has to override the platform's own choice.
+     * @return the {@link Vfs}.
+     */
+    private static Vfs vfsThatSpillsToDisk(final boolean memoryMapFiles) {
+        return new Vfs(new VfsSpec().setMaxBufferedJarRAMSize(0).setMemoryMappingFiles(memoryMapFiles));
+    }
+
+    /**
+     * A temporary file that a root extracted a nested jarfile to is deleted even if a buffer that the caller has
+     * not closed yet is still a view of it when the root is closed. Below JDK 22 the file cannot be unmapped while
+     * such a view is open, and Windows refuses to delete a file that is still mapped, so there the delete happens
+     * when the caller closes the buffer.
+     *
+     * @param tempDir
+     *            a temporary directory to write the jarfile into.
+     * @throws Exception
+     *             if the jarfile could not be written or read.
+     */
+    // #939
+    @Test
+    void theTempFileIsDeletedEvenIfTheCallerStillHoldsABufferOfIt(@TempDir final Path tempDir) throws Exception {
+        final var outerJarFile = tempDir.resolve("outer.jar").toFile();
+        writeJarContainingDeflatedJar(outerJarFile);
+
+        final File extractedTempFile;
+        try (var vfs = vfsThatSpillsToDisk(/* memoryMapFiles = */ true)) {
+            final var innerRoot = vfs.open(outerJarFile.getPath() + "!/lib/inner.jar");
+            extractedTempFile = innerRoot.getFile();
+            assertThat(extractedTempFile).isNotNull().exists();
+
+            try (var buffer = innerRoot.getEntry("com/xyz/widget.txt").read()) {
+                innerRoot.close();
+                // The buffer is still open, so below JDK 22 the temporary file is still mapped, and on Windows a
+                // mapped file cannot be deleted
+                assertThat(buffer.getByteBuffer()).isNotNull();
+            }
+        }
+
+        assertThat(extractedTempFile).doesNotExist();
+    }
+
     /** Closing a {@link Vfs} deletes the temporary file that a nested jarfile was extracted to. */
     @Test
     void theCloseDeletesTheTempFileANestedJarWasExtractedTo(@TempDir final Path tempDir) throws Exception {

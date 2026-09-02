@@ -108,6 +108,13 @@ public final class PathSlice extends Slice {
     private final @Nullable LogNode tempFileLog;
 
     /**
+     * True once {@link #tempFile} has been deleted. Volatile, since the delete can happen on the thread that
+     * releases the last view of the memory mapping of the file, rather than on the thread that closed this slice.
+     */
+    // #939
+    private volatile boolean tempFileDeleted;
+
+    /**
      * Get the {@link FileChannel} opened on the {@link Path}.
      *
      * @return the {@link FileChannel}
@@ -508,11 +515,14 @@ public final class PathSlice extends Slice {
             fileMapping = null;
             backingByteBuffer = null;
             fileChannel = null;
+            FileMapping mappingStillHeldOpen = null;
             try {
-                if (mapping != null) {
-                    // A file that could not be unmapped here is left to the garbage collector, which deleteTempFile
-                    // below asks for if the mapping is what is stopping the file from being deleted
-                    mapping.unmap();
+                if (mapping != null && !mapping.unmap()) {
+                    // The file is still mapped, because a view of the mapping that the caller can still read is
+                    // open. Releasing that view is what unmaps the file, so a delete that the mapping is in the
+                    // way of has to wait for it -- see deleteTempFile below
+                    // #939
+                    mappingStillHeldOpen = mapping;
                 }
             } finally {
                 try {
@@ -529,7 +539,7 @@ public final class PathSlice extends Slice {
                     // The temporary file can only be deleted once the mapping and the file channel over it have
                     // been released, so it goes last
                     if (tempFile != null) {
-                        deleteTempFile(tempFile);
+                        deleteTempFile(tempFile, mappingStillHeldOpen);
                     }
                 }
             }
@@ -542,20 +552,36 @@ public final class PathSlice extends Slice {
      *
      * @param fileToDelete
      *            the temporary file.
+     * @param mappingStillHeldOpen
+     *            the memory mapping of the file, if it could not be released when this slice closed because a view
+     *            of it that the caller can still read is open, or null if the file is not mapped any more.
      */
-    private void deleteTempFile(final File fileToDelete) {
+    private void deleteTempFile(final File fileToDelete, final @Nullable FileMapping mappingStillHeldOpen) {
         if (TempFile.delete(fileToDelete)) {
+            tempFileDeleted = true;
+            return;
+        }
+        if (mappingStillHeldOpen != null) {
+            // Windows refuses to delete a file that is still memory-mapped, and this one is, because a view of the
+            // mapping that the caller can still read is open. No garbage collection can unmap a file whose buffer
+            // the caller is still holding, so rather than asking for one, the delete is retried when the last view
+            // is released, which is what unmaps the file.
+            // #939
+            mappingStillHeldOpen
+                    .runWhenUnmapped(() -> deleteTempFile(fileToDelete, /* mappingStillHeldOpen = */ null));
             return;
         }
         // Windows refuses to delete a file that is still memory-mapped, so a delete that failed may be waiting on
-        // a mapping that could not be unmapped explicitly -- one whose buffer a caller can still read, or one
-        // mapped on a JDK old enough to need sun.misc.Unsafe where that class could not be reached. Those are left
-        // to the garbage collector, which only runs when it chooses to, so ask for a collection and try again. If
-        // the JVM was started with -XX:+DisableExplicitGC then this is a no-op, and the file is left to the
-        // File#deleteOnExit() hook that TempFile#create registered.
+        // a mapping that could not be unmapped explicitly -- one mapped on a JDK old enough to need sun.misc.Unsafe
+        // where that class could not be reached, say. Those are left to the garbage collector, which only runs when
+        // it chooses to, so ask for a collection and try again. If the JVM was started with -XX:+DisableExplicitGC
+        // then this is a no-op, and the file is left to the File#deleteOnExit() hook that TempFile#create
+        // registered.
         // #939
         OffHeapMemory.freeUnreachableBuffers();
-        if (!TempFile.delete(fileToDelete) && tempFileLog != null) {
+        if (TempFile.delete(fileToDelete)) {
+            tempFileDeleted = true;
+        } else if (tempFileLog != null) {
             tempFileLog.log("Removing temporary file failed: " + fileToDelete);
         }
     }
@@ -566,6 +592,9 @@ public final class PathSlice extends Slice {
      * @return true if this slice owns a temporary file that has not been deleted yet.
      */
     public boolean hasUndeletedTempFile() {
-        return tempFile != null && !isClosed.get();
+        // A temporary file whose delete had to wait for the last view of the memory mapping of the file to be
+        // released is still there after this slice has closed, so the closed flag is not the answer
+        // #939
+        return tempFile != null && !tempFileDeleted;
     }
 }
