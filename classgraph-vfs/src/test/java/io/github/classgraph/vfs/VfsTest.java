@@ -261,7 +261,7 @@ public class VfsTest {
 
         try (var vfs = new Vfs()) {
             final var root = vfs.open(jarFile.getPath());
-            assertThat(root.getKind()).isEqualTo(VfsRoot.Kind.ARCHIVE);
+            assertThat(root).isInstanceOf(ArchiveRoot.class);
             // The path is canonicalized, so that the same jarfile reached by two different paths is only opened
             // once. On Windows that expands an 8.3 short name, and on macOS it resolves a symlink, so the path of
             // the temp directory is not necessarily the path it is reported as.
@@ -653,7 +653,7 @@ public class VfsTest {
 
         try (var vfs = new Vfs()) {
             final var root = vfs.open(dir.getPath());
-            assertThat(root.getKind()).isEqualTo(VfsRoot.Kind.DIRECTORY);
+            assertThat(root).isInstanceOf(DirRoot.class);
             assertThat(root.getPath()).endsWith("/classes");
             assertThat(root.getPackageRoot()).isEmpty();
             assertThat(root.getModuleName()).isNull();
@@ -897,7 +897,7 @@ public class VfsTest {
 
         try (var vfs = new Vfs()) {
             final var root = vfs.open(tempDir);
-            assertThat(root.getKind()).isEqualTo(VfsRoot.Kind.DIRECTORY);
+            assertThat(root).isInstanceOf(DirRoot.class);
             assertThat(vfs.open(tempDir.toPath())).isSameAs(root);
             assertThat(vfs.open(tempDir.toURI())).isSameAs(root);
             assertThat(vfs.open(tempDir.toURI().toURL())).isSameAs(root);
@@ -917,7 +917,7 @@ public class VfsTest {
             Files.write(jarPath, readFile(jarFile));
 
             final var root = vfs.open(jarPath);
-            assertThat(root.getKind()).isEqualTo(VfsRoot.Kind.ARCHIVE);
+            assertThat(root).isInstanceOf(ArchiveRoot.class);
             assertThat(root.getNioPath()).isEqualTo(jarPath);
             assertThat(entryContent(root, "com/xyz/widget.txt")).isEqualTo(RESOURCE_CONTENT);
             // Opening the same Path twice returns the same root, so the file is only opened once
@@ -934,7 +934,7 @@ public class VfsTest {
             Files.writeString(dir.resolve("com/xyz/widget.txt"), RESOURCE_CONTENT);
 
             final var root = vfs.open(dir);
-            assertThat(root.getKind()).isEqualTo(VfsRoot.Kind.DIRECTORY);
+            assertThat(root).isInstanceOf(DirRoot.class);
             assertThat(root.getNioPath()).isEqualTo(dir);
             // A filesystem that has no File API reports no File
             assertThat(root.getFile()).isNull();
@@ -960,7 +960,7 @@ public class VfsTest {
 
         try (var fileSystem = FileSystems.newFileSystem(jarFile.toPath()); var vfs = new Vfs()) {
             final var root = vfs.open(fileSystem.getPath("/com"));
-            assertThat(root.getKind()).isEqualTo(VfsRoot.Kind.DIRECTORY);
+            assertThat(root).isInstanceOf(DirRoot.class);
             assertThat(root.getPath()).endsWith("/widget.jar!/com");
             assertThat(root.getEntries()).extracting(VfsEntry::getPathFromRoot).containsExactly("xyz/widget.txt");
             assertThat(entryContent(root, "xyz/widget.txt")).isEqualTo(RESOURCE_CONTENT);
@@ -976,7 +976,7 @@ public class VfsTest {
 
         try (var vfs = new Vfs()) {
             final var fromBytes = vfs.open(jarBytes, "in-memory.jar");
-            assertThat(fromBytes.getKind()).isEqualTo(VfsRoot.Kind.ARCHIVE);
+            assertThat(fromBytes).isInstanceOf(ArchiveRoot.class);
             assertThat(fromBytes.getPath()).isEqualTo("in-memory.jar");
             assertThat(fromBytes.getModuleName()).isEqualTo("com.xyz.widget");
             assertThat(entryContent(fromBytes, "com/xyz/widget.txt")).isEqualTo(RESOURCE_CONTENT);
@@ -1054,7 +1054,7 @@ public class VfsTest {
 
         try (var vfs = new Vfs()) {
             final var root = vfs.open(moduleReference);
-            assertThat(root.getKind()).isEqualTo(VfsRoot.Kind.MODULE);
+            assertThat(root).isInstanceOf(ModuleRoot.class);
             assertThat(root.getPath()).isEqualTo("java.logging");
             assertThat(root.getModuleName()).isEqualTo("java.logging");
             assertThat(root.getModuleReference()).isSameAs(moduleReference);
@@ -1359,13 +1359,13 @@ public class VfsTest {
                 vfs.open(moduleReference));
         for (final var root : roots) {
             // Every kind of root lists entries while the Vfs is open
-            assertThat(root.getEntries()).as(root.getKind().toString()).isNotEmpty();
+            assertThat(root.getEntries()).as(root.getClass().getSimpleName()).isNotEmpty();
         }
 
         vfs.close();
 
         for (final var root : roots) {
-            final var kind = root.getKind().toString();
+            final var kind = root.getClass().getSimpleName();
             assertThatThrownBy(() -> root.walk(visitEverything)).as(kind + " walk").isInstanceOf(IOException.class)
                     .hasMessageContaining("closed");
             assertThatThrownBy(root::getEntries).as(kind + " getEntries").isInstanceOf(IOException.class)

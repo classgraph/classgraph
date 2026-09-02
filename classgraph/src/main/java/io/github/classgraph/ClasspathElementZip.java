@@ -49,6 +49,7 @@ import io.github.classgraph.base.internal.path.PathSyntax;
 import io.github.classgraph.base.internal.path.URLPaths;
 import io.github.classgraph.classpath.internal.ClasspathExpander.ChildEntry;
 import io.github.classgraph.classpath.internal.ClasspathExpander;
+import io.github.classgraph.vfs.ArchiveRoot;
 import io.github.classgraph.vfs.Vfs;
 import io.github.classgraph.vfs.VfsEntry;
 import io.github.classgraph.vfs.VfsRoot;
@@ -277,7 +278,7 @@ class ClasspathElementZip extends ClasspathElement {
             // Open the innermost nested jarfile through the virtual filesystem, which strips any package root from
             // the names of the entries it reports
             root = vfs.open(rawPath, log);
-            if (root.getKind() != VfsRoot.Kind.ARCHIVE) {
+            if (!(root instanceof ArchiveRoot)) {
                 throw new IOException("Not a jarfile: " + rawPath);
             }
             this.vfsRoot = root;

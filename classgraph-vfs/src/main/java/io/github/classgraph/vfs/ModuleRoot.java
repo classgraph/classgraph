@@ -45,7 +45,7 @@ import io.github.classgraph.vfs.internal.module.ModuleReaderUtils;
 import org.jspecify.annotations.Nullable;
 
 /** A module of the module path, or of the running JDK. */
-final class ModuleRoot extends VfsRoot {
+public final class ModuleRoot extends VfsRoot {
     /** The module. */
     private final ModuleReference moduleReference;
 
@@ -81,8 +81,8 @@ final class ModuleRoot extends VfsRoot {
     // -------------------------------------------------------------------------------------------------------------
 
     @Override
-    public Kind getKind() {
-        return Kind.MODULE;
+    String fileStoreType() {
+        return "module";
     }
 
     @Override

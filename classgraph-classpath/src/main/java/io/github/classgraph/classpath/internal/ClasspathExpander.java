@@ -41,6 +41,7 @@ import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.path.FastPathResolver;
 import io.github.classgraph.base.internal.path.FileUtils;
 import io.github.classgraph.base.internal.path.PathSyntax;
+import io.github.classgraph.vfs.ArchiveRoot;
 import io.github.classgraph.vfs.VfsEntry;
 import io.github.classgraph.vfs.VfsRoot;
 import org.jspecify.annotations.Nullable;
@@ -162,7 +163,7 @@ public final class ClasspathExpander {
         // classpath entry, and is added by the caller, ahead of all of these.)
         addClassPathManifestEntries(container, childEntries, log);
         addBundleClassPathManifestEntries(container, childEntries);
-        if (enableNestedJars || container.getKind() != VfsRoot.Kind.ARCHIVE) {
+        if (enableNestedJars || !(container instanceof ArchiveRoot)) {
             addLibJars(container, libDirPrefixes, childEntries);
         }
         return childEntries;
@@ -263,7 +264,7 @@ public final class ClasspathExpander {
         }
         // A path within a jarfile is reached through the nested jar separator, where a path within an exploded
         // jarfile is simply a path below the directory
-        final var isArchive = container.getKind() == VfsRoot.Kind.ARCHIVE;
+        final var isArchive = container instanceof ArchiveRoot;
         final var locationPrefix = container.getPath() + (isArchive ? "!/" : "/");
         final var containerNioPath = isArchive ? null : pathOfRoot(container);
         // Class-Path is split on " ", but Bundle-ClassPath is split on ","

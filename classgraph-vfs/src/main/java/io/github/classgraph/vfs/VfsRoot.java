@@ -61,7 +61,8 @@ import org.jspecify.annotations.Nullable;
  * <p>
  * Whichever of those it is, the entries are named the same way -- relative to the root, with {@code '/'} as the
  * separator -- and are read through the same {@link VfsEntry} methods, so code that walks a root does not have to
- * know which kind it is. {@link #getKind()} says which kind it is, for the cases that do need to know.
+ * know which kind it is. The cases that do need to know can test for {@link DirRoot}, {@link ArchiveRoot} or
+ * {@link ModuleRoot}, which are the only kinds there are.
  *
  * <p>
  * A root is {@link AutoCloseable}: {@link #close()} releases what this root itself owns, and takes the root out of
@@ -81,7 +82,8 @@ import org.jspecify.annotations.Nullable;
  * effect the moment they are called, so a thread that lists or reads entries after that -- even while the close is
  * still running -- gets an {@link IOException} rather than entries of storage that is being released.
  */
-public abstract class VfsRoot implements Iterable<VfsEntry>, AutoCloseable {
+public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseable
+        permits ArchiveRoot, DirRoot, ModuleRoot {
     /** The {@link Vfs} that opened this root. */
     private final Vfs vfs;
 
@@ -122,18 +124,6 @@ public abstract class VfsRoot implements Iterable<VfsEntry>, AutoCloseable {
         }
     }
 
-    /** What is backing a {@link VfsRoot}. */
-    public enum Kind {
-        /** A directory in a filesystem. */
-        DIRECTORY,
-
-        /** A zipfile or jarfile, which may itself be nested within other jarfiles. */
-        ARCHIVE,
-
-        /** A module of the module path, or of the running JDK. */
-        MODULE
-    }
-
     // -------------------------------------------------------------------------------------------------------------
 
     /**
@@ -146,11 +136,12 @@ public abstract class VfsRoot implements Iterable<VfsEntry>, AutoCloseable {
     }
 
     /**
-     * Returns what is backing this root.
+     * Returns the name of what is backing this root, as reported by {@link java.nio.file.FileStore#type()} for a
+     * root read through {@link VfsFileSystem}.
      *
-     * @return the kind of root.
+     * @return {@code "directory"}, {@code "archive"} or {@code "module"}.
      */
-    public abstract Kind getKind();
+    abstract String fileStoreType();
 
     /**
      * Returns the path of this root: the directory path, or the path of the jarfile with {@code "!/"} separating

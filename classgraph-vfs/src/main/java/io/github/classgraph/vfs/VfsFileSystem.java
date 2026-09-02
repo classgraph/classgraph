@@ -45,7 +45,6 @@ import java.nio.file.attribute.UserPrincipalLookupService;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
@@ -298,9 +297,9 @@ final class VfsFileSystem extends FileSystem {
         // A module that was exploded into a directory is read from that directory, so a name within it is named the
         // way a name within a directory root is, rather than as an entry of a jarfile that does not exist. Only a
         // module is asked, since a directory root is already known to be one and an archive root never is.
-        final var moduleDir = root.getKind() == VfsRoot.Kind.MODULE ? root.getNioPath() : null;
+        final var moduleDir = root instanceof ModuleRoot ? root.getNioPath() : null;
         final String uriStr;
-        if (root.getKind() == VfsRoot.Kind.DIRECTORY || rootURIStr.startsWith("jrt:")
+        if (root instanceof DirRoot || rootURIStr.startsWith("jrt:")
                 || (moduleDir != null && Files.isDirectory(moduleDir))) {
             uriStr = rootURIStr + (rootURIStr.endsWith("/") ? "" : "/") + entryPath;
         } else {
@@ -640,7 +639,7 @@ final class VfsFileSystem extends FileSystem {
 
         @Override
         public String type() {
-            return root.getKind().toString().toLowerCase(Locale.ROOT);
+            return root.fileStoreType();
         }
 
         @Override

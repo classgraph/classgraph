@@ -49,7 +49,7 @@ import io.github.classgraph.base.internal.utils.CollectionUtils;
 import org.jspecify.annotations.Nullable;
 
 /** A directory in a filesystem. */
-final class DirRoot extends VfsRoot {
+public final class DirRoot extends VfsRoot {
     /** The directory, canonicalized. */
     private final Path dir;
 
@@ -100,8 +100,8 @@ final class DirRoot extends VfsRoot {
     // -------------------------------------------------------------------------------------------------------------
 
     @Override
-    public Kind getKind() {
-        return Kind.DIRECTORY;
+    String fileStoreType() {
+        return "directory";
     }
 
     @Override

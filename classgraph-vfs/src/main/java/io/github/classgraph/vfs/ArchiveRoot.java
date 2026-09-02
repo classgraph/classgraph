@@ -47,7 +47,7 @@ import io.github.classgraph.vfs.internal.zip.PhysicalZipFile;
 import org.jspecify.annotations.Nullable;
 
 /** A zipfile or jarfile, which may itself be nested within other jarfiles. */
-final class ArchiveRoot extends VfsRoot {
+public final class ArchiveRoot extends VfsRoot {
     /** The jarfile that was opened. */
     private final LogicalZipFile logicalZipFile;
 
@@ -200,8 +200,8 @@ final class ArchiveRoot extends VfsRoot {
     // -------------------------------------------------------------------------------------------------------------
 
     @Override
-    public Kind getKind() {
-        return Kind.ARCHIVE;
+    String fileStoreType() {
+        return "archive";
     }
 
     @Override
