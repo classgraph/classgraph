@@ -17,6 +17,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.Test;
@@ -639,5 +640,74 @@ public class SliceTest {
         // A closed slice has released the file it was reading, so it can no longer be read
         assertThatThrownBy(first::load).isInstanceOf(NullPointerException.class);
         assertThatThrownBy(second::load).isInstanceOf(NullPointerException.class);
+    }
+
+    /**
+     * Register a file as a temporary file that the handler created, so that closing the handler deletes it. Only
+     * {@link NestedJarHandler#makeTempFile(String, boolean)} creates temporary files, and it creates them in the
+     * system temporary directory, whose permissions a test cannot change -- so the test below, which needs a
+     * delete of a temporary file to fail, writes its own file somewhere it can refuse the delete, and records it
+     * here.
+     *
+     * @param nestedJarHandler
+     *            the handler to register the file with
+     * @param tempFile
+     *            the file to register
+     * @throws ReflectiveOperationException
+     *             if the set of temporary files could not be reached
+     */
+    @SuppressWarnings("unchecked")
+    private static void registerAsTempFile(final NestedJarHandler nestedJarHandler, final File tempFile)
+            throws ReflectiveOperationException {
+        final Field tempFiles = NestedJarHandler.class.getDeclaredField("tempFiles");
+        tempFiles.setAccessible(true);
+        ((Set<File>) tempFiles.get(nestedJarHandler)).add(tempFile);
+    }
+
+    /**
+     * A temporary file whose delete could not go ahead while the caller could still read a buffer of it is deleted
+     * once the last view of its mapping is released. Below JDK 22, a file that a view holds open is still mapped
+     * when the scan closes, and Windows refuses to delete a mapped file, so the delete has to wait for the unmap
+     * rather than be given up on: no collection can unmap a file whose buffer the caller is holding, and leaving
+     * the file to the {@link File#deleteOnExit()} hook leaves an extracted nested jar on disk for the rest of the
+     * life of the JVM.
+     *
+     * <p>
+     * The delete is made to fail here the way it fails on Windows, by refusing writes to the directory the file is
+     * in, which POSIX requires in order to unlink it. On Windows the mapping itself is what refuses the delete,
+     * and the test skips itself if the delete succeeds anyway, which is what happens when running as root.
+     *
+     * @param tempDir
+     *            a temporary directory
+     * @throws IOException
+     *             if the file could not be written, opened or read
+     * @throws ReflectiveOperationException
+     *             if the file could not be registered as a temporary file
+     */
+    // #939
+    @Test
+    public void aTemporaryFileIsDeletedOnceTheLastViewOfItsMappingIsReleased(@TempDir final File tempDir)
+            throws IOException, ReflectiveOperationException {
+        assumeTrue(VersionFinder.JAVA_MAJOR_VERSION < 22, "from JDK 22 the arena is closed with the slice");
+        final NestedJarHandler nestedJarHandler = memoryMappingNestedJarHandler();
+        final File extractedDir = new File(tempDir, "extracted");
+        assertThat(extractedDir.mkdir()).isTrue();
+        final File tempFile = writeFile(extractedDir, "extracted.jar");
+        registerAsTempFile(nestedJarHandler, tempFile);
+        final FileSlice slice = new FileSlice(tempFile, nestedJarHandler, /* log = */ null);
+        assertThat(slice.read().isDirect()).isTrue();
+        final Runnable releaseMappingView = slice.acquireMappingView();
+
+        assumeTrue(extractedDir.setWritable(false), "the directory could not be made read-only");
+        try {
+            nestedJarHandler.close(/* log = */ null);
+            assumeTrue(tempFile.exists(), "the temporary file was deleted despite the view of its mapping");
+        } finally {
+            assertThat(extractedDir.setWritable(true)).isTrue();
+        }
+
+        releaseMappingView.run();
+
+        assertThat(tempFile.exists()).isFalse();
     }
 }

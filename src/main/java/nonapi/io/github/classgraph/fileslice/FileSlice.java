@@ -104,6 +104,13 @@ public class FileSlice extends Slice {
     private boolean unmapped;
 
     /**
+     * An action to run once the file has been unmapped, or null if there is none. Read and written only while
+     * holding the lock on this object.
+     */
+    // #939
+    private Runnable onUnmapped;
+
+    /**
      * Needed because the JDK team changed several API methods to return ByteBuffer rather than Buffer
      * in JDK 9, which caused some methods to throw NoSuchMethodError in a way that cannot be statically
      * detected (see #284). This is implemented as a method rather than as an in-place cast so that IDEs
@@ -398,10 +405,47 @@ public class FileSlice extends Slice {
     /** Release a view taken by {@link #acquireView()}, unmapping the file if it was the last one. */
     // #939
     private void releaseView() {
-        if (openViews.decrementAndGet() == 0 && mappingReleased) {
+        if (openViews.decrementAndGet() == 0 && mappingReleased && unmapIfNoViewIsOpen()) {
             // The toplevel slice closed while this view was open, so releasing it is the last chance to unmap
             // the file -- nothing else will look at this mapping again
-            unmapIfNoViewIsOpen();
+            runOnUnmapped();
+        }
+    }
+
+    /**
+     * Run an action once this file has been unmapped, or immediately if it has been unmapped already. Used to
+     * delete a temporary file whose delete had to wait for the file to be unmapped: Windows refuses to delete a
+     * file that is still mapped, and a file that a view of its mapping holds open is not unmapped until that view
+     * is released, which can be after the scan has closed.
+     *
+     * @param action
+     *            the action to run.
+     */
+    // #939
+    public void runWhenUnmapped(final Runnable action) {
+        final boolean fileIsUnmapped;
+        synchronized (this) {
+            fileIsUnmapped = unmapped;
+            if (!fileIsUnmapped) {
+                onUnmapped = action;
+            }
+        }
+        // Run the action outside the lock, since it touches the filesystem
+        if (fileIsUnmapped) {
+            action.run();
+        }
+    }
+
+    /** Run the action registered by {@link #runWhenUnmapped(Runnable)}, if there is one. */
+    // #939
+    private void runOnUnmapped() {
+        final Runnable action;
+        synchronized (this) {
+            action = onUnmapped;
+            onUnmapped = null;
+        }
+        if (action != null) {
+            action.run();
         }
     }
 
@@ -520,7 +564,7 @@ public class FileSlice extends Slice {
                         // The arena would not close, so the file is still mapped -- ask for a collection as the
                         // scan closes, in case something the collector can reach is what is holding it
                         // #939
-                        nestedJarHandler.markFileAsAwaitingUnmapping();
+                        nestedJarHandler.markFileAsAwaitingUnmapping(this);
                     }
                     arena = null;
                     backingByteBuffer = null;
@@ -528,7 +572,7 @@ public class FileSlice extends Slice {
                     // The file could not be unmapped here, so it is left to the garbage collector, which closing
                     // the scan asks for
                     // #939
-                    nestedJarHandler.markFileAsAwaitingUnmapping();
+                    nestedJarHandler.markFileAsAwaitingUnmapping(this);
                 }
                 if (raf != null) {
                     try {

@@ -57,6 +57,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -449,6 +450,14 @@ public class NestedJarHandler {
     // #939
     private final AtomicBoolean filesAwaitingUnmapping = new AtomicBoolean(false);
 
+    /**
+     * The slices of the files that could not be unmapped as they closed, keyed by the file each slice reads. A
+     * temporary file that a slice in here reads cannot be deleted on Windows until the file is unmapped, so its
+     * delete waits for the unmap rather than being given up on.
+     */
+    // #939
+    private final Map<File, FileSlice> slicesAwaitingUnmapping = new ConcurrentHashMap<>();
+
     /** The interruption checker. */
     public InterruptionChecker interruptionChecker;
 
@@ -611,11 +620,37 @@ public class NestedJarHandler {
 
     /**
      * Record that a file could not be unmapped as its slice closed, leaving it to the garbage collector to unmap
-     * the file, so that {@link #close(LogNode)} knows to ask for a collection.
+     * the file, so that {@link #close(LogNode)} knows to ask for a collection, and knows which slice to ask to
+     * delete the file once it is unmapped, if it is a temporary file that could not be deleted.
+     *
+     * @param slice
+     *            the slice whose file could not be unmapped.
      */
     // #939
-    public void markFileAsAwaitingUnmapping() {
+    public void markFileAsAwaitingUnmapping(final FileSlice slice) {
         filesAwaitingUnmapping.set(true);
+        slicesAwaitingUnmapping.put(slice.file, slice);
+    }
+
+    /**
+     * Delete a temporary file, logging the failure if it cannot be deleted.
+     *
+     * @param tempFile
+     *            the temporary file to delete.
+     * @param rmLog
+     *            the log to report a failed delete to, or null if not logging.
+     */
+    // #939
+    private static void deleteTempFile(final File tempFile, final LogNode rmLog) {
+        try {
+            // The file is no longer in tempFiles, since removeTempFile removes it before attempting the delete,
+            // so delete it directly rather than through removeTempFile
+            Files.delete(tempFile.toPath());
+        } catch (IOException | SecurityException e) {
+            if (rmLog != null) {
+                rmLog.log("Removing temporary file failed: " + tempFile);
+            }
+        }
     }
 
     /**
@@ -1318,14 +1353,23 @@ public class NestedJarHandler {
                     // to the File#deleteOnExit() hook that makeTempFile registered.
                     FileUtils.freeUnreachableBuffers();
                     for (final File tempFile : undeleted) {
-                        try {
-                            // The file is no longer in tempFiles, since removeTempFile removes it before
-                            // attempting the delete, so delete it directly rather than through removeTempFile
-                            Files.delete(tempFile.toPath());
-                        } catch (IOException | SecurityException e) {
-                            if (rmLog != null) {
-                                rmLog.log("Removing temporary file failed: " + tempFile);
-                            }
+                        final FileSlice sliceAwaitingUnmapping = slicesAwaitingUnmapping.get(tempFile);
+                        if (sliceAwaitingUnmapping == null) {
+                            deleteTempFile(tempFile, rmLog);
+                        } else {
+                            // The file is still mapped, which on Windows is why it cannot be deleted, and the
+                            // collection asked for above cannot unmap it while the caller can still read a
+                            // buffer of it -- so delete it once the last view of the mapping is released, which
+                            // is when the file is finally unmapped. Waiting is what deletes the file at all: a
+                            // file left to the File#deleteOnExit() hook that makeTempFile registered stays on
+                            // disk for the rest of the life of the JVM. (If the file has been unmapped in the
+                            // meantime, this deletes it right away.)
+                            sliceAwaitingUnmapping.runWhenUnmapped(new Runnable() {
+                                @Override
+                                public void run() {
+                                    deleteTempFile(tempFile, rmLog);
+                                }
+                            });
                         }
                     }
                 }
