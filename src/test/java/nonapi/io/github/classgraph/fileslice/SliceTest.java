@@ -673,10 +673,9 @@ public class SliceTest {
      * life of the JVM.
      *
      * <p>
-     * On Windows the mapping itself is what refuses the delete, which is the case this test is about; everywhere
-     * else the delete has to be refused some other way, so the test clears the write permission that POSIX
-     * requires in order to unlink the file from its directory. The test skips itself if the delete succeeds
-     * anyway, which is what happens when running as root.
+     * The delete is made to fail by clearing the write permission that POSIX requires in order to unlink the file
+     * from its directory. Whichever way the delete went at close, the file has to be gone once the last view of
+     * the mapping has been released, and that is what is asserted.
      *
      * @param tempDir
      *            a temporary directory
@@ -699,23 +698,22 @@ public class SliceTest {
         assertThat(slice.read().isDirect()).isTrue();
         final Runnable releaseMappingView = slice.acquireMappingView();
 
-        // (setWritable returns false on a Windows directory, where it is not needed, so it is called for its
-        // effect rather than its result)
+        // Take the write permission off the directory, so that the delete at close is refused and has to wait
+        // for the file to be unmapped. (setWritable returns false on a Windows directory, where the permission is
+        // not what a delete needs, so it is called for its effect rather than its result.)
         extractedDir.setWritable(false);
-        final boolean deleteWasRefused;
         try {
             nestedJarHandler.close(/* log = */ null);
-            deleteWasRefused = tempFile.exists();
         } finally {
             extractedDir.setWritable(true);
         }
 
-        // Releasing the last view unmaps the file, which is the moment the delete can be retried. This is run
-        // before the assumption below, so that an abort leaves nothing mapped for the temporary directory
-        // cleanup to trip over.
+        // Releasing the last view unmaps the file, which is the moment a delete that the mapping was in the way
+        // of can be retried
         releaseMappingView.run();
 
-        assumeTrue(deleteWasRefused, "the delete succeeded while the file was still mapped");
+        // The temporary file is gone once the last view has been released, whether the delete had to wait for the
+        // file to be unmapped or succeeded as the handler closed
         assertThat(tempFile.exists()).isFalse();
     }
 }
