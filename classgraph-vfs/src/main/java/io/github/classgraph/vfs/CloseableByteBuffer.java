@@ -65,60 +65,13 @@ import org.jspecify.annotations.Nullable;
  * without marking the buffer, and the read takes a SIGSEGV that kills the JVM. Read the buffer only inside the
  * try-with-resources block that holds this wrapper, and only while the root it came from is open.
  */
-// TODO: consider replacing getByteBuffer() with accessor methods on this class, so that the raw buffer
-// cannot escape and a read after a close can be reported rather than reading memory that is no longer mapped.
-// java.nio.ByteBuffer cannot be subclassed (its constructors are package-private on every JDK, and it is sealed
-// from JDK 21), so this would have to be an abstract class of its own, with one concrete subclass per backing
-// buffer kind so that each subclass's delegate call site stays monomorphic, and the subclass chosen when the
-// wrapper is constructed.
-//
-// Measured with JMH 1.37 on JDK 17.0.12 and 26.0.2 (8192 reads per operation, average of 3 forks x 5 iterations):
-// delegating through such a subclass costs nothing at all -- 2.00 us against 2.00 us for reading the raw buffer
-// directly, on both JDK versions -- so the proxying itself is free and there is nothing to remove on JDK 22+.
-// What costs is the check, and only if the flag it reads is volatile: 8.4 us (4.2x) for a volatile boolean, 8.6 us
-// for an opaque read, 7.0 us for a null check on a volatile field, but 2.00 us -- free -- for a plain non-volatile
-// boolean.
-//
-// A plain flag is free because the JIT hoists the read out of the reader's loop, which is the same reason it is
-// unsafe across threads: measured separately, a reader whose loop contains no volatile read of its own never
-// noticed a plain flag being set on another thread at all, over a 20 second timeout, in either of two loop shapes,
-// while a volatile flag was noticed in about 110 us. So a plain flag reports a caller that closes and then reads on
-// one thread, which is the common misuse, and reports nothing whatsoever when one thread reads while another
-// closes. A volatile flag does not make that case safe either, since the check is still made before the read; it
-// only narrows the window.
-//
-// The way to have the volatile flag for free is to make the accessors bulk-oriented -- copyTo, getInt, remaining,
-// rather than a get(int) that callers put in a loop of their own -- since a bulk copy of 8 KB with the check
-// measured 0.089-0.130 us, which is the cost of the raw copy.
-//
-// Removing getByteBuffer() is also a public API break: ResourceList#forEachByteBuffer hands a raw ByteBuffer to a
-// caller-supplied consumer, and VfsFileSystemProvider reads one directly.
-//
-// Where this stands, after the decisions made since the measurements above were taken:
-//
-// (1) A root now closes every buffer and channel it handed out before it releases what it owns, so a wrapper the
-// caller forgot is closed for them and cannot hold a mapping open. That leaves exactly one way to read memory the
-// root no longer owns: a raw ByteBuffer reference the caller took out of a wrapper before the close and read
-// through afterwards. Removing getByteBuffer() would close that last hole, and there is nothing else left for it
-// to fix.
-//
-// (2) Nothing may be added to a read path that costs anything, so of the shapes measured above only the
-// bulk-oriented one is admissible: a per-read check is 4.2x, and the plain flag that costs nothing is the one that
-// reports nothing across threads. An accessor a caller would naturally put in a loop of their own is not an
-// option, whatever it would catch.
-//
-// (3) Files are memory-mapped on Windows and nowhere else, so the fatal form of the misuse is Windows-only;
-// elsewhere the buffer is a copy and a late read is merely wrong. That narrows what this would buy, without
-// removing the reason for it.
-//
-// TODO: revisit this, and the warning on getByteBuffer(), once the minimum supported JDK is 22 or later. From 22 a
-// file is mapped in a java.lang.foreign.Arena whose close invalidates readers rather than freeing the address
-// range under them, so a read after the close throws IllegalStateException instead of killing the JVM, and there
-// is nothing left for a check of ours to protect against -- which removes reason (1) above for the redesign, since
-// the hole it would close stops being fatal. At that point the warning becomes a note that a late read throws.
-// What VfsRoot does would not change: it closes buffers and channels to drop the references promptly and to keep
-// the close ordering it documents, not to make the unmap possible, and from 22 the arena close unmaps the file
-// whether or not anything is still a view of it.
+// TODO: drop the warning on getByteBuffer(), and the JDK-dependent half of the class javadoc, once the minimum
+// supported JDK is 22 or later. The warning exists because below 22 a mapped file is unmapped by freeing its
+// address range, so reading a ByteBuffer reference that was taken from this wrapper and kept past the close can
+// kill the JVM -- on Windows, the only platform where a file is mapped. From 22 the file is mapped in an arena
+// whose close makes such a read throw IllegalStateException instead, leaving nothing to warn about. This class is
+// still wanted then: it releases the buffer as soon as the caller is finished with it, and no later than the close
+// of the root that produced it, so that a mapping is dropped promptly and the file behind it can be deleted.
 public final class CloseableByteBuffer implements AutoCloseable {
     /**
      * The wrapped {@link ByteBuffer}, or null once this wrapper has been closed.
