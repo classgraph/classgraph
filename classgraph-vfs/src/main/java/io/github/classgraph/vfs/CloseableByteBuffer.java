@@ -94,12 +94,31 @@ import org.jspecify.annotations.Nullable;
 // Removing getByteBuffer() is also a public API break: ResourceList#forEachByteBuffer hands a raw ByteBuffer to a
 // caller-supplied consumer, and VfsFileSystemProvider reads one directly.
 //
+// Where this stands, after the decisions made since the measurements above were taken:
+//
+// (1) A root now closes every buffer and channel it handed out before it releases what it owns, so a wrapper the
+// caller forgot is closed for them and cannot hold a mapping open. That leaves exactly one way to read memory the
+// root no longer owns: a raw ByteBuffer reference the caller took out of a wrapper before the close and read
+// through afterwards. Removing getByteBuffer() would close that last hole, and there is nothing else left for it
+// to fix.
+//
+// (2) Nothing may be added to a read path that costs anything, so of the shapes measured above only the
+// bulk-oriented one is admissible: a per-read check is 4.2x, and the plain flag that costs nothing is the one that
+// reports nothing across threads. An accessor a caller would naturally put in a loop of their own is not an
+// option, whatever it would catch.
+//
+// (3) Files are memory-mapped on Windows and nowhere else, so the fatal form of the misuse is Windows-only;
+// elsewhere the buffer is a copy and a late read is merely wrong. That narrows what this would buy, without
+// removing the reason for it.
+//
 // TODO: revisit this, and the warning on getByteBuffer(), once the minimum supported JDK is 22 or later. From 22 a
 // file is mapped in a java.lang.foreign.Arena whose close invalidates readers rather than freeing the address
 // range under them, so a read after the close throws IllegalStateException instead of killing the JVM, and there
-// is nothing left for a check of ours to protect against. At that point the warning becomes a note that a late
-// read throws, and the buffer-tracking that VfsRoot does could be reconsidered too -- it would still be wanted for
-// dropping references promptly, but no longer for making an unmap possible.
+// is nothing left for a check of ours to protect against -- which removes reason (1) above for the redesign, since
+// the hole it would close stops being fatal. At that point the warning becomes a note that a late read throws.
+// What VfsRoot does would not change: it closes buffers and channels to drop the references promptly and to keep
+// the close ordering it documents, not to make the unmap possible, and from 22 the arena close unmaps the file
+// whether or not anything is still a view of it.
 public final class CloseableByteBuffer implements AutoCloseable {
     /**
      * The wrapped {@link ByteBuffer}, or null once this wrapper has been closed.
