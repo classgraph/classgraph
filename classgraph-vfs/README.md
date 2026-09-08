@@ -30,6 +30,19 @@ constructor, which takes a type from a package that is exported only to ClassGra
 no other module can call it. See the
 [Vfs API](https://github.com/classgraph/classgraph/wiki/Vfs-API) for the full reference.
 
+`VfsRoot` is sealed, with one public final subclass per kind of storage -- `DirRoot`, `ArchiveRoot`
+and `ModuleRoot` -- so that a root can be switched on where the kind of storage matters. They add no
+methods of their own: everything a root can do is declared on `VfsRoot`, and a subclass only
+implements or overrides it.
+
+A second package, `io.github.classgraph.vfs.reader`, holds the readers that the virtual filesystem
+reads its own content through. They are exported because they are useful on their own: any content
+that has to be read a value at a time, in a fixed byte order, and either at an offset
+(`RandomAccessReader`) or from front to back (`SequentialReader`), can be read through them, from a
+byte array, a `ByteBuffer`, a `FileChannel`, an `InputStream` or a `VfsEntry`. The byte order is a
+property of the content rather than of the machine, so it is fixed when a reader is constructed and
+never follows the machine's.
+
 ## One interface over every kind of storage
 
 Java names a place to read from in at least seven ways, and reads from it in at least five. Which
@@ -259,10 +272,10 @@ new Vfs(new VfsSpec().disableURLScheme("https").setMaxBufferedJarRAMSize(65536))
 `VfsSpec.DEFAULT_ENABLE_MULTI_RELEASE_VERSIONS` and `VfsSpec.DEFAULT_MAX_BUFFERED_JAR_RAM_SIZE` name
 the defaults.
 
-The `VfsSpec` is held by the `Vfs`, not copied, and each setting is read where it is needed, so a
-setting should be chosen before the `Vfs` opens anything -- a setting changed while entries are
-being read takes effect for some of them and not others. Changing one is safe from any thread: every
-setting is held in a volatile field.
+The `VfsSpec` is held by the `Vfs`, not copied, and `vfs.getVfsSpec()` hands back the same object.
+Each setting is read where it is needed, so a setting should be chosen before the `Vfs` opens
+anything -- a setting changed while entries are being read takes effect for some of them and not
+others. Changing one is safe from any thread: every setting is held in a volatile field.
 
 ## Custom URL schemes
 
@@ -502,7 +515,7 @@ try (Vfs vfs = new Vfs()) {
     for (VfsRoot root : List.of(dir, jar, module)) {
         System.out.println(root + " (" + root.getClass().getSimpleName() + ")");
         for (VfsEntry entry : root) {
-            System.out.println("  " + entry.getName() + " (" + entry.getLength() + " bytes)");
+            System.out.println("  " + entry.getPathFromRoot() + " (" + entry.getLength() + " bytes)");
         }
     }
 }
@@ -538,7 +551,7 @@ try (Vfs vfs = new Vfs()) {
 
         @Override
         public boolean visitEntry(VfsEntry entry) {
-            System.out.println(entry.getName());
+            System.out.println(entry.getPathFromRoot());
             // Return false to stop the walk early
             return true;
         }
@@ -561,7 +574,7 @@ try (Vfs vfs = new Vfs()) {
     VfsRoot root = vfs.open("/path/to/app.jar");
     // Every jarfile the application bundles
     for (VfsEntry entry : root.getEntries("BOOT-INF/lib/")) {
-        System.out.println(entry.getName());
+        System.out.println(entry.getPathFromRoot());
     }
 }
 ```
@@ -621,12 +634,12 @@ try (InputStream inputStream = entry.open()) {
 
 `entry.read()` hands back the content as a `ByteBuffer` -- which is the memory mapping itself, with
 no copy, where the entry is stored uncompressed in a file that could be mapped. It is wrapped in a
-`CloseableByteBuffer` because some of those buffers own storage that has to be handed back when you
-have finished with it, which `close()` does: a file read from a directory owns its mapping, and a
-module resource owns a buffer that the module reader lends out. An entry read from inside a jarfile
-owns nothing of its own -- the jarfile is released when its root is closed -- so closing it does
-nothing, but the wrapper is the same either way, so the calling code does not have to know which
-kind of entry it is reading:
+`CloseableByteBuffer` because every such buffer holds something that has to be handed back when you
+have finished with it, which `close()` does: a file read from a directory owns its mapping, a module
+resource owns a buffer that the module reader lends out, and an entry read from inside a jarfile
+holds the jarfile's mapping open for as long as the buffer is a view of it, so that the jarfile
+cannot be unmapped underneath a reader. The wrapper is the same either way, so the calling code does
+not have to know which kind of entry it is reading:
 
 ```java
 try (CloseableByteBuffer closeableBuffer = entry.read()) {
@@ -636,16 +649,19 @@ try (CloseableByteBuffer closeableBuffer = entry.read()) {
 ```
 
 The buffer can be the mapping itself, so it must not be read after the root it came from, or the
-`Vfs`, is closed. Closing either of those closes the wrapper as well, whether or not the caller has,
-and `getByteBuffer()` returns null from then on -- but a `ByteBuffer` reference taken before the
-close is not revoked by it. Reading through one is the one place in this API where reading after a
-close is not reported as an `IOException`, because nothing sits between a raw `ByteBuffer` and the
-caller to translate the failure. What it does instead depends on how the JDK releases the mapping:
-on JDK 22 or later the read throws `IllegalStateException`, since the arena that mapped the file
-knows it has been closed, but below JDK 22 the address range has simply been freed and the read
-takes a SIGSEGV that kills the JVM. That only arises where the file was memory-mapped, which is on
-Windows; elsewhere the buffer is a copy, and a late read is merely wrong rather than fatal. Do not
-rely on that -- read the buffer inside the try-with-resources block, and while its root is open.
+`Vfs`, is closed. The root tracks every wrapper it has handed out, and closing a wrapper takes it
+back off that list, so a caller that does not close its buffers accumulates them on the root for as
+long as the root stays open. Closing the root, or the `Vfs`, closes the wrapper as well, whether or
+not the caller has, and `getByteBuffer()` returns null from then on -- but a `ByteBuffer` reference
+taken before the close is not revoked by it. Reading through one is the one place in this API where
+reading after a close is not reported as an `IOException`, because nothing sits between a raw
+`ByteBuffer` and the caller to translate the failure. What it does instead depends on how the JDK
+releases the mapping: on JDK 22 or later the read throws `IllegalStateException`, since the arena
+that mapped the file knows it has been closed, but below JDK 22 the address range has simply been
+freed and the read takes a SIGSEGV that kills the JVM. That only arises where the file was memory-
+mapped, which is on Windows; elsewhere the buffer is a copy, and a late read is merely wrong rather
+than fatal. Do not rely on that -- read the buffer inside the try-with-resources block, and while
+its root is open.
 
 `entry.load()` and `entry.loadAsString()` copy the content into a `byte[]` and a UTF-8 `String`
 respectively. There is nothing to close, and the result stays valid after the root and the `Vfs`
@@ -681,7 +697,7 @@ directly.
 try (Vfs vfs = new Vfs()) {
     VfsRoot nested = vfs.open("/path/to/outer.jar!/BOOT-INF/lib/inner.jar");
     for (VfsEntry entry : nested) {
-        System.out.println(entry.getName());
+        System.out.println(entry.getPathFromRoot());
     }
 }
 ```
@@ -708,10 +724,27 @@ try (Vfs vfs = new Vfs()) {
     VfsRoot classes = vfs.open("/path/to/spring-boot-app.jar!/BOOT-INF/classes");
     // Names are reported relative to the package root, so this prints "com/xyz/MyApp.class",
     // not "BOOT-INF/classes/com/xyz/MyApp.class"
-    classes.getEntries().forEach(entry -> System.out.println(entry.getName()));
+    classes.getEntries().forEach(entry -> System.out.println(entry.getPathFromRoot()));
     System.out.println("package root: " + classes.getPackageRoot());
 }
 ```
+
+A package root shows only what is under it, so `BOOT-INF/lib/`, where a Spring Boot application
+keeps the jarfiles it depends on, is invisible from a root opened at `BOOT-INF/classes`.
+`getContainerRoot()` returns the root the package root was opened within -- here the whole of
+`app.jar` -- so that the rest of it can be read:
+
+```java
+try (Vfs vfs = new Vfs()) {
+    VfsRoot classes = vfs.open("/path/to/spring-boot-app.jar!/BOOT-INF/classes");
+    for (VfsEntry entry : classes.getContainerRoot().getEntries("BOOT-INF/lib/")) {
+        System.out.println(entry.getPathFromRoot());
+    }
+}
+```
+
+The container is the root itself for a root that was not opened at a package root, which is always
+the case for a directory and for a module, so the call needs no test around it.
 
 ### Read from a filesystem other than the default one
 
@@ -719,7 +752,7 @@ try (Vfs vfs = new Vfs()) {
 try (FileSystem fileSystem = FileSystems.newFileSystem(Path.of("/path/to/library.jar"));
         Vfs vfs = new Vfs()) {
     VfsRoot root = vfs.open(fileSystem.getPath("/"));
-    root.getEntries().forEach(entry -> System.out.println(entry.getName()));
+    root.getEntries().forEach(entry -> System.out.println(entry.getPathFromRoot()));
 }
 ```
 
@@ -745,7 +778,10 @@ a value split across several lines is joined back together. Both methods return 
 no manifest, and the manifest is read once and then cached.
 
 A directory and a module have a manifest read from the same place, so an exploded jarfile is
-described by its manifest just as the jarfile it was exploded from is.
+described by its manifest just as the jarfile it was exploded from is. A root opened at a package
+root reports the manifest of the whole jarfile, not of the package root: a Spring Boot application's
+`Main-Class` and `Automatic-Module-Name` describe `app.jar`, and there is no manifest under
+`BOOT-INF/classes/` to read instead.
 
 A jarfile written by a tool that lower-cased its entry names still has a manifest, and it is found:
 the canonical name is looked for first, since that is the name it is stored under in all but a

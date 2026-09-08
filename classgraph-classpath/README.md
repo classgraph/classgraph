@@ -108,7 +108,7 @@ try (Classpath classpath = new ClasspathFinder().enableClasspath().find()) {
         // A classpath entry can be a directory, a jarfile or a jarfile nested in another jarfile.
         // The virtual filesystem opens all of them, and lists their contents the same way.
         for (VfsEntry resource : entry.open(vfs)) {
-            if (resource.getName().endsWith(".class")) {
+            if (resource.getPathFromRoot().endsWith(".class")) {
                 System.out.println(resource.getPath());
             }
         }

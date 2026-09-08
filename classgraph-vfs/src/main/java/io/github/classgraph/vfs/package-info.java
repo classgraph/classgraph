@@ -71,8 +71,12 @@
  * jarfile, rather than being extracted to a temporary directory first.
  *
  * <p>
- * A {@link io.github.classgraph.vfs.Vfs} owns the file handles, memory mappings and temporary files that back
- * everything it opened, so it must be closed, and it must stay open for as long as its entries are being read.
+ * Ownership is a tree: a {@link io.github.classgraph.vfs.Vfs} owns every root it opens, and each root owns the file
+ * handle, memory mapping and temporary file that back it, along with the roots opened within it, which read through
+ * that storage. Closing the {@link io.github.classgraph.vfs.Vfs} closes every root, so it must be closed, and it
+ * must stay open for as long as its entries are being read. A {@link io.github.classgraph.vfs.VfsRoot} is
+ * {@link java.lang.AutoCloseable} too, for a long-lived {@link io.github.classgraph.vfs.Vfs} that wants what one
+ * root holds released before the rest.
  *
  * <p>
  * This package is {@link org.jspecify.annotations.NullMarked}: unless a type is annotated
