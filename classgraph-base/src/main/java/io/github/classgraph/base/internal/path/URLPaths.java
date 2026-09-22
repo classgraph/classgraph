@@ -28,7 +28,6 @@
  */
 package io.github.classgraph.base.internal.path;
 
-import io.github.classgraph.base.internal.utils.VersionFinder;
 import java.io.IOError;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -37,6 +36,7 @@ import java.nio.file.Path;
 import java.util.Locale;
 import java.util.regex.Pattern;
 
+import io.github.classgraph.base.internal.utils.VersionFinder;
 import io.github.classgraph.base.internal.utils.VersionFinder.OperatingSystem;
 
 /**

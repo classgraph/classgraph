@@ -28,7 +28,6 @@
  */
 package io.github.classgraph.base.internal.path;
 
-import io.github.classgraph.base.internal.utils.VersionFinder;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -39,6 +38,7 @@ import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileTime;
 
+import io.github.classgraph.base.internal.utils.VersionFinder;
 import org.jspecify.annotations.Nullable;
 
 /**

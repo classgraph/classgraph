@@ -34,9 +34,8 @@ import java.nio.ByteOrder;
 import java.nio.charset.Charset;
 import java.util.function.BooleanSupplier;
 
-import org.jspecify.annotations.Nullable;
-
 import io.github.classgraph.base.internal.utils.StringUtils;
+import org.jspecify.annotations.Nullable;
 
 /**
  * {@link RandomAccessReader} for a {@link ByteBuffer}. Reads in <b>little endian</b> order by default, as required

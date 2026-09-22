@@ -36,11 +36,11 @@ import io.github.classgraph.base.internal.path.FastPathResolver;
 import io.github.classgraph.base.internal.path.FileUtils;
 import io.github.classgraph.base.internal.path.PathList;
 import io.github.classgraph.base.internal.utils.VersionFinder;
+import io.github.classgraph.classpath.ClassLoaderHandler;
 import io.github.classgraph.classpath.internal.ScanSourceSpec.ClasspathSource;
 import io.github.classgraph.classpath.internal.ScanSourceSpec.ClasspathString;
 import io.github.classgraph.classpath.internal.ScanSourceSpec.NamedClassLoaders;
 import io.github.classgraph.classpath.internal.ScanSourceSpec.NamedClasspathEntries;
-import io.github.classgraph.classpath.ClassLoaderHandler;
 import io.github.classgraph.classpath.internal.classloaderhandler.ClassLoaderHandlerRegistry;
 import org.jspecify.annotations.Nullable;
 

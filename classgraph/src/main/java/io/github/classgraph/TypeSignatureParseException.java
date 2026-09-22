@@ -29,6 +29,7 @@
 package io.github.classgraph;
 
 import java.io.Serial;
+
 import org.jspecify.annotations.Nullable;
 
 /**

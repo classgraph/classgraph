@@ -36,8 +36,8 @@ import java.util.Map;
 import java.util.Set;
 
 import io.github.classgraph.Classfile.TypePathNode;
-import io.github.classgraph.base.internal.utils.CollectionUtils;
 import io.github.classgraph.base.LogNode;
+import io.github.classgraph.base.internal.utils.CollectionUtils;
 import org.jspecify.annotations.Nullable;
 
 /**
