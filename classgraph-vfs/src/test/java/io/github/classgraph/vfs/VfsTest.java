@@ -1505,6 +1505,39 @@ public class VfsTest {
     }
 
     /**
+     * A multi-release jarfile lists its entries in the order of its central directory, as any other jarfile does.
+     * An entry that masks a base entry takes its own position, not the position of the entry it masks.
+     *
+     * @param tempDir
+     *            a temporary directory to write the jarfile into.
+     * @throws IOException
+     *             if the jarfile could not be written or read.
+     */
+    @Test
+    public void aMultiReleaseJarfileListsItsEntriesInCentralDirectoryOrder(@TempDir final File tempDir)
+            throws IOException {
+        final var jarFile = new File(tempDir, "widget.jar");
+        try (var fileOut = new FileOutputStream(jarFile); var zipOut = new ZipOutputStream(fileOut)) {
+            zipOut.putNextEntry(new ZipEntry("META-INF/MANIFEST.MF"));
+            zipOut.write("Manifest-Version: 1.0\nMulti-Release: true\n\n".getBytes(StandardCharsets.UTF_8));
+            zipOut.closeEntry();
+            for (final var entryName : new String[] { "z.txt", "a.txt", "META-INF/versions/9/m.txt",
+                    "META-INF/versions/9/a.txt", "b.txt" }) {
+                zipOut.putNextEntry(new ZipEntry(entryName));
+                zipOut.write(entryName.getBytes(StandardCharsets.UTF_8));
+                zipOut.closeEntry();
+            }
+        }
+
+        try (var vfs = new Vfs()) {
+            final var root = vfs.open(jarFile.getPath());
+            assertThat(root.getEntries()).extracting(VfsEntry::getPathFromRoot)
+                    .containsExactly("META-INF/MANIFEST.MF", "z.txt", "m.txt", "a.txt", "b.txt");
+            assertThat(entryContent(root, "a.txt")).isEqualTo("META-INF/versions/9/a.txt");
+        }
+    }
+
+    /**
      * With multi-release versions disabled, every versioned copy of a resource is reported separately, under the
      * path it has in the jarfile, so that a caller can see all of them rather than the one the JVM would use.
      *

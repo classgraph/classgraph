@@ -1077,25 +1077,27 @@ public class LogicalZipFile extends ZipFileSlice {
             log.log("This is a multi-release jar, with versions: " + StringUtils.join(", ", versionsFoundSorted));
         }
 
-        // Sort in decreasing order of version in preparation for version masking
-        CollectionUtils.sortIfNotEmpty(entries);
-
-        // Mask files that appear in multiple version sections, so that there is only one entry for each
-        // unversioned path, i.e. the versioned path with the highest version number
-        final List<FastZipEntry> unversionedZipEntriesMasked = new ArrayList<>(entries.size());
-        final Map<String, String> unversionedPathToVersionedPath = new HashMap<>();
-        for (final FastZipEntry versionedZipEntry : entries) {
-            final var maskingEntryName = unversionedPathToVersionedPath
-                    .putIfAbsent(versionedZipEntry.entryNameUnversioned, versionedZipEntry.entryName);
-            if (maskingEntryName == null) {
-                // This is the first FastZipEntry for this entry's unversioned path
-                unversionedZipEntriesMasked.add(versionedZipEntry);
-            } else if (log != null) {
-                log.log(maskingEntryName + " masks " + versionedZipEntry.entryName);
+        // Sort a copy in decreasing order of version, so that the first entry for each unversioned path is the one
+        // with the highest version number, which masks the others
+        final List<FastZipEntry> entriesByVersion = new ArrayList<>(entries);
+        CollectionUtils.sortIfNotEmpty(entriesByVersion);
+        final Map<String, FastZipEntry> unversionedPathToMaskingEntry = new HashMap<>();
+        for (final FastZipEntry versionedZipEntry : entriesByVersion) {
+            final var maskingEntry = unversionedPathToMaskingEntry
+                    .putIfAbsent(versionedZipEntry.entryNameUnversioned, versionedZipEntry);
+            if (maskingEntry != null && log != null) {
+                log.log(maskingEntry.entryName + " masks " + versionedZipEntry.entryName);
             }
         }
 
-        // Override entries with version-masked entries
+        // Keep only the masking entries, in the order of the central directory
+        final List<FastZipEntry> unversionedZipEntriesMasked = new ArrayList<>(
+                unversionedPathToMaskingEntry.size());
+        for (final FastZipEntry entry : entries) {
+            if (unversionedPathToMaskingEntry.get(entry.entryNameUnversioned) == entry) {
+                unversionedZipEntriesMasked.add(entry);
+            }
+        }
         entries = unversionedZipEntriesMasked;
     }
 
