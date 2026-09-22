@@ -32,6 +32,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.Charset;
+import java.util.Objects;
 
 import io.github.classgraph.base.internal.utils.StringUtils;
 
@@ -68,6 +69,8 @@ public class RandomAccessArrayReader implements RandomAccessReader {
      *            the start index of the slice within the array.
      * @param sliceLength
      *            the length of the slice within the array.
+     * @throws IndexOutOfBoundsException
+     *             if the slice is not within the array.
      */
     public RandomAccessArrayReader(final byte[] arr, final int sliceStartPos, final int sliceLength) {
         this(arr, sliceStartPos, sliceLength, ByteOrder.LITTLE_ENDIAN);
@@ -85,9 +88,12 @@ public class RandomAccessArrayReader implements RandomAccessReader {
      * @param byteOrder
      *            the byte order to read multi-byte values in. Pass {@link ByteOrder#nativeOrder()} for content
      *            written in the byte order of the machine this is running on.
+     * @throws IndexOutOfBoundsException
+     *             if the slice is not within the array.
      */
     public RandomAccessArrayReader(final byte[] arr, final int sliceStartPos, final int sliceLength,
             final ByteOrder byteOrder) {
+        Objects.checkFromIndexSize(sliceStartPos, sliceLength, arr.length);
         this.arr = arr;
         this.sliceStartPos = sliceStartPos;
         this.sliceLength = sliceLength;

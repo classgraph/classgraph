@@ -89,6 +89,12 @@ import java.nio.charset.StandardCharsets;
  * No method ever reports content that is not there. A reader whose length is overstated -- by a zip entry that
  * declares an uncompressed size larger than what its deflate stream actually holds -- stops at the last byte that
  * could really be read, rather than padding with zeroes.
+ *
+ * <h2>Threads</h2>
+ *
+ * <p>
+ * A reader is not safe to use from more than one thread at a time: some keep scratch buffers, or buffer a stream as
+ * it is read. Give each thread its own reader.
  */
 public interface RandomAccessReader {
     /**
@@ -160,7 +166,7 @@ public interface RandomAccessReader {
      * Read a byte at a specific offset (without changing the current cursor offset).
      *
      * @param offset
-     *            The buffer offset to read from.
+     *            The offset to read from.
      * @return The byte at the offset.
      * @throws IOException
      *             If there was an exception while reading.
@@ -171,7 +177,7 @@ public interface RandomAccessReader {
      * Read an unsigned byte at a specific offset (without changing the current cursor offset).
      *
      * @param offset
-     *            The buffer offset to read from.
+     *            The offset to read from.
      * @return The unsigned byte at the offset.
      * @throws IOException
      *             If there was an exception while reading.
@@ -182,7 +188,7 @@ public interface RandomAccessReader {
      * Read a short at a specific offset (without changing the current cursor offset).
      *
      * @param offset
-     *            The buffer offset to read from.
+     *            The offset to read from.
      * @return The short at the offset.
      * @throws IOException
      *             If there was an exception while reading.
@@ -190,10 +196,10 @@ public interface RandomAccessReader {
     short readShort(final long offset) throws IOException;
 
     /**
-     * Read a unsigned short at a specific offset (without changing the current cursor offset).
+     * Read an unsigned short at a specific offset (without changing the current cursor offset).
      *
      * @param offset
-     *            The buffer offset to read from.
+     *            The offset to read from.
      * @return The unsigned short at the offset.
      * @throws IOException
      *             If there was an exception while reading.
@@ -201,10 +207,10 @@ public interface RandomAccessReader {
     int readUnsignedShort(final long offset) throws IOException;
 
     /**
-     * Read a int at a specific offset (without changing the current cursor offset).
+     * Read an int at a specific offset (without changing the current cursor offset).
      *
      * @param offset
-     *            The buffer offset to read from.
+     *            The offset to read from.
      * @return The int at the offset.
      * @throws IOException
      *             If there was an exception while reading.
@@ -212,10 +218,10 @@ public interface RandomAccessReader {
     int readInt(final long offset) throws IOException;
 
     /**
-     * Read a unsigned int at a specific offset (without changing the current cursor offset).
+     * Read an unsigned int at a specific offset (without changing the current cursor offset).
      *
      * @param offset
-     *            The buffer offset to read from.
+     *            The offset to read from.
      * @return The int at the offset, as a long.
      * @throws IOException
      *             If there was an exception while reading.
@@ -226,7 +232,7 @@ public interface RandomAccessReader {
      * Read a long at a specific offset (without changing the current cursor offset).
      *
      * @param offset
-     *            The buffer offset to read from.
+     *            The offset to read from.
      * @return The long at the offset.
      * @throws IOException
      *             If there was an exception while reading.

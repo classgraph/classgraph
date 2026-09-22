@@ -32,6 +32,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.Charset;
+import java.util.Objects;
 import java.util.function.BooleanSupplier;
 
 import io.github.classgraph.base.internal.utils.StringUtils;
@@ -58,10 +59,10 @@ public class RandomAccessByteBufferReader implements RandomAccessReader {
     /** The byte buffer. */
     private final ByteBuffer byteBuffer;
 
-    /** The slice start pos. */
+    /** The index within the buffer at which the content starts. */
     private final int sliceStartPos;
 
-    /** The slice length. */
+    /** The number of bytes of content. */
     private final int sliceLength;
 
     /**
@@ -74,11 +75,13 @@ public class RandomAccessByteBufferReader implements RandomAccessReader {
      * Constructor.
      *
      * @param byteBuffer
-     *            the byte buffer
+     *            the buffer to read. Its position, limit and byte order are ignored.
      * @param sliceStartPos
-     *            the slice start pos
+     *            the index within the buffer at which the content starts.
      * @param sliceLength
-     *            the slice length
+     *            the number of bytes of content.
+     * @throws IndexOutOfBoundsException
+     *             if the slice is not within the buffer's capacity.
      */
     public RandomAccessByteBufferReader(final ByteBuffer byteBuffer, final long sliceStartPos,
             final long sliceLength) {
@@ -89,14 +92,16 @@ public class RandomAccessByteBufferReader implements RandomAccessReader {
      * Constructor.
      *
      * @param byteBuffer
-     *            the byte buffer
+     *            the buffer to read. Its position, limit and byte order are ignored.
      * @param sliceStartPos
-     *            the slice start pos
+     *            the index within the buffer at which the content starts.
      * @param sliceLength
-     *            the slice length
+     *            the number of bytes of content.
      * @param isReleased
      *            whether the file the buffer is a view of has been released, or null if it cannot be released while
      *            this reader is alive
+     * @throws IndexOutOfBoundsException
+     *             if the slice is not within the buffer's capacity.
      */
     public RandomAccessByteBufferReader(final ByteBuffer byteBuffer, final long sliceStartPos,
             final long sliceLength, final @Nullable BooleanSupplier isReleased) {
@@ -107,14 +112,16 @@ public class RandomAccessByteBufferReader implements RandomAccessReader {
      * Constructor for slicing a byte buffer, reading in a given byte order.
      *
      * @param byteBuffer
-     *            the byte buffer
+     *            the buffer to read. Its position, limit and byte order are ignored.
      * @param sliceStartPos
-     *            the slice start pos
+     *            the index within the buffer at which the content starts.
      * @param sliceLength
-     *            the slice length
+     *            the number of bytes of content.
      * @param byteOrder
      *            the byte order to read multi-byte values in. Pass {@link ByteOrder#nativeOrder()} for content
      *            written in the byte order of the machine this is running on.
+     * @throws IndexOutOfBoundsException
+     *             if the slice is not within the buffer's capacity.
      */
     public RandomAccessByteBufferReader(final ByteBuffer byteBuffer, final long sliceStartPos,
             final long sliceLength, final ByteOrder byteOrder) {
@@ -125,20 +132,25 @@ public class RandomAccessByteBufferReader implements RandomAccessReader {
      * Constructor.
      *
      * @param byteBuffer
-     *            the byte buffer
+     *            the buffer to read. Its position, limit and byte order are ignored.
      * @param sliceStartPos
-     *            the slice start pos
+     *            the index within the buffer at which the content starts.
      * @param sliceLength
-     *            the slice length
+     *            the number of bytes of content.
      * @param byteOrder
      *            the byte order to read multi-byte values in. Pass {@link ByteOrder#nativeOrder()} for content
      *            written in the byte order of the machine this is running on.
      * @param isReleased
      *            whether the file the buffer is a view of has been released, or null if it cannot be released while
      *            this reader is alive
+     * @throws IndexOutOfBoundsException
+     *             if the slice is not within the buffer's capacity.
      */
     public RandomAccessByteBufferReader(final ByteBuffer byteBuffer, final long sliceStartPos,
             final long sliceLength, final ByteOrder byteOrder, final @Nullable BooleanSupplier isReleased) {
+        // Checked here, so that a slice that does not fit is reported when the reader is made rather than by a
+        // read, and so that the casts to int below cannot truncate
+        Objects.checkFromIndexSize(sliceStartPos, sliceLength, byteBuffer.capacity());
         this.isReleased = isReleased;
         // Take a read-only duplicate, so that this reader has its own position, limit and byte order, and cannot
         // write through to a buffer that may be a memory mapping shared by every thread reading the same file

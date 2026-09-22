@@ -516,4 +516,34 @@ public class RandomAccessReaderTest {
         assertThatThrownBy(() -> reader.read(0, dstBuf, 0, PATTERN.length)).isInstanceOf(IOException.class)
                 .hasMessage("The destination buffer is read-only");
     }
+
+    /**
+     * A reader over an array or a buffer rejects a slice that does not fit within it when it is created. It used to
+     * accept one, and a read within the slice but past the end of the array then threw
+     * {@link ArrayIndexOutOfBoundsException} instead of the {@link IOException} that every other bad read gives.
+     *
+     * @param readerKind
+     *            the kind of reader to test
+     */
+    @ParameterizedTest
+    @EnumSource(value = ReaderKind.class, names = { "ARRAY", "BYTE_BUFFER" })
+    public void aSliceThatDoesNotFitInTheArrayOrBufferIsRejected(final ReaderKind readerKind) {
+        assertThatThrownBy(() -> reader(readerKind, PATTERN, 4, PATTERN.length))
+                .isInstanceOf(IndexOutOfBoundsException.class);
+        assertThatThrownBy(() -> reader(readerKind, PATTERN, PATTERN.length + 1, 0))
+                .isInstanceOf(IndexOutOfBoundsException.class);
+    }
+
+    /**
+     * Every reader rejects a negative slice start or length when it is created.
+     *
+     * @param readerKind
+     *            the kind of reader to test
+     */
+    @ParameterizedTest
+    @EnumSource(ReaderKind.class)
+    public void aNegativeSliceIsRejected(final ReaderKind readerKind) {
+        assertThatThrownBy(() -> reader(readerKind, PATTERN, -1, 2)).isInstanceOf(IndexOutOfBoundsException.class);
+        assertThatThrownBy(() -> reader(readerKind, PATTERN, 0, -1)).isInstanceOf(IndexOutOfBoundsException.class);
+    }
 }

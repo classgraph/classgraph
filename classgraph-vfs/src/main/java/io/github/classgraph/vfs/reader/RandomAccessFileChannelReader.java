@@ -28,32 +28,32 @@
  */
 package io.github.classgraph.vfs.reader;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
 import java.nio.charset.Charset;
+import java.util.Objects;
 
 import io.github.classgraph.base.internal.utils.StringUtils;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@link RandomAccessReader} for a {@link File}. Reads in <b>little endian</b> order by default, as required by the
- * zipfile format, which is what this reader was written for; pass a {@link ByteOrder} to read content written in
- * the other order. See {@link RandomAccessReader} for why the byte order is a property of the content and not of
- * the machine.
+ * {@link RandomAccessReader} for a {@link FileChannel}. Reads in <b>little endian</b> order by default, as required
+ * by the zipfile format, which is what this reader was written for; pass a {@link ByteOrder} to read content
+ * written in the other order. See {@link RandomAccessReader} for why the byte order is a property of the content
+ * and not of the machine.
  */
 public class RandomAccessFileChannelReader implements RandomAccessReader {
 
     /** The file channel. */
     private final FileChannel fileChannel;
 
-    /** The slice start pos. */
+    /** The offset within the file at which the content starts. */
     private final long sliceStartPos;
 
-    /** The slice length. */
+    /** The number of bytes of content. */
     private final long sliceLength;
 
     /** The reusable byte buffer, or null until the first array read. */
@@ -80,11 +80,13 @@ public class RandomAccessFileChannelReader implements RandomAccessReader {
      * Constructor.
      *
      * @param fileChannel
-     *            the file channel
+     *            the channel to read. Its position is ignored and not changed.
      * @param sliceStartPos
-     *            the slice start pos
+     *            the offset within the file at which the content starts.
      * @param sliceLength
-     *            the slice length
+     *            the number of bytes of content.
+     * @throws IndexOutOfBoundsException
+     *             if the start or the length is negative.
      */
     public RandomAccessFileChannelReader(final FileChannel fileChannel, final long sliceStartPos,
             final long sliceLength) {
@@ -95,17 +97,22 @@ public class RandomAccessFileChannelReader implements RandomAccessReader {
      * Constructor.
      *
      * @param fileChannel
-     *            the file channel
+     *            the channel to read. Its position is ignored and not changed.
      * @param sliceStartPos
-     *            the slice start pos
+     *            the offset within the file at which the content starts.
      * @param sliceLength
-     *            the slice length
+     *            the number of bytes of content.
      * @param byteOrder
      *            the byte order to read multi-byte values in. Pass {@link ByteOrder#nativeOrder()} for content
      *            written in the byte order of the machine this is running on.
+     * @throws IndexOutOfBoundsException
+     *             if the start or the length is negative.
      */
     public RandomAccessFileChannelReader(final FileChannel fileChannel, final long sliceStartPos,
             final long sliceLength, final ByteOrder byteOrder) {
+        // Not checked against the size of the file, which can change after this, and which a read past the end of
+        // reports anyway
+        Objects.checkFromIndexSize(sliceStartPos, sliceLength, Long.MAX_VALUE);
         this.fileChannel = fileChannel;
         this.sliceStartPos = sliceStartPos;
         this.sliceLength = sliceLength;

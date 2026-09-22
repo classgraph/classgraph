@@ -81,7 +81,7 @@ public class RandomAccessOrSequentialReader implements RandomAccessReader, Seque
      */
     private final boolean ownsInputStream;
 
-    /** Buffer. */
+    /** The content read so far, in the first {@link #arrUsed} bytes. */
     private byte[] arr;
 
     /** The number of bytes used in arr. */

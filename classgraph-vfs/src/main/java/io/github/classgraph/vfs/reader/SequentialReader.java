@@ -80,7 +80,7 @@ public interface SequentialReader {
     short readShort() throws IOException;
 
     /**
-     * Read a unsigned short at the current cursor position.
+     * Read an unsigned short at the current cursor position.
      *
      * @return The unsigned short at the current cursor position.
      * @throws IOException
@@ -89,7 +89,7 @@ public interface SequentialReader {
     int readUnsignedShort() throws IOException;
 
     /**
-     * Read a int at the current cursor position.
+     * Read an int at the current cursor position.
      *
      * @return The int at the current cursor position.
      * @throws IOException
@@ -98,7 +98,7 @@ public interface SequentialReader {
     int readInt() throws IOException;
 
     /**
-     * Read a unsigned int at the current cursor position.
+     * Read an unsigned int at the current cursor position.
      *
      * @return The int at the current cursor position, as a long.
      * @throws IOException
