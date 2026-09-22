@@ -28,15 +28,14 @@
  */
 package io.github.classgraph.classpath.internal.classloaderhandler;
 
-import java.util.SortedSet;
-
 import io.github.classgraph.base.ClassGraphLog;
 import io.github.classgraph.base.internal.reflection.ReflectionUtils;
 import io.github.classgraph.classpath.ClassLoaderOrder;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Handle the Plexus ClassWorlds ClassRealm ClassLoader.
+ * Finds the classloader delegation order of the {@code ClassRealm} classloader of Plexus ClassWorlds, which Maven
+ * uses to load plugins.
  *
  * @author Luke Hutchison
  */
@@ -56,11 +55,11 @@ class PlexusClassWorldsClassRealmClassLoaderHandler extends URLClassLoaderHandle
     }
 
     /**
-     * Checks if is this classloader uses a parent-first strategy.
+     * Check whether a {@code ClassRealm} uses a parent-first strategy.
      *
      * @param classRealmInstance
      *            the ClassRealm instance
-     * @return true if classloader uses a parent-first strategy
+     * @return true if the ClassRealm uses a parent-first strategy, or if its strategy could not be read
      */
     private boolean isParentFirstStrategy(final ClassLoader classRealmInstance) {
         final var strategy = ReflectionUtils.getFieldVal(false, classRealmInstance, "strategy");
@@ -76,10 +75,8 @@ class PlexusClassWorldsClassRealmClassLoaderHandler extends URLClassLoaderHandle
     public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
             final @Nullable ClassGraphLog log) {
         // From ClassRealm#loadClassFromImport(String) -> getImportClassLoader(String)
-        final var foreignImports = ReflectionUtils.getFieldVal(false, classLoader, "foreignImports");
-        if (foreignImports != null) {
-            @SuppressWarnings("unchecked")
-            final var foreignImportEntries = (SortedSet<Object>) foreignImports;
+        if (ReflectionUtils.getFieldVal(false, classLoader,
+                "foreignImports") instanceof final Iterable<?> foreignImportEntries) {
             for (final Object entry : foreignImportEntries) {
                 final var foreignImportClassLoader = (ClassLoader) ReflectionUtils.invokeMethod(false, entry,
                         "getClassLoader");

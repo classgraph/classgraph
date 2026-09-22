@@ -40,10 +40,8 @@ import io.github.classgraph.classpath.ClasspathOrder;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Custom Class Loader Handler for OSGi Felix ClassLoader.
- *
- * <p>
- * The handler adds the bundle jar and all associated Bundle-ClassPath jars into the classpath to be scanned.
+ * Finds the classpath of an Apache Felix OSGi bundle classloader: the bundle jar, the jars and directories on its
+ * {@code Bundle-ClassPath}, and the same for each bundle it is wired to.
  *
  * @author elrufaie
  */
