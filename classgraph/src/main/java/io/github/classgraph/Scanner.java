@@ -210,8 +210,7 @@ class Scanner implements Callable<ScanResult> {
                 // top of every superclass chain
                 for (final var resolvedModule : ModuleLayer.boot().configuration().modules()) {
                     final var moduleReference = resolvedModule.reference();
-                    if (!scanSpec.classpathSpec.moduleAcceptReject
-                            .isRejected(moduleReference.descriptor().name())) {
+                    if (!scanSpec.moduleAcceptReject.isRejected(moduleReference.descriptor().name())) {
                         unscannedModuleReferences.add(moduleReference);
                     }
                 }
@@ -272,7 +271,7 @@ class Scanner implements Callable<ScanResult> {
             // (#658).
             final var isAccepted = (isSystemModules ? scanSpec.classpathSpec.scanSystemModules
                     : scanSpec.classpathSpec.scanNonSystemModules)
-                    && scanSpec.classpathSpec.moduleAcceptReject.isAcceptedAndNotRejected(moduleName);
+                    && scanSpec.moduleAcceptReject.isAcceptedAndNotRejected(moduleName);
             if (isAccepted) {
                 // Create a new ClasspathElementModule
                 final var classpathElementModule = new ClasspathElementModule(moduleReference, vfs,
@@ -287,7 +286,7 @@ class Scanner implements Callable<ScanResult> {
                 // A module that is not being scanned can still have the classfiles of individual classes read from
                 // it, in order to complete the class graph above an accepted class -- but not if the module was
                 // rejected (#902)
-                if (!scanSpec.classpathSpec.moduleAcceptReject.isRejected(moduleName)) {
+                if (!scanSpec.moduleAcceptReject.isRejected(moduleName)) {
                     unscannedModuleReferences.add(moduleReference);
                 }
                 if (classLoaderProbeLog != null) {

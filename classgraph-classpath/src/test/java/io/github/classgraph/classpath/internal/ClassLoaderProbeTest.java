@@ -28,7 +28,6 @@ public class ClassLoaderProbeTest {
     private static ClasspathSpec systemModuleSpec() {
         final var classpathSpec = new ClasspathSpec();
         classpathSpec.scanSystemModules = true;
-        classpathSpec.enableSystemJars = true;
         classpathSpec.ignoreParentClassLoaders = true;
         return classpathSpec;
     }

@@ -1196,8 +1196,7 @@ public class ClassGraph {
     public ClassGraph acceptModules(final String... moduleNames) {
         Assert.notNullElements(moduleNames, "moduleNames");
         for (final String moduleName : moduleNames) {
-            scanSpec.classpathSpec.moduleAcceptReject
-                    .addToAccept(AcceptReject.normalizePackageOrClassName(moduleName));
+            scanSpec.moduleAcceptReject.addToAccept(AcceptReject.normalizePackageOrClassName(moduleName));
         }
         return this;
     }
@@ -1220,8 +1219,7 @@ public class ClassGraph {
     public ClassGraph rejectModules(final String... moduleNames) {
         Assert.notNullElements(moduleNames, "moduleNames");
         for (final String moduleName : moduleNames) {
-            scanSpec.classpathSpec.moduleAcceptReject
-                    .addToReject(AcceptReject.normalizePackageOrClassName(moduleName));
+            scanSpec.moduleAcceptReject.addToReject(AcceptReject.normalizePackageOrClassName(moduleName));
         }
         return this;
     }
@@ -1359,7 +1357,7 @@ public class ClassGraph {
      * @return this (for method chaining).
      */
     public ClassGraph enableSystemJars() {
-        scanSpec.classpathSpec.enableSystemJars = true;
+        scanSpec.enableSystemJars = true;
         return this;
     }
 

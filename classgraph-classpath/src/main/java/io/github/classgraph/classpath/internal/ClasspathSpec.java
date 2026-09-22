@@ -37,8 +37,6 @@ import java.util.Set;
 import java.util.function.Predicate;
 
 import io.github.classgraph.base.LogNode;
-import io.github.classgraph.base.internal.filter.AcceptReject.AcceptRejectWholeString;
-import io.github.classgraph.base.internal.filter.AcceptReject;
 import io.github.classgraph.base.internal.path.URLPaths;
 import io.github.classgraph.base.internal.utils.Assert;
 import io.github.classgraph.classpath.ClassLoaderHandler;
@@ -54,17 +52,14 @@ import org.jspecify.annotations.Nullable;
  * accepted, and so on) belong in the specs of the libraries layered on top of this one.
  */
 public class ClasspathSpec {
-    /** Module accept/reject criteria (with separator '.'). */
-    public final AcceptRejectWholeString moduleAcceptReject = new AcceptRejectWholeString('.');
-
     /**
      * If true, scan the modules supplied by the running JVM, as identified by
      * {@link java.lang.module.ModuleFinder#ofSystem()}, found in the module layers that are searched.
      *
      * <p>
-     * System modules are always <i>listed</i> when a module layer is searched, whether or not this is true, since
-     * the classfile of a class in a system module that is not being scanned may still have to be read in order to
-     * complete the class graph above an accepted class (#902).
+     * {@link ModuleFinder} lists the system modules of the module layers it searches whether or not this is true,
+     * since the classfile of a class in a system module that is not being scanned may still have to be read in
+     * order to complete the class graph above an accepted class (#902).
      */
     public boolean scanSystemModules;
 
@@ -77,9 +72,6 @@ public class ClasspathSpec {
      * path is different, because it has to be enumerated through a separate API, which can be skipped entirely.
      */
     public boolean scanNonSystemModules;
-
-    /** If true, scan the JRE's own {@code lib} and {@code ext} jars when they are found on the classpath. */
-    public boolean enableSystemJars;
 
     /**
      * URL schemes that may start a classpath element, so that a {@code ':'}-separated classpath string is not split
@@ -115,7 +107,7 @@ public class ClasspathSpec {
      */
     public boolean ignoreParentModuleLayers;
 
-    /** Commandline module path parameters. */
+    /** The module path switches the JVM was launched with. */
     public ModulePathInfo modulePathInfo = new ModulePathInfo();
 
     // -----------------------------------------------------------------------------------------------------------
@@ -181,7 +173,7 @@ public class ClasspathSpec {
     // -----------------------------------------------------------------------------------------------------------
 
     /**
-     * Write to log.
+     * Log the settings.
      *
      * @param log
      *            The {@link LogNode} to log to.
@@ -191,15 +183,10 @@ public class ClasspathSpec {
             final var classpathSpecLog = log.log("ClasspathSpec:");
             for (final Field field : ClasspathSpec.class.getDeclaredFields()) {
                 try {
-                    final var value = field.get(this);
-                    // Skip a criterion that nothing was accepted or rejected with
-                    if (value instanceof AcceptReject && value.toString().isEmpty()) {
-                        continue;
-                    }
-                    classpathSpecLog.log(field.getName() + ": " + value);
+                    classpathSpecLog.log(field.getName() + ": " + field.get(this));
                 } catch (final ReflectiveOperationException e) {
-                    // A criterion that cannot be read is named in the log rather than dropped from it: a log
-                    // that silently omits a criterion reads as if the criterion was never set
+                    // A setting that cannot be read is named in the log rather than dropped from it: a log that
+                    // silently omits a setting reads as if the setting was never changed
                     classpathSpecLog.log(field.getName() + ": could not be read: " + e);
                 }
             }

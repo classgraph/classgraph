@@ -40,9 +40,9 @@ import io.github.classgraph.base.internal.reflection.ReflectionUtils;
 import io.github.classgraph.base.internal.utils.StringUtils;
 
 /**
- * Information on the module path. Note that this will only include module system parameters actually listed in
- * commandline arguments -- in particular this does not include classpath elements from the traditional classpath,
- * or system modules.
+ * The module system switches the JVM was launched with: {@code --module-path}, {@code --add-modules},
+ * {@code --patch-module}, {@code --add-exports}, {@code --add-opens} and {@code --add-reads}. Only what was given
+ * on the command line is listed here, so the traditional classpath and the system modules are not.
  */
 public final class ModulePathInfo {
     /** The module path provided by the {@code --module-path} or {@code -p} switch. */
@@ -64,17 +64,17 @@ public final class ModulePathInfo {
     private final Set<String> addReads = new LinkedHashSet<>();
 
     /**
-     * One module path commandline switch, and the values read for it.
+     * One module path command line switch, and the values read for it.
      *
      * @param argSwitch
      *            the switch, including its trailing {@code '='}. The JVM normalizes the other spellings of a switch
-     *            into this one before it reports its own commandline: {@code -p dir} and {@code --module-path dir}
+     *            into this one before it reports its own command line: {@code -p dir} and {@code --module-path dir}
      *            are both reported as {@code --module-path=dir}, so only this spelling has to be recognized.
      * @param argPartSeparatorChar
      *            the character that separates the values of one occurrence of the switch, or {@code '\0'} if the
      *            switch takes a single value and has to be repeated to give more than one.
      * @param values
-     *            the values read for the switch, in the order they were listed on the commandline.
+     *            the values read for the switch, in the order they were listed on the command line.
      */
     private record ModulePathSwitch(String argSwitch, char argPartSeparatorChar, Set<String> values) {
         /**
@@ -94,7 +94,7 @@ public final class ModulePathInfo {
         }
     }
 
-    /** The module path commandline switches, each paired with the values read for it. */
+    /** The module path command line switches, each paired with the values read for it. */
     private final List<ModulePathSwitch> modulePathSwitches = List.of( //
             new ModulePathSwitch("--module-path=", File.pathSeparatorChar, modulePath), //
             new ModulePathSwitch("--add-modules=", ',', addModules), //
@@ -104,7 +104,7 @@ public final class ModulePathInfo {
             new ModulePathSwitch("--add-reads=", '\0', addReads) //
     );
 
-    /** Set to true once the commandline arguments have been read. */
+    /** Set to true once the command line arguments have been read. */
     private boolean readCommandLineArguments;
 
     /** Constructor. */
@@ -114,9 +114,9 @@ public final class ModulePathInfo {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Returns the module path provided on the commandline by the {@code --module-path} or {@code -p} switch, as an
+     * Returns the module path provided on the command line by the {@code --module-path} or {@code -p} switch, as an
      * ordered set of module path elements (directories and jarfiles, not module names), in the order they were
-     * listed on the commandline.
+     * listed on the command line.
      *
      * <p>
      * Note that the modules the runtime adds by itself (such as the system modules) are not reached through this
@@ -129,9 +129,9 @@ public final class ModulePathInfo {
     }
 
     /**
-     * Returns the modules added to the module path on the commandline using the {@code --add-modules} switch, as an
-     * ordered set of module names, in the order they were listed on the commandline. Note that valid module names
-     * include {@code ALL-DEFAULT}, {@code ALL-SYSTEM}, and {@code ALL-MODULE-PATH} (see
+     * Returns the modules added to the module path on the command line using the {@code --add-modules} switch, as
+     * an ordered set of module names, in the order they were listed on the command line. Note that valid module
+     * names include {@code ALL-DEFAULT}, {@code ALL-SYSTEM}, and {@code ALL-MODULE-PATH} (see
      * <a href="https://openjdk.java.net/jeps/261">JEP 261</a> for info).
      *
      * @return The added modules, as an unmodifiable set.
@@ -141,9 +141,9 @@ public final class ModulePathInfo {
     }
 
     /**
-     * Returns the module patch directives listed on the commandline using the {@code --patch-module} switch, as an
-     * ordered set of strings in the format {@code <module>=<file>}, in the order they were listed on the
-     * commandline.
+     * Returns the module patch directives listed on the command line using the {@code --patch-module} switch, as an
+     * ordered set of strings in the format {@code <module>=<file>}, in the order they were listed on the command
+     * line.
      *
      * @return The module patch directives, as an unmodifiable set.
      */
@@ -152,10 +152,10 @@ public final class ModulePathInfo {
     }
 
     /**
-     * Returns the module {@code exports} directives added on the commandline using the {@code --add-exports}
+     * Returns the module {@code exports} directives added on the command line using the {@code --add-exports}
      * switch, as an ordered set of strings in the format
      * {@code <source-module>/<package>=<target-module>(,<target-module>)*}, in the order they were listed on the
-     * commandline.
+     * command line.
      *
      * @return The {@code exports} directives, as an unmodifiable set.
      */
@@ -164,9 +164,10 @@ public final class ModulePathInfo {
     }
 
     /**
-     * Returns the module {@code opens} directives added on the commandline using the {@code --add-opens} switch, as
-     * an ordered set of strings in the format {@code <source-module>/<package>=<target-module>(,<target-module>)*},
-     * in the order they were listed on the commandline.
+     * Returns the module {@code opens} directives added on the command line using the {@code --add-opens} switch,
+     * as an ordered set of strings in the format
+     * {@code <source-module>/<package>=<target-module>(,<target-module>)*}, in the order they were listed on the
+     * command line.
      *
      * @return The {@code opens} directives, as an unmodifiable set.
      */
@@ -175,9 +176,9 @@ public final class ModulePathInfo {
     }
 
     /**
-     * Returns the module {@code reads} directives added on the commandline using the {@code --add-reads} switch, as
-     * an ordered set of strings in the format {@code <source-module>=<target-module>}, in the order they were
-     * listed on the commandline.
+     * Returns the module {@code reads} directives added on the command line using the {@code --add-reads} switch,
+     * as an ordered set of strings in the format {@code <source-module>=<target-module>}, in the order they were
+     * listed on the command line.
      *
      * @return The {@code reads} directives, as an unmodifiable set.
      */
@@ -186,8 +187,8 @@ public final class ModulePathInfo {
     }
 
     /**
-     * Read the commandline arguments if they have not been read yet, then return an unmodifiable copy of one of the
-     * field sets.
+     * Read the command line arguments if they have not been read yet, then return an unmodifiable copy of one of
+     * the field sets.
      *
      * @param field
      *            the field set to snapshot.
@@ -199,7 +200,7 @@ public final class ModulePathInfo {
     }
 
     /**
-     * Fill in the module path fields from the VM commandline arguments, the first time any of them is read.
+     * Fill in the module path fields from the VM command line arguments, the first time any of them is read.
      *
      * <p>
      * Synchronized rather than guarded by an atomic flag, so that a second thread calling this concurrently blocks
@@ -208,14 +209,14 @@ public final class ModulePathInfo {
      * thread was still adding to them.
      */
     private synchronized void readCommandLineArguments() {
-        // The commandline arguments are only read if the module path info is actually asked for, to avoid an
+        // The command line arguments are only read if the module path info is actually asked for, to avoid an
         // illegal access warning on some JREs, e.g. Adopt JDK 11 (#605)
         if (!readCommandLineArguments) {
             readCommandLineArguments = true;
-            // Read the raw commandline arguments to get the module path override parameters. If the java.management
+            // Read the raw command line arguments to get the module path override parameters. If the java.management
             // module is not present in the deployed runtime (for JDK 9+), or the runtime does not contain the
             // java.lang.management package (e.g. the Android build system, which also does not support JPMS
-            // currently), then skip trying to read the commandline arguments (#404).
+            // currently), then skip trying to read the command line arguments (#404).
             final Class<?> managementFactory = ReflectionUtils
                     .classForNameOrNull("java.lang.management.ManagementFactory");
             final var runtimeMXBean = managementFactory == null ? null
@@ -238,9 +239,9 @@ public final class ModulePathInfo {
     }
 
     /**
-     * Return the module path info in commandline format.
+     * Return the module path info in command line format.
      *
-     * @return the module path commandline string.
+     * @return the module path command line string.
      */
     @Override
     public synchronized String toString() {

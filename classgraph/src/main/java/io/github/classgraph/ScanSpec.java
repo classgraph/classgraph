@@ -99,6 +99,9 @@ class ScanSpec {
     public final AcceptRejectWholeString classpathElementResourcePathAcceptReject = //
             new AcceptRejectWholeString('/');
 
+    /** Module accept/reject criteria (with separator '.'). */
+    public final AcceptRejectWholeString moduleAcceptReject = new AcceptRejectWholeString('.');
+
     // -------------------------------------------------------------------------------------------------------------
 
     /** If true, scan jarfiles. */
@@ -106,6 +109,9 @@ class ScanSpec {
 
     /** If true, scan directories. */
     public boolean scanDirs = true;
+
+    /** If true, scan the JRE's own {@code lib} and {@code ext} jars when they are found on the classpath. */
+    public boolean enableSystemJars;
 
     /** If true, scan classfile bytecodes, producing {@code ClassInfo} objects. */
     public boolean enableClassInfo;
