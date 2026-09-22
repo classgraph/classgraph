@@ -40,7 +40,6 @@ import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -104,12 +103,11 @@ import org.jspecify.annotations.Nullable;
  * <p>
  * Every method is safe to call from multiple threads at once. Two threads that ask for the same path at the same
  * time get back the same {@link VfsRoot}, and the jarfile behind it is only read once. How storage is read is set
- * by the {@link VfsSpec} this {@link Vfs} was constructed with, whose settings are meant to be chosen before
- * anything is opened but are safe to change from any thread, and {@link #verbose()}, which only turns on logging,
- * is synchronized like every other method. {@link #close()} takes effect the moment it is called, so a thread that
- * calls any other method after that -- even while the close is still running -- gets an {@link IOException} from an
- * {@code open} method, or an {@link IllegalStateException} from {@link #verbose()}, rather than a root backed by
- * storage that is being released.
+ * by the {@link VfsSpec} this {@link Vfs} was constructed with. Its settings are meant to be chosen before anything
+ * is opened, but are safe to change from any thread. {@link #close()} takes effect the moment it is called, so a
+ * thread that calls any other method after that -- even while the close is still running -- gets an
+ * {@link IOException} from an {@code open} method, or an {@link IllegalStateException} from {@link #verbose()},
+ * rather than a root backed by storage that is being released.
  */
 public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
     /** The settings that govern how storage is read. */
@@ -751,9 +749,10 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      * Open a module of a given {@link ModuleLayer} by name.
      *
      * <p>
-     * The layer's own modules are searched first, then the modules of its parent layers, breadth-first, since a
-     * layer can see the modules of the layers it was built on top of. The first module found with the given name
-     * wins, which is the module a class loaded from that layer would resolve to.
+     * The layer's own modules are searched first, then the modules of its parent layers, in the order
+     * {@link java.lang.module.Configuration#findModule(String)} searches them: depth-first, so the first parent and
+     * all of its ancestors are searched before the second parent. The first module found with the given name wins,
+     * which is the module the JVM resolves that name to in that layer.
      *
      * @param moduleName
      *            the name of the module to open.
@@ -770,43 +769,11 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
         Assert.notNull(moduleName, "moduleName");
         Assert.notNull(layer, "layer");
         checkNotClosed(moduleName);
-        final var moduleReference = findModule(moduleName, layer);
-        if (moduleReference == null) {
+        final var resolvedModule = layer.configuration().findModule(moduleName);
+        if (resolvedModule.isEmpty()) {
             throw new FileSystemNotFoundException("No module named " + moduleName + " in the module layer");
         }
-        return open(moduleReference);
-    }
-
-    /**
-     * Find a module by name in a layer, or, failing that, in the layer's ancestors.
-     *
-     * @param moduleName
-     *            the name of the module to find.
-     * @param layer
-     *            the layer to search.
-     * @return the module, or null if no layer reachable from the given one has a module of that name.
-     */
-    private static @Nullable ModuleReference findModule(final String moduleName, final ModuleLayer layer) {
-        // Breadth-first, so that a module of the layer itself shadows one of the same name in an ancestor, and so
-        // that a diamond of layers does not search the shared ancestor more than once
-        final var toSearch = new ArrayDeque<ModuleLayer>();
-        final var alreadySearched = Collections.newSetFromMap(new IdentityHashMap<ModuleLayer, Boolean>());
-        toSearch.add(layer);
-        alreadySearched.add(layer);
-        while (!toSearch.isEmpty()) {
-            final var currLayer = toSearch.remove();
-            for (final var resolvedModule : currLayer.configuration().modules()) {
-                if (resolvedModule.name().equals(moduleName)) {
-                    return resolvedModule.reference();
-                }
-            }
-            for (final var parent : currLayer.parents()) {
-                if (alreadySearched.add(parent)) {
-                    toSearch.add(parent);
-                }
-            }
-        }
-        return null;
+        return open(resolvedModule.get().reference());
     }
 
     /**
@@ -999,9 +966,8 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      * that is interrupted while reading stops all the others too.
      *
      * @return the interruption checker.
-     * @hidden
      */
-    public InterruptionChecker interruptionChecker() {
+    InterruptionChecker interruptionChecker() {
         return interruptionChecker;
     }
 

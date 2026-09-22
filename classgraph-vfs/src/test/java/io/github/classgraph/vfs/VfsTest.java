@@ -11,7 +11,10 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
+import java.lang.module.ModuleDescriptor;
 import java.lang.module.ModuleFinder;
+import java.lang.module.ModuleReader;
 import java.lang.module.ModuleReference;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -24,9 +27,12 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Stream;
 import java.util.zip.CRC32;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -1601,6 +1607,93 @@ public class VfsTest {
             assertThat(moduleRoot.resolveURI("java/util/logging/Logger.class")).isEqualTo(moduleEntry.getURI());
             assertThatThrownBy(() -> moduleRoot.resolveURI("no/such/entry.txt"))
                     .isInstanceOf(IllegalStateException.class);
+        }
+    }
+
+    /**
+     * A module finder that finds one module, which has no content.
+     *
+     * @param moduleName
+     *            the name of the module.
+     * @param location
+     *            the location of the module, which tells two modules of the same name apart.
+     * @return the module finder.
+     */
+    private static ModuleFinder finderOf(final String moduleName, final String location) {
+        final var moduleReference = new ModuleReference(ModuleDescriptor.newModule(moduleName).build(),
+                URI.create(location)) {
+            @Override
+            public ModuleReader open() {
+                return new ModuleReader() {
+                    @Override
+                    public Optional<URI> find(final String name) {
+                        return Optional.empty();
+                    }
+
+                    @Override
+                    public Stream<String> list() {
+                        return Stream.empty();
+                    }
+
+                    @Override
+                    public void close() {
+                        // Nothing to release
+                    }
+                };
+            }
+        };
+        return new ModuleFinder() {
+            @Override
+            public Optional<ModuleReference> find(final String name) {
+                return name.equals(moduleName) ? Optional.of(moduleReference) : Optional.empty();
+            }
+
+            @Override
+            public Set<ModuleReference> findAll() {
+                return Set.of(moduleReference);
+            }
+        };
+    }
+
+    /**
+     * Define a module layer.
+     *
+     * @param finder
+     *            the finder of the layer's one module, or null for a layer with no modules.
+     * @param parents
+     *            the parent layers.
+     * @return the layer.
+     */
+    private static ModuleLayer layer(final ModuleFinder finder, final ModuleLayer... parents) {
+        final var parentList = List.of(parents);
+        final var configuration = java.lang.module.Configuration.resolve(
+                finder == null ? ModuleFinder.of() : finder,
+                parentList.stream().map(ModuleLayer::configuration).toList(), ModuleFinder.of(),
+                finder == null ? Set.of() : Set.of(finder.findAll().iterator().next().descriptor().name()));
+        return ModuleLayer.defineModulesWithOneLoader(configuration, parentList, VfsTest.class.getClassLoader())
+                .layer();
+    }
+
+    /**
+     * A module named in a layer with several parents is the one the JVM resolves the name to, which is found by a
+     * depth-first search of the parents: the first parent and all of its ancestors are searched before the second
+     * parent.
+     *
+     * @throws IOException
+     *             if the module could not be opened.
+     */
+    @Test
+    public void openModuleSearchesTheParentLayersInTheSameOrderAsTheJVM() throws IOException {
+        final var grandparent = layer(finderOf("m", "test:grandparent"), ModuleLayer.boot());
+        final var firstParent = layer(null, grandparent);
+        final var secondParent = layer(finderOf("m", "test:second-parent"), ModuleLayer.boot());
+        final var child = layer(null, firstParent, secondParent);
+        final var expectedLocation = child.configuration().findModule("m").orElseThrow().reference().location()
+                .orElseThrow();
+        assertThat(expectedLocation).isEqualTo(URI.create("test:grandparent"));
+        try (var vfs = new Vfs()) {
+            final var root = (ModuleRoot) vfs.openModule("m", child);
+            assertThat(root.getModuleReference().location()).contains(expectedLocation);
         }
     }
 }
