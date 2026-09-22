@@ -97,8 +97,8 @@ public final class URLPaths {
      *             if the scheme is shorter than two characters, or is not a valid URL scheme.
      */
     public static String normalizeURLScheme(final String scheme) {
-        // The scheme is validated, rather than simply lowercased, because a scheme registered in a form that can
-        // never match, e.g. with a trailing ':', would otherwise silently fail to enable anything
+        // The scheme is validated, rather than simply lowercased, because a scheme given in a form that can never
+        // match a URL, e.g. with a trailing ':', would otherwise be accepted and silently have no effect
         if (scheme.length() < 2) {
             // A one-character scheme cannot be told apart from a Windows drive letter
             throw new IllegalArgumentException("URL schemes must contain at least two characters");

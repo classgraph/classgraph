@@ -134,8 +134,8 @@ final class ArchiveEntry extends VfsEntry {
         getRoot().checkNotClosed(getPath());
         // The slice of a zip entry is a sub-slice of the zipfile, and owns no resources of its own -- the zipfile
         // is released when the root that owns it is closed. But if the zipfile is memory-mapped, the buffer
-        // returned here is a
-        // view of that mapping, so the mapping has to be held open until the caller closes the wrapper
+        // returned here is a view of that mapping, so the mapping has to be held open until the caller closes the
+        // wrapper
         // #939
         final var root = getRoot();
         final var slice = zipEntry.getSlice();

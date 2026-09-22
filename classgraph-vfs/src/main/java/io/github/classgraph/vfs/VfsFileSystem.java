@@ -273,8 +273,8 @@ final class VfsFileSystem extends FileSystem {
      *
      * @param path
      *            the path.
-     * @return the URI of the underlying storage the path names, which is a {@code file:}, {@code jar:} or
-     *         {@code jrt:} URI, not a URI of this filesystem's own provider.
+     * @return the URI of the underlying storage the path names, such as a {@code file:}, {@code jar:} or
+     *         {@code jrt:} URI, rather than a URI of this filesystem's own provider.
      */
     URI uriOf(final VfsPath path) {
         final var name = path.entryName();

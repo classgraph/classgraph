@@ -170,10 +170,9 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
      * <p>
      * "Last segment" means the innermost thing the path names. For a jarfile nested within another jarfile, that is
      * the innermost jarfile: the last segment of {@code "/a/outer.jar!/BOOT-INF/lib/inner.jar"} is
-     * {@code "inner.jar"}, not {@code "outer.jar"}. Note that this is deliberately not the same rule that accept
-     * and reject criteria are matched under, which stop at the outermost nested jar separator and so name a path
-     * inside a jarfile by the jarfile itself. Both readings are useful and neither is wrong; they answer different
-     * questions, and this method answers "what is this root", not "which jarfile is this path in".
+     * {@code "inner.jar"}, not {@code "outer.jar"}. This differs from the way ClassGraph's accept and reject
+     * criteria match a jarfile's name, which stops at the first nested jar separator and so names a path inside a
+     * jarfile by the outermost jarfile.
      *
      * <p>
      * For a root opened at a package root, this is the name of the jarfile or directory that contains the package

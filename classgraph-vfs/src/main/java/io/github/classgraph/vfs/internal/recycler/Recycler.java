@@ -72,7 +72,7 @@ public abstract class Recycler<T, E extends Exception> implements AutoCloseable 
     public abstract T newInstance() throws E;
 
     /**
-     * Acquire on object instance of type T, either by reusing a previously recycled instance if possible, or if
+     * Acquire an object instance of type T, either by reusing a previously recycled instance if possible, or if
      * there are no currently-unused instances, by allocating a new instance.
      *
      * @return Either a new or a recycled object instance.

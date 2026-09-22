@@ -199,12 +199,12 @@ public final class PathList {
     private static boolean isSchemeOrEscapedColon(final String pathStr, final int colonIdx,
             final @Nullable Set<String> allowedURLSchemes) {
         // A ':' escaped as "\:" is part of a path element, not a separator (this is the escaping applied by
-        // appendPathElt, and undone in splitOnColon). Escaping is a
-        // ClassGraph extension -- the JDK splits java.class.path on File.pathSeparator with no escape syntax at
-        // all -- but it is safe, because File.separatorChar is '/' on every platform whose File.pathSeparatorChar
-        // is ':', so a backslash before a colon is never part of the path syntax there. The cost is that a
-        // classpath entry that genuinely ends in a backslash (a legal, if bizarre, filename character on Unix) is
-        // joined to the entry that follows it instead of being split from it.
+        // appendPathElt, and undone in splitOnColon). Escaping is a ClassGraph extension -- the JDK splits
+        // java.class.path on File.pathSeparator with no escape syntax at all -- but it is safe, because
+        // File.separatorChar is '/' on every platform whose File.pathSeparatorChar is ':', so a backslash before a
+        // colon is never part of the path syntax there. The cost is that a classpath entry that genuinely ends in
+        // a backslash (a legal, if bizarre, filename character on Unix) is joined to the entry that follows it
+        // instead of being split from it.
         if (colonIdx > 0 && pathStr.charAt(colonIdx - 1) == '\\') {
             return true;
         }
@@ -221,7 +221,7 @@ public final class PathList {
         if (allowedURLSchemes == null || allowedURLSchemes.isEmpty()) {
             return false;
         }
-        // If custom URL schemes have been registered, allow those to be used as delimiters too
+        // The ':' that ends a registered custom URL scheme is part of a path element too
         for (final String scheme : allowedURLSchemes) {
             // Skip schemes already handled by the faster matching code above
             if (!"http".equals(scheme) && !"https".equals(scheme) && !"jar".equals(scheme) && !"file".equals(scheme)

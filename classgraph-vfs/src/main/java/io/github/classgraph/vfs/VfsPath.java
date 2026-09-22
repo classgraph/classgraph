@@ -312,9 +312,10 @@ public final class VfsPath implements Path {
      *
      * <p>
      * This is the URI of the storage the path is read from -- a {@code "file:"} URI for a file in a directory, a
-     * {@code "jar:"} URI for an entry of a jarfile, a {@code "jrt:"} URI for a file of a module -- and not a
-     * {@code "cgvfs:"} URI, so it names the same bytes to code that has never heard of ClassGraph. See
-     * {@link #toCgvfsUri()} for the URI that names this path through this provider.
+     * {@code "jar:"} URI for an entry of a jarfile, whatever URI the module names it by for a file of a module (a
+     * {@code "jrt:"} URI for a module of the running JDK) -- and not a {@code "cgvfs:"} URI, so it names the same
+     * bytes to code that has never heard of ClassGraph. See {@link #toCgvfsUri()} for the URI that names this path
+     * through this provider.
      */
     @Override
     public URI toUri() {
@@ -348,7 +349,7 @@ public final class VfsPath implements Path {
                     + " case here.");
         }
         final var rootPath = fileSystem.getRoot().reportedPath();
-        final var name = ((VfsPath) toAbsolutePath().normalize()).entryName();
+        final var name = entryName();
         try {
             // This URI constructor quotes the characters that a URI cannot hold, so a path with a space in it
             // gives a URI with "%20" in it, which FastPathResolver decodes back to the space when the URI is
