@@ -110,4 +110,29 @@ public class ClassLoaderFinderOrderTest {
         assertThat(classLoaderOrder).contains(child, parent);
         assertThat(classLoaderOrder.indexOf(child)).isLessThan(classLoaderOrder.indexOf(parent));
     }
+
+    /**
+     * The thread context classloader is tried first, since it is how a thread overrides the classloaders it would
+     * otherwise use -- even when it has fewer ancestors than a classloader it is unrelated to.
+     *
+     * @throws Exception
+     *             if the classloader could not be closed
+     */
+    @Test
+    public void theContextClassLoaderIsTriedBeforeAnUnrelatedClassLoaderWithMoreAncestors() throws Exception {
+        final Thread thread = Thread.currentThread();
+        final ClassLoader previousContextClassLoader = thread.getContextClassLoader();
+        // A classloader with no parent other than the bootstrap classloader, which is unrelated to the classloader
+        // that loaded ClassGraph, and has fewer ancestors than it
+        final URLClassLoader contextClassLoader = new URLClassLoader(new URL[0], null);
+        try {
+            thread.setContextClassLoader(contextClassLoader);
+            final ClassLoader[] classLoaders = new ClassLoaderFinder(new ScanSpec(),
+                    CallStackInfo.read(new ReflectionUtils(), null), null).getContextClassLoaders();
+            assertThat(classLoaders[0]).isSameAs(contextClassLoader);
+        } finally {
+            thread.setContextClassLoader(previousContextClassLoader);
+            contextClassLoader.close();
+        }
+    }
 }
