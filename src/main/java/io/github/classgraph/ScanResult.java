@@ -43,6 +43,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -422,14 +423,15 @@ public final class ScanResult implements Closeable {
         if (closed.get()) {
             throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
         }
-        final List<File> classpathElementOrderFiles = new ArrayList<>();
+        // A set, since every jarfile nested within the same outermost jarfile has that jarfile as its file
+        final Set<File> classpathElementOrderFiles = new LinkedHashSet<>();
         for (final ClasspathElement classpathElement : classpathOrder) {
             final File file = classpathElement.getFile();
             if (file != null) {
                 classpathElementOrderFiles.add(file);
             }
         }
-        return classpathElementOrderFiles;
+        return new ArrayList<>(classpathElementOrderFiles);
     }
 
     /**

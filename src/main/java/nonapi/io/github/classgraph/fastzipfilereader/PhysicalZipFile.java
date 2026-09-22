@@ -156,20 +156,21 @@ class PhysicalZipFile {
     }
 
     /**
-     * Get the {@link Path} for the outermost jar file of this PhysicalZipFile.
+     * Get the {@link Path} this PhysicalZipFile was opened from.
      *
-     * @return the {@link Path} for the outermost jar file of this PhysicalZipFile, or null if this file was
-     *         downloaded from a URL directly to RAM, or is backed by a {@link File}.
+     * @return the {@link Path} this PhysicalZipFile was opened from, or null if it was opened from a {@link File},
+     *         or read from an {@link InputStream} (a URL, or a deflated nested jar).
      */
     public Path getPath() {
         return path;
     }
 
     /**
-     * Get the {@link File} for the outermost jar file of this PhysicalZipFile.
+     * Get the {@link File} this PhysicalZipFile is read from.
      *
-     * @return the {@link File} for the outermost jar file of this PhysicalZipFile, or null if this file was
-     *         downloaded from a URL directly to RAM, or is backed by a {@link Path}.
+     * @return the {@link File} this PhysicalZipFile is read from, which is the temporary file it was spilled to if
+     *         it was read from an {@link InputStream} (a URL, or a deflated nested jar) that was too large to hold in
+     *         RAM, or null if it was read into RAM, or opened from a {@link Path}.
      */
     public File getFile() {
         return file;
@@ -187,10 +188,9 @@ class PhysicalZipFile {
     }
 
     /**
-     * Get the length of the mapped file, or the initial remaining bytes in the wrapped ByteBuffer if a buffer was
-     * wrapped.
+     * Get the length of the zipfile.
      *
-     * @return the length of the mapped file
+     * @return the length of the zipfile
      */
     public long length() {
         return slice.sliceLength;
@@ -201,8 +201,8 @@ class PhysicalZipFile {
      */
     @Override
     public int hashCode() {
-        // (Use pathStr for identity, not file -- file is null for Path-backed zipfiles, and is the outermost
-        // file, shared between all nested jars extracted to RAM from the same outer zipfile)
+        // (Use pathStr for identity, not file -- file is null for Path-backed zipfiles, and for zipfiles read
+        // into RAM)
         return Objects.hashCode(pathStr);
     }
 

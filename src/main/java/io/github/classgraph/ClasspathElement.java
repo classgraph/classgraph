@@ -747,9 +747,10 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
     abstract List<URI> getAllURIs();
 
     /**
-     * Get the file for this classpath element, or null if this is a module with a "jrt:" URI.
+     * Get the file for this classpath element. For a jar nested within another jar, this is the outermost jar.
      *
-     * @return the file for the classpath element.
+     * @return the file for the classpath element, or null if there is none (see
+     *         {@link Resource#getClasspathElementFile()}).
      */
     abstract File getFile();
 

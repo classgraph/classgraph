@@ -836,16 +836,24 @@ class ClasspathElementZip extends ClasspathElement {
     /**
      * Get the {@link File} for the outermost zipfile of this classpath element.
      *
-     * @return The {@link File} for the outermost zipfile of this classpath element, or null if this file was
-     *         downloaded from a URL directly to RAM, or if the classpath element was backed by a custom filesystem
-     *         that supports the {@link Path} API but not the {@link File} API.
+     * @return The {@link File} for the outermost zipfile of this classpath element, or null if the outermost
+     *         zipfile was downloaded from a URL directly to RAM, or if the classpath element was backed by a custom
+     *         filesystem that supports the {@link Path} API but not the {@link File} API.
      */
     @Override
     File getFile() {
         if (logicalZipFile != null) {
-            return logicalZipFile.getPhysicalFile();
+            // A nested jarfile reports the outermost jarfile, not what its bytes happen to be read from, which
+            // would be the outer jarfile if the nested jarfile is stored, but nothing, or a temporary file, if it
+            // is deflated
+            ZipFileSlice outermostZipFileSlice = logicalZipFile;
+            while (outermostZipFileSlice.getParentZipFileSlice() != null) {
+                outermostZipFileSlice = outermostZipFileSlice.getParentZipFileSlice();
+            }
+            return outermostZipFileSlice.getPhysicalFile();
         } else {
-            // Not performing a full scan (only getting classpath elements), so logicalZipFile is not set
+            // The jarfile was never opened, because jar scanning is disabled, the jarfile is rejected, or it could
+            // not be opened
             return new File(outermostZipFilePathResolved());
         }
     }

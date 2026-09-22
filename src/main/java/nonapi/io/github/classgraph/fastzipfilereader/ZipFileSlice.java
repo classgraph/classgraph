@@ -42,7 +42,7 @@ public class ZipFileSlice {
     private final ZipFileSlice parentZipFileSlice;
     /** The underlying physical zipfile. */
     protected final PhysicalZipFile physicalZipFile;
-    /** For the toplevel zipfile slice, the zipfile path; For nested slices, the name/path of the zipfile entry. */
+    /** For the toplevel zipfile slice, the zipfile path; for nested slices, the name/path of the zipfile entry. */
     private final String pathWithinParentZipFileSlice;
     /** The {@link Slice} containing the zipfile. */
     public Slice slice;
@@ -65,7 +65,7 @@ public class ZipFileSlice {
      * to memory or disk.
      *
      * @param physicalZipFile
-     *            a physical zipfile that has been extracted to RAM
+     *            a physical zipfile that has been inflated from a nested jar, to RAM or to a temporary file
      * @param zipEntry
      *            the zip entry
      */
@@ -170,9 +170,9 @@ public class ZipFileSlice {
     /**
      * Get the physical {@link File} that this ZipFileSlice is a slice of.
      *
-     * @return the physical {@link File} that this ZipFileSlice is a slice of, or null if this file was downloaded
-     *         from a URL directly to RAM, or if it is a {@link Path} in a filesystem that has no {@link File} view
-     *         of its files.
+     * @return the physical {@link File} that this ZipFileSlice is a slice of, or null if the zipfile was held in RAM
+     *         (read from a URL, or inflated from a nested jar), or if it is a {@link Path} in a filesystem that has
+     *         no {@link File} view of its files.
      */
     public File getPhysicalFile() {
         final Path path = physicalZipFile.getPath();
