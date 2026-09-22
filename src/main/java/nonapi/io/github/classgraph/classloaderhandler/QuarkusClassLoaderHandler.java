@@ -35,6 +35,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import nonapi.io.github.classgraph.classpath.ClassLoaderFinder;
@@ -115,9 +116,12 @@ class QuarkusClassLoaderHandler implements ClassLoaderHandler {
     private static void findClasspathOrderForQuarkusClassloader(final ClassLoader classLoader,
             final ClasspathOrder classpathOrder, final ScanSpec scanSpec, final LogNode log) {
 
-        final Collection<Object> elements = findQuarkusClassLoaderElements(classLoader, classpathOrder);
+        final Collection<?> elements = findQuarkusClassLoaderElements(classLoader, classpathOrder);
 
         for (final Object element : elements) {
+            if (element == null) {
+                continue;
+            }
             final String elementClassName = element.getClass().getName();
             final String fieldName = PRE_311_RESOURCE_BASED_ELEMENTS.get(elementClassName);
             if (fieldName != null) {
@@ -143,21 +147,18 @@ class QuarkusClassLoaderHandler implements ClassLoaderHandler {
      *            the classpath order (used only for its reflection utils instance)
      * @return the classpath elements (empty if none of the fields were found).
      */
-    @SuppressWarnings("unchecked")
-    private static Collection<Object> findQuarkusClassLoaderElements(final ClassLoader classLoader,
+    private static Collection<?> findQuarkusClassLoaderElements(final ClassLoader classLoader,
             final ClasspathOrder classpathOrder) {
-        Collection<Object> elements = (Collection<Object>) classpathOrder.reflectionUtils.getFieldVal(false,
-                classLoader, "elements");
-        if (elements == null) {
-            elements = new ArrayList<>();
-            // Since 3.16.x
-            for (final String fieldName : new String[] { "normalPriorityElements", "lesserPriorityElements" }) {
-                final Collection<Object> fieldVal = (Collection<Object>) classpathOrder.reflectionUtils
-                        .getFieldVal(false, classLoader, fieldName);
-                if (fieldVal == null) {
-                    continue;
-                }
-                elements.addAll(fieldVal);
+        final Object singleField = classpathOrder.reflectionUtils.getFieldVal(false, classLoader, "elements");
+        if (singleField instanceof Collection) {
+            return (Collection<?>) singleField;
+        }
+        final List<Object> elements = new ArrayList<>();
+        // Since 3.16.x
+        for (final String fieldName : new String[] { "normalPriorityElements", "lesserPriorityElements" }) {
+            final Object fieldVal = classpathOrder.reflectionUtils.getFieldVal(false, classLoader, fieldName);
+            if (fieldVal instanceof Collection) {
+                elements.addAll((Collection<?>) fieldVal);
             }
         }
         return elements;
@@ -175,13 +176,16 @@ class QuarkusClassLoaderHandler implements ClassLoaderHandler {
      * @param log
      *            the log
      */
-    @SuppressWarnings("unchecked")
     private static void findClasspathOrderForRuntimeClassloader(final ClassLoader classLoader,
             final ClasspathOrder classpathOrder, final ScanSpec scanSpec, final LogNode log) {
-        final Collection<Path> applicationClassDirectories = (Collection<Path>) classpathOrder.reflectionUtils
-                .getFieldVal(false, classLoader, "applicationClassDirectories");
-        if (applicationClassDirectories != null) {
-            for (final Path path : applicationClassDirectories) {
+        final Object applicationClassDirectories = classpathOrder.reflectionUtils.getFieldVal(false, classLoader,
+                "applicationClassDirectories");
+        if (applicationClassDirectories instanceof Collection) {
+            for (final Object element : (Collection<?>) applicationClassDirectories) {
+                if (!(element instanceof Path)) {
+                    continue;
+                }
+                final Path path = (Path) element;
                 try {
                     final URI uri = path.toUri();
                     classpathOrder.addClasspathEntryObject(uri, classLoader, scanSpec, log);
@@ -206,20 +210,22 @@ class QuarkusClassLoaderHandler implements ClassLoaderHandler {
      * @param log
      *            the log
      */
-    @SuppressWarnings("unchecked")
     private static void findClasspathOrderForRunnerClassloader(final ClassLoader classLoader,
             final ClasspathOrder classpathOrder, final ScanSpec scanSpec, final LogNode log) {
-        // (getFieldVal returns null if the field is not present -- Quarkus renames these fields between
-        // releases, so don't assume the field was found)
-        final Map<String, Object[]> resourceDirectoryMap = (Map<String, Object[]>) classpathOrder.reflectionUtils
-                .getFieldVal(false, classLoader, "resourceDirectoryMap");
-        if (resourceDirectoryMap == null) {
+        // Quarkus renames and retypes these fields between releases, so neither the field nor the type of its
+        // value is assumed (getFieldVal returns null if the field is not present)
+        final Object resourceDirectoryMap = classpathOrder.reflectionUtils.getFieldVal(false, classLoader,
+                "resourceDirectoryMap");
+        if (!(resourceDirectoryMap instanceof Map)) {
             return;
         }
-        for (final Object[] elementArray : resourceDirectoryMap.values()) {
-            for (final Object element : elementArray) {
-                final String elementClassName = element.getClass().getName();
-                if ("io.quarkus.bootstrap.runner.JarResource".equals(elementClassName)) {
+        for (final Object elementArray : ((Map<?, ?>) resourceDirectoryMap).values()) {
+            if (!(elementArray instanceof Object[])) {
+                continue;
+            }
+            for (final Object element : (Object[]) elementArray) {
+                if (element != null
+                        && "io.quarkus.bootstrap.runner.JarResource".equals(element.getClass().getName())) {
                     classpathOrder.addClasspathEntry(
                             classpathOrder.reflectionUtils.getFieldVal(false, element, "jarPath"), classLoader,
                             scanSpec, log);
