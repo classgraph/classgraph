@@ -79,7 +79,7 @@ public final class GraphVizDotFileOptions {
     /** Whether to show edges between classes and the annotations on them. */
     boolean showAnnotationDependencyEdges = true;
 
-    /** Whether to strip the package name from class names in type signatures. */
+    /** Whether to strip the package name from class names in type signatures and annotations. */
     boolean useSimpleNames = true;
 
     /**
@@ -238,8 +238,8 @@ public final class GraphVizDotFileOptions {
     }
 
     /**
-     * Strip the package name from class names in method and field type signatures, leaving the simple name. (This
-     * is the default.)
+     * Strip the package name from class names in method and field type signatures and in annotations, leaving the
+     * simple name. (This is the default.)
      *
      * @return this {@link GraphVizDotFileOptions}, for method chaining.
      */
@@ -249,8 +249,8 @@ public final class GraphVizDotFileOptions {
     }
 
     /**
-     * Show class names in method and field type signatures fully qualified. (By default the package name is
-     * stripped, leaving the simple name.)
+     * Show class names in method and field type signatures and in annotations fully qualified. (By default the
+     * package name is stripped, leaving the simple name.)
      *
      * @return this {@link GraphVizDotFileOptions}, for method chaining.
      */

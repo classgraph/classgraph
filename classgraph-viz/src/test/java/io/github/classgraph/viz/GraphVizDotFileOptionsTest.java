@@ -160,14 +160,12 @@ public class GraphVizDotFileOptionsTest {
     /** Annotations on the class, its fields, its methods and their parameters are listed, and can be hidden. */
     @Test
     public void annotationsCanBeHidden() {
-        assertThat(classGraph(new GraphVizDotFileOptions())).contains("<b>ANNOTATIONS</b>",
-                "@" + FIXTURE + "GraphClassAnnotation", "@" + FIXTURE + "GraphFieldAnnotation",
-                "@" + FIXTURE + "GraphMethodAnnotation", "@" + FIXTURE + "GraphParamAnnotation");
+        assertThat(classGraph(new GraphVizDotFileOptions())).contains("<b>ANNOTATIONS</b>", "@GraphClassAnnotation",
+                "@GraphFieldAnnotation", "@GraphMethodAnnotation", "@GraphParamAnnotation");
 
         final var noAnnotations = classGraph(new GraphVizDotFileOptions().hideAnnotations());
-        assertThat(noAnnotations).doesNotContain("<b>ANNOTATIONS</b>", "@" + FIXTURE + "GraphClassAnnotation",
-                "@" + FIXTURE + "GraphFieldAnnotation", "@" + FIXTURE + "GraphMethodAnnotation",
-                "@" + FIXTURE + "GraphParamAnnotation");
+        assertThat(noAnnotations).doesNotContain("<b>ANNOTATIONS</b>", "@GraphClassAnnotation",
+                "@GraphFieldAnnotation", "@GraphMethodAnnotation", "@GraphParamAnnotation");
         // The fields and methods that the annotations were on are still listed, and so are the annotation edges
         assertThat(noAnnotations).contains("<b>graphField</b>", "<b>graphMethod</b>", ANNOTATION_EDGE);
     }
@@ -179,7 +177,7 @@ public class GraphVizDotFileOptionsTest {
         final var noAnnotationEdges = classGraph(new GraphVizDotFileOptions().hideAnnotationDependencyEdges());
         assertThat(noAnnotationEdges).doesNotContain(ANNOTATION_EDGE);
         // Hiding the annotation edges still lists the annotations inside the class node
-        assertThat(noAnnotationEdges).contains("@" + FIXTURE + "GraphClassAnnotation");
+        assertThat(noAnnotationEdges).contains("@GraphClassAnnotation");
     }
 
     /**

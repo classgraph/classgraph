@@ -98,7 +98,7 @@ GraphVizDotFileOptions options = new GraphVizDotFileOptions()
         .setLayoutSize(12.0f, 8.0f)   // in inches, as GraphViz measures it
         .hideFields()                 // no field rows in the class boxes
         .hideMethods()                // no method rows either
-        .hideAnnotations()            // no annotation nodes
+        .hideAnnotations()            // no annotations in the class boxes
         .useFullyQualifiedNames();    // com.xyz.Widget rather than Widget
 
 try (ScanResult scanResult = new ClassGraph().enableNonSystemModules().enableClasspath()

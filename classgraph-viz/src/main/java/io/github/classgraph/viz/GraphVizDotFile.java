@@ -84,17 +84,16 @@ public final class GraphVizDotFile {
     /** Which characters are Unicode whitespace. */
     private static final BitSet IS_UNICODE_WHITESPACE = new BitSet(1 << 16);
 
-    /**
-     * Constructor.
-     */
+    /** Not instantiable. */
     private GraphVizDotFile() {
-        // Cannot be constructed
+        // Empty
     }
 
     static {
         // Valid unicode whitespace chars, see:
         // http://stackoverflow.com/questions/4731055/whitespace-matching-regex-java
-        // Also see (for \n and \r -- a real example of Java stupidity):
+        // \n and \r are written as escapes rather than as Unicode escapes, since the compiler turns a Unicode escape
+        // for a line terminator into a real line break before parsing, which would end the string literal. See:
         // https://stackoverflow.com/a/3866219/3950982
         final var wsChars = "\u0020" // SPACE
                 + "\u0009" // CHARACTER TABULATION
@@ -155,12 +154,12 @@ public final class GraphVizDotFile {
             case '<' -> buf.append("&lt;");
             case '>' -> buf.append("&gt;");
             case '"' -> buf.append("&quot;");
-            case '\'' -> buf.append("&#x27;"); // See http://goo.gl/FzoP6m
+            case '\'' -> buf.append("&#x27;"); // "&apos;" is not an HTML 4 entity
             // GraphViz resolves only the named entities it knows, and there is no name for a backslash --
             // "&lsol;" and "&bsol;" both make it report "undefined entity" and give up on the whole label
             case '\\' -> buf.append("&#x5C;");
             case '/' -> buf.append("&#x2F;"); // '/' can be a dangerous char if attr values are not quoted
-            // Encode a few common characters that like to get screwed up in some charset/browser variants
+            // Characters that some charsets cannot represent, written as their named entities
             case '—' -> buf.append("&mdash;");
             case '–' -> buf.append("&ndash;");
             case '“' -> buf.append("&ldquo;");
@@ -185,16 +184,35 @@ public final class GraphVizDotFile {
     }
 
     /**
-     * Append a space to the buffer, if it does not already end with one, so that the item appended next is
-     * separated from the item before it.
+     * Append a space to the buffer, so that the item appended next is separated from the item before it. Nothing is
+     * appended if there is no item before it in the same table cell or the same parameter list, i.e. if the buffer
+     * ends with the tag that opened the cell or with the opening parenthesis of a parameter list, or if the buffer
+     * already ends with a space.
      *
      * @param buf
      *            the buffer to append to
      */
     private static void appendSpaceIfNeeded(final StringBuilder buf) {
-        if (buf.charAt(buf.length() - 1) != ' ') {
-            buf.append(' ');
+        if (!buf.isEmpty()) {
+            final var lastChar = buf.charAt(buf.length() - 1);
+            if (lastChar != ' ' && lastChar != '>' && lastChar != '(') {
+                buf.append(' ');
+            }
         }
+    }
+
+    /**
+     * Get the string form of an annotation, using simple or fully qualified names according to the graph options.
+     *
+     * @param annotationInfo
+     *            the annotation
+     * @param options
+     *            the graph options
+     * @return the annotation, as it would be written in source code
+     */
+    private static String annotationToString(final AnnotationInfo annotationInfo,
+            final GraphVizDotFileOptions options) {
+        return options.useSimpleNames ? annotationInfo.toStringWithSimpleNames() : annotationInfo.toString();
     }
 
     /**
@@ -299,13 +317,15 @@ public final class GraphVizDotFile {
      *
      * @param annotationInfo
      *            the annotations on the class
+     * @param options
+     *            the graph options
      * @param darkerColor
      *            the background color of the section header
      * @param buf
      *            the buffer to append to
      */
-    private static void appendClassAnnotations(final List<AnnotationInfo> annotationInfo, final String darkerColor,
-            final StringBuilder buf) {
+    private static void appendClassAnnotations(final List<AnnotationInfo> annotationInfo,
+            final GraphVizDotFileOptions options, final String darkerColor, final StringBuilder buf) {
         final var annotationInfoSorted = annotationsToShow(annotationInfo);
         if (annotationInfoSorted.isEmpty()) {
             return;
@@ -315,7 +335,7 @@ public final class GraphVizDotFile {
         for (final AnnotationInfo ai : annotationInfoSorted) {
             buf.append("<tr>");
             buf.append("<td align='center' valign='top'>");
-            htmlEncode(ai.toString(), buf);
+            htmlEncode(annotationToString(ai, options), buf);
             buf.append("</td></tr>");
         }
     }
@@ -372,7 +392,7 @@ public final class GraphVizDotFile {
             if (options.showAnnotations) {
                 for (final AnnotationInfo ai : directAnnotations(scanResult, fi::getAllAnnotationInfo)) {
                     appendSpaceIfNeeded(buf);
-                    htmlEncode(ai.toString(), buf);
+                    htmlEncode(annotationToString(ai, options), buf);
                 }
             }
 
@@ -427,21 +447,23 @@ public final class GraphVizDotFile {
      *
      * @param annotationInfo
      *            the annotations on the method
+     * @param options
+     *            the graph options
      * @param buf
      *            the buffer to append to
      */
     private static void appendMethodAnnotations(final List<AnnotationInfo> annotationInfo,
-            final StringBuilder buf) {
+            final GraphVizDotFileOptions options, final StringBuilder buf) {
         var wrapPos = 0;
         for (final AnnotationInfo ai : annotationInfo) {
-            final var ais = ai.toString();
+            final var ais = annotationToString(ai, options);
             if (wrapPos > WRAP_WIDTH) {
                 // Continue the annotations in the same column of a new row, leaving the method name and parameter
                 // columns of that row empty
                 buf.append("</td><td></td><td></td></tr><tr><td align='right' valign='top'>");
                 wrapPos = 0;
-            } else if (buf.charAt(buf.length() - 1) != ' ') {
-                buf.append(' ');
+            } else {
+                appendSpaceIfNeeded(buf);
                 wrapPos++;
             }
             htmlEncode(ais, buf);
@@ -475,24 +497,24 @@ public final class GraphVizDotFile {
                 wrapPos = 0;
             }
 
-            // Parameter annotations
+            // Parameter annotations -- a row is wrapped before an annotation rather than after it, so that the last
+            // annotation of a parameter stays on the same row as the parameter's type
             final var param = paramInfo.get(i);
             if (options.showAnnotations) {
                 for (final AnnotationInfo ai : directAnnotations(scanResult, param::getAllAnnotationInfo)) {
-                    final var ais = ai.toString();
-                    if (!ais.isEmpty()) {
-                        appendSpaceIfNeeded(buf);
-                        htmlEncode(ais, buf);
-                        wrapPos += 1 + ais.length();
-                        if (wrapPos > WRAP_WIDTH) {
-                            buf.append("</td></tr><tr><td></td><td></td><td align='left' valign='top'>");
-                            wrapPos = 0;
-                        }
+                    if (wrapPos > WRAP_WIDTH) {
+                        buf.append("</td></tr><tr><td></td><td></td><td align='left' valign='top'>");
+                        wrapPos = 0;
                     }
+                    final var ais = annotationToString(ai, options);
+                    appendSpaceIfNeeded(buf);
+                    htmlEncode(ais, buf);
+                    wrapPos += 1 + ais.length();
                 }
             }
 
             // Parameter type
+            appendSpaceIfNeeded(buf);
             final var paramTypeSig = Objects.requireNonNull(param.getTypeSignatureOrTypeDescriptor());
             final var paramTypeStr = options.useSimpleNames ? paramTypeSig.toStringWithSimpleNames()
                     : paramTypeSig.toString();
@@ -502,10 +524,10 @@ public final class GraphVizDotFile {
             // Parameter name
             final var paramName = param.getName();
             if (paramName != null) {
-                buf.append(" <B>");
+                buf.append(" <b>");
                 htmlEncode(paramName, buf);
                 wrapPos += 1 + paramName.length();
-                buf.append("</B>");
+                buf.append("</b>");
             }
         }
     }
@@ -534,10 +556,10 @@ public final class GraphVizDotFile {
             return;
         }
         final var ignoreMethodVisibility = scanResult.isMethodVisibilityIgnored();
-        buf.append("<tr><td cellpadding='0'>");
-        buf.append("<table border='0' cellborder='0'>");
         buf.append("<tr><td colspan='3' bgcolor='").append(darkerColor).append("'><font point-size='12'><b>")
                 .append(ignoreMethodVisibility ? "" : "PUBLIC ").append("METHODS</b></font></td></tr>");
+        buf.append("<tr><td cellpadding='0'>");
+        buf.append("<table border='0' cellborder='0'>");
         for (final MethodInfo mi : methodInfoSorted) {
             final var isConstructor = "<init>".equals(mi.getName());
             buf.append("<tr>");
@@ -545,7 +567,7 @@ public final class GraphVizDotFile {
             // Method annotations
             buf.append("<td align='right' valign='top'>");
             if (options.showAnnotations) {
-                appendMethodAnnotations(directAnnotations(scanResult, mi::getAllAnnotationInfo), buf);
+                appendMethodAnnotations(directAnnotations(scanResult, mi::getAllAnnotationInfo), options, buf);
             }
 
             // Method modifiers
@@ -607,7 +629,7 @@ public final class GraphVizDotFile {
         final var darkerColor = darkerColor(boxBgColor);
 
         if (options.showAnnotations && scanResult.isAnnotationInfoEnabled()) {
-            appendClassAnnotations(ci.getAllAnnotationInfo().directOnly(), darkerColor, buf);
+            appendClassAnnotations(ci.getAllAnnotationInfo().directOnly(), options, darkerColor, buf);
         }
 
         if (options.showFields && scanResult.isFieldInfoEnabled()) {
@@ -902,9 +924,9 @@ public final class GraphVizDotFile {
      * call {@link ClassGraph#ignoreMethodVisibility()} before scanning.
      *
      * <p>
-     * To show annotations, call {@link ClassGraph#enableAnnotationInfo()} before scanning. To show non-public
-     * annotations, also call {@link ClassGraph#ignoreFieldVisibility()} before scanning (there is no separate
-     * visibility modifier for annotations).
+     * To show annotations, call {@link ClassGraph#enableAnnotationInfo()} before scanning. An annotation class that
+     * is not public is drawn as a node of its own only if {@link ClassGraph#ignoreClassVisibility()} was also
+     * called, as for any other class.
      *
      * @param scanResult
      *            the {@link ScanResult} the classes came from.

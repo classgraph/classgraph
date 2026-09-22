@@ -235,7 +235,7 @@ public class GraphVizDotFileTest {
     public void charactersThatAreUnsafeInHtmlAreEscaped() {
         // The value of @Location on Escaped is the seven characters &<>"'/ (the double quote written as \" by
         // AnnotationInfo#toString(), which escapes it as a Java escape sequence first)
-        assertThat(graph()).contains("@" + FIXTURE + "Location(&quot;&amp;&lt;&gt;&#x5C;&quot;&#x27;&#x2F;&quot;)");
+        assertThat(graph()).contains("@Location(&quot;&amp;&lt;&gt;&#x5C;&quot;&#x27;&#x2F;&quot;)");
     }
 
     /**
@@ -260,11 +260,13 @@ public class GraphVizDotFileTest {
                 // Section headers
                 "<b>ANNOTATIONS</b>", "<b>FIELDS</b>", "<b>METHODS</b>",
                 // The class annotation
-                "@" + FIXTURE + "Location(&quot;C:&#x5C;&#x5C;Windows&quot;)",
-                // A field, with its annotation, its modifiers and its type
-                "@" + FIXTURE + "Indexed public transient Map&lt;String, List&lt;Base&gt;&gt;",
-                // A method, with its parameter types and parameter names
-                "<b>find</b>", "String <B>key</B>, int <B>maximumNumberOfResults</B>",
+                "<td align='center' valign='top'>@Location(&quot;C:&#x5C;&#x5C;Windows&quot;)</td>",
+                // A field, with its annotation, its modifiers and its type, with no space at the start of the cell
+                "<td align='right' valign='top'>@Indexed public transient Map&lt;String, List&lt;Base&gt;&gt;</td>",
+                // A method, with its annotations, its modifiers and its return type
+                "<td align='right' valign='top'>@Cached @Deprecated2 public Base</td>",
+                // The parameters of the method, with their annotations, types and names
+                "<b>find</b>", "(@NotBlank String <b>key</b>, int <b>maximumNumberOfResults</b>)",
                 // A constructor is named after its class, and has no return type
                 "<b>&lt;constructor&gt;</b></td><td align='left' valign='top'><b>Derived</b>");
     }
@@ -292,9 +294,9 @@ public class GraphVizDotFileTest {
     public void typeNamesCanBeShownFullyQualified() {
         assertThat(graph(scanResult, new GraphVizDotFileOptions().useFullyQualifiedNames())).contains(
                 "public transient java.util.Map&lt;java.lang.String, java.util.List&lt;" + FIXTURE + "Base&gt;&gt;")
-                .contains("java.lang.String <B>key</B>");
+                .contains("java.lang.String <b>key</b>");
         assertThat(graph()).contains("public transient Map&lt;String, List&lt;Base&gt;&gt;")
-                .contains("String <B>key</B>").doesNotContain("java.lang.String <B>key</B>");
+                .contains("String <b>key</b>").doesNotContain("java.lang.String <b>key</b>");
     }
 
     /**
@@ -303,10 +305,25 @@ public class GraphVizDotFileTest {
      */
     @Test
     public void wideRowsOfAnnotationsAndParametersAreWrapped() {
-        // The two annotations of Derived#find() are far wider than the wrap width, so the second one starts a new
-        // row of the method table, and the parameters of the method are then also pushed onto a row of their own
-        assertThat(graph()).contains("@" + FIXTURE + "Cached</td><td></td><td></td></tr><tr>", "@" + FIXTURE
-                + "NotBlank</td></tr><tr><td></td><td></td><td align='left' valign='top'>" + "String <B>key</B>");
+        // With fully qualified names, the two annotations of Derived#find() are each wider than the wrap width, so
+        // the second one starts a new row of the method table. The first parameter is wider than the wrap width as
+        // well, so the second parameter starts a new row, but a parameter's annotation stays on the same row as the
+        // parameter's type.
+        assertThat(graph(scanResult, new GraphVizDotFileOptions().useFullyQualifiedNames())).contains(
+                "@" + FIXTURE + "Cached</td><td></td><td></td></tr><tr>",
+                "(@" + FIXTURE + "NotBlank java.lang.String <b>key</b>, "
+                        + "</td></tr><tr><td></td><td></td><td align='left' valign='top'>"
+                        + "int <b>maximumNumberOfResults</b>)");
+    }
+
+    /** Annotations are shown with simple names by default, and with fully qualified names on request. */
+    @Test
+    public void annotationNamesCanBeShownFullyQualified() {
+        assertThat(graph()).contains("@Location(", "@Indexed ", "@Cached ", "(@NotBlank ")
+                .doesNotContain("@" + FIXTURE);
+        assertThat(graph(scanResult, new GraphVizDotFileOptions().useFullyQualifiedNames())).contains(
+                "@" + FIXTURE + "Location(", "@" + FIXTURE + "Indexed ", "@" + FIXTURE + "Cached",
+                "(@" + FIXTURE + "NotBlank ");
     }
 
     /** Each part of a class node, and each kind of edge, can be switched off. */
