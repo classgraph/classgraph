@@ -72,7 +72,7 @@ public class RandomAccessByteBufferReader implements RandomAccessReader {
     private final @Nullable BooleanSupplier isReleased;
 
     /**
-     * Constructor.
+     * Constructor for slicing a byte buffer, reading in little endian order, as the zipfile format requires.
      *
      * @param byteBuffer
      *            the buffer to read. Its position, limit and byte order are ignored.
@@ -89,7 +89,8 @@ public class RandomAccessByteBufferReader implements RandomAccessReader {
     }
 
     /**
-     * Constructor.
+     * Constructor for slicing a byte buffer that is a view of a file that can be released, reading in little endian
+     * order, as the zipfile format requires.
      *
      * @param byteBuffer
      *            the buffer to read. Its position, limit and byte order are ignored.
@@ -129,7 +130,8 @@ public class RandomAccessByteBufferReader implements RandomAccessReader {
     }
 
     /**
-     * Constructor.
+     * Constructor for slicing a byte buffer that is a view of a file that can be released, reading in a given byte
+     * order.
      *
      * @param byteBuffer
      *            the buffer to read. Its position, limit and byte order are ignored.

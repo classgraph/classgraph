@@ -29,7 +29,6 @@
 package io.github.classgraph.vfs.reader;
 
 import java.io.IOException;
-import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
@@ -46,7 +45,6 @@ import org.jspecify.annotations.Nullable;
  * and not of the machine.
  */
 public class RandomAccessFileChannelReader implements RandomAccessReader {
-
     /** The file channel. */
     private final FileChannel fileChannel;
 
@@ -56,13 +54,13 @@ public class RandomAccessFileChannelReader implements RandomAccessReader {
     /** The number of bytes of content. */
     private final long sliceLength;
 
-    /** The reusable byte buffer, or null until the first array read. */
+    /** The buffer that wraps the array of the last array read, or null until the first array read. */
     private @Nullable ByteBuffer reusableByteBuffer;
 
-    /** The scratch arr. */
+    /** The array that a single value is read into. */
     private final byte[] scratchArr = new byte[8];
 
-    /** The scratch byte buf. */
+    /** The buffer that wraps {@link #scratchArr}. */
     private final ByteBuffer scratchByteBuf = ByteBuffer.wrap(scratchArr);
 
     /** The reusable buffer that strings are read into, or null until the first string read. */
@@ -77,7 +75,7 @@ public class RandomAccessFileChannelReader implements RandomAccessReader {
     private final boolean bigEndian;
 
     /**
-     * Constructor.
+     * Constructor for slicing a file channel, reading in little endian order, as the zipfile format requires.
      *
      * @param fileChannel
      *            the channel to read. Its position is ignored and not changed.
@@ -94,7 +92,7 @@ public class RandomAccessFileChannelReader implements RandomAccessReader {
     }
 
     /**
-     * Constructor.
+     * Constructor for slicing a file channel, reading in a given byte order.
      *
      * @param fileChannel
      *            the channel to read. Its position is ignored and not changed.
@@ -138,9 +136,8 @@ public class RandomAccessFileChannelReader implements RandomAccessReader {
             return 0;
         }
         if (dstBuf.isReadOnly()) {
-            // Checked here rather than left to the put below, so that every RandomAccessReader reports a
-            // read-only destination the same way -- the file channel reader cannot catch it, since FileChannel
-            // rejects a read-only destination with an IllegalArgumentException of its own
+            // FileChannel rejects a read-only destination with an IllegalArgumentException, so check it here, to
+            // report it with the IOException that every other RandomAccessReader reports it with
             throw new IOException("The destination buffer is read-only");
         }
         try {
@@ -184,7 +181,7 @@ public class RandomAccessFileChannelReader implements RandomAccessReader {
             }
             return numBytesRead == 0 ? -1 : numBytesRead;
 
-        } catch (final BufferUnderflowException | IndexOutOfBoundsException e) {
+        } catch (final IllegalArgumentException e) {
             // The bounds were checked above, so reaching here means a bounds check is wrong rather than that
             // the caller asked for too much -- without the cause there is no record of which index was rejected
             throw new IOException("Read index out of bounds", e);
@@ -194,27 +191,14 @@ public class RandomAccessFileChannelReader implements RandomAccessReader {
     @Override
     public int read(final long srcOffset, final byte[] dstArr, final int dstArrStart, final int numBytes)
             throws IOException {
-        if (numBytes == 0) {
-            return 0;
+        var byteBuffer = reusableByteBuffer;
+        if (byteBuffer == null || byteBuffer.array() != dstArr) {
+            // Wrap dstArr, unless the buffer from the previous array read already wraps it
+            reusableByteBuffer = byteBuffer = ByteBuffer.wrap(dstArr);
         }
-        try {
-            if (srcOffset < 0L || numBytes < 0) {
-                throw new IOException("Read index out of bounds");
-            }
-            var byteBuffer = reusableByteBuffer;
-            if (byteBuffer == null || byteBuffer.array() != dstArr) {
-                // If reusableByteBuffer is not set, or wraps a different array from a previous operation, wrap
-                // dstArr with a new ByteBuffer
-                reusableByteBuffer = byteBuffer = ByteBuffer.wrap(dstArr);
-            }
-            // Read into reusableByteBuffer, which is backed with dstArr
-            return read(srcOffset, byteBuffer, dstArrStart, numBytes);
-
-        } catch (final BufferUnderflowException | IndexOutOfBoundsException e) {
-            // The bounds were checked above, so reaching here means a bounds check is wrong rather than that
-            // the caller asked for too much -- without the cause there is no record of which index was rejected
-            throw new IOException("Read index out of bounds", e);
-        }
+        // The buffer's limit is the length of the array, so this checks the bounds the same way as a read into the
+        // array would be checked, and leaves the buffer's position and limit as they were
+        return read(srcOffset, byteBuffer, dstArrStart, numBytes);
     }
 
     /**
@@ -247,11 +231,7 @@ public class RandomAccessFileChannelReader implements RandomAccessReader {
 
     @Override
     public int readUnsignedByte(final long offset) throws IOException {
-        checkInBounds(offset, 1);
-        if (read(offset, scratchByteBuf, 0, 1) < 1) {
-            throw new IOException("Premature EOF");
-        }
-        return scratchArr[0] & 0xff;
+        return readByte(offset) & 0xff;
     }
 
     @Override
@@ -320,9 +300,7 @@ public class RandomAccessFileChannelReader implements RandomAccessReader {
     private byte[] readIntoStringBytes(final long offset, final int numBytes) throws IOException {
         // Check the range before growing the buffer, since a length read out of corrupt content can be negative or
         // larger than the slice, and read() would only reject it after the allocation had been attempted
-        if (offset < 0L || numBytes < 0 || numBytes > sliceLength - offset) {
-            throw new IOException("Read index out of bounds");
-        }
+        checkInBounds(offset, numBytes);
         // Reuse the string buffer array if it's non-null from a previous call, and if it's big enough
         var stringBytesBuf = stringBytes;
         if (stringBytesBuf == null || stringBytesBuf.length < numBytes) {

@@ -568,6 +568,10 @@ public class RandomAccessOrSequentialReader implements RandomAccessReader, Seque
         if (srcOffset < 0L || srcOffset > maxBufferSize) {
             throw new IOException("Read offset out of range: " + srcOffset);
         }
+        if (numBytes < 0) {
+            // A string length read out of corrupt content can be negative, and the range check below would pass it
+            throw new IOException("Read index out of bounds");
+        }
         final var idx = (int) srcOffset;
         // The end of the range is compared by subtraction rather than by adding numBytes to idx, because an offset
         // and a length read out of corrupt content can sum to more than an int holds, and a wrapped sum would make
@@ -831,7 +835,7 @@ public class RandomAccessOrSequentialReader implements RandomAccessReader, Seque
 
     @Override
     public String readString(final int numBytes, final Charset charset) throws IOException {
-        // Delegate to the random access overload, for the same reason as the modified UTF8 overload above
+        // Delegate to the random access overload, for the same reason as the modified UTF-8 overload above
         final var val = readString(currIdx, numBytes, charset);
         currIdx += numBytes;
         return val;

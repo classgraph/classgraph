@@ -591,6 +591,13 @@ public class RandomAccessOrSequentialReaderTest {
             // A negative offset indexes outside the buffer
             assertThatThrownBy(() -> reader.readByte(-1)).isInstanceOf(IOException.class);
 
+            // A negative length is rejected as well, as every other reader rejects it, rather than reaching the
+            // String constructor or the string decoder and throwing an unchecked exception from there
+            assertThatThrownBy(() -> reader.readString(0, -1)).isInstanceOf(IOException.class)
+                    .hasMessageContaining("out of bounds");
+            assertThatThrownBy(() -> reader.readStringModifiedUtf8(0, -1)).isInstanceOf(IOException.class)
+                    .hasMessageContaining("out of bounds");
+
             // The reads that stay within the content still succeed
             assertThat(reader.readInt(0)).isEqualTo(0x01234567);
         }

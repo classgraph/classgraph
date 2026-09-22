@@ -449,6 +449,11 @@ public class RandomAccessReaderTest {
                 .hasMessageContaining("out of bounds");
         assertThatThrownBy(() -> reader.read(0, dstBuf, -1, 4)).isInstanceOf(IOException.class)
                 .hasMessageContaining("out of bounds");
+        // A read of zero bytes is rejected too, rather than returning zero, which would say the offset was fine
+        assertThatThrownBy(() -> reader.read(0, dstArr, -1, 0)).isInstanceOf(IOException.class)
+                .hasMessageContaining("out of bounds");
+        assertThatThrownBy(() -> reader.read(0, dstBuf, -1, 0)).isInstanceOf(IOException.class)
+                .hasMessageContaining("out of bounds");
     }
 
     /**
