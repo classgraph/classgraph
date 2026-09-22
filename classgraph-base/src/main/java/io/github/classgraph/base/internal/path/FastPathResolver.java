@@ -28,11 +28,11 @@
  */
 package io.github.classgraph.base.internal.path;
 
-import io.github.classgraph.base.internal.utils.VersionFinder;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 import java.util.regex.Pattern;
 
+import io.github.classgraph.base.internal.utils.VersionFinder;
 import io.github.classgraph.base.internal.utils.VersionFinder.OperatingSystem;
 import org.jspecify.annotations.Nullable;
 
@@ -67,9 +67,7 @@ public final class FastPathResolver {
     private static final @Nullable String customWarSeparator = VersionFinder
             .getProperty("org.apache.tomcat.util.buf.UriUtil.WAR_SEPARATOR");
 
-    /**
-     * Constructor.
-     */
+    /** Not instantiable. */
     private FastPathResolver() {
         // Cannot be constructed
     }
@@ -119,11 +117,11 @@ public final class FastPathResolver {
     }
 
     /**
-     * Hex char to int.
+     * Get the value of a hexadecimal digit.
      *
      * @param c
-     *            the character
-     * @return the integer value of the character
+     *            A hexadecimal digit, in either case.
+     * @return The value of the digit, from 0 to 15.
      */
     private static int hexCharToInt(final char c) {
         return c >= '0' && c <= '9' ? (c - '0') //
@@ -209,8 +207,8 @@ public final class FastPathResolver {
     }
 
     /**
-     * Parse percent encoding, e.g. "%20" -&gt; " "; convert '/' or '\\' to SEP; remove trailing separator char if
-     * present.
+     * Normalize a path: decode percent encoding, e.g. "%20" -&gt; " " (only if {@code percentDecode} is true),
+     * convert every '\\' separator to '/', collapse runs of separators into one, and remove any final separator.
      *
      * @param path
      *            The path to normalize.
@@ -221,7 +219,7 @@ public final class FastPathResolver {
      */
     public static String normalizePath(final String path, final boolean percentDecode) {
         final var hasPercent = path.indexOf('%') >= 0;
-        if (!hasPercent && path.indexOf('\\') < 0 && !path.endsWith("/")) {
+        if (!hasPercent && path.indexOf('\\') < 0 && path.indexOf("//") < 0 && !path.endsWith("/")) {
             return path;
         } else {
             final var len = path.length();
@@ -255,8 +253,9 @@ public final class FastPathResolver {
      * Tomcat serves a non-exploded WAR file (i.e. a webapp deployed with {@code unpackWARs="false"}) through its
      * own {@code "war:"} URL protocol, which separates the path of the WAR file from the path within the WAR file
      * using {@code "*&#47;"} rather than the standard {@code "!&#47;"}, e.g.
-     * {@code "war:file:/path/to/app.war*&#47;WEB-INF/classes/"}. Without this conversion, the {@code '*'} was read
-     * as a wildcard, and the whole classpath element was rejected, so nothing in a non-exploded WAR was scanned.
+     * {@code "war:file:/path/to/app.war*&#47;WEB-INF/classes/"}. Without this conversion, the {@code '*'} would be
+     * read as a wildcard, and the whole classpath element would be rejected, so nothing in a non-exploded WAR would
+     * be scanned.
      *
      * @param path
      *            The path, which may or may not be a {@code "war:"} URL.
@@ -626,7 +625,6 @@ public final class FastPathResolver {
     private static String resolve(final @Nullable String resolveBasePath, final String relativePathRaw,
             final boolean namesFileOnDisk) {
         // See: http://stackoverflow.com/a/17870390/3950982
-        // https://weblogs.java.net/blog/kohsuke/archive/2007/04/how_to_convert.html
 
         if (relativePathRaw.isEmpty()) {
             return resolveBasePath == null ? "" : resolveBasePath;

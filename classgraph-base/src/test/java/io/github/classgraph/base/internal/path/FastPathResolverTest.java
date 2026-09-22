@@ -544,4 +544,16 @@ public class FastPathResolverTest {
         assertThat(FastPathResolver.resolveDecodesPercentEncoding("jrt:/java.base")).isFalse();
         assertThat(FastPathResolver.resolveDecodesPercentEncoding("jar:http://host/x.jar!/a")).isFalse();
     }
+
+    /**
+     * normalizePath collapses a run of separators whether or not the path ends in a separator, and whether or not
+     * it has anything else to normalize.
+     */
+    @Test
+    public void normalizePathCollapsesSeparatorsInEveryPath() {
+        assertThat(FastPathResolver.normalizePath("a//b", /* percentDecode = */ false)).isEqualTo("a/b");
+        assertThat(FastPathResolver.normalizePath("a//b/", /* percentDecode = */ false)).isEqualTo("a/b");
+        assertThat(FastPathResolver.normalizePath("a\\b", /* percentDecode = */ false)).isEqualTo("a/b");
+        assertThat(FastPathResolver.normalizePath("a/b", /* percentDecode = */ false)).isEqualTo("a/b");
+    }
 }
