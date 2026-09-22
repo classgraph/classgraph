@@ -90,7 +90,7 @@ public final class ArraySlice extends Slice {
      * @param length
      *            the length of the sub-slice.
      * @param isDeflatedZipEntry
-     *            the is deflated zip entry
+     *            true if the sub-slice is a deflated zip entry
      * @param inflatedLengthHint
      *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 if this is not a deflated
      *            zip entry.
@@ -113,9 +113,9 @@ public final class ArraySlice extends Slice {
      * is returned rather than a copy, so a caller that writes to the returned array changes what every later read
      * of the same slice sees.
      *
-     * @return the byte[]
+     * @return the content of the slice
      * @throws IOException
-     *             Signals that an I/O exception has occurred.
+     *             if the slice could not be read.
      */
     @Override
     public byte[] load() throws IOException {

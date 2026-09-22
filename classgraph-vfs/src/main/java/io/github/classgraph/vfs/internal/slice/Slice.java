@@ -233,7 +233,7 @@ public abstract class Slice implements AutoCloseable {
                 buf = Arrays.copyOf(buf, bufBytesUsed);
             }
             // Return buf as new ArraySlice
-            return new ArraySlice(buf, /* isDeflatedZipEntry = */ false, /* inflatedSizeHint = */ 0L, vfs);
+            return new ArraySlice(buf, /* isDeflatedZipEntry = */ false, /* inflatedLengthHint = */ 0L, vfs);
 
         }
         // inputStreamLengthHint is longer than maxBufferedJarRAMSize, so immediately spill to disk
@@ -434,9 +434,9 @@ public abstract class Slice implements AutoCloseable {
     /**
      * Load the slice as a byte array.
      *
-     * @return the byte[]
+     * @return the content of the slice
      * @throws IOException
-     *             Signals that an I/O exception has occurred.
+     *             if the slice could not be read.
      */
     public abstract byte[] load() throws IOException;
 
@@ -500,7 +500,7 @@ public abstract class Slice implements AutoCloseable {
     /**
      * Load the slice as a string.
      *
-     * @return the string
+     * @return the content of the slice, decoded as UTF-8
      * @throws IOException
      *             if slice cannot be read.
      */
@@ -518,7 +518,7 @@ public abstract class Slice implements AutoCloseable {
      *
      * @return the byte buffer
      * @throws IOException
-     *             Signals that an I/O exception has occurred.
+     *             if the slice could not be read.
      */
     public ByteBuffer read() throws IOException {
         return ByteBuffer.wrap(load()).asReadOnlyBuffer();

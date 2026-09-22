@@ -546,7 +546,7 @@ public class LogicalZipFile extends ZipFileSlice {
             // clause below are accessed with the same index, which is the offset from the start of the central
             // directory).
             return slice.slice(cen.cenPos(), cen.cenSize(), /* isDeflatedZipEntry = */ false,
-                    /* inflatedSizeHint = */ 0L).randomAccessReader();
+                    /* inflatedLengthHint = */ 0L).randomAccessReader();
         }
         // Read the central directory into RAM for speed, then wrap it in an ArraySlice (random access is faster
         // for ArraySlice than for PathSlice)
@@ -555,7 +555,7 @@ public class LogicalZipFile extends ZipFileSlice {
             // Should not happen
             throw new IOException("Zipfile is truncated");
         }
-        return new ArraySlice(entryBytes, /* isDeflatedZipEntry = */ false, /* inflatedSizeHint = */ 0L, vfs)
+        return new ArraySlice(entryBytes, /* isDeflatedZipEntry = */ false, /* inflatedLengthHint = */ 0L, vfs)
                 .randomAccessReader();
     }
 

@@ -251,7 +251,7 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
      *            the classpath element URL, or null if the classpath element was not given as a URL
      * @param classpathElementPath
      *            the classpath element path
-     * @return true, if not filtered out
+     * @return true if the classpath element passes every filter
      */
     private boolean filter(final @Nullable URL classpathElementURL, final @Nullable String classpathElementPath) {
         if (classpathSpec.classpathElementURLFilters != null) {
@@ -410,7 +410,7 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
      *            the classloader
      * @param log
      *            the log node, or null to skip logging
-     * @return true, if added and unique
+     * @return true if the classpath element was added, false if it was a duplicate or could not be found
      */
     private boolean addClasspathEntryAndLog(final Object pathElement, final String pathElementStr,
             final String pathElementStrResolved, final @Nullable ClassLoader classLoader,

@@ -336,7 +336,7 @@ class ClasspathElementModule extends ClasspathElement {
     /**
      * Return the module reference as a String.
      *
-     * @return the string
+     * @return the module reference as a String
      */
     @Override
     public String toString() {
@@ -344,11 +344,11 @@ class ClasspathElementModule extends ClasspathElement {
     }
 
     /**
-     * Equals.
+     * Two module classpath elements are equal if their modules have the same name.
      *
      * @param obj
-     *            the obj
-     * @return true, if successful
+     *            the object to compare to
+     * @return true if {@code obj} is a module classpath element for a module of the same name
      */
     @Override
     public boolean equals(final @Nullable Object obj) {
@@ -362,9 +362,9 @@ class ClasspathElementModule extends ClasspathElement {
     }
 
     /**
-     * Hash code.
+     * Hash the module name, to match {@link #equals(Object)}.
      *
-     * @return the int
+     * @return the hash code of the module name
      */
     @Override
     public int hashCode() {

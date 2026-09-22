@@ -465,7 +465,7 @@ class ClasspathElementDir extends ClasspathElement {
     /**
      * Return the classpath element directory as a String.
      *
-     * @return the string
+     * @return the URI of the directory, as a string
      */
     @Override
     public String toString() {

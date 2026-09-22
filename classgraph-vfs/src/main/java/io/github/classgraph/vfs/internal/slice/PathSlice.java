@@ -196,7 +196,7 @@ public final class PathSlice extends Slice {
      * @param vfs
      *            the {@link Vfs} that opened this slice
      * @param checkAccess
-     *            whether it is needed to check read access and if it is a file
+     *            if true, check that the path is a readable regular file before opening it
      * @param memoryMapWholeFile
      *            if true, and files are memory-mapped on this platform, memory-map the whole file. Only pass true
      *            for a file that is read many times at random offsets, such as a zipfile -- for a file that is read
@@ -276,7 +276,7 @@ public final class PathSlice extends Slice {
      * @param vfs
      *            the {@link Vfs} that opened this slice
      * @param checkAccess
-     *            whether it is needed to check read access and if it is a file
+     *            if true, check that the path is a readable regular file before opening it
      * @param memoryMapWholeFile
      *            if true, and files are memory-mapped on this platform, memory-map the whole file. Only pass true
      *            for a file that is read many times at random offsets, such as a zipfile -- for a file that is read
@@ -388,7 +388,8 @@ public final class PathSlice extends Slice {
     }
 
     /**
-     * Read directly from FileChannel (slow path, but handles &gt;2GB).
+     * Create a new {@link RandomAccessReader} for this slice. The reader reads the memory mapping of the file if
+     * the file is mapped, and otherwise reads the file channel.
      *
      * @return the random access reader
      * @throws IOException
@@ -416,9 +417,9 @@ public final class PathSlice extends Slice {
     /**
      * Load the slice as a byte array.
      *
-     * @return the byte[]
+     * @return the content of the slice
      * @throws IOException
-     *             Signals that an I/O exception has occurred.
+     *             if the slice could not be read.
      */
     @Override
     public byte[] load() throws IOException {
@@ -445,14 +446,6 @@ public final class PathSlice extends Slice {
         }
     }
 
-    /**
-     * Read the slice into a {@link ByteBuffer} (or memory-map the slice to a {@link MappedByteBuffer}, on a
-     * platform where files are memory-mapped, if this slice is part of a zipfile).
-     *
-     * @return the byte buffer
-     * @throws IOException
-     *             Signals that an I/O exception has occurred.
-     */
     @Override
     public Runnable acquireMappingView() throws IOException {
         // Read the field into a local, so that a close running concurrently cannot null it between the check and
@@ -468,6 +461,14 @@ public final class PathSlice extends Slice {
         return mapping::releaseView;
     }
 
+    /**
+     * Read the slice into a {@link ByteBuffer}. If the file is memory-mapped and the slice is not deflated, the
+     * buffer is a read-only view of the mapping, and nothing is copied.
+     *
+     * @return the byte buffer
+     * @throws IOException
+     *             if the slice could not be read.
+     */
     @Override
     public ByteBuffer read() throws IOException {
         // Read the field into a local, so that a close running concurrently cannot null it between the check and
@@ -570,8 +571,8 @@ public final class PathSlice extends Slice {
             return;
         }
         // Windows refuses to delete a file that is still memory-mapped, so a delete that failed may be waiting on
-        // a mapping that could not be unmapped explicitly -- one mapped on a JDK old enough to need sun.misc.Unsafe
-        // where that class could not be reached, say. Those are left to the garbage collector, which only runs when
+        // a mapping that could not be unmapped explicitly -- one whose arena would not close, say. Those are left
+        // to the garbage collector, which only runs when
         // it chooses to, so ask for a collection and try again. If the JVM was started with -XX:+DisableExplicitGC
         // then this is a no-op, and the file is left to the File#deleteOnExit() hook that TempFile#create
         // registered.

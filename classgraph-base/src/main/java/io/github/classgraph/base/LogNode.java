@@ -253,7 +253,7 @@ public final class LogNode implements ClassGraphLog {
     /**
      * Build the log output. Call this on the toplevel log node.
      *
-     * @return the string
+     * @return the log output
      */
     @Override
     public String toString() {

@@ -610,7 +610,7 @@ class ClasspathElementZip extends ClasspathElement {
     /**
      * Return the classpath element path.
      *
-     * @return the string
+     * @return the path of the zipfile
      */
     @Override
     public String toString() {

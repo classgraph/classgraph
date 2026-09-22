@@ -834,7 +834,7 @@ class Classfile {
      *            the string that was read from the constant pool
      * @param description
      *            a description of what the string represents, for the exception message
-     * @return the string
+     * @return {@code str}, which is known to be non-null
      * @throws ClassfileFormatException
      *             If the string is null.
      */
@@ -912,7 +912,7 @@ class Classfile {
      *            the constant pool index
      * @param asciiStr
      *            the ASCII string to compare to
-     * @return true, if successful
+     * @return true if the constant pool string is equal to {@code asciiStr}
      * @throws ClassfileFormatException
      *             If a problem occurs.
      * @throws IOException
@@ -938,7 +938,7 @@ class Classfile {
      *
      * @param cpIdx
      *            the constant pool index.
-     * @return the int
+     * @return the int value of the entry
      * @throws IOException
      *             If an I/O exception occurred.
      */
@@ -1330,7 +1330,7 @@ class Classfile {
      * @param log
      *            The log
      * @throws IOException
-     *             Signals that an I/O exception has occurred.
+     *             if the classfile could not be read.
      */
     private void readConstantPoolEntries(final @Nullable LogNode log) throws IOException {
         // Only record class dependency info if inter-class dependencies are enabled
@@ -1366,7 +1366,7 @@ class Classfile {
      * @param referencedClassCpIdxs
      *            if non-null, the indices of the entries that name a referenced class are collected here
      * @throws IOException
-     *             Signals that an I/O exception has occurred.
+     *             if the classfile could not be read.
      */
     private void parseConstantPoolEntries(final @Nullable ReferencedClassCpIdxs referencedClassCpIdxs)
             throws IOException {
@@ -1451,7 +1451,7 @@ class Classfile {
      * @param refdClassNames
      *            the set of referenced class names to add to
      * @throws IOException
-     *             Signals that an I/O exception has occurred.
+     *             if the classfile could not be read.
      */
     private void addClassNamesFromClassRefs(final List<Integer> classRefCpIdxs, final Set<String> refdClassNames)
             throws IOException {
@@ -1487,7 +1487,7 @@ class Classfile {
      * @param log
      *            The log
      * @throws IOException
-     *             Signals that an I/O exception has occurred.
+     *             if the classfile could not be read.
      */
     private void addClassNamesFromTypeSignatures(final List<Integer> nameAndTypeCpIdxs,
             final Set<String> refdClassNames, final @Nullable LogNode log) throws IOException {

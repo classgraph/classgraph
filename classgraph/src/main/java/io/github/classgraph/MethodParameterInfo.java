@@ -211,10 +211,10 @@ public class MethodParameterInfo implements HasAnnotations {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Sets the scan result.
+     * Set the {@link ScanResult} of this parameter, and of its annotations and type signatures.
      *
      * @param scanResult
-     *            the new scan result
+     *            the scan result
      */
     void setScanResult(final @Nullable ScanResult scanResult) {
         this.scanResult = scanResult;

@@ -431,11 +431,12 @@ public class RandomAccessOrSequentialReader implements RandomAccessReader, Seque
      *            Taken as a long so that a caller can hand over a sum of two ints without having to check first
      *            whether it fits in an int -- one that does not is out of range, and is rejected below.
      * @throws IOException
-     *             Signals that an I/O exception has occurred.
+     *             if the content could not be read, or {@code targetArrUsed} is larger than the largest buffer
+     *             allowed.
      */
     private void readTo(final long targetArrUsed) throws IOException {
         if (targetArrUsed > maxBufferSize || targetArrUsed < 0) {
-            throw new IOException("Hit 2GB limit while trying to grow buffer array");
+            throw new IOException("Cannot grow the buffer past " + maxBufferSize + " bytes");
         }
         if (arrUsed >= targetArrUsed || eof) {
             // Either the buffer already holds the requested bytes, or the stream has already ended, in which case

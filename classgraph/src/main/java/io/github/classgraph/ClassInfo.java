@@ -384,7 +384,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *            the {@link RelType}
      * @param classInfo
      *            the {@link ClassInfo}
-     * @return true, if successful
+     * @return true if the class was not already related to this class by {@code relType}
      */
     boolean addRelatedClass(final RelType relType, final ClassInfo classInfo) {
         return relatedClasses.computeIfAbsent(relType, k -> new LinkedHashSet<>(4)).add(classInfo);
@@ -674,7 +674,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @param annotationInfoList
      *            the annotation info list
      * @param isField
-     *            the is field
+     *            true if the annotations are on a field, false if they are on a method
      * @param modifiers
      *            the field or method modifiers
      * @param classNameToClassInfo
@@ -4113,7 +4113,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * To string.
+     * Append this class to a buffer as a string, in the form that {@link #toString()} returns.
      *
      * @param useSimpleNames
      *            if true, strip package and outer class names from class names
