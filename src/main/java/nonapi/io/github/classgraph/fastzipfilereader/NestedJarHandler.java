@@ -1176,10 +1176,9 @@ public class NestedJarHandler {
         }
         try (InputStream inptStream = inputStream) {
             final int bufferSize = uncompressedLengthHint < 1L
-                    // If fileSizeHint is zero or unknown, use default buffer size
+                    // If the length is zero or unknown, use the default buffer size
                     ? DEFAULT_BUFFER_SIZE
-                    // fileSizeHint is just a hint -- limit the max allocated buffer size, so that
-                    // invalid ZipEntry
+                    // The length is just a hint -- limit the max allocated buffer size, so that invalid ZipEntry
                     // lengths do not become a memory allocation attack vector
                     : Math.min((int) uncompressedLengthHint, MAX_INITIAL_BUFFER_SIZE);
             byte[] buf = new byte[bufferSize];
@@ -1194,24 +1193,24 @@ public class NestedJarHandler {
                     break;
                 }
 
-                // bytesRead == 0: either the buffer was the correct size and the end of the
-                // stream has been
-                // reached, or the buffer was too small. Need to try reading one more byte to
-                // see which is
-                // the case.
+                // bytesRead == 0: either the buffer was the correct size and the end of the stream has been
+                // reached, or the buffer was too small. Need to try reading one more byte to see which is the case.
                 final int extraByte = inptStream.read();
                 if (extraByte == -1) {
                     // Reached end of stream
                     break;
                 }
 
-                // Haven't reached end of stream yet. Need to grow the buffer (double its size),
-                // and append
-                // the extra byte that was just read.
-                if (buf.length == FileUtils.MAX_BUFFER_SIZE) {
-                    throw new IOException("InputStream too large to read into array");
+                // Haven't reached end of stream yet. Grow the buffer (double its size) if it is full, and append
+                // the extra byte that was just read. (The read can also have returned zero from a buffer with room
+                // left in it, as in readAllBytesWithSpilloverToDisk, and the buffer must not grow on every one of
+                // those reads.)
+                if (totBytesRead == buf.length) {
+                    if (buf.length == FileUtils.MAX_BUFFER_SIZE) {
+                        throw new IOException("InputStream too large to read into array");
+                    }
+                    buf = Arrays.copyOf(buf, (int) Math.min(buf.length * 2L, FileUtils.MAX_BUFFER_SIZE));
                 }
-                buf = Arrays.copyOf(buf, (int) Math.min(buf.length * 2L, FileUtils.MAX_BUFFER_SIZE));
                 buf[totBytesRead++] = (byte) extraByte;
             }
             // Return buffer and number of bytes read
