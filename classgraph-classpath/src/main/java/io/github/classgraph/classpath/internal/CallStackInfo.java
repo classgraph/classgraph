@@ -53,7 +53,7 @@ import org.jspecify.annotations.Nullable;
  * Only what they need is kept, rather than a frame or a class per stack entry: the classloaders and the module
  * layers of the classes in the stack, each deduplicated and in innermost-frame-first order, and whether any frame
  * is holding a class loading lock. The thread's context classloader is read here too, since it is a property of the
- * calling thread in the same way. (Anything else a later caller needs can be added here.)
+ * calling thread in the same way.
  *
  * <p>
  * The read has to happen on the thread that called ClassGraph, since that is the thread whose caller, whose context
@@ -224,7 +224,7 @@ public final class CallStackInfo {
         final LinkedIdentitySet<ClassLoader> classLoaders = new LinkedIdentitySet<>();
         final LinkedHashSet<ModuleLayer> moduleLayers = new LinkedHashSet<>();
         var anyClassIsInAnUnnamedModule = false;
-        var frameHoldingClassLoadingLock = (String) null;
+        String frameHoldingClassLoadingLock = null;
         // The frames are consumed in one pass, rather than with two stream operations, because a StackFrame is
         // valid only while the walk is running, so nothing that a later pass would need can be kept
         for (final var stackFrame : (Iterable<StackWalker.StackFrame>) stackFrames::iterator) {

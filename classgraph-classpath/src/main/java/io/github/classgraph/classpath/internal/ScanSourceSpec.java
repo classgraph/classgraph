@@ -53,8 +53,9 @@ import org.jspecify.annotations.Nullable;
  * <p>
  * This is deliberately not part of {@link ClasspathSpec}: a {@code ScanResult} holds the specs the scan was run
  * with for as long as the caller holds the {@code ScanResult}, and a scan must not keep a {@link ClassLoader} or a
- * {@link ModuleLayer} alive. This object is held only by the {@code ClassGraph} instance the caller built the scan
- * with, and by the scan itself while it runs; it is unreachable from the {@code ScanResult}.
+ * {@link ModuleLayer} alive. This object is held only by the {@code ClassGraph} or
+ * {@link io.github.classgraph.classpath.ClasspathFinder} instance that the caller configured, and by the scan
+ * itself while it runs; it is unreachable from the {@code ScanResult}.
  */
 public class ScanSourceSpec {
     /** A place that classpath elements are looked for. */

@@ -30,7 +30,6 @@ package io.github.classgraph.classpath.internal;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Set;
@@ -133,8 +132,8 @@ public class ClassLoaderFinder {
         // cannot be read.)
         classLoadersUnique.addAll(callStackInfo.getClassLoaders());
 
-        // Sort the classloaders so that a classloader is always ordered before its own ancestors, keeping the
-        // preference order above between classloaders that are unrelated to each other (List#sort is stable).
+        // Order the classloaders so that a classloader is always ahead of its own ancestors, and otherwise keep the
+        // preference order above.
         //
         // Only the position of the first classloader of a delegation chain to be reached is decided here: once a
         // classloader is reached, its ClassLoaderHandler decides where its ancestors' classpath elements go
@@ -142,28 +141,42 @@ public class ClassLoaderFinder {
         // left ahead of its own descendant in this list, it would be pinned in front of the descendant before
         // the descendant's handler ever ran, which silently converts parent-last delegation (the default for
         // Tomcat's WebappClassLoader and for Spring Boot DevTools' RestartClassLoader) into parent-first
-        // delegation, inverting the class masking order. Sorting by descending delegation depth cannot place an
-        // ancestor first, since an ancestor is always strictly shallower than its descendants.
-        final var classLoaders = new ArrayList<>(classLoadersUnique);
-        classLoaders.sort(Comparator.comparingInt(ClassLoaderFinder::delegationDepth).reversed());
+        // delegation, inverting the class masking order. Each classloader is therefore inserted just ahead of the
+        // first of its ancestors that is already listed, which moves it no further forward than it has to go.
+        // (Sorting by delegation depth would also put descendants first, but would move a classloader with many
+        // ancestors ahead of an unrelated context classloader with fewer.)
+        final List<ClassLoader> classLoaders = new ArrayList<>(classLoadersUnique.size());
+        for (final ClassLoader classLoader : classLoadersUnique) {
+            var insertionIdx = classLoaders.size();
+            for (var i = 0; i < classLoaders.size(); i++) {
+                if (isAncestor(classLoaders.get(i), classLoader)) {
+                    insertionIdx = i;
+                    break;
+                }
+            }
+            classLoaders.add(insertionIdx, classLoader);
+        }
         return classLoaders;
     }
 
     /**
-     * Get the number of classloaders in the delegation chain of a classloader, including the classloader itself.
+     * Determine whether one classloader is an ancestor of another.
      *
+     * @param ancestor
+     *            The possible ancestor.
      * @param classLoader
-     *            The classloader.
-     * @return The number of classloaders from the given classloader up to and including the last non-bootstrap
-     *         classloader in its parent chain.
+     *            The classloader whose parent chain is searched.
+     * @return true if {@code ancestor} is reached by following {@link ClassLoader#getParent()} from
+     *         {@code classLoader}, comparing by reference.
      */
-    private static int delegationDepth(final ClassLoader classLoader) {
+    private static boolean isAncestor(final ClassLoader ancestor, final ClassLoader classLoader) {
         // Guard against a classloader whose parent chain is cyclic, rather than looping forever
         final Set<ClassLoader> seen = Collections.newSetFromMap(new IdentityHashMap<>());
-        var depth = 0;
-        for (var cl = classLoader; cl != null && seen.add(cl); cl = cl.getParent()) {
-            depth++;
+        for (var cl = classLoader.getParent(); cl != null && seen.add(cl); cl = cl.getParent()) {
+            if (cl == ancestor) {
+                return true;
+            }
         }
-        return depth;
+        return false;
     }
 }

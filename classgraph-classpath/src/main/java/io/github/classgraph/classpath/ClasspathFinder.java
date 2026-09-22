@@ -264,7 +264,7 @@ public final class ClasspathFinder {
      *            the classpath to search, with elements separated by {@link java.io.File#pathSeparatorChar}.
      * @return this (for method chaining).
      * @throws IllegalArgumentException
-     *             if {@code classpath} is empty.
+     *             if {@code classpath} holds no classpath element, e.g. if it is empty.
      */
     public ClasspathFinder enableClasspathEntries(final String classpath) {
         Assert.notNull(classpath, "classpath");
@@ -482,7 +482,7 @@ public final class ClasspathFinder {
             // method: the returned Classpath hands it to the caller, so that a classpath element that was opened
             // here is not opened a second time when the caller reads it.
             final var vfs = new Vfs(vfsSpec, new InterruptionChecker());
-            var classpath = (Classpath) null;
+            Classpath classpath = null;
             try {
                 final var expandedEntries = TransitiveClasspath.expand(classLoaderEntries, vfs, vfsSpec, log);
                 classpath = new Classpath(expandedEntries, classLoaderProbe, classpathSpec.modulePathInfo, vfs);
