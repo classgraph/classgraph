@@ -171,6 +171,11 @@ public class SingletonMap<K, V> {
         /** Counted down once the value has been set. */
         private final CountDownLatch initialized = new CountDownLatch(1);
 
+        /** Create a holder whose value has not been set yet. */
+        SingletonHolder() {
+            // Empty
+        }
+
         /**
          * Set the value, and release the threads waiting for it.
          *
