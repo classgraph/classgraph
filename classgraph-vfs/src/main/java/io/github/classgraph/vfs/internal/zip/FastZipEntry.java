@@ -166,20 +166,18 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
                         nextSlashIdx);
                 // For multi-release jars, the version number has to be an int >= 9. Integer.parseInt() is slow, so
                 // this is a custom implementation (this is called many times for large classpaths, and
-                // Integer.parseInt() was a bit of a bottleneck, surprisingly)
+                // Integer.parseInt() was a bit of a bottleneck, surprisingly). As in the JDK's own parser, a
+                // number with a leading zero is not a version number: the JVM looks a versioned entry up by the
+                // version written without one, so it never reads "META-INF/versions/09/"
                 var versionInt = 0;
-                if (versionStr.length() < 6 && !versionStr.isEmpty()) {
+                if (versionStr.length() < 6 && !versionStr.isEmpty() && versionStr.charAt(0) != '0') {
                     for (var i = 0; i < versionStr.length(); i++) {
                         final var c = versionStr.charAt(i);
                         if (c < '0' || c > '9') {
                             versionInt = 0;
                             break;
                         }
-                        if (versionInt == 0) {
-                            versionInt = c - '0';
-                        } else {
-                            versionInt = versionInt * 10 + c - '0';
-                        }
+                        versionInt = versionInt * 10 + c - '0';
                     }
                 }
                 if (versionInt != 0) {
@@ -364,8 +362,8 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
     public String toString() {
         // Just the path, not a URL: the zipfile this entry belongs to is not necessarily a file (it can be a jarfile
         // downloaded into memory, or a jarfile nested inside another one), and a nested jarfile's path holds more
-        // than one "!/" separator, which no jar URL is allowed to hold. ArchiveEntry#getURI() is what forms the URL
-        // of an entry.
+        // than one "!/" separator, which no jar URL is allowed to hold. VfsEntry#getURI(), through
+        // ArchiveRoot#resolveURI(String), is what forms the URI of an entry.
         return getPath();
     }
 }

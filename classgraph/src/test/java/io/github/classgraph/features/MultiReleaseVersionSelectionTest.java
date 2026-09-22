@@ -58,6 +58,9 @@ public class MultiReleaseVersionSelectionTest {
         // a version number
         ENTRIES.put("META-INF/versions/8/pkg/only-in-8.txt", "8");
         ENTRIES.put("META-INF/versions/latest/pkg/only-in-latest.txt", "latest");
+        // The JVM does not read a version number with a leading zero as a version number. If it were read as 9,
+        // this entry would mask the entry of the section for version 9, since "09" sorts before "9"
+        ENTRIES.put("META-INF/versions/09/" + OVERRIDDEN, "09");
         // "The intention is that the META-INF directory cannot be versioned":
         // http://mail.openjdk.java.net/pipermail/jigsaw-dev/2018-October/013954.html
         ENTRIES.put("META-INF/versions/9/META-INF/not-versioned.txt", "9");
