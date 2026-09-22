@@ -55,10 +55,12 @@ import org.jspecify.annotations.Nullable;
  * compiles against JDK 17.
  *
  * <p>
- * A mapping that neither of those released is left to the garbage collector, which unmaps a file once every view of
- * the mapping has become unreachable. {@link #freeUnreachableBuffers()} asks for that to happen.
+ * A mapping made without an arena that {@link #closeDirectByteBuffer(ByteBuffer, LogNode)} could not unmap is left
+ * to the garbage collector, which unmaps the file once every view of the mapping has become unreachable.
+ * {@link #freeUnreachableBuffers()} asks for that to happen. The garbage collector cannot release a mapping made in
+ * a shared arena: only closing the arena does.
  */
-public final class OffHeapMemory {
+final class OffHeapMemory {
     /** Not instantiable. */
     private OffHeapMemory() {
         // Cannot be constructed
@@ -158,7 +160,7 @@ public final class OffHeapMemory {
      * @return true if the file was unmapped.
      */
     // #939
-    public static boolean closeDirectByteBuffer(final ByteBuffer byteBuffer, final @Nullable LogNode log) {
+    static boolean closeDirectByteBuffer(final ByteBuffer byteBuffer, final @Nullable LogNode log) {
         if (!byteBuffer.isDirect()) {
             // A heap ByteBuffer has nothing to unmap
             return false;
@@ -216,7 +218,7 @@ public final class OffHeapMemory {
      * @return a new shared {@code Arena} instance, or null if the arena API is not available (JDK older than 22).
      */
     // #939
-    public static @Nullable Object openArena() {
+    static @Nullable Object openArena() {
         if (VersionFinder.JAVA_MAJOR_VERSION < 22) {
             // The java.lang.foreign API was only finalized in JDK 22 (the preview versions of the API in JDK 19-21
             // cannot be invoked reflectively without --enable-preview)
@@ -241,7 +243,7 @@ public final class OffHeapMemory {
      *            the number of bytes to allocate.
      * @return the allocated {@link ByteBuffer}, or null if the buffer could not be allocated.
      */
-    public static @Nullable ByteBuffer allocateDirectByteBufferUsingArena(final Object arena, final long size) {
+    static @Nullable ByteBuffer allocateDirectByteBufferUsingArena(final Object arena, final long size) {
         // Invoke arena.allocate(size).asByteBuffer()
         final var memorySegment = ReflectionUtils.invokeMethod(/* throwException = */ false, arena, "allocate",
                 long.class, size);
@@ -267,9 +269,9 @@ public final class OffHeapMemory {
      *         reflectively.
      * @throws IOException
      *             if mapping the file failed with an I/O error (mapping may succeed if retried after garbage
-     *             collection, see PathSlice).
+     *             collection, see {@link FileMapping}).
      */
-    public static @Nullable ByteBuffer mapFileUsingArena(final Object arena, final FileChannel fileChannel,
+    static @Nullable ByteBuffer mapFileUsingArena(final Object arena, final FileChannel fileChannel,
             final long position, final long size) throws IOException {
         final Class<?> arenaClass = ReflectionUtils.classForNameOrNull(ARENA_CLASS_NAME);
         if (arenaClass == null) {
@@ -309,7 +311,7 @@ public final class OffHeapMemory {
      *            the log node, or null to skip logging
      * @return true if the arena was successfully closed.
      */
-    public static boolean closeArena(final Object arena, final @Nullable LogNode log) {
+    static boolean closeArena(final Object arena, final @Nullable LogNode log) {
         try {
             ReflectionUtils.invokeMethod(/* throwException = */ true, arena, "close");
             return true;
@@ -337,7 +339,7 @@ public final class OffHeapMemory {
      * classloader is certainly still alive, means closing needs no classes that are not already loaded.
      */
     // #331
-    public static void warmUpDirectByteBufferClosing() {
+    static void warmUpDirectByteBufferClosing() {
         if (!warmedUp.getAndSet(true)) {
             final var arena = openArena();
             if (arena != null) {
@@ -374,7 +376,7 @@ public final class OffHeapMemory {
      * wait times out, having done nothing.
      */
     // #939
-    public static void freeUnreachableBuffers() {
+    static void freeUnreachableBuffers() {
         // System.gc() returns once the collection itself is over, which is before the references that the
         // collection found have been processed. A phantom reference to an object that the same collection finds
         // unreachable is enqueued while those references are processed, so waiting for it to be enqueued waits for

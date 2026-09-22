@@ -288,9 +288,10 @@ final class FileMapping {
      * the memory out from under it. Closing a {@link io.github.classgraph.vfs.Vfs} while another thread is reading
      * through it is a use-after-close either way, and is documented as one.
      *
-     * @return true if the file has been unmapped by the time this returns, or false if it is left mapped -- either
-     *         until the garbage collector finds every view of it unreachable, or, if the arena would not close, for
-     *         the rest of the life of the JVM.
+     * @return true if the file has been unmapped by the time this returns, or false if it is left mapped -- until
+     *         the last open view of the mapping is released, or until the garbage collector finds the buffer
+     *         unreachable if it could not be unmapped explicitly, or, if the arena would not close, for the rest of
+     *         the life of the JVM.
      */
     // #939
     boolean unmap() {

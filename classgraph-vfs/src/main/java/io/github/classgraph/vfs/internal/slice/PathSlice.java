@@ -185,12 +185,13 @@ public final class PathSlice extends Slice {
     }
 
     /**
-     * Constructor for toplevel file slice. Exactly one of {@code path} and {@code file} is non-null.
+     * Constructor for toplevel file slice. At least one of {@code path} and {@code file} is non-null, and the file
+     * is opened through {@code path} if it is non-null.
      *
      * @param path
      *            the path, or null if the file is only reachable through the {@link File} API
      * @param file
-     *            the file, or null if the file is reachable through the {@link Path} API
+     *            the file, if this slice is opened from a {@link File}, or null if it is opened from a {@link Path}
      * @param pathStr
      *            the path of the file, as it was given, for use in log and exception messages
      * @param vfs
@@ -474,19 +475,10 @@ public final class PathSlice extends Slice {
         // Read the field into a local, so that a close running concurrently cannot null it between the check and
         // the use
         final var mappedByteBuffer = topLevelPathSlice.backingByteBuffer;
-        if (isDeflatedZipEntry) {
-            // Inflate to RAM if deflated (unfortunately there is no lazy-loading ByteBuffer that will decompress
-            // partial streams on demand, so we have to decompress the whole zip entry)
-            if (inflatedLengthHint > Slice.MAX_BUFFER_SIZE) {
-                throw new IOException("Uncompressed size is larger than 2GB");
-            }
-            return ByteBuffer.wrap(load()).asReadOnlyBuffer();
-        } else if (mappedByteBuffer == null) {
-            // Copy from FileChannel to byte array, then wrap in a ByteBuffer
-            if (sliceLength > Slice.MAX_BUFFER_SIZE) {
-                throw new IOException("File is larger than 2GB");
-            }
-            return ByteBuffer.wrap(load()).asReadOnlyBuffer();
+        if (isDeflatedZipEntry || mappedByteBuffer == null) {
+            // Inflate the entry into a byte array if it is deflated (there is no ByteBuffer that inflates its
+            // content on demand), or else copy it from the FileChannel into one, and wrap the array
+            return super.read();
         } else {
             // PathSlice is backed with the memory mapping of the whole file, which covers the whole file even for a
             // sub-slice, so narrow the mapping to this slice (a low-cost operation). Slicing, rather than merely
@@ -572,8 +564,7 @@ public final class PathSlice extends Slice {
         }
         // Windows refuses to delete a file that is still memory-mapped, so a delete that failed may be waiting on
         // a mapping that could not be unmapped explicitly -- one whose arena would not close, say. Those are left
-        // to the garbage collector, which only runs when
-        // it chooses to, so ask for a collection and try again. If the JVM was started with -XX:+DisableExplicitGC
+        // to the garbage collector, which only runs when it chooses to, so ask for a collection and try again. If the JVM was started with -XX:+DisableExplicitGC
         // then this is a no-op, and the file is left to the File#deleteOnExit() hook that TempFile#create
         // registered.
         // #939
@@ -582,5 +573,4 @@ public final class PathSlice extends Slice {
             tempFileLog.log("Removing temporary file failed: " + fileToDelete);
         }
     }
-
 }
