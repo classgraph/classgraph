@@ -109,7 +109,8 @@ final class FileMapping {
      * @param log
      *            the log node, or null to skip logging
      * @return the mapping, or null if the file could not be mapped -- because it is too long to map to a single
-     *         {@link ByteBuffer}, because the {@link FileChannel} does not support mapping, or because the mapping
+     *         {@link ByteBuffer}, because the {@link FileChannel} does not support mapping, because the mapping
+     *         could not be released again (see {@link OffHeapMemory#canInvokeCleaner()}), or because the mapping
      *         failed -- in which case the caller has to read the file through the {@link FileChannel} API instead.
      */
     static @Nullable FileMapping map(final FileChannel fileChannel, final long fileLength, final Object file,
@@ -131,6 +132,15 @@ final class FileMapping {
                 // the file through the FileChannel API instead
                 return null;
             }
+        } else if (!OffHeapMemory.canInvokeCleaner()) {
+            // Without an arena the only way to unmap the file is Unsafe::invokeCleaner, which cannot be called
+            // here, so the file would stay mapped until the garbage collector found it unreachable -- read the
+            // file through the FileChannel API instead
+            if (log != null) {
+                log.log("File " + file + " is not memory mapped, since it could not be unmapped again: "
+                        + "sun.misc.Unsafe::invokeCleaner is not available (reading the file instead)");
+            }
+            return null;
         }
         ByteBuffer byteBuffer = null;
         try {

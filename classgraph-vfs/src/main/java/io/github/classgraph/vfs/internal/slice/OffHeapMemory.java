@@ -78,8 +78,8 @@ public final class OffHeapMemory {
 
     /**
      * True if the two handles above have been looked up. Volatile, and only ever assigned while holding the lock on
-     * {@link OffHeapMemory}, so that the double-checked locking in {@link #closeDirectByteBuffer} is correctly
-     * synchronized: a thread that reads true here is guaranteed to see the fully-initialized handles.
+     * {@link OffHeapMemory}, so that the double-checked locking in {@link #ensureInvokeCleanerMethodLookedUp()} is
+     * correctly synchronized: a thread that reads true here is guaranteed to see the fully-initialized handles.
      */
     private static volatile boolean initialized;
 
@@ -97,11 +97,12 @@ public final class OffHeapMemory {
             theUnsafe = theUnsafeField.get(null);
             invokeCleanerMethod = unsafeClass.getMethod("invokeCleaner", ByteBuffer.class);
             invokeCleanerMethod.setAccessible(true);
-        } catch (final SecurityException e) {
-            throw new RuntimeException("You need to grant classgraph RuntimePermission(\"accessClassInPackage."
-                    + "sun.misc\") and ReflectPermission(\"suppressAccessChecks\")", e);
-        } catch (final ReflectiveOperationException | LinkageError e) {
-            // Ignore -- closeDirectByteBuffer() returns false, and the mapping is left to the garbage collector
+        } catch (final ReflectiveOperationException | LinkageError | SecurityException e) {
+            // Ignore -- closeDirectByteBuffer() returns false, and the mapping is left to the garbage collector. (A
+            // SecurityManager that denies RuntimePermission("accessClassInPackage.sun.misc") or
+            // ReflectPermission("suppressAccessChecks") ends up here too.)
+            theUnsafe = null;
+            invokeCleanerMethod = null;
         }
     }
 
@@ -162,6 +163,26 @@ public final class OffHeapMemory {
             // A heap ByteBuffer has nothing to unmap
             return false;
         }
+        ensureInvokeCleanerMethodLookedUp();
+        return closeDirectByteBufferImpl(byteBuffer, log);
+    }
+
+    /**
+     * Check whether {@link #closeDirectByteBuffer(ByteBuffer, LogNode)} can unmap a file, which it cannot if
+     * {@code Unsafe#invokeCleaner} is missing from this JVM, or a SecurityManager will not let ClassGraph call it.
+     * Below JDK 22 a file that could not be unmapped would stay mapped until the garbage collector found it
+     * unreachable, and on Windows a mapped file cannot be deleted or overwritten, so such a file is not mapped at
+     * all.
+     *
+     * @return true if {@code Unsafe#invokeCleaner} can be called.
+     */
+    static boolean canInvokeCleaner() {
+        ensureInvokeCleanerMethodLookedUp();
+        return theUnsafe != null && invokeCleanerMethod != null;
+    }
+
+    /** Look up {@code Unsafe#invokeCleaner(ByteBuffer)}, if it has not been looked up already. */
+    private static void ensureInvokeCleanerMethodLookedUp() {
         // Double-checked locking, so that two threads calling this for the first time concurrently cannot both run
         // the lookup and race on the static fields it assigns
         if (!initialized) {
@@ -172,7 +193,6 @@ public final class OffHeapMemory {
                 }
             }
         }
-        return closeDirectByteBufferImpl(byteBuffer, log);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -191,7 +211,7 @@ public final class OffHeapMemory {
      * {@link ByteBuffer}s ({@link #allocateDirectByteBufferUsingArena(Object, long)}) and to memory-map files to
      * {@link ByteBuffer}s ({@link #mapFileUsingArena(Object, FileChannel, long, long)}). Closing the arena
      * ({@link #closeArena(Object, LogNode)}) frees or unmaps all {@link ByteBuffer}s obtained from it, in place of
-     * the terminally-deprecated {@code Unsafe::invokeCleaner} method.
+     * {@code Unsafe::invokeCleaner}, which is deprecated for removal from JDK 23.
      *
      * @return a new shared {@code Arena} instance, or null if the arena API is not available (JDK older than 22).
      */

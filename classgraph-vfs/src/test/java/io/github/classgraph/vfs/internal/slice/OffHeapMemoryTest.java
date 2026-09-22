@@ -12,6 +12,7 @@ import java.nio.channels.FileChannel.MapMode;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.security.Permission;
 
 import io.github.classgraph.base.internal.utils.VersionFinder;
 import org.junit.jupiter.api.Test;
@@ -229,5 +230,64 @@ public class OffHeapMemoryTest {
         final var heapByteBuffer = ByteBuffer.allocate(16);
         assertThat(OffHeapMemory.closeDirectByteBuffer(heapByteBuffer, /* log = */ null)).isFalse();
         assertThat(heapByteBuffer.get(0)).isEqualTo((byte) 0);
+    }
+
+    /**
+     * Below JDK 22, a SecurityManager that will not let ClassGraph reach {@code Unsafe::invokeCleaner} stops a file
+     * being memory mapped, since the mapping could not be released again, rather than making the mapping or the
+     * unmapping throw. A SecurityManager can only be installed on JDK 17, so this test is skipped on later JDKs.
+     *
+     * @param tempDir
+     *            a temporary directory to write the file to be mapped into.
+     * @throws ReflectiveOperationException
+     *             if the lookup state of {@link OffHeapMemory} cannot be reset.
+     * @throws IOException
+     *             if the file could not be written or opened.
+     */
+    @Test
+    @SuppressWarnings("removal")
+    public void aFileIsNotMappedIfASecurityManagerDeniesAccessToUnsafe(@TempDir final Path tempDir)
+            throws ReflectiveOperationException, IOException {
+        assumeTrue(VersionFinder.JAVA_MAJOR_VERSION < 22);
+        final var file = Files.write(tempDir.resolve("unmappable.bin"), new byte[] { 1, 2, 3, 4 });
+        final var initialized = OffHeapMemory.class.getDeclaredField("initialized");
+        initialized.setAccessible(true);
+        final var denyingSecurityManager = new SecurityManager() {
+            @Override
+            public void checkPermission(final Permission perm) {
+                // Allow everything else, including removing this SecurityManager again. (The message is a
+                // constant, since concatenating strings here would itself need a permission check.)
+                if (perm.getName().equals("suppressAccessChecks")) {
+                    throw new SecurityException("suppressAccessChecks denied");
+                }
+            }
+        };
+        // Make the next unmapping look up Unsafe::invokeCleaner again, with the SecurityManager installed
+        initialized.set(null, false);
+        try {
+            final var directByteBuffer = ByteBuffer.allocateDirect(32);
+            try (var fileChannel = FileChannel.open(file, StandardOpenOption.READ)) {
+                try {
+                    System.setSecurityManager(denyingSecurityManager);
+                } catch (final UnsupportedOperationException e) {
+                    assumeTrue(false, "Cannot install a SecurityManager");
+                }
+                final boolean unmapped;
+                final FileMapping mapping;
+                try {
+                    unmapped = OffHeapMemory.closeDirectByteBuffer(directByteBuffer, /* log = */ null);
+                    mapping = FileMapping.map(fileChannel, 4L, file, /* log = */ null);
+                } finally {
+                    System.setSecurityManager(null);
+                }
+                // Asserted only once the SecurityManager is removed, so that the assertion library does not
+                // initialize under it
+                assertThat(unmapped).isFalse();
+                assertThat(mapping).isNull();
+            }
+        } finally {
+            // Let the next unmapping look up Unsafe::invokeCleaner again without the SecurityManager
+            initialized.set(null, false);
+        }
     }
 }
