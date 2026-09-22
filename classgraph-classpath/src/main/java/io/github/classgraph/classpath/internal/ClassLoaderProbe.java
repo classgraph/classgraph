@@ -32,8 +32,6 @@ import java.util.List;
 import java.util.Map.Entry;
 
 import io.github.classgraph.base.LogNode;
-import io.github.classgraph.base.internal.path.FastPathResolver;
-import io.github.classgraph.base.internal.path.FileUtils;
 import io.github.classgraph.base.internal.path.PathList;
 import io.github.classgraph.base.internal.utils.VersionFinder;
 import io.github.classgraph.classpath.ClassLoaderHandler;
@@ -44,7 +42,10 @@ import io.github.classgraph.classpath.internal.ScanSourceSpec.NamedClasspathEntr
 import io.github.classgraph.classpath.internal.classloaderhandler.ClassLoaderHandlerRegistry;
 import org.jspecify.annotations.Nullable;
 
-/** A class to find the unique ordered classpath elements. */
+/**
+ * Finds the classpath elements and modules of the sources that the caller enabled, in the order classes are
+ * resolved from them.
+ */
 public class ClassLoaderProbe {
     /** The classpath order. */
     private final ClasspathOrderBuilder classpathOrder;
@@ -143,9 +144,9 @@ public class ClassLoaderProbe {
         // The classloaders in the environment are found whether or not they are one of the sources to search, since
         // a classpath entry that the caller named directly still has to record a classloader, and since this is the
         // classloader that the scan falls back to when it has to load a class
-        final var contextClassLoaders = new ClassLoaderFinder(callStackInfo, classLoaderProbeLog)
-                .getContextClassLoaders();
-        defaultClassLoader = contextClassLoaders.length == 0 ? null : contextClassLoaders[0];
+        final var environmentClassLoaders = new ClassLoaderFinder(callStackInfo, classLoaderProbeLog)
+                .getClassLoaders();
+        defaultClassLoader = environmentClassLoaders.isEmpty() ? null : environmentClassLoaders.get(0);
 
         // The ClassLoaderHandlers the user registered. These are offered each classloader before the built-in
         // handlers are, so that a user handler can override a built-in one.
@@ -172,13 +173,13 @@ public class ClassLoaderProbe {
             } else if (classpathSource instanceof final ClasspathString classpathString) {
                 // The classpath is split here rather than when the caller handed it over, so that a URL scheme the
                 // caller registered afterwards still keeps its own ':' from being read as a separator
-                addNamedClasspathEntries(List.of(
-                        (Object[]) PathList.split(classpathString.classpath(), classpathSpec.allowedURLSchemes)),
+                addNamedClasspathEntries(
+                        List.of(PathList.split(classpathString.classpath(), classpathSpec.allowedURLSchemes)),
                         classLoaderProbeLog);
             } else {
                 final var classLoaders = classpathSource instanceof final NamedClassLoaders namedClassLoaders
                         ? namedClassLoaders.classLoaders()
-                        : List.of(contextClassLoaders);
+                        : environmentClassLoaders;
                 numClassLoadersSearched = addClassLoaderClasspathEntries(classLoaders, classpathSpec,
                         classLoaderOrder, numClassLoadersSearched, classLoaderProbeLog);
             }
@@ -190,7 +191,7 @@ public class ClassLoaderProbe {
         // in it can only be reached through java.class.path, whether or not the application classloader is being
         // scanned. Anything added here that the handler already added is dropped as a duplicate.
         if (moduleFinder != null && moduleFinder.forceScanJavaClassPath()) {
-            addJavaClassPathEntries(classpathSpec, classLoaderProbeLog);
+            addJavaClassPathEntries(classLoaderProbeLog);
         }
     }
 
@@ -204,7 +205,7 @@ public class ClassLoaderProbe {
      * @param log
      *            the log node, or null to skip logging
      */
-    private void addNamedClasspathEntries(final List<Object> classpathEntries, final @Nullable LogNode log) {
+    private void addNamedClasspathEntries(final List<?> classpathEntries, final @Nullable LogNode log) {
         final var subLog = log == null ? null
                 : log.log("Adding the classpath entries given by the caller: " + classpathEntries);
         // No classloader is recorded for an entry the caller named: the caller named a location to read, not a
@@ -287,21 +288,14 @@ public class ClassLoaderProbe {
     /**
      * Add the classpath entries listed in the {@code java.class.path} system property.
      *
-     * @param classpathSpec
-     *            the {@link ClasspathSpec}
      * @param log
      *            the log node, or null to skip logging
      */
-    private void addJavaClassPathEntries(final ClasspathSpec classpathSpec, final @Nullable LogNode log) {
-        final var pathElements = PathList.split(VersionFinder.getProperty("java.class.path"),
-                classpathSpec.allowedURLSchemes);
-        if (pathElements.length > 0) {
-            final var sysPropLog = log == null ? null : log.log("Getting classpath entries from java.class.path");
-            for (final String pathElement : pathElements) {
-                final var pathElementResolved = FastPathResolver.resolveFilePath(FileUtils.currDirPath(),
-                        pathElement);
-                classpathOrder.addClasspathEntry(pathElementResolved, defaultClassLoader, sysPropLog);
-            }
+    private void addJavaClassPathEntries(final @Nullable LogNode log) {
+        final var javaClassPath = VersionFinder.getProperty("java.class.path");
+        if (javaClassPath != null && !javaClassPath.isEmpty()) {
+            classpathOrder.addClasspathPathStr(javaClassPath, defaultClassLoader,
+                    log == null ? null : log.log("Getting classpath entries from java.class.path"));
         }
     }
 }

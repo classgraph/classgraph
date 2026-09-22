@@ -42,7 +42,10 @@ import io.github.classgraph.classpath.ClassLoaderOrder;
 import io.github.classgraph.classpath.internal.classloaderhandler.ClassLoaderHandlerRegistry;
 import org.jspecify.annotations.Nullable;
 
-/** A class to find all unique classloaders. */
+/**
+ * The classloaders reached from the classloaders being searched, each listed once, in the order classes are
+ * resolved from them, with the handlers chosen for each.
+ */
 public class ClassLoaderOrderBuilder implements ClassLoaderOrder {
     /**
      * The {@link ClassLoaderHandler} instances the user registered, in registration order. These are offered each
@@ -104,16 +107,16 @@ public class ClassLoaderOrderBuilder implements ClassLoaderOrder {
     /**
      * Get the {@link ClassLoader} order.
      *
-     * @return the {@link ClassLoader} order, as a pair: {@link ClassLoader}, {@link ClassLoaderHandler}.
+     * @return a copy of the {@link ClassLoader} order, with the handlers to run for each classloader.
      */
     public List<Entry<ClassLoader, List<ClassLoaderHandler>>> getClassLoaderOrder() {
         return new ArrayList<>(classLoaderOrder);
     }
 
     /**
-     * Get the all parent classloaders.
+     * Get every classloader that was reached as the parent of another.
      *
-     * @return all parent classloaders
+     * @return the parent classloaders.
      */
     public Set<ClassLoader> getAllParentClassLoaders() {
         return allParentClassLoaders;

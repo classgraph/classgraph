@@ -39,20 +39,22 @@ import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.utils.LinkedIdentitySet;
 import org.jspecify.annotations.Nullable;
 
-/** A class to find the classloaders that are present in the environment. */
+/** Finds the classloaders that are present in the environment of the caller. */
 public class ClassLoaderFinder {
-    /** The context class loaders. */
-    private final ClassLoader[] contextClassLoaders;
+    /** The classloaders found, in the order they should be searched in. */
+    private final List<ClassLoader> classLoaders;
 
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get the context class loaders.
+     * Get the classloaders found: the context classloader of the calling thread, the classloader of ClassGraph, the
+     * system classloader, and the classloaders of the classes on the call stack, each listed once, with every
+     * classloader ordered ahead of its own ancestors.
      *
-     * @return The context classloader, and any other classloader that is not an ancestor of context classloader.
+     * @return The classloaders, in the order they should be searched in.
      */
-    public ClassLoader[] getContextClassLoaders() {
-        return contextClassLoaders;
+    public List<ClassLoader> getClassLoaders() {
+        return classLoaders;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -76,16 +78,11 @@ public class ClassLoaderFinder {
             }
         }
 
-        this.contextClassLoaders = classLoadersUnique.toArray(ClassLoader[]::new);
+        this.classLoaders = List.copyOf(classLoadersUnique);
     }
 
     /**
      * Find the classloaders that are present in the environment.
-     *
-     * <p>
-     * There's some advice here about choosing the best or the right classloader, but it is not complete (e.g. it
-     * doesn't cover parent delegation modes):
-     * http://www.javaworld.com/article/2077344/core-java/find-a-way-out-of-the-classloader-maze.html?page=2
      *
      * @param callStackInfo
      *            The call stack of the thread that started the search.
@@ -115,7 +112,7 @@ public class ClassLoaderFinder {
             classLoadersUnique.add(currClassClassLoader);
         }
 
-        // Get system classloader (this is a fallback if one of the above do not work)
+        // Get system classloader (this is a fallback, in case none of the above works)
         final var systemClassLoader = ClassLoader.getSystemClassLoader();
         if (systemClassLoader != null) {
             classLoadersUnique.add(systemClassLoader);

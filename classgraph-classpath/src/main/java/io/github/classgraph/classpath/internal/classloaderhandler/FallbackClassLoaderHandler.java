@@ -135,9 +135,9 @@ class FallbackClassLoaderHandler implements ClassLoaderHandler {
             valid = true;
         }
         if (!valid) {
-            // None of the known field or method names yielded a new classpath element, so fall back to asking the classloader for resources
-            // that are present in the root of most classpath elements, and strip the resource path from the
-            // returned URLs to get the classpath element itself (#892)
+            // None of the known field or method names yielded a new classpath element, so fall back to asking the
+            // classloader for resources that are present in the root of most classpath elements, and strip the
+            // resource path from the returned URLs to get the classpath element itself (#892)
             valid = findClasspathOrderByProbingForResources(classLoader, classpathOrder, log);
         }
         if (log != null) {

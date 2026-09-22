@@ -44,10 +44,10 @@ import org.jspecify.annotations.Nullable;
  * built-in handler.
  *
  * <p>
- * When more than one handler can handle the same classloader, only the handlers that name the most specific
- * classloader class are used, so a handler written for a subclass of {@link java.net.URLClassLoader} takes the
- * place of the built-in {@code URLClassLoader} handler rather than running alongside it, and has to add the
- * classloader's own URLs itself. The handlers that are kept run in turn, the registered ones first, and a
+ * When more than one handler can handle the same classloader, a built-in handler is used only if no other handler
+ * names a more specific classloader class, so a handler written for a subclass of {@link java.net.URLClassLoader}
+ * takes the place of the built-in {@code URLClassLoader} handler rather than running alongside it, and has to add
+ * the classloader's own URLs itself. The handlers that are kept run in turn, the registered ones first, and a
  * classloader or classpath entry that has already been placed keeps the position the first handler to place it gave
  * it.
  *

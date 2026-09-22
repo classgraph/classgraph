@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
 import java.util.Collection;
-import java.util.List;
 import java.util.function.Supplier;
 
 import org.junit.jupiter.api.Test;
@@ -142,8 +141,7 @@ class ClassLoaderIdentityTest {
         final var impersonatingClassLoader = new ImpersonatingClassLoader(
                 ClassLoaderIdentityTest.class.getClassLoader());
         final var callStackInfo = readCallStackThroughImpersonatingClassLoader(impersonatingClassLoader);
-        final var contextClassLoaders = List
-                .of(new ClassLoaderFinder(callStackInfo, /* log = */ null).getContextClassLoaders());
+        final var contextClassLoaders = new ClassLoaderFinder(callStackInfo, /* log = */ null).getClassLoaders();
 
         assertThat(containsTheSameObject(contextClassLoaders, impersonatingClassLoader))
                 .as("the impersonating classloader is searched").isTrue();
