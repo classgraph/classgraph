@@ -72,9 +72,9 @@ import io.github.classgraph.base.internal.path.FileUtils;
 import io.github.classgraph.base.internal.path.PathSyntax;
 import io.github.classgraph.base.internal.utils.CollectionUtils;
 import io.github.classgraph.classpath.ClassLoaderHandler;
-import io.github.classgraph.classpath.internal.ScanSourceSpec;
 import io.github.classgraph.classpath.internal.CallStackInfo;
 import io.github.classgraph.classpath.internal.ClassLoaderProbe;
+import io.github.classgraph.classpath.internal.ScanSourceSpec;
 import io.github.classgraph.vfs.Vfs;
 import org.jspecify.annotations.Nullable;
 
@@ -155,7 +155,6 @@ class Scanner implements Callable<ScanResult> {
             final @Nullable Consumer<Throwable> failureHandler, final @Nullable LogNode topLevelLog) {
         this.scanSpec = scanSpec;
         this.performScan = performScan;
-        scanSpec.sortPrefixes();
         scanSpec.log(topLevelLog);
         scanSourceSpec.log(topLevelLog);
         if (topLevelLog != null) {

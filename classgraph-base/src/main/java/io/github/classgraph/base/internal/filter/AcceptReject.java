@@ -28,9 +28,6 @@
  */
 package io.github.classgraph.base.internal.filter;
 
-import io.github.classgraph.base.internal.path.FastPathResolver;
-import io.github.classgraph.base.internal.path.PathSyntax;
-import io.github.classgraph.base.internal.utils.CollectionUtils;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -39,42 +36,36 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.regex.Pattern;
 
-import org.jspecify.annotations.Nullable;
+import io.github.classgraph.base.internal.path.FastPathResolver;
+import io.github.classgraph.base.internal.path.PathSyntax;
+import io.github.classgraph.base.internal.utils.CollectionUtils;
 
-/** A class storing accept or reject criteria. */
+/**
+ * A set of accept and reject criteria. A criterion that contains a glob wildcard ({@code '*'} or {@code '?'}) is
+ * compiled to a regexp; any other criterion is matched literally. A string is accepted if the accept criteria are
+ * empty, or if it matches one of them, and is rejected if it matches one of the reject criteria.
+ */
 public abstract class AcceptReject {
-    /** Accepted items (whole-string match). */
-    protected @Nullable Set<String> accept;
-    /** Rejected items (whole-string match). */
-    protected @Nullable Set<String> reject;
-    /** Accepted items (prefix match), as a set. */
-    protected @Nullable Set<String> acceptPrefixesSet;
-    /** Accepted items (prefix match), as a sorted list. */
-    protected @Nullable List<String> acceptPrefixes;
-    /** Rejected items (prefix match). */
-    protected @Nullable List<String> rejectPrefixes;
-    /** Accept glob strings. (Retained for logging purposes.) */
-    protected @Nullable Set<String> acceptGlobs;
-    /** Reject glob strings. (Retained for logging purposes.) */
-    protected @Nullable Set<String> rejectGlobs;
-    /** Accept regexp patterns. */
-    protected @Nullable List<Pattern> acceptPatterns;
-    /**
-     * Regexp patterns matching the wildcard-containing path prefixes of accepted globs, used by
-     * {@link #acceptHasPrefix(String)}.
-     */
-    // #870
-    protected @Nullable List<Pattern> acceptPrefixPatterns;
-    /** Reject regexp patterns. */
-    protected @Nullable List<Pattern> rejectPatterns;
-    /** The separator character. */
-    protected char separatorChar;
+    /** The package or path separator character. */
+    protected final char separatorChar;
+
+    /** The accept criteria that contain a wildcard, as they were given, for {@link #toString()}. */
+    private final Set<String> acceptGlobs = new TreeSet<>();
+
+    /** The accept criteria that contain a wildcard, compiled to regexps. */
+    private final List<Pattern> acceptPatterns = new ArrayList<>();
+
+    /** The reject criteria that contain a wildcard, as they were given, for {@link #toString()}. */
+    private final Set<String> rejectGlobs = new TreeSet<>();
+
+    /** The reject criteria that contain a wildcard, compiled to regexps. */
+    private final List<Pattern> rejectPatterns = new ArrayList<>();
 
     /**
-     * Instantiate a new accept/reject criterion.
+     * Create an empty set of accept and reject criteria.
      *
      * @param separatorChar
-     *            the separator char
+     *            The package or path separator character.
      */
     protected AcceptReject(final char separatorChar) {
         this.separatorChar = separatorChar;
@@ -231,465 +222,397 @@ public abstract class AcceptReject {
         return indexOfWildcard(str) >= 0;
     }
 
-    /** Accept/reject for prefix strings. */
+    /**
+     * Add a criterion that contains a wildcard to the accept criteria. A criterion that was already added is
+     * ignored.
+     *
+     * @param glob
+     *            The criterion, as it was given.
+     * @param pattern
+     *            The criterion, compiled to a regexp.
+     */
+    protected void addAcceptGlob(final String glob, final Pattern pattern) {
+        if (acceptGlobs.add(glob)) {
+            acceptPatterns.add(pattern);
+        }
+    }
+
+    /**
+     * Add a criterion that contains a wildcard to the reject criteria. A criterion that was already added is
+     * ignored.
+     *
+     * @param glob
+     *            The criterion, as it was given.
+     * @param pattern
+     *            The criterion, compiled to a regexp.
+     */
+    protected void addRejectGlob(final String glob, final Pattern pattern) {
+        if (rejectGlobs.add(glob)) {
+            rejectPatterns.add(pattern);
+        }
+    }
+
+    /**
+     * Check whether a string matches one of the accept criteria that contain a wildcard.
+     *
+     * @param str
+     *            The string to test.
+     * @return true if the string matches one of them.
+     */
+    protected boolean matchesAcceptGlob(final String str) {
+        return matchesPatternList(str, acceptPatterns);
+    }
+
+    /**
+     * Check whether a string matches one of the reject criteria that contain a wildcard.
+     *
+     * @param str
+     *            The string to test.
+     * @return true if the string matches one of them.
+     */
+    protected boolean matchesRejectGlob(final String str) {
+        return matchesPatternList(str, rejectPatterns);
+    }
+
+    /**
+     * Check whether a string matches one of a list of patterns.
+     *
+     * @param str
+     *            The string to test.
+     * @param patterns
+     *            The patterns.
+     * @return true if the string matches one of the patterns.
+     */
+    protected static boolean matchesPatternList(final String str, final List<Pattern> patterns) {
+        for (final Pattern pattern : patterns) {
+            if (pattern.matcher(str).matches()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /** Accept and reject criteria that match any string starting with one of them. */
     public static class AcceptRejectPrefix extends AcceptReject {
+        /** The accept criteria that contain no wildcard. */
+        private final Set<String> acceptPrefixes = new TreeSet<>();
+
+        /** The reject criteria that contain no wildcard. */
+        private final Set<String> rejectPrefixes = new TreeSet<>();
+
         /**
-         * Instantiate a new accept/reject for prefix strings.
+         * Create an empty set of prefix accept and reject criteria.
          *
          * @param separatorChar
-         *            the separator char
+         *            The package or path separator character.
          */
         public AcceptRejectPrefix(final char separatorChar) {
             super(separatorChar);
         }
 
-        /**
-         * Add to the accept.
-         *
-         * @param str
-         *            the string to accept
-         */
         @Override
         public void addToAccept(final String str) {
             if (containsWildcard(str)) {
                 // A glob prefix, e.g. "eu.*.domain." -- matched as a regexp rather than by String#startsWith, so
                 // that glob accepts are recursive into sub-packages, just like literal accepts (#870)
-                if (this.acceptGlobs == null || this.acceptPatterns == null) {
-                    this.acceptGlobs = new HashSet<>();
-                    this.acceptPatterns = new ArrayList<>();
-                }
-                this.acceptGlobs.add(str);
-                this.acceptPatterns.add(globToPattern(str, separatorChar, /* prefixMatch = */ true));
-                return;
+                addAcceptGlob(str, globToPattern(str, separatorChar, /* prefixMatch = */ true));
+            } else {
+                acceptPrefixes.add(str);
             }
-            if (this.acceptPrefixesSet == null) {
-                this.acceptPrefixesSet = new HashSet<>();
-            }
-            this.acceptPrefixesSet.add(str);
         }
 
-        /**
-         * Add to the reject.
-         *
-         * @param str
-         *            the string to reject
-         */
         @Override
         public void addToReject(final String str) {
             if (containsWildcard(str)) {
-                if (this.rejectGlobs == null || this.rejectPatterns == null) {
-                    this.rejectGlobs = new HashSet<>();
-                    this.rejectPatterns = new ArrayList<>();
-                }
-                this.rejectGlobs.add(str);
-                this.rejectPatterns.add(globToPattern(str, separatorChar, /* prefixMatch = */ true));
-                return;
+                // A glob reject is matched as a regexp that also matches everything below it, so that e.g.
+                // rejectPackages("javax.swing.*") rejects javax.swing.plaf.basic as well as javax.swing.plaf (#884)
+                addRejectGlob(str, globToPattern(str, separatorChar, /* prefixMatch = */ true));
+            } else {
+                rejectPrefixes.add(str);
             }
-            if (this.rejectPrefixes == null) {
-                this.rejectPrefixes = new ArrayList<>();
-            }
-            this.rejectPrefixes.add(str);
         }
 
         /**
-         * Check if the requested string has an accepted/non-rejected prefix.
+         * Check whether a string starts with one of a set of prefixes.
          *
          * @param str
-         *            the string to test
-         * @return true if string is accepted and not rejected
+         *            The string to test.
+         * @param prefixes
+         *            The prefixes.
+         * @return true if the string starts with one of the prefixes.
          */
-        @Override
-        public boolean isAcceptedAndNotRejected(final String str) {
-            var isAccepted = acceptPrefixes == null && acceptPatterns == null;
-            if (!isAccepted && acceptPrefixes != null) {
-                for (final String prefix : acceptPrefixes) {
-                    if (str.startsWith(prefix)) {
-                        isAccepted = true;
-                        break;
-                    }
+        private static boolean startsWithAny(final String str, final Set<String> prefixes) {
+            for (final String prefix : prefixes) {
+                if (str.startsWith(prefix)) {
+                    return true;
                 }
             }
-            if (!isAccepted) {
-                isAccepted = matchesPatternList(str, acceptPatterns);
-            }
-            if (!isAccepted) {
-                return false;
-            }
-            if (rejectPrefixes != null) {
-                for (final String prefix : rejectPrefixes) {
-                    if (str.startsWith(prefix)) {
-                        return false;
-                    }
-                }
-            }
-            return !matchesPatternList(str, rejectPatterns);
+            return false;
         }
 
-        /**
-         * Check if the requested string has an accepted prefix.
-         *
-         * @param str
-         *            the string to test
-         * @return true if string is accepted
-         */
         @Override
         public boolean isAccepted(final String str) {
-            var isAccepted = acceptPrefixes == null && acceptPatterns == null;
-            if (!isAccepted && acceptPrefixes != null) {
-                for (final String prefix : acceptPrefixes) {
-                    if (str.startsWith(prefix)) {
-                        isAccepted = true;
-                        break;
-                    }
-                }
-            }
-            return isAccepted || matchesPatternList(str, acceptPatterns);
+            return acceptIsEmpty() || startsWithAny(str, acceptPrefixes) || matchesAcceptGlob(str);
         }
 
         /**
-         * Prefix-of-prefix is invalid -- throws {@link IllegalArgumentException}.
+         * Not supported for prefix criteria, since every string that starts with a prefix is accepted.
          *
          * @param str
-         *            the string to test
-         * @return (does not return, throws exception)
-         * @throws IllegalArgumentException
-         *             always
+         *            The string to test.
+         * @return (does not return)
+         * @throws UnsupportedOperationException
+         *             always.
          */
         @Override
         public boolean acceptHasPrefix(final String str) {
-            throw new IllegalArgumentException("Can only find prefixes of whole strings");
+            throw new UnsupportedOperationException("Can only find prefixes of whole strings");
         }
 
-        /**
-         * Check if the requested string has a rejected prefix.
-         *
-         * @param str
-         *            the string to test
-         * @return true if the string has a rejected prefix
-         */
         @Override
         public boolean isRejected(final String str) {
-            if (rejectPrefixes != null) {
-                for (final String prefix : rejectPrefixes) {
-                    if (str.startsWith(prefix)) {
-                        return true;
-                    }
-                }
-            }
-            // Also test any glob reject prefixes, which are matched as regexps rather than by String#startsWith.
-            // Without this, a reject criterion containing a wildcard was not applied to sub-packages or
-            // sub-directories of a matched package or directory, so e.g. rejectPackages("javax.swing.*") rejected
-            // javax.swing.plaf but not javax.swing.plaf.basic (#884)
-            return matchesPatternList(str, rejectPatterns);
+            return startsWithAny(str, rejectPrefixes) || matchesRejectGlob(str);
+        }
+
+        @Override
+        public boolean acceptIsEmpty() {
+            return acceptPrefixes.isEmpty() && super.acceptIsEmpty();
+        }
+
+        @Override
+        public boolean rejectIsEmpty() {
+            return rejectPrefixes.isEmpty() && super.rejectIsEmpty();
+        }
+
+        @Override
+        public String toString() {
+            return toString("acceptPrefixes", acceptPrefixes, "rejectPrefixes", rejectPrefixes);
         }
     }
 
-    /** Accept/reject for whole-strings matches. */
+    /** Accept and reject criteria that match a whole string. */
     public static class AcceptRejectWholeString extends AcceptReject {
         /** If true, criteria are matched ignoring case. */
         private final boolean ignoreCase;
 
+        /** The accept criteria that contain no wildcard. */
+        private final Set<String> accept;
+
+        /** The reject criteria that contain no wildcard. */
+        private final Set<String> reject;
+
         /**
-         * Instantiate a new accept/reject for whole-string matches, matching case-sensitively.
+         * Each accepted string that contains no wildcard, and each of its ancestors, with a final separator, and
+         * the part of each accepted glob before the separator that precedes its first wildcard, and each of its
+         * ancestors. The empty string and the separator on its own, which both name the root, are added along with
+         * the first accept criterion. This is so that {@link #acceptHasPrefix(String)} can answer with one lookup,
+         * rather than by testing every accept criterion, since there may be a very large number of them (#338).
+         */
+        private final Set<String> acceptAncestors;
+
+        /**
+         * Patterns matching each ancestor of an accepted glob that itself contains a wildcard, which cannot be
+         * listed in {@link #acceptAncestors}. (#870, #643)
+         */
+        private final List<Pattern> acceptAncestorPatterns = new ArrayList<>();
+
+        /**
+         * Create an empty set of whole-string accept and reject criteria, matched case-sensitively.
          *
          * @param separatorChar
-         *            the separator char
+         *            The package or path separator character.
          */
         public AcceptRejectWholeString(final char separatorChar) {
             this(separatorChar, /* ignoreCase = */ false);
         }
 
         /**
-         * Instantiate a new accept/reject for whole-string matches.
+         * Create an empty set of whole-string accept and reject criteria.
          *
          * @param separatorChar
-         *            the separator char
+         *            The package or path separator character.
          * @param ignoreCase
-         *            if true, criteria are matched ignoring case
+         *            If true, criteria are matched ignoring case.
          */
         protected AcceptRejectWholeString(final char separatorChar, final boolean ignoreCase) {
             super(separatorChar);
             this.ignoreCase = ignoreCase;
+            this.accept = newLiteralSet();
+            this.reject = newLiteralSet();
+            this.acceptAncestors = newLiteralSet();
         }
 
         /**
-         * Create a set to store literal (non-glob) accept or reject criteria in, which ignores case if this
-         * criterion does. The criteria are stored with the spelling they were given, so that {@link #toString()}
-         * reports back what the caller asked for.
+         * Create a set to store literal (non-glob) criteria in, which ignores case if this criterion does. The
+         * criteria are stored with the spelling they were given, so that {@link #toString()} reports back what the
+         * caller asked for.
          *
-         * @return a new empty set
+         * @return a new empty set.
          */
         private Set<String> newLiteralSet() {
             return ignoreCase ? new TreeSet<>(String.CASE_INSENSITIVE_ORDER) : new HashSet<>();
         }
 
-        /**
-         * Add to the accept.
-         *
-         * @param str
-         *            the string to accept
-         */
         @Override
         public void addToAccept(final String str) {
-            if (containsWildcard(str)) {
-                if (this.acceptGlobs == null || this.acceptPatterns == null) {
-                    this.acceptGlobs = new HashSet<>();
-                    this.acceptPatterns = new ArrayList<>();
-                }
-                this.acceptGlobs.add(str);
-                this.acceptPatterns.add(globToPattern(str, separatorChar, /* prefixMatch = */ false, ignoreCase));
+            final var firstWildcardIdx = indexOfWildcard(str);
+            if (firstWildcardIdx >= 0) {
+                addAcceptGlob(str, globToPattern(str, separatorChar, /* prefixMatch = */ false, ignoreCase));
             } else {
-                if (this.accept == null) {
-                    this.accept = newLiteralSet();
-                }
-                this.accept.add(str);
+                accept.add(str);
             }
 
-            // For AcceptRejectWholeString, which doesn't perform prefix matches like AcceptRejectPrefix, use
-            // acceptPrefixes to store all parent prefixes of an accepted path, so that acceptHasPrefix() can
-            // operate efficiently on very large accepts (#338), in particular where the size of the accept is much
-            // larger than the maximum path depth.
-            if (this.acceptPrefixesSet == null) {
-                this.acceptPrefixesSet = newLiteralSet();
-                acceptPrefixesSet.add("");
-                acceptPrefixesSet.add("/");
+            // Record the ancestors of the accepted string, so that acceptHasPrefix() can tell whether a directory
+            // may still lead to an accepted path
+            if (acceptAncestors.isEmpty()) {
+                acceptAncestors.add("");
+                acceptAncestors.add(Character.toString(separatorChar));
             }
-            final var separator = Character.toString(separatorChar);
             var prefix = str;
-            final var firstWildcardIdx = indexOfWildcard(prefix);
             if (firstWildcardIdx >= 0) {
-                // Stop performing prefix search at the first wildcard -- this means prefix matching will break if
-                // there is more than one wildcard in the path
+                // Only the part before the segment that holds the first wildcard can be listed literally, e.g.
+                // "/path/to" for "/path/to/*.jar"
                 prefix = prefix.substring(0, firstWildcardIdx);
-                // /path/to/wildcard*.jar -> /path/to /path/to/*.jar -> /path/to
                 final var sepIdx = prefix.lastIndexOf(separatorChar);
                 prefix = sepIdx < 0 ? "" : prefix.substring(0, sepIdx);
             }
             // Strip off any final separator
-            while (prefix.endsWith(separator)) {
+            while (!prefix.isEmpty() && prefix.charAt(prefix.length() - 1) == separatorChar) {
                 prefix = prefix.substring(0, prefix.length() - 1);
             }
-            // Record the accepted path itself and each of its parent directories as a prefix, so that
-            // acceptHasPrefix() can tell whether a directory may still lead to an accepted path
             for (; !prefix.isEmpty(); prefix = PathSyntax.getParentDirPath(prefix, separatorChar)) {
-                acceptPrefixesSet.add(prefix + separatorChar);
+                acceptAncestors.add(prefix + separatorChar);
             }
 
-            // The literal prefix search above stops at the first wildcard, so for a glob with a wildcard before its
-            // final segment, e.g. "eu/*/domain/", the only recorded prefix is "eu/". Recursive directory scanning
-            // would then stop at "eu/core/", since that is neither an accepted path nor a recorded prefix of one,
-            // and the accepted path "eu/core/domain/" would never be reached. Record a pattern for each path prefix
-            // of the glob that contains a wildcard ("eu/*/" here), so that acceptHasPrefix() can report that
-            // "eu/core/" may still lead to an accepted path. (#870, #643)
+            // For a glob with a wildcard before its final segment, e.g. "eu/*/domain/", the only ancestor listed
+            // above is "eu/". Recursive directory scanning would then stop at "eu/core/", since that is neither
+            // an accepted path nor a listed ancestor of one, and the accepted path "eu/core/domain/" would never be
+            // reached. So record a pattern for each ancestor of the glob that contains a wildcard ("eu/*/" here),
+            // however many wildcards the glob has. (#870, #643)
             if (firstWildcardIdx >= 0) {
-                for (var sepIdx = str.indexOf(separatorChar); sepIdx >= 0; sepIdx = str.indexOf(separatorChar,
-                        sepIdx + 1)) {
-                    final var pathPrefix = str.substring(0, sepIdx + 1);
-                    if (containsWildcard(pathPrefix)) {
-                        if (this.acceptPrefixPatterns == null) {
-                            this.acceptPrefixPatterns = new ArrayList<>();
-                        }
-                        this.acceptPrefixPatterns.add(
-                                globToPattern(pathPrefix, separatorChar, /* prefixMatch = */ false, ignoreCase));
-                    }
+                for (var sepIdx = str.indexOf(separatorChar, firstWildcardIdx); sepIdx >= 0; //
+                        sepIdx = str.indexOf(separatorChar, sepIdx + 1)) {
+                    acceptAncestorPatterns.add(globToPattern(str.substring(0, sepIdx + 1), separatorChar,
+                            /* prefixMatch = */ false, ignoreCase));
                 }
             }
         }
 
-        /**
-         * Add to the reject.
-         *
-         * @param str
-         *            the string to reject
-         */
         @Override
         public void addToReject(final String str) {
             if (containsWildcard(str)) {
-                if (this.rejectGlobs == null || this.rejectPatterns == null) {
-                    this.rejectGlobs = new HashSet<>();
-                    this.rejectPatterns = new ArrayList<>();
-                }
-                this.rejectGlobs.add(str);
-                this.rejectPatterns.add(globToPattern(str, separatorChar, /* prefixMatch = */ false, ignoreCase));
+                addRejectGlob(str, globToPattern(str, separatorChar, /* prefixMatch = */ false, ignoreCase));
             } else {
-                if (this.reject == null) {
-                    this.reject = newLiteralSet();
-                }
-                this.reject.add(str);
+                reject.add(str);
             }
         }
 
-        /**
-         * Check if the requested string is accepted and not rejected.
-         *
-         * @param str
-         *            the string to test
-         * @return true if the string is accepted and not rejected
-         */
-        @Override
-        public boolean isAcceptedAndNotRejected(final String str) {
-            return isAccepted(str) && !isRejected(str);
-        }
-
-        /**
-         * Check if the requested string is accepted.
-         *
-         * @param str
-         *            the string to test
-         * @return true if the string is accepted
-         */
         @Override
         public boolean isAccepted(final String str) {
-            return (accept == null && acceptPatterns == null) || (accept != null && accept.contains(str))
-                    || matchesPatternList(str, acceptPatterns);
+            return acceptIsEmpty() || accept.contains(str) || matchesAcceptGlob(str);
         }
 
-        /**
-         * Check if the requested string is a prefix of an accepted string.
-         *
-         * @param str
-         *            the string to test
-         * @return true if the string is a prefix of an accepted string
-         */
         @Override
         public boolean acceptHasPrefix(final String str) {
-            if (acceptPrefixesSet == null) {
-                return false;
-            }
-            // Also test the prefixes of any accepted glob that contain a wildcard, since those cannot be enumerated
-            // into acceptPrefixesSet. (#870, #643)
-            return acceptPrefixesSet.contains(str) || matchesPatternList(str, acceptPrefixPatterns);
+            return acceptAncestors.contains(str) || matchesPatternList(str, acceptAncestorPatterns);
         }
 
-        /**
-         * Check if the requested string is rejected.
-         *
-         * @param str
-         *            the string to test
-         * @return true if the string is rejected
-         */
         @Override
         public boolean isRejected(final String str) {
-            return (reject != null && reject.contains(str)) || matchesPatternList(str, rejectPatterns);
+            return reject.contains(str) || matchesRejectGlob(str);
+        }
+
+        @Override
+        public boolean acceptIsEmpty() {
+            return accept.isEmpty() && super.acceptIsEmpty();
+        }
+
+        @Override
+        public boolean rejectIsEmpty() {
+            return reject.isEmpty() && super.rejectIsEmpty();
+        }
+
+        @Override
+        public String toString() {
+            return toString("accept", accept, "reject", reject);
         }
     }
 
     /**
-     * Accept/reject for leaf matches, i.e. filenames. Criteria are matched ignoring case, since two filenames
-     * differing only in case name the same file on a filesystem that ignores case, and a criterion should not mean
-     * something different depending on the filesystem the classpath happens to be stored on.
+     * Accept and reject criteria that match the leafname of a path, i.e. a filename. Criteria are matched ignoring
+     * case, since two filenames differing only in case name the same file on a filesystem that ignores case, and a
+     * criterion should not mean something different depending on the filesystem the classpath happens to be stored
+     * on.
      */
     public static class AcceptRejectLeafname extends AcceptRejectWholeString {
         /**
-         * Instantiates a new accept/reject for leaf matches.
+         * Create an empty set of leafname accept and reject criteria.
          *
          * @param separatorChar
-         *            the separator char
+         *            The path separator character.
          */
         public AcceptRejectLeafname(final char separatorChar) {
             super(separatorChar, /* ignoreCase = */ true);
         }
 
-        /**
-         * Add to the accept.
-         *
-         * @param str
-         *            the string to accept
-         */
         @Override
         public void addToAccept(final String str) {
             super.addToAccept(PathSyntax.leafName(str));
         }
 
-        /**
-         * Add to the reject.
-         *
-         * @param str
-         *            the string to reject
-         */
         @Override
         public void addToReject(final String str) {
             super.addToReject(PathSyntax.leafName(str));
         }
 
-        /**
-         * Check if the requested string is accepted and not rejected.
-         *
-         * @param str
-         *            the string to test
-         * @return true if the string is accepted and not rejected
-         */
-        @Override
-        public boolean isAcceptedAndNotRejected(final String str) {
-            return super.isAcceptedAndNotRejected(PathSyntax.leafName(str));
-        }
-
-        /**
-         * Check if the requested string is accepted.
-         *
-         * @param str
-         *            the string to test
-         * @return true if the string is accepted
-         */
         @Override
         public boolean isAccepted(final String str) {
             return super.isAccepted(PathSyntax.leafName(str));
         }
 
         /**
-         * Prefix tests are invalid for jar leafnames -- throws {@link IllegalArgumentException}.
+         * Not supported for leafname criteria, since a leafname has no ancestors.
          *
          * @param str
-         *            the string to test
-         * @return (does not return, throws exception)
-         * @throws IllegalArgumentException
-         *             always
+         *            The string to test.
+         * @return (does not return)
+         * @throws UnsupportedOperationException
+         *             always.
          */
         @Override
         public boolean acceptHasPrefix(final String str) {
-            throw new IllegalArgumentException("Can only find prefixes of whole strings");
+            throw new UnsupportedOperationException("Can only find prefixes of whole strings");
         }
 
-        /**
-         * Check if the requested string is rejected.
-         *
-         * @param str
-         *            the string to test
-         * @return true if the string is rejected
-         */
         @Override
         public boolean isRejected(final String str) {
             return super.isRejected(PathSyntax.leafName(str));
         }
     }
 
+    // -------------------------------------------------------------------------------------------------------------
+
     /**
-     * Add to the accept.
+     * Add an accept criterion.
      *
      * @param str
-     *            The string to accept.
+     *            The criterion.
      */
     public abstract void addToAccept(final String str);
 
     /**
-     * Add to the reject.
+     * Add a reject criterion.
      *
      * @param str
-     *            The string to reject.
+     *            The criterion.
      */
     public abstract void addToReject(final String str);
 
     /**
-     * Check if a string is accepted and not rejected.
-     *
-     * @param str
-     *            The string to test.
-     * @return true if the string is accepted and not rejected.
-     */
-    public abstract boolean isAcceptedAndNotRejected(final String str);
-
-    /**
-     * Check if a string is accepted.
+     * Check whether a string is accepted, i.e. whether there are no accept criteria, or the string matches one of
+     * them.
      *
      * @param str
      *            The string to test.
@@ -698,16 +621,17 @@ public abstract class AcceptReject {
     public abstract boolean isAccepted(final String str);
 
     /**
-     * Check if a string is a prefix of an accepted string.
+     * Check whether a string is an ancestor of an accepted string, i.e. whether a directory scan that has reached
+     * the string may still lead to an accepted string.
      *
      * @param str
-     *            The string to test.
-     * @return true if the string is a prefix of an accepted string.
+     *            The string to test, ending in the separator character.
+     * @return true if the string is an ancestor of an accepted string.
      */
     public abstract boolean acceptHasPrefix(final String str);
 
     /**
-     * Check if a string is rejected.
+     * Check whether a string matches one of the reject criteria.
      *
      * @param str
      *            The string to test.
@@ -716,7 +640,74 @@ public abstract class AcceptReject {
     public abstract boolean isRejected(final String str);
 
     /**
-     * Remove initial and final '/' characters, if any.
+     * Check whether a string is accepted and not rejected.
+     *
+     * @param str
+     *            The string to test.
+     * @return true if the string is accepted and not rejected.
+     */
+    public boolean isAcceptedAndNotRejected(final String str) {
+        return isAccepted(str) && !isRejected(str);
+    }
+
+    /**
+     * Check whether there are no accept criteria.
+     *
+     * @return true if no accept criteria were added.
+     */
+    public boolean acceptIsEmpty() {
+        return acceptGlobs.isEmpty();
+    }
+
+    /**
+     * Check whether there are no reject criteria.
+     *
+     * @return true if no reject criteria were added.
+     */
+    public boolean rejectIsEmpty() {
+        return rejectGlobs.isEmpty();
+    }
+
+    /**
+     * Check whether there are no accept or reject criteria.
+     *
+     * @return true if no accept or reject criteria were added.
+     */
+    public boolean acceptAndRejectAreEmpty() {
+        return acceptIsEmpty() && rejectIsEmpty();
+    }
+
+    /**
+     * Check whether a string is specifically accepted and not rejected.
+     *
+     * @param str
+     *            The string to test.
+     * @return true if the string matches one of the accept criteria and none of the reject criteria. Unlike
+     *         {@link #isAcceptedAndNotRejected(String)}, this returns false if there are no accept criteria.
+     */
+    public boolean isSpecificallyAcceptedAndNotRejected(final String str) {
+        return !acceptIsEmpty() && isAcceptedAndNotRejected(str);
+    }
+
+    /**
+     * Check whether a string is specifically accepted.
+     *
+     * @param str
+     *            The string to test.
+     * @return true if the string matches one of the accept criteria. Unlike {@link #isAccepted(String)}, this
+     *         returns false if there are no accept criteria.
+     */
+    public boolean isSpecificallyAccepted(final String str) {
+        return !acceptIsEmpty() && isAccepted(str);
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Normalize a path that was given as an accept or reject criterion. The path is resolved with
+     * {@link FastPathResolver#resolve(String)}, which converts backslashes to '/', collapses runs of separators,
+     * resolves {@code "."} and {@code ".."} segments, and removes any final separator; then any initial '/'
+     * characters are removed.
      *
      * @param path
      *            The path to normalize.
@@ -731,7 +722,9 @@ public abstract class AcceptReject {
     }
 
     /**
-     * Remove initial and final '.' characters, if any.
+     * Normalize a package or class name that was given as an accept or reject criterion, in the same way that
+     * {@link #normalizePath(String)} normalizes a path, with '.' as the separator. For example,
+     * {@code ".com..xyz."} becomes {@code "com.xyz"}.
      *
      * @param packageOrClassName
      *            The package or class name.
@@ -753,104 +746,17 @@ public abstract class AcceptReject {
     }
 
     /**
-     * Check if a string matches one of the patterns in the provided list.
-     *
-     * @param str
-     *            the string to test
-     * @param patterns
-     *            the patterns
-     * @return true, if successful
-     */
-    private static boolean matchesPatternList(final String str, final @Nullable List<Pattern> patterns) {
-        if (patterns != null) {
-            for (final Pattern pattern : patterns) {
-                if (pattern.matcher(str).matches()) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    /**
-     * Check if the accept is empty.
-     *
-     * @return true if there were no accept criteria added.
-     */
-    public boolean acceptIsEmpty() {
-        // (Also test acceptPrefixesSet, since acceptPrefixes is only populated from it by sortPrefixes(), so an
-        // AcceptRejectPrefix would otherwise look empty until sortPrefixes() had been called)
-        return accept == null && acceptPrefixes == null && acceptPrefixesSet == null && acceptGlobs == null;
-    }
-
-    /**
-     * Check if the reject is empty.
-     *
-     * @return true if there were no reject criteria added.
-     */
-    public boolean rejectIsEmpty() {
-        return reject == null && rejectPrefixes == null && rejectGlobs == null;
-    }
-
-    /**
-     * Check if the accept and reject are empty.
-     *
-     * @return true if there were no accept or reject criteria added.
-     */
-    public boolean acceptAndRejectAreEmpty() {
-        return acceptIsEmpty() && rejectIsEmpty();
-    }
-
-    /**
-     * Check if a string is specifically accepted and not rejected.
-     *
-     * @param str
-     *            The string to test.
-     * @return true if the requested string is <i>specifically</i> accepted and not rejected, i.e. will not return
-     *         true if the accept is empty, or if the string is rejected.
-     */
-    public boolean isSpecificallyAcceptedAndNotRejected(final String str) {
-        return !acceptIsEmpty() && isAcceptedAndNotRejected(str);
-    }
-
-    /**
-     * Check if a string is specifically accepted.
-     *
-     * @param str
-     *            The string to test.
-     * @return true if the requested string is <i>specifically</i> accepted, i.e. will not return true if the accept
-     *         is empty.
-     */
-    public boolean isSpecificallyAccepted(final String str) {
-        return !acceptIsEmpty() && isAccepted(str);
-    }
-
-    /** Need to sort prefixes to ensure correct accept/reject evaluation. */
-    // #167
-    public void sortPrefixes() {
-        if (acceptPrefixesSet != null) {
-            acceptPrefixes = new ArrayList<>(acceptPrefixesSet);
-        }
-        if (acceptPrefixes != null) {
-            CollectionUtils.sortIfNotEmpty(acceptPrefixes);
-        }
-        if (rejectPrefixes != null) {
-            CollectionUtils.sortIfNotEmpty(rejectPrefixes);
-        }
-    }
-
-    /**
-     * Quote list.
+     * Append a list of strings to a buffer, each one quoted, with any {@code '"'} or {@code '\\'} in it escaped.
      *
      * @param coll
-     *            the coll
+     *            The strings, which are appended in sorted order.
      * @param buf
-     *            the buffer to append to
+     *            The buffer to append to.
      */
     private static void quoteList(final Collection<String> coll, final StringBuilder buf) {
         buf.append('[');
         var first = true;
-        for (final String item : coll) {
+        for (final String item : CollectionUtils.sortCopy(coll)) {
             if (first) {
                 first = false;
             } else {
@@ -861,58 +767,54 @@ public abstract class AcceptReject {
                 final var c = item.charAt(i);
                 if (c == '"' || c == '\\') {
                     buf.append('\\');
-                    buf.append(c);
-                } else {
-                    buf.append(c);
                 }
+                buf.append(c);
             }
             buf.append('"');
         }
         buf.append(']');
     }
 
-    @Override
-    public String toString() {
+    /**
+     * Append one named list of criteria to a buffer, if the list is not empty.
+     *
+     * @param name
+     *            The name of the list.
+     * @param coll
+     *            The criteria.
+     * @param buf
+     *            The buffer to append to.
+     */
+    private static void appendCriteria(final String name, final Collection<String> coll, final StringBuilder buf) {
+        if (!coll.isEmpty()) {
+            if (!buf.isEmpty()) {
+                buf.append("; ");
+            }
+            buf.append(name).append(": ");
+            quoteList(coll, buf);
+        }
+    }
+
+    /**
+     * Render the criteria as a string, for logging.
+     *
+     * @param acceptName
+     *            The name of the accept criteria that contain no wildcard.
+     * @param accept
+     *            The accept criteria that contain no wildcard.
+     * @param rejectName
+     *            The name of the reject criteria that contain no wildcard.
+     * @param reject
+     *            The reject criteria that contain no wildcard.
+     * @return The criteria, or the empty string if there are none.
+     */
+    protected String toString(final String acceptName, final Collection<String> accept, final String rejectName,
+            final Collection<String> reject) {
         final StringBuilder buf = new StringBuilder();
-        if (accept != null) {
-            buf.append("accept: ");
-            quoteList(accept, buf);
-        }
-        if (acceptPrefixes != null) {
-            if (!buf.isEmpty()) {
-                buf.append("; ");
-            }
-            buf.append("acceptPrefixes: ");
-            quoteList(acceptPrefixes, buf);
-        }
-        if (acceptGlobs != null) {
-            if (!buf.isEmpty()) {
-                buf.append("; ");
-            }
-            buf.append("acceptGlobs: ");
-            quoteList(acceptGlobs, buf);
-        }
-        if (reject != null) {
-            if (!buf.isEmpty()) {
-                buf.append("; ");
-            }
-            buf.append("reject: ");
-            quoteList(reject, buf);
-        }
-        if (rejectPrefixes != null) {
-            if (!buf.isEmpty()) {
-                buf.append("; ");
-            }
-            buf.append("rejectPrefixes: ");
-            quoteList(rejectPrefixes, buf);
-        }
-        if (rejectGlobs != null) {
-            if (!buf.isEmpty()) {
-                buf.append("; ");
-            }
-            buf.append("rejectGlobs: ");
-            quoteList(rejectGlobs, buf);
-        }
+        appendCriteria(acceptName, accept, buf);
+        appendCriteria("acceptGlobs", acceptGlobs, buf);
+        appendCriteria(rejectName, reject, buf);
+        appendCriteria("rejectGlobs", rejectGlobs, buf);
         return buf.toString();
     }
 }

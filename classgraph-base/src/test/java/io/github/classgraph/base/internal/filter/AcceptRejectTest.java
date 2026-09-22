@@ -156,8 +156,7 @@ public class AcceptRejectTest {
     @Nested
     class Prefix {
         /**
-         * Create a prefix accept/reject criterion with the given accepts and rejects, with its prefixes sorted, as
-         * they are once the spec that holds it has been built.
+         * Create a prefix accept/reject criterion with the given accepts and rejects.
          *
          * @param accepts
          *            the strings to accept.
@@ -173,9 +172,6 @@ public class AcceptRejectTest {
             for (final String reject : rejects) {
                 acceptReject.addToReject(reject);
             }
-            // The accepted prefixes are only moved into the list that is matched against by sortPrefixes(), so a
-            // criterion that has not been sorted accepts everything
-            acceptReject.sortPrefixes();
             return acceptReject;
         }
 
@@ -186,6 +182,17 @@ public class AcceptRejectTest {
             assertThat(acceptReject.isAccepted("com.a.B")).isTrue();
             assertThat(acceptReject.isAccepted("com.a.b.C")).isTrue();
             assertThat(acceptReject.isAccepted("com.b.C")).isFalse();
+        }
+
+        /** An accepted prefix takes effect as soon as it is added, with no further step before matching. */
+        @Test
+        public void anAcceptedPrefixTakesEffectAsSoonAsItIsAdded() {
+            final var acceptReject = new AcceptRejectPrefix('.');
+            acceptReject.addToAccept("com.a.");
+            assertThat(acceptReject.isAccepted("com.a.B")).isTrue();
+            assertThat(acceptReject.isAccepted("com.b.C")).isFalse();
+            assertThat(acceptReject.isAcceptedAndNotRejected("com.b.C")).isFalse();
+            assertThat(acceptReject).hasToString("acceptPrefixes: [\"com.a.\"]");
         }
 
         /** With nothing accepted, everything is accepted; with nothing rejected, nothing is rejected. */
@@ -236,23 +243,18 @@ public class AcceptRejectTest {
         @Test
         public void prefixOfAPrefixIsRejectedAsMeaningless() {
             assertThatThrownBy(() -> new AcceptRejectPrefix('.').acceptHasPrefix("com"))
-                    .isInstanceOf(IllegalArgumentException.class)
+                    .isInstanceOf(UnsupportedOperationException.class)
                     .hasMessage("Can only find prefixes of whole strings");
         }
 
-        /**
-         * A criterion knows whether anything was accepted or rejected, before and after its prefixes are sorted.
-         */
+        /** A criterion knows whether anything was accepted or rejected. */
         @Test
-        public void emptinessIsReportedBeforeAndAfterSorting() {
+        public void emptinessIsReported() {
             final var acceptReject = new AcceptRejectPrefix('.');
             assertThat(acceptReject.acceptAndRejectAreEmpty()).isTrue();
             acceptReject.addToAccept("com.a.");
-            // The accept is not empty even though sortPrefixes() has not been called yet
             assertThat(acceptReject.acceptIsEmpty()).isFalse();
             assertThat(acceptReject.rejectIsEmpty()).isTrue();
-            acceptReject.sortPrefixes();
-            assertThat(acceptReject.acceptIsEmpty()).isFalse();
             acceptReject.addToReject("com.a.internal.");
             assertThat(acceptReject.rejectIsEmpty()).isFalse();
         }
@@ -423,7 +425,7 @@ public class AcceptRejectTest {
         @Test
         public void prefixOfALeafnameIsRejectedAsMeaningless() {
             assertThatThrownBy(() -> new AcceptRejectLeafname('/').acceptHasPrefix("some"))
-                    .isInstanceOf(IllegalArgumentException.class)
+                    .isInstanceOf(UnsupportedOperationException.class)
                     .hasMessage("Can only find prefixes of whole strings");
         }
     }
@@ -436,7 +438,6 @@ public class AcceptRejectTest {
         acceptReject.addToAccept("com.*.impl.");
         acceptReject.addToReject("com.a.internal.");
         acceptReject.addToReject("com.*.gen.");
-        acceptReject.sortPrefixes();
 
         assertThat(acceptReject).hasToString("acceptPrefixes: [\"com.a.\"]; acceptGlobs: [\"com.*.impl.\"]; "
                 + "rejectPrefixes: [\"com.a.internal.\"]; rejectGlobs: [\"com.*.gen.\"]");

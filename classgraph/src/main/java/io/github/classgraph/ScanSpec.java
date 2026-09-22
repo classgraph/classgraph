@@ -30,8 +30,6 @@ package io.github.classgraph;
 
 import java.lang.reflect.Field;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
@@ -54,13 +52,6 @@ import org.jspecify.annotations.Nullable;
  * {@link #vfsSpec}.
  */
 class ScanSpec {
-    /**
-     * The accept/reject criteria of this spec. Each of them adds itself to this list as it is created, so that
-     * {@link #sortPrefixes()} cannot miss one. N.B. this has to be declared before them, so that it exists by the
-     * time the first of them is created.
-     */
-    private final List<AcceptReject> acceptRejects = new ArrayList<>();
-
     /** How the classpath and the module path are found. */
     public final ClasspathSpec classpathSpec = new ClasspathSpec();
 
@@ -70,43 +61,43 @@ class ScanSpec {
     // -------------------------------------------------------------------------------------------------------------
 
     /** Package accept/reject criteria (with separator '.'). */
-    public final AcceptRejectWholeString packageAcceptReject = register(new AcceptRejectWholeString('.'));
+    public final AcceptRejectWholeString packageAcceptReject = new AcceptRejectWholeString('.');
 
     /**
      * Package prefix accept/reject criteria, for recursive scanning (with separator '.', ending in '.').
      */
-    public final AcceptRejectPrefix packagePrefixAcceptReject = register(new AcceptRejectPrefix('.'));
+    public final AcceptRejectPrefix packagePrefixAcceptReject = new AcceptRejectPrefix('.');
 
     /** Path accept/reject criteria (with separator '/'). */
-    public final AcceptRejectWholeString pathAcceptReject = register(new AcceptRejectWholeString('/'));
+    public final AcceptRejectWholeString pathAcceptReject = new AcceptRejectWholeString('/');
 
     /**
      * Path prefix accept/reject criteria, for recursive scanning (with separator '/', ending in '/').
      */
-    public final AcceptRejectPrefix pathPrefixAcceptReject = register(new AcceptRejectPrefix('/'));
+    public final AcceptRejectPrefix pathPrefixAcceptReject = new AcceptRejectPrefix('/');
 
     /**
      * Class accept/reject criteria (fully-qualified class names, with separator '.').
      */
-    public final AcceptRejectWholeString classAcceptReject = register(new AcceptRejectWholeString('.'));
+    public final AcceptRejectWholeString classAcceptReject = new AcceptRejectWholeString('.');
 
     /**
      * Classfile accept/reject criteria (path to classfiles, with separator '/', ending in ".class").
      */
-    public final AcceptRejectWholeString classfilePathAcceptReject = register(new AcceptRejectWholeString('/'));
+    public final AcceptRejectWholeString classfilePathAcceptReject = new AcceptRejectWholeString('/');
 
     /** Package containing accepted/rejected classes (with separator '.'). */
-    public final AcceptRejectWholeString classPackageAcceptReject = register(new AcceptRejectWholeString('.'));
+    public final AcceptRejectWholeString classPackageAcceptReject = new AcceptRejectWholeString('.');
 
     /** Path to accepted/rejected classes (with separator '/'). */
-    public final AcceptRejectWholeString classPackagePathAcceptReject = register(new AcceptRejectWholeString('/'));
+    public final AcceptRejectWholeString classPackagePathAcceptReject = new AcceptRejectWholeString('/');
 
     /** Jar accept/reject criteria (leafname only, ending in ".jar"). */
-    public final AcceptRejectLeafname jarAcceptReject = register(new AcceptRejectLeafname('/'));
+    public final AcceptRejectLeafname jarAcceptReject = new AcceptRejectLeafname('/');
 
     /** Classpath element resource path accept/reject criteria. */
     public final AcceptRejectWholeString classpathElementResourcePathAcceptReject = //
-            register(new AcceptRejectWholeString('/'));
+            new AcceptRejectWholeString('/');
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -298,31 +289,6 @@ class ScanSpec {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /**
-     * Record an accept/reject criterion, so that {@link #sortPrefixes()} sorts it. Called from the field
-     * initializers, so that a criterion cannot be added without being sorted.
-     *
-     * @param <T>
-     *            the type of the accept/reject criterion.
-     * @param acceptReject
-     *            the accept/reject criterion.
-     * @return the same accept/reject criterion.
-     */
-    private <T extends AcceptReject> T register(final T acceptReject) {
-        acceptRejects.add(acceptReject);
-        return acceptReject;
-    }
-
-    /** Sort prefixes to ensure correct accept/reject evaluation. */
-    // #167
-    public void sortPrefixes() {
-        for (final AcceptReject acceptReject : acceptRejects) {
-            acceptReject.sortPrefixes();
-        }
-        // The composed specs sort their own criteria
-        classpathSpec.sortPrefixes();
-    }
-
     // -------------------------------------------------------------------------------------------------------------
 
     /**
@@ -458,9 +424,8 @@ class ScanSpec {
                 }
                 try {
                     final var value = field.get(this);
-                    // Skip the bookkeeping list, which duplicates every criterion logged by name below, and
-                    // skip a criterion that nothing was accepted or rejected with
-                    if (value == acceptRejects || value instanceof AcceptReject && value.toString().isEmpty()) {
+                    // Skip a criterion that nothing was accepted or rejected with
+                    if (value instanceof AcceptReject && value.toString().isEmpty()) {
                         continue;
                     }
                     scanSpecLog.log(field.getName() + ": " + value);
