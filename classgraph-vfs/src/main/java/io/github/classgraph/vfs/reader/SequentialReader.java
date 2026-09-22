@@ -155,7 +155,7 @@ public interface SequentialReader {
      *            The character encoding to decode the bytes with.
      * @return The string.
      * @throws IOException
-     *             If an I/O exception occurs.
+     *             If the bytes are not wholly within the content, or could not be read.
      */
     String readString(int numBytes, Charset charset) throws IOException;
 
@@ -167,7 +167,7 @@ public interface SequentialReader {
      *            The number of bytes of the UTF-8 encoding of the string.
      * @return The string.
      * @throws IOException
-     *             If an I/O exception occurs.
+     *             If the bytes are not wholly within the content, or could not be read.
      */
     default String readString(final int numBytes) throws IOException {
         return readString(numBytes, StandardCharsets.UTF_8);

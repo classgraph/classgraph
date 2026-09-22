@@ -64,14 +64,16 @@ import java.nio.charset.StandardCharsets;
  * value is not wholly within the content, since half of a value is not a value.
  *
  * <p>
- * Only the end of the content is reported as the end of the content. A read that was asked for no bytes, or that
- * was given a destination with no room left in it, has not reached the end of anything, and returns zero -- the way
- * {@link java.io.InputStream#read(byte[], int, int)} returns zero for a zero-length read, even at the end of the
- * stream.
+ * Only the end of the content is reported as the end of the content, by returning -1. A read that was asked for no
+ * bytes, or that was given a destination with no room left in it, has not reached the end of anything, and returns
+ * 0 -- the way {@link java.io.InputStream#read(byte[], int, int)} returns 0 for a zero-length read, even at the end
+ * of the stream. A loop that copies content out must therefore stop on 0 as well as on -1, or once the destination
+ * is full it loops forever, reading 0 bytes each time.
  *
  * <p>
- * -1 means the end of the content was reached; 0 means the end of the destination was reached. A read-copy loop
- * must break on 0, since continuing until -1 loops forever, reading 0 bytes each time.
+ * No method ever reports content that is not there. A reader whose length is overstated -- by a zip entry that
+ * declares an uncompressed size larger than what its deflate stream actually holds -- stops at the last byte that
+ * could really be read, rather than padding with zeroes.
  *
  * <h2>Writing into a {@link ByteBuffer}</h2>
  *
@@ -84,11 +86,6 @@ import java.nio.charset.StandardCharsets;
  * <p>
  * It writes no further than the destination's limit, not its capacity, since a caller that lowered the limit did so
  * to say that the bytes past it are not to be written. A read that would start past the limit is out of bounds.
- *
- * <p>
- * No method ever reports content that is not there. A reader whose length is overstated -- by a zip entry that
- * declares an uncompressed size larger than what its deflate stream actually holds -- stops at the last byte that
- * could really be read, rather than padding with zeroes.
  *
  * <h2>Position</h2>
  *
@@ -143,8 +140,8 @@ public interface RandomAccessReader {
      *         {@code srcOffset} is at or past the end of the content. A read-copy loop must break on 0, or it loops
      *         forever: see {@link RandomAccessReader}.
      * @throws IOException
-     *             If there was an exception while reading, if {@code dstBufStart} is not within the destination, or
-     *             if the destination is read-only.
+     *             If {@code srcOffset} or {@code numBytes} is negative, if {@code dstBufStart} is not within the
+     *             destination, if the destination is read-only, or if the content could not be read.
      */
     int read(long srcOffset, ByteBuffer dstBuf, int dstBufStart, int numBytes) throws IOException;
 
@@ -164,7 +161,8 @@ public interface RandomAccessReader {
      *         {@code srcOffset} is at or past the end of the content. A read-copy loop must break on 0, or it loops
      *         forever: see {@link RandomAccessReader}.
      * @throws IOException
-     *             If there was an exception while reading, or if {@code dstArrStart} is not within the destination.
+     *             If {@code srcOffset} or {@code numBytes} is negative, if {@code dstArrStart} is not within the
+     *             destination, or if the content could not be read.
      */
     int read(long srcOffset, byte[] dstArr, int dstArrStart, int numBytes) throws IOException;
 
@@ -270,7 +268,7 @@ public interface RandomAccessReader {
      *            The character encoding to decode the bytes with.
      * @return The string.
      * @throws IOException
-     *             If an I/O exception occurs.
+     *             If the bytes are not wholly within the content, or could not be read.
      */
     String readString(long offset, int numBytes, Charset charset) throws IOException;
 
@@ -284,7 +282,7 @@ public interface RandomAccessReader {
      *            The number of bytes of the UTF-8 encoding of the string.
      * @return The string.
      * @throws IOException
-     *             If an I/O exception occurs.
+     *             If the bytes are not wholly within the content, or could not be read.
      */
     default String readString(final long offset, final int numBytes) throws IOException {
         return readString(offset, numBytes, StandardCharsets.UTF_8);
