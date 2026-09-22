@@ -63,10 +63,36 @@ public class DuplicateZipEntryTest {
      */
     private static void writeJar(final Path jar, final String[] renames, final String... namesAndContents)
             throws IOException {
+        final var names = new String[namesAndContents.length / 2];
+        final var contents = new byte[names.length][];
+        for (var i = 0; i < names.length; i++) {
+            names[i] = namesAndContents[2 * i];
+            contents[i] = namesAndContents[2 * i + 1].getBytes(StandardCharsets.UTF_8);
+        }
+        writeJar(jar, renames, names, contents);
+    }
+
+    /**
+     * Write a jarfile, then rename entries, as {@link #writeJar(Path, String[], String...)} does, with contents
+     * that need not be text.
+     *
+     * @param jar
+     *            the jarfile to write.
+     * @param renames
+     *            pairs of names: the name an entry is written under, then the name it is given afterward.
+     * @param names
+     *            the names of the entries.
+     * @param contents
+     *            the content of each entry.
+     * @throws IOException
+     *             if the jarfile could not be written.
+     */
+    private static void writeJar(final Path jar, final String[] renames, final String[] names,
+            final byte[][] contents) throws IOException {
         try (var zipOut = new ZipOutputStream(Files.newOutputStream(jar))) {
-            for (var i = 0; i < namesAndContents.length; i += 2) {
-                zipOut.putNextEntry(new ZipEntry(namesAndContents[i]));
-                zipOut.write(namesAndContents[i + 1].getBytes(StandardCharsets.UTF_8));
+            for (var i = 0; i < names.length; i++) {
+                zipOut.putNextEntry(new ZipEntry(names[i]));
+                zipOut.write(contents[i]);
                 zipOut.closeEntry();
             }
         }
@@ -128,6 +154,33 @@ public class DuplicateZipEntryTest {
             final var root = vfs.open(jar.toString());
             assertThat(
                     new String(Objects.requireNonNull(root.getEntry("dup-1.txt")).load(), StandardCharsets.UTF_8))
+                    .isEqualTo("second");
+        }
+    }
+
+    /**
+     * Of two nested jarfiles with the same name, the last one in the central directory of the outer jarfile is the
+     * one that is opened, as it is the one a classloader reads.
+     *
+     * @param tempDir
+     *            a temporary directory to build in.
+     * @throws IOException
+     *             if the jarfiles could not be built or read.
+     */
+    @Test
+    public void theLastOfTwoNestedJarfilesWithTheSameNameIsTheOneOpened(@TempDir final Path tempDir)
+            throws IOException {
+        final var firstInnerJar = tempDir.resolve("first.jar");
+        writeJar(firstInnerJar, new String[0], "a.txt", "first");
+        final var secondInnerJar = tempDir.resolve("second.jar");
+        writeJar(secondInnerJar, new String[0], "a.txt", "second");
+        final var outerJar = tempDir.resolve("outer.jar");
+        writeJar(outerJar, new String[] { "lib/innex.jar", "lib/inner.jar" },
+                new String[] { "lib/inner.jar", "lib/innex.jar" },
+                new byte[][] { Files.readAllBytes(firstInnerJar), Files.readAllBytes(secondInnerJar) });
+        try (var vfs = new Vfs()) {
+            final var root = vfs.open(outerJar + "!/lib/inner.jar");
+            assertThat(new String(Objects.requireNonNull(root.getEntry("a.txt")).load(), StandardCharsets.UTF_8))
                     .isEqualTo("second");
         }
     }

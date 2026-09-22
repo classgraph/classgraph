@@ -31,6 +31,7 @@ package io.github.classgraph.vfs.internal.zip;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -1032,6 +1033,30 @@ public class LogicalZipFile extends ZipFileSlice {
     }
 
     /**
+     * Of two or more entries with the same name, keep only the last one, since that is the one that JarFile, and so
+     * a classloader, finds. The entry that is kept stays at its own position in the central directory.
+     *
+     * @param log
+     *            the log node, or null to skip logging
+     */
+    private void dropDuplicateEntries(final @Nullable LogNode log) {
+        final Set<String> namesSeen = new HashSet<>(entries.size() * 2);
+        final List<FastZipEntry> lastOfEachName = new ArrayList<>(entries.size());
+        for (var i = entries.size() - 1; i >= 0; i--) {
+            final var entry = entries.get(i);
+            if (namesSeen.add(entry.entryName)) {
+                lastOfEachName.add(entry);
+            } else if (log != null) {
+                log.log("Ignoring an earlier entry with the same name as a later one: " + entry.entryName);
+            }
+        }
+        if (lastOfEachName.size() < entries.size()) {
+            Collections.reverse(lastOfEachName);
+            entries = lastOfEachName;
+        }
+    }
+
+    /**
      * For a multi-release jar, drop any older or non-versioned entries that are masked by the most recent
      * version-specific entry.
      *
@@ -1146,6 +1171,7 @@ public class LogicalZipFile extends ZipFileSlice {
         // Enumerate entries
         entries = new ArrayList<>((int) numEnt);
         final var manifestZipEntry = readEntries(cenReader, cen, log);
+        dropDuplicateEntries(log);
 
         // Parse manifest file, if present
         if (manifestZipEntry != null) {
