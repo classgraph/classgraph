@@ -64,7 +64,7 @@ interface OSGiClassLoaderHandler extends ClassLoaderHandler {
      *
      * @param bundlefile
      *            the {@code BundleFile}, or null (ignored)
-     * @param path
+     * @param visited
      *            the {@code BundleFile}s already visited, so that a cycle cannot cause infinite recursion
      * @param classLoader
      *            the classloader
@@ -73,11 +73,11 @@ interface OSGiClassLoaderHandler extends ClassLoaderHandler {
      * @param log
      *            the log node, or null to skip logging
      */
-    static void addBundleFile(final @Nullable Object bundlefile, final Set<Object> path,
+    static void addBundleFile(final @Nullable Object bundlefile, final Set<Object> visited,
             final ClassLoader classLoader, final ClasspathOrder classpathOrderOut,
             final @Nullable ClassGraphLog log) {
         // Don't get stuck in infinite loop
-        if (bundlefile != null && path.add(bundlefile)) {
+        if (bundlefile != null && visited.add(bundlefile)) {
             // type File
             var baseFile = ReflectionUtils.getFieldVal(false, bundlefile, "basefile");
             if (baseFile == null) {
@@ -110,19 +110,18 @@ interface OSGiClassLoaderHandler extends ClassLoaderHandler {
                     // No classpath element found, just use basefile
                     classpathOrderOut.addClasspathEntry(baseFile.toString(), classLoader, log);
                 }
-
             }
             // A BundleFileWrapperChain holds the BundleFile it wraps in "wrapped", and the rest of the chain in
             // "next"
-            addBundleFile(ReflectionUtils.getFieldVal(false, bundlefile, "wrapped"), path, classLoader,
+            addBundleFile(ReflectionUtils.getFieldVal(false, bundlefile, "wrapped"), visited, classLoader,
                     classpathOrderOut, log);
-            addBundleFile(ReflectionUtils.getFieldVal(false, bundlefile, "next"), path, classLoader,
+            addBundleFile(ReflectionUtils.getFieldVal(false, bundlefile, "next"), visited, classLoader,
                     classpathOrderOut, log);
             // A framework extension can install a ClassLoaderHook that replaces a bundle file with a
             // BundleFileWrapper around it (Storage#wrapBundleFile). The wrapper copies only the "basefile" field of
             // the bundle file it wraps, not its "cp" or "nestedDirName", so without following the delegate held in
             // the wrapper's "bundleFile" field, the sub-path within the bundle would be lost.
-            addBundleFile(ReflectionUtils.getFieldVal(false, bundlefile, "bundleFile"), path, classLoader,
+            addBundleFile(ReflectionUtils.getFieldVal(false, bundlefile, "bundleFile"), visited, classLoader,
                     classpathOrderOut, log);
         }
     }
