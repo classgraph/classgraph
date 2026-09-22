@@ -71,7 +71,7 @@ public interface RandomAccessReader {
      * Read a byte at a specific offset (without changing the current cursor offset).
      *
      * @param offset
-     *            The buffer offset to read from.
+     *            The offset to read from.
      * @return The byte at the offset.
      * @throws IOException
      *             If there was an exception while reading.
@@ -82,7 +82,7 @@ public interface RandomAccessReader {
      * Read an unsigned byte at a specific offset (without changing the current cursor offset).
      *
      * @param offset
-     *            The buffer offset to read from.
+     *            The offset to read from.
      * @return The unsigned byte at the offset.
      * @throws IOException
      *             If there was an exception while reading.
@@ -93,7 +93,7 @@ public interface RandomAccessReader {
      * Read a short at a specific offset (without changing the current cursor offset).
      *
      * @param offset
-     *            The buffer offset to read from.
+     *            The offset to read from.
      * @return The short at the offset.
      * @throws IOException
      *             If there was an exception while reading.
@@ -101,10 +101,10 @@ public interface RandomAccessReader {
     short readShort(final long offset) throws IOException;
 
     /**
-     * Read a unsigned short at a specific offset (without changing the current cursor offset).
+     * Read an unsigned short at a specific offset (without changing the current cursor offset).
      *
      * @param offset
-     *            The buffer offset to read from.
+     *            The offset to read from.
      * @return The unsigned short at the offset.
      * @throws IOException
      *             If there was an exception while reading.
@@ -112,10 +112,10 @@ public interface RandomAccessReader {
     int readUnsignedShort(final long offset) throws IOException;
 
     /**
-     * Read a int at a specific offset (without changing the current cursor offset).
+     * Read an int at a specific offset (without changing the current cursor offset).
      *
      * @param offset
-     *            The buffer offset to read from.
+     *            The offset to read from.
      * @return The int at the offset.
      * @throws IOException
      *             If there was an exception while reading.
@@ -123,10 +123,10 @@ public interface RandomAccessReader {
     int readInt(final long offset) throws IOException;
 
     /**
-     * Read a unsigned int at a specific offset (without changing the current cursor offset).
+     * Read an unsigned int at a specific offset (without changing the current cursor offset).
      *
      * @param offset
-     *            The buffer offset to read from.
+     *            The offset to read from.
      * @return The int at the offset, as a long.
      * @throws IOException
      *             If there was an exception while reading.
@@ -137,7 +137,7 @@ public interface RandomAccessReader {
      * Read a long at a specific offset (without changing the current cursor offset).
      * 
      * @param offset
-     *            The buffer offset to read from.
+     *            The offset to read from.
      * @return The long at the offset.
      * @throws IOException
      *             If there was an exception while reading.

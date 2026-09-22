@@ -135,8 +135,8 @@ public abstract class Slice implements Closeable {
     }
 
     /**
-     * Get a child {@link Slice} from this parent {@link Slice}. The child slice must be smaller than the parent
-     * slice, and completely contained within it.
+     * Get a child {@link Slice} from this parent {@link Slice}. The child slice must be completely contained within
+     * the parent slice, and may be the whole of it.
      * 
      * @param offset
      *            The offset to start slicing from, relative to this parent slice's start position.

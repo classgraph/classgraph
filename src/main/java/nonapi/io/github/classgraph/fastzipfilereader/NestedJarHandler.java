@@ -1067,12 +1067,13 @@ public class NestedJarHandler {
         try (InputStream inptStream = inputStream) {
             if (inputStreamLengthHint <= scanSpec.maxBufferedJarRAMSize) {
                 // inputStreamLengthHint is unknown (-1) or no longer than scanSpec.maxBufferedJarRAMSize, so read
-                // the stream into an array. A known length is allocated up front, since it is usually right; a
-                // length that is unknown, or that is zero and so may or may not be right, starts at 16kB, and the
-                // buffer is doubled from there as it fills, so that reading a small stream of unknown length does
-                // not allocate the whole of scanSpec.maxBufferedJarRAMSize.
+                // the stream into an array. A known length is allocated up front, since it is usually right, but
+                // only up to MAX_INITIAL_BUFFER_SIZE, since the length of a nested jar is whatever its zip entry
+                // claims. A length that is unknown, or that is zero and so may or may not be right, starts at 16kB.
+                // Either way the buffer is doubled from there as it fills, so that reading a small stream does not
+                // allocate the whole of scanSpec.maxBufferedJarRAMSize.
                 byte[] buf = new byte[inputStreamLengthHint <= 0L ? Math.min(16384, scanSpec.maxBufferedJarRAMSize)
-                        : (int) inputStreamLengthHint];
+                        : (int) Math.min(inputStreamLengthHint, MAX_INITIAL_BUFFER_SIZE)];
 
                 int bufBytesUsed = 0;
                 for (;;) {
