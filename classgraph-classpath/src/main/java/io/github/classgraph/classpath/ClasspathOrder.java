@@ -87,7 +87,7 @@ public interface ClasspathOrder {
      *            the log node, or null to skip logging
      * @return true if at least one classpath element was added.
      */
-    boolean addClasspathEntries(@Nullable List<Object> classpathEntries, @Nullable ClassLoader classLoader,
+    boolean addClasspathEntries(@Nullable List<?> classpathEntries, @Nullable ClassLoader classLoader,
             @Nullable ClassGraphLog log);
 
     /**

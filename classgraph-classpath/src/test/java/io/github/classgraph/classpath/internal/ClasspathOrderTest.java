@@ -347,6 +347,21 @@ public class ClasspathOrderTest {
         assertThat(entryObjects()).containsExactly(jarA, jarB);
     }
 
+    /**
+     * Each bulk add method returns true only if it added at least one classpath element, as a single add does: a
+     * list or path string that holds only duplicates, or only paths that are not there, adds nothing.
+     */
+    @Test
+    public void bulkAddsReportWhetherAnythingWasAdded(@TempDir final Path tempDir) throws IOException {
+        final var jarA = createFile(tempDir.resolve("a.jar"));
+        final var missing = tempDir.resolve("missing.jar").toString();
+        assertThat(classpathOrder.addClasspathEntries(List.of(jarA), null, null)).isTrue();
+        assertThat(classpathOrder.addClasspathEntries(List.of(jarA, missing), null, null)).isFalse();
+        assertThat(classpathOrder.addClasspathPathStr(jarA + File.pathSeparator + missing, null, null)).isFalse();
+        assertThat(classpathOrder.addClasspathEntryObject(List.of(jarA, missing), null, null)).isFalse();
+        assertThat(entryObjects()).containsExactly(jarA);
+    }
+
     /** A classpath object found by reflection may be an array, an {@link Iterable}, or a single path or URL. */
     @Test
     public void classpathEntryObjectsOfEveryShapeAreUnwrapped(@TempDir final Path tempDir) throws IOException {
@@ -360,9 +375,8 @@ public class ClasspathOrderTest {
         // An object of no recognized type has toString() called on it, which may yield a delimited path string
         assertThat(classpathOrder.addClasspathEntryObject(jarC + File.pathSeparator + jarD, null, null)).isTrue();
         assertThat(classpathOrder.addClasspathEntryObject(null, null, null)).isFalse();
-        // A path string is reported as valid whenever it splits into at least one path element, whether or not any
-        // of those elements were added, so a whole array of duplicates is still reported as valid
-        assertThat(classpathOrder.addClasspathEntryObject(new String[] { jarA }, null, null)).isTrue();
+        // Nothing is added from an array of duplicates, and the return value says so
+        assertThat(classpathOrder.addClasspathEntryObject(new String[] { jarA }, null, null)).isFalse();
 
         // Each element is kept in the form it arrived in, so the one that arrived as a File is still a File
         assertThat(entryObjects()).containsExactly(jarA, new File(jarB), jarC, jarD);
@@ -402,19 +416,11 @@ public class ClasspathOrderTest {
         assertThat(entryObjects()).containsExactly(absolutePath, relativePath, uri);
     }
 
-    /** Classpath entries are equal if they name the same classpath element, whatever classloader found it. */
+    /** An entry's string form names the classloader it was found through. */
     @Test
-    public void classpathEntriesAreEqualIfTheyNameTheSameElement() {
-        final var prefixes = List.of("classes/");
-        final var libDirPrefixes = List.of("lib/");
+    public void entryStringNamesTheClassLoader() {
         final var classLoader = getClass().getClassLoader();
-        final var entry = new Entry("/a/b.jar", "/a/b.jar", classLoader, prefixes, libDirPrefixes);
-        final var sameElement = new Entry("/a/b.jar", "/a/b.jar", null, prefixes, libDirPrefixes);
-        final var otherElement = new Entry("/a/c.jar", "/a/c.jar", classLoader, prefixes, libDirPrefixes);
-
-        assertThat(entry).isEqualTo(entry).isEqualTo(sameElement).isNotEqualTo(otherElement)
-                .isNotEqualTo("/a/b.jar");
-        assertThat(entry).hasSameHashCodeAs(sameElement);
+        final var entry = new Entry("/a/b.jar", "/a/b.jar", classLoader, List.of(), List.of());
         assertThat(entry).hasToString("/a/b.jar [" + classLoader + "]");
     }
 }

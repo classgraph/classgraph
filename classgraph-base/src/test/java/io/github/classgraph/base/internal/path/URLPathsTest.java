@@ -285,17 +285,27 @@ public class URLPathsTest {
      */
     @Test
     public void commaIsNotPartOfAURLScheme() {
-        assertThat(URLPaths.URL_SCHEME_PATTERN.matcher("a,b:/x").matches()).isFalse();
+        assertThat(URLPaths.startsWithURLScheme("a,b:/x")).isFalse();
     }
 
     /** The characters that really are legal in a URL scheme are still accepted. */
     @Test
     public void legalSchemeCharactersStillMatch() {
-        assertThat(URLPaths.URL_SCHEME_PATTERN.matcher("http://x").matches()).isTrue();
-        assertThat(URLPaths.URL_SCHEME_PATTERN.matcher("a+b:/x").matches()).isTrue();
-        assertThat(URLPaths.URL_SCHEME_PATTERN.matcher("a-b:/x").matches()).isTrue();
-        assertThat(URLPaths.URL_SCHEME_PATTERN.matcher("a.b:/x").matches()).isTrue();
-        assertThat(URLPaths.URL_SCHEME_PATTERN.matcher("a9:/x").matches()).isTrue();
+        assertThat(URLPaths.startsWithURLScheme("http://x")).isTrue();
+        assertThat(URLPaths.startsWithURLScheme("a+b:/x")).isTrue();
+        assertThat(URLPaths.startsWithURLScheme("a-b:/x")).isTrue();
+        assertThat(URLPaths.startsWithURLScheme("a.b:/x")).isTrue();
+        assertThat(URLPaths.startsWithURLScheme("a9:/x")).isTrue();
+    }
+
+    /**
+     * Only the start of the path decides whether it has a scheme. (The pattern used to have to match the whole
+     * path, and its {@code ".*"} did not match a line terminator, so a path holding one was not a URL.)
+     */
+    @Test
+    public void aSchemeIsRecognizedWhateverFollowsIt() {
+        assertThat(URLPaths.startsWithURLScheme("http://x\ny")).isTrue();
+        assertThat(URLPaths.startsWithURLScheme("http:")).isTrue();
     }
 
     /**
@@ -303,6 +313,6 @@ public class URLPathsTest {
      */
     @Test
     public void singleCharSchemeDoesNotMatch() {
-        assertThat(URLPaths.URL_SCHEME_PATTERN.matcher("C:/x").matches()).isFalse();
+        assertThat(URLPaths.startsWithURLScheme("C:/x")).isFalse();
     }
 }

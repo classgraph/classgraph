@@ -46,13 +46,13 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Predicate;
-import java.util.regex.Pattern;
 
 import io.github.classgraph.base.ClassGraphLog;
 import io.github.classgraph.base.internal.path.FastPathResolver;
 import io.github.classgraph.base.internal.path.FileUtils;
 import io.github.classgraph.base.internal.path.PathList;
 import io.github.classgraph.base.internal.path.PathSyntax;
+import io.github.classgraph.base.internal.path.URLPaths;
 import io.github.classgraph.classpath.ClassLoaderHandler;
 import io.github.classgraph.classpath.ClasspathOrder;
 import org.jspecify.annotations.Nullable;
@@ -65,13 +65,8 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
     /** The {@link Entry#location} of every classpath element found so far, which is what deduplicates them. */
     private final Set<String> classpathEntryUniqueLocations = new HashSet<>();
 
-    /** The classpath order. Keys are instances of {@link String} or {@link URL}. */
+    /** The classpath elements found so far, in classpath order. */
     private final List<Entry> order = new ArrayList<>();
-
-    /**
-     * Match URL schemes (must consist of at least two chars, otherwise this is Windows drive letter).
-     */
-    private static final Pattern schemeMatcher = Pattern.compile("^[a-zA-Z][a-zA-Z0-9+\\-.]+:");
 
     /**
      * The package root prefixes of the {@code ClassLoaderHandler} whose {@code findClasspathOrder} method is
@@ -95,7 +90,8 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
      */
     public static class Entry {
         /**
-         * The classpath entry object (a {@link String} path, {@link Path}, {@link URL} or {@link URI}).
+         * The classpath entry object (a {@link String} path, {@link File}, {@link Path}, {@link URL} or
+         * {@link URI}).
          */
         public final Object classpathEntryObj;
 
@@ -133,7 +129,8 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
          * Constructor.
          *
          * @param classpathEntryObj
-         *            the classpath entry object (a {@link String} or {@link URL} or {@link Path}).
+         *            the classpath entry object (a {@link String} path, {@link File}, {@link Path}, {@link URL} or
+         *            {@link URI}).
          * @param location
          *            the location of the classpath element.
          * @param classLoader
@@ -159,22 +156,6 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
          */
         public @Nullable String getClassLoaderString() {
             return classLoaderStr;
-        }
-
-        @Override
-        public int hashCode() {
-            return classpathEntryObj.hashCode();
-        }
-
-        @Override
-        public boolean equals(final @Nullable Object obj) {
-            if (obj == this) {
-                return true;
-            }
-            if (!(obj instanceof final Entry other)) {
-                return false;
-            }
-            return this.classpathEntryObj.equals(other.classpathEntryObj);
         }
 
         @Override
@@ -329,7 +310,7 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
             // A classpath element that still has a URL scheme is reached through a URL handler rather than through
             // a filesystem, since FastPathResolver strips the "file:" and "jar:file:" schemes, leaving a local file
             // with no scheme at all
-            if (schemeMatcher.matcher(pathElementStr).find()) {
+            if (URLPaths.startsWithURLScheme(pathElementStr)) {
                 return pathElementStr;
             }
             // A classpath element stored inside an archive is reached through the archive, so it is the archive
@@ -636,22 +617,6 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
         return true;
     }
 
-    /**
-     * Add a classpath element relative to a base file. May be called by a ClassLoaderHandler to add classpath
-     * elements that it knows about. ClassLoaders will be called in order.
-     *
-     * @param pathElement
-     *            the {@link String} path, {@link URL} or {@link URI} of the classpath element, or some object whose
-     *            {@link Object#toString()} method can be called to obtain the classpath element.
-     * @param classLoader
-     *            the ClassLoader that this classpath element was obtained from.
-     * @param log
-     *            the log node, or null to skip logging
-     * @return true if the classpath element was added. A classpath element is not added if it is null or empty, if
-     *         it names a file or directory that the filesystem says is not there or cannot be read, if it is
-     *         filtered out by the user's classpath element filters, or if it is a duplicate of a classpath element
-     *         that has already been added.
-     */
     @Override
     public boolean addClasspathEntry(final @Nullable Object pathElement, final @Nullable ClassLoader classLoader,
             final @Nullable ClassGraphLog log) {
@@ -676,7 +641,7 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
             hasWildcardSuffix = true;
             pathElementStr = "";
             // Leave pathElementURL null, so that wildcards can be handled below
-        } else if (!(pathElement instanceof Path) && schemeMatcher.matcher(pathElementStr).find()) {
+        } else if (!(pathElement instanceof Path) && URLPaths.startsWithURLScheme(pathElementStr)) {
             // Path element string is a URL with a scheme other than `[jar:]file:`, so the URL has to actually be
             // parsed, since the scheme may be a custom scheme. A Path is exempt: the scheme in its string form is
             // the scheme of its own filesystem, which usually has no URL handler, so parsing it as a URL would at
@@ -715,111 +680,62 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
         if (pathElementStr.startsWith("//")) {
             // Handle Windows UNC paths (#705). File supports UNC paths directly:
             // https://wiki.eclipse.org/Eclipse/UNC_Paths#Programming_with_UNC_paths
-            try {
-                return addClasspathEntryAndLog(new File(pathElementStr), pathElementStr, pathElementStr,
-                        classLoader, log);
-            } catch (final Exception e) {
-                // Fall through, and add the path as a string rather than as a File
-            }
+            return addClasspathEntryAndLog(new File(pathElementStr), pathElementStr, pathElementStr, classLoader,
+                    log);
         }
         return addClasspathEntryAndLog(pathElementStr, pathElementStr, pathElementStr, classLoader, log);
     }
 
-    /**
-     * Add classpath entries, one per list element. Nothing is split here: a list element that holds more than one
-     * classpath entry is added as a single entry.
-     *
-     * @param classpathEntries
-     *            a list of path {@link String}, {@link URL}, {@link URI} or {@link File} objects, one per entry.
-     * @param classLoader
-     *            the ClassLoader that this classpath was obtained from.
-     * @param log
-     *            the log node, or null to skip logging
-     * @return true if there was at least one classpath entry to add, otherwise false.
-     */
     @Override
-    public boolean addClasspathEntries(final @Nullable List<Object> classpathEntries,
+    public boolean addClasspathEntries(final @Nullable List<?> classpathEntries,
             final @Nullable ClassLoader classLoader, final @Nullable ClassGraphLog log) {
-        if (classpathEntries == null || classpathEntries.isEmpty()) {
-            return false;
-        } else {
+        var added = false;
+        if (classpathEntries != null) {
             for (final Object pathElement : classpathEntries) {
-                addClasspathEntry(pathElement, classLoader, log);
+                added |= addClasspathEntry(pathElement, classLoader, log);
             }
-            return true;
         }
+        return added;
     }
 
-    /**
-     * Add classpath entries, separated by the system path separator character.
-     *
-     * @param pathStr
-     *            the delimited string of URLs or paths of the classpath.
-     * @param classLoader
-     *            the ClassLoader that this classpath was obtained from.
-     * @param log
-     *            the log node, or null to skip logging
-     * @return true (and add the classpath element) if pathElement is not null or empty, otherwise return false.
-     */
     @Override
     public boolean addClasspathPathStr(final @Nullable String pathStr, final @Nullable ClassLoader classLoader,
             final @Nullable ClassGraphLog log) {
-        if (pathStr == null || pathStr.isEmpty()) {
-            return false;
-        } else {
-            final var parts = PathList.split(pathStr, classpathSpec.allowedURLSchemes);
-            if (parts.length == 0) {
-                return false;
-            } else {
-                for (final String pathElement : parts) {
-                    addClasspathEntry(pathElement, classLoader, log);
-                }
-                return true;
+        var added = false;
+        if (pathStr != null && !pathStr.isEmpty()) {
+            for (final String pathElement : PathList.split(pathStr, classpathSpec.allowedURLSchemes)) {
+                added |= addClasspathEntry(pathElement, classLoader, log);
             }
         }
+        return added;
     }
 
-    /**
-     * Add classpath entries from an object obtained from reflection. The object may be a {@link URL}, a
-     * {@link URI}, a {@link File}, a {@link Path} or a {@link String} (containing a single classpath element path,
-     * or several paths separated with File.pathSeparator), a List or other Iterable, or an array object. In the
-     * case of Iterables and arrays, the elements may be any type whose {@code toString()} method returns a path or
-     * URL string (including the {@code URL} and {@code Path} types).
-     *
-     * @param pathObject
-     *            the object containing a classpath string or strings.
-     * @param classLoader
-     *            the ClassLoader that this classpath was obtained from.
-     * @param log
-     *            the log node, or null to skip logging
-     * @return true (and add the classpath element) if pathElement is not null or empty, otherwise return false.
-     */
     @Override
     public boolean addClasspathEntryObject(final @Nullable Object pathObject,
             final @Nullable ClassLoader classLoader, final @Nullable ClassGraphLog log) {
-        var valid = false;
+        var added = false;
         if (pathObject != null) {
             if (pathObject instanceof URL || pathObject instanceof URI || pathObject instanceof Path
                     || pathObject instanceof File) {
-                valid |= addClasspathEntry(pathObject, classLoader, log);
+                added |= addClasspathEntry(pathObject, classLoader, log);
             } else if (pathObject instanceof final Iterable<?> iterable) {
                 for (final Object elt : iterable) {
-                    valid |= addClasspathEntryObject(elt, classLoader, log);
+                    added |= addClasspathEntryObject(elt, classLoader, log);
                 }
             } else {
                 final Class<?> valClass = pathObject.getClass();
                 if (valClass.isArray()) {
                     for (int j = 0, n = Array.getLength(pathObject); j < n; j++) {
                         final var elt = Array.get(pathObject, j);
-                        valid |= addClasspathEntryObject(elt, classLoader, log);
+                        added |= addClasspathEntryObject(elt, classLoader, log);
                     }
                 } else {
                     // Try simply calling toString() as a final fallback, to handle String objects, or to try to
                     // handle anything else
-                    valid |= addClasspathPathStr(pathObject.toString(), classLoader, log);
+                    added |= addClasspathPathStr(pathObject.toString(), classLoader, log);
                 }
             }
         }
-        return valid;
+        return added;
     }
 }

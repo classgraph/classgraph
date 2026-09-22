@@ -371,7 +371,7 @@ public final class PathSyntax {
         // exists locally, it is a path whose every '!' is a literal filename character. Only if nothing local
         // answers to it is it read as a URL, and the syntactic rule used to find the separator.
         // (A path that names nothing at all cannot be told from a URL, but it fails to open either way.)
-        return URLPaths.URL_SCHEME_PATTERN.matcher(path).matches() && !new File(path).exists() ? firstPlingIdx : -1;
+        return URLPaths.startsWithURLScheme(path) && !new File(path).exists() ? firstPlingIdx : -1;
     }
 
     /**
@@ -450,7 +450,7 @@ public final class PathSyntax {
      * @return true if the path is a URL rather than a path into the local filesystem.
      */
     public static boolean hasURLScheme(final String path) {
-        if (!URLPaths.URL_SCHEME_PATTERN.matcher(path).matches()) {
+        if (!URLPaths.startsWithURLScheme(path)) {
             // Nothing shaped like a scheme at the front, so the filesystem does not need to be consulted at all
             return false;
         }

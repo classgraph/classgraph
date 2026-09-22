@@ -42,9 +42,9 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * The handler for a classloader that no other handler recognizes. It reads the classpath from any of a range of
- * common method and field names, and from a {@code URLClassPath} field if there is one. If neither finds anything,
- * it asks the classloader for resources that are found at the root of most classpath elements, and works back from
- * their URLs to the classpath elements.
+ * common method and field names, and from a {@code URLClassPath} field if there is one. If neither finds a
+ * classpath element that was not already found, it asks the classloader for resources that are found at the root of
+ * most classpath elements, and works back from their URLs to the classpath elements.
  */
 class FallbackClassLoaderHandler implements ClassLoaderHandler {
     /** Constructor. */
@@ -135,14 +135,14 @@ class FallbackClassLoaderHandler implements ClassLoaderHandler {
             valid = true;
         }
         if (!valid) {
-            // None of the known field or method names worked, so fall back to asking the classloader for resources
+            // None of the known field or method names yielded a new classpath element, so fall back to asking the classloader for resources
             // that are present in the root of most classpath elements, and strip the resource path from the
             // returned URLs to get the classpath element itself (#892)
             valid = findClasspathOrderByProbingForResources(classLoader, classpathOrder, log);
         }
         if (log != null) {
             log.log("FallbackClassLoaderHandler " + (valid ? "found" : "did not find")
-                    + " classpath entries in unknown ClassLoader " + classLoader);
+                    + " new classpath entries in unknown ClassLoader " + classLoader);
         }
     }
 
@@ -169,7 +169,7 @@ class FallbackClassLoaderHandler implements ClassLoaderHandler {
      *            a {@link ClasspathOrder} object to update.
      * @param log
      *            the log node, or null to skip logging
-     * @return true if any classpath entries were found.
+     * @return true if any classpath entries were added.
      */
     private static boolean findClasspathOrderByProbingForResources(final ClassLoader classLoader,
             final ClasspathOrder classpathOrder, final @Nullable ClassGraphLog log) {

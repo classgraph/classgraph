@@ -44,18 +44,18 @@ import org.jspecify.annotations.Nullable;
  */
 public final class FastPathResolver {
     /** Match %-encoded characters in URLs. */
-    private static final Pattern percentMatcher = Pattern.compile("([%][0-9a-fA-F][0-9a-fA-F])+");
+    private static final Pattern PERCENT_ESCAPES = Pattern.compile("([%][0-9a-fA-F][0-9a-fA-F])+");
 
     /**
      * Match custom URLs that are followed by one or two slashes. The scheme grammar is the one in RFC 3986: a
      * letter, then any number of letters, digits, {@code '+'}, {@code '-'} and {@code '.'} -- digits included, so
      * that a scheme such as {@code "s3:"} is recognized. At least two characters are required, so that a Windows
      * drive designation such as {@code "C:/dir"} is read as a drive and not as a scheme, matching
-     * {@link URLPaths#URL_SCHEME_PATTERN}. A single-letter scheme is unusable in practice for exactly that reason,
-     * so nothing is given up by not recognizing one: off Windows, {@code "C:/dir"} is then resolved as an ordinary
-     * relative path, which does not exist, so the classpath element is logged and skipped during scanning.
+     * {@link URLPaths#startsWithURLScheme(String)}. A single-letter scheme is unusable in practice for exactly that
+     * reason, so nothing is given up by not recognizing one: off Windows, {@code "C:/dir"} is then resolved as an
+     * ordinary relative path, which does not exist, so the classpath element is logged and skipped during scanning.
      */
-    private static final Pattern schemeOneOrTwoSlashMatcher = Pattern.compile("^[a-zA-Z][a-zA-Z0-9+\\-.]+:/{1,2}");
+    private static final Pattern SCHEME_ONE_OR_TWO_SLASHES = Pattern.compile("^[a-zA-Z][a-zA-Z0-9+\\-.]+:/{1,2}");
 
     /**
      * The separator that Tomcat uses in a {@code "war:"} URL between the path of the WAR file and the path within
@@ -178,7 +178,7 @@ public final class FastPathResolver {
         }
         final StringBuilder buf = new StringBuilder();
         var prevEndMatchIdx = 0;
-        final var matcher = percentMatcher.matcher(path);
+        final var matcher = PERCENT_ESCAPES.matcher(path);
         while (matcher.find()) {
             buf.append(path, prevEndMatchIdx, matcher.start());
             unescapePercentEncoding(path, matcher.start(), matcher.end(), buf);
@@ -228,7 +228,7 @@ public final class FastPathResolver {
             if (hasPercent && percentDecode) {
                 // Perform '%'-decoding of path segment
                 var prevEndMatchIdx = 0;
-                final var matcher = percentMatcher.matcher(path);
+                final var matcher = PERCENT_ESCAPES.matcher(path);
                 while (matcher.find()) {
                     final var startMatchIdx = matcher.start();
                     final var endMatchIdx = matcher.end();
@@ -396,7 +396,7 @@ public final class FastPathResolver {
             } else {
                 // Preserve the number of slashes on custom URL schemes (#420)
                 final var relPath = parsed.startIdx == 0 ? path : path.substring(parsed.startIdx);
-                final var matcher = schemeOneOrTwoSlashMatcher.matcher(relPath);
+                final var matcher = SCHEME_ONE_OR_TWO_SLASHES.matcher(relPath);
                 if (matcher.find()) {
                     matchedPrefix = true;
                     final var match = matcher.group();

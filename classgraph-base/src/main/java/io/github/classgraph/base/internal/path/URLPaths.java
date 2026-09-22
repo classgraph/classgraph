@@ -45,10 +45,10 @@ import io.github.classgraph.base.internal.utils.VersionFinder.OperatingSystem;
  */
 public final class URLPaths {
     /**
-     * Check if a path has a URL scheme at the beginning. Require at least 2 chars in a URL scheme, so that Windows
-     * drive designations don't get treated as URL schemes.
+     * A URL scheme and its trailing {@code ':'} at the start of a path. At least two characters are required, so
+     * that a Windows drive designation is not taken for a URL scheme.
      */
-    public static final Pattern URL_SCHEME_PATTERN = Pattern.compile("[a-zA-Z][a-zA-Z0-9+\\-.]+[:].*");
+    private static final Pattern URL_SCHEME_PREFIX_PATTERN = Pattern.compile("^[a-zA-Z][a-zA-Z0-9+\\-.]+:");
 
     /** A URL scheme on its own, without the trailing {@code ':'}. */
     private static final Pattern URL_SCHEME_NAME_PATTERN = Pattern.compile("[a-zA-Z][a-zA-Z0-9+\\-.]+");
@@ -107,6 +107,20 @@ public final class URLPaths {
             throw new IllegalArgumentException("Not a valid URL scheme: \"" + scheme + "\"");
         }
         return scheme.toLowerCase(Locale.ROOT);
+    }
+
+    /**
+     * Check whether a path begins with something shaped like a URL scheme: a letter, then at least one more letter,
+     * digit, {@code '+'}, {@code '-'} or {@code '.'}, then {@code ':'}. This looks at syntax only. Since
+     * {@code ':'} is a legal filename character off Windows, a relative path can be spelled like a URL, and
+     * {@link PathSyntax#hasURLScheme(String)} consults the filesystem to tell the two apart.
+     *
+     * @param path
+     *            the path.
+     * @return true if the path begins with a URL scheme followed by {@code ':'}.
+     */
+    public static boolean startsWithURLScheme(final String path) {
+        return URL_SCHEME_PREFIX_PATTERN.matcher(path).find();
     }
 
     /**
