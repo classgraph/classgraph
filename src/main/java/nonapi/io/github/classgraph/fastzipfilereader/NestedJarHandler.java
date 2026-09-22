@@ -44,7 +44,6 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLConnection;
-import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystemNotFoundException;
@@ -109,7 +108,7 @@ public class NestedJarHandler {
 
     /**
      * A singleton map from a {@link FastZipEntry} to the {@link ZipFileSlice} wrapping either the zip entry data,
-     * if the entry is stored, or a ByteBuffer, if the zip entry was inflated to memory, or a physical file on disk
+     * if the entry is stored, or a byte array, if the zip entry was inflated to memory, or a physical file on disk
      * if the zip entry was inflated to a temporary file.
      */
     private SingletonMap<FastZipEntry, ZipFileSlice, IOException> //
@@ -183,9 +182,8 @@ public class NestedJarHandler {
                         // This is also the last frame of recursion for the 'else' clause below.
 
                         // If the path starts with "http://" or "https://" or any other URI/URL scheme,
-                        // download the jar to a temp file or to a ByteBuffer in RAM. ("jar:" and
-                        // "file:"
-                        // have already been stripped from any URL/URI.)
+                        // read the jar into RAM, or into a temporary file if it is too large for RAM.
+                        // ("jar:" and "file:" have already been stripped from any URL/URI.)
                         final boolean isURL = JarUtils.hasURLScheme(nestedJarPath);
                         PhysicalZipFile physicalZipFile;
                         if (isURL) {
@@ -204,7 +202,7 @@ public class NestedJarHandler {
                                         + nestedJarPath);
                             }
 
-                            // Download jar from URL to a ByteBuffer in RAM, or to a temp file on disk
+                            // Read the jar into RAM, or into a temporary file if it is too large for RAM
                             physicalZipFile = downloadJarFromURL(nestedJarPath, log);
 
                         } else {
@@ -354,13 +352,10 @@ public class NestedJarHandler {
                         }
 
                         // The child path corresponds to a non-directory zip entry, so it must be a
-                        // nested jar
-                        // (since non-jar nested files cannot be used on the classpath). Map the nested
-                        // jar as
-                        // a new ZipFileSlice if it is stored, or inflate it to RAM or to a temporary
-                        // file if
-                        // it is deflated, then create a new ZipFileSlice over the temporary file or
-                        // ByteBuffer.
+                        // nested jar (since non-jar nested files cannot be used on the classpath). Map the
+                        // nested jar as a new ZipFileSlice if it is stored, or inflate it to RAM or to a
+                        // temporary file if it is deflated, then create a new ZipFileSlice over the
+                        // temporary file or byte array.
 
                         // Get zip entry as a ZipFileSlice, possibly inflating to disk or RAM
 
@@ -654,23 +649,20 @@ public class NestedJarHandler {
     }
 
     /**
-     * Download a jar from a URL to a temporary file, or to a ByteBuffer if the temporary directory is not writeable
-     * or full. The downloaded jar is returned wrapped in a {@link PhysicalZipFile} instance.
+     * Read a jar from a URL into RAM, or into a temporary file if it is larger than the maximum buffered jar RAM
+     * size. A URL that names a {@link Path} in an installed filesystem is opened as that {@link Path} rather than
+     * read through the URL.
      *
      * @param jarURL
      *            the jar URL
      * @param log
      *            the log
-     * @return the temporary file or {@link ByteBuffer} the jar was downloaded to, wrapped in a
-     *         {@link PhysicalZipFile} instance.
+     * @return the jar, as a {@link PhysicalZipFile}.
      * @throws IOException
-     *             If the jar could not be downloaded, or the jar URL is malformed.
+     *             If the jar could not be read, the jar URL is malformed, or the temporary file could not be
+     *             created or written.
      * @throws InterruptedException
      *             if the thread was interrupted
-     * @throws IllegalArgumentException
-     *             If the temp dir is not writeable, or has insufficient space to download the jar. (This is thrown
-     *             as a separate exception from IOException, so that the case of an unwriteable temp dir can be
-     *             handled separately, by downloading the jar to a ByteBuffer in RAM.)
      */
     private PhysicalZipFile downloadJarFromURL(final String jarURL, final LogNode log)
             throws IOException, InterruptedException {
@@ -717,27 +709,9 @@ public class NestedJarHandler {
             // response, not the time the whole download is allowed to take.
             urlConn.conn.setReadTimeout(HTTP_TIMEOUT);
             urlConn.conn.connect();
-            if (urlConn.httpConn != null) {
-                // Get content length from HTTP headers, if available
-                if (urlConn.httpConn.getResponseCode() != HttpURLConnection.HTTP_OK) {
-                    throw new IOException(
-                            "Got response code " + urlConn.httpConn.getResponseCode() + " for URL " + url);
-                }
-            } else if (url.getProtocol().equalsIgnoreCase("file")) {
-                // We ended up with a "file:" URL, which can happen as a result of a custom URL
-                // scheme that
-                // rewrites its URLs into "file:" URLs (see Issue400.java).
-                try {
-                    // If this is a "file:" URL, get the file from the URL and return it as a new
-                    // PhysicalZipFile
-                    // (this avoids going through an InputStream). Throws IOException if the file
-                    // cannot be read.
-                    final File file = Paths.get(url.toURI()).toFile();
-                    return new PhysicalZipFile(file, this, log);
-
-                } catch (final Exception e) {
-                    // Fall through -- unknown URL type
-                }
+            if (urlConn.httpConn != null
+                    && urlConn.httpConn.getResponseCode() != HttpURLConnection.HTTP_OK) {
+                throw new IOException("Got response code " + urlConn.httpConn.getResponseCode() + " for URL " + url);
             }
             // Try to read content length hint
             contentLengthHint = urlConn.conn.getContentLengthLong();
