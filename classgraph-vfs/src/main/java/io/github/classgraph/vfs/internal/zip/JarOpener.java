@@ -42,7 +42,7 @@ import org.jspecify.annotations.Nullable;
  * Opens jarfiles, however they are named -- by a canonical {@link File}, by a URL, by a {@link Path} in a
  * non-default filesystem, from an {@link InputStream}, or as an entry nested within an already-opened jarfile --
  * and hands back the {@link LogicalZipFile} for each. This is the doorway between the root layer, which caches and
- * owns the opened roots, and the zipfile layer, whose classes are not visible outside this package.
+ * owns the opened roots, and the zipfile layer, whose constructors are not visible outside this package.
  *
  * <p>
  * Nothing here is cached: a jarfile is opened once per call, and the caller decides what is shared. Each open hands
@@ -88,15 +88,7 @@ public final class JarOpener {
      */
     public static OpenedJar openJarFile(final File canonicalFile, final Vfs vfs, final @Nullable LogNode log)
             throws IOException, InterruptedException {
-        final var physicalZipFile = new PhysicalZipFile(canonicalFile, vfs, log);
-        try {
-            return new OpenedJar(physicalZipFile.getLogicalZipFile(log), physicalZipFile);
-        } catch (final IOException | InterruptedException | RuntimeException | Error e) {
-            // The caller gets the exception rather than the zipfile, so nothing would ever reach the file handle
-            // that was just opened
-            physicalZipFile.releaseUnreachable(e);
-            throw e;
-        }
+        return readCentralDirectory(new PhysicalZipFile(canonicalFile, vfs, log), log);
     }
 
     /**
@@ -128,15 +120,7 @@ public final class JarOpener {
                     + ":\" is not allowed -- cannot read classpath element: " + url);
         }
         // Download jar from URL to a ByteBuffer in RAM, or to a temp file on disk
-        final var physicalZipFile = JarURLDownloader.downloadJarFromURL(url, vfs, log);
-        try {
-            return new OpenedJar(physicalZipFile.getLogicalZipFile(log), physicalZipFile);
-        } catch (final IOException | InterruptedException | RuntimeException | Error e) {
-            // The caller gets the exception rather than the zipfile, so nothing would ever reach what was just
-            // downloaded
-            physicalZipFile.releaseUnreachable(e);
-            throw e;
-        }
+        return readCentralDirectory(JarURLDownloader.downloadJarFromURL(url, vfs, log), log);
     }
 
     /**
@@ -158,15 +142,7 @@ public final class JarOpener {
      */
     public static OpenedJar openJarFromPath(final Path path, final Vfs vfs, final @Nullable LogNode log)
             throws IOException, InterruptedException {
-        final var physicalZipFile = new PhysicalZipFile(path, vfs, log);
-        try {
-            return new OpenedJar(physicalZipFile.getLogicalZipFile(log), physicalZipFile);
-        } catch (final IOException | InterruptedException | RuntimeException | Error e) {
-            // The caller gets the exception rather than the zipfile, so nothing would ever reach the file handle
-            // that was just opened
-            physicalZipFile.releaseUnreachable(e);
-            throw e;
-        }
+        return readCentralDirectory(new PhysicalZipFile(path, vfs, log), log);
     }
 
     /**
@@ -194,15 +170,33 @@ public final class JarOpener {
     public static OpenedJar openJarFromInputStream(final InputStream inputStream, final long inputStreamLengthHint,
             final String name, final Vfs vfs, final @Nullable LogNode log)
             throws IOException, InterruptedException {
-        final var physicalZipFile = new PhysicalZipFile(inputStream, inputStreamLengthHint, name, vfs, log);
+        // The physical zipfile is created here rather than fetched from a cache, so nothing else can reach it, and
+        // two streams read under the same name stay two separate jarfiles even though the two physical zipfiles
+        // wrapping them compare equal
+        return readCentralDirectory(new PhysicalZipFile(inputStream, inputStreamLengthHint, name, vfs, log), log);
+    }
+
+    /**
+     * Read the central directory of a physical zipfile that was just opened, downloaded or read.
+     *
+     * @param physicalZipFile
+     *            the physical zipfile, which passes to the caller if this returns, and is released here if it
+     *            throws.
+     * @param log
+     *            the log node, or null to skip logging.
+     * @return the jarfile, with the physical zipfile, which the caller owns.
+     * @throws IOException
+     *             if the central directory could not be read.
+     * @throws InterruptedException
+     *             if the thread was interrupted.
+     */
+    private static OpenedJar readCentralDirectory(final PhysicalZipFile physicalZipFile,
+            final @Nullable LogNode log) throws IOException, InterruptedException {
         try {
-            // The physical zipfile was created here rather than fetched from a cache, so nothing else can reach it,
-            // and two streams read under the same name stay two separate jarfiles even though the two physical
-            // zipfiles wrapping them compare equal
             return new OpenedJar(physicalZipFile.getLogicalZipFile(log), physicalZipFile);
         } catch (final IOException | InterruptedException | RuntimeException | Error e) {
             // The caller gets the exception rather than the zipfile, so nothing would ever reach what was just
-            // read
+            // opened
             physicalZipFile.releaseUnreachable(e);
             throw e;
         }
@@ -246,7 +240,7 @@ public final class JarOpener {
      * @return the matching {@link FastZipEntry}, or null if there is no entry with that name
      */
     public static @Nullable FastZipEntry findEntry(final LogicalZipFile logicalZipFile, final String entryName) {
-        for (final FastZipEntry entry : logicalZipFile.entries) {
+        for (final FastZipEntry entry : logicalZipFile.getEntries()) {
             // Match the unversioned name, since that is the name the entry is served under -- an entry stored only
             // under "META-INF/versions/N/" is named without that prefix once multi-release versions are resolved.
             // The unversioned name is the same as the stored name for an entry that is not versioned, and for every
@@ -270,7 +264,7 @@ public final class JarOpener {
      */
     public static boolean hasEntriesUnderDir(final LogicalZipFile logicalZipFile, final String dirPath) {
         final var dirPathPrefix = dirPath + "/";
-        for (final FastZipEntry entry : logicalZipFile.entries) {
+        for (final FastZipEntry entry : logicalZipFile.getEntries()) {
             // Match the unversioned name, for the same reason as findEntry(LogicalZipFile, String): a package root
             // that exists only under "META-INF/versions/N/" is a package root of the jarfile all the same
             if (entry.entryNameUnversioned.startsWith(dirPathPrefix)) {

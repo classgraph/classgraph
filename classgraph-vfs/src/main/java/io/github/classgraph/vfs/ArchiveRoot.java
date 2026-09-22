@@ -151,9 +151,9 @@ public final class ArchiveRoot extends VfsRoot {
         var index = entryIndex;
         if (index == null) {
             final var packageRootPrefix = packageRoot.isEmpty() ? "" : packageRoot + "/";
-            final List<VfsEntry> entriesTmp = new ArrayList<>(logicalZipFile.entries.size());
+            final List<VfsEntry> entriesTmp = new ArrayList<>(logicalZipFile.getEntries().size());
             final Map<String, VfsEntry> entriesByNameTmp = new LinkedHashMap<>();
-            for (final var zipEntry : logicalZipFile.entries) {
+            for (final var zipEntry : logicalZipFile.getEntries()) {
                 if (zipEntry.entryNameUnversioned.startsWith(packageRootPrefix)) {
                     final var entry = new ArchiveEntry(this, zipEntry,
                             zipEntry.entryNameUnversioned.substring(packageRootPrefix.length()));

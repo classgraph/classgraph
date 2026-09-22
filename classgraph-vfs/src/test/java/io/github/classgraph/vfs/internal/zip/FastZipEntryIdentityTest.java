@@ -110,7 +110,7 @@ public class FastZipEntryIdentityTest {
         final var jarFile = new File(tempDir, "entry-identity.jar");
         writeJar(jarFile);
         withZipFile(jarFile, logicalZipFile -> {
-            final var readFromZipfile = logicalZipFile.entries.get(0);
+            final var readFromZipfile = logicalZipFile.getEntries().get(0);
             final var sameEntry = entry(logicalZipFile, BASE_ENTRY_NAME, 0L);
             final var sameEntryAgain = entry(logicalZipFile, BASE_ENTRY_NAME, 0L);
 
@@ -174,7 +174,7 @@ public class FastZipEntryIdentityTest {
         final var jarFile = new File(tempDir, "entry-path.jar");
         writeJar(jarFile);
         withZipFile(jarFile, logicalZipFile -> {
-            final var zipEntry = logicalZipFile.entries.get(0);
+            final var zipEntry = logicalZipFile.getEntries().get(0);
             assertThat(zipEntry.getPath()).isEqualTo(logicalZipFile.getPath() + "!/" + BASE_ENTRY_NAME);
             // The path alone, with no URL scheme in front of it: the entry does not know that its zipfile is a file
             assertThat(zipEntry).hasToString(zipEntry.getPath());

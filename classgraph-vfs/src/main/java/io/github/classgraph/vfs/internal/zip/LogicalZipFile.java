@@ -66,8 +66,8 @@ public class LogicalZipFile extends ZipFileSlice {
      */
     private static final int UTF8_NAME_FLAG_BIT = 1 << 11;
 
-    /** The zipfile entries. */
-    public List<FastZipEntry> entries;
+    /** The zipfile entries, which are only changed while the central directory is being read. */
+    private List<FastZipEntry> entries;
 
     /** If true, this is a multi-release jar. */
     private boolean isMultiReleaseJar;
@@ -253,10 +253,21 @@ public class LogicalZipFile extends ZipFileSlice {
      * Get the main section of the manifest file of this zipfile.
      *
      * @return the manifest attributes, keyed case-insensitively by attribute name, or null if this zipfile has no
-     *         {@code META-INF/MANIFEST.MF} entry.
+     *         {@code META-INF/MANIFEST.MF} entry, under that name or one that differs from it only in case.
      */
     public @Nullable Map<String, String> getManifest() {
         return manifest;
+    }
+
+    /**
+     * Get the entries of this zipfile.
+     *
+     * @return the entries, in the order of the central directory, without directories, without the earlier of two
+     *         entries with the same name, and, for a multi-release jarfile, without the versions that are masked by
+     *         a newer one. Unmodifiable.
+     */
+    public List<FastZipEntry> getEntries() {
+        return entries;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -797,7 +808,7 @@ public class LogicalZipFile extends ZipFileSlice {
             }
             // Replace non-Unicode entry name with Unicode version.
             // This extra field's name is always UTF-8, whatever the entry's language encoding flag says
-            final var unicodeEntryName = ZipEntryNameCodec.readEntryName(cenReader, tagOff + 9, size - 5,
+            final var unicodeEntryName = ZipEntryNameDecoder.readEntryName(cenReader, tagOff + 9, size - 5,
                     /* isUtf8 = */ true);
             // The replacement name has to be sanitized, and tested for naming a directory, exactly as the
             // name it replaces was -- otherwise an entry can carry a path such as "pkg/../../x" or
@@ -860,7 +871,7 @@ public class LogicalZipFile extends ZipFileSlice {
 
         // Get and sanitize entry name
         final var filenameStartOff = entOff + 46;
-        final var entryName = ZipEntryNameCodec.readEntryName(cenReader, filenameStartOff, filenameLen,
+        final var entryName = ZipEntryNameDecoder.readEntryName(cenReader, filenameStartOff, filenameLen,
                 /* isUtf8 = */ (flags & UTF8_NAME_FLAG_BIT) != 0);
         final var entryNameSanitized = PathSyntax.sanitizeEntryPath(entryName, /* removeInitialSlash = */ true,
                 /* removeFinalSlash = */ false);
@@ -1187,6 +1198,7 @@ public class LogicalZipFile extends ZipFileSlice {
                 unresolveVersionPrefixes(log);
             }
         }
+        entries = Collections.unmodifiableList(entries);
     }
 
     // -------------------------------------------------------------------------------------------------------------

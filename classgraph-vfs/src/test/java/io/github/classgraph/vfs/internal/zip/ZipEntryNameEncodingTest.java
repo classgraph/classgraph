@@ -231,7 +231,7 @@ public class ZipEntryNameEncodingTest {
             allBytes[i] = (byte) i;
         }
         // The UTF-8 flag is clear and these bytes are not valid UTF-8, so they are decoded as CP437
-        assertThat(ZipEntryNameCodec.decodeEntryName(allBytes, /* isUtf8 = */ false))
+        assertThat(ZipEntryNameDecoder.decodeEntryName(allBytes, /* isUtf8 = */ false))
                 .isEqualTo(new String(allBytes, Charset.forName("IBM437")));
     }
 }

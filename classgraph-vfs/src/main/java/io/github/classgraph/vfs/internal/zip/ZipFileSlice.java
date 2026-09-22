@@ -49,7 +49,8 @@ public class ZipFileSlice {
     protected final PhysicalZipFile physicalZipFile;
 
     /**
-     * For the toplevel zipfile slice, the zipfile path; For nested slices, the name/path of the zipfile entry.
+     * For the toplevel zipfile slice, the zipfile path; for a nested slice, the name of the zip entry it was read
+     * from.
      */
     private final String pathWithinParentZipFileSlice;
 
@@ -70,11 +71,11 @@ public class ZipFileSlice {
     }
 
     /**
-     * Create a ZipFileSlice that wraps a {@link PhysicalZipFile} that was extracted or inflated from a nested jar
-     * to memory or disk.
+     * Create a ZipFileSlice that wraps a {@link PhysicalZipFile} that a deflated nested jar was inflated to, in RAM
+     * or in a temporary file.
      *
      * @param physicalZipFile
-     *            a physical zipfile that has been extracted to RAM
+     *            the physical zipfile the nested jar was inflated to
      * @param zipEntry
      *            the zip entry
      */
@@ -146,9 +147,9 @@ public class ZipFileSlice {
     /**
      * Get the physical {@link File} that this ZipFileSlice is a slice of.
      *
-     * @return the physical {@link File} that this ZipFileSlice is a slice of, or null if this file was downloaded
-     *         from a URL directly to RAM, or if it is a {@link Path} in a filesystem that has no {@link File} view
-     *         of its files.
+     * @return the physical {@link File} that this ZipFileSlice is a slice of, or null if the physical zipfile is
+     *         held in RAM (read from a stream, downloaded from a URL, or inflated from a nested jar), or is a
+     *         {@link Path} in a filesystem that has no {@link File} view of its files.
      */
     public @Nullable File getPhysicalFile() {
         final var path = physicalZipFile.getPath();
@@ -167,8 +168,8 @@ public class ZipFileSlice {
     /**
      * Get the physical {@link Path} that this ZipFileSlice is a slice of.
      *
-     * @return the physical {@link Path} that this ZipFileSlice is a slice of, or null if this file was downloaded
-     *         from a URL directly to RAM.
+     * @return the physical {@link Path} that this ZipFileSlice is a slice of, or null if the physical zipfile is
+     *         held in RAM (read from a stream, downloaded from a URL, or inflated from a nested jar).
      */
     public @Nullable Path getPhysicalPath() {
         final var path = physicalZipFile.getPath();
@@ -194,19 +195,5 @@ public class ZipFileSlice {
     @Override
     public int hashCode() {
         return Objects.hash(physicalZipFile, slice, pathWithinParentZipFileSlice);
-    }
-
-    @Override
-    public String toString() {
-        final var path = getPath();
-        final var physicalPath = physicalZipFile.getPath();
-        var fileStr = physicalPath == null ? null : physicalPath.toString();
-        if (fileStr == null) {
-            final var physicalFile = physicalZipFile.getFile();
-            fileStr = physicalFile == null ? null : physicalFile.toString();
-        }
-        return "[" + (fileStr != null && !fileStr.equals(path) ? path + " -> " + fileStr : path) + " ; byte range: "
-                + slice.sliceStartPos + ".." + (slice.sliceStartPos + slice.sliceLength) + " / "
-                + physicalZipFile.length() + "]";
     }
 }

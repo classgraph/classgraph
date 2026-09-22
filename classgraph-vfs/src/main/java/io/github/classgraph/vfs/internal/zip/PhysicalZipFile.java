@@ -53,12 +53,12 @@ import org.jspecify.annotations.Nullable;
  * {@link PathSlice}, and the {@link io.github.classgraph.vfs.VfsRoot} that opened the zipfile owns the zipfile in
  * turn, so closing that root deletes the file.
  */
-public class PhysicalZipFile {
+public final class PhysicalZipFile {
     /** The {@link Path} backing this {@link PhysicalZipFile}, if any. */
-    private @Nullable Path path;
+    private final @Nullable Path path;
 
     /** The {@link File} backing this {@link PhysicalZipFile}, if any. */
-    private @Nullable File file;
+    private final @Nullable File file;
 
     /** The path to the zipfile. */
     private final String pathStr;
@@ -91,6 +91,7 @@ public class PhysicalZipFile {
      *             if an I/O exception occurs.
      */
     PhysicalZipFile(final File file, final Vfs vfs, final @Nullable LogNode log) throws IOException {
+        this.path = null;
         this.file = file;
         this.vfs = vfs;
         this.pathStr = FastPathResolver.resolve(FileUtils.currDirPath(), file.getPath());
@@ -111,6 +112,7 @@ public class PhysicalZipFile {
      */
     PhysicalZipFile(final Path path, final Vfs vfs, final @Nullable LogNode log) throws IOException {
         this.path = path;
+        this.file = null;
         this.vfs = vfs;
         this.pathStr = FileUtils.pathStr(path);
         this.slice = new PathSlice(path, vfs, log);
@@ -123,7 +125,7 @@ public class PhysicalZipFile {
      * @param inputStream
      *            the input stream. Read to its end, but not closed -- the caller retains ownership of it.
      * @param inputStreamLengthHint
-     *            The number of bytes to read in inputStream, or -1 if unknown.
+     *            the number of bytes to read from inputStream, or -1 if unknown.
      * @param pathStr
      *            the source URL the InputStream was opened from, or the zip entry path of this entry in the parent
      *            zipfile
@@ -136,6 +138,7 @@ public class PhysicalZipFile {
      */
     PhysicalZipFile(final InputStream inputStream, final long inputStreamLengthHint, final String pathStr,
             final Vfs vfs, final @Nullable LogNode log) throws IOException {
+        this.path = null;
         this.pathStr = pathStr;
         this.vfs = vfs;
         // Try downloading the InputStream to a byte array. If this succeeds, this will result in an ArraySlice. If
@@ -219,41 +222,41 @@ public class PhysicalZipFile {
     }
 
     /**
-     * Get the {@link Path} for the outermost jar file of this PhysicalZipFile.
+     * Get the {@link Path} this zipfile was opened from.
      *
-     * @return the {@link Path} for the outermost jar file of this PhysicalZipFile, or null if this file was
-     *         downloaded from a URL directly to RAM, or is backed by a {@link File}.
+     * @return the {@link Path} this zipfile was opened from, or null if it was opened from a {@link File}, or read
+     *         from a stream.
      */
     public @Nullable Path getPath() {
         return path;
     }
 
     /**
-     * Get the {@link File} for the outermost jar file of this PhysicalZipFile.
+     * Get the {@link File} this zipfile is read from.
      *
-     * @return the {@link File} for the outermost jar file of this PhysicalZipFile, or null if this file was
-     *         downloaded from a URL directly to RAM, or is backed by a {@link Path}.
+     * @return the {@link File} this zipfile was opened from, or the temporary file it was spilled to if it was read
+     *         from a stream that was too long to hold in RAM -- or null if it was opened from a {@link Path}, or
+     *         read from a stream into RAM.
      */
     public @Nullable File getFile() {
         return file;
     }
 
     /**
-     * Get the path for this PhysicalZipFile, which is the file path, if it is file-backed, or a compound nested jar
-     * path, if it is memory-backed.
+     * Get the path of this zipfile, which is also its identity.
      *
-     * @return the path for this PhysicalZipFile, which is the file path, if it is file-backed, or a compound nested
-     *         jar path, if it is memory-backed.
+     * @return the path of the file or {@link Path} this zipfile was opened from, or, if it was read from a stream,
+     *         the name it was read under: the URL it was downloaded from, or the name of the zip entry it was
+     *         inflated from. (A temporary file that a stream was spilled to does not change this name.)
      */
     public String getPathString() {
         return pathStr;
     }
 
     /**
-     * Get the length of the mapped file, or the initial remaining bytes in the wrapped ByteBuffer if a buffer was
-     * wrapped.
+     * Get the length of this zipfile.
      *
-     * @return the length of the mapped file
+     * @return the length of this zipfile, in bytes.
      */
     public long length() {
         return slice.sliceLength;
@@ -261,8 +264,8 @@ public class PhysicalZipFile {
 
     @Override
     public int hashCode() {
-        // (Use pathStr for identity, not file -- file is null for Path-backed zipfiles, and for nested jars that
-        // were extracted to RAM rather than spilled to disk, so it does not identify a zipfile on its own)
+        // (Use pathStr for identity, not file -- file is null for Path-backed zipfiles, and for streams that were
+        // read into RAM rather than spilled to disk, so it does not identify a zipfile on its own)
         return Objects.hashCode(pathStr);
     }
 

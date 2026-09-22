@@ -103,8 +103,8 @@ public class UnicodePathExtraFieldTest {
         final var vfs = new Vfs(new VfsSpec(), new InterruptionChecker());
         final List<String> entryNames = new ArrayList<>();
         try {
-            for (final FastZipEntry zipEntry : JarOpener.openJarFile(jarFile, vfs, /* log = */ null)
-                    .zipFile().entries) {
+            for (final FastZipEntry zipEntry : JarOpener.openJarFile(jarFile, vfs, /* log = */ null).zipFile()
+                    .getEntries()) {
                 entryNames.add(zipEntry.entryName);
             }
         } finally {

@@ -49,7 +49,7 @@ import io.github.classgraph.vfs.reader.RandomAccessReader;
  * modified UTF-8 encodes it as a surrogate pair of three-byte sequences, so decoding a standard UTF-8 name with a
  * modified UTF-8 decoder fails outright for any name containing an emoji or another supplementary-plane character.
  */
-final class ZipEntryNameCodec {
+final class ZipEntryNameDecoder {
     /**
      * The characters that IBM Code Page 437 maps bytes 0x80 to 0xff to. (Bytes 0x00 to 0x7f map to the same
      * characters as ASCII.) This table is inlined rather than obtained from {@link java.nio.charset.Charset}, since
@@ -77,7 +77,7 @@ final class ZipEntryNameCodec {
             + "°∙·√ⁿ²■" + "\u00a0";
 
     /** Not instantiable. */
-    private ZipEntryNameCodec() {
+    private ZipEntryNameDecoder() {
         // Cannot be constructed
     }
 

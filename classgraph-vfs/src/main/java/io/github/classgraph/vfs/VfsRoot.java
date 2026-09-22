@@ -242,18 +242,26 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
     /**
      * Returns the {@link File} backing this root.
      *
-     * @return the {@link File} of the directory or jarfile, or null if this root is a module, or is a jarfile that
-     *         was read from a stream or downloaded from a URL into RAM rather than to a temporary file.
+     * <p>
+     * For a jarfile nested within another jarfile, this is the file that the nested jarfile's bytes are read from:
+     * the outermost jarfile if the nested jarfile is stored, or the temporary file it was inflated to if it is
+     * deflated and too large to hold in RAM. A temporary file is deleted when the root is closed.
+     *
+     * @return the {@link File} of the directory, jarfile or module, or null if there is no such file: for a module
+     *         of the running JDK, a jarfile held in RAM (read from a stream, downloaded from a URL, or inflated
+     *         from a nested jarfile), or a path in a filesystem other than the default filesystem.
      */
     public @Nullable File getFile() {
         return null;
     }
 
     /**
-     * Returns the {@link Path} backing this root.
+     * Returns the {@link Path} backing this root. For a jarfile nested within another jarfile, this is the path of
+     * the file its bytes are read from, as for {@link #getFile()}.
      *
-     * @return the {@link Path} of the directory or jarfile, or null if this root is a module, or is a jarfile that
-     *         was read from a stream or downloaded from a URL into RAM rather than to a temporary file.
+     * @return the {@link Path} of the directory, jarfile or module, or null if there is no such path: for a module
+     *         of the running JDK, or a jarfile held in RAM (read from a stream, downloaded from a URL, or inflated
+     *         from a nested jarfile).
      */
     public @Nullable Path getNioPath() {
         return null;
