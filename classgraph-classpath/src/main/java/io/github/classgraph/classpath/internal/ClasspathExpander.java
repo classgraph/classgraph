@@ -41,6 +41,7 @@ import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.path.FastPathResolver;
 import io.github.classgraph.base.internal.path.FileUtils;
 import io.github.classgraph.base.internal.path.PathSyntax;
+import io.github.classgraph.base.internal.path.URLPaths;
 import io.github.classgraph.vfs.ArchiveRoot;
 import io.github.classgraph.vfs.VfsEntry;
 import io.github.classgraph.vfs.VfsRoot;
@@ -236,7 +237,12 @@ public final class ClasspathExpander {
             if (relativePath.isEmpty()) {
                 continue;
             }
-            final var resolved = FastPathResolver.resolve(parentDir, relativePath);
+            // A Class-Path entry is a relative URL, so its percent encoding is decoded, as the JVM's own classloader
+            // decodes it -- a jarfile with a space in its name cannot be named any other way, since a space
+            // separates the entries. An entry with a URL scheme is decoded by the resolver where it names a file.
+            final var urlPath = URLPaths.startsWithURLScheme(relativePath) ? relativePath
+                    : FastPathResolver.decodePercentEncoding(relativePath);
+            final var resolved = FastPathResolver.resolve(parentDir, urlPath);
             // If the classpath element is nested inside a jarfile, so is anything beside it
             final var location = outerPath == null ? resolved
                     : outerPath + (resolved.startsWith("/") ? "!" : "!/") + resolved;
@@ -267,8 +273,7 @@ public final class ClasspathExpander {
         final var isArchive = container instanceof ArchiveRoot;
         final var locationPrefix = container.getPath() + (isArchive ? "!/" : "/");
         final var containerNioPath = isArchive ? null : pathOfRoot(container);
-        // Class-Path is split on " ", but Bundle-ClassPath is split on ","
-        for (String relativePath : bundleClassPath.split(",")) {
+        for (String relativePath : bundleClassPathTargets(bundleClassPath)) {
             // A Bundle-ClassPath entry has to be given relative to the root of the jarfile
             while (relativePath.startsWith("/")) {
                 relativePath = relativePath.substring(1);
@@ -283,6 +288,35 @@ public final class ClasspathExpander {
             childEntries.add(new ChildEntry(ChildEntryOrigin.BUNDLE_CLASS_PATH_MANIFEST_ENTRY,
                     locationPrefix + nameWithin, resolveWithin(containerNioPath, nameWithin)));
         }
+    }
+
+    /**
+     * Split the value of a {@code Bundle-ClassPath} attribute into the paths it lists. The OSGi header syntax
+     * separates entries with {@code ','}, and the paths within an entry with {@code ';'}, and lets the paths of an
+     * entry be followed by parameters such as {@code selection-filter="..."}, which are not paths. Whitespace
+     * around a path is ignored, and a path may be quoted, though a quoted path cannot hold a {@code ','} or a
+     * {@code ';'}.
+     *
+     * @param bundleClassPath
+     *            the value of the {@code Bundle-ClassPath} attribute.
+     * @return the paths, in the order they are listed.
+     */
+    private static List<String> bundleClassPathTargets(final String bundleClassPath) {
+        final List<String> targets = new ArrayList<>();
+        for (final String entry : bundleClassPath.split(",")) {
+            for (final String part : entry.split(";")) {
+                var target = part.strip();
+                if (target.contains("=")) {
+                    // A parameter ("name=value" or "name:=value"), which ends the paths of this entry
+                    break;
+                }
+                if (target.length() >= 2 && target.startsWith("\"") && target.endsWith("\"")) {
+                    target = target.substring(1, target.length() - 1);
+                }
+                targets.add(target);
+            }
+        }
+        return targets;
     }
 
     /**

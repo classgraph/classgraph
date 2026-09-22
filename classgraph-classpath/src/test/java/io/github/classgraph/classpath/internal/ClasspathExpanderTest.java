@@ -542,6 +542,31 @@ public class ClasspathExpanderTest {
     }
 
     /**
+     * A {@code Class-Path} manifest entry is a relative URL, as it is for the JVM's own classloader, so its percent
+     * encoding is decoded. This is the only way to name a jarfile with a space in its name, since a space separates
+     * the entries.
+     *
+     * @param tempDir
+     *            the temporary directory to build the classpath element in
+     * @throws IOException
+     *             if the classpath element could not be created or read
+     */
+    @Test
+    public void theClassPathManifestEntriesArePercentDecoded(@TempDir final Path tempDir) throws IOException {
+        final Path jar = createJar(tempDir, "app.jar",
+                entries(MANIFEST_NAME, manifest("Class-Path: my%20lib.jar")));
+        try (Vfs vfs = new Vfs()) {
+            final VfsRoot root = vfs.open(jar);
+            final List<ChildEntry> childEntries = ClasspathExpander.childEntries(root, LIB_DIR_PREFIXES, true,
+                    null);
+            final String jarPath = root.getPath();
+            assertThat(locations(childEntries))
+                    .containsExactly(jarPath.substring(0, jarPath.lastIndexOf('/')) + "/my lib.jar");
+            assertThat(childEntries.get(0).path()).isEqualTo(canonical(tempDir).resolve("my lib.jar"));
+        }
+    }
+
+    /**
      * An exploded jarfile in a directory declares the same classpath elements that the jarfile it was exploded from
      * declares, so its {@code Class-Path} manifest entries are resolved against the directory that contains it.
      *
@@ -618,6 +643,29 @@ public class ClasspathExpanderTest {
             assertThat(relativeLocations(dirRoot, dirChildEntries)).containsExactly("/inner.jar",
                     "/deeper/other.jar");
             assertThat(dirChildEntries.get(0).path()).isEqualTo(canonical(dir).resolve("inner.jar"));
+        }
+    }
+
+    /**
+     * A {@code Bundle-ClassPath} manifest entry is read with the OSGi header syntax: whitespace around an entry is
+     * ignored, an entry may list several paths separated by {@code ';'}, a path may be quoted, and the parameters
+     * that follow the paths of an entry are not paths.
+     *
+     * @param tempDir
+     *            the temporary directory to build the classpath element in
+     * @throws IOException
+     *             if the classpath element could not be created or read
+     */
+    @Test
+    public void bundleClassPathManifestEntriesAreReadWithTheOSGiHeaderSyntax(@TempDir final Path tempDir)
+            throws IOException {
+        final Path jar = createJar(tempDir, "bundle.jar", entries(MANIFEST_NAME, manifest(
+                "Bundle-ClassPath: . , inner.jar; deeper/other.jar ;selection-filter=\"(os.name=Linux)\",\"quoted.jar\"")));
+        try (Vfs vfs = new Vfs()) {
+            final VfsRoot jarRoot = vfs.open(jar);
+            assertThat(relativeLocations(jarRoot,
+                    ClasspathExpander.childEntries(jarRoot, LIB_DIR_PREFIXES, true, null)))
+                    .containsExactly("!/inner.jar", "!/deeper/other.jar", "!/quoted.jar");
         }
     }
 
