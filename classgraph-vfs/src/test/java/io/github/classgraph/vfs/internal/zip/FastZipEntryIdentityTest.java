@@ -143,8 +143,8 @@ public class FastZipEntryIdentityTest {
 
     /**
      * Entries sort in decreasing order of multi-release version, so that the highest version of an entry masks the
-     * lower ones, then by name, and finally by position within the zipfile, so that the earliest of a set of
-     * identically named entries masks the later ones.
+     * lower ones, then by name, and finally in decreasing order of position within the zipfile, so that the last of
+     * a set of identically named entries masks the earlier ones, as it does for JarFile.
      */
     @Test
     public void entriesSortByVersionThenNameThenPosition(@TempDir final File tempDir) throws Exception {
@@ -164,7 +164,7 @@ public class FastZipEntryIdentityTest {
 
             final List<FastZipEntry> entries = new ArrayList<>(List.of(second, baseDuplicate, base, versioned));
             Collections.sort(entries);
-            assertThat(entries).containsExactly(versioned, base, baseDuplicate, second);
+            assertThat(entries).containsExactly(versioned, baseDuplicate, base, second);
         });
     }
 

@@ -1017,14 +1017,12 @@ public class LogicalZipFile extends ZipFileSlice {
                 // lower-cased its entry names still has a manifest, and java.util.zip.ZipFile finds that one too
                 // (it matches both "META-INF/" and "MANIFEST.MF" a character at a time with the case bit masked
                 // off), so a differently-cased name is remembered as a fallback rather than the zipfile being
-                // reported as having no manifest at all. The first entry with either name wins, the same way the
-                // first of two entries with the same name is the one a classloader reads
+                // reported as having no manifest at all. The last entry with either name wins, the same way the
+                // last of two entries with the same name is the one JarFile reads
                 if (MANIFEST_PATH.equalsIgnoreCase(entry.entryName)) {
                     if (MANIFEST_PATH.equals(entry.entryName)) {
-                        if (manifestZipEntry == null) {
-                            manifestZipEntry = entry;
-                        }
-                    } else if (caseFoldedManifestZipEntry == null) {
+                        manifestZipEntry = entry;
+                    } else {
                         caseFoldedManifestZipEntry = entry;
                     }
                 }

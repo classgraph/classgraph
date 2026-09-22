@@ -74,7 +74,8 @@ public final class ArchiveRoot extends VfsRoot {
      * The entries under the package root, and the same entries keyed by name, built together on first use.
      *
      * @param entries
-     *            the entries under the package root, in the order the jarfile lists them.
+     *            the entries under the package root, in the order the jarfile lists them, with only the last of two
+     *            entries of the same name.
      * @param entriesByName
      *            the same entries, keyed by their path from the root.
      */
@@ -151,21 +152,20 @@ public final class ArchiveRoot extends VfsRoot {
         var index = entryIndex;
         if (index == null) {
             final var packageRootPrefix = packageRoot.isEmpty() ? "" : packageRoot + "/";
-            final List<VfsEntry> entriesTmp = new ArrayList<>(logicalZipFile.entries.size());
             final Map<String, VfsEntry> entriesByNameTmp = new LinkedHashMap<>();
             for (final var zipEntry : logicalZipFile.entries) {
                 if (zipEntry.entryNameUnversioned.startsWith(packageRootPrefix)) {
                     final var entry = new ArchiveEntry(this, zipEntry,
                             zipEntry.entryNameUnversioned.substring(packageRootPrefix.length()));
-                    entriesTmp.add(entry);
-                    // The first entry with a given name wins, matching the order that a classloader would find
-                    // them in
-                    entriesByNameTmp.putIfAbsent(entry.getPathFromRoot(), entry);
+                    // Of two entries with the same name, the last one wins, since that is the one that JarFile,
+                    // and so a classloader, finds. The other one is not listed either, so that a walk, a listing
+                    // and a lookup all see the same entry.
+                    entriesByNameTmp.put(entry.getPathFromRoot(), entry);
                 }
             }
             // Two threads racing here each build an equivalent index, and one wins, which is harmless -- the
             // entries hold no resources
-            index = new EntryIndex(Collections.unmodifiableList(entriesTmp),
+            index = new EntryIndex(Collections.unmodifiableList(new ArrayList<>(entriesByNameTmp.values())),
                     Collections.unmodifiableMap(entriesByNameTmp));
             entryIndex = index;
         }

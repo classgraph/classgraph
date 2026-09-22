@@ -369,8 +369,9 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
      * A jarfile's entries come back in the order they appear in its central directory, and a module's sorted by
      * name. A directory tree's are walked from the top down, each directory's own files before its subdirectories,
      * and the children of a directory sorted by name. For a jarfile, encrypted entries and entries stored with an
-     * unsupported compression method are left out, and only the newest version of each entry that this JVM can run
-     * is reported, unless the {@link Vfs} was constructed with multi-release versions enabled.
+     * unsupported compression method are left out, only the last of two entries with the same name is reported, and
+     * only the newest version of each entry that this JVM can run is reported, unless multi-release versioning was
+     * turned off with {@link VfsSpec#disableMultiReleaseVersions()}.
      *
      * <p>
      * For a directory, an entry may name a file that the process has no permission to read: the walk tells the
@@ -478,9 +479,9 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
     }
 
     /**
-     * Returns the entry with the given name, or null if there is no such entry, or it cannot be read. If the root
-     * contains more than one entry with the same name, the first one is returned, which is the one a classloader
-     * would find.
+     * Returns the entry with the given name, or null if there is no such entry, or it cannot be read. If a jarfile
+     * holds more than one entry with the same name, the last one in its central directory is returned, which is the
+     * one a classloader would find.
      *
      * <p>
      * Null does not distinguish between the reasons for it: for a directory, the name may not exist, may name a
