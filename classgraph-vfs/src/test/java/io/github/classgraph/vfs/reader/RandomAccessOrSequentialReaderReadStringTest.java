@@ -42,9 +42,9 @@ public class RandomAccessOrSequentialReaderReadStringTest {
         final var data = "HelloWorld".getBytes(StandardCharsets.UTF_8);
         try (var reader = new RandomAccessOrSequentialReader(new ByteArrayInputStream(data))) {
             assertThat(reader.readString(5)).isEqualTo("Hello");
-            assertThat(reader.currPos()).isEqualTo(5);
+            assertThat(reader.position()).isEqualTo(5);
             assertThat(reader.readString(5)).isEqualTo("World");
-            assertThat(reader.currPos()).isEqualTo(10);
+            assertThat(reader.position()).isEqualTo(10);
         }
     }
 

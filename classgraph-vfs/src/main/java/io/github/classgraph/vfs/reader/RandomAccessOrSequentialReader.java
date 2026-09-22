@@ -343,7 +343,8 @@ public class RandomAccessOrSequentialReader implements RandomAccessReader, Seque
      *
      * @return the current read position.
      */
-    public int currPos() {
+    @Override
+    public int position() {
         return currIdx;
     }
 

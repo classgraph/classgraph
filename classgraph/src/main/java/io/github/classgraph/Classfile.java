@@ -1377,7 +1377,7 @@ class Classfile {
                 continue;
             }
             entryTag[i] = reader().readUnsignedByte();
-            entryOffset[i] = reader().currPos();
+            entryOffset[i] = reader().position();
             // This list of constant pool tags is complete and up to date as of JDK 26 (JVMS 26 table 4.4-B). The
             // newest tag is CONSTANT_Dynamic (17), added in Java SE 11; no tag has been added since. If a future
             // JDK adds a tag, an entry of unknown size follows it, so parsing has to fail (below).

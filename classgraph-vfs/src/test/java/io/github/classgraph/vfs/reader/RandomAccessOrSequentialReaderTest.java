@@ -409,31 +409,31 @@ public class RandomAccessOrSequentialReaderTest {
     @EnumSource(Source.class)
     public void aSequentialReadStartsWhereTheLastOneStopped(final Source source) throws IOException {
         try (var reader = reader(source, PATTERN)) {
-            assertThat(reader.currPos()).isZero();
+            assertThat(reader.position()).isZero();
             assertThat(reader.readUnsignedByte()).isEqualTo(0x01);
             assertThat(reader.readByte()).isEqualTo((byte) 0x23);
-            assertThat(reader.currPos()).isEqualTo(2);
+            assertThat(reader.position()).isEqualTo(2);
             assertThat(reader.readUnsignedShort()).isEqualTo(0x4567);
             assertThat(reader.readShort()).isEqualTo((short) 0x89AB);
             assertThat(reader.readUnsignedShort()).isEqualTo(0xCDEF);
-            assertThat(reader.currPos()).isEqualTo(8);
+            assertThat(reader.position()).isEqualTo(8);
         }
 
         try (var reader = reader(source, PATTERN)) {
             assertThat(reader.readInt()).isEqualTo(0x01234567);
             assertThat(reader.readUnsignedInt()).isEqualTo(0x89ABCDEFL);
-            assertThat(reader.currPos()).isEqualTo(8);
+            assertThat(reader.position()).isEqualTo(8);
         }
 
         try (var reader = reader(source, PATTERN)) {
             assertThat(reader.readLong()).isEqualTo(0x0123456789ABCDEFL);
-            assertThat(reader.currPos()).isEqualTo(8);
+            assertThat(reader.position()).isEqualTo(8);
         }
 
         // Skipping moves the read position past the parts of the classfile that are not needed, such as bytecodes
         try (var reader = reader(source, PATTERN)) {
             reader.skip(4);
-            assertThat(reader.currPos()).isEqualTo(4);
+            assertThat(reader.position()).isEqualTo(4);
             assertThat(reader.readInt()).isEqualTo(0x89ABCDEF);
         }
     }
@@ -461,7 +461,7 @@ public class RandomAccessOrSequentialReaderTest {
                     .hasMessage("Tried to skip a negative number of bytes");
 
             // The read position did not move, so the reads that stay within the classfile still succeed
-            assertThat(reader.currPos()).isEqualTo(4);
+            assertThat(reader.position()).isEqualTo(4);
             assertThat(reader.readInt()).isEqualTo(0x89ABCDEF);
         }
     }
@@ -485,7 +485,7 @@ public class RandomAccessOrSequentialReaderTest {
             for (var offset = 0; offset < content.length; offset++) {
                 assertThat(reader.readByte()).as("offset %d", offset).isEqualTo(content[offset]);
             }
-            assertThat(reader.currPos()).isEqualTo(content.length);
+            assertThat(reader.position()).isEqualTo(content.length);
 
             // Every byte that was read is still in the buffer, and can be read again at random
             assertThat(reader.readByte(0)).isEqualTo(content[0]);
@@ -502,7 +502,7 @@ public class RandomAccessOrSequentialReaderTest {
         // A read at an offset does not move the position that a sequential read starts from
         try (var reader = reader(source, content)) {
             assertThat(reader.readByte(content.length - 1)).isEqualTo(content[content.length - 1]);
-            assertThat(reader.currPos()).isZero();
+            assertThat(reader.position()).isZero();
         }
     }
 
@@ -619,7 +619,7 @@ public class RandomAccessOrSequentialReaderTest {
         try (var reader = reader(source, content)) {
             reader.skip(offset);
             assertThat(reader.readStringModifiedUtf8(numBytes)).isEqualTo("Ljava/lang/String;");
-            assertThat(reader.currPos()).isEqualTo(content.length);
+            assertThat(reader.position()).isEqualTo(content.length);
         }
     }
 
@@ -649,13 +649,13 @@ public class RandomAccessOrSequentialReaderTest {
         try (var reader = reader(source, content)) {
             reader.skip(offset);
             assertThat(reader.readString(numBytes)).isEqualTo("résumé");
-            assertThat(reader.currPos()).isEqualTo(content.length);
+            assertThat(reader.position()).isEqualTo(content.length);
         }
 
         try (var reader = reader(source, content)) {
             reader.skip(offset);
             assertThat(reader.readString(numBytes, StandardCharsets.ISO_8859_1)).isEqualTo("rÃ©sumÃ©");
-            assertThat(reader.currPos()).isEqualTo(content.length);
+            assertThat(reader.position()).isEqualTo(content.length);
         }
     }
 

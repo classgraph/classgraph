@@ -53,88 +53,97 @@ public interface SequentialReader {
     ByteOrder byteOrder();
 
     /**
-     * Read a byte at the current cursor position.
+     * The position that the next value is read from, relative to the start of the content. It starts at zero, and
+     * is advanced by each read, and by {@link #skip(int)}.
      *
-     * @return The byte at the current cursor position.
+     * @return the current position.
+     */
+    int position();
+
+    /**
+     * Read a byte at the current position.
+     *
+     * @return The byte at the current position.
      * @throws IOException
-     *             If there was an exception while reading.
+     *             If the value is not wholly within the content, or could not be read.
      */
     byte readByte() throws IOException;
 
     /**
-     * Read an unsigned byte at the current cursor position.
+     * Read an unsigned byte at the current position.
      *
-     * @return The unsigned byte at the current cursor position.
+     * @return The unsigned byte at the current position.
      * @throws IOException
-     *             If there was an exception while reading.
+     *             If the value is not wholly within the content, or could not be read.
      */
     int readUnsignedByte() throws IOException;
 
     /**
-     * Read a short at the current cursor position.
+     * Read a short at the current position.
      *
-     * @return The short at the current cursor position.
+     * @return The short at the current position.
      * @throws IOException
-     *             If there was an exception while reading.
+     *             If the value is not wholly within the content, or could not be read.
      */
     short readShort() throws IOException;
 
     /**
-     * Read an unsigned short at the current cursor position.
+     * Read an unsigned short at the current position.
      *
-     * @return The unsigned short at the current cursor position.
+     * @return The unsigned short at the current position.
      * @throws IOException
-     *             If there was an exception while reading.
+     *             If the value is not wholly within the content, or could not be read.
      */
     int readUnsignedShort() throws IOException;
 
     /**
-     * Read an int at the current cursor position.
+     * Read an int at the current position.
      *
-     * @return The int at the current cursor position.
+     * @return The int at the current position.
      * @throws IOException
-     *             If there was an exception while reading.
+     *             If the value is not wholly within the content, or could not be read.
      */
     int readInt() throws IOException;
 
     /**
-     * Read an unsigned int at the current cursor position.
+     * Read an unsigned int at the current position.
      *
-     * @return The int at the current cursor position, as a long.
+     * @return The int at the current position, as a long.
      * @throws IOException
-     *             If there was an exception while reading.
+     *             If the value is not wholly within the content, or could not be read.
      */
     long readUnsignedInt() throws IOException;
 
     /**
-     * Read a long at the current cursor position.
+     * Read a long at the current position.
      *
-     * @return The long at the current cursor position.
+     * @return The long at the current position.
      * @throws IOException
-     *             If there was an exception while reading.
+     *             If the value is not wholly within the content, or could not be read.
      */
     long readLong() throws IOException;
 
     /**
-     * Skip the given number of bytes.
+     * Skip the given number of bytes, advancing the position past them.
      *
      * @param bytesToSkip
      *            The number of bytes to skip.
      * @throws IOException
-     *             If there was an exception while reading.
+     *             If {@code bytesToSkip} is negative, if skipping would go past the end of the content, or if the
+     *             content could not be read.
      */
-    void skip(final int bytesToSkip) throws IOException;
+    void skip(int bytesToSkip) throws IOException;
 
     /**
-     * Reads the "modified UTF8" format defined in the Java classfile spec.
+     * Read a string in the "modified UTF-8" format that the Java classfile format stores its strings in.
      *
      * @param numBytes
-     *            The number of bytes of the modified UTF8 encoding of the string.
+     *            The number of bytes of the modified UTF-8 encoding of the string.
      * @return The string.
      * @throws IOException
      *             If an I/O exception occurs.
      */
-    String readStringModifiedUtf8(final int numBytes) throws IOException;
+    String readStringModifiedUtf8(int numBytes) throws IOException;
 
     /**
      * Read a string in a given character encoding.
@@ -147,10 +156,10 @@ public interface SequentialReader {
      * @throws IOException
      *             If an I/O exception occurs.
      */
-    String readString(final int numBytes, final Charset charset) throws IOException;
+    String readString(int numBytes, Charset charset) throws IOException;
 
     /**
-     * Read a string in UTF-8, the standard encoding, rather than the "modified UTF8" format that the classfile
+     * Read a string in UTF-8, the standard encoding, rather than the "modified UTF-8" format that the classfile
      * format stores its strings in.
      *
      * @param numBytes

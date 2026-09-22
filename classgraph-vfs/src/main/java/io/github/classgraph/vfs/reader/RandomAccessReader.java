@@ -90,6 +90,12 @@ import java.nio.charset.StandardCharsets;
  * declares an uncompressed size larger than what its deflate stream actually holds -- stops at the last byte that
  * could really be read, rather than padding with zeroes.
  *
+ * <h2>Position</h2>
+ *
+ * <p>
+ * A reader that is also a {@link SequentialReader} has a current position, which the methods of this interface
+ * neither read nor move: they take the offset to read from as an argument.
+ *
  * <h2>Threads</h2>
  *
  * <p>
@@ -163,94 +169,94 @@ public interface RandomAccessReader {
     int read(long srcOffset, byte[] dstArr, int dstArrStart, int numBytes) throws IOException;
 
     /**
-     * Read a byte at a specific offset (without changing the current cursor offset).
+     * Read a byte at a specific offset.
      *
      * @param offset
      *            The offset to read from.
      * @return The byte at the offset.
      * @throws IOException
-     *             If there was an exception while reading.
+     *             If the value is not wholly within the content, or could not be read.
      */
-    byte readByte(final long offset) throws IOException;
+    byte readByte(long offset) throws IOException;
 
     /**
-     * Read an unsigned byte at a specific offset (without changing the current cursor offset).
+     * Read an unsigned byte at a specific offset.
      *
      * @param offset
      *            The offset to read from.
      * @return The unsigned byte at the offset.
      * @throws IOException
-     *             If there was an exception while reading.
+     *             If the value is not wholly within the content, or could not be read.
      */
-    int readUnsignedByte(final long offset) throws IOException;
+    int readUnsignedByte(long offset) throws IOException;
 
     /**
-     * Read a short at a specific offset (without changing the current cursor offset).
+     * Read a short at a specific offset.
      *
      * @param offset
      *            The offset to read from.
      * @return The short at the offset.
      * @throws IOException
-     *             If there was an exception while reading.
+     *             If the value is not wholly within the content, or could not be read.
      */
-    short readShort(final long offset) throws IOException;
+    short readShort(long offset) throws IOException;
 
     /**
-     * Read an unsigned short at a specific offset (without changing the current cursor offset).
+     * Read an unsigned short at a specific offset.
      *
      * @param offset
      *            The offset to read from.
      * @return The unsigned short at the offset.
      * @throws IOException
-     *             If there was an exception while reading.
+     *             If the value is not wholly within the content, or could not be read.
      */
-    int readUnsignedShort(final long offset) throws IOException;
+    int readUnsignedShort(long offset) throws IOException;
 
     /**
-     * Read an int at a specific offset (without changing the current cursor offset).
+     * Read an int at a specific offset.
      *
      * @param offset
      *            The offset to read from.
      * @return The int at the offset.
      * @throws IOException
-     *             If there was an exception while reading.
+     *             If the value is not wholly within the content, or could not be read.
      */
-    int readInt(final long offset) throws IOException;
+    int readInt(long offset) throws IOException;
 
     /**
-     * Read an unsigned int at a specific offset (without changing the current cursor offset).
+     * Read an unsigned int at a specific offset.
      *
      * @param offset
      *            The offset to read from.
      * @return The int at the offset, as a long.
      * @throws IOException
-     *             If there was an exception while reading.
+     *             If the value is not wholly within the content, or could not be read.
      */
-    long readUnsignedInt(final long offset) throws IOException;
+    long readUnsignedInt(long offset) throws IOException;
 
     /**
-     * Read a long at a specific offset (without changing the current cursor offset).
+     * Read a long at a specific offset.
      *
      * @param offset
      *            The offset to read from.
      * @return The long at the offset.
      * @throws IOException
-     *             If there was an exception while reading.
+     *             If the value is not wholly within the content, or could not be read.
      */
-    long readLong(final long offset) throws IOException;
+    long readLong(long offset) throws IOException;
 
     /**
-     * Reads the "modified UTF8" format defined in the Java classfile spec.
+     * Read a string in the "modified UTF-8" format that the Java classfile format stores its strings in.
      *
      * @param offset
      *            The start offset of the string.
      * @param numBytes
-     *            The number of bytes of the modified UTF8 encoding of the string.
+     *            The number of bytes of the modified UTF-8 encoding of the string.
      * @return The string.
      * @throws IOException
      *             If an I/O exception occurs.
      */
-    String readStringModifiedUtf8(final long offset, final int numBytes) throws IOException;
+    String readStringModifiedUtf8(long offset, int numBytes) throws IOException;
 
     /**
      * Read a string in a given character encoding.
@@ -265,10 +271,10 @@ public interface RandomAccessReader {
      * @throws IOException
      *             If an I/O exception occurs.
      */
-    String readString(final long offset, final int numBytes, final Charset charset) throws IOException;
+    String readString(long offset, int numBytes, Charset charset) throws IOException;
 
     /**
-     * Read a string in UTF-8, the standard encoding, rather than the "modified UTF8" format that the classfile
+     * Read a string in UTF-8, the standard encoding, rather than the "modified UTF-8" format that the classfile
      * format stores its strings in.
      *
      * @param offset
