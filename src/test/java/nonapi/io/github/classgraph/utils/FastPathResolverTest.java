@@ -490,4 +490,16 @@ public class FastPathResolverTest {
         // Off Windows there is no UNC path, so a leading doubled separator is an empty segment like any other
         assertThat(resolveAsLinux(null, "//server//share//dir")).isEqualTo("/server/share/dir");
     }
+
+    /**
+     * normalizePath collapses a run of separators whether or not the path ends in a separator, and whether or not
+     * it has anything else to normalize.
+     */
+    @Test
+    public void normalizePathCollapsesSeparatorsInEveryPath() {
+        assertThat(FastPathResolver.normalizePath("a//b", /* percentDecode = */ false)).isEqualTo("a/b");
+        assertThat(FastPathResolver.normalizePath("a//b/", /* percentDecode = */ false)).isEqualTo("a/b");
+        assertThat(FastPathResolver.normalizePath("a\\b", /* percentDecode = */ false)).isEqualTo("a/b");
+        assertThat(FastPathResolver.normalizePath("a/b", /* percentDecode = */ false)).isEqualTo("a/b");
+    }
 }

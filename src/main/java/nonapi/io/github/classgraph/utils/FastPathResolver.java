@@ -163,9 +163,9 @@ public final class FastPathResolver {
     }
 
     /**
-     * Parse percent encoding, e.g. "%20" -&gt; " "; convert '/' or '\\' to SEP; remove trailing separator char if
-     * present.
-     * 
+     * Normalize a path: decode percent encoding, e.g. "%20" -&gt; " " (only if {@code percentDecode} is true),
+     * convert every '\\' separator to '/', collapse runs of separators into one, and remove any final separator.
+     *
      * @param path
      *            The path to normalize.
      * @param percentDecode
@@ -175,7 +175,7 @@ public final class FastPathResolver {
      */
     public static String normalizePath(final String path, final boolean percentDecode) {
         final boolean hasPercent = path.indexOf('%') >= 0;
-        if (!hasPercent && path.indexOf('\\') < 0 && !path.endsWith("/")) {
+        if (!hasPercent && path.indexOf('\\') < 0 && path.indexOf("//") < 0 && !path.endsWith("/")) {
             return path;
         } else {
             final int len = path.length();
