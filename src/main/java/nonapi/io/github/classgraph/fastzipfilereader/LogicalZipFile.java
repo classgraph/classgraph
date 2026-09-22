@@ -894,6 +894,23 @@ public class LogicalZipFile extends ZipFileSlice {
             }
         }
 
+        // Of two or more entries with the same name, keep only the last one, since that is the one that JarFile,
+        // and so a classloader, finds. The entry that is kept stays at its own position in the central directory.
+        final Set<String> namesSeen = new HashSet<>(entries.size() * 2);
+        final List<FastZipEntry> lastOfEachName = new ArrayList<>(entries.size());
+        for (int i = entries.size() - 1; i >= 0; i--) {
+            final FastZipEntry entry = entries.get(i);
+            if (namesSeen.add(entry.entryName)) {
+                lastOfEachName.add(entry);
+            } else if (log != null) {
+                log.log("Ignoring an earlier entry with the same name as a later one: " + entry.entryName);
+            }
+        }
+        if (lastOfEachName.size() < entries.size()) {
+            Collections.reverse(lastOfEachName);
+            entries = lastOfEachName;
+        }
+
         // Parse manifest file, if present. The manifest is looked for under its canonical name first, since that is
         // the name it is stored under in all but a handful of zipfiles, and only then under a differently-cased name
         final FastZipEntry manifestEntry = manifestZipEntry != null ? manifestZipEntry : caseFoldedManifestZipEntry;

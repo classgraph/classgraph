@@ -292,7 +292,7 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
 
     /**
      * Sort in decreasing order of version number, then lexicographically increasing order of unversioned entry
-     * path.
+     * path, then of entry path, then in decreasing order of position within the zipfile.
      *
      * @param o
      *            the object to compare to
@@ -312,9 +312,9 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
         if (diff2 != 0) {
             return diff2;
         }
-        // In case of multiple entries with the same entry name, return them in consecutive order of location,
-        // so that the earliest entry overrides later entries (this is an arbitrary decision for consistency)
-        final long diff3 = locHeaderPos - o.locHeaderPos;
+        // Of two entries with the same name, the later one in the zipfile sorts first, so that it masks the
+        // earlier one: JarFile, and so a classloader, finds the last of them
+        final long diff3 = o.locHeaderPos - locHeaderPos;
         return diff3 < 0L ? -1 : diff3 > 0L ? 1 : 0;
     }
 
