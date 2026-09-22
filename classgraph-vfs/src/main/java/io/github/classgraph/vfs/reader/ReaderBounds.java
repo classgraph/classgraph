@@ -32,7 +32,7 @@ import java.io.IOException;
 
 /** Bounds checks that every {@link RandomAccessReader} does the same way. */
 final class ReaderBounds {
-    /** Cannot be instantiated. */
+    /** Not instantiable. */
     private ReaderBounds() {
     }
 

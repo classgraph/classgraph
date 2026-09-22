@@ -41,7 +41,7 @@ import org.jspecify.annotations.Nullable;
  * Collection utilities.
  */
 public final class CollectionUtils {
-    /** Class can't be constructed. */
+    /** Not instantiable. */
     private CollectionUtils() {
         // Empty
     }

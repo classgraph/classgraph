@@ -63,9 +63,7 @@ public final class ClassLoaderHandlerRegistry {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /**
-     * Constructor.
-     */
+    /** Not instantiable. */
     private ClassLoaderHandlerRegistry() {
         // Cannot be constructed
     }

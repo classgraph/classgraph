@@ -55,9 +55,7 @@ public final class StringUtils {
         CHAR_REPLACEMENTS['\f'] = "\\f";
     }
 
-    /**
-     * Constructor.
-     */
+    /** Not instantiable. */
     private StringUtils() {
         // Cannot be constructed
     }

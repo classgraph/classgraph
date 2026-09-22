@@ -76,7 +76,7 @@ final class ZipEntryNameCodec {
             // into, an ordinary space)
             + "°∙·√ⁿ²■" + "\u00a0";
 
-    /** Constructor. */
+    /** Not instantiable. */
     private ZipEntryNameCodec() {
         // Cannot be constructed
     }

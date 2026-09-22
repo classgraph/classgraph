@@ -49,7 +49,7 @@ final class JarURLDownloader {
     /** HTTP(S) timeout, ms. */
     private static final int HTTP_TIMEOUT = 5000;
 
-    /** Constructor. */
+    /** Not instantiable. */
     private JarURLDownloader() {
         // Cannot be constructed
     }

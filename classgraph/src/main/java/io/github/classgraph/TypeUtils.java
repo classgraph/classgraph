@@ -37,9 +37,7 @@ import java.lang.reflect.Modifier;
  */
 final class TypeUtils {
 
-    /**
-     * Constructor.
-     */
+    /** Not instantiable. */
     private TypeUtils() {
         // Cannot be constructed
     }

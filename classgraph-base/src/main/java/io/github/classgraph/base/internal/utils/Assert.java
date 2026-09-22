@@ -32,7 +32,7 @@ import org.jspecify.annotations.Nullable;
 
 /** Assertions. */
 public final class Assert {
-    /** Class can't be constructed. */
+    /** Not instantiable. */
     private Assert() {
         // Empty
     }

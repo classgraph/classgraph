@@ -65,7 +65,7 @@ public final class JarOpener {
     public record OpenedJar(LogicalZipFile zipFile, @Nullable PhysicalZipFile ownedPhysicalZipFile) {
     }
 
-    /** Constructor. */
+    /** Not instantiable. */
     private JarOpener() {
         // Cannot be constructed
     }

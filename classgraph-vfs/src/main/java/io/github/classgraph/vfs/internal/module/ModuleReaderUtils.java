@@ -56,7 +56,7 @@ import org.jspecify.annotations.Nullable;
  * a caller can tell a module it is not allowed to read from one that cannot be read.
  */
 public final class ModuleReaderUtils {
-    /** Class can not be constructed. */
+    /** Not instantiable. */
     private ModuleReaderUtils() {
         // Empty
     }

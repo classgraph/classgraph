@@ -113,9 +113,7 @@ public final class VersionFinder {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /**
-     * Constructor.
-     */
+    /** Not instantiable. */
     private VersionFinder() {
         // Cannot be constructed
     }

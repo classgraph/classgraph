@@ -81,9 +81,7 @@ public final class URLPaths {
     /** Valid classpath URL scheme prefixes. */
     private static final String[] SCHEME_PREFIXES = { "jrt:", "file:", "jar:file:", "jar:", "http:", "https:" };
 
-    /**
-     * Constructor.
-     */
+    /** Not instantiable. */
     private URLPaths() {
         // Cannot be constructed
     }

@@ -56,9 +56,7 @@ public final class FileUtils {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /**
-     * Constructor.
-     */
+    /** Not instantiable. */
     private FileUtils() {
         // Cannot be constructed
     }

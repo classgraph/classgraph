@@ -71,7 +71,7 @@ final class URLClassPathReader {
     /** The name of the class whose fields are read here. */
     private static final String URL_CLASS_PATH_CLASS_NAME = "jdk.internal.loader.URLClassPath";
 
-    /** Constructor. */
+    /** Not instantiable. */
     private URLClassPathReader() {
         // Cannot be constructed
     }

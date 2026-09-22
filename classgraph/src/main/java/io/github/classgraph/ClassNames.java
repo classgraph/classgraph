@@ -39,9 +39,7 @@ final class ClassNames {
     /** The number of characters in the filename extension of a classfile. */
     private static final int CLASSFILE_EXTENSION_LENGTH = CLASSFILE_EXTENSION.length();
 
-    /**
-     * Constructor.
-     */
+    /** Not instantiable. */
     private ClassNames() {
         // Cannot be constructed
     }

@@ -59,9 +59,7 @@ import org.jspecify.annotations.Nullable;
  * the mapping has become unreachable. {@link #freeUnreachableBuffers()} asks for that to happen.
  */
 public final class OffHeapMemory {
-    /**
-     * Constructor.
-     */
+    /** Not instantiable. */
     private OffHeapMemory() {
         // Cannot be constructed
     }

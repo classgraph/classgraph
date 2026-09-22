@@ -41,7 +41,10 @@ import io.github.classgraph.classpath.ClasspathOrder;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Fallback ClassLoaderHandler. Tries to get classpath from a range of possible method and field names.
+ * The handler for a classloader that no other handler recognizes. It reads the classpath from any of a range of
+ * common method and field names, and from a {@code URLClassPath} field if there is one. If neither finds anything,
+ * it asks the classloader for resources that are found at the root of most classpath elements, and works back from
+ * their URLs to the classpath elements.
  */
 class FallbackClassLoaderHandler implements ClassLoaderHandler {
     /** Constructor. */

@@ -58,9 +58,7 @@ public final class PathSyntax {
      */
     public static final String TEMP_FILENAME_PREFIX = "ClassGraph--";
 
-    /**
-     * Constructor.
-     */
+    /** Not instantiable. */
     private PathSyntax() {
         // Cannot be constructed
     }

@@ -72,7 +72,7 @@ public final class ClasspathExpander {
     /** The manifest attribute that an OSGi bundle lists the classpath elements within itself with. */
     private static final String BUNDLE_CLASS_PATH_KEY = "Bundle-ClassPath";
 
-    /** Cannot be constructed. */
+    /** Not instantiable. */
     private ClasspathExpander() {
         // Cannot be constructed
     }
