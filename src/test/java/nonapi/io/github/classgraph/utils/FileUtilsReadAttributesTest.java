@@ -2,6 +2,7 @@ package nonapi.io.github.classgraph.utils;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -12,6 +13,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileTime;
+import java.security.Permission;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.zip.ZipEntry;
@@ -52,6 +54,50 @@ public class FileUtilsReadAttributesTest {
             final BasicFileAttributes attributes = FileUtils.readAttributes(missingEntry);
             assertThat(attributes.size()).isZero();
             assertThat(attributes.lastModifiedTime()).isEqualTo(FileTime.fromMillis(0));
+        }
+    }
+
+    /**
+     * A {@link SecurityException} from reading the attributes of a path makes {@link FileUtils#readAttributes(Path)}
+     * fall back, as an {@link IOException} does, rather than escape and abort the scan of a whole directory.
+     *
+     * @param tempDir
+     *            a temporary directory to create the file in.
+     * @throws IOException
+     *             if the file could not be created.
+     */
+    @Test
+    @SuppressWarnings("removal")
+    public void aSecurityExceptionFallsBack(@TempDir final Path tempDir) throws IOException {
+        final Path deniedFile = Files.write(tempDir.resolve("denied.txt"), new byte[] { 1, 2, 3 });
+        final String deniedPath = deniedFile.toString();
+        final SecurityManager denyingSecurityManager = new SecurityManager() {
+            @Override
+            public void checkPermission(final Permission perm) {
+                // Allow everything else, including removing this SecurityManager again
+            }
+
+            @Override
+            public void checkRead(final String file) {
+                if (file.equals(deniedPath)) {
+                    throw new SecurityException("Read access denied: " + file);
+                }
+            }
+        };
+        try {
+            System.setSecurityManager(denyingSecurityManager);
+        } catch (final UnsupportedOperationException e) {
+            // JDK 18 and later disallow installing a SecurityManager at runtime by default
+            assumeTrue(false, "Cannot install a SecurityManager");
+        }
+        try {
+            final BasicFileAttributes attributes = FileUtils.readAttributes(deniedFile);
+            assertThat(attributes.isRegularFile()).isFalse();
+            assertThat(attributes.isDirectory()).isFalse();
+            assertThat(attributes.size()).isZero();
+            assertThat(attributes.lastModifiedTime()).isEqualTo(FileTime.fromMillis(0));
+        } finally {
+            System.setSecurityManager(null);
         }
     }
 }

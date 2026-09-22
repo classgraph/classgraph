@@ -1129,13 +1129,13 @@ public final class FileUtils {
     public static BasicFileAttributes readAttributes(final Path path) {
         try {
             return Files.readAttributes(path, BasicFileAttributes.class);
-        } catch (final IOException e) {
+        } catch (final IOException | SecurityException e) {
             return new BasicFileAttributes() {
                 @Override
                 public FileTime lastModifiedTime() {
                     try {
                         return FileTime.fromMillis(path.toFile().lastModified());
-                    } catch (final UnsupportedOperationException ignored) {
+                    } catch (final UnsupportedOperationException | SecurityException ignored) {
                         // Path#toFile only works for paths of the default filesystem
                     }
                     try {
@@ -1181,7 +1181,7 @@ public final class FileUtils {
                 public long size() {
                     try {
                         return path.toFile().length();
-                    } catch (final UnsupportedOperationException ignored) {
+                    } catch (final UnsupportedOperationException | SecurityException ignored) {
                         // Path#toFile only works for paths of the default filesystem
                     }
                     try {
