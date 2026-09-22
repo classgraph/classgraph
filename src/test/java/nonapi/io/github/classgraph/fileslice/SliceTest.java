@@ -17,6 +17,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.Permission;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -28,6 +29,7 @@ import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
 import nonapi.io.github.classgraph.fileslice.reader.RandomAccessReader;
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
+import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.VersionFinder;
 
 /** Tests for the identity of a {@link Slice}, and for the closing of the slices that a scan left open. */
@@ -753,5 +755,76 @@ public class SliceTest {
         // The temporary file is gone once the last view has been released, whether the delete had to wait for the
         // file to be unmapped or succeeded as the handler closed
         assertThat(tempFile.exists()).isFalse();
+    }
+
+    /**
+     * Below JDK 22, a SecurityManager that will not let ClassGraph reach the cleaner method stops a file being
+     * memory mapped, since the mapping could not be released again, rather than making the mapping or the
+     * unmapping throw. A SecurityManager cannot be installed on JDK 18 and later without a command line switch, so
+     * this test is skipped there.
+     *
+     * @param tempDir
+     *            a temporary directory
+     * @throws ReflectiveOperationException
+     *             if the lookup state of {@link FileUtils} cannot be reset
+     * @throws IOException
+     *             if the file could not be written or opened
+     */
+    @Test
+    @SuppressWarnings("removal")
+    public void aFileIsNotMappedIfASecurityManagerDeniesAccessToTheCleanerMethod(@TempDir final File tempDir)
+            throws ReflectiveOperationException, IOException {
+        assumeTrue(VersionFinder.JAVA_MAJOR_VERSION < 22);
+        final File file = writeFile(tempDir, "unmappable.bin");
+        final NestedJarHandler nestedJarHandler = memoryMappingNestedJarHandler();
+        final ReflectionUtils reflectionUtils = new ReflectionUtils();
+        final Field initialized = FileUtils.class.getDeclaredField("initialized");
+        initialized.setAccessible(true);
+        final Field backingByteBuffer = FileSlice.class.getDeclaredField("backingByteBuffer");
+        backingByteBuffer.setAccessible(true);
+        final SecurityManager denyingSecurityManager = new SecurityManager() {
+            @Override
+            public void checkPermission(final Permission perm) {
+                // Allow everything else, including removing this SecurityManager again. (The message is a
+                // constant, since concatenating strings here would itself need a permission check.)
+                if (perm.getName().equals("suppressAccessChecks")) {
+                    throw new SecurityException("suppressAccessChecks denied");
+                }
+            }
+        };
+        // Make the next unmapping look up the cleaner method again, with the SecurityManager installed
+        initialized.set(null, false);
+        FileSlice fileSlice = null;
+        try {
+            final ByteBuffer directByteBuffer = ByteBuffer.allocateDirect(32);
+            try {
+                System.setSecurityManager(denyingSecurityManager);
+            } catch (final UnsupportedOperationException e) {
+                assumeTrue(false, "Cannot install a SecurityManager");
+            }
+            Throwable thrown = null;
+            boolean unmapped = false;
+            try {
+                unmapped = FileUtils.closeDirectByteBuffer(directByteBuffer, reflectionUtils, /* log = */ null);
+                fileSlice = new FileSlice(file, nestedJarHandler, /* log = */ null);
+            } catch (final Throwable t) {
+                thrown = t;
+            } finally {
+                System.setSecurityManager(null);
+            }
+            // Asserted only once the SecurityManager is removed, so that the assertion library does not initialize
+            // under it
+            assertThat(thrown).isNull();
+            assertThat(unmapped).isFalse();
+            assertThat(backingByteBuffer.get(fileSlice)).isNull();
+            assertThat(fileSlice.load()).containsExactly(CONTENT);
+        } finally {
+            if (fileSlice != null) {
+                fileSlice.close();
+            }
+            // Let the next unmapping look up the cleaner method again without the SecurityManager
+            initialized.set(null, false);
+            nestedJarHandler.close(/* log = */ null);
+        }
     }
 }

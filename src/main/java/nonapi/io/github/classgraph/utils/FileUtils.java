@@ -72,7 +72,7 @@ public final class FileUtils {
 
     /**
      * True if the reflective handles above have been initialized. Volatile, and only ever assigned while holding
-     * the lock on {@link FileUtils}, so that the double-checked locking in {@link #closeDirectByteBuffer} is
+     * the lock on {@link FileUtils}, so that the double-checked locking in {@link #lookupCleanMethod} is
      * correctly synchronized: a thread that reads true here is guaranteed to see the fully-initialized handles.
      */
     private static volatile boolean initialized;
@@ -717,13 +717,13 @@ public final class FileUtils {
                 directByteBufferCleanerMethod = directByteBufferClass.getDeclaredMethod("cleaner");
                 attachmentMethod = directByteBufferClass.getMethod("attachment");
                 attachmentMethod.setAccessible(true);
-            } catch (final SecurityException e) {
-                throw new RuntimeException(
-                        "You need to grant classgraph RuntimePermission(\"accessClassInPackage.sun.misc\") "
-                                + "and ReflectPermission(\"suppressAccessChecks\")",
-                        e);
-            } catch (final ReflectiveOperationException | LinkageError e) {
-                // Ignore
+            } catch (final ReflectiveOperationException | LinkageError | SecurityException e) {
+                // A SecurityManager that denies RuntimePermission("accessClassInPackage.sun.misc") or
+                // ReflectPermission("suppressAccessChecks") throws SecurityException here. Leave the fields
+                // null, so that canCloseDirectByteBuffer() returns false and no file is memory mapped.
+                cleanerCleanMethod = null;
+                directByteBufferCleanerMethod = null;
+                attachmentMethod = null;
             }
         } else if (VersionFinder.JAVA_MAJOR_VERSION < 22) {
             // Unsafe::invokeCleaner is terminally deprecated, and JDK 24+ reports: "A terminally
@@ -735,20 +735,17 @@ public final class FileUtils {
             // and: https://github.com/classgraph/classgraph/issues/939
             try {
                 // A JVM with no sun.misc.Unsafe throws ClassNotFoundException or LinkageError here, which is
-                // caught below, leaving the fields null -- closeDirectByteBuffer() then returns false
+                // caught below, leaving the fields null -- canCloseDirectByteBuffer() then returns false
                 final Class<?> unsafeClass = Class.forName("sun.misc.Unsafe");
                 final Field theUnsafeField = unsafeClass.getDeclaredField("theUnsafe");
                 theUnsafeField.setAccessible(true);
                 theUnsafe = theUnsafeField.get(null);
                 cleanerCleanMethod = unsafeClass.getMethod("invokeCleaner", ByteBuffer.class);
                 cleanerCleanMethod.setAccessible(true);
-            } catch (final SecurityException e) {
-                throw new RuntimeException(
-                        "You need to grant classgraph RuntimePermission(\"accessClassInPackage.sun.misc\") "
-                                + "and ReflectPermission(\"suppressAccessChecks\")",
-                        e);
-            } catch (final ReflectiveOperationException | LinkageError ex) {
-                // Ignore
+            } catch (final ReflectiveOperationException | LinkageError | SecurityException e) {
+                // See above
+                theUnsafe = null;
+                cleanerCleanMethod = null;
             }
         }
     }
@@ -857,6 +854,62 @@ public final class FileUtils {
     }
 
     /**
+     * Look up the cleaner method and the objects it needs, once.
+     *
+     * @param reflectionUtils
+     *            The reflection utils.
+     */
+    private static void lookupCleanMethod(final ReflectionUtils reflectionUtils) {
+        // Double-checked locking, so that two threads calling this for the first time concurrently cannot both
+        // run the lookup and race on the static fields it assigns
+        if (!initialized) {
+            synchronized (FileUtils.class) {
+                if (!initialized) {
+                    try {
+                        reflectionUtils.doPrivileged(new Callable<Void>() {
+                            @Override
+                            public Void call() throws Exception {
+                                lookupCleanMethodPrivileged();
+                                return null;
+                            }
+                        });
+                    } catch (final Throwable e) {
+                        // Leave the handles null, so that no file is memory mapped
+                        cleanerCleanMethod = null;
+                        directByteBufferCleanerMethod = null;
+                        attachmentMethod = null;
+                        theUnsafe = null;
+                    }
+                    initialized = true;
+                }
+            }
+        }
+    }
+
+    /**
+     * Check whether {@link #closeDirectByteBuffer(ByteBuffer, ReflectionUtils, LogNode)} can unmap a
+     * {@link MappedByteBuffer} on this JDK. It cannot when the cleaner method is missing, or when a
+     * SecurityManager denies access to it. It also cannot on JDK 22 and later, where a file is unmapped by
+     * closing the arena that mapped it instead.
+     *
+     * @param reflectionUtils
+     *            The reflection utils.
+     * @return True if a {@link MappedByteBuffer} can be unmapped by
+     *         {@link #closeDirectByteBuffer(ByteBuffer, ReflectionUtils, LogNode)}.
+     */
+    public static boolean canCloseDirectByteBuffer(final ReflectionUtils reflectionUtils) {
+        lookupCleanMethod(reflectionUtils);
+        if (VersionFinder.JAVA_MAJOR_VERSION < 9) {
+            return cleanerCleanMethod != null && directByteBufferCleanerMethod != null
+                    && attachmentMethod != null;
+        } else if (VersionFinder.JAVA_MAJOR_VERSION < 22) {
+            return theUnsafe != null && cleanerCleanMethod != null;
+        } else {
+            return false;
+        }
+    }
+
+    /**
      * Close a {@code DirectByteBuffer} -- in particular, will unmap a {@link MappedByteBuffer}.
      *
      * @param byteBuffer
@@ -870,26 +923,7 @@ public final class FileUtils {
     public static boolean closeDirectByteBuffer(final ByteBuffer byteBuffer, final ReflectionUtils reflectionUtils,
             final LogNode log) {
         if (byteBuffer != null && byteBuffer.isDirect()) {
-            // Double-checked locking, so that two threads calling this for the first time concurrently cannot
-            // both run the lookup and race on the static fields it assigns
-            if (!initialized) {
-                synchronized (FileUtils.class) {
-                    if (!initialized) {
-                        try {
-                            reflectionUtils.doPrivileged(new Callable<Void>() {
-                                @Override
-                                public Void call() throws Exception {
-                                    lookupCleanMethodPrivileged();
-                                    return null;
-                                }
-                            });
-                        } catch (final Throwable e) {
-                            throw new RuntimeException("Cannot get buffer cleaner method", e);
-                        }
-                        initialized = true;
-                    }
-                }
-            }
+            lookupCleanMethod(reflectionUtils);
             try {
                 return reflectionUtils.doPrivileged(new Callable<Boolean>() {
                     @Override

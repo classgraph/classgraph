@@ -201,6 +201,15 @@ public class FileSlice extends Slice {
             if (VersionFinder.JAVA_MAJOR_VERSION >= 22) {
                 arena = FileUtils.openArena(nestedJarHandler.reflectionUtils);
                 canMapFile = arena != null;
+            } else if (!FileUtils.canCloseDirectByteBuffer(nestedJarHandler.reflectionUtils)) {
+                // Without the cleaner method, the mapping would stay in place until the ByteBuffer is garbage
+                // collected, and on Windows the file stays locked until then -- read the file through the
+                // RandomAccessFile API instead
+                if (log != null) {
+                    log.log("File " + file + " is not memory mapped, since it could not be unmapped again "
+                            + "(using RandomAccessFile API instead)");
+                }
+                canMapFile = false;
             }
             if (canMapFile) {
                 try {
