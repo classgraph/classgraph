@@ -259,9 +259,17 @@ class ClasspathElementZip extends ClasspathElement {
             for (final String childClassPathEltPathRelative : logicalZipFile.classPathManifestEntryValue
                     .split(" ")) {
                 if (!childClassPathEltPathRelative.isEmpty()) {
+                    // A Class-Path entry is a relative URL, so its percent encoding is decoded, as the JVM's own
+                    // classloader decodes it -- a jarfile with a space in its name cannot be named any other way,
+                    // since a space separates the entries. An entry with a URL scheme is decoded by the resolver
+                    // where it names a file.
+                    final String childClassPathEltPathDecoded = JarUtils.URL_SCHEME_PATTERN
+                            .matcher(childClassPathEltPathRelative).matches() ? childClassPathEltPathRelative
+                                    : FastPathResolver.normalizePath(childClassPathEltPathRelative,
+                                            /* percentDecode = */ true);
                     // Resolve Class-Path entry relative to containing dir
                     final String childClassPathEltPath = FastPathResolver.resolve(jarParentDir,
-                            childClassPathEltPathRelative);
+                            childClassPathEltPathDecoded);
                     // If this is a nested jar, prepend outer jar prefix
                     final ZipFileSlice parentZipFileSlice = logicalZipFile.getParentZipFileSlice();
                     final String childClassPathEltPathWithPrefix = parentZipFileSlice == null
@@ -284,8 +292,8 @@ class ClasspathElementZip extends ClasspathElement {
         // the paths relative to the root of the jarfile
         if (logicalZipFile.bundleClassPathManifestEntryValue != null) {
             final String zipFilePathPrefix = zipFilePath + "!/";
-            // Class-Path is split on " ", but Bundle-ClassPath is split on ","
-            for (String childBundlePath : logicalZipFile.bundleClassPathManifestEntryValue.split(",")) {
+            for (String childBundlePath : bundleClassPathTargets(
+                    logicalZipFile.bundleClassPathManifestEntryValue)) {
                 // Assume that Bundle-ClassPath paths have to be given relative to jarfile root
                 while (childBundlePath.startsWith("/")) {
                     childBundlePath = childBundlePath.substring(1);
@@ -309,6 +317,34 @@ class ClasspathElementZip extends ClasspathElement {
                 }
             }
         }
+    }
+
+    /**
+     * Get the paths named by a {@code Bundle-ClassPath} manifest attribute. The attribute uses the OSGi header
+     * syntax: a comma-separated list of entries, each of which is one or more semicolon-separated paths followed by
+     * optional {@code name=value} parameters. A path may be surrounded by spaces, and may be quoted. A quoted path
+     * that contains ',' or ';' is not supported, since such a path cannot name a file inside a bundle in practice.
+     *
+     * @param bundleClassPath
+     *            the value of the {@code Bundle-ClassPath} manifest attribute.
+     * @return the paths it names, in order.
+     */
+    private static List<String> bundleClassPathTargets(final String bundleClassPath) {
+        final List<String> targets = new ArrayList<>();
+        for (final String entry : bundleClassPath.split(",")) {
+            for (final String part : entry.split(";")) {
+                String target = part.trim();
+                if (target.contains("=")) {
+                    // A parameter ends the paths of this entry
+                    break;
+                }
+                if (target.length() >= 2 && target.startsWith("\"") && target.endsWith("\"")) {
+                    target = target.substring(1, target.length() - 1);
+                }
+                targets.add(target);
+            }
+        }
+        return targets;
     }
 
     /**
