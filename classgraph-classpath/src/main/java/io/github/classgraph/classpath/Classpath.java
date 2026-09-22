@@ -35,6 +35,7 @@ import java.util.Iterator;
 import java.util.List;
 
 import io.github.classgraph.classpath.internal.ClassLoaderProbe;
+import io.github.classgraph.classpath.internal.ClasspathSpec;
 import io.github.classgraph.vfs.Vfs;
 
 /**
@@ -74,23 +75,25 @@ public final class Classpath implements AutoCloseable, Iterable<ClasspathEntry> 
      *            the classpath elements, in the order the classloaders would search them.
      * @param classLoaderProbe
      *            the probe that read the classloaders, which is where the modules come from.
-     * @param modulePathInfo
-     *            the module path switches the JVM was launched with.
+     * @param classpathSpec
+     *            the settings the classpath was found with, which say which kinds of module to list.
      * @param vfs
      *            the virtual filesystem that the jarfiles were read through, in order to read their manifests.
      */
     Classpath(final List<ClasspathEntry> entries, final ClassLoaderProbe classLoaderProbe,
-            final ModulePathInfo modulePathInfo, final Vfs vfs) {
+            final ClasspathSpec classpathSpec, final Vfs vfs) {
         this.entries = List.copyOf(entries);
         this.vfs = vfs;
 
         final var moduleFinder = classLoaderProbe.getModuleFinder();
-        this.systemModules = moduleFinder == null ? List.of()
+        // The ModuleFinder lists the system modules even when they were not enabled, since the scanner may need to
+        // read a class from one of them (#902), so they are dropped here unless they were enabled
+        this.systemModules = moduleFinder == null || !classpathSpec.scanSystemModules ? List.of()
                 : List.copyOf(moduleFinder.getSystemModuleReferences());
         this.nonSystemModules = moduleFinder == null ? List.of()
                 : List.copyOf(moduleFinder.getNonSystemModuleReferences());
 
-        this.modulePathInfo = modulePathInfo;
+        this.modulePathInfo = classpathSpec.modulePathInfo;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -140,12 +143,10 @@ public final class Classpath implements AutoCloseable, Iterable<ClasspathEntry> 
     }
 
     /**
-     * Returns the module references discovered in the enabled module layers, system modules first, each group in
-     * module layer order, and by module name within each layer. The system-module group may include references that
-     * were retained to complete the class graph but were not themselves selected for scanning. Traditional
-     * classpath jars are not modules and are not included. The list is empty unless a module source was enabled,
-     * using {@link ClasspathFinder#enableSystemModules()}, {@link ClasspathFinder#enableNonSystemModules()} or
-     * {@link ClasspathFinder#enableModuleLayers(ModuleLayer...)}.
+     * Returns the modules that were found, the system modules first, then the rest: {@link #getSystemModules()}
+     * followed by {@link #getNonSystemModules()}. A jarfile on the classpath is not a module, and is not listed
+     * here. The list is empty unless {@link ClasspathFinder#enableSystemModules()} or
+     * {@link ClasspathFinder#enableNonSystemModules()} was called.
      *
      * @return the modules, as an unmodifiable list.
      */
@@ -158,9 +159,8 @@ public final class Classpath implements AutoCloseable, Iterable<ClasspathEntry> 
 
     /**
      * Returns the modules supplied by the running JVM, in module layer order, and by module name within each layer.
-     * These are identified against {@link java.lang.module.ModuleFinder#ofSystem()}, rather than inferred from
-     * their names. They may include references retained to complete the class graph even when system-module
-     * scanning was not enabled.
+     * A module is a system module if {@link java.lang.module.ModuleFinder#ofSystem()} finds it, whatever its name.
+     * The list is empty unless {@link ClasspathFinder#enableSystemModules()} was called.
      *
      * @return the system modules, as an unmodifiable list.
      */
@@ -170,7 +170,7 @@ public final class Classpath implements AutoCloseable, Iterable<ClasspathEntry> 
 
     /**
      * Returns the modules other than the system modules, in module layer order, and by module name within each
-     * layer.
+     * layer. The list is empty unless {@link ClasspathFinder#enableNonSystemModules()} was called.
      *
      * @return the non-system modules, as an unmodifiable list.
      */

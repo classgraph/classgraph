@@ -42,7 +42,7 @@ import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.utils.CollectionUtils;
 import org.jspecify.annotations.Nullable;
 
-/** A class to find the visible modules. */
+/** Finds the modules of the module layers that are searched, and splits them into system and non-system modules. */
 public class ModuleFinder {
     /**
      * Sorts modules by name, with the location as a tiebreaker, so that the module order does not depend on hash
@@ -59,7 +59,8 @@ public class ModuleFinder {
     private final List<ModuleReference> nonSystemModuleReferences;
 
     /**
-     * If true, must forcibly scan {@code java.class.path}, since there was an anonymous module layer.
+     * True if {@code java.class.path} has to be scanned even though it was not asked for, since a class on the call
+     * stack is in an unnamed module, whose classes are found on {@code java.class.path}.
      */
     private boolean forceScanJavaClassPath;
 
@@ -99,9 +100,10 @@ public class ModuleFinder {
     }
 
     /**
-     * Force scan java class path.
+     * Whether {@code java.class.path} has to be scanned even though it was not asked for.
      *
-     * @return If true, must forcibly scan {@code java.class.path}, since there was an anonymous module layer.
+     * @return true if a class on the call stack is in an unnamed module, whose classes are found on
+     *         {@code java.class.path}.
      */
     public boolean forceScanJavaClassPath() {
         return forceScanJavaClassPath;
@@ -130,9 +132,8 @@ public class ModuleFinder {
      * caller did not name it.
      *
      * <p>
-     * (The JDK (as of 10.0.0.1) uses a broken (non-topological) DFS ordering for layer resolution in
-     * ModuleLayer#layers() and Configuration#configurations() but when I reported this bug on the Jigsaw mailing
-     * list, Alan didn't see what the problem was.)
+     * The result is a depth-first order that lists each layer once, which is the order that
+     * {@code ModuleLayer#findModule} searches a layer's parents in.
      *
      * @param layer
      *            the layer
@@ -161,8 +162,8 @@ public class ModuleFinder {
      * @param layers
      *            the layers
      * @param classpathSpec
-     *            the scan spec
-     * @return the list
+     *            the classpath settings, which say whether to ignore the parent layers.
+     * @return the modules, in layer order, and by name within each layer.
      */
     private static List<ModuleReference> findModuleReferences(final LinkedHashSet<ModuleLayer> layers,
             final ClasspathSpec classpathSpec) {
@@ -230,7 +231,7 @@ public class ModuleFinder {
             // java.class.path, so java.class.path has to be scanned to find them
             forceScanJavaClassPath = true;
         }
-        // Add system modules from boot layer, if they weren't already found in stacktrace
+        // Add the boot layer, unless a class on the call stack was already in it
         layersOut.add(ModuleLayer.boot());
     }
 
@@ -242,7 +243,7 @@ public class ModuleFinder {
      * @param callStackInfo
      *            the call stack info.
      * @param classpathSpec
-     *            The scan spec, which says which kinds of module are going to be scanned.
+     *            The classpath settings, which say which kinds of module to find.
      * @param scanSourceSpec
      *            The places to look for classpath elements and modules.
      * @param log

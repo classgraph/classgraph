@@ -135,6 +135,14 @@ public class ClasspathFinderTest {
                 .hasSize(classpath.getSystemModules().size() + classpath.getNonSystemModules().size());
     }
 
+    /** Only the kind of module that was enabled is listed. */
+    @Test
+    public void theSystemModulesAreNotListedUnlessEnabled() {
+        final var classpath = new ClasspathFinder().enableNonSystemModules().find();
+        assertThat(classpath.getSystemModules()).isEmpty();
+        assertThat(classpath.getModules()).containsExactlyElementsOf(classpath.getNonSystemModules());
+    }
+
     /** Modules are not looked for unless a module source is enabled. */
     @Test
     public void modulesAreNotFoundUnlessEnabled() {

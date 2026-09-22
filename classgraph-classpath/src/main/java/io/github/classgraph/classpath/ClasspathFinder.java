@@ -485,7 +485,7 @@ public final class ClasspathFinder {
             Classpath classpath = null;
             try {
                 final var expandedEntries = TransitiveClasspath.expand(classLoaderEntries, vfs, vfsSpec, log);
-                classpath = new Classpath(expandedEntries, classLoaderProbe, classpathSpec.modulePathInfo, vfs);
+                classpath = new Classpath(expandedEntries, classLoaderProbe, classpathSpec, vfs);
                 return classpath;
             } finally {
                 if (classpath == null) {
