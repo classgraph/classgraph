@@ -523,24 +523,23 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
      * {@inheritDoc}
      *
      * <p>
-     * The path may name a directory or a jarfile of any filesystem, not only of the default one, so a jarfile
-     * inside a zipfs filesystem can be opened by handing its {@link Path} to this method.
+     * The path must name a directory, of any filesystem, not only of the default one. Every other path -- a
+     * jarfile, any other file, or a path where nothing exists yet -- is declined with
+     * {@link UnsupportedOperationException}. That is what the contract of this method asks of a provider that does
+     * not handle a path, and it matters beyond this provider: {@link java.nio.file.FileSystems#newFileSystem(Path)}
+     * tries each installed provider in turn, moving on to the next only when one throws
+     * {@link UnsupportedOperationException}, and the order in which it tries them is not defined -- with
+     * classgraph-vfs on the module path, this provider comes before the JDK's zipfs. Taking a jarfile here would
+     * hand the caller this provider's read-only filesystem where they expected a zipfs one, and failing a path that
+     * does not exist would stop zipfs from creating a zipfile there with {@code Map.of("create", "true")}. To open
+     * an archive through this provider, call {@link Vfs#open(Path)} and then {@link VfsRoot#asFileSystem()}, or
+     * name it with a {@code cgvfs:} URI.
      *
      * <p>
-     * A path this provider cannot read as a filesystem -- one that names a file which is not an archive, or an
-     * archive too damaged to read -- is declined with {@link UnsupportedOperationException}, carrying the reason as
-     * its cause. That is what the contract of this method asks for, and it matters beyond this provider:
-     * {@link java.nio.file.FileSystems#newFileSystem(Path)} tries each installed provider in turn and moves on to
-     * the next only when one throws {@link UnsupportedOperationException}, so a provider that reports an
-     * unrecognized file as an {@link IOException} instead would end that search and hide every provider behind it.
-     * A path that does not exist or cannot be read at all is still reported as an {@link IOException}, since no
-     * provider could open it.
-     *
-     * <p>
-     * Note that this does leave one difference from a JVM without this provider installed:
-     * {@link java.nio.file.FileSystems#newFileSystem(Path)} over a <i>directory</i> returns a filesystem here,
-     * where it would otherwise throw {@link java.nio.file.ProviderNotFoundException}, since no built-in provider
-     * reads a directory as a filesystem. An archive still goes to the JDK's own zipfs, which is tried first.
+     * This does leave one difference from a JVM without this provider installed:
+     * {@link java.nio.file.FileSystems#newFileSystem(Path)} over a directory returns a filesystem here, where it
+     * would otherwise throw {@link java.nio.file.ProviderNotFoundException}, since no built-in provider reads a
+     * directory as a filesystem.
      *
      * <p>
      * The returned filesystem owns the {@link Vfs} this creates to open the path, so closing the filesystem
@@ -550,24 +549,19 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
      * @throws FileSystemAlreadyExistsException
      *             if a filesystem created from a URI is already open at that path.
      * @throws UnsupportedOperationException
-     *             if the path exists but cannot be read as a filesystem by this provider.
+     *             if the path does not name a directory.
+     * @throws IOException
+     *             if the directory could not be read.
      */
     @Override
     public FileSystem newFileSystem(final Path path, final Map<String, ?> env) throws IOException {
         Assert.notNull(path, "path");
-        final VfsRoot root;
-        try {
-            root = openRoot(env, vfs -> vfs.open(path));
-        } catch (final IOException e) {
-            if (!Files.isReadable(path)) {
-                // Nothing is there to open, or it cannot be read at all, which is not this provider declining the
-                // path -- no provider could open it
-                throw e;
-            }
-            throw new UnsupportedOperationException("Cannot read " + path + " as a filesystem", e);
+        if (!Files.isDirectory(path)) {
+            throw new UnsupportedOperationException("Not a directory: " + path);
         }
+        final var root = openRoot(env, vfs -> vfs.open(path));
         // Registered under the path the root reports itself at, rather than under the given Path's own spelling,
-        // because a Path of another provider's filesystem -- a jarfile inside a zipfs filesystem, say -- has no
+        // because a Path of another provider's filesystem -- a directory inside a zipfs filesystem, say -- has no
         // spelling that this provider could resolve back to it
         return registeredFileSystemOf(root, root.reportedPath());
     }
@@ -1036,8 +1030,14 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
         /** The channel that holds the content, closed when this channel is closed. */
         private final VfsRandomAccessChannel content;
 
-        /** The read position, which is allowed to be beyond the end of the content. */
+        /**
+         * The read position, which is allowed to be beyond the end of the content. Every method that reads or moves
+         * it is synchronized, since {@link FileChannel} allows only one operation on the position at a time.
+         */
         private long position;
+
+        /** The size of the buffer {@link #transferTo(long, long, WritableByteChannel)} copies through. */
+        private static final int TRANSFER_BUF_SIZE = 16384;
 
         /**
          * Constructor.
@@ -1050,7 +1050,7 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
         }
 
         @Override
-        public int read(final ByteBuffer dst) throws IOException {
+        public synchronized int read(final ByteBuffer dst) throws IOException {
             final var numBytes = content.read(dst, position);
             if (numBytes > 0) {
                 position += numBytes;
@@ -1059,7 +1059,8 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
         }
 
         @Override
-        public long read(final ByteBuffer[] dsts, final int offset, final int length) throws IOException {
+        public synchronized long read(final ByteBuffer[] dsts, final int offset, final int length)
+                throws IOException {
             Objects.checkFromIndexSize(offset, length, dsts.length);
             var total = 0L;
             for (var i = offset; i < offset + length; i++) {
@@ -1098,13 +1099,13 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
         }
 
         @Override
-        public long position() throws IOException {
+        public synchronized long position() throws IOException {
             checkOpen();
             return position;
         }
 
         @Override
-        public FileChannel position(final long newPosition) throws IOException {
+        public synchronized FileChannel position(final long newPosition) throws IOException {
             checkOpen();
             if (newPosition < 0) {
                 throw new IllegalArgumentException("Negative position: " + newPosition);
@@ -1139,19 +1140,25 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
             if (!target.isOpen()) {
                 throw new ClosedChannelException();
             }
-            final var remaining = size() - fromPosition;
-            if (remaining <= 0) {
-                return 0;
+            // Copied a buffer at a time, so that transferring a large entry does not need a buffer as large as the
+            // entry, which could not even be allocated for an entry of 2GB or more
+            final var buf = ByteBuffer.allocate((int) Math.min(count, TRANSFER_BUF_SIZE));
+            var numBytesTransferred = 0L;
+            while (numBytesTransferred < count) {
+                buf.clear().limit((int) Math.min(buf.capacity(), count - numBytesTransferred));
+                if (content.read(buf, fromPosition + numBytesTransferred) <= 0) {
+                    // End of the content
+                    break;
+                }
+                buf.flip();
+                numBytesTransferred += target.write(buf);
+                if (buf.hasRemaining()) {
+                    // A non-blocking target that will not take the whole buffer ends the transfer early, as it
+                    // does for a file channel
+                    break;
+                }
             }
-            final var buf = ByteBuffer.allocate((int) Math.min(count, remaining));
-            final var numBytes = content.read(buf, fromPosition);
-            if (numBytes <= 0) {
-                return 0;
-            }
-            buf.flip();
-            // A partial write is reported as such, rather than looped over, which is what a file channel does when
-            // the target is a non-blocking channel that will not take the whole buffer
-            return target.write(buf);
+            return numBytesTransferred;
         }
 
         @Override

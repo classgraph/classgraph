@@ -486,23 +486,60 @@ public class VfsFileSystemProviderUriTest {
     }
 
     /**
-     * A jarfile named by a {@link Path} of any filesystem can be opened, which is what
-     * {@link FileSystems#newFileSystem(Path, Map)} calls.
+     * A directory named by a {@link Path} can be opened, which is what {@link FileSystems#newFileSystem(Path, Map)}
+     * calls, since no built-in provider reads a directory as a filesystem.
      *
      * @param tempDir
      *            a temporary directory.
      * @throws IOException
-     *             if the jarfile could not be read.
+     *             if the directory could not be read.
      */
     @Test
-    public void aJarfileCanBeOpenedByPath(@TempDir final Path tempDir) throws IOException {
+    public void aDirectoryCanBeOpenedByPath(@TempDir final Path tempDir) throws IOException {
+        Files.writeString(tempDir.resolve("root.txt"), "root");
+        try (var fileSystem = new VfsFileSystemProvider().newFileSystem(tempDir, Map.of())) {
+            assertThat(fileSystem.provider().getScheme()).isEqualTo("cgvfs");
+            assertThat(Files.readString(fileSystem.getPath("/root.txt"))).isEqualTo("root");
+        }
+    }
+
+    /**
+     * A {@link Path} that is not a directory -- a jarfile, any other file, or nothing at all -- is declined with
+     * {@link UnsupportedOperationException}, so that {@link FileSystems#newFileSystem(Path, Map)} goes on to zipfs.
+     * The order in which that method tries the installed providers is not defined for providers in named modules,
+     * and with classgraph-vfs on the module path, this provider is tried before zipfs: if it took a jarfile, the
+     * caller would get a read-only filesystem instead of zipfs, and if it failed a path that does not exist yet,
+     * zipfs could not be asked to create a zipfile there.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the files could not be written.
+     */
+    @Test
+    public void aPathThatIsNotADirectoryIsLeftToZipfs(@TempDir final Path tempDir) throws IOException {
         final var jarFile = tempDir.resolve("library.jar");
         writeJar(jarFile.toFile());
-
-        try (var fileSystem = new VfsFileSystemProvider().newFileSystem(jarFile, Map.of())) {
-            assertThat(fileSystem.provider().getScheme()).isEqualTo("cgvfs");
-            assertThat(Files.readAllBytes(fileSystem.getPath("/root.txt"))).isEqualTo(contentOf("root.txt"));
+        final var notAnArchive = Files.writeString(tempDir.resolve("notes.txt"), "not an archive");
+        final var absent = tempDir.resolve("absent.zip");
+        final var provider = new VfsFileSystemProvider();
+        for (final var path : List.of(jarFile, notAnArchive, absent)) {
+            assertThatThrownBy(() -> provider.newFileSystem(path, Map.of("create", "true")))
+                    .isInstanceOf(UnsupportedOperationException.class);
         }
+        assertThat(Files.exists(absent)).isFalse();
+
+        // The consequence that matters: the search over the installed providers reaches zipfs, rather than being
+        // cut short by this one
+        assumeTrue(VfsFileSystemProvider.isInstalled(), "The \"cgvfs:\" scheme is not installed");
+        try (var fileSystem = FileSystems.newFileSystem(jarFile, (ClassLoader) null)) {
+            assertThat(fileSystem.provider().getScheme()).isEqualTo("jar");
+        }
+        try (var fileSystem = FileSystems.newFileSystem(absent, Map.of("create", "true"))) {
+            assertThat(fileSystem.provider().getScheme()).isEqualTo("jar");
+        }
+        assertThatThrownBy(() -> FileSystems.newFileSystem(notAnArchive, (ClassLoader) null))
+                .isInstanceOf(ProviderNotFoundException.class);
     }
 
     /**
@@ -523,33 +560,6 @@ public class VfsFileSystemProviderUriTest {
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> provider.getFileSystem(URI.create("cgvfs:")))
                 .isInstanceOf(IllegalArgumentException.class);
-    }
-
-    /**
-     * A path this provider cannot read as a filesystem is declined with {@link UnsupportedOperationException}
-     * rather than reported as an {@link IOException}, so that {@link FileSystems#newFileSystem(Path, ClassLoader)}
-     * goes on to try the providers installed after this one instead of ending its search here. A path that is not
-     * there at all is still an {@link IOException}, since that is not this provider declining it.
-     *
-     * @param tempDir
-     *            a temporary directory.
-     * @throws IOException
-     *             if the file could not be written.
-     */
-    @Test
-    public void aPathThatIsNotAnArchiveIsDeclinedRatherThanFailed(@TempDir final Path tempDir) throws IOException {
-        final var notAnArchive = Files.writeString(tempDir.resolve("notes.txt"), "not an archive");
-        final var provider = new VfsFileSystemProvider();
-        assertThatThrownBy(() -> provider.newFileSystem(notAnArchive, Map.of()))
-                .isInstanceOf(UnsupportedOperationException.class).hasCauseInstanceOf(IOException.class);
-        assertThatThrownBy(() -> provider.newFileSystem(tempDir.resolve("absent.jar"), Map.of()))
-                .isInstanceOf(IOException.class);
-
-        // The consequence that matters: the search over the installed providers reaches its end, rather than
-        // being cut short by this one
-        assumeTrue(VfsFileSystemProvider.isInstalled(), "The \"cgvfs:\" scheme is not installed");
-        assertThatThrownBy(() -> FileSystems.newFileSystem(notAnArchive, (ClassLoader) null))
-                .isInstanceOf(ProviderNotFoundException.class);
     }
 
     /**
@@ -598,6 +608,45 @@ public class VfsFileSystemProviderUriTest {
             assertThatThrownBy(() -> channel.map(java.nio.channels.FileChannel.MapMode.READ_ONLY, 0, 1))
                     .isInstanceOf(UnsupportedOperationException.class);
             assertThatThrownBy(() -> channel.lock()).isInstanceOf(UnsupportedOperationException.class);
+        }
+    }
+
+    /**
+     * {@link java.nio.channels.FileChannel#transferTo(long, long, java.nio.channels.WritableByteChannel)} transfers
+     * all of an entry that is larger than the buffer it copies through, from any position, to a blocking target,
+     * and a count larger than the rest of the entry transfers the rest of the entry.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the jarfile could not be written or read.
+     */
+    @Test
+    public void transferToCopiesAnEntryLargerThanItsBuffer(@TempDir final Path tempDir) throws IOException {
+        final var content = new byte[100_000];
+        for (var i = 0; i < content.length; i++) {
+            content[i] = (byte) (i * 31 + (i >> 8));
+        }
+        final var jarFile = tempDir.resolve("large.jar").toFile();
+        try (var fileOut = new FileOutputStream(jarFile); var zipOut = new ZipOutputStream(fileOut)) {
+            zipOut.putNextEntry(new ZipEntry("large.bin"));
+            zipOut.write(content);
+            zipOut.closeEntry();
+        }
+        try (var fileSystem = FileSystems.newFileSystem(cgvfsUri(jarFile.getPath()), Map.of());
+                var channel = java.nio.channels.FileChannel.open(fileSystem.getPath("/large.bin"))) {
+            final var sink = new ByteArrayOutputStream();
+            final var fromPosition = 12_345;
+            assertThat(
+                    channel.transferTo(fromPosition, Long.MAX_VALUE, java.nio.channels.Channels.newChannel(sink)))
+                    .isEqualTo(content.length - fromPosition);
+            assertThat(sink.toByteArray())
+                    .isEqualTo(java.util.Arrays.copyOfRange(content, fromPosition, content.length));
+            // Nothing is transferred from the end of the entry or beyond it
+            assertThat(channel.transferTo(content.length, 10, java.nio.channels.Channels.newChannel(sink)))
+                    .isZero();
+            assertThat(channel.transferTo(content.length + 10, 10, java.nio.channels.Channels.newChannel(sink)))
+                    .isZero();
         }
     }
 
