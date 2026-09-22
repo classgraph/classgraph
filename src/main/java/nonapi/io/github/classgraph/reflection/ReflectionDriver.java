@@ -139,7 +139,9 @@ abstract class ReflectionDriver {
 
         /**
          * Cache the declared methods and fields of a class or interface. Methods and fields are read separately,
-         * so that if one of the two cannot be read, the other is still cached.
+         * so that if one of the two cannot be read, the other is still cached. {@link LinkageError} is caught as
+         * well as {@link Exception}, since {@link Class#getDeclaredMethods()} throws {@link NoClassDefFoundError}
+         * if a method names a class that cannot be loaded.
          *
          * @param cls
          *            the class or interface to cache the declared members of.
@@ -149,14 +151,14 @@ abstract class ReflectionDriver {
                 for (final Method m : getDeclaredMethods(cls)) {
                     cacheMethod(m);
                 }
-            } catch (final Exception e) {
+            } catch (final Exception | LinkageError e) {
                 // Skip
             }
             try {
                 for (final Field f : getDeclaredFields(cls)) {
                     cacheField(f);
                 }
-            } catch (final Exception e) {
+            } catch (final Exception | LinkageError e) {
                 // Skip
             }
         }

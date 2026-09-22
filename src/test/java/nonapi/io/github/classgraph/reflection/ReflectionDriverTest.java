@@ -3,6 +3,9 @@ package nonapi.io.github.classgraph.reflection;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -335,6 +338,81 @@ public class ReflectionDriverTest {
         assertThat(noMethods.findField(Fixture.class, obj, "instanceField").getName()).isEqualTo("instanceField");
         assertThatThrownBy(() -> noMethods.findMethod(Fixture.class, obj, "instanceMethod"))
                 .isInstanceOf(NoSuchMethodException.class);
+    }
+
+    /** A class that {@link #loaderWithoutMissingType()} refuses to load. */
+    private static class MissingType {
+    }
+
+    /** A class with a method whose return type cannot be loaded by the classloader that defines this class. */
+    @SuppressWarnings({ "unused", "static-method" })
+    private static class HasMissingType {
+        /** A field whose type can be loaded. */
+        private final String field = "field";
+
+        /**
+         * A method whose return type cannot be loaded.
+         *
+         * @return nothing.
+         */
+        private MissingType method() {
+            return null;
+        }
+    }
+
+    /**
+     * Get a classloader that defines its own copy of {@link HasMissingType}, and cannot load {@link MissingType}.
+     *
+     * @return the classloader.
+     */
+    private static ClassLoader loaderWithoutMissingType() {
+        return new ClassLoader(ReflectionDriverTest.class.getClassLoader()) {
+            @Override
+            protected Class<?> loadClass(final String name, final boolean resolve) throws ClassNotFoundException {
+                if (name.equals(MissingType.class.getName())) {
+                    throw new ClassNotFoundException(name);
+                }
+                if (!name.equals(HasMissingType.class.getName())) {
+                    return super.loadClass(name, resolve);
+                }
+                synchronized (getClassLoadingLock(name)) {
+                    final Class<?> loaded = findLoadedClass(name);
+                    if (loaded != null) {
+                        return loaded;
+                    }
+                    try (InputStream in = getParent().getResourceAsStream(name.replace('.', '/') + ".class")) {
+                        final ByteArrayOutputStream out = new ByteArrayOutputStream();
+                        final byte[] chunk = new byte[8192];
+                        for (int n; (n = in.read(chunk)) > 0;) {
+                            out.write(chunk, 0, n);
+                        }
+                        final byte[] bytes = out.toByteArray();
+                        return defineClass(name, bytes, 0, bytes.length);
+                    } catch (final IOException e) {
+                        throw new ClassNotFoundException(name, e);
+                    }
+                }
+            }
+        };
+    }
+
+    /**
+     * If the methods of a class cannot be read because a method names a class that cannot be loaded, the fields of
+     * the class are still found. {@link Class#getDeclaredMethods()} reports this with {@link NoClassDefFoundError},
+     * which is an {@link Error} rather than an {@link Exception}.
+     *
+     * @param driver
+     *            the driver.
+     * @throws Exception
+     *             if a lookup that was expected to succeed failed.
+     */
+    @ParameterizedTest
+    @MethodSource("drivers")
+    void aMethodNamingAMissingClassDoesNotHideTheFields(final ReflectionDriver driver) throws Exception {
+        final Class<?> cls = loaderWithoutMissingType().loadClass(HasMissingType.class.getName());
+        assertThatThrownBy(cls::getDeclaredMethods).isInstanceOf(NoClassDefFoundError.class);
+        assertThat(driver.findField(cls, null, "field").getName()).isEqualTo("field");
+        assertThatThrownBy(() -> driver.findMethod(cls, null, "method")).isInstanceOf(NoSuchMethodException.class);
     }
 
     /**
