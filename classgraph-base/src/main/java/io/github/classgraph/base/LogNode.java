@@ -30,10 +30,9 @@ package io.github.classgraph.base;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.text.DecimalFormat;
-import java.text.DecimalFormatSymbols;
-import java.text.SimpleDateFormat;
-import java.util.Calendar;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.Collection;
 import java.util.Locale;
 import java.util.Map;
@@ -115,29 +114,19 @@ public final class LogNode implements ClassGraphLog {
     /** The sort key suffix for this log entry, used to make sort keys unique. */
     private static final AtomicInteger sortKeyUniqueSuffix = new AtomicInteger(0);
 
-    /** The date/time formatter (not threadsafe). */
-    private static final SimpleDateFormat dateTimeFormatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZZ",
-            Locale.US);
-
     /**
-     * The elapsed time formatter. Uses the same locale as the date/time formatter, so that logs read the same way
-     * whatever the default locale is -- otherwise the decimal separator would be a comma in some locales.
-     *
-     * <p>
-     * A {@link DecimalFormat} is not threadsafe, so this is only ever used while holding the lock on
-     * {@link #dateTimeFormatter}: the only method that formats an elapsed time is
-     * {@link #toString(int, StringBuilder)}, which is private, and every path into it runs inside the
-     * {@code synchronized (dateTimeFormatter)} block in {@link #toString()}.
+     * The timestamp formatter, in the system time zone. Uses {@link Locale#US}, so that logs read the same way
+     * whatever the default locale is.
      */
-    private static final DecimalFormat nanoFormatter = new DecimalFormat("0.000000",
-            DecimalFormatSymbols.getInstance(Locale.US));
+    private static final DateTimeFormatter dateTimeFormatter = DateTimeFormatter
+            .ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSZ", Locale.US).withZone(ZoneId.systemDefault());
 
     /**
      * If true, log entries are output in realtime, as well as added to the LogNode tree.
      *
      * <p>
      * Volatile, since {@link #logInRealtime(boolean)} is called from the caller's thread, whereas this field is
-     * read by the {@link LogNode} constructor, which is called from the scan threads.
+     * read when a log entry is added, which happens on the scan threads.
      */
     private static volatile boolean logInRealtime;
 
@@ -177,9 +166,6 @@ public final class LogNode implements ClassGraphLog {
             stackTrace = writer.toString();
         } else {
             stackTrace = null;
-        }
-        if (logInRealtime) {
-            log.info(toString());
         }
     }
 
@@ -241,17 +227,12 @@ public final class LogNode implements ClassGraphLog {
      *            the buffer to append to
      */
     private void toString(final int indentLevel, final StringBuilder buf) {
-        final var cal = Calendar.getInstance();
-        cal.setTimeInMillis(timeStampMillis);
-        final String timeStampStr;
-        synchronized (dateTimeFormatter) {
-            timeStampStr = dateTimeFormatter.format(cal.getTime());
-        }
-
+        final var timeStampStr = dateTimeFormatter.format(Instant.ofEpochMilli(timeStampMillis));
         if (msg != null && !msg.isEmpty()) {
+            // Locale.US, so that the decimal separator is not a comma in some locales
             appendLine(timeStampStr, indentLevel,
                     elapsedTimeNanos > 0L
-                            ? msg + " (took " + nanoFormatter.format(elapsedTimeNanos * 1e-9) + " sec)" //
+                            ? msg + " (took " + String.format(Locale.US, "%.6f", elapsedTimeNanos * 1e-9) + " sec)"
                             : msg,
                     buf);
         }
@@ -276,12 +257,9 @@ public final class LogNode implements ClassGraphLog {
      */
     @Override
     public String toString() {
-        // DateTimeFormatter is not threadsafe
-        synchronized (dateTimeFormatter) {
-            final StringBuilder buf = new StringBuilder();
-            toString(0, buf);
-            return buf.toString();
-        }
+        final var buf = new StringBuilder();
+        toString(0, buf);
+        return buf.toString();
     }
 
     /**
@@ -314,6 +292,17 @@ public final class LogNode implements ClassGraphLog {
         // Make the sort key unique, so that log entries are not clobbered if keys are reused; increment unique
         // suffix with each new log entry, so that ties are broken in chronological order.
         children.put(newSortKey, newChild);
+        if (logInRealtime) {
+            // Written here rather than in the constructor, since the depth of the entry is only known once it has
+            // a parent
+            var depth = 0;
+            for (var node = newChild; node.parent != null; node = node.parent) {
+                depth++;
+            }
+            final var buf = new StringBuilder();
+            newChild.toString(depth, buf);
+            log.info(buf.toString());
+        }
         return newChild;
     }
 

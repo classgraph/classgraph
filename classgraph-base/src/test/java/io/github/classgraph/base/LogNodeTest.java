@@ -230,6 +230,24 @@ public class LogNodeTest {
         assertThat(logged).singleElement().asString().contains("logged in realtime");
     }
 
+    /** An entry written in realtime is indented by its depth in the tree, as it is when the tree is written out. */
+    @Test
+    public void realtimeLoggingIndentsNestedEntries() {
+        final var logNode = new LogNode();
+        final var logged = recordLogOutput(() -> {
+            LogNode.logInRealtime(true);
+            try {
+                logNode.log("outer").log("inner");
+            } finally {
+                LogNode.logInRealtime(false);
+            }
+        });
+        assertThat(logged).hasSize(2);
+        assertThat(logged.get(0)).contains("\touter\n");
+        assertThat(logged.get(1)).contains("\t-- inner\n");
+        assertThat(logNode.toString()).contains("\t-- inner\n");
+    }
+
     /** Once realtime logging is turned off again, entries are only added to the tree. */
     @Test
     public void entriesAreNotWrittenOutWhenRealtimeLoggingIsOff() {
