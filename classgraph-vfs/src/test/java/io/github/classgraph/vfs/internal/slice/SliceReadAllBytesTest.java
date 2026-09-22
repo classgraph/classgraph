@@ -99,6 +99,30 @@ public class SliceReadAllBytesTest {
     }
 
     /**
+     * A stream that returns zero from a read into a buffer with room left in it does not make the buffer grow,
+     * since the buffer is not full. If it grew on every such read, a few dozen of them would grow it to
+     * {@link Slice#MAX_BUFFER_SIZE} to hold a handful of bytes.
+     *
+     * @throws IOException
+     *             if the stream could not be read
+     */
+    @Test
+    public void aStreamThatReturnsZeroFromAReadDoesNotGrowTheBuffer() throws IOException {
+        final var content = content(64);
+        final var inputStream = new ByteArrayInputStream(content) {
+            /** Whether the next read of a non-empty range returns zero. */
+            private boolean returnZero = true;
+
+            @Override
+            public synchronized int read(final byte[] b, final int off, final int len) {
+                returnZero = !returnZero;
+                return len > 0 && !returnZero ? 0 : super.read(b, off, Math.min(len, 1));
+            }
+        };
+        assertThat(Slice.readAllBytesAsArray(inputStream, -1L)).containsExactly(content);
+    }
+
+    /**
      * A length that is too large to fit in an array is rejected before the array is allocated, so that a zipfile
      * cannot make the reader run out of memory just by claiming an entry is enormous.
      */

@@ -47,7 +47,8 @@ import io.github.classgraph.vfs.reader.RandomAccessReader;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A slice of a {@link File}, {@link ByteBuffer} or {@link InputStream}.
+ * A slice of a file ({@link PathSlice}) or of a byte array ({@link ArraySlice}). The content of an
+ * {@link InputStream} is read into one or the other by {@link #fromInputStream}.
  *
  * <p>
  * A {@link Slice} may be shared between threads -- a zipfile's slice is read concurrently by all the threads
@@ -352,8 +353,7 @@ public abstract class Slice implements AutoCloseable {
      *            zip entry.
      * @return The child slice.
      */
-    public abstract Slice slice(long offset, long length, boolean isDeflatedZipEntry,
-            final long inflatedLengthHint);
+    public abstract Slice slice(long offset, long length, boolean isDeflatedZipEntry, long inflatedLengthHint);
 
     /**
      * Open this {@link Slice} as an {@link InputStream}.
@@ -459,9 +459,9 @@ public abstract class Slice implements AutoCloseable {
         }
         try (inputStream) {
             final var bufferSize = uncompressedLengthHint < 1L
-                    // If fileSizeHint is zero or unknown, use default buffer size
+                    // If the length is zero or unknown, use the default buffer size
                     ? DEFAULT_BUFFER_SIZE
-                    // fileSizeHint is just a hint -- limit the max allocated buffer size, so that invalid ZipEntry
+                    // The length is just a hint -- limit the max allocated buffer size, so that invalid ZipEntry
                     // lengths do not become a memory allocation attack vector
                     : Math.min((int) uncompressedLengthHint, MAX_INITIAL_BUFFER_SIZE);
             var buf = new byte[bufferSize];
@@ -484,12 +484,15 @@ public abstract class Slice implements AutoCloseable {
                     break;
                 }
 
-                // Haven't reached end of stream yet. Need to grow the buffer (double its size), and append the
-                // extra byte that was just read.
-                if (buf.length == MAX_BUFFER_SIZE) {
-                    throw new IOException("InputStream too large to read into array");
+                // Haven't reached end of stream yet. Grow the buffer (double its size) if it is full, and append
+                // the extra byte that was just read. (The read can also have returned zero from a buffer with room
+                // left in it, as in fromInputStream, and the buffer must not grow on every one of those reads.)
+                if (totBytesRead == buf.length) {
+                    if (buf.length == MAX_BUFFER_SIZE) {
+                        throw new IOException("InputStream too large to read into array");
+                    }
+                    buf = Arrays.copyOf(buf, (int) Math.min(buf.length * 2L, MAX_BUFFER_SIZE));
                 }
-                buf = Arrays.copyOf(buf, (int) Math.min(buf.length * 2L, MAX_BUFFER_SIZE));
                 buf[totBytesRead++] = (byte) extraByte;
             }
             // Return buffer and number of bytes read
