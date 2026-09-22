@@ -119,7 +119,7 @@ public final class JarOpener {
             throw new IOException("Fetching a jarfile over \"" + scheme
                     + ":\" is not allowed -- cannot read classpath element: " + url);
         }
-        // Download jar from URL to a ByteBuffer in RAM, or to a temp file on disk
+        // Read the jar from the URL into RAM, or into a temporary file if it is too large for RAM
         return readCentralDirectory(JarURLDownloader.downloadJarFromURL(url, vfs, log), log);
     }
 

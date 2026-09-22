@@ -36,7 +36,6 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLConnection;
-import java.nio.ByteBuffer;
 import java.nio.file.FileSystemNotFoundException;
 import java.nio.file.Path;
 
@@ -100,8 +99,9 @@ final class JarURLDownloader {
     }
 
     /**
-     * Download a jar from a URL to a temporary file, or to a ByteBuffer if the temporary directory is not writeable
-     * or full. The downloaded jar is returned wrapped in a {@link PhysicalZipFile} instance.
+     * Read a jar from a URL into RAM, or into a temporary file if it is larger than
+     * {@link io.github.classgraph.vfs.VfsSpec#getMaxBufferedJarRAMSize()}. A URL that names a {@link Path} in an
+     * installed filesystem, such as a "file:" URL, is opened as that {@link Path} rather than read through the URL.
      *
      * @param jarURL
      *            the jar URL
@@ -109,14 +109,10 @@ final class JarURLDownloader {
      *            the {@link Vfs} that is opening this jarfile
      * @param log
      *            the log node, or null to skip logging
-     * @return the temporary file or {@link ByteBuffer} the jar was downloaded to, wrapped in a
-     *         {@link PhysicalZipFile} instance.
+     * @return the jar, as a {@link PhysicalZipFile}.
      * @throws IOException
-     *             If the jar could not be downloaded, or the jar URL is malformed.
-     * @throws IllegalArgumentException
-     *             If the temp dir is not writeable, or has insufficient space to download the jar. (This is thrown
-     *             as a separate exception from IOException, so that the case of an unwriteable temp dir can be
-     *             handled separately, by downloading the jar to a ByteBuffer in RAM.)
+     *             If the jar could not be read, the jar URL is malformed, or the temporary file could not be
+     *             created or written.
      */
     static PhysicalZipFile downloadJarFromURL(final String jarURL, final Vfs vfs, final @Nullable LogNode log)
             throws IOException {
@@ -161,23 +157,9 @@ final class JarURLDownloader {
             // response, not the time the whole download is allowed to take.
             urlConn.conn.setReadTimeout(HTTP_TIMEOUT);
             urlConn.conn.connect();
-            if (urlConn.httpConn != null) {
-                if (urlConn.httpConn.getResponseCode() != HttpURLConnection.HTTP_OK) {
-                    throw new IOException(
-                            "Got response code " + urlConn.httpConn.getResponseCode() + " for URL " + url);
-                }
-            } else if ("file".equalsIgnoreCase(url.getProtocol())) {
-                // We ended up with a "file:" URL, which can happen as a result of a custom URL scheme that rewrites
-                // its URLs into "file:" URLs (see Issue400.java).
-                try {
-                    // If this is a "file:" URL, get the file from the URL and return it as a new PhysicalZipFile
-                    // (this avoids going through an InputStream). Throws IOException if the file cannot be read.
-                    final var file = Path.of(url.toURI()).toFile();
-                    return new PhysicalZipFile(file, vfs, log);
-
-                } catch (final Exception e) {
-                    // Fall through -- unknown URL type
-                }
+            if (urlConn.httpConn != null && urlConn.httpConn.getResponseCode() != HttpURLConnection.HTTP_OK) {
+                throw new IOException(
+                        "Got response code " + urlConn.httpConn.getResponseCode() + " for URL " + url);
             }
             // Try to read content length hint
             var contentLengthHint = urlConn.conn.getContentLengthLong();
