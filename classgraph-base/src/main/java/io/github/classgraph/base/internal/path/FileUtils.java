@@ -418,15 +418,15 @@ public final class FileUtils {
     public static BasicFileAttributes readAttributes(final Path path) {
         try {
             return Files.readAttributes(path, BasicFileAttributes.class);
-        } catch (final IOException e) {
+        } catch (final IOException | SecurityException e) {
             return new BasicFileAttributes() {
                 @Override
                 public FileTime lastModifiedTime() {
                     try {
                         return FileTime.fromMillis(path.toFile().lastModified());
-                    } catch (final UnsupportedOperationException ignored) {
-                        // Path#toFile() throws this for a path on a filesystem other than the default one,
-                        // which has no File equivalent -- fall through and ask the NIO API instead
+                    } catch (final UnsupportedOperationException | SecurityException ignored) {
+                        // Path#toFile() throws UnsupportedOperationException for a path on a filesystem other than
+                        // the default one, which has no File equivalent -- fall through and ask the NIO API instead
                     }
                     try {
                         return Files.getLastModifiedTime(path);
@@ -471,9 +471,9 @@ public final class FileUtils {
                 public long size() {
                     try {
                         return path.toFile().length();
-                    } catch (final UnsupportedOperationException ignored) {
-                        // Path#toFile() throws this for a path on a filesystem other than the default one,
-                        // which has no File equivalent -- fall through and ask the NIO API instead
+                    } catch (final UnsupportedOperationException | SecurityException ignored) {
+                        // Path#toFile() throws UnsupportedOperationException for a path on a filesystem other than
+                        // the default one, which has no File equivalent -- fall through and ask the NIO API instead
                     }
                     try {
                         return Files.size(path);

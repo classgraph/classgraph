@@ -2,12 +2,14 @@ package io.github.classgraph.base.internal.path;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.io.IOException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.FileTime;
+import java.security.Permission;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -88,5 +90,45 @@ public class FileUtilsReadAttributesTest {
         final var attributes = FileUtils.readAttributes(NONEXISTENT_PATH);
         assertThatThrownBy(attributes::lastAccessTime).isInstanceOf(UnsupportedOperationException.class);
         assertThatThrownBy(attributes::fileKey).isInstanceOf(UnsupportedOperationException.class);
+    }
+
+    /**
+     * A {@link SecurityException} from reading the attributes of a path makes
+     * {@link FileUtils#readAttributes(Path)} fall back, as an {@link IOException} does, rather than escape and
+     * abort the walk of a whole directory. A SecurityManager can only be installed on JDK 17, so this test is
+     * skipped on later JDKs.
+     */
+    @Test
+    @SuppressWarnings("removal")
+    public void aSecurityExceptionFallsBack(@TempDir final Path tempDir) throws IOException {
+        final var deniedFile = Files.write(tempDir.resolve("denied.txt"), new byte[] { 1, 2, 3 });
+        final var deniedPath = deniedFile.toString();
+        final var denyingSecurityManager = new SecurityManager() {
+            @Override
+            public void checkPermission(final Permission perm) {
+                // Allow everything else, including removing this SecurityManager again
+            }
+
+            @Override
+            public void checkRead(final String file) {
+                if (file.equals(deniedPath)) {
+                    throw new SecurityException("Read access denied: " + file);
+                }
+            }
+        };
+        try {
+            System.setSecurityManager(denyingSecurityManager);
+        } catch (final UnsupportedOperationException e) {
+            assumeTrue(false, "Cannot install a SecurityManager");
+        }
+        try {
+            final var attributes = FileUtils.readAttributes(deniedFile);
+            assertThat(attributes.isRegularFile()).isFalse();
+            assertThat(attributes.isDirectory()).isFalse();
+            assertThat(attributes.size()).isZero();
+            assertThat(attributes.lastModifiedTime()).isEqualTo(FileTime.fromMillis(0));
+        } finally {
+            System.setSecurityManager(null);
+        }
     }
 }
