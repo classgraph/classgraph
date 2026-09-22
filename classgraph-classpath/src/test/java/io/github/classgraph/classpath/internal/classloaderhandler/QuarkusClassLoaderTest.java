@@ -7,7 +7,10 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -217,5 +220,35 @@ public class QuarkusClassLoaderTest {
     @Test
     public void aRunnerClassLoaderThatReportsNoResourcesDoesNotThrow() {
         assertThatCode(() -> locations(new RunnerClassLoader())).doesNotThrowAnyException();
+    }
+
+    /**
+     * Quarkus changes the types of the fields it holds its classpath in between releases, so an element or a field
+     * value of a type that is not expected is skipped, and the elements that can be read are still on the
+     * classpath.
+     *
+     * @param tempDir
+     *            a temporary directory to create the application in.
+     * @throws IOException
+     *             if the application could not be created.
+     */
+    @Test
+    @SuppressWarnings({ "unchecked", "rawtypes" })
+    public void anUnexpectedElementIsSkipped(@TempDir final Path tempDir) throws IOException {
+        final var jar = Files.createFile(tempDir.resolve("app.jar"));
+        final var classesDir = Files.createDirectory(tempDir.resolve("classes"));
+
+        final var quarkusClassLoader = new QuarkusClassLoader()
+                .servingByPriority(Arrays.asList(null, new JarClassPathElement(jar.toFile())), List.of());
+        assertThat(locations(quarkusClassLoader)).containsExactly(location(jar));
+
+        final var runtimeClassLoader = new RuntimeClassLoader();
+        runtimeClassLoader.applicationClassDirectories = (List) new ArrayList<>(
+                Arrays.asList("not a path", null, classesDir));
+        assertThat(locations(runtimeClassLoader)).containsExactly(location(classesDir));
+
+        final var runnerClassLoader = new RunnerClassLoader().serving("org/example", null, new JarResource(jar));
+        ((Map) runnerClassLoader.resourceDirectoryMap).put("org/example/sub", "not an array");
+        assertThat(locations(runnerClassLoader)).containsExactly(location(jar));
     }
 }
