@@ -182,12 +182,13 @@ public abstract class Slice implements AutoCloseable {
         final var maxBufferedJarRAMSize = vfs.getVfsSpec().getMaxBufferedJarRAMSize();
         if (inputStreamLengthHint <= maxBufferedJarRAMSize) {
             // inputStreamLengthHint is unknown (-1) or no longer than maxBufferedJarRAMSize, so read the stream
-            // into an array. A known length is allocated up front, since it is usually right; a length that is
-            // unknown, or that is zero and so may or may not be right, starts at the default buffer size, and the
-            // buffer is doubled from there as it fills, so that reading a small stream of unknown length does not
+            // into an array. A known length is allocated up front, since it is usually right, but only up to
+            // MAX_INITIAL_BUFFER_SIZE, since the length of a nested jar is whatever its zip entry claims. A length
+            // that is unknown, or that is zero and so may or may not be right, starts at the default buffer size.
+            // Either way the buffer is doubled from there as it fills, so that reading a small stream does not
             // allocate the whole of maxBufferedJarRAMSize.
             var buf = new byte[inputStreamLengthHint <= 0L ? Math.min(DEFAULT_BUFFER_SIZE, maxBufferedJarRAMSize)
-                    : (int) inputStreamLengthHint];
+                    : (int) Math.min(inputStreamLengthHint, MAX_INITIAL_BUFFER_SIZE)];
 
             var bufBytesUsed = 0;
             for (;;) {
@@ -337,8 +338,8 @@ public abstract class Slice implements AutoCloseable {
     // ---------------------------------------------------------------------------------------------------------
 
     /**
-     * Get a child {@link Slice} from this parent {@link Slice}. The child slice must be smaller than the parent
-     * slice, and completely contained within it.
+     * Get a child {@link Slice} from this parent {@link Slice}. The child slice must be completely contained within
+     * the parent slice, and may be the whole of it.
      *
      * @param offset
      *            The offset to start slicing from, relative to this parent slice's start position.

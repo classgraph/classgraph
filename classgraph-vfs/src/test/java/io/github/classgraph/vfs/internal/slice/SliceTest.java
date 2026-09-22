@@ -204,6 +204,45 @@ public class SliceTest {
     }
 
     /**
+     * A declared length is not believed far enough to allocate more than 16MB up front, even when the maximum RAM
+     * buffer size would allow it. The declared length of a nested jar is the uncompressed size its zip entry
+     * claims, which can be anything, so a small archive could otherwise make every reader of it allocate the whole
+     * of the maximum RAM buffer size. The buffer grows by doubling if the content really is that long.
+     *
+     * @throws IOException
+     *             if the stream could not be read
+     */
+    @Test
+    public void aDeclaredLengthDoesNotAllocateMoreThan16MBUpFront() throws IOException {
+        final var maxBufferedJarRAMSize = 64 * 1024 * 1024;
+        // The number of bytes that the first read asked for, which is the size of the initial buffer
+        final var firstReadLength = new AtomicInteger(-1);
+        final var stream = new InputStream() {
+            private final InputStream wrapped = new ByteArrayInputStream(CONTENT);
+
+            @Override
+            public int read() throws IOException {
+                return wrapped.read();
+            }
+
+            @Override
+            public int read(final byte[] buf, final int off, final int len) throws IOException {
+                firstReadLength.compareAndSet(-1, len);
+                return wrapped.read(buf, off, len);
+            }
+        };
+        final var vfs = vfs(maxBufferedJarRAMSize);
+        try {
+            final var slice = Slice.fromInputStream(stream, "overstated.bin",
+                    /* inputStreamLengthHint = */ 60 * 1024 * 1024, vfs, /* log = */ null);
+            assertThat(slice.load()).containsExactly(CONTENT);
+            assertThat(firstReadLength.get()).isLessThanOrEqualTo(16 * 1024 * 1024);
+        } finally {
+            vfs.close(/* log = */ null);
+        }
+    }
+
+    /**
      * Reading a stream whose length is not known does not allocate the whole of the maximum RAM buffer size up
      * front, since most jars are a tiny fraction of that size, and several may be read at once.
      *
