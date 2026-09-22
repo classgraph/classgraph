@@ -1113,6 +1113,35 @@ public class VfsTest {
     }
 
     /**
+     * The file of a nested jarfile's root is the outermost jarfile, whether the nested jarfile is stored, and so
+     * read in place, or deflated, and so inflated into RAM or to a temporary file.
+     *
+     * @param tempDir
+     *            a temporary directory
+     * @throws IOException
+     *             if a jarfile could not be written or read
+     */
+    @Test
+    public void aNestedJarfileReportsTheOutermostJarfileAsItsFile(@TempDir final File tempDir) throws IOException {
+        final var innerJarFile = new File(tempDir, "inner.jar");
+        writeJar(innerJarFile, "com/xyz/widget.txt");
+        final var storedOuterJarFile = new File(tempDir, "stored.jar");
+        writeJarContainingJar(storedOuterJarFile, "lib/inner.jar", readFile(innerJarFile));
+        final var deflatedOuterJarFile = new File(tempDir, "deflated.jar");
+        writeJarContainingDeflatedJar(deflatedOuterJarFile, "lib/inner.jar", readFile(innerJarFile));
+
+        for (final var vfsSpec : List.of(new VfsSpec(), new VfsSpec().setMaxBufferedJarRAMSize(0))) {
+            for (final var outerJarFile : List.of(storedOuterJarFile, deflatedOuterJarFile)) {
+                try (var vfs = new Vfs(vfsSpec)) {
+                    final var root = vfs.open(outerJarFile.getPath() + "!/lib/inner.jar");
+                    assertThat(root.getFile()).isEqualTo(outerJarFile.getCanonicalFile());
+                    assertThat(root.getNioPath()).isEqualTo(outerJarFile.getCanonicalFile().toPath());
+                }
+            }
+        }
+    }
+
+    /**
      * A deflated nested jarfile cannot be read in place, so it is inflated, and spills to a temporary file if it is
      * not allowed to be buffered in RAM. Closing the virtual filesystem deletes the temporary file.
      *
@@ -1144,7 +1173,7 @@ public class VfsTest {
         try (var vfs = new Vfs(new VfsSpec().setMaxBufferedJarRAMSize(0))) {
             final var root = vfs.open(outerJarFile.getPath() + "!/lib/inner.jar");
             assertThat(entryContent(root, "com/xyz/widget.txt")).isEqualTo(RESOURCE_CONTENT);
-            tempFile = root.getFile();
+            tempFile = ((ArchiveRoot) root).getPhysicalFile();
             assertThat(tempFile).isNotNull().isNotEqualTo(outerJarFile).exists();
         }
         // The temporary file was deleted by close()

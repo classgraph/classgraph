@@ -592,7 +592,7 @@ class ClasspathElementZip extends ClasspathElement {
     /**
      * Get the {@link File} for the outermost zipfile of this classpath element.
      *
-     * @return The {@link File} for the outermost zipfile of this classpath element, or null if this file was
+     * @return The {@link File} for the outermost zipfile of this classpath element, or null if that zipfile was
      *         downloaded from a URL directly to RAM, or if the classpath element was backed by a custom filesystem
      *         that supports the {@link Path} API but not the {@link File} API.
      */
@@ -602,7 +602,7 @@ class ClasspathElementZip extends ClasspathElement {
         if (vfsRoot != null) {
             return vfsRoot.getFile();
         } else {
-            // Not performing a full scan (only getting classpath elements), so the jarfile was never opened
+            // The jarfile was never opened, because jar scanning is disabled, or because it could not be opened
             return new File(outermostZipFilePathResolved());
         }
     }

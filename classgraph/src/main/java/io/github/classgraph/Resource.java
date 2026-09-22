@@ -226,7 +226,8 @@ public class Resource implements AutoCloseable, Comparable<Resource> {
     }
 
     /**
-     * Get the classpath element {@link File}.
+     * Get the classpath element {@link File}. For a jarfile nested within another jarfile, this is the outermost
+     * jarfile.
      *
      * @return The {@link File} for the classpath element package root dir or jar that this {@link Resource} was
      *         found within, or null if this {@link Resource} was found in a module backed by a "jrt:" URI, or a

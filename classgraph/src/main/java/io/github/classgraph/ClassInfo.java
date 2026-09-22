@@ -3767,13 +3767,15 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get the {@link File} for the classpath element package root dir or jar that this class was found within, or
-     * null if this class was found in a module. (See also {@link #getModuleReference}.)
+     * Get the {@link File} for the classpath element package root dir or jar that this class was found within. For
+     * a jarfile nested within another jarfile, this is the outermost jarfile. (See also
+     * {@link #getModuleReference}.)
      *
      * @return The {@link File} for the classpath element package root dir or jar that this class was found within,
-     *         or null if this class was found in a module (see {@link #getModuleReference}). May also return null
-     *         if the classpath element was an http/https URL, and the jar was downloaded directly to RAM, rather
-     *         than to a temp file on disk (e.g. if the temp dir is not writeable).
+     *         or null if this class was found in a module backed by a "jrt:" URI, or a module with an unknown
+     *         location. May also return null if the classpath element was an http/https URL, and the jar was
+     *         downloaded directly to RAM, rather than to a temp file on disk (e.g. if the temp dir is not
+     *         writeable).
      * @throws IllegalStateException
      *             if the classpath element is not known for this class, because this {@link ClassInfo} is a
      *             placeholder for a class that was referenced by a scanned class but was not itself scanned.

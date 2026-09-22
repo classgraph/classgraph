@@ -243,13 +243,13 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
      * Returns the {@link File} backing this root.
      *
      * <p>
-     * For a jarfile nested within another jarfile, this is the file that the nested jarfile's bytes are read from:
-     * the outermost jarfile if the nested jarfile is stored, or the temporary file it was inflated to if it is
-     * deflated and too large to hold in RAM. A temporary file is deleted when the root is closed.
+     * For a jarfile nested within another jarfile, this is the outermost jarfile. For a jarfile read from a stream
+     * or downloaded from a URL, this is the temporary file it was spilled to if it was too large to hold in RAM,
+     * which is deleted when the root is closed.
      *
      * @return the {@link File} of the directory, jarfile or module, or null if there is no such file: for a module
-     *         of the running JDK, a jarfile held in RAM (read from a stream, downloaded from a URL, or inflated
-     *         from a nested jarfile), or a path in a filesystem other than the default filesystem.
+     *         of the running JDK, a jarfile read from a stream or downloaded from a URL into RAM, or a path in a
+     *         filesystem other than the default filesystem.
      */
     public @Nullable File getFile() {
         return null;
@@ -257,11 +257,10 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
 
     /**
      * Returns the {@link Path} backing this root. For a jarfile nested within another jarfile, this is the path of
-     * the file its bytes are read from, as for {@link #getFile()}.
+     * the outermost jarfile, as for {@link #getFile()}.
      *
      * @return the {@link Path} of the directory, jarfile or module, or null if there is no such path: for a module
-     *         of the running JDK, or a jarfile held in RAM (read from a stream, downloaded from a URL, or inflated
-     *         from a nested jarfile).
+     *         of the running JDK, or a jarfile read from a stream or downloaded from a URL into RAM.
      */
     public @Nullable Path getNioPath() {
         return null;

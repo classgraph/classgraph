@@ -116,7 +116,7 @@ class VfsCloseTest {
         final File extractedTempFile;
         try (var vfs = vfsThatSpillsToDisk()) {
             final var innerRoot = vfs.open(outerJarFile.getPath() + "!/lib/inner.jar");
-            extractedTempFile = innerRoot.getFile();
+            extractedTempFile = ((ArchiveRoot) innerRoot).getPhysicalFile();
             assertThat(extractedTempFile).isNotNull().exists();
 
             try (var buffer = innerRoot.getEntry("com/xyz/widget.txt").read()) {
@@ -151,7 +151,7 @@ class VfsCloseTest {
         final File extractedTempFile;
         try (var vfs = vfsThatSpillsToDisk()) {
             final var innerRoot = vfs.open(outerJarFile.getPath() + "!/lib/inner.jar");
-            extractedTempFile = innerRoot.getFile();
+            extractedTempFile = ((ArchiveRoot) innerRoot).getPhysicalFile();
             assertThat(extractedTempFile).isNotNull().exists();
 
             try (var channel = Files.newByteChannel(innerRoot.getEntry("com/xyz/widget.txt").asPath())) {
@@ -179,7 +179,7 @@ class VfsCloseTest {
             final var innerRoot = vfs.open(outerJarFile.getPath() + "!/lib/inner.jar");
             assertThat(innerRoot.getEntries()).isNotEmpty();
             // The inner jarfile was deflated, so it was inflated to a temporary file, which the root now owns
-            extractedTempFile = innerRoot.getFile();
+            extractedTempFile = ((ArchiveRoot) innerRoot).getPhysicalFile();
             assertThat(extractedTempFile).isNotNull().exists();
         }
 
@@ -200,8 +200,8 @@ class VfsCloseTest {
         try (var vfs = vfsThatSpillsToDisk()) {
             final var firstInnerRoot = vfs.open(firstOuterJarFile.getPath() + "!/lib/inner.jar");
             final var secondInnerRoot = vfs.open(secondOuterJarFile.getPath() + "!/lib/inner.jar");
-            final var firstTempFile = firstInnerRoot.getFile();
-            final var secondTempFile = secondInnerRoot.getFile();
+            final var firstTempFile = ((ArchiveRoot) firstInnerRoot).getPhysicalFile();
+            final var secondTempFile = ((ArchiveRoot) secondInnerRoot).getPhysicalFile();
             assertThat(firstTempFile).isNotNull().exists();
             assertThat(secondTempFile).isNotNull().exists();
 
@@ -224,7 +224,7 @@ class VfsCloseTest {
 
         try (var vfs = vfsThatSpillsToDisk()) {
             final var innerRoot = vfs.open(outerJarFile.getPath() + "!/lib/inner.jar");
-            final var tempFile = innerRoot.getFile();
+            final var tempFile = ((ArchiveRoot) innerRoot).getPhysicalFile();
             assertThat(tempFile).isNotNull().exists();
 
             vfs.open(outerJarFile).close();

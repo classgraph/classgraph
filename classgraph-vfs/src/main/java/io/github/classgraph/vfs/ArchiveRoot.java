@@ -232,12 +232,26 @@ public final class ArchiveRoot extends VfsRoot {
 
     @Override
     public @Nullable File getFile() {
-        return logicalZipFile.getPhysicalFile();
+        // A nested jarfile reports the outermost jarfile, not what its bytes happen to be read from, which would
+        // be the outer jarfile if the nested jarfile is stored, but nothing, or a temporary file, if it is deflated
+        return container != null ? container.getFile() : logicalZipFile.getPhysicalFile();
     }
 
     @Override
     public @Nullable Path getNioPath() {
-        return logicalZipFile.getPhysicalPath();
+        return container != null ? container.getNioPath() : logicalZipFile.getPhysicalPath();
+    }
+
+    /**
+     * Returns the file this root's bytes are read from: for a nested jarfile, the enclosing jarfile if it is
+     * stored, or the temporary file it was inflated to if it is deflated and too large to hold in RAM.
+     *
+     * @return the file, or null if the bytes are held in RAM, or are read from a {@link Path} that has no
+     *         {@link File} view.
+     */
+    @Nullable
+    File getPhysicalFile() {
+        return logicalZipFile.getPhysicalFile();
     }
 
     @Override

@@ -41,6 +41,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Map;
@@ -502,14 +503,15 @@ public final class ScanResult implements AutoCloseable {
      */
     public List<File> getClasspathFiles() {
         checkNotClosed();
-        final List<File> classpathElementOrderFiles = new ArrayList<>();
+        // A set, since every jarfile nested within the same outermost jarfile has that jarfile as its file
+        final Set<File> classpathElementOrderFiles = new LinkedHashSet<>();
         for (final ClasspathElement classpathElement : classpathOrder()) {
             final var file = classpathElement.getFile();
             if (file != null) {
                 classpathElementOrderFiles.add(file);
             }
         }
-        return Collections.unmodifiableList(classpathElementOrderFiles);
+        return List.copyOf(classpathElementOrderFiles);
     }
 
     /**
