@@ -143,10 +143,9 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      * several ways is opened once. Two threads that ask for the same path at the same time build the root only
      * once, since a lookup for a key whose root is still being built blocks until it is ready. The enclosing
      * jarfiles of a nested jarfile are opened through this same cache, one frame of re-entry per {@code "!"}
-     * section, so each of them is a root in its own right, cached under its own path. Initialized in the
-     * constructor, since building a root needs this {@link Vfs}.
+     * section, so each of them is a root in its own right, cached under its own path.
      */
-    private final SingletonMap<String, VfsRoot, IOException> rootsByPath;
+    private final SingletonMap<String, VfsRoot> rootsByPath = new SingletonMap<>(closed);
 
     /** The roots that have been opened from a {@link ModuleReference}, keyed by that module. */
     private final Map<ModuleReference, VfsRoot> rootsByModule = new ConcurrentHashMap<>();
@@ -202,13 +201,6 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
     public Vfs(final VfsSpec vfsSpec, final InterruptionChecker interruptionChecker) {
         this.vfsSpec = vfsSpec;
         this.interruptionChecker = interruptionChecker;
-        this.rootsByPath = new SingletonMap<>(closed) {
-            @Override
-            public VfsRoot newInstance(final String resolvedPath, final @Nullable LogNode logNode)
-                    throws IOException, InterruptedException {
-                return openRootUncached(resolvedPath, logNode);
-            }
-        };
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -287,7 +279,7 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
         // backslashes rather than forward slashes, and all of those name one thing that is opened once
         final var resolvedPath = FastPathResolver.resolve(path);
         try {
-            return openThroughCache(resolvedPath, logNode, /* factory = */ null);
+            return openThroughCache(resolvedPath, () -> openRootUncached(resolvedPath, logNode));
         } catch (final InterruptedException e) {
             // Route the interruption through the shared interruption checker, so that every other thread reading
             // through this Vfs stops too, and chain the cause, so that the reason the open did not complete is
@@ -307,24 +299,21 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      * @param key
      *            the cache key: a path in the form {@link FastPathResolver#resolve(String)} returns, or the URI of
      *            a {@link Path} in a non-default filesystem.
-     * @param logNode
-     *            the log node that a build logs to, or null to skip logging.
      * @param factory
-     *            builds the root if no thread has opened that key yet, or null to build with
-     *            {@link #openRootUncached(String, LogNode)}.
+     *            builds the root if no thread has opened that key yet.
      * @return the root open at that key.
      * @throws IOException
      *             if the key could not be opened or read, or if this {@link Vfs} has been closed.
      * @throws InterruptedException
      *             if the thread was interrupted.
      */
-    private VfsRoot openThroughCache(final String key, final @Nullable LogNode logNode,
-            final SingletonMap.@Nullable NewInstanceFactory<VfsRoot, IOException> factory)
+    private VfsRoot openThroughCache(final String key,
+            final SingletonMap.NewInstanceFactory<VfsRoot, IOException> factory)
             throws IOException, InterruptedException {
         for (;;) {
             final VfsRoot root;
             try {
-                root = rootsByPath.get(key, logNode, factory);
+                root = rootsByPath.get(key, factory);
             } catch (final NullSingletonException | NewInstanceException e) {
                 // A failed open is not remembered: the cache would otherwise turn every later attempt at the same
                 // path away with the first failure, so a path that failed once could never be opened again through
@@ -374,7 +363,7 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      */
     private VfsRoot openReentrant(final String key, final @Nullable LogNode logNode)
             throws IOException, InterruptedException {
-        return openThroughCache(key, logNode, /* factory = */ null);
+        return openThroughCache(key, () -> openRootUncached(key, logNode));
     }
 
     /**
@@ -401,8 +390,8 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      * it is being built under back out of {@link #rootsByPath}, so that closing the root removes it from the cache.
      * The cache entry itself is written by the cache once the build returns, so a root closed in the narrow window
      * between this registration and that write leaves a stale entry behind, which
-     * {@link #openThroughCache(String, LogNode, SingletonMap.NewInstanceFactory)} discards and retries when it is
-     * next looked up.
+     * {@link #openThroughCache(String, SingletonMap.NewInstanceFactory)} discards and retries when it is next
+     * looked up.
      *
      * @param key
      *            the key the root is being built under.
@@ -421,10 +410,10 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      * was built, so that closing the container closes the child; if the container was closed while the child was
      * being built, the registration may have come too late for the container's close to see, so the child is closed
      * here instead, and the caller -- always a build running under
-     * {@link #openThroughCache(String, LogNode, SingletonMap.NewInstanceFactory)} -- then sees a closed root,
-     * discards it, and retries or turns its caller away. The closed root is returned rather than an exception being
-     * thrown, so that the caller retries against the container's replacement and gets a live root back: a race with
-     * a close of the container is not a failure of the path.
+     * {@link #openThroughCache(String, SingletonMap.NewInstanceFactory)} -- then sees a closed root, discards it,
+     * and retries or turns its caller away. The closed root is returned rather than an exception being thrown, so
+     * that the caller retries against the container's replacement and gets a live root back: a race with a close of
+     * the container is not a failure of the path.
      *
      * @param container
      *            the root the child was built within.
@@ -671,9 +660,8 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
         // Read the log node once, since it is volatile and the factory below may run on another thread
         final var logCurr = log;
         try {
-            // The path itself is what is opened, so the cache is given a factory that opens it, rather than the
-            // default one, which would take the URI apart again and look for a file of that name
-            return openThroughCache(key, logCurr, () -> {
+            // Open the path itself, rather than taking its URI apart again and looking for a file of that name
+            return openThroughCache(key, () -> {
                 final var logNode = logCurr == null ? null : logCurr.log("Opening " + key);
                 return recordPathKey(key,
                         Files.isDirectory(path) ? adopt(new DirRoot(this, path))

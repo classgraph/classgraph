@@ -634,16 +634,8 @@ class Scanner implements Callable<ScanResult> {
      * chance that resources are scanned twice, by mapping canonicalized Path objects, URLs, etc. to
      * ClasspathElements.
      */
-    private final SingletonMap<Object, ClasspathElement, IOException> //
-    classpathEntryObjToClasspathEntrySingletonMap = //
-            new SingletonMap<>() {
-                @Override
-                public ClasspathElement newInstance(final Object classpathEntryObj, final @Nullable LogNode log)
-                        throws IOException, InterruptedException {
-                    // Overridden by a NewInstanceFactory
-                    throw new IOException("Should not reach here");
-                }
-            };
+    private final SingletonMap<Object, ClasspathElement> classpathEntryObjToClasspathEntrySingletonMap = //
+            new SingletonMap<>();
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -710,9 +702,6 @@ class Scanner implements Callable<ScanResult> {
                 // Create a ClasspathElementZip or ClasspathElementDir from the classpath entry. Use a singleton map
                 // to ensure that classpath elements are only opened once per unique Path, URL, or URI
                 final var classpathElement = classpathEntryObjToClasspathEntrySingletonMap.get(classpathEntryObj,
-                        log,
-                        // A NewInstanceFactory is used here because workUnit has to be passed in, and the standard
-                        // newInstance API doesn't support an extra parameter like this
                         () -> {
                             final ClasspathElement classpathElt = isJar
                                     ? new ClasspathElementZip(workUnit, vfs, scanSpec)
