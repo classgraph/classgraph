@@ -29,8 +29,8 @@
 package io.github.classgraph.vfs.internal.recycler;
 
 /**
- * An interface for recyclable objects that need to be reset when {@link RecycleOnClose#close()} is called to
- * recycle the object.
+ * An interface for recyclable objects that need to be reset when they are handed back to
+ * {@link Recycler#recycle(Object)}, so that they do not carry over any state to their next user.
  */
 public interface Resettable {
     /** Reset a recyclable object (called when the object is recycled). */

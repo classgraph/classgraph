@@ -145,6 +145,11 @@ public abstract class Recycler<T, E extends Exception> implements AutoCloseable 
                 resettable.reset();
             }
             unusedInstances.add(instance);
+            if (forceClosed) {
+                // A force-close that began after the check above may already have drained the pool, and would then
+                // never close this instance, so drain the pool again
+                close();
+            }
         }
     }
 
