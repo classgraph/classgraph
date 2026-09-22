@@ -49,7 +49,10 @@ public class ModuleFinder {
     /** The non system module refs. */
     private List<ModuleRef> nonSystemModuleRefs;
 
-    /** If true, must forcibly scan {@code java.class.path}, since there was an anonymous module layer. */
+    /**
+     * True if {@code java.class.path} has to be scanned even though it was not asked for, since a class on the call
+     * stack is in an unnamed module, whose classes are found on {@code java.class.path}.
+     */
     private boolean forceScanJavaClassPath;
 
     /** The reflection utils instance. */
@@ -78,9 +81,10 @@ public class ModuleFinder {
     }
 
     /**
-     * Force scan java class path.
+     * Whether {@code java.class.path} has to be scanned even though it was not asked for.
      *
-     * @return If true, must forcibly scan {@code java.class.path}, since there was an anonymous module layer.
+     * @return true if a class on the call stack is in an unnamed module, whose classes are found on
+     *         {@code java.class.path}.
      */
     public boolean forceScanJavaClassPath() {
         return forceScanJavaClassPath;
@@ -109,9 +113,8 @@ public class ModuleFinder {
      * caller did not name it.
      *
      * <p>
-     * (The JDK (as of 10.0.0.1) uses a broken (non-topological) DFS ordering for layer resolution in
-     * ModuleLayer#layers() and Configuration#configurations() but when I reported this bug on the Jigsaw mailing
-     * list, Alan didn't see what the problem was.)
+     * The result is a depth-first order that lists each layer once, which is the order that
+     * {@code ModuleLayer#findModule} searches a layer's parents in.
      *
      * @param layer
      *            the layer
@@ -249,8 +252,8 @@ public class ModuleFinder {
                     if (layer != null) {
                         layers.add(layer);
                     } else if (scanNonSystemModules) {
-                        // getLayer() returns null for unnamed modules -- still add null to list if it is returned,
-                        // so we can get classes from java.class.path 
+                        // getLayer() returns null for an unnamed module, whose classes are on java.class.path, so
+                        // java.class.path has to be scanned to find them
                         forceScanJavaClassPath = true;
                     }
                 }
@@ -269,9 +272,8 @@ public class ModuleFinder {
             if (bootLayer != null) {
                 layers.add(bootLayer);
             } else if (scanNonSystemModules) {
-                // getLayer() returns null for unnamed modules -- still add null to list if it is returned,
-                // so we can get classes from java.class.path. (I'm not sure if the boot layer can ever
-                // actually be null, but this is here for completeness.)
+                // ModuleLayer.boot() is not expected to return null, but if it does, the modules cannot be
+                // found, so scan java.class.path instead
                 forceScanJavaClassPath = true;
             }
         }
