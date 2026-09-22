@@ -3,6 +3,7 @@ package io.github.classgraph.base.internal.utils;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.io.UTFDataFormatException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
@@ -27,13 +28,15 @@ public class StringUtilsTest {
     }
 
     /**
-     * Read a whole byte array as a modified UTF8 string.
+     * Read a whole byte array as a modified UTF-8 string.
      *
      * @param arr
      *            The bytes to read.
      * @return The string.
+     * @throws UTFDataFormatException
+     *             If the bytes are not valid modified UTF-8.
      */
-    private static String readString(final byte[] arr) {
+    private static String readString(final byte[] arr) throws UTFDataFormatException {
         return StringUtils.readStringModifiedUtf8(arr, 0, arr.length);
     }
 
@@ -79,7 +82,7 @@ public class StringUtilsTest {
 
     /** An ASCII string is read as it is. */
     @Test
-    public void asciiStringsAreRead() {
+    public void asciiStringsAreRead() throws UTFDataFormatException {
         final var arr = "java/lang/String".getBytes(StandardCharsets.UTF_8);
         assertThat(readString(arr)).isEqualTo("java/lang/String");
         assertThat(readString(new byte[0])).isEmpty();
@@ -87,7 +90,7 @@ public class StringUtilsTest {
 
     /** Only the requested range of the array is read, since strings are read out of a whole classfile. */
     @Test
-    public void onlyTheRequestedRangeIsRead() {
+    public void onlyTheRequestedRangeIsRead() throws UTFDataFormatException {
         final var arr = "xxjava/langyy".getBytes(StandardCharsets.UTF_8);
         assertThat(StringUtils.readStringModifiedUtf8(arr, 2, 9)).isEqualTo("java/lang");
     }
@@ -111,10 +114,10 @@ public class StringUtilsTest {
                 .isInstanceOf(IllegalArgumentException.class).hasMessage("offset or numBytes out of range");
     }
 
-    /** The two-byte and three-byte forms of the classfile "modified UTF8" encoding are decoded. */
+    /** The two-byte and three-byte forms of the classfile "modified UTF-8" encoding are decoded. */
     @Test
-    public void multiByteSequencesAreDecoded() {
-        // Modified UTF8 encodes a null character as two bytes, so that a string can never contain a zero byte
+    public void multiByteSequencesAreDecoded() throws UTFDataFormatException {
+        // Modified UTF-8 encodes a null character as two bytes, so that a string can never contain a zero byte
         assertThat(readString(bytes(0xc0, 0x80))).isEqualTo("\0");
         assertThat(readString(bytes(0xc3, 0xa9))).isEqualTo("é");
         assertThat(readString(bytes(0xe4, 0xb8, 0xad))).isEqualTo("中");
@@ -124,35 +127,41 @@ public class StringUtilsTest {
 
     /** A '/' is decoded as a '/' however it was encoded, including in the overlong forms of the encoding. */
     @Test
-    public void slashIsDecodedFromEveryFormOfTheEncoding() {
+    public void slashIsDecodedFromEveryFormOfTheEncoding() throws UTFDataFormatException {
         // The '/' written in the one-, two- and three-byte forms of the encoding in turn
         assertThat(readString(bytes(0xc3, 0xa9, '/'))).isEqualTo("é/");
         assertThat(readString(bytes(0xc0, 0xaf))).isEqualTo("/");
         assertThat(readString(bytes(0xe0, 0x80, 0xaf))).isEqualTo("/");
     }
 
-    /** A byte sequence that is not valid modified UTF8 is rejected. */
+    /**
+     * A byte sequence that is not valid modified UTF-8 is rejected, with the index of the first byte of the
+     * character that could not be decoded.
+     */
     @Test
     public void badModifiedUtf8IsRejected() {
         // A leading byte that starts no valid sequence: a stray continuation byte, and the four-byte form, which
-        // modified UTF8 does not have (characters outside the basic multilingual plane are written as two
+        // modified UTF-8 does not have (characters outside the basic multilingual plane are written as two
         // three-byte surrogates instead)
-        assertThatThrownBy(() -> readString(bytes(0x80))).isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Bad modified UTF8");
+        assertThatThrownBy(() -> readString(bytes(0x80))).isInstanceOf(UTFDataFormatException.class)
+                .hasMessage("Malformed modified UTF-8 around byte 0");
         assertThatThrownBy(() -> readString(bytes(0xf0, 0x9f, 0x98, 0x80)))
-                .isInstanceOf(IllegalArgumentException.class).hasMessage("Bad modified UTF8");
+                .isInstanceOf(UTFDataFormatException.class).hasMessage("Malformed modified UTF-8 around byte 0");
         // A two- or three-byte sequence cut short by the end of the string
-        assertThatThrownBy(() -> readString(bytes(0xc3))).isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Bad modified UTF8");
-        assertThatThrownBy(() -> readString(bytes(0xe4, 0xb8))).isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Bad modified UTF8");
+        assertThatThrownBy(() -> readString(bytes(0xc3))).isInstanceOf(UTFDataFormatException.class)
+                .hasMessage("Malformed modified UTF-8 around byte 0");
+        assertThatThrownBy(() -> readString(bytes(0xe4, 0xb8))).isInstanceOf(UTFDataFormatException.class)
+                .hasMessage("Malformed modified UTF-8 around byte 0");
         // A sequence whose continuation bytes are not continuation bytes
-        assertThatThrownBy(() -> readString(bytes(0xc3, 'A'))).isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Bad modified UTF8");
-        assertThatThrownBy(() -> readString(bytes(0xe4, 'A', 0xad))).isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Bad modified UTF8");
-        assertThatThrownBy(() -> readString(bytes(0xe4, 0xb8, 'A'))).isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Bad modified UTF8");
+        assertThatThrownBy(() -> readString(bytes(0xc3, 'A'))).isInstanceOf(UTFDataFormatException.class)
+                .hasMessage("Malformed modified UTF-8 around byte 0");
+        assertThatThrownBy(() -> readString(bytes(0xe4, 'A', 0xad))).isInstanceOf(UTFDataFormatException.class)
+                .hasMessage("Malformed modified UTF-8 around byte 0");
+        assertThatThrownBy(() -> readString(bytes(0xe4, 0xb8, 'A'))).isInstanceOf(UTFDataFormatException.class)
+                .hasMessage("Malformed modified UTF-8 around byte 0");
+        // The index is that of the first byte of the character, counted from the start of the string
+        assertThatThrownBy(() -> readString(bytes('a', 0xc3, 0xa9, 0x80)))
+                .isInstanceOf(UTFDataFormatException.class).hasMessage("Malformed modified UTF-8 around byte 3");
     }
 
     /** A type descriptor has '/' replaced with '.', and its 'L' prefix and ';' suffix stripped, when asked for. */

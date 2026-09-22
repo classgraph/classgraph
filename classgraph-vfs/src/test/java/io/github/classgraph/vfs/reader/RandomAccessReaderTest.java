@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.IOException;
+import java.io.UTFDataFormatException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
@@ -357,6 +358,26 @@ public class RandomAccessReaderTest {
         assertThat(surrogateReader.readStringModifiedUtf8(0, surrogatePair.length)).isEqualTo("😀");
         // Standard UTF-8 does not allow surrogates to be encoded, so the same bytes read back differently
         assertThat(surrogateReader.readString(0, surrogatePair.length)).isNotEqualTo("😀");
+    }
+
+    /**
+     * Bytes that are not valid modified UTF-8 are rejected with an {@link IOException}, as any other content that
+     * cannot be read is, rather than with an unchecked exception that a caller catching {@link IOException} would
+     * miss.
+     *
+     * @param readerKind
+     *            the kind of reader to read through
+     * @throws IOException
+     *             if the content could not be written to a file, for the file channel reader
+     */
+    @ParameterizedTest
+    @EnumSource(ReaderKind.class)
+    public void malformedModifiedUtf8IsRejectedWithAnIOException(final ReaderKind readerKind) throws IOException {
+        // 0xc3 starts a two-byte sequence, but 'A' is not a continuation byte
+        final var content = new byte[] { 'x', (byte) 0xc3, 'A' };
+        final var reader = reader(readerKind, content, 0, content.length);
+        assertThatThrownBy(() -> reader.readStringModifiedUtf8(0, content.length))
+                .isInstanceOf(UTFDataFormatException.class).hasMessageContaining("byte 1");
     }
 
     /**

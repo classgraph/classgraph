@@ -141,7 +141,8 @@ public interface SequentialReader {
      *            The number of bytes of the modified UTF-8 encoding of the string.
      * @return The string.
      * @throws IOException
-     *             If an I/O exception occurs.
+     *             If the bytes are not wholly within the content, or could not be read, or are not valid modified
+     *             UTF-8 (a {@link java.io.UTFDataFormatException}).
      */
     String readStringModifiedUtf8(int numBytes) throws IOException;
 

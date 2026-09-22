@@ -1,9 +1,11 @@
 package io.github.classgraph.vfs.reader;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.UTFDataFormatException;
 import java.nio.charset.StandardCharsets;
 
 import org.junit.jupiter.api.Test;
@@ -31,6 +33,20 @@ public class RandomAccessOrSequentialReaderReadStringTest {
         }
         try (var reader = new RandomAccessOrSequentialReader(new ByteArrayInputStream(data))) {
             assertThat(reader.readStringModifiedUtf8(5)).isEqualTo("Hello");
+        }
+    }
+
+    /**
+     * Bytes that are not valid modified UTF-8 are rejected with an {@link IOException}, as any other content that
+     * cannot be read is.
+     */
+    @Test
+    public void malformedModifiedUtf8IsRejectedWithAnIOException() {
+        // 0xe0 starts a three-byte sequence, but the content ends after two bytes
+        final byte[] data = { (byte) 0xe0, (byte) 0x80 };
+        try (var reader = new RandomAccessOrSequentialReader(new ByteArrayInputStream(data))) {
+            assertThatThrownBy(() -> reader.readStringModifiedUtf8(2)).isInstanceOf(UTFDataFormatException.class)
+                    .hasMessageContaining("byte 0");
         }
     }
 

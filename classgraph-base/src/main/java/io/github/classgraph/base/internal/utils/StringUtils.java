@@ -28,6 +28,8 @@
  */
 package io.github.classgraph.base.internal.utils;
 
+import java.io.UTFDataFormatException;
+
 /**
  * String utilities.
  */
@@ -142,20 +144,23 @@ public final class StringUtils {
     }
 
     /**
-     * Reads the "modified UTF8" format defined in the Java classfile spec.
+     * Read a string in the "modified UTF-8" format that the Java classfile format stores its strings in.
      *
      * @param arr
      *            the array to read the string from
      * @param startOffset
      *            The start offset of the string within the array.
      * @param numBytes
-     *            The number of bytes of the UTF8 encoding of the string.
+     *            The number of bytes of the modified UTF-8 encoding of the string.
      * @return The string.
+     * @throws UTFDataFormatException
+     *             If the bytes are not valid modified UTF-8. This is the exception that
+     *             {@link java.io.DataInputStream#readUTF()} throws for the same format.
      * @throws IllegalArgumentException
-     *             If string could not be parsed.
+     *             If {@code startOffset} or {@code numBytes} is negative, or the range is not within the array.
      */
     public static String readStringModifiedUtf8(final byte[] arr, final int startOffset, final int numBytes)
-            throws IllegalArgumentException {
+            throws UTFDataFormatException {
         // Compare by subtraction rather than addition, so that a large startOffset plus a large numBytes cannot
         // overflow int and slip past the range check
         if (startOffset < 0 || numBytes < 0 || numBytes > arr.length - startOffset) {
@@ -172,6 +177,7 @@ public final class StringUtils {
             chars[charIdx++] = (char) c;
         }
         while (byteIdx < numBytes) {
+            final var leadByteIdx = byteIdx;
             final var c = arr[startOffset + byteIdx] & 0xff;
             switch (c >> 4) {
             case 0, 1, 2, 3, 4, 5, 6, 7 -> {
@@ -181,32 +187,44 @@ public final class StringUtils {
             case 12, 13 -> {
                 byteIdx += 2;
                 if (byteIdx > numBytes) {
-                    throw new IllegalArgumentException("Bad modified UTF8");
+                    throw malformed(leadByteIdx);
                 }
                 final int c2 = arr[startOffset + byteIdx - 1];
                 if ((c2 & 0xc0) != 0x80) {
-                    throw new IllegalArgumentException("Bad modified UTF8");
+                    throw malformed(leadByteIdx);
                 }
                 chars[charIdx++] = (char) (((c & 0x1f) << 6) | (c2 & 0x3f));
             }
             case 14 -> {
                 byteIdx += 3;
                 if (byteIdx > numBytes) {
-                    throw new IllegalArgumentException("Bad modified UTF8");
+                    throw malformed(leadByteIdx);
                 }
                 final int c2 = arr[startOffset + byteIdx - 2];
                 final int c3 = arr[startOffset + byteIdx - 1];
                 if ((c2 & 0xc0) != 0x80 || (c3 & 0xc0) != 0x80) {
-                    throw new IllegalArgumentException("Bad modified UTF8");
+                    throw malformed(leadByteIdx);
                 }
                 chars[charIdx++] = (char) (((c & 0x0f) << 12) | ((c2 & 0x3f) << 6) | (c3 & 0x3f));
             }
-            default -> throw new IllegalArgumentException("Bad modified UTF8");
+            default -> throw malformed(leadByteIdx);
             }
         }
         // The char array is one char per byte, so it is longer than the string whenever a multi-byte sequence was
         // decoded
         return charIdx == numBytes ? new String(chars) : new String(chars, 0, charIdx);
+    }
+
+    /**
+     * The exception for a string that is not valid modified UTF-8.
+     *
+     * @param byteIdx
+     *            the index, relative to the start of the string, of the first byte of the character that could not
+     *            be decoded.
+     * @return the exception.
+     */
+    private static UTFDataFormatException malformed(final int byteIdx) {
+        return new UTFDataFormatException("Malformed modified UTF-8 around byte " + byteIdx);
     }
 
     /**
