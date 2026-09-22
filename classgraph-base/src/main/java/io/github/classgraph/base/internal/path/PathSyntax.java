@@ -28,11 +28,12 @@
  */
 package io.github.classgraph.base.internal.path;
 
-import io.github.classgraph.base.internal.utils.VersionFinder;
-import io.github.classgraph.base.internal.utils.VersionFinder.OperatingSystem;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+
+import io.github.classgraph.base.internal.utils.VersionFinder;
+import io.github.classgraph.base.internal.utils.VersionFinder.OperatingSystem;
 
 /**
  * The syntax of a single path: its segments, its nested jar separators, and its leafname.
@@ -259,7 +260,7 @@ public final class PathSyntax {
         // Turn sections and segments back into path string
         for (final List<CharSequence> sectionSegments : allSectionSegments) {
             if (!sectionSegments.isEmpty()) {
-                // Delineate sections with "!"
+                // Separate sections with "!"
                 if (!pathSanitized.isEmpty()) {
                     pathSanitized.append('!');
                 }
@@ -333,13 +334,13 @@ public final class PathSyntax {
      * <p>
      * That ambiguity is resolved here by testing the filesystem: the outermost '!' separator is the first '!' whose
      * preceding path names an existing regular file (which must be the outermost jarfile). If no '!' is preceded by
-     * an existing file, the path contains no separator, and any '!' in it is a literal filename character. Which of
-     * the later '!' characters separate is then decided by how this one is spelled -- see
-     * {@link #isNestedJarSeparatorAt(String, int, int)}.
+     * an existing file, and the path has no URL scheme, the path contains no separator, and any '!' in it is a
+     * literal filename character. Which of the later '!' characters separate is then decided by how this one is
+     * spelled -- see {@link #isNestedJarSeparatorAt(String, int, int)}.
      *
      * <p>
      * The filesystem cannot be consulted for non-{@code file:} URLs (e.g. {@code http:} jar URLs), so if no '!' is
-     * preceded by an existing file and the path has a URL scheme, the old syntactic rule is retained, and the first
+     * preceded by an existing file and the path has a URL scheme, the syntactic rule applies instead, and the first
      * '!' is taken to be the separator. The filesystem is tested before the path is read as a URL, and not after,
      * because a relative path can itself begin with something shaped like a URL scheme: {@code ':'} is a legal
      * filename character everywhere but Windows, so a directory named {@code foo:bar} cannot be told by syntax from
@@ -550,13 +551,15 @@ public final class PathSyntax {
     }
 
     /**
-     * Get the parent dir path.
+     * Get the part of a path before its last separator, e.g. {@code "com/xyz"} for {@code "com/xyz/Widget.class"}
+     * and for {@code "com/xyz/"}.
      *
      * @param path
-     *            the path
+     *            The path.
      * @param separator
-     *            the separator
-     * @return the parent dir path
+     *            The path separator.
+     * @return The path up to (but not including) the last separator, or the empty string if the path contains no
+     *         separator, or its only separator is at the start.
      */
     public static String getParentDirPath(final String path, final char separator) {
         final var lastSlashIdx = path.lastIndexOf(separator);
@@ -567,11 +570,12 @@ public final class PathSyntax {
     }
 
     /**
-     * Get the parent dir path.
+     * Get the part of a '/'-separated path before its last '/', as {@link #getParentDirPath(String, char)} does.
      *
      * @param path
-     *            the path
-     * @return the parent dir path
+     *            The path.
+     * @return The path up to (but not including) the last '/', or the empty string if the path contains no '/', or
+     *         its only '/' is at the start.
      */
     public static String getParentDirPath(final String path) {
         return getParentDirPath(path, '/');
