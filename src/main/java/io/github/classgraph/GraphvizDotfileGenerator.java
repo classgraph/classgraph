@@ -62,7 +62,8 @@ final class GraphvizDotfileGenerator {
     static {
         // Valid unicode whitespace chars, see:
         // http://stackoverflow.com/questions/4731055/whitespace-matching-regex-java
-        // Also see (for \n and \r -- a real example of Java stupidity):
+        // \n and \r are written as escapes rather than as Unicode escapes, since the compiler turns a Unicode escape
+        // for a line terminator into a real line break before parsing, which would end the string literal. See:
         // https://stackoverflow.com/a/3866219/3950982
         final String wsChars = "\u0020" // SPACE
                 + "\u0009" // CHARACTER TABULATION
@@ -92,6 +93,24 @@ final class GraphvizDotfileGenerator {
                 + "\u3000"; // IDEOGRAPHIC SPACE
         for (int i = 0; i < wsChars.length(); i++) {
             IS_UNICODE_WHITESPACE.set(wsChars.charAt(i));
+        }
+    }
+
+    /**
+     * Append a space to the buffer, so that the item appended next is separated from the item before it. Nothing
+     * is appended if there is no item before it in the same table cell or the same parameter list, i.e. if the
+     * buffer ends with the tag that opened the cell or with the opening parenthesis of a parameter list, or if the
+     * buffer already ends with a space.
+     *
+     * @param buf
+     *            the buffer to append to
+     */
+    private static void appendSpaceIfNeeded(final StringBuilder buf) {
+        if (buf.length() > 0) {
+            final char lastChar = buf.charAt(buf.length() - 1);
+            if (lastChar != ' ' && lastChar != '>' && lastChar != '(') {
+                buf.append(' ');
+            }
         }
     }
 
@@ -134,7 +153,7 @@ final class GraphvizDotfileGenerator {
                 buf.append("&quot;");
                 break;
             case '\'':
-                buf.append("&#x27;"); // See http://goo.gl/FzoP6m
+                buf.append("&#x27;"); // "&apos;" is not an HTML 4 entity
                 break;
             case '\\':
                 // GraphViz resolves only the named entities it knows, and there is no name for a backslash --
@@ -144,7 +163,7 @@ final class GraphvizDotfileGenerator {
             case '/':
                 buf.append("&#x2F;"); // '/' can be a dangerous char if attr values are not quoted
                 break;
-            // Encode a few common characters that like to get screwed up in some charset/browser variants
+            // Characters that some charsets cannot represent, written as their named entities
             case '—':
                 buf.append("&mdash;");
                 break;
@@ -384,25 +403,19 @@ final class GraphvizDotfileGenerator {
                     final AnnotationInfoList fieldAnnotationInfo = fi.annotationInfo;
                     if (fieldAnnotationInfo != null) {
                         for (final AnnotationInfo ai : fieldAnnotationInfo) {
-                            if (buf.charAt(buf.length() - 1) != ' ') {
-                                buf.append(' ');
-                            }
+                            appendSpaceIfNeeded(buf);
                             htmlEncode(ai.toString(), buf);
                         }
                     }
 
                     // Field modifiers
                     if (scanSpec.ignoreFieldVisibility) {
-                        if (buf.charAt(buf.length() - 1) != ' ') {
-                            buf.append(' ');
-                        }
+                        appendSpaceIfNeeded(buf);
                         buf.append(fi.getModifiersStr());
                     }
 
                     // Field type
-                    if (buf.charAt(buf.length() - 1) != ' ') {
-                        buf.append(' ');
-                    }
+                    appendSpaceIfNeeded(buf);
                     final TypeSignature typeSig = fi.getTypeSignatureOrTypeDescriptor();
                     htmlEncode(useSimpleNames ? typeSig.toStringWithSimpleNames() : typeSig.toString(), buf);
                     buf.append("</td>");
@@ -450,25 +463,19 @@ final class GraphvizDotfileGenerator {
                     final AnnotationInfoList methodAnnotationInfo = mi.annotationInfo;
                     if (methodAnnotationInfo != null) {
                         for (final AnnotationInfo ai : methodAnnotationInfo) {
-                            if (buf.charAt(buf.length() - 1) != ' ') {
-                                buf.append(' ');
-                            }
+                            appendSpaceIfNeeded(buf);
                             htmlEncode(ai.toString(), buf);
                         }
                     }
 
                     // Method modifiers
                     if (scanSpec.ignoreMethodVisibility) {
-                        if (buf.charAt(buf.length() - 1) != ' ') {
-                            buf.append(' ');
-                        }
+                        appendSpaceIfNeeded(buf);
                         buf.append(mi.getModifiersStr());
                     }
 
                     // Method return type
-                    if (buf.charAt(buf.length() - 1) != ' ') {
-                        buf.append(' ');
-                    }
+                    appendSpaceIfNeeded(buf);
                     if (!mi.getName().equals("<init>")) {
                         // Don't list return type for constructors
                         final TypeSignature resultTypeSig = mi.getTypeSignatureOrTypeDescriptor().getResultType();
@@ -507,27 +514,25 @@ final class GraphvizDotfileGenerator {
                                 wrapPos = 0;
                             }
 
-                            // Param annotation
+                            // Param annotation -- a row is wrapped before an annotation rather than after it, so
+                            // that the last annotation of a parameter stays on the same row as the parameter's type
                             final AnnotationInfo[] paramAnnotationInfo = paramInfo[i].annotationInfo;
                             if (paramAnnotationInfo != null) {
                                 for (final AnnotationInfo ai : paramAnnotationInfo) {
-                                    final String ais = ai.toString();
-                                    if (!ais.isEmpty()) {
-                                        if (buf.charAt(buf.length() - 1) != ' ') {
-                                            buf.append(' ');
-                                        }
-                                        htmlEncode(ais, buf);
-                                        wrapPos += 1 + ais.length();
-                                        if (wrapPos > PARAM_WRAP_WIDTH) {
-                                            buf.append("</td></tr><tr><td></td><td></td>"
-                                                    + "<td align='left' valign='top'>");
-                                            wrapPos = 0;
-                                        }
+                                    if (wrapPos > PARAM_WRAP_WIDTH) {
+                                        buf.append("</td></tr><tr><td></td><td></td>"
+                                                + "<td align='left' valign='top'>");
+                                        wrapPos = 0;
                                     }
+                                    final String ais = ai.toString();
+                                    appendSpaceIfNeeded(buf);
+                                    htmlEncode(ais, buf);
+                                    wrapPos += 1 + ais.length();
                                 }
                             }
 
                             // Param type
+                            appendSpaceIfNeeded(buf);
                             final TypeSignature paramTypeSig = paramInfo[i].getTypeSignatureOrTypeDescriptor();
                             final String paramTypeStr = useSimpleNames ? paramTypeSig.toStringWithSimpleNames()
                                     : paramTypeSig.toString();

@@ -684,9 +684,9 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      * call {@link ClassGraph#ignoreMethodVisibility()} before scanning.
      * 
      * <p>
-     * To show annotations, call {@link ClassGraph#enableAnnotationInfo()} before scanning. To show non-public
-     * annotations, also call {@link ClassGraph#ignoreFieldVisibility()} before scanning (there is no separate
-     * visibility modifier for annotations).
+     * To show annotations, call {@link ClassGraph#enableAnnotationInfo()} before scanning. An annotation class
+     * that is not public is drawn as a node of its own only if {@link ClassGraph#ignoreClassVisibility()} was also
+     * called, as for any other class.
      *
      * @param sizeX
      *            The GraphViz layout width in inches.
@@ -743,9 +743,9 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      * call {@link ClassGraph#ignoreMethodVisibility()} before scanning.
      * 
      * <p>
-     * To show annotations, call {@link ClassGraph#enableAnnotationInfo()} before scanning. To show non-public
-     * annotations, also call {@link ClassGraph#ignoreFieldVisibility()} before scanning (there is no separate
-     * visibility modifier for annotations).
+     * To show annotations, call {@link ClassGraph#enableAnnotationInfo()} before scanning. An annotation class
+     * that is not public is drawn as a node of its own only if {@link ClassGraph#ignoreClassVisibility()} was also
+     * called, as for any other class.
      * 
      * <p>
      * This method uses simple names for class names in type signatures of fields and methods (package names are

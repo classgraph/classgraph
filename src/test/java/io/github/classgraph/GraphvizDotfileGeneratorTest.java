@@ -25,10 +25,28 @@ public class GraphvizDotfileGeneratorTest {
         String value();
     }
 
+    /** An annotation on a field and on a method parameter. */
+    @Retention(RetentionPolicy.RUNTIME)
+    public @interface Marked {
+    }
+
     /** A class annotated with an annotation that is listed in the graph. */
     @MetaAnnotatedAnnotation
     @Location("C:\\Windows")
     public static class AnnotatedClass {
+        /** A field with an annotation. */
+        @Marked
+        public int count;
+
+        /**
+         * A method with an annotated parameter.
+         *
+         * @param key
+         *            the key.
+         */
+        public void find(@Marked final String key) {
+            count++;
+        }
     }
 
     /**
@@ -56,6 +74,17 @@ public class GraphvizDotfileGeneratorTest {
         // The only annotation on MetaAnnotatedAnnotation is @Retention, which is not listed, so its annotations
         // section header would have nothing under it
         assertThat(dotFile).doesNotContain("<b>ANNOTATIONS</b></font></td></tr></table>");
+    }
+
+    /**
+     * A table cell does not start with a space, and a parameter annotation is separated from the parameter's type
+     * by a space and kept on the same row as that type.
+     */
+    @Test
+    public void annotationsAreSeparatedFromWhatFollowsThem() {
+        final String marked = "@" + Marked.class.getName();
+        assertThat(classGraph()).contains("<td align='right' valign='top'>" + marked + " public int</td>",
+                "(" + marked + " String <B>key</B>)").doesNotContain("<td align='right' valign='top'> ");
     }
 
     /**
