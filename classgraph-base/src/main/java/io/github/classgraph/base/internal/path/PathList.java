@@ -28,13 +28,10 @@
  */
 package io.github.classgraph.base.internal.path;
 
-import io.github.classgraph.base.internal.utils.CollectionUtils;
 import java.io.File;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.regex.Pattern;
 
 import org.jspecify.annotations.Nullable;
 
@@ -47,9 +44,6 @@ import org.jspecify.annotations.Nullable;
  * path list is not simply splitting on the separator character.
  */
 public final class PathList {
-    /** The Constant DOUBLE_BACKSLASH_WITH_COLON. */
-    private static final Pattern DOUBLE_BACKSLASH_WITH_COLON = Pattern.compile("\\\\:");
-
     /**
      * On everything but Windows, where the path separator is ':', need to treat the colon in these substrings as
      * non-separators, when at the beginning of the string or following a ':'.
@@ -77,9 +71,7 @@ public final class PathList {
         }
     }
 
-    /**
-     * Constructor.
-     */
+    /** Not instantiable. */
     private PathList() {
         // Cannot be constructed
     }
@@ -162,8 +154,9 @@ public final class PathList {
      */
     private static String[] splitOnColon(final String pathStr, final @Nullable Set<String> allowedURLSchemes) {
         // Find the ':' characters that really are path separators. The position before the start of the string and
-        // the position after its end are both split points, so that the first and last parts are included.
-        final Set<Integer> splitPoints = new HashSet<>();
+        // the position after its end are both split points, so that the first and last parts are included. The
+        // split points are found in increasing order.
+        final List<Integer> splitPoints = new ArrayList<>();
         for (var i = -1;;) {
             if (!isSchemeOrEscapedColon(pathStr, i, allowedURLSchemes)) {
                 splitPoints.add(i);
@@ -176,15 +169,12 @@ public final class PathList {
                 break;
             }
         }
-        final List<Integer> splitPointsSorted = new ArrayList<>(splitPoints);
-        CollectionUtils.sortIfNotEmpty(splitPointsSorted);
         final List<String> parts = new ArrayList<>();
-        for (var i = 1; i < splitPointsSorted.size(); i++) {
-            final int idx0 = splitPointsSorted.get(i - 1);
-            final int idx1 = splitPointsSorted.get(i);
+        for (var i = 1; i < splitPoints.size(); i++) {
+            final int idx0 = splitPoints.get(i - 1);
+            final int idx1 = splitPoints.get(i);
             // Trim, and unescape "\\:"
-            var part = pathStr.substring(idx0 + 1, idx1).trim();
-            part = DOUBLE_BACKSLASH_WITH_COLON.matcher(part).replaceAll(":");
+            final var part = pathStr.substring(idx0 + 1, idx1).trim().replace("\\:", ":");
             // Remove empty path components
             if (!part.isEmpty()) {
                 parts.add(part);
@@ -209,7 +199,7 @@ public final class PathList {
     private static boolean isSchemeOrEscapedColon(final String pathStr, final int colonIdx,
             final @Nullable Set<String> allowedURLSchemes) {
         // A ':' escaped as "\:" is part of a path element, not a separator (this is the escaping applied by
-        // appendPathElt, and undone by the DOUBLE_BACKSLASH_WITH_COLON unescape in splitOnColon). Escaping is a
+        // appendPathElt, and undone in splitOnColon). Escaping is a
         // ClassGraph extension -- the JDK splits java.class.path on File.pathSeparator with no escape syntax at
         // all -- but it is safe, because File.separatorChar is '/' on every platform whose File.pathSeparatorChar
         // is ':', so a backslash before a colon is never part of the path syntax there. The cost is that a
@@ -298,13 +288,14 @@ public final class PathList {
     }
 
     /**
-     * Get a set of path elements as a string, from an array of objects (e.g. of String, File or URL type, whose
-     * toString() method will be called to get the path component), and return the path as a single string
-     * delineated with the standard path separator character.
+     * Join path elements into a single path, separated by {@link File#pathSeparatorChar}. Each element may be of
+     * any type (e.g. String, File or URL), and its toString() method is called to get its path. A path separator
+     * inside an element is escaped as {@code "\\:"} where the separator is ':', so that {@link #split} reads the
+     * element back whole.
      *
      * @param pathElts
      *            The path elements.
-     * @return The delimited path formed out of the path elements.
+     * @return The path.
      */
     public static String join(final Object... pathElts) {
         final StringBuilder buf = new StringBuilder();
@@ -315,13 +306,12 @@ public final class PathList {
     }
 
     /**
-     * Get a set of path elements as a string, from an array of objects (e.g. of String, File or URL type, whose
-     * toString() method will be called to get the path component), and return the path as a single string
-     * delineated with the standard path separator character.
+     * Join path elements into a single path, separated by {@link File#pathSeparatorChar}, as
+     * {@link #join(Object...)} does.
      *
      * @param pathElts
      *            The path elements.
-     * @return The delimited path formed out of the path elements, after calling each of their toString() methods.
+     * @return The path.
      */
     public static String join(final Iterable<?> pathElts) {
         final StringBuilder buf = new StringBuilder();
