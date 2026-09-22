@@ -104,7 +104,7 @@ public final class LogNode {
      *
      * <p>
      * Volatile, since {@link #logInRealtime(boolean)} is called from the caller's thread, whereas this field is
-     * read by the {@link LogNode} constructor, which is called from the scan threads.
+     * read when a log entry is added, which happens on the scan threads.
      */
     private static volatile boolean logInRealtime;
 
@@ -144,9 +144,6 @@ public final class LogNode {
             stackTrace = writer.toString();
         } else {
             stackTrace = null;
-        }
-        if (logInRealtime) {
-            log.info(toString());
         }
     }
 
@@ -285,6 +282,20 @@ public final class LogNode {
         // Make the sort key unique, so that log entries are not clobbered if keys are reused; increment unique
         // suffix with each new log entry, so that ties are broken in chronological order.
         children.put(newSortKey, newChild);
+        if (logInRealtime) {
+            // Written here rather than in the constructor, since the depth of the entry is only known once it has
+            // a parent
+            int depth = 0;
+            for (LogNode node = newChild; node.parent != null; node = node.parent) {
+                depth++;
+            }
+            final StringBuilder buf = new StringBuilder();
+            // The formatters are not threadsafe
+            synchronized (dateTimeFormatter) {
+                newChild.toString(depth, buf);
+            }
+            log.info(buf.toString());
+        }
         return newChild;
     }
 
