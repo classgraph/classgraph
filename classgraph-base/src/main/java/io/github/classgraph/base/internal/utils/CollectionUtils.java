@@ -47,9 +47,9 @@ public final class CollectionUtils {
     }
 
     /**
-     * Sort a collection if it is not empty (to prevent {@link ConcurrentModificationException} if an immutable
-     * empty list that has been returned more than once is being sorted in one thread and iterated through in
-     * another thread).
+     * Sort a list if it has more than one element. A list with fewer elements is left untouched, so that an
+     * immutable empty or single-element list that is shared between threads can be passed in without one thread's
+     * sort causing a {@link ConcurrentModificationException} in another thread that is iterating through it.
      *
      * @param <T>
      *            the element type
@@ -64,9 +64,9 @@ public final class CollectionUtils {
     }
 
     /**
-     * Sort a collection if it is not empty (to prevent {@link ConcurrentModificationException} if an immutable
-     * empty list that has been returned more than once is being sorted in one thread and iterated through in
-     * another thread).
+     * Sort a list if it has more than one element. A list with fewer elements is left untouched, so that an
+     * immutable empty or single-element list that is shared between threads can be passed in without one thread's
+     * sort causing a {@link ConcurrentModificationException} in another thread that is iterating through it.
      *
      * @param <T>
      *            the element type (which may be a nullable type)
@@ -92,7 +92,7 @@ public final class CollectionUtils {
      *            the collection to copy and sort
      * @return a sorted copy of the collection
      */
-    public static <T extends Comparable<T>> List<T> sortCopy(final Collection<T> elts) {
+    public static <T extends Comparable<? super T>> List<T> sortCopy(final Collection<T> elts) {
         final List<T> sortedCopy = new ArrayList<>(elts);
         if (sortedCopy.size() > 1) {
             Collections.sort(sortedCopy);
