@@ -69,6 +69,11 @@ public class ClasspathEntryTest {
             assertThat(classpath.getEntries()).singleElement().isInstanceOf(ClasspathEntry.OfPathString.class)
                     .returns(location, ClasspathEntry::getLocation);
         }
+        // A URL spelled as a string is still a path string: the subclass is chosen by the form, not the spelling
+        try (var classpath = findClasspath(jar.toUri().toString())) {
+            assertThat(classpath.getEntries()).singleElement().isInstanceOf(ClasspathEntry.OfPathString.class)
+                    .returns(location, ClasspathEntry::getLocation);
+        }
         try (var classpath = findClasspath(jar.toFile())) {
             assertThat(classpath.getEntries()).singleElement().isInstanceOf(ClasspathEntry.OfFile.class)
                     .returns(location, ClasspathEntry::getLocation);

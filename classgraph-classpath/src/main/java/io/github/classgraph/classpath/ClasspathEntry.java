@@ -195,9 +195,9 @@ public abstract sealed class ClasspathEntry {
 
     /**
      * Returns the {@link Object#toString()} of the classloader this classpath element was obtained from, or null if
-     * it did not come from a classloader (for example, an entry from the {@code java.class.path} system property,
-     * or from an overridden classpath). Only the string is kept, so that finding the classpath does not keep a
-     * classloader alive.
+     * it did not come from a classloader: an element passed to {@link ClasspathFinder#enableClasspathEntries}, or
+     * one that the manifest or a lib dir of such an element declared. Only the string is kept, so that finding the
+     * classpath does not keep a classloader alive.
      *
      * @return the string form of the classloader, or null if this element did not come from one.
      */
@@ -312,9 +312,10 @@ public abstract sealed class ClasspathEntry {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * A classpath element that a classloader named with a path string. This is the usual case: the entries of the
-     * {@code java.class.path} system property, and of a jarfile manifest's {@code Class-Path} attribute, are path
-     * strings. The path is the {@link #getLocation()}, so there is no separate accessor for it.
+     * A classpath element that a classloader named with a string: a path, or a URL written as a string. This is the
+     * usual case: the entries of the {@code java.class.path} system property, and of a jarfile manifest's
+     * {@code Class-Path} attribute, are strings. The string is resolved to the {@link #getLocation()}, and opened
+     * by it, so there is no separate accessor for it.
      */
     public static final class OfPathString extends ClasspathEntry {
         /**
@@ -429,10 +430,9 @@ public abstract sealed class ClasspathEntry {
     }
 
     /**
-     * A classpath element that a classloader named with a {@link URL}, or with a {@link URI} or {@link Path} that
-     * had a URL scheme. A {@code "jar:"} or {@code "file:"} URL names something in the local filesystem; with any
-     * other scheme, {@link #open(Vfs)} reads it if the JVM has a handler for that scheme and the {@link Vfs} has
-     * not denied it.
+     * A classpath element that a classloader named with a {@link URL}. A {@code "jar:"} or {@code "file:"} URL
+     * names something in the local filesystem; with any other scheme, {@link #open(Vfs)} reads it if the JVM has a
+     * handler for that scheme and the {@link Vfs} has not denied it.
      */
     public static final class OfURL extends ClasspathEntry {
         /** The URL. */
@@ -474,9 +474,9 @@ public abstract sealed class ClasspathEntry {
     }
 
     /**
-     * A classpath element that a classloader named with a {@link URI} that had no URL scheme this JVM can parse. A
-     * {@code "jar:"} or {@code "file:"} URI names something in the local filesystem; with any other scheme,
-     * {@link #open(Vfs)} reads it if the JVM has a handler for that scheme and the {@link Vfs} has not denied it.
+     * A classpath element that a classloader named with a {@link URI}. A {@code "jar:"} or {@code "file:"} URI
+     * names something in the local filesystem; with any other scheme, {@link #open(Vfs)} reads it if the JVM has a
+     * handler for that scheme and the {@link Vfs} has not denied it.
      */
     public static final class OfURI extends ClasspathEntry {
         /** The URI. */

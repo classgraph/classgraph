@@ -142,8 +142,8 @@ public class ClassLoaderProbe {
         classpathOrder = new ClasspathOrderBuilder(classpathSpec);
 
         // The classloaders in the environment are found whether or not they are one of the sources to search, since
-        // a classpath entry that the caller named directly still has to record a classloader, and since this is the
-        // classloader that the scan falls back to when it has to load a class
+        // the first of them is the classloader that the scan falls back to when it has to load a class, and the one
+        // that the entries of java.class.path are recorded against
         final var environmentClassLoaders = new ClassLoaderFinder(callStackInfo, classLoaderProbeLog)
                 .getClassLoaders();
         defaultClassLoader = environmentClassLoaders.isEmpty() ? null : environmentClassLoaders.get(0);
