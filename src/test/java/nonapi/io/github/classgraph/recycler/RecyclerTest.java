@@ -17,7 +17,7 @@ import io.github.classgraph.ScanResult;
 /** Tests that a force-closed {@link Recycler} closes an instance handed back to it, rather than pooling it. */
 public class RecyclerTest {
     /** An instance that records what the recycler did to it. */
-    private static final class Recyclable implements Resettable, AutoCloseable {
+    private static class Recyclable implements Resettable, AutoCloseable {
         /** The number of times this instance has been reset. */
         int numResets;
 
@@ -86,6 +86,32 @@ public class RecyclerTest {
         final Recyclable instance = recycleOnClose.get();
         recycler.forceClose();
         assertThatCode(recycleOnClose::close).doesNotThrowAnyException();
+        assertThat(instance.numCloses).isEqualTo(1);
+    }
+
+    /**
+     * An instance handed back while another thread force-closes the recycler is closed, even when the force-close
+     * runs after the recycle has checked for one, but before the instance is back in the pool. The instance's
+     * {@code reset()} runs in that window, so a {@code reset()} that force-closes the recycler stands in for the
+     * other thread.
+     */
+    @Test
+    public void anInstanceHandedBackDuringAForceCloseIsClosed() {
+        final Recycler<Recyclable, RuntimeException> recycler = new Recycler<Recyclable, RuntimeException>() {
+            @Override
+            public Recyclable newInstance() {
+                final Recycler<Recyclable, RuntimeException> recycler = this;
+                return new Recyclable() {
+                    @Override
+                    public void reset() {
+                        super.reset();
+                        recycler.forceClose();
+                    }
+                };
+            }
+        };
+        final Recyclable instance = recycler.acquire();
+        recycler.recycle(instance);
         assertThat(instance.numCloses).isEqualTo(1);
     }
 

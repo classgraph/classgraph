@@ -998,10 +998,8 @@ public class NestedJarHandler {
                 if (closed.get()) {
                     throw new IOException("InputStream is already closed");
                 }
-                // We don't know how many bytes are available, but have to return greater than
-                // zero if there is still input, according to the API contract. Hopefully
-                // nothing
-                // relies on this and ends up reading just one byte at a time.
+                // How many inflated bytes can be read without blocking is not known, so return 1 until
+                // the end of the entry, and 0 afterwards, as InflaterInputStream does
                 return inflater.finished() ? 0 : 1;
             }
 
