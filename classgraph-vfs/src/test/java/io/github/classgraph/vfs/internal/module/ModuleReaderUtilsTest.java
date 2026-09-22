@@ -181,11 +181,14 @@ public class ModuleReaderUtilsTest {
         for (final var failure : new Failure[] { Failure.NULL, Failure.EMPTY }) {
             final var moduleReader = new FailingModuleReader(failure);
             assertThatThrownBy(() -> ModuleReaderUtils.open(moduleReader, "some/Resource.class"))
-                    .isInstanceOf(IOException.class).hasMessageContaining("ModuleReader#open");
+                    .isInstanceOf(IOException.class).hasMessageContaining("ModuleReader#open")
+                    .hasMessageContaining("some/Resource.class");
             assertThatThrownBy(() -> ModuleReaderUtils.read(moduleReader, "some/Resource.class"))
-                    .isInstanceOf(IOException.class).hasMessageContaining("ModuleReader#read");
+                    .isInstanceOf(IOException.class).hasMessageContaining("ModuleReader#read")
+                    .hasMessageContaining("some/Resource.class");
             assertThatThrownBy(() -> ModuleReaderUtils.find(moduleReader, "some/Resource.class"))
-                    .isInstanceOf(IOException.class).hasMessageContaining("ModuleReader#find");
+                    .isInstanceOf(IOException.class).hasMessageContaining("ModuleReader#find")
+                    .hasMessageContaining("some/Resource.class");
 
             // A module that does not contain a resource is not an error, it just does not contain it
             assertThat(ModuleReaderUtils.contains(moduleReader, "some/Resource.class")).isFalse();

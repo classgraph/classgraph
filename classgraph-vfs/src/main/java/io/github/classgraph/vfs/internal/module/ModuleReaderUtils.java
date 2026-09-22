@@ -49,16 +49,48 @@ import org.jspecify.annotations.Nullable;
  * {@link Optional} and {@link Stream} return values into plain values.
  *
  * <p>
- * Every way in which a module can fail to be read is reported as an {@link IOException}: the {@link IOException}
+ * A failure to open or read a module or resource is reported as an {@link IOException}: the {@link IOException}
  * thrown by the {@link ModuleReader} method itself, a resource that the module does not contain, and a
- * {@code ModuleReader} implementation that returns null where its contract does not permit it. The one exception is
- * a {@link SecurityException}, which only {@link #openModule(ModuleReference)} wraps: the rest declare it, so that
- * a caller can tell a module it is not allowed to read from one that cannot be read.
+ * {@code ModuleReader} implementation that returns null where its contract does not permit it. There are three
+ * exceptions. {@link #list(ModuleReader, String, LogNode)} treats a null listing as an empty module, since some
+ * {@code ModuleReader} implementations return one, and failing would abort the whole scan.
+ * {@link #contains(ModuleReader, String)} treats a null result as an absent resource, since that is the question it
+ * answers. And only {@link #openModule(ModuleReference)} wraps a {@link SecurityException}: the rest declare it, so
+ * that a caller can tell a module it is not allowed to read from one that cannot be read.
  */
 public final class ModuleReaderUtils {
     /** Not instantiable. */
     private ModuleReaderUtils() {
         // Empty
+    }
+
+    /**
+     * Get the value of an {@link Optional} returned by a {@link ModuleReader} method.
+     *
+     * @param <T>
+     *            the value type.
+     * @param optional
+     *            the value returned by the method, which may be null if the {@code ModuleReader} does not honor its
+     *            contract.
+     * @param moduleReader
+     *            the module reader, for error messages.
+     * @param methodName
+     *            the name of the method that was called, for error messages.
+     * @param path
+     *            the path that was passed to the method, for error messages.
+     * @return the value.
+     * @throws IOException
+     *             if the {@link Optional} is null or empty.
+     */
+    private static <T> T getValue(final @Nullable Optional<T> optional, final ModuleReader moduleReader,
+            final String methodName, final String path) throws IOException {
+        if (optional == null) {
+            throw new IOException("ModuleReader#" + methodName + "(String) returned null for path " + path
+                    + ", which its contract does not permit -- this is a bug in the ModuleReader implementation "
+                    + moduleReader.getClass().getName());
+        }
+        return optional.orElseThrow(() -> new IOException(
+                "ModuleReader#" + methodName + "(String) did not find a resource with path " + path));
     }
 
     /**
@@ -79,7 +111,7 @@ public final class ModuleReaderUtils {
         }
         if (moduleReader == null) {
             // ModuleReference#open() is specified to return a ModuleReader, and is not allowed to return null, so a
-            // null return means the ModuleReference implementation does not honour its contract
+            // null return means the ModuleReference implementation does not honor its contract
             throw new IOException("ModuleReference#open() returned null for module "
                     + moduleReference.descriptor().name() + ", which its contract does not permit -- this is a bug "
                     + "in the ModuleReference implementation " + moduleReference.getClass().getName());
@@ -89,8 +121,9 @@ public final class ModuleReaderUtils {
 
     /**
      * Get the list of resources accessible to a {@link ModuleReader}, logging to the given {@link LogNode} if the
-     * {@code ModuleReader} does not honour its contract.
+     * {@code ModuleReader} does not honor its contract.
      *
+     * <p>
      * From the documentation for ModuleReader#list(): "Whether the stream of elements includes names corresponding
      * to directories in the module is module reader specific. In lazy implementations then an IOException may be
      * thrown when using the stream to list the module contents. If this occurs then the IOException will be wrapped
@@ -121,7 +154,7 @@ public final class ModuleReaderUtils {
         }
         if (resourcesStream == null) {
             // ModuleReader#list() is specified to return a Stream<String>, and is not allowed to return null, so a
-            // null return means the ModuleReader implementation does not honour its contract. Some do anyway --
+            // null return means the ModuleReader implementation does not honor its contract. Some do anyway --
             // e.g. Minecraft Forge's securejarhandler (cpw.mods.cl.JarModuleFinder$JarModuleReader) -- so treat the
             // module as empty rather than aborting the whole scan, and record which implementation is at fault in
             // the log, so that the report can go to the right project. (#887)
@@ -168,14 +201,7 @@ public final class ModuleReaderUtils {
         } catch (final IOException e) {
             throw new IOException("Could not call ModuleReader#open(String) for path " + path, e);
         }
-        if (optionalInputStream == null) {
-            throw new IOException("Got null result from ModuleReader#open(String) for path " + path);
-        }
-        final var inputStream = optionalInputStream.orElse(null);
-        if (inputStream == null) {
-            throw new IOException("Got null result from ModuleReader#open(String)#get()");
-        }
-        return inputStream;
+        return getValue(optionalInputStream, moduleReader, "open", path);
     }
 
     /**
@@ -202,14 +228,7 @@ public final class ModuleReaderUtils {
         } catch (final IOException e) {
             throw new IOException("Could not call ModuleReader#read(String) for path " + path, e);
         }
-        if (optionalByteBuffer == null) {
-            throw new IOException("Got null result from ModuleReader#read(String)");
-        }
-        final var byteBuffer = optionalByteBuffer.orElse(null);
-        if (byteBuffer == null) {
-            throw new IOException("Got null result from ModuleReader#read(String).get()");
-        }
-        return byteBuffer;
+        return getValue(optionalByteBuffer, moduleReader, "read", path);
     }
 
     /**
@@ -258,13 +277,6 @@ public final class ModuleReaderUtils {
         } catch (final IOException e) {
             throw new IOException("Could not call ModuleReader#find(String) for path " + path, e);
         }
-        if (optionalURI == null) {
-            throw new IOException("Got null result from ModuleReader#find(String)");
-        }
-        final var uri = optionalURI.orElse(null);
-        if (uri == null) {
-            throw new IOException("Got null result from ModuleReader#find(String).get()");
-        }
-        return uri;
+        return getValue(optionalURI, moduleReader, "find", path);
     }
 }
