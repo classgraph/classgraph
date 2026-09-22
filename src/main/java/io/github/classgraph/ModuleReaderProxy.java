@@ -158,7 +158,7 @@ public class ModuleReaderProxy implements Closeable {
 
     /**
      * Get the list of resources accessible to a ModuleReader, logging to the given {@link LogNode} if the
-     * {@code ModuleReader} does not honour its contract.
+     * {@code ModuleReader} does not honor its contract.
      *
      * @param log
      *            the log, or null for no logging.
@@ -174,7 +174,7 @@ public class ModuleReaderProxy implements Closeable {
                 .invokeMethod(/* throwException = */ true, moduleReader, "list");
         if (resourcesStream == null) {
             // ModuleReader#list() is specified to return a Stream<String>, and is not allowed to return null,
-            // so a null return means the ModuleReader implementation does not honour its contract. Some do
+            // so a null return means the ModuleReader implementation does not honor its contract. Some do
             // anyway -- e.g. Minecraft Forge's securejarhandler
             // (cpw.mods.cl.JarModuleFinder$JarModuleReader) -- so treat the module as empty rather than
             // aborting the whole scan, and record which implementation is at fault in the log, so that the
