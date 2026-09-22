@@ -33,15 +33,17 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Member;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 import org.jspecify.annotations.Nullable;
 
@@ -57,12 +59,13 @@ abstract class ReflectionDriver {
      */
     private final Map<Class<?>, ClassMemberCache> classToClassMemberCache = new ConcurrentHashMap<>();
 
-    /** Constructor. */
+    /** Only the drivers in this package can extend this class. */
     ReflectionDriver() {
+        // Empty
     }
 
     /** Caches class members. */
-    public final class ClassMemberCache {
+    private final class ClassMemberCache {
         /** The methods of the class, its superclasses and its interfaces, indexed by method name. */
         private final Map<String, List<Method>> methodNameToMethods = new HashMap<>();
 
@@ -78,7 +81,7 @@ abstract class ReflectionDriver {
         private ClassMemberCache(final Class<?> cls) {
             // Iterate from class to its superclasses, and find initial interfaces to start traversing from
             final Set<Class<?>> visited = new HashSet<>();
-            final LinkedList<Class<?>> interfaceQueue = new LinkedList<>();
+            final Deque<Class<?>> interfaceQueue = new ArrayDeque<>();
             for (Class<?> c = cls; c != null; c = c.getSuperclass()) {
                 // The starting class can itself be an interface. Don't cache its members here -- it is queued
                 // below like any other interface, and its members are cached when it is dequeued.
@@ -110,7 +113,9 @@ abstract class ReflectionDriver {
 
         /**
          * Cache the declared methods and fields of a class or interface. Methods and fields are read separately, so
-         * that if one of the two cannot be read, the other is still cached.
+         * that if one of the two cannot be read, the other is still cached. {@link LinkageError} is caught as well
+         * as {@link Exception}, since {@link Class#getDeclaredMethods()} throws {@link NoClassDefFoundError} if a
+         * method names a class that cannot be loaded.
          *
          * @param cls
          *            the class or interface to cache the declared members of
@@ -120,14 +125,14 @@ abstract class ReflectionDriver {
                 for (final Method m : getDeclaredMethods(cls)) {
                     cacheMethod(m);
                 }
-            } catch (final Exception e) {
+            } catch (final Exception | LinkageError e) {
                 // Skip
             }
             try {
                 for (final Field f : getDeclaredFields(cls)) {
                     cacheField(f);
                 }
-            } catch (final Exception e) {
+            } catch (final Exception | LinkageError e) {
                 // Skip
             }
         }
@@ -299,7 +304,7 @@ abstract class ReflectionDriver {
      * Set the value of a non-static field, unboxing the value if necessary.
      *
      * @param object
-     *            the object instance to get the field value from
+     *            the object instance to set the field value on
      * @param field
      *            the non-static field
      * @param value
@@ -331,7 +336,7 @@ abstract class ReflectionDriver {
      *
      * @param field
      *            the static field
-     * @return the static field
+     * @return the value of the field
      * @throws Exception
      *             if the field could not be read
      */
@@ -487,7 +492,7 @@ abstract class ReflectionDriver {
     boolean isAccessible(final @Nullable Object instance, final AccessibleObject fieldOrMethod) {
         try {
             return fieldOrMethod.canAccess(instance);
-        } catch (final Throwable e) {
+        } catch (final IllegalArgumentException e) {
             // canAccess throws IllegalArgumentException if the instance does not match the member
             return false;
         }
@@ -507,13 +512,11 @@ abstract class ReflectionDriver {
      * @throws Exception
      *             if the field could not be found, or could not be made accessible
      */
-    protected Field findField(final Class<?> cls, final @Nullable Object obj, final String fieldName)
-            throws Exception {
+    Field findField(final Class<?> cls, final @Nullable Object obj, final String fieldName) throws Exception {
         final var field = classMemberCache(cls).fieldNameToField.get(fieldName);
         if (field != null) {
             final var accessInstance = accessInstance(field, obj);
-            // If field was found but is not accessible, try making it accessible and then returning it (may result
-            // in a reflective access warning on stderr)
+            // If the field was found but is not accessible, try making it accessible
             if (isAccessible(accessInstance, field) || makeAccessible(accessInstance, field)) {
                 return field;
             }
@@ -533,7 +536,7 @@ abstract class ReflectionDriver {
      * @throws Exception
      *             if the field could not be found, could not be made accessible, or is not static
      */
-    protected Field findStaticField(final Class<?> cls, final String fieldName) throws Exception {
+    Field findStaticField(final Class<?> cls, final String fieldName) throws Exception {
         final var field = findField(cls, null, fieldName);
         if (!Modifier.isStatic(field.getModifiers())) {
             throw new NoSuchFieldException("Field " + cls.getName() + "." + fieldName + " is not static");
@@ -557,7 +560,7 @@ abstract class ReflectionDriver {
      * @throws Exception
      *             if the method could not be found, or could not be made accessible.
      */
-    protected Method findMethod(final Class<?> cls, final @Nullable Object obj, final String methodName,
+    Method findMethod(final Class<?> cls, final @Nullable Object obj, final String methodName,
             final Class<?>... paramTypes) throws Exception {
         final var methodsForName = classMemberCache(cls).methodNameToMethods.get(methodName);
         if (methodsForName != null) {
@@ -571,8 +574,7 @@ abstract class ReflectionDriver {
                     }
                 }
             }
-            // If method was found but is not accessible, try making it accessible and then returning it (may result
-            // in a reflective access warning on stderr)
+            // If the method was found but is not accessible, try making it accessible
             if (found) {
                 for (final Method method : methodsForName) {
                     if (Arrays.equals(method.getParameterTypes(), paramTypes)
@@ -581,10 +583,13 @@ abstract class ReflectionDriver {
                     }
                 }
             }
-            throw new NoSuchMethodException(
-                    "Could not make method accessible: " + cls.getName() + "." + methodName);
+            if (found) {
+                throw new NoSuchMethodException(
+                        "Could not make method accessible: " + cls.getName() + "." + methodName);
+            }
         }
-        throw new NoSuchMethodException("Could not find method " + cls.getName() + "." + methodName);
+        throw new NoSuchMethodException("Could not find method " + cls.getName() + "." + methodName
+                + Arrays.stream(paramTypes).map(Class::getName).collect(Collectors.joining(", ", "(", ")")));
     }
 
     /**
@@ -600,7 +605,7 @@ abstract class ReflectionDriver {
      * @throws Exception
      *             if the method could not be found, could not be made accessible, or is not static.
      */
-    protected Method findStaticMethod(final Class<?> cls, final String methodName, final Class<?>... paramTypes)
+    Method findStaticMethod(final Class<?> cls, final String methodName, final Class<?>... paramTypes)
             throws Exception {
         final var method = findMethod(cls, null, methodName, paramTypes);
         if (!Modifier.isStatic(method.getModifiers())) {

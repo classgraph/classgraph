@@ -39,39 +39,19 @@ import org.jspecify.annotations.Nullable;
  * necessary).
  */
 class StandardReflectionDriver extends ReflectionDriver {
-    /** Constructor. */
+    /** Create the standard reflection driver. */
     StandardReflectionDriver() {
-    }
-
-    /**
-     * Try to make a field, method or constructor accessible, without throwing an exception if this is not
-     * permitted.
-     *
-     * @param obj
-     *            the field, method or constructor
-     * @return true if the object was made accessible
-     */
-    private static boolean tryMakeAccessible(final AccessibleObject obj) {
-        try {
-            return obj.trySetAccessible();
-        } catch (final Throwable e) {
-            // Ignore
-        }
-        try {
-            obj.setAccessible(true);
-            return true;
-        } catch (final Throwable e) {
-            // Ignore
-        }
-        return false;
+        // Empty
     }
 
     @Override
-    public boolean makeAccessible(final @Nullable Object instance, final AccessibleObject obj) {
-        if (isAccessible(instance, obj)) {
-            return true;
+    boolean makeAccessible(final @Nullable Object instance, final AccessibleObject obj) {
+        try {
+            return isAccessible(instance, obj) || obj.trySetAccessible();
+        } catch (final SecurityException e) {
+            // A security manager refused access
+            return false;
         }
-        return tryMakeAccessible(obj);
     }
 
     @Override

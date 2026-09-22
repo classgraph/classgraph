@@ -3,6 +3,7 @@ package io.github.classgraph.base.internal.reflection;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.io.IOException;
 import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -336,6 +337,76 @@ public class ReflectionDriverTest {
                 .isInstanceOf(NoSuchMethodException.class);
     }
 
+    /** A class that {@link #loaderWithoutMissingType()} refuses to load. */
+    private static class MissingType {
+    }
+
+    /** A class with a method whose return type cannot be loaded by the classloader that defines this class. */
+    @SuppressWarnings({ "unused", "static-method" })
+    private static class HasMissingType {
+        /** A field whose type can be loaded. */
+        private final String field = "field";
+
+        /**
+         * A method whose return type cannot be loaded.
+         *
+         * @return nothing.
+         */
+        private @Nullable MissingType method() {
+            return null;
+        }
+    }
+
+    /**
+     * Get a classloader that defines its own copy of {@link HasMissingType}, and cannot load {@link MissingType}.
+     *
+     * @return the classloader.
+     */
+    private static ClassLoader loaderWithoutMissingType() {
+        return new ClassLoader(ReflectionDriverTest.class.getClassLoader()) {
+            @Override
+            protected Class<?> loadClass(final String name, final boolean resolve) throws ClassNotFoundException {
+                if (name.equals(MissingType.class.getName())) {
+                    throw new ClassNotFoundException(name);
+                }
+                if (!name.equals(HasMissingType.class.getName())) {
+                    return super.loadClass(name, resolve);
+                }
+                synchronized (getClassLoadingLock(name)) {
+                    final Class<?> loaded = findLoadedClass(name);
+                    if (loaded != null) {
+                        return loaded;
+                    }
+                    try (var in = getParent().getResourceAsStream(name.replace('.', '/') + ".class")) {
+                        final byte[] bytes = in.readAllBytes();
+                        return defineClass(name, bytes, 0, bytes.length);
+                    } catch (final IOException e) {
+                        throw new ClassNotFoundException(name, e);
+                    }
+                }
+            }
+        };
+    }
+
+    /**
+     * If the methods of a class cannot be read because a method names a class that cannot be loaded, the fields of
+     * the class are still found. {@link Class#getDeclaredMethods()} reports this with {@link NoClassDefFoundError},
+     * which is an {@link Error} rather than an {@link Exception}.
+     *
+     * @param driver
+     *            the driver.
+     * @throws Exception
+     *             if a lookup that was expected to succeed failed.
+     */
+    @ParameterizedTest
+    @MethodSource("drivers")
+    void aMethodNamingAMissingClassDoesNotHideTheFields(final ReflectionDriver driver) throws Exception {
+        final Class<?> cls = loaderWithoutMissingType().loadClass(HasMissingType.class.getName());
+        assertThatThrownBy(cls::getDeclaredMethods).isInstanceOf(NoClassDefFoundError.class);
+        assertThat(driver.findField(cls, null, "field").getName()).isEqualTo("field");
+        assertThatThrownBy(() -> driver.findMethod(cls, null, "method")).isInstanceOf(NoSuchMethodException.class);
+    }
+
     /**
      * A member that cannot be made accessible is reported as not found, rather than being handed back for the
      * caller to fail on, and a field and a method are reported the same way as each other.
@@ -351,7 +422,7 @@ public class ReflectionDriverTest {
             }
 
             @Override
-            public boolean makeAccessible(final @Nullable Object instance, final AccessibleObject fieldOrMethod) {
+            boolean makeAccessible(final @Nullable Object instance, final AccessibleObject fieldOrMethod) {
                 return false;
             }
         };
@@ -359,6 +430,22 @@ public class ReflectionDriverTest {
                 .isInstanceOf(NoSuchFieldException.class).hasMessageContaining("Could not make field accessible");
         assertThatThrownBy(() -> inaccessible.findMethod(Fixture.class, obj, "instanceMethod"))
                 .isInstanceOf(NoSuchMethodException.class).hasMessageContaining("Could not make method accessible");
+    }
+
+    /**
+     * A method that exists, but not with the given parameter types, is reported as not found, and the message names
+     * the parameter types that were looked for.
+     *
+     * @param driver
+     *            the driver.
+     */
+    @ParameterizedTest
+    @MethodSource("drivers")
+    void aMethodWithTheWrongParameterTypesIsReportedAsNotFound(final ReflectionDriver driver) {
+        assertThatThrownBy(
+                () -> driver.findMethod(Fixture.class, new Fixture(), "instanceMethod", String.class, Integer.TYPE))
+                .isInstanceOf(NoSuchMethodException.class).hasMessage("Could not find method "
+                        + Fixture.class.getName() + ".instanceMethod(java.lang.String, int)");
     }
 
     /**

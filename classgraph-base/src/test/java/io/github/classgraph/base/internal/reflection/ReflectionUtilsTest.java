@@ -158,7 +158,8 @@ public class ReflectionUtilsTest {
 
         assertThat(ReflectionUtils.invokeStaticMethod(false, Sub.class, "noArgs")).isNull();
         assertThatThrownBy(() -> ReflectionUtils.invokeStaticMethod(true, Sub.class, "noArgs"))
-                .isInstanceOf(IllegalArgumentException.class).hasMessage("Method \"noArgs\" could not be invoked");
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Can't invoke method " + Sub.class.getName() + ".noArgs");
         assertThat(ReflectionUtils.invokeStaticMethod(false, Sub.class, "oneArg", String.class, "x")).isNull();
     }
 
@@ -209,7 +210,7 @@ public class ReflectionUtilsTest {
         assertThat(ReflectionUtils.invokeMethod(false, obj, "noSuchMethod")).isNull();
         assertThatThrownBy(() -> ReflectionUtils.invokeMethod(true, obj, "noSuchMethod"))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Method \"noSuchMethod\" could not be invoked");
+                .hasMessage("Can't invoke method " + Sub.class.getName() + ".noSuchMethod");
         // The method exists, but not with the given parameter types
         assertThat(ReflectionUtils.invokeMethod(false, obj, "oneArg", Integer.TYPE, 5)).isNull();
         assertThat(ReflectionUtils.invokeMethod(false, obj, "oneArg", new Class<?>[] {}, new Object[] {})).isNull();
@@ -217,7 +218,7 @@ public class ReflectionUtilsTest {
         assertThat(ReflectionUtils.invokeStaticMethod(false, Sub.class, "noSuchMethod")).isNull();
         assertThatThrownBy(() -> ReflectionUtils.invokeStaticMethod(true, Sub.class, "noSuchMethod"))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Method \"noSuchMethod\" could not be invoked");
+                .hasMessage("Can't invoke method " + Sub.class.getName() + ".noSuchMethod");
         assertThat(ReflectionUtils.invokeStaticMethod(false, Sub.class, "staticOneArg", Integer.TYPE, 5)).isNull();
     }
 

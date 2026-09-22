@@ -42,7 +42,7 @@ public final class ReflectionUtils {
      */
     private static final ReflectionDriver REFLECTION_DRIVER = findReflectionDriver();
 
-    /** Cannot be instantiated. */
+    /** Not instantiable. */
     private ReflectionUtils() {
         // Empty
     }
@@ -115,6 +115,27 @@ public final class ReflectionUtils {
     }
 
     /**
+     * Report a failure, either by throwing or by returning null.
+     *
+     * @param throwException
+     *            If true, throw an {@link IllegalArgumentException}; otherwise return null.
+     * @param message
+     *            The exception message.
+     * @param cause
+     *            The cause of the failure, or null if there is none.
+     * @return null, if throwException is false.
+     * @throws IllegalArgumentException
+     *             if throwException is true.
+     */
+    private static @Nullable Object fail(final boolean throwException, final String message,
+            final @Nullable Throwable cause) throws IllegalArgumentException {
+        if (throwException) {
+            throw new IllegalArgumentException(message, cause);
+        }
+        return null;
+    }
+
+    /**
      * Get the value of the given field in the given object. If an exception is thrown while trying to read the
      * field, and throwException is true, then IllegalArgumentException is thrown wrapping the cause, otherwise this
      * will return null. If passed a null object, returns null unless throwException is true, then throws
@@ -134,21 +155,13 @@ public final class ReflectionUtils {
     public static @Nullable Object getFieldVal(final boolean throwException, final @Nullable Object obj,
             final @Nullable Field field) throws IllegalArgumentException {
         if (obj == null || field == null) {
-            if (throwException) {
-                throw new IllegalArgumentException("Unexpected null argument");
-            } else {
-                return null;
-            }
+            return fail(throwException, "Unexpected null argument", null);
         }
         try {
             return read(obj, field);
         } catch (final Throwable e) {
-            if (throwException) {
-                throw new IllegalArgumentException(
-                        "Can't read field " + obj.getClass().getName() + "." + field.getName(), e);
-            }
+            return fail(throwException, "Can't read field " + obj.getClass().getName() + "." + field.getName(), e);
         }
-        return null;
     }
 
     /**
@@ -171,21 +184,13 @@ public final class ReflectionUtils {
     public static @Nullable Object getFieldVal(final boolean throwException, final @Nullable Object obj,
             final @Nullable String fieldName) throws IllegalArgumentException {
         if (obj == null || fieldName == null) {
-            if (throwException) {
-                throw new IllegalArgumentException("Unexpected null argument");
-            } else {
-                return null;
-            }
+            return fail(throwException, "Unexpected null argument", null);
         }
         try {
             return read(obj, REFLECTION_DRIVER.findField(obj.getClass(), obj, fieldName));
         } catch (final Throwable e) {
-            if (throwException) {
-                throw new IllegalArgumentException("Can't read field " + obj.getClass().getName() + "." + fieldName,
-                        e);
-            }
+            return fail(throwException, "Can't read field " + obj.getClass().getName() + "." + fieldName, e);
         }
-        return null;
     }
 
     /**
@@ -208,20 +213,13 @@ public final class ReflectionUtils {
     public static @Nullable Object getStaticFieldVal(final boolean throwException, final @Nullable Class<?> cls,
             final @Nullable String fieldName) throws IllegalArgumentException {
         if (cls == null || fieldName == null) {
-            if (throwException) {
-                throw new IllegalArgumentException("Unexpected null argument");
-            } else {
-                return null;
-            }
+            return fail(throwException, "Unexpected null argument", null);
         }
         try {
             return REFLECTION_DRIVER.getStaticField(REFLECTION_DRIVER.findStaticField(cls, fieldName));
         } catch (final Throwable e) {
-            if (throwException) {
-                throw new IllegalArgumentException("Can't read field " + cls.getName() + "." + fieldName, e);
-            }
+            return fail(throwException, "Can't read field " + cls.getName() + "." + fieldName, e);
         }
-        return null;
     }
 
     /**
@@ -231,7 +229,7 @@ public final class ReflectionUtils {
      * throws IllegalArgumentException.
      *
      * @param throwException
-     *            If true, throw an exception if the field value could not be read.
+     *            Whether to throw an exception on failure.
      * @param obj
      *            The object.
      * @param methodName
@@ -244,19 +242,12 @@ public final class ReflectionUtils {
     public static @Nullable Object invokeMethod(final boolean throwException, final @Nullable Object obj,
             final @Nullable String methodName) throws IllegalArgumentException {
         if (obj == null || methodName == null) {
-            if (throwException) {
-                throw new IllegalArgumentException("Unexpected null argument");
-            } else {
-                return null;
-            }
+            return fail(throwException, "Unexpected null argument", null);
         }
         try {
             return invoke(obj, REFLECTION_DRIVER.findMethod(obj.getClass(), obj, methodName));
         } catch (final Throwable e) {
-            if (throwException) {
-                throw new IllegalArgumentException("Method \"" + methodName + "\" could not be invoked", e);
-            }
-            return null;
+            return fail(throwException, "Can't invoke method " + obj.getClass().getName() + "." + methodName, e);
         }
     }
 
@@ -285,19 +276,12 @@ public final class ReflectionUtils {
             final @Nullable String methodName, final @Nullable Class<?> argType, final @Nullable Object param)
             throws IllegalArgumentException {
         if (obj == null || methodName == null || argType == null) {
-            if (throwException) {
-                throw new IllegalArgumentException("Unexpected null argument");
-            } else {
-                return null;
-            }
+            return fail(throwException, "Unexpected null argument", null);
         }
         try {
             return invoke(obj, REFLECTION_DRIVER.findMethod(obj.getClass(), obj, methodName, argType), param);
         } catch (final Throwable e) {
-            if (throwException) {
-                throw new IllegalArgumentException("Method \"" + methodName + "\" could not be invoked", e);
-            }
-            return null;
+            return fail(throwException, "Can't invoke method " + obj.getClass().getName() + "." + methodName, e);
         }
     }
 
@@ -326,27 +310,16 @@ public final class ReflectionUtils {
             final @Nullable String methodName, final Class<?> @Nullable [] argTypes,
             final @Nullable Object @Nullable [] params) throws IllegalArgumentException {
         if (obj == null || methodName == null || argTypes == null || params == null) {
-            if (throwException) {
-                throw new IllegalArgumentException("Unexpected null argument");
-            } else {
-                return null;
-            }
+            return fail(throwException, "Unexpected null argument", null);
         }
         if (argTypes.length != params.length) {
-            if (throwException) {
-                throw new IllegalArgumentException(
-                        "Got " + argTypes.length + " argument types but " + params.length + " parameter values");
-            } else {
-                return null;
-            }
+            return fail(throwException,
+                    "Got " + argTypes.length + " argument types but " + params.length + " parameter values", null);
         }
         try {
             return invoke(obj, REFLECTION_DRIVER.findMethod(obj.getClass(), obj, methodName, argTypes), params);
         } catch (final Throwable e) {
-            if (throwException) {
-                throw new IllegalArgumentException("Method \"" + methodName + "\" could not be invoked", e);
-            }
-            return null;
+            return fail(throwException, "Can't invoke method " + obj.getClass().getName() + "." + methodName, e);
         }
     }
 
@@ -369,19 +342,12 @@ public final class ReflectionUtils {
     public static @Nullable Object invokeStaticMethod(final boolean throwException, final @Nullable Class<?> cls,
             final @Nullable String methodName) throws IllegalArgumentException {
         if (cls == null || methodName == null) {
-            if (throwException) {
-                throw new IllegalArgumentException("Unexpected null argument");
-            } else {
-                return null;
-            }
+            return fail(throwException, "Unexpected null argument", null);
         }
         try {
             return REFLECTION_DRIVER.invokeStaticMethod(REFLECTION_DRIVER.findStaticMethod(cls, methodName));
         } catch (final Throwable e) {
-            if (throwException) {
-                throw new IllegalArgumentException("Method \"" + methodName + "\" could not be invoked", e);
-            }
-            return null;
+            return fail(throwException, "Can't invoke method " + cls.getName() + "." + methodName, e);
         }
     }
 
@@ -409,20 +375,13 @@ public final class ReflectionUtils {
             final @Nullable String methodName, final @Nullable Class<?> argType, final @Nullable Object param)
             throws IllegalArgumentException {
         if (cls == null || methodName == null || argType == null) {
-            if (throwException) {
-                throw new IllegalArgumentException("Unexpected null argument");
-            } else {
-                return null;
-            }
+            return fail(throwException, "Unexpected null argument", null);
         }
         try {
             return REFLECTION_DRIVER
                     .invokeStaticMethod(REFLECTION_DRIVER.findStaticMethod(cls, methodName, argType), param);
         } catch (final Throwable e) {
-            if (throwException) {
-                throw new IllegalArgumentException("Method \"" + methodName + "\" could not be invoked", e);
-            }
-            return null;
+            return fail(throwException, "Can't invoke method " + cls.getName() + "." + methodName, e);
         }
     }
 
