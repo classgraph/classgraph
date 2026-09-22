@@ -37,24 +37,16 @@ import io.github.classgraph.base.internal.path.PathSyntax;
  * {@code Automatic-Module-Name} manifest entry, which it derives from the name of the jarfile.
  */
 final class AutomaticModuleName {
-    /** The Constant DASH_VERSION. */
+    /** A hyphen followed by a version number, which starts the version part of a jarfile name. */
     private static final Pattern DASH_VERSION = Pattern.compile("-(\\d+(\\.|$))");
 
-    /** The Constant NON_ALPHANUM. */
+    /** A character that may not appear in an automatic module name, and is replaced with a dot. */
     private static final Pattern NON_ALPHANUM = Pattern.compile("[^A-Za-z0-9]");
 
-    /** The Constant REPEATING_DOTS. */
-    private static final Pattern REPEATING_DOTS = Pattern.compile("(\\.)(\\1)+");
+    /** A run of two or more dots, which is collapsed into one. */
+    private static final Pattern REPEATING_DOTS = Pattern.compile("\\.{2,}");
 
-    /** The Constant LEADING_DOTS. */
-    private static final Pattern LEADING_DOTS = Pattern.compile("^\\.");
-
-    /** The Constant TRAILING_DOTS. */
-    private static final Pattern TRAILING_DOTS = Pattern.compile("\\.$");
-
-    /**
-     * Constructor.
-     */
+    /** Not instantiable. */
     private AutomaticModuleName() {
         // Cannot be constructed
     }
@@ -104,15 +96,13 @@ final class AutomaticModuleName {
         // Collapse repeating dots into a single dot
         moduleName = REPEATING_DOTS.matcher(moduleName).replaceAll(".");
 
-        // Drop leading dots
-        if (!moduleName.isEmpty() && moduleName.charAt(0) == '.') {
-            moduleName = LEADING_DOTS.matcher(moduleName).replaceAll("");
+        // Drop the leading and trailing dot, if any (there is at most one of each, now that runs of dots have been
+        // collapsed)
+        if (moduleName.startsWith(".")) {
+            moduleName = moduleName.substring(1);
         }
-
-        // Drop trailing dots
-        final var len = moduleName.length();
-        if (len > 0 && moduleName.charAt(len - 1) == '.') {
-            moduleName = TRAILING_DOTS.matcher(moduleName).replaceAll("");
+        if (moduleName.endsWith(".")) {
+            moduleName = moduleName.substring(0, moduleName.length() - 1);
         }
         return moduleName;
     }
