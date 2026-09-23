@@ -212,23 +212,43 @@ public final class PathSlice extends Slice {
     private PathSlice(final @Nullable Path path, final @Nullable File file, final String pathStr, final Vfs vfs,
             final boolean checkAccess, final boolean memoryMapWholeFile, final boolean isTempFile,
             final @Nullable LogNode log) throws IOException {
-        super(0L, /* isDeflatedZipEntry = */ false, /* inflatedLengthHint = */ 0L, vfs);
+        this(openChannel(path, file, checkAccess), path, file, pathStr, vfs, memoryMapWholeFile, isTempFile, log);
+    }
 
-        this.path = path;
-        this.file = file;
-        this.pathStr = pathStr;
-        this.tempFile = isTempFile ? file : null;
-        this.tempFileLog = isTempFile ? log : null;
-        // Set before the file is opened, since it is what tells close() that this slice owns the file channel
-        this.topLevelPathSlice = this;
+    /**
+     * A file channel that has just been opened, and the length of the file it was opened on.
+     *
+     * @param channel
+     *            the file channel
+     * @param fileLength
+     *            the length of the file
+     */
+    private record OpenedChannel(FileChannel channel, long fileLength) {
+    }
 
-        final FileChannel fileChannelOpened;
+    /**
+     * Open a file channel for a toplevel file slice, and read the length of the file, which the slice's length has
+     * to be set to before anything else in the slice can be.
+     *
+     * @param path
+     *            the path, or null if the file is only reachable through the {@link File} API
+     * @param file
+     *            the file, if the slice is opened from a {@link File}, or null if it is opened from a {@link Path}
+     * @param checkAccess
+     *            if true, check that the path is a readable regular file before opening it
+     * @return the file channel, and the length of the file.
+     * @throws IOException
+     *             if the file cannot be opened, or its length cannot be read, in which case the channel is closed.
+     */
+    private static OpenedChannel openChannel(final @Nullable Path path, final @Nullable File file,
+            final boolean checkAccess) throws IOException {
+        final FileChannel channel;
         if (path != null) {
             if (checkAccess) {
                 // Make sure the file is readable and is a regular file
                 FileUtils.checkCanReadAndIsFile(path);
             }
-            fileChannelOpened = FileChannel.open(path, StandardOpenOption.READ);
+            channel = FileChannel.open(path, StandardOpenOption.READ);
         } else {
             // The file's path cannot be represented as a Path on the default filesystem, so the channel has to be
             // opened through the File API instead. (Closing the channel closes the RandomAccessFile with it, as
@@ -240,18 +260,58 @@ public final class PathSlice extends Slice {
                 // Make sure the file is readable and is a regular file
                 FileUtils.checkCanReadAndIsFile(fileToOpen);
             }
-            fileChannelOpened = new RandomAccessFile(fileToOpen, "r").getChannel();
+            channel = new RandomAccessFile(fileToOpen, "r").getChannel();
         }
+        try {
+            return new OpenedChannel(channel, channel.size());
+        } catch (final IOException | RuntimeException | Error e) {
+            try {
+                channel.close();
+            } catch (final IOException e2) {
+                e.addSuppressed(e2);
+            }
+            throw e;
+        }
+    }
+
+    /**
+     * Constructor for toplevel file slice, given the file channel opened on the file.
+     *
+     * @param openedChannel
+     *            the file channel, which this slice takes ownership of, and the length of the file
+     * @param path
+     *            the path, or null if the file is only reachable through the {@link File} API
+     * @param file
+     *            the file, if this slice is opened from a {@link File}, or null if it is opened from a {@link Path}
+     * @param pathStr
+     *            the path of the file, as it was given, for use in log and exception messages
+     * @param vfs
+     *            the {@link Vfs} that opened this slice
+     * @param memoryMapWholeFile
+     *            if true, and files are memory-mapped on this platform, memory-map the whole file.
+     * @param isTempFile
+     *            if true, the file is a temporary file that this slice owns, and deletes when it is closed.
+     * @param log
+     *            the log node, or null to skip logging
+     */
+    private PathSlice(final OpenedChannel openedChannel, final @Nullable Path path, final @Nullable File file,
+            final String pathStr, final Vfs vfs, final boolean memoryMapWholeFile, final boolean isTempFile,
+            final @Nullable LogNode log) {
+        super(openedChannel.fileLength(), /* isDeflatedZipEntry = */ false, /* inflatedLengthHint = */ 0L, vfs);
+
+        this.path = path;
+        this.file = file;
+        this.pathStr = pathStr;
+        this.fileLength = openedChannel.fileLength();
+        this.tempFile = isTempFile ? file : null;
+        this.tempFileLog = isTempFile ? log : null;
+        // Set before anything below can fail, since it is what tells close() that this slice owns the file channel
+        this.topLevelPathSlice = this;
+        final var fileChannelOpened = openedChannel.channel();
         this.fileChannel = fileChannelOpened;
         // Nothing but this constructor knows about the file channel yet, so if anything below throws, this is the
         // only place the channel -- and the temporary file, if this slice owns one -- can be released
         try {
-            this.fileLength = fileChannelOpened.size();
-
-            // Had to use 0L for sliceLength in call to super, since FileChannel wasn't open yet => update
-            // sliceLength
-            this.sliceLength = fileLength;
-
             if (memoryMapWholeFile && VersionFinder.OS == OperatingSystem.Windows) {
                 // Memory-map the whole file, if it can be mapped -- otherwise fall through and read through the
                 // FileChannel API instead. Mapping is measurably faster on Windows and is not on Linux or macOS,
@@ -263,7 +323,7 @@ public final class PathSlice extends Slice {
                 fileMapping = mapping;
                 backingByteBuffer = mapping == null ? null : mapping.byteBuffer;
             }
-        } catch (final IOException | RuntimeException | Error e) {
+        } catch (final RuntimeException | Error e) {
             close();
             throw e;
         }
@@ -564,9 +624,9 @@ public final class PathSlice extends Slice {
         }
         // Windows refuses to delete a file that is still memory-mapped, so a delete that failed may be waiting on
         // a mapping that could not be unmapped explicitly -- one whose arena would not close, say. Those are left
-        // to the garbage collector, which only runs when it chooses to, so ask for a collection and try again. If the JVM was started with -XX:+DisableExplicitGC
-        // then this is a no-op, and the file is left to the File#deleteOnExit() hook that TempFile#create
-        // registered.
+        // to the garbage collector, which only runs when it chooses to, so ask for a collection and try again. If
+        // the JVM was started with -XX:+DisableExplicitGC then this is a no-op, and the file is left to the
+        // File#deleteOnExit() hook that TempFile#create registered.
         // #939
         OffHeapMemory.freeUnreachableBuffers();
         if (!TempFile.delete(fileToDelete) && tempFileLog != null) {

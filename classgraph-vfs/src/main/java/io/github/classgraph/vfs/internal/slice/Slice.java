@@ -79,7 +79,7 @@ public abstract class Slice implements AutoCloseable {
     public final long sliceStartPos;
 
     /** The length of the slice. Never negative -- the constructor rejects a negative length. */
-    public long sliceLength;
+    public final long sliceLength;
 
     /**
      * If true, the slice is a deflated zip entry, and needs to be inflated to access the content.
