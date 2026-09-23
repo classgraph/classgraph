@@ -462,7 +462,7 @@ public class NestedJarHandler {
     /** The maximum initial buffer size. */
     private static final int MAX_INITIAL_BUFFER_SIZE = 16 * 1024 * 1024;
 
-    /** HTTP(S) timeout, ms. */
+    /** The connect timeout and the read timeout of a URL connection, in milliseconds. */
     private static final int HTTP_TIMEOUT = 5000;
 
     // -------------------------------------------------------------------------------------------------------------
@@ -716,7 +716,7 @@ public class NestedJarHandler {
                 // Wrap Path in PhysicalZipFile and return it
                 return new PhysicalZipFile(path, this, log);
             } catch (final IllegalArgumentException | SecurityException | URISyntaxException e) {
-                throw new IOException("Could not convert URL to URI (" + e + "): " + url, e);
+                throw new IOException("Could not convert URL to a path (" + e + "): " + url, e);
             } catch (final FileSystemNotFoundException e) {
                 // Not a custom filesystem
             }
