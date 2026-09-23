@@ -543,8 +543,8 @@ public class LogicalZipFile extends ZipFileSlice {
         for (var entOff = 0L; entOff + 46 <= cenSize;) {
             final var sig = cenReader.readUnsignedInt(entOff);
             if (sig != 0x02014b50L) {
-                throw new IOException("Invalid central directory signature: 0x" + Integer.toString((int) sig, 16)
-                        + ": " + getPath());
+                throw new IOException(
+                        "Invalid central directory signature: 0x" + Long.toHexString(sig) + ": " + getPath());
             }
             final var filenameLen = cenReader.readUnsignedShort(entOff + 28);
             final var extraFieldLen = cenReader.readUnsignedShort(entOff + 30);
@@ -734,15 +734,19 @@ public class LogicalZipFile extends ZipFileSlice {
      * @param log
      *            the log node, or null to skip logging
      * @throws IOException
-     *             If an I/O exception occurs, or the extra field is of an unknown version, or its entry name is
-     *             malformed.
+     *             If an I/O exception occurs, or the extra field's entry name is malformed.
      */
     private static void readUnicodePathExtraField(final RandomAccessReader cenReader, final long tagOff,
             final int size, final EntryFields entryFields, final @Nullable LogNode log) throws IOException {
         final var version = cenReader.readUnsignedByte(tagOff + 4 + 0);
         if (version != 1) {
-            throw new IOException("Unknown Unicode entry name format " + version + " in extra field: "
-                    + entryFields.entryNameSanitized);
+            // Only version 1 is defined. The entry is still readable under the name in its central directory
+            // record, which is the only name java.util.zip.ZipFile reads, so keep that name rather than rejecting
+            // the whole zipfile
+            if (log != null) {
+                log.log("Ignoring the Unicode entry name of zip entry, since its Unicode path extra field is of "
+                        + "unknown version " + version + ": " + entryFields.entryNameSanitized);
+            }
         } else if (size > 5) {
             // The data area of this extra field is version(1) + nameCRC32(4) + name, so the CRC starts 1 byte into
             // the data area (i.e. 5 bytes after the tag), and the name starts 5 bytes into the data area (i.e. 9
@@ -944,8 +948,8 @@ public class LogicalZipFile extends ZipFileSlice {
         for (var entOff = 0L; entOff + 46 <= cen.cenSize(); entOff += entSize) {
             final var sig = cenReader.readUnsignedInt(entOff);
             if (sig != 0x02014b50L) {
-                throw new IOException("Invalid central directory signature: 0x" + Integer.toString((int) sig, 16)
-                        + ": " + getPath());
+                throw new IOException(
+                        "Invalid central directory signature: 0x" + Long.toHexString(sig) + ": " + getPath());
             }
             final var filenameLen = cenReader.readUnsignedShort(entOff + 28);
             final var extraFieldLen = cenReader.readUnsignedShort(entOff + 30);

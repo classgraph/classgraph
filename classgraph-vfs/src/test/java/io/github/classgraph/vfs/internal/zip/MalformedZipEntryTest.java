@@ -678,13 +678,17 @@ public class MalformedZipEntryTest {
                 .containsExactly("testpkg/name.txt", GOOD_NAME);
     }
 
-    /** Only version 1 of the Unicode path extra field is defined, so any other version cannot be read. */
+    /**
+     * Only version 1 of the Unicode path extra field is defined, so a field of any other version is ignored, and
+     * the entry keeps the name in its central directory record, as it does with java.util.zip.ZipFile, which does
+     * not read this extra field at all.
+     */
     @Test
-    public void aUnicodePathExtraFieldOfAnUnknownVersionIsRejected(@TempDir final File tempDir) throws Exception {
-        final var jarFile = writeZip(tempDir, "unicode-path-version.jar", entry("testpkg/name.txt")
-                .extraField(unicodePathExtraField(2, "testpkg/name.txt", "testpkg/other.txt")));
-        assertThatThrownBy(() -> entryNamesReadBack(jarFile)).rootCause()
-                .hasMessageContaining("Unknown Unicode entry name format 2 in extra field: testpkg/name.txt");
+    public void aUnicodePathExtraFieldOfAnUnknownVersionIsIgnored(@TempDir final File tempDir) throws Exception {
+        assertThat(entryNamesReadBack(writeZip(tempDir, "unicode-path-version.jar",
+                entry("testpkg/name.txt").extraField(
+                        unicodePathExtraField(2, "testpkg/name.txt", "testpkg/other.txt")),
+                entry(GOOD_NAME)))).containsExactly("testpkg/name.txt", GOOD_NAME);
     }
 
     /**
@@ -697,6 +701,17 @@ public class MalformedZipEntryTest {
                 entry("testpkg/bad.txt").cenSignature(0x02014b51L));
         assertThatThrownBy(() -> entryNamesReadBack(jarFile)).rootCause()
                 .hasMessageContaining("Invalid central directory signature");
+    }
+
+    /**
+     * A signature with its top bit set is reported in hex as the unsigned value it is, not as a negative number.
+     */
+    @Test
+    public void aBadSignatureIsReportedAsUnsignedHex(@TempDir final File tempDir) throws Exception {
+        final var jarFile = writeZip(tempDir, "bad-signature-high-bit.jar", entry(GOOD_NAME),
+                entry("testpkg/bad.txt").cenSignature(0x82014b50L));
+        assertThatThrownBy(() -> entryNamesReadBack(jarFile)).rootCause()
+                .hasMessageContaining("Invalid central directory signature: 0x82014b50");
     }
 
     /**
