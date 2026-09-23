@@ -216,6 +216,11 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
                 classRefTypeSignature.setScanResult(scanResult);
             }
         }
+        if (throwsSignatures != null) {
+            for (final ClassRefOrTypeVariableSignature throwsSignature : throwsSignatures) {
+                throwsSignature.setScanResult(scanResult);
+            }
+        }
     }
 
     /**
@@ -272,8 +277,8 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
      */
     @Override
     public int hashCode() {
-        return typeParameters.hashCode() + (superclassSignature == null ? 1 : superclassSignature.hashCode()) * 7
-                + (superinterfaceSignatures == null ? 1 : superinterfaceSignatures.hashCode()) * 15;
+        return Objects.hash(getClassName(), typeParameters, superclassSignature, superinterfaceSignatures,
+                throwsSignatures);
     }
 
     /* (non-Javadoc)
@@ -287,9 +292,11 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
             return false;
         }
         final ClassTypeSignature o = (ClassTypeSignature) obj;
-        return Objects.equals(o.typeParameters, this.typeParameters)
+        return Objects.equals(o.getClassName(), this.getClassName())
+                && Objects.equals(o.typeParameters, this.typeParameters)
                 && Objects.equals(o.superclassSignature, this.superclassSignature)
-                && Objects.equals(o.superinterfaceSignatures, this.superinterfaceSignatures);
+                && Objects.equals(o.superinterfaceSignatures, this.superinterfaceSignatures)
+                && Objects.equals(o.throwsSignatures, this.throwsSignatures);
     }
 
     // -------------------------------------------------------------------------------------------------------------
