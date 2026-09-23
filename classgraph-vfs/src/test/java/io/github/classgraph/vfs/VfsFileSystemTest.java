@@ -19,6 +19,8 @@ import java.nio.ByteBuffer;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.AccessDeniedException;
+import java.nio.file.AccessMode;
 import java.nio.file.ClosedFileSystemException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.FileSystem;
@@ -38,6 +40,7 @@ import java.nio.file.attribute.FileAttribute;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -1582,6 +1585,61 @@ public class VfsFileSystemTest {
             }
         } finally {
             executor.shutdown();
+        }
+    }
+
+    /**
+     * Once a directory stream is closed, an iterator taken from it before the close reports that there is nothing
+     * more to read, as {@link DirectoryStream} requires.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the root could not be read.
+     */
+    @Test
+    public void closingADirectoryStreamEndsItsIterator(@TempDir final Path tempDir) throws IOException {
+        final var jarFile = tempDir.resolve("library.jar").toFile();
+        writeJar(jarFile);
+
+        try (var vfs = new Vfs()) {
+            final var fileSystem = vfs.open(jarFile).asFileSystem();
+            final DirectoryStream<Path> stream = Files.newDirectoryStream(fileSystem.getPath("/"));
+            final var iterator = stream.iterator();
+            assertThat(iterator.hasNext()).isTrue();
+            stream.close();
+            assertThat(iterator.hasNext()).isFalse();
+            assertThatThrownBy(iterator::next).isInstanceOf(NoSuchElementException.class);
+        }
+    }
+
+    /**
+     * A file of a directory root that cannot be read is listed, and exists, but is not readable, as it is through
+     * the default filesystem.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the root could not be read.
+     */
+    @Test
+    public void anUnreadableFileIsNotReadable(@TempDir final Path tempDir) throws IOException {
+        final var readable = tempDir.resolve("readable.txt");
+        final var unreadable = tempDir.resolve("unreadable.txt");
+        Files.writeString(readable, "a");
+        Files.writeString(unreadable, "b");
+        assumeTrue(unreadable.toFile().setReadable(false) && !Files.isReadable(unreadable),
+                "Files cannot be made unreadable here");
+
+        try (var vfs = new Vfs()) {
+            final var fileSystem = vfs.open(tempDir).asFileSystem();
+            assertThat(Files.isReadable(fileSystem.getPath("/readable.txt"))).isTrue();
+            final var unreadablePath = fileSystem.getPath("/unreadable.txt");
+            assertThat(Files.exists(unreadablePath)).isTrue();
+            assertThat(Files.isReadable(unreadablePath)).isFalse();
+            assertThatThrownBy(
+                    () -> unreadablePath.getFileSystem().provider().checkAccess(unreadablePath, AccessMode.READ))
+                    .isInstanceOf(AccessDeniedException.class);
         }
     }
 

@@ -74,6 +74,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -722,14 +723,18 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
 
     /**
      * A {@link DirectoryStream} over a list of child paths that was built up front, so nothing is held open. It
-     * hands out its iterator once, as {@link DirectoryStream#iterator()} requires.
+     * hands out its iterator once, as {@link DirectoryStream#iterator()} requires, and that iterator reports the
+     * end of the directory once the stream is closed.
      */
     private static final class VfsDirectoryStream implements DirectoryStream<Path> {
         /** The children of the directory. */
         private final List<Path> children;
 
-        /** Whether {@link #iterator()} has been called, or this stream has been closed. */
-        private final AtomicBoolean spent = new AtomicBoolean();
+        /** Whether {@link #iterator()} has been called. */
+        private final AtomicBoolean iteratorReturned = new AtomicBoolean();
+
+        /** Whether this stream has been closed. */
+        private volatile boolean closed;
 
         /**
          * Constructor.
@@ -743,7 +748,7 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
 
         @Override
         public Iterator<Path> iterator() {
-            if (!spent.compareAndSet(false, true)) {
+            if (closed || !iteratorReturned.compareAndSet(false, true)) {
                 throw new IllegalStateException("The iterator has already been returned, or the stream was closed");
             }
             // DirectoryStream requires its iterator to be thread-safe. The entries are an immutable snapshot, and
@@ -753,14 +758,16 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
 
                 @Override
                 public boolean hasNext() {
-                    return cursor.get() < children.size();
+                    // A closed stream reads as if the end of the directory had been reached, as DirectoryStream
+                    // requires
+                    return !closed && cursor.get() < children.size();
                 }
 
                 @Override
                 public Path next() {
-                    final int index = cursor.getAndIncrement();
+                    final int index = closed ? children.size() : cursor.getAndIncrement();
                     if (index >= children.size()) {
-                        throw new java.util.NoSuchElementException();
+                        throw new NoSuchElementException();
                     }
                     return children.get(index);
                 }
@@ -769,7 +776,7 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
 
         @Override
         public void close() {
-            spent.set(true);
+            closed = true;
         }
     }
 
@@ -836,8 +843,18 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
                         "A virtual filesystem is read-only and holds no executable files");
             }
         }
-        if (!vfsPath.vfsFileSystem().exists(vfsPath.entryName())) {
-            throw new NoSuchFileException(path.toString());
+        final var fileSystem = vfsPath.vfsFileSystem();
+        final var name = vfsPath.entryName();
+        final var entry = fileSystem.entry(name);
+        if (entry == null) {
+            if (!fileSystem.isDirectory(name)) {
+                throw new NoSuchFileException(path.toString());
+            }
+        } else if (modes.length > 0 && !entry.isReadable()) {
+            // A file of a directory root is listed whether or not it can be read, so it exists, but it is not
+            // readable, just as it is not through the default filesystem. Asked for no mode, this checks only that
+            // the file exists
+            throw new AccessDeniedException(path.toString());
         }
     }
 
