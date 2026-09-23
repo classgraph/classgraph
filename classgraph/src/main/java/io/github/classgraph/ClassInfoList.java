@@ -317,7 +317,7 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
      * Filter this {@link ClassInfoList} to include only interfaces and annotations (annotations are interfaces, and
      * can be implemented). See also {@link #getInterfaces()}.
      *
-     * @return The filtered list, containing only interfaces.
+     * @return The filtered list, containing only interfaces and annotations.
      */
     public ClassInfoList getInterfacesAndAnnotations() {
         return filter(ClassInfo::isInterfaceOrAnnotation);
@@ -361,22 +361,27 @@ public class ClassInfoList extends MappableInfoList<ClassInfo> {
     }
 
     /**
-     * Filter this {@link ClassInfoList} to include only classes that are assignable to the requested class,
-     * assignableToClass (i.e. where assignableToClass is a superclass or implemented interface of the list
-     * element).
+     * Filter this {@link ClassInfoList} to include only classes that are assignable to the requested class or
+     * interface (i.e. where the requested class or interface is the list element itself, or a superclass or
+     * implemented interface of it).
      *
      * @param superclassOrInterface
      *            the superclass or interface to filter for.
-     * @return The filtered list, containing only classes for which
-     *         {@code assignableToClassRef.isAssignableFrom(listItemClassRef)} is true for the corresponding
-     *         {@code Class<?>} references for assignableToClass and the list items. Returns the empty list if no
-     *         classes were assignable to the requested class.
+     * @return The filtered list, containing only the list elements for which
+     *         {@code superclassOrInterfaceRef.isAssignableFrom(elementRef)} would be true, where the two arguments
+     *         are the {@code Class<?>} references for superclassOrInterface and the list element. Returns the empty
+     *         list if no classes were assignable to the requested class or interface.
      * @throws NullPointerException
      *             if superclassOrInterface is null.
      */
     public ClassInfoList getAssignableTo(final ClassInfo superclassOrInterface) {
         Assert.notNull(superclassOrInterface, "superclassOrInterface");
-        // Get subclasses and implementing classes for assignableFromClass
+        if ("java.lang.Object".equals(superclassOrInterface.getName())) {
+            // Everything is assignable to Object, including interfaces and annotations, which
+            // getAllSubclasses() does not return
+            return this;
+        }
+        // Get the subclasses or implementing classes of the requested class or interface
         final Set<ClassInfo> allAssignableFromClasses = new HashSet<>();
         if (superclassOrInterface.isStandardClass()) {
             allAssignableFromClasses.addAll(superclassOrInterface.getAllSubclasses());

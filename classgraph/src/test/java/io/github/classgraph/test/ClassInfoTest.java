@@ -78,6 +78,15 @@ public class ClassInfoTest {
         assertThat(allClasses.getAssignableTo("com.xyz.NonExistentClass")).isEmpty();
     }
 
+    /** Every class, interface and annotation is assignable to Object, as Class.isAssignableFrom reports. */
+    @Test
+    public void everythingIsAssignableToObject() {
+        final var allClasses = scanResult.getAllClasses();
+        assertThat(Object.class.isAssignableFrom(Iface.class)).isTrue();
+        assertThat(allClasses.getAssignableTo(Object.class).getNames()).isEqualTo(allClasses.getNames())
+                .contains(Iface.class.getName(), IfaceSub.class.getName());
+    }
+
     /**
      * Stream has super interface direct.
      */
