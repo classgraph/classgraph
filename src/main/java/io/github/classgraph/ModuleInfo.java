@@ -336,10 +336,11 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
         }
         final URI thisLoc = this.getLocation();
         final URI otherLoc = other.getLocation();
-        if (thisLoc != null && otherLoc != null) {
-            return thisLoc.compareTo(otherLoc);
+        // A module with no known location sorts before one with a location, so that the order is transitive
+        if (thisLoc == null || otherLoc == null) {
+            return thisLoc == null ? (otherLoc == null ? 0 : -1) : 1;
         }
-        return 0;
+        return thisLoc.compareTo(otherLoc);
     }
 
     /* (non-Javadoc)
