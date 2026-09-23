@@ -44,6 +44,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
@@ -1667,6 +1668,11 @@ public class ClassGraph {
      * a lock that the classloader also acquires, the scan can never complete (#933) -- use
      * {@link #scan(ExecutorService, int)}, which runs the scanner on the calling thread, if that is a possibility.
      *
+     * <p>
+     * Any failure of the scan, including an exception thrown by a classpath element filter, is reported by
+     * {@link Future#get()}. If the {@link Future} is canceled while the scan is running, the {@link ScanResult} is
+     * closed once the scan finishes, since it can no longer be handed to the caller.
+     *
      * @param executorService
      *            A custom {@link ExecutorService} to use for scheduling worker tasks.
      * @param numParallelTasks
@@ -1676,28 +1682,33 @@ public class ClassGraph {
      *         representing the result of the scan.
      */
     public Future<ScanResult> scanAsync(final ExecutorService executorService, final int numParallelTasks) {
-        try {
-            // Read the call stack and the context classloader on the calling thread, since it is the caller's
-            // classloaders and module layers that are to be searched, not those of the thread that the scan
-            // happens to run on
-            return executorService.submit(new Scanner(/* performScan = */ true,
-                    CallStackInfo.read(reflectionUtils, topLevelLog), scanSpec, executorService, numParallelTasks,
-                    workerTimeoutNanos, /* scanResultProcessor = */ null, /* failureHandler = */ null,
-                    reflectionUtils, topLevelLog));
-        } catch (final InterruptedException e) {
-            // Interrupted during the Scanner constructor's execution (specifically, by getModuleOrder(),
-            // which is unlikely to ever actually be interrupted -- but this exception needs to be caught).
-            // The constructor runs on this thread, so restore this thread's interrupt status, which was cleared
-            // by the throw -- otherwise the caller's cancellation is lost, and get() on the returned Future
-            // reports the scan as having failed rather than as having been interrupted.
-            Thread.currentThread().interrupt();
-            return executorService.submit(new Callable<ScanResult>() {
-                @Override
-                public ScanResult call() throws Exception {
-                    throw e;
+        // Read the call stack and the context classloader on the calling thread, since it is the caller's
+        // classloaders and module layers that are to be searched, not those of the thread that the scan
+        // happens to run on
+        final CallStackInfo callStackInfo = CallStackInfo.read(reflectionUtils, topLevelLog);
+        // The Scanner is built when the task runs, not here, since building it opens jarfiles and modules, and
+        // only running the Scanner closes them again -- a task that is canceled or rejected before it runs never
+        // does
+        final FutureTask<ScanResult> task = new FutureTask<ScanResult>(new Callable<ScanResult>() {
+            @Override
+            public ScanResult call() throws Exception {
+                return new Scanner(/* performScan = */ true, callStackInfo, scanSpec, executorService,
+                        numParallelTasks, workerTimeoutNanos, /* scanResultProcessor = */ null,
+                        /* failureHandler = */ null, reflectionUtils, topLevelLog).call();
+            }
+        }) {
+            @Override
+            protected void set(final ScanResult scanResult) {
+                super.set(scanResult);
+                if (isCancelled() && scanResult != null) {
+                    // The future was canceled while the scan was running, so the ScanResult is dropped rather
+                    // than handed to the caller, and nothing else could close it
+                    scanResult.close();
                 }
-            });
-        }
+            }
+        };
+        executorService.execute(task);
+        return task;
     }
 
     /**

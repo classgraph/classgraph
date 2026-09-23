@@ -528,7 +528,9 @@ public class NestedJarHandler {
     private static final int MAX_TEMP_FILENAME_BASE_LENGTH = 64;
 
     /**
-     * Create a temporary file, and mark it for deletion on exit.
+     * Create a temporary file, which {@link #close(LogNode)} deletes. {@link File#deleteOnExit()} is not used: the
+     * JDK keeps every path passed to it until the JVM exits, even after the file has been deleted, so a
+     * long-running JVM that scans repeatedly would accumulate them without limit.
      *
      * <p>
      * The file is named after {@code filePathBase}, or its leafname, with any character that is not valid in a
@@ -554,7 +556,6 @@ public class NestedJarHandler {
             filenameBase = filenameBase.substring(startIdx);
         }
         final File tempFile = File.createTempFile(TEMP_FILENAME_PREFIX, TEMP_FILENAME_LEAF_SEPARATOR + filenameBase);
-        tempFile.deleteOnExit();
         tempFiles.add(tempFile);
         return tempFile;
     }
@@ -1346,7 +1347,7 @@ public class NestedJarHandler {
                     // on Windows, but that request is skipped on every other operating system, and whenever every
                     // file was unmapped explicitly, where a delete can still fail for an unrelated reason.) If
                     // the JVM was started with -XX:+DisableExplicitGC then this is a no-op, and the file is left
-                    // to the File#deleteOnExit() hook that makeTempFile registered.
+                    // behind, and logged.
                     FileUtils.freeUnreachableBuffers();
                     for (final File tempFile : undeleted) {
                         final FileSlice sliceAwaitingUnmapping = slicesAwaitingUnmapping.get(tempFile);
@@ -1356,10 +1357,9 @@ public class NestedJarHandler {
                             // The file is still mapped, which on Windows is why it cannot be deleted, and the
                             // collection asked for above cannot unmap it while the caller can still read a
                             // buffer of it -- so delete it once the last view of the mapping is released, which
-                            // is when the file is finally unmapped. Waiting is what deletes the file at all: a
-                            // file left to the File#deleteOnExit() hook that makeTempFile registered stays on
-                            // disk for the rest of the life of the JVM. (If the file has been unmapped in the
-                            // meantime, this deletes it right away.)
+                            // is when the file is finally unmapped. Waiting is what deletes the file at all:
+                            // nothing else would delete it. (If the file has been unmapped in the meantime, this
+                            // deletes it right away.)
                             sliceAwaitingUnmapping.runWhenUnmapped(new Runnable() {
                                 @Override
                                 public void run() {

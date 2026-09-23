@@ -1803,10 +1803,9 @@ public final class ScanResult implements Closeable {
 
     /**
      * Close this {@link ScanResult}, releasing the memory it holds, closing any open jarfiles, and deleting any
-     * temporary files created by extracting jars from within jars. Temporary files that are still present when the
-     * JVM exits are deleted then, via {@link java.io.File#deleteOnExit()}, but open jarfiles and memory-mapped
-     * buffers are only released by this method -- so a program that scans repeatedly without closing its
-     * {@link ScanResult}s will hold those resources until it exits.
+     * temporary files that jars were extracted or downloaded to. Nothing else releases these, so a program that
+     * scans without closing its {@link ScanResult}s holds the open jarfiles and memory-mapped buffers until it
+     * exits, and leaves the temporary files behind after it exits.
      */
     @Override
     public void close() {
