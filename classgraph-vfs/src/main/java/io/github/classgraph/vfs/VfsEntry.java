@@ -227,6 +227,12 @@ public abstract class VfsEntry {
     /**
      * Returns the time this entry was last modified, in milliseconds since the epoch.
      *
+     * <p>
+     * The MS-DOS timestamp of a zip entry is a local date and time, and does not record which time zone it is in.
+     * It is read as UTC, so if the zipfile was written in another time zone, the time returned is off by that time
+     * zone's offset. (java.util.zip.ZipFile reads it instead in the default time zone of the JVM.) An entry that
+     * also has an extended timestamp extra field, which is in UTC, gets its time from that field.
+     *
      * @return the last modified time in milliseconds since the epoch, or 0 if the root does not record it, which is
      *         the case for a module resource.
      */
