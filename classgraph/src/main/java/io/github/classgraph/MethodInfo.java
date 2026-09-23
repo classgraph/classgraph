@@ -191,7 +191,7 @@ public final class MethodInfo extends ClassMemberInfo implements Comparable<Meth
                         // Type annotations index formal parameters starting from the first parameter that was
                         // declared in source code. However, the method type descriptor may begin with extra
                         // implicit (compiler-synthesized) parameters that formal_parameter_index does not count --
-                        // e.g. the leading enclosing-instance parameter of a non-static inner class constructor, or
+                        // e.g. the leading enclosing-instance parameter of an inner class constructor, or
                         // the leading (String name, int ordinal) parameters of an enum constructor. Determine how
                         // many such implicit prefix parameters there are, strip them from the descriptor while
                         // running the decorators so that formal_parameter_index lines up, then restore them. See
@@ -207,7 +207,7 @@ public final class MethodInfo extends ClassMemberInfo implements Comparable<Meth
                         } else {
                             // There is no generic type signature (e.g. a non-generic inner-class or enum
                             // constructor), so determine the number of implicit prefix params structurally.
-                            numImplicitPrefixParams = getNumImplicitPrefixParams();
+                            numImplicitPrefixParams = getNumImplicitPrefixParams(typeDescriptor);
                         }
                         // Clamp to a sane range, in case of a compiler bug or a malformed classfile
                         if (numImplicitPrefixParams < 0) {
@@ -228,27 +228,39 @@ public final class MethodInfo extends ClassMemberInfo implements Comparable<Meth
     /**
      * Determine the number of implicit (compiler-synthesized) parameters at the start of this method's parameter
      * list that are not counted by the {@code formal_parameter_index} of type annotations. This is used only when
-     * there is no generic type signature to compare the descriptor against. Currently handles the two standard Java
-     * cases: the leading enclosing-instance parameter of a non-static inner class constructor, and the leading
-     * {@code (String name, int ordinal)} parameters of an enum constructor. (Local and anonymous classes may add a
-     * varying number of synthetic params, and are deliberately not special-cased here. If the count is wrong for
-     * one of them, a parameter type annotation whose index falls past the last parameter is dropped, one whose type
-     * path does not fit the parameter's type is skipped by {@link #decorateMethodType}, and any other is attached
-     * to the wrong parameter.)
+     * there is no generic type signature to compare the descriptor against. Handles the two cases javac produces:
+     * the leading enclosing-instance parameter of an inner class constructor, and the leading
+     * {@code (String name, int ordinal)} parameters of an enum constructor. (The variables that a local or
+     * anonymous class captures are passed as trailing parameters, so they do not affect the count. If the count is
+     * wrong, as it is for a local class declared in a static context whose first declared parameter has the type of
+     * the class it is nested in, a parameter type annotation whose index falls past the last parameter is dropped,
+     * one whose type path does not fit the parameter's type is skipped by {@link #decorateMethodType}, and any
+     * other is attached to the wrong parameter.)
      *
+     * @param descriptor
+     *            the method type descriptor
      * @return the number of implicit prefix parameters (0 if none, or if it cannot be determined).
      */
     // #897
-    private int getNumImplicitPrefixParams() {
+    private int getNumImplicitPrefixParams(final MethodTypeSignature descriptor) {
         if ("<init>".equals(name)) {
             final var declaringClassInfo = getClassInfo();
             if (declaringClassInfo != null) {
                 if (declaringClassInfo.isEnum()) {
                     // enum constructors have two leading synthetic params: (String name, int ordinal)
                     return 2;
-                } else if (declaringClassInfo.isInnerClass() && !declaringClassInfo.isStatic()) {
-                    // Non-static inner class constructors have a leading enclosing-instance parameter
-                    return 1;
+                } else if (declaringClassInfo.isNestedClass() && !declaringClassInfo.isStatic()) {
+                    // The constructor of an inner class takes its enclosing instance as a leading parameter, typed
+                    // as the class the inner class is nested in directly -- unless the class is a local or anonymous
+                    // class declared in a static context, which has no enclosing instance. The classfile of a local
+                    // class does not say whether that context is static, so the parameter type is checked instead.
+                    final var paramTypes = descriptor.getParameterTypeSignatures();
+                    if (!paramTypes.isEmpty()
+                            && paramTypes.get(0) instanceof final ClassRefTypeSignature firstParamType
+                            && declaringClassInfo.enclosingClassesIncludingExternal().directOnly()
+                                    .containsName(firstParamType.getFullyQualifiedClassName())) {
+                        return 1;
+                    }
                 }
             }
         }
@@ -684,7 +696,7 @@ public final class MethodInfo extends ClassMemberInfo implements Comparable<Meth
         }
         // The variadic parameter is declared as an array, and is the last array parameter that is not synthetic or
         // mandated -- the Java compiler can tack on parameters *after* the variadic parameter, for variable capture
-        // with anonymous inner classes (see #260)
+        // by local and anonymous classes (see #260)
         final var allParamInfo = getParameterInfo();
         for (var i = allParamInfo.size() - 1; i >= 0; --i) {
             final var paramInfo = allParamInfo.get(i);

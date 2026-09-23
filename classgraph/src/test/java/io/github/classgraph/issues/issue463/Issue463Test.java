@@ -122,17 +122,17 @@ public class Issue463Test {
     }
 
     /**
-     * The outer classes of an accepted class, and the annotations on its fields, are external classes too if they
-     * were not accepted, so they are reported only if {@link ClassGraph#enableExternalClasses()} was called.
+     * The enclosing classes of an accepted class, and the annotations on its fields, are external classes too if
+     * they were not accepted, so they are reported only if {@link ClassGraph#enableExternalClasses()} was called.
      */
     @Test
-    public void outerClassesAndFieldAnnotationsHonourExternalClasses() {
+    public void enclosingClassesAndFieldAnnotationsHonorExternalClasses() {
         try (var scanResult = new ClassGraph().enableClasspath().acceptClasses(Leaf.class.getName())
                 .enableClassInfo().enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
                 .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
                 .ignoreMethodVisibility().scan()) {
             final var leaf = scanResult.getClassInfo(Leaf.class.getName());
-            assertThat(leaf.getOuterClasses().getNames()).isEmpty();
+            assertThat(leaf.getEnclosingClasses().getNames()).isEmpty();
             assertThat(leaf.getFieldAnnotations().getNames()).isEmpty();
         }
         try (var scanResult = new ClassGraph().enableClasspath().acceptClasses(Leaf.class.getName())
@@ -140,7 +140,7 @@ public class Issue463Test {
                 .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
                 .ignoreMethodVisibility().enableExternalClasses().scan()) {
             final var leaf = scanResult.getClassInfo(Leaf.class.getName());
-            assertThat(leaf.getOuterClasses().getNames()).containsOnly(Issue463Test.class.getName());
+            assertThat(leaf.getEnclosingClasses().getNames()).containsOnly(Issue463Test.class.getName());
             assertThat(leaf.getFieldAnnotations().getNames()).contains(FieldAnn.class.getName());
         }
     }

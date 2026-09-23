@@ -65,10 +65,10 @@ public class Issue148Test {
                 .ignoreMethodVisibility().scan()) {
             for (final ClassInfo ci : scanResult.getAllClasses()) {
                 buf.append(ci.getName()).append("|");
-                buf.append(ci.isInnerClass()).append(" ").append(ci.isAnonymousClass()).append(" ")
-                        .append(ci.isOuterClass()).append("|");
-                buf.append(ci.getInnerClasses().getNames()).append("|");
-                buf.append(ci.getOuterClasses().getNames()).append("|");
+                buf.append(ci.isNestedClass()).append(" ").append(ci.isAnonymousClass()).append(" ")
+                        .append(ci.hasNestedClasses()).append("|");
+                buf.append(ci.getNestedClasses().getNames()).append("|");
+                buf.append(ci.getEnclosingClasses().getNames()).append("|");
                 buf.append(ci.getFullyQualifiedDefiningMethodName()).append("\n");
             }
         }

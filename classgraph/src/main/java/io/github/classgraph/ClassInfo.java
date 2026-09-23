@@ -303,13 +303,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         /** Subclasses of this class, if this is a regular class. */
         SUBCLASSES,
 
-        /** Indicates that an inner class is contained within this one. */
-        CONTAINS_INNER_CLASS,
+        /** The classes nested directly in this one. */
+        NESTED_CLASSES,
 
-        /**
-         * Indicates that an outer class contains this one. (Should only have zero or one entries.)
-         */
-        CONTAINED_WITHIN_OUTER_CLASS,
+        /** The class this one is nested directly in. (Should only have zero or one entries.) */
+        ENCLOSING_CLASSES,
 
         // Interfaces:
 
@@ -533,18 +531,18 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     private static final int ACCESS_LEVEL_MODIFIERS = Modifier.PUBLIC | Modifier.PRIVATE | Modifier.PROTECTED;
 
     /**
-     * Set the modifiers of a nested class from the {@code InnerClasses} attribute of its enclosing class.
+     * Set the modifiers of a nested class from its entry in an {@code InnerClasses} attribute. (javac writes the
+     * entry into the classfile of the nested class and into that of its enclosing class.)
      *
      * <p>
      * For a nested class, the {@code access_flags} field in the class's own classfile cannot express the
      * source-level access level: the JVM requires a nested class to be reachable from its enclosing class, so javac
      * emits {@code ACC_PUBLIC} (or package-private) there, and records the real access level only in the
-     * {@code InnerClasses} attribute of the enclosing class. The {@code InnerClasses} bits are therefore
-     * authoritative for the access level, so they replace the access level bits read from the classfile rather than
-     * being OR'd into them -- OR-ing left a {@code protected} nested class with both {@code ACC_PUBLIC} and
-     * {@code ACC_PROTECTED} set, so that both {@link #isPublic()} and {@link #isProtected()} returned true. The
-     * remaining bits (e.g. {@code ACC_STATIC}, which only appears in the {@code InnerClasses} attribute) are OR'd
-     * in as before.
+     * {@code InnerClasses} entry. The {@code InnerClasses} bits are therefore authoritative for the access level,
+     * so they replace the access level bits read from the classfile rather than being OR'd into them -- OR-ing left
+     * a {@code protected} nested class with both {@code ACC_PUBLIC} and {@code ACC_PROTECTED} set, so that both
+     * {@link #isPublic()} and {@link #isProtected()} returned true. The remaining bits (e.g. {@code ACC_STATIC},
+     * which only appears in the {@code InnerClasses} entry) are OR'd in.
      *
      * @param innerClassModifierBits
      *            the modifier bits from the {@code InnerClasses} attribute entry for this class
@@ -660,8 +658,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             innerClassInfo.setNestedClassModifiers(classContainment.innerClassModifierBits());
             final var outerClassInfo = ClassInfo.getOrCreateClassInfo(classContainment.outerClassName(),
                     classNameToClassInfo);
-            innerClassInfo.addRelatedClass(RelType.CONTAINED_WITHIN_OUTER_CLASS, outerClassInfo);
-            outerClassInfo.addRelatedClass(RelType.CONTAINS_INNER_CLASS, innerClassInfo);
+            innerClassInfo.addRelatedClass(RelType.ENCLOSING_CLASSES, outerClassInfo);
+            outerClassInfo.addRelatedClass(RelType.NESTED_CLASSES, innerClassInfo);
         }
     }
 
@@ -1595,23 +1593,40 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Checks if this class is an inner class.
+     * Checks if this class is a nested class, i.e. is declared inside another class, whether as a member class
+     * ({@link #isMemberClass()}), a local class ({@link #isLocalClass()}) or an anonymous class
+     * ({@link #isAnonymousClass()}). This is true when {@link Class#getEnclosingClass()} would return a class.
      *
-     * @return true if this is an inner class (call {@link #isAnonymousClass()} to test if this is an anonymous
-     *         class). If true, the containing class can be determined by calling {@link #getOuterClasses()}.
+     * <p>
+     * The Java Language Specification calls a nested class that is not static an inner class, so an inner class is
+     * one for which {@code isNestedClass() && !isStatic()} is true. Only an inner class has an enclosing instance,
+     * unless it is a local or anonymous class declared in a static method or a static initializer.
+     *
+     * @return true if this is a nested class. If true, the classes it is nested in are returned by
+     *         {@link #getEnclosingClasses()}.
      */
-    public boolean isInnerClass() {
-        return !outerClassesIncludingExternal().isEmpty();
+    public boolean isNestedClass() {
+        return !enclosingClassesIncludingExternal().isEmpty();
     }
 
     /**
-     * Checks if this class is an outer class.
+     * Checks if this class is a member class, i.e. a nested class declared directly in the body of another class,
+     * rather than in a method, constructor or initializer. A member class may be static or not
+     * ({@link #isStatic()}). This matches {@link Class#isMemberClass()}.
      *
-     * @return true if this class contains inner classes. If true, the inner classes can be determined by calling
-     *         {@link #getInnerClasses()}.
+     * @return true if this is a member class.
      */
-    public boolean isOuterClass() {
-        return !innerClassesIncludingExternal().isEmpty();
+    public boolean isMemberClass() {
+        return !isLocalClass && !isAnonymousClass && isNestedClass();
+    }
+
+    /**
+     * Checks if this class has any nested classes, including local and anonymous classes.
+     *
+     * @return true if this class has nested classes. If true, they are returned by {@link #getNestedClasses()}.
+     */
+    public boolean hasNestedClasses() {
+        return !nestedClassesIncludingExternal().isEmpty();
     }
 
     /**
@@ -2219,58 +2234,59 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get the containing outer classes, if this is an inner class.
+     * Get the classes that this class is nested in, if this is a nested class.
      *
-     * @return A list of the containing outer classes, if this is an inner class, otherwise the empty list. Note
-     *         that all containing outer classes are returned, not just the innermost of the containing outer
-     *         classes.
+     * @return The classes that this class is nested in, from innermost to outermost, or the empty list if this is
+     *         not a nested class. Every enclosing class is returned, not just the innermost one, which
+     *         {@link ClassInfoList#directOnly()} selects.
      */
-    public ClassInfoList getOuterClasses() {
-        return excludeExternalClasses(outerClassesIncludingExternal());
+    public ClassInfoList getEnclosingClasses() {
+        return excludeExternalClasses(enclosingClassesIncludingExternal());
     }
 
     /**
-     * Get the containing outer classes, if this is an inner class, including the external outer classes, i.e. the
-     * outer classes that were read only in order to complete the class graph above this class.
+     * Get the classes that this class is nested in, including the external ones, i.e. the ones that were read only
+     * in order to complete the class graph above this class.
      *
-     * @return A list of the containing outer classes, if this is an inner class, otherwise the empty list.
+     * @return The classes that this class is nested in, or the empty list if this is not a nested class.
      */
-    ClassInfoList outerClassesIncludingExternal() {
+    ClassInfoList enclosingClassesIncludingExternal() {
         return new ClassInfoList(
-                this.filterClassInfo(RelType.CONTAINED_WITHIN_OUTER_CLASS, /* excludeExternalClasses = */ false),
+                this.filterClassInfo(RelType.ENCLOSING_CLASSES, /* excludeExternalClasses = */ false),
                 /* sortByName = */ false);
     }
 
     /**
-     * Get the inner classes contained within this class, if this is an outer class.
+     * Get the classes nested in this class, including local and anonymous classes (which
+     * {@link Class#getDeclaredClasses()} leaves out), and the classes nested in those.
      *
-     * @return A list of the inner classes contained within this class, or the empty list if none.
+     * @return The classes nested in this class, at any depth, or the empty list if there are none. The classes
+     *         declared directly in this class are selected by {@link ClassInfoList#directOnly()}.
      */
-    public ClassInfoList getInnerClasses() {
-        return excludeExternalClasses(innerClassesIncludingExternal());
+    public ClassInfoList getNestedClasses() {
+        return excludeExternalClasses(nestedClassesIncludingExternal());
     }
 
     /**
-     * Get the inner classes contained within this class, if this is an outer class, including the external inner
-     * classes, i.e. the inner classes that were read only in order to complete the class graph.
+     * Get the classes nested in this class, including the external ones, i.e. the ones that were read only in order
+     * to complete the class graph.
      *
-     * @return A list of the inner classes contained within this class, or the empty list if none.
+     * @return The classes nested in this class, or the empty list if there are none.
      */
-    ClassInfoList innerClassesIncludingExternal() {
-        return new ClassInfoList(
-                this.filterClassInfo(RelType.CONTAINS_INNER_CLASS, /* excludeExternalClasses = */ false),
+    ClassInfoList nestedClassesIncludingExternal() {
+        return new ClassInfoList(this.filterClassInfo(RelType.NESTED_CLASSES, /* excludeExternalClasses = */ false),
                 /* sortByName = */ true);
     }
 
     /**
-     * Gets the fully-qualified name of the method or constructor that this anonymous inner class or local class is
+     * Gets the fully-qualified name of the method or constructor that this anonymous class or local class is
      * declared in, i.e. the fully qualified class name, followed by a dot, followed by the method name (which is
      * {@code "<init>"} for a constructor).
      *
      * @return The fully-qualified name of the method or constructor this class is declared in, or null if this is
-     *         not an anonymous inner class or a local class, or if it is declared in an initializer (a static or
-     *         instance initializer block, or a field initializer) rather than in a method or constructor. (The
-     *         classfile does not say which initializer the class is declared in.)
+     *         not an anonymous class or a local class, or if it is declared in an initializer (a static or instance
+     *         initializer block, or a field initializer) rather than in a method or constructor. (The classfile
+     *         does not say which initializer the class is declared in.)
      */
     public @Nullable String getFullyQualifiedDefiningMethodName() {
         return fullyQualifiedDefiningMethodName;

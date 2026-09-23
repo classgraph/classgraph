@@ -74,7 +74,7 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
      * @param typeArguments
      *            The class type arguments.
      * @param suffixes
-     *            The class suffixes (for inner classes)
+     *            The class suffixes (for nested classes)
      * @param suffixTypeArguments
      *            The suffix type arguments.
      */
@@ -100,8 +100,8 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
     }
 
     /**
-     * Get the name of the class, formed from the base name and any suffixes (suffixes are for inner class nesting,
-     * and are separated by '$'), but without any type arguments. For example,
+     * Get the name of the class, formed from the base name and any suffixes (suffixes are for nested classes, and
+     * are separated by '$'), but without any type arguments. For example,
      * {@code "xyz.Cls<String>.InnerCls<Integer>"} is returned as {@code "xyz.Cls$InnerCls"}. The intent of this
      * method is that if you replace '.' with '/', and then add the suffix ".class", you end up with the path of the
      * classfile relative to the package root.
@@ -136,9 +136,9 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
     }
 
     /**
-     * Get all nested suffixes of the class (typically nested inner class names).
+     * Get the suffixes of the class, which are the simple names of nested classes.
      *
-     * @return The class suffixes (for inner classes), or the empty list if none.
+     * @return The class suffixes (for nested classes), or the empty list if none.
      */
     public List<String> getSuffixes() {
         return Collections.unmodifiableList(suffixes);
@@ -147,8 +147,8 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
     /**
      * Get a list of type arguments for all nested suffixes of the class, one list per suffix.
      *
-     * @return The list of type arguments for the suffixes (nested inner classes), one list per suffix, or the empty
-     *         list if none.
+     * @return The list of type arguments for the suffixes (nested classes), one list per suffix, or the empty list
+     *         if none.
      */
     public List<List<TypeArgument>> getSuffixTypeArguments() {
         final List<List<TypeArgument>> unmodifiableSuffixTypeArguments = new ArrayList<>(
@@ -184,8 +184,8 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
     /**
      * Get a list of lists of type annotations for all nested suffixes of the class, one list per suffix.
      *
-     * @return The list of lists of type annotations for the suffixes (nested inner classes), one list per suffix,
-     *         or null if none.
+     * @return The list of lists of type annotations for the suffixes (nested classes), one list per suffix, or null
+     *         if none.
      */
     public @Nullable List<AnnotationInfoList> getSuffixTypeAnnotationInfo() {
         synchronized (this) {
@@ -206,7 +206,7 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
     }
 
     /**
-     * Add a type annotation to one of the suffixes (nested inner classes) of this class reference, allocating the
+     * Add a type annotation to one of the suffixes (nested classes) of this class reference, allocating the
      * per-suffix annotation lists if this is the first such annotation.
      *
      * @param suffixIdx
@@ -266,7 +266,7 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
                         || outerClassInfo.isInterfaceOrAnnotation() //
                         || innerClassInfo.isInterfaceOrAnnotation() //
                         || innerClassInfo.isStatic() //
-                        || !outerClassInfo.innerClassesIncludingExternal().contains(innerClassInfo);
+                        || !outerClassInfo.nestedClassesIncludingExternal().contains(innerClassInfo);
             }
             if (!skipSuffix) {
                 // Found nested classes
@@ -362,8 +362,8 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
     }
 
     /**
-     * Test whether two class references have the same nested inner class suffixes, with the same suffix type
-     * arguments and suffix type annotations.
+     * Test whether two class references have the same nested class suffixes, with the same suffix type arguments
+     * and suffix type annotations.
      *
      * @param a
      *            the first class reference

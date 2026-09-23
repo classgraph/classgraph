@@ -61,7 +61,7 @@ public class Issue223Test {
             final var innerClasses = scanResult.getAllClasses().filter(new Predicate<ClassInfo>() {
                 @Override
                 public boolean test(final ClassInfo ci) {
-                    return ci.isInnerClass();
+                    return ci.isNestedClass();
                 }
             });
             assertThat(innerClasses.size()).isEqualTo(2);

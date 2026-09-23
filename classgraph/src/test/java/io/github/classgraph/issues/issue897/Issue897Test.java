@@ -59,6 +59,39 @@ public class Issue897Test {
     }
 
     /**
+     * Declare a local class in a static method, which has no enclosing instance.
+     *
+     * @return the local class.
+     */
+    private static Class<?> localClassInStaticMethod() {
+        class LocalInStatic {
+            @SuppressWarnings("unused")
+            LocalInStatic(@Anno final String s) {
+            }
+        }
+        return LocalInStatic.class;
+    }
+
+    /**
+     * Declare a local class and a local record in an instance method. Only the local class has an enclosing
+     * instance, since a local record is implicitly static.
+     *
+     * @return the local class and the local record.
+     */
+    // Must not be static, or the local class would have no enclosing instance
+    @SuppressWarnings("static-method")
+    private Class<?>[] localClassesInInstanceMethod() {
+        class LocalInInstance {
+            @SuppressWarnings("unused")
+            LocalInInstance(@Anno final String s) {
+            }
+        }
+        record LocalRecord(@Anno String s) {
+        }
+        return new Class<?>[] { LocalInInstance.class, LocalRecord.class };
+    }
+
+    /**
      * Collect the names of all type annotations on a type signature, including those on nested suffixes.
      */
     private static List<String> typeAnnotationNames(final TypeSignature typeSignature) {
@@ -117,6 +150,30 @@ public class Issue897Test {
             // ...and not to the compiler-generated enclosing-instance parameter.
             assertThat(typeAnnotationNames(parameterInfo.get(0).getTypeSignatureOrTypeDescriptor()))
                     .doesNotContain(annoName);
+        }
+    }
+
+    /**
+     * A type annotation on a constructor parameter of a local class is attached to that parameter, whether or not
+     * the constructor also has an enclosing-instance parameter, which only a local class declared in an instance
+     * context, and not a local record, has.
+     */
+    @Test
+    public void annotationOnLocalClassConstructor() {
+        final List<Class<?>> localClasses = new ArrayList<>(List.of(localClassInStaticMethod()));
+        localClasses.addAll(List.of(new Issue897Test().localClassesInInstanceMethod()));
+        try (var scanResult = new ClassGraph().enableClassInfo().enableClasspath()
+                .acceptPackagesNonRecursive(Issue897Test.class.getPackage().getName()).ignoreClassVisibility()
+                .enableMethodInfo().ignoreMethodVisibility().enableAnnotationInfo().scan()) {
+            for (final Class<?> localClass : localClasses) {
+                final var parameterInfo = scanResult.getClassInfo(localClass.getName()).getDeclaredConstructorInfo()
+                        .get(0).getParameterInfo();
+                final var stringParam = parameterInfo.get(parameterInfo.size() - 1);
+                assertThat(((ClassRefTypeSignature) stringParam.getTypeDescriptor()).getFullyQualifiedClassName())
+                        .isEqualTo(String.class.getName());
+                assertThat(typeAnnotationNames(stringParam.getTypeDescriptor())).as(localClass.getName())
+                        .containsExactly(Anno.class.getName());
+            }
         }
     }
 
