@@ -63,7 +63,7 @@ public final class TypeParameter extends HierarchicalTypeSignature {
      * @param classBound
      *            The type parameter class bound.
      * @param interfaceBounds
-     *            The type parameter interface bound.
+     *            The type parameter interface bounds.
      */
     TypeParameter(final String identifier, final @Nullable ReferenceTypeSignature classBound,
             final List<ReferenceTypeSignature> interfaceBounds) {
@@ -239,22 +239,13 @@ public final class TypeParameter extends HierarchicalTypeSignature {
                 }
             }
         }
-        buf.append(useSimpleNames ? ClassInfo.getSimpleName(name) : name);
+        // A type variable name is not a class name, so it is not shortened at a '$' when useSimpleNames is true
+        buf.append(name);
         final var bound = classBound;
-        String classBoundStr;
-        if (bound == null) {
-            classBoundStr = null;
-        } else {
-            classBoundStr = bound.toString(useSimpleNames);
-            // A type parameter may itself be named "Object", in which case a bound referring to it also renders as
-            // "Object" but is a TypeVariableSignature, not java.lang.Object -- so check the type too
-            if ("java.lang.Object".equals(classBoundStr) || ("Object".equals(classBoundStr)
-                    && bound instanceof final ClassRefTypeSignature classRefTypeSignature
-                    && "java.lang.Object".equals(classRefTypeSignature.className))) {
-                // Don't add "extends java.lang.Object"
-                classBoundStr = null;
-            }
-        }
+        // Don't add "extends java.lang.Object". Compare the fully qualified name, so that a bound that refers to a
+        // type variable named "Object", or an annotated bound, is kept.
+        final var classBoundStr = bound == null || "java.lang.Object".equals(bound.toString()) ? null
+                : bound.toString(useSimpleNames);
         if (classBoundStr != null || !interfaceBounds.isEmpty()) {
             buf.append(" extends");
         }
