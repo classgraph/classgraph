@@ -79,7 +79,7 @@ public class Issue148Test {
         assertThat(bufStr) //
                 .isEqualTo("""
                         Issue148Test|false false true|[Issue148Test$1, Issue148Test$2]|[]|null
-                        Issue148Test$1|true true false|[]|[Issue148Test]|Issue148Test.<clinit>
+                        Issue148Test$1|true true false|[]|[Issue148Test]|null
                         Issue148Test$2|true true false|[]|[Issue148Test]|Issue148Test.issue148Test
                         O1|false false true|[O1$I, O1$I$II, O1$I$II$1, O1$I$II$2, O1$SI]|[]|null
                         O1$I|true false true|[O1$I$II, O1$I$II$1, O1$I$II$2]|[O1]|null
@@ -88,7 +88,7 @@ public class Issue148Test {
                         O1$I$II$2|true true false|[]|[O1$I$II, O1$I, O1]|O1$I$II.newI
                         O1$SI|true false false|[]|[O1]|null
                         O2|false false true|[O2$1, O2$2]|[]|null
-                        O2$1|true true false|[]|[O2]|O2.<clinit>
+                        O2$1|true true false|[]|[O2]|null
                         O2$2|true true false|[]|[O2]|O2.<init>
                         """);
     }
