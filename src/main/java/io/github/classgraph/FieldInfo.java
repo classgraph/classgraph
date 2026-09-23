@@ -463,6 +463,29 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
                 // backslash escapes the character that follows it, so the backslash would be dropped
                 buf.append('\'').append(((Character) val).toString().replace("\\", "\\\\").replace("'", "\\'"))
                         .append('\'');
+            } else if (val instanceof Float) {
+                // Render the value as valid source: a float literal needs an 'f' suffix, and NaN and the
+                // infinities have no literal form
+                final Float floatVal = (Float) val;
+                if (floatVal.isNaN()) {
+                    buf.append("Float.NaN");
+                } else if (floatVal.isInfinite()) {
+                    buf.append(floatVal > 0 ? "Float.POSITIVE_INFINITY" : "Float.NEGATIVE_INFINITY");
+                } else {
+                    buf.append(floatVal).append('f');
+                }
+            } else if (val instanceof Double) {
+                final Double doubleVal = (Double) val;
+                if (doubleVal.isNaN()) {
+                    buf.append("Double.NaN");
+                } else if (doubleVal.isInfinite()) {
+                    buf.append(doubleVal > 0 ? "Double.POSITIVE_INFINITY" : "Double.NEGATIVE_INFINITY");
+                } else {
+                    buf.append(doubleVal);
+                }
+            } else if (val instanceof Long) {
+                // A long literal outside the int range needs an 'L' suffix
+                buf.append(val).append('L');
             } else {
                 buf.append(val == null ? "null" : val.toString());
             }
