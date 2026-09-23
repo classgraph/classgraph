@@ -53,8 +53,8 @@ final class AutomaticModuleName {
 
     /**
      * Derive automatic module name from jar name, using <a href=
-     * "https://docs.oracle.com/javase/9/docs/api/java/lang/module/ModuleFinder.html#of-java.nio.file.Path...-">this
-     * algorithm</a>.
+     * "https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/module/ModuleFinder.html#of(java.nio.file.Path...)">
+     * this algorithm</a>.
      *
      * @param jarPath
      *            The jar path, as normalized by {@code FastPathResolver}: directory separators are '/' on every

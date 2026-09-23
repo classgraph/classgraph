@@ -54,7 +54,7 @@ import org.jspecify.annotations.Nullable;
  * sequence, to avoid re-allocating buffer memory.
  *
  * <p>
- * See <a href="https://docs.oracle.com/javase/specs/jvms/se16/html/jvms-4.html">the class file format spec</a>.
+ * See <a href="https://docs.oracle.com/javase/specs/jvms/se17/html/jvms-4.html">the class file format spec</a>.
  */
 class Classfile {
     /**
@@ -1404,10 +1404,10 @@ class Classfile {
             // dynamic, invoke dynamic
             case 17, 18 -> reader().skip(4);
             // module (for module-info.class in JDK9+) see
-            // https://docs.oracle.com/javase/specs/jvms/se9/html/jvms-4.html#jvms-4.4
+            // https://docs.oracle.com/javase/specs/jvms/se17/html/jvms-4.html#jvms-4.4
             case 19 -> indirectStringRefs[i] = reader().readUnsignedShort();
             // package (for module-info.class in JDK9+) see
-            // https://docs.oracle.com/javase/specs/jvms/se9/html/jvms-4.html#jvms-4.4
+            // https://docs.oracle.com/javase/specs/jvms/se17/html/jvms-4.html#jvms-4.4
             case 20 -> reader().skip(2);
             default -> throw new ClassfileFormatException("Unknown constant pool tag " + entryTag[i]
                     + " (element size unknown, cannot continue reading class). Please report this at "
@@ -1594,7 +1594,7 @@ class Classfile {
      */
     private void readField() throws IOException, ClassfileFormatException {
         // Info on modifier flags:
-        // http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.5
+        // https://docs.oracle.com/javase/specs/jvms/se17/html/jvms-4.html#jvms-4.5
         final var fieldModifierFlags = reader().readUnsignedShort();
         final var isPublicField = (fieldModifierFlags & 0x0001) == 0x0001;
         final var fieldIsVisible = isPublicField || scanSpec.ignoreFieldVisibility;
@@ -1728,7 +1728,7 @@ class Classfile {
      */
     private void readMethod() throws IOException, ClassfileFormatException {
         // Info on modifier flags:
-        // http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.6
+        // https://docs.oracle.com/javase/specs/jvms/se17/html/jvms-4.html#jvms-4.6
         final var methodModifierFlags = reader().readUnsignedShort();
         final var isPublicMethod = (methodModifierFlags & 0x0001) == 0x0001;
         final var methodIsVisible = isPublicMethod || scanSpec.ignoreMethodVisibility;
@@ -2159,7 +2159,7 @@ class Classfile {
                 final var moduleNameCpIdx = reader().readUnsignedShort();
                 classpathElement.moduleNameFromModuleDescriptor = getConstantPoolString(moduleNameCpIdx);
                 // (Future work): parse the rest of the module descriptor fields, and add to ModuleInfo:
-                // https://docs.oracle.com/javase/specs/jvms/se9/html/jvms-4.html#jvms-4.7.25
+                // https://docs.oracle.com/javase/specs/jvms/se17/html/jvms-4.html#jvms-4.7.25
                 reader().skip(attributeLength - 2);
             } else {
                 reader().skip(attributeLength);
