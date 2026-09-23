@@ -22,11 +22,11 @@ import io.github.classgraph.ScanResult;
  * with the synthetic {@code (String name, int ordinal)} parameters.
  *
  * <p>
- * Crucially, this is verified against a constructor compiled by <b>ecj</b>, which (unlike javac) does <b>not</b>
- * emit a {@code Signature} attribute for enum constructors. With no signature to diff against, the implicit prefix
- * count must be determined structurally (via {@code isEnum()}). The fixture {@code ecjenum/EnumWithAnnoCtor.class}
- * is checked in (see the {@code .java} alongside it for how to recompile). Before the fix the annotation was
- * silently misattached to the synthetic {@code String} parameter.
+ * This is tested against a constructor compiled by <b>ecj</b>, which (unlike javac) does <b>not</b> emit a
+ * {@code Signature} attribute for enum constructors. With no signature to diff against, the implicit prefix count
+ * must be determined structurally (via {@code isEnum()}). The fixture {@code ecjenum/EnumWithAnnoCtor.class} is
+ * checked in (see the {@code .java} alongside it for how to recompile). Before the fix the annotation was silently
+ * misattached to the synthetic {@code String} parameter.
  */
 public class Issue897EcjEnumTest {
     private static final String FIXTURE_PKG = Issue897EcjEnumTest.class.getPackage().getName() + ".ecjenum";
