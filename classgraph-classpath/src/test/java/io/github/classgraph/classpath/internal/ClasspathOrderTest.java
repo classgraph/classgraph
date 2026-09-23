@@ -237,6 +237,27 @@ public class ClasspathOrderTest {
         assertThat(entryObjects()).containsExactlyInAnyOrder(jarA, jarB);
     }
 
+    /**
+     * A "/*" suffix adds only the directory entries whose names end in ".jar" or ".JAR", as the java launcher does.
+     * The launcher decides by the name alone, so a hidden jarfile and a directory named like a jarfile are added
+     * too, and a subdirectory, a zipfile or a ".Jar" file is not.
+     */
+    @Test
+    public void wildcardDirectoriesAddOnlyJarfiles(@TempDir final Path tempDir) throws IOException {
+        final var jarA = createFile(tempDir.resolve("a.jar"));
+        final var jarB = createFile(tempDir.resolve("b.JAR"));
+        final var hiddenJar = createFile(tempDir.resolve(".hidden.jar"));
+        final var dirJar = resolve(Files.createDirectory(tempDir.resolve("dir.jar")).toRealPath().toString());
+        Files.createDirectory(tempDir.resolve("sub"));
+        createFile(tempDir.resolve("c.zip"));
+        createFile(tempDir.resolve("d.txt"));
+        createFile(tempDir.resolve("jar"));
+        createFile(tempDir.resolve("e.jar.bak"));
+        createFile(tempDir.resolve("f.Jar"));
+        assertThat(classpathOrder.addClasspathEntry(tempDir + "/*", null, null)).isTrue();
+        assertThat(entryObjects()).containsExactlyInAnyOrder(jarA, jarB, hiddenJar, dirJar);
+    }
+
     /** A "/*" suffix on anything but a readable directory adds nothing. */
     @Test
     public void wildcardsOnAnythingButADirectoryAreRejected(@TempDir final Path tempDir) throws IOException {
