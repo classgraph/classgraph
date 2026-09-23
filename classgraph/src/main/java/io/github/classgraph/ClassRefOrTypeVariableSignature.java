@@ -32,7 +32,8 @@ package io.github.classgraph;
  * A class type or type variable, i.e. a reference type that is not an array type. Subclasses are
  * {@link ClassRefTypeSignature} and {@link TypeVariableSignature}.
  */
-public abstract class ClassRefOrTypeVariableSignature extends ReferenceTypeSignature {
+public abstract sealed class ClassRefOrTypeVariableSignature extends ReferenceTypeSignature
+        permits ClassRefTypeSignature, TypeVariableSignature {
     /** Constructor. */
     ClassRefOrTypeVariableSignature() {
         super();

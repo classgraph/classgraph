@@ -36,7 +36,8 @@ import org.jspecify.annotations.Nullable;
  * corresponds to the {@code ReferenceTypeSignature} production of the signature grammar in section 4.7.9.1 of the
  * JVM Specification.
  */
-public abstract class ReferenceTypeSignature extends TypeSignature {
+public abstract sealed class ReferenceTypeSignature extends TypeSignature
+        permits ArrayTypeSignature, ClassRefOrTypeVariableSignature {
     /** Constructor. */
     ReferenceTypeSignature() {
         super();

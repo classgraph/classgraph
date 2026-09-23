@@ -44,7 +44,8 @@ import org.jspecify.annotations.Nullable;
  * Specification. Subclasses are {@link ClassTypeSignature}, {@link MethodTypeSignature}, {@link TypeSignature},
  * {@link TypeParameter} and {@link TypeArgument}.
  */
-public abstract class HierarchicalTypeSignature extends ScanResultObject {
+public abstract sealed class HierarchicalTypeSignature extends ScanResultObject
+        permits TypeSignature, ClassTypeSignature, MethodTypeSignature, TypeArgument, TypeParameter {
     /** The type annotations on this type, in the order they were read, or null if none. */
     @Nullable
     List<AnnotationInfo> typeAnnotations;

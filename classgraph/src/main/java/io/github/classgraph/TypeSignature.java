@@ -39,13 +39,19 @@ import io.github.classgraph.Classfile.TypePathNode;
 import io.github.classgraph.base.internal.utils.Assert;
 import org.jspecify.annotations.Nullable;
 
+// TODO: once ClassGraph's minimum supported JDK version is 21 or later, this sealed hierarchy lets a pattern switch
+// over a TypeSignature list BaseTypeSignature, ArrayTypeSignature, ClassRefTypeSignature and TypeVariableSignature
+// with no default case. Mention this in the javadoc below, and use such a switch wherever ClassGraph tests for more
+// than one of these subclasses in turn (none does at present).
+
 /**
  * A type signature for a reference type or base type. Subclasses are {@link ReferenceTypeSignature} (whose own
  * subclasses are {@link ClassRefTypeSignature}, {@link TypeVariableSignature}, and {@link ArrayTypeSignature}), and
  * {@link BaseTypeSignature}. This corresponds to the {@code JavaTypeSignature} production of the signature grammar
  * in section 4.7.9.1 of the JVM Specification.
  */
-public abstract class TypeSignature extends HierarchicalTypeSignature {
+public abstract sealed class TypeSignature extends HierarchicalTypeSignature
+        permits BaseTypeSignature, ReferenceTypeSignature {
     /** Constructor. */
     TypeSignature() {
         // Empty
