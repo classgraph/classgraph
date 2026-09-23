@@ -40,7 +40,7 @@ import org.jspecify.annotations.Nullable;
  * An array type signature, i.e. an element type with one or more array dimensions. This corresponds to the
  * {@code ArrayTypeSignature} production of the signature grammar in section 4.7.9.1 of the JVM Specification.
  */
-public class ArrayTypeSignature extends ReferenceTypeSignature {
+public final class ArrayTypeSignature extends ReferenceTypeSignature {
     /** The raw type signature string for the array type. */
     private final String typeSignatureStr;
 

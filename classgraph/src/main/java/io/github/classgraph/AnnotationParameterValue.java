@@ -41,7 +41,7 @@ import org.jspecify.annotations.Nullable;
 /**
  * The name and value of an annotation parameter.
  */
-public class AnnotationParameterValue extends ScanResultObject
+public final class AnnotationParameterValue extends ScanResultObject
         implements HasName, Comparable<AnnotationParameterValue> {
     /**
      * The array element types that an {@code Object[]} annotation parameter value holding boxed values can be

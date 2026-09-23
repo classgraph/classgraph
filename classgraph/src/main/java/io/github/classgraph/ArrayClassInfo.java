@@ -39,7 +39,7 @@ import org.jspecify.annotations.Nullable;
  * An {@link ArrayClassInfo} object will not have any methods, fields or annotations.
  * {@link ClassInfo#isArrayClass()} will return true for this subclass of {@link ClassInfo}.
  */
-public class ArrayClassInfo extends ClassInfo {
+public final class ArrayClassInfo extends ClassInfo {
     /** The array type signature. */
     private final ArrayTypeSignature arrayTypeSignature;
 

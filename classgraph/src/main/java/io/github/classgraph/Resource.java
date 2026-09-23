@@ -67,7 +67,7 @@ import org.jspecify.annotations.Nullable;
  * classpath element and the jarfile or directory that contains it -- and {@link #getPath()} documents all three,
  * with a worked example.
  */
-public class Resource implements AutoCloseable, Comparable<Resource> {
+public final class Resource implements AutoCloseable, Comparable<Resource> {
     /** The classpath element this resource was obtained from. */
     private final ClasspathElement classpathElement;
 

@@ -41,7 +41,7 @@ import io.github.classgraph.base.internal.utils.Assert;
 import org.jspecify.annotations.Nullable;
 
 /** Holds metadata about a package encountered during a scan. */
-public class PackageInfo implements Comparable<PackageInfo>, HasName, HasAnnotations {
+public final class PackageInfo implements Comparable<PackageInfo>, HasName, HasAnnotations {
     /** Name of the package. */
     private final String name;
 

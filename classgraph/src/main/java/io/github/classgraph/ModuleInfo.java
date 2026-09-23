@@ -50,7 +50,7 @@ import org.jspecify.annotations.Nullable;
  * {@link #getModuleReference()} to tell the two cases apart: it is null for every name that came from a classpath
  * jar, and non-null only for a module that was actually resolved in a {@link ModuleLayer}.
  */
-public class ModuleInfo implements Comparable<ModuleInfo>, HasName, HasAnnotations {
+public final class ModuleInfo implements Comparable<ModuleInfo>, HasName, HasAnnotations {
     /** The name of the module. */
     private final String name;
 

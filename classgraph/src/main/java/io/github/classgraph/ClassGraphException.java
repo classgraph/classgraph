@@ -37,7 +37,7 @@ import java.io.Serial;
  * <p>
  * (Extends {@link RuntimeException}, so the more generic exception may be caught.)
  */
-public class ClassGraphException extends RuntimeException {
+public final class ClassGraphException extends RuntimeException {
     /** serialVersionUID. */
     @Serial
     private static final long serialVersionUID = 1L;

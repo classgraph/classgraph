@@ -46,7 +46,7 @@ import org.jspecify.annotations.Nullable;
  * Holds metadata about fields of a class encountered during a scan. All values are taken directly out of the
  * classfile for the class.
  */
-public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> {
+public final class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> {
     /** The parsed type signature. */
     private @Nullable TypeSignature typeSignature;
 

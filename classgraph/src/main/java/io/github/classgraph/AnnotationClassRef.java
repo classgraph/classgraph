@@ -33,7 +33,7 @@ import org.jspecify.annotations.Nullable;
 /**
  * Stores the type descriptor of a {@code Class<?>}, as found in an annotation parameter value.
  */
-public class AnnotationClassRef extends ScanResultObject {
+public final class AnnotationClassRef extends ScanResultObject {
     /** The type descriptor str. */
     private final String typeDescriptorStr;
 

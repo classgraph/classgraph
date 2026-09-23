@@ -40,7 +40,7 @@ import org.jspecify.annotations.Nullable;
  *
  * @author Luke Hutchison
  */
-public class MethodParameterInfo implements HasAnnotations {
+public final class MethodParameterInfo implements HasAnnotations {
     /** The containing method. */
     private final MethodInfo methodInfo;
 

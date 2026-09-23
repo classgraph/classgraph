@@ -40,7 +40,7 @@ import org.jspecify.annotations.Nullable;
  * corresponds to the {@code BaseType} production of the signature grammar in section 4.7.9.1 of the JVM
  * Specification, or, for void, to the {@code VoidDescriptor} production.
  */
-public class BaseTypeSignature extends TypeSignature {
+public final class BaseTypeSignature extends TypeSignature {
     /** The type signature character used to represent the base type. */
     private final char typeSignatureChar;
 

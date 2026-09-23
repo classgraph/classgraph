@@ -42,7 +42,7 @@ import org.jspecify.annotations.Nullable;
 /**
  * Holds metadata about a specific annotation instance on a class, method, method parameter or field.
  */
-public class AnnotationInfo extends ScanResultObject implements Comparable<AnnotationInfo>, HasName {
+public final class AnnotationInfo extends ScanResultObject implements Comparable<AnnotationInfo>, HasName {
     /** The name. */
     private final String name;
 

@@ -48,7 +48,7 @@ import org.jspecify.annotations.Nullable;
  * Holds metadata about methods of a class encountered during a scan. All values are taken directly out of the
  * classfile for the class.
  */
-public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo> {
+public final class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo> {
     /** The parsed type descriptor. */
     private @Nullable MethodTypeSignature typeDescriptor;
 

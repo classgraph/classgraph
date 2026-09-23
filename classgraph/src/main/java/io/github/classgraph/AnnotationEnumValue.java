@@ -34,7 +34,7 @@ import org.jspecify.annotations.Nullable;
  * Class for wrapping an enum constant value (split into class name and constant name), as used as an annotation
  * parameter value.
  */
-public class AnnotationEnumValue extends ScanResultObject implements Comparable<AnnotationEnumValue> {
+public final class AnnotationEnumValue extends ScanResultObject implements Comparable<AnnotationEnumValue> {
     /** The class name. */
     private final String className;
 
