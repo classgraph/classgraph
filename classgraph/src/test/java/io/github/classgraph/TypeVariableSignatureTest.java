@@ -247,18 +247,24 @@ public class TypeVariableSignatureTest {
                 .isInstanceOf(TypeSignatureParseException.class);
     }
 
-    /** Two type variables are equal if they have the same name and the same type annotations. */
+    /**
+     * Two type variables are equal if they have the same name, are used in the same class, and have the same type
+     * annotations. {@link TypeVariableSignature#equalsIgnoringTypeParams(TypeSignature)} does not compare the
+     * class.
+     */
     @Test
-    public void equalityIsByNameAndTypeAnnotations() throws TypeSignatureParseException {
+    public void equalityIsByNameDefiningClassAndTypeAnnotations() throws TypeSignatureParseException {
         final var typeVariable = TypeVariableSignature.parse(new TypeSignatureParser("TT;"), GENERIC);
-        final var sameName = TypeVariableSignature.parse(new TypeSignatureParser("TT;"),
+        final var sameVariable = TypeVariableSignature.parse(new TypeSignatureParser("TT;"), GENERIC);
+        final var otherClass = TypeVariableSignature.parse(new TypeSignatureParser("TT;"),
                 "com.example.SomeOtherClass");
         final var differentName = TypeVariableSignature.parse(new TypeSignatureParser("TU;"), GENERIC);
 
-        // The defining class is not part of the identity of a type variable
-        assertThat(typeVariable).isEqualTo(typeVariable).isEqualTo(sameName).isNotEqualTo(differentName)
-                .isNotEqualTo("T");
-        assertThat(typeVariable).hasSameHashCodeAs(sameName);
+        assertThat(typeVariable).isEqualTo(typeVariable).isEqualTo(sameVariable).hasSameHashCodeAs(sameVariable)
+                .isNotEqualTo(otherClass).isNotEqualTo(differentName).isNotEqualTo("T");
+
+        assertThat(typeVariable.equalsIgnoringTypeParams(otherClass)).isTrue();
+        assertThat(typeVariable.equalsIgnoringTypeParams(differentName)).isFalse();
     }
 
     /** Every type variable can be reconciled with {@link Object}, whatever its bounds. */

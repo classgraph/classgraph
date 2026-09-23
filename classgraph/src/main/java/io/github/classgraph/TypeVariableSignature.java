@@ -262,7 +262,7 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
 
     @Override
     public int hashCode() {
-        return name.hashCode();
+        return Objects.hash(name, definingClassName);
     }
 
     @Override
@@ -273,7 +273,8 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
         if (!(obj instanceof final TypeVariableSignature other)) {
             return false;
         }
-        return other.name.equals(this.name) && Objects.equals(other.typeAnnotations, this.typeAnnotations);
+        return other.name.equals(this.name) && Objects.equals(other.definingClassName, this.definingClassName)
+                && Objects.equals(other.typeAnnotations, this.typeAnnotations);
     }
 
     @Override
@@ -336,8 +337,11 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
         }
         // 'other' is a type variable too. Two type variables are reconcilable if they are written the same way:
         // capture conversion can make two occurrences of one type variable denote different types, but this method
-        // compares signatures as they are written, not the types they denote at any particular use site.
-        return this.equals(other);
+        // compares signatures as they are written, not the types they denote at any particular use site. Unlike
+        // equals(), this does not compare the classes the two type variables are used in, so that the T of a
+        // superclass method matches the T of the method that overrides it.
+        return other instanceof final TypeVariableSignature o && o.name.equals(this.name)
+                && Objects.equals(o.typeAnnotations, this.typeAnnotations);
     }
 
     /**
