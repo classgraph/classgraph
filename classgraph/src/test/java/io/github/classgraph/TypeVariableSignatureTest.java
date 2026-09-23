@@ -116,6 +116,21 @@ public class TypeVariableSignatureTest {
                 public U deeperField;
             }
         }
+
+        /**
+         * An inner class that declares a type variable that shadows the class' {@code T}.
+         *
+         * @param <T>
+         *            a type variable declared by the inner class.
+         */
+        @SuppressWarnings("hiding")
+        public class Shadowing<T extends InterfaceBound> {
+            /** An inner class of the shadowing class. */
+            public class Deeper {
+                /** A field of the shadowing class' type variable's type. */
+                public T deeperField;
+            }
+        }
     }
 
     /**
@@ -247,6 +262,19 @@ public class TypeVariableSignatureTest {
                     .getClassInfo(Generic.Inner.Deeper.class.getName()).getFieldInfo("deeperField")
                     .getTypeSignatureOrTypeDescriptor();
             assertThat(inDeeper.resolve().toString()).isEqualTo("U extends " + InterfaceBound.class.getName());
+        }
+    }
+
+    /** A type variable resolves to the type parameter of the innermost enclosing class that declares its name. */
+    @Test
+    public void aTypeVariableResolvesToTheInnermostDeclaration() {
+        try (var scanResult = new ClassGraph().enableClasspath()
+                .acceptClasses(GENERIC, Generic.Shadowing.class.getName(), Generic.Shadowing.Deeper.class.getName())
+                .enableClassInfo().enableFieldInfo().scan()) {
+            final var typeVariable = (TypeVariableSignature) scanResult
+                    .getClassInfo(Generic.Shadowing.Deeper.class.getName()).getFieldInfo("deeperField")
+                    .getTypeSignatureOrTypeDescriptor();
+            assertThat(typeVariable.resolve().toString()).isEqualTo("T extends " + InterfaceBound.class.getName());
         }
     }
 
