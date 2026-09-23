@@ -42,7 +42,7 @@ import io.github.classgraph.base.internal.utils.StringUtils;
  * in the other order. See {@link RandomAccessReader} for why the byte order is a property of the content and not of
  * the machine.
  */
-public class RandomAccessArrayReader implements RandomAccessReader {
+public final class RandomAccessArrayReader implements RandomAccessReader {
     /** The array. */
     private final byte[] arr;
 

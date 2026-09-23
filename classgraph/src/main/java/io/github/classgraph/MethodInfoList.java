@@ -53,7 +53,7 @@ import org.jspecify.annotations.Nullable;
  * to a {@link MethodInfoList}. Use {@link #getSingleMethod(String)} when you expect exactly one method of a given
  * name.
  */
-public class MethodInfoList extends InfoList<MethodInfo> {
+public final class MethodInfoList extends InfoList<MethodInfo> {
     /** An unmodifiable empty {@link MethodInfoList}. */
     static final MethodInfoList EMPTY_LIST = new MethodInfoList(List.of());
 

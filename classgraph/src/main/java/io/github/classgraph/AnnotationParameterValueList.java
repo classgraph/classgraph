@@ -40,7 +40,7 @@ import io.github.classgraph.base.internal.utils.CollectionUtils;
 import org.jspecify.annotations.Nullable;
 
 /** A list of {@link AnnotationParameterValue} objects, which can be indexed by annotation parameter name. */
-public class AnnotationParameterValueList extends MappableInfoList<AnnotationParameterValue> {
+public final class AnnotationParameterValueList extends MappableInfoList<AnnotationParameterValue> {
     /** An unmodifiable empty {@link AnnotationParameterValueList}. */
     static final AnnotationParameterValueList EMPTY_LIST = new AnnotationParameterValueList(List.of());
 

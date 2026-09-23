@@ -38,7 +38,7 @@ import io.github.classgraph.base.internal.utils.Assert;
 import io.github.classgraph.base.internal.utils.CollectionUtils;
 
 /** A list of {@link ModuleInfo} objects, which can be indexed by module name. */
-public class ModuleInfoList extends MappableInfoList<ModuleInfo> {
+public final class ModuleInfoList extends MappableInfoList<ModuleInfo> {
     /** An unmodifiable empty {@link ModuleInfoList}. */
     static final ModuleInfoList EMPTY_LIST = new ModuleInfoList(List.of());
 

@@ -60,7 +60,7 @@ import org.jspecify.annotations.Nullable;
  * the annotations are directly present is reported by {@link #directOnly()}, and is not part of the comparison, so
  * two lists that hold the same annotations are equal even when they were reached in different ways.
  */
-public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
+public final class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     /**
      * The annotations that are directly present on the annotated item, rather than reached through a
      * meta-annotation or inherited, or null if this list holds only directly present annotations. See

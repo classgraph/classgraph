@@ -38,7 +38,7 @@ import io.github.classgraph.base.internal.utils.Assert;
 import io.github.classgraph.base.internal.utils.CollectionUtils;
 
 /** A list of {@link PackageInfo} objects, which can be indexed by package name. */
-public class PackageInfoList extends MappableInfoList<PackageInfo> {
+public final class PackageInfoList extends MappableInfoList<PackageInfo> {
     /** An unmodifiable empty {@link PackageInfoList}. */
     static final PackageInfoList EMPTY_LIST = new PackageInfoList(List.of());
 

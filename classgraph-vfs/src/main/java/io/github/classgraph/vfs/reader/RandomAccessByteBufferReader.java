@@ -55,7 +55,7 @@ import org.jspecify.annotations.Nullable;
  * reading the buffer afterwards would read memory that is no longer mapped, so this reader is given a check to ask
  * whether the file is still there before it reads.
  */
-public class RandomAccessByteBufferReader implements RandomAccessReader {
+public final class RandomAccessByteBufferReader implements RandomAccessReader {
     /** The byte buffer. */
     private final ByteBuffer byteBuffer;
 

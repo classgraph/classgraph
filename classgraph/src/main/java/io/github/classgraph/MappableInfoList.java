@@ -42,7 +42,8 @@ import org.jspecify.annotations.Nullable;
  * @param <T>
  *            the element type
  */
-public class MappableInfoList<T extends HasName> extends InfoList<T> {
+public sealed class MappableInfoList<T extends HasName> extends InfoList<T> permits AnnotationInfoList,
+        AnnotationParameterValueList, ClassInfoList, FieldInfoList, ModuleInfoList, PackageInfoList {
     /**
      * Constructor. As in {@link InfoList#InfoList(List)}, this list claims the given list, and the caller is
      * responsible for having sorted it.

@@ -67,7 +67,7 @@ import org.jspecify.annotations.Nullable;
  * silently: any read that would have to go past the limit throws an {@link IOException} saying so. To read content
  * larger than 2GB, stream it with {@link VfsEntry#open()} instead, which has no such limit.
  */
-public class RandomAccessOrSequentialReader implements RandomAccessReader, SequentialReader, AutoCloseable {
+public final class RandomAccessOrSequentialReader implements RandomAccessReader, SequentialReader, AutoCloseable {
     /**
      * The stream the content is read through: either the stream that the {@link VfsEntry} opened, which inflates
      * the entry if it is deflated, or a stream that the caller opened and passed in. Null once this reader has been

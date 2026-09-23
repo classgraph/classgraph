@@ -110,7 +110,7 @@ import org.jspecify.annotations.Nullable;
  * Documentation: <a href= "https://github.com/classgraph/classgraph/wiki">
  * https://github.com/classgraph/classgraph/wiki</a>
  */
-public class ClassGraph {
+public final class ClassGraph {
     /** The scanning specification. */
     ScanSpec scanSpec = new ScanSpec();
 

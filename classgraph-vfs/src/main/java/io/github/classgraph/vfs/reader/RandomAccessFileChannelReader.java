@@ -44,7 +44,7 @@ import org.jspecify.annotations.Nullable;
  * written in the other order. See {@link RandomAccessReader} for why the byte order is a property of the content
  * and not of the machine.
  */
-public class RandomAccessFileChannelReader implements RandomAccessReader {
+public final class RandomAccessFileChannelReader implements RandomAccessReader {
     /** The file channel. */
     private final FileChannel fileChannel;
 

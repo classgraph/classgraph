@@ -43,7 +43,8 @@ import java.util.List;
  * @param <T>
  *            the element type
  */
-public class InfoList<T extends HasName> extends UnmodifiableList<T> {
+public sealed class InfoList<T extends HasName> extends UnmodifiableList<T>
+        permits MappableInfoList, MethodInfoList {
     /**
      * Constructor. As in {@link UnmodifiableList#UnmodifiableList(List)}, this list claims the given list rather
      * than copying it, and the caller is responsible for having sorted it.

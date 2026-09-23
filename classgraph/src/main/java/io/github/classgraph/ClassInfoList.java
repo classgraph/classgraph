@@ -64,7 +64,7 @@ import org.jspecify.annotations.Nullable;
  * classes are directly related is reported by {@link #directOnly()}, and is not part of the comparison, so two
  * lists that hold the same classes are equal even when they were reached by different relationships.
  */
-public class ClassInfoList extends MappableInfoList<ClassInfo> {
+public final class ClassInfoList extends MappableInfoList<ClassInfo> {
     /** Directly related classes. */
     private final Set<ClassInfo> directlyRelatedClasses;
 

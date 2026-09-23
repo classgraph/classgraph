@@ -42,7 +42,7 @@ import io.github.classgraph.base.internal.utils.CollectionUtils;
 import org.jspecify.annotations.Nullable;
 
 /** A list of {@link FieldInfo} objects, which can be indexed by field name. */
-public class FieldInfoList extends MappableInfoList<FieldInfo> {
+public final class FieldInfoList extends MappableInfoList<FieldInfo> {
     /** An unmodifiable empty {@link FieldInfoList}. */
     static final FieldInfoList EMPTY_LIST = new FieldInfoList(List.of());
 
