@@ -317,6 +317,10 @@ A `Vfs` denies nothing by default. `ClassGraph` and `ClasspathFinder` construct 
 and those four fetch over a network on any JVM. `allowURLScheme(String)` takes a scheme back off
 that list.
 
+An `http` or `https` redirect is followed, including one from `http` to `https`, up to 20 times.
+A redirect to any other scheme, from `https` to `http`, or to a denied scheme is refused, so
+allowing `http` alone does not let a server redirect the download to `https`.
+
 The list is a deny list rather than an allow list because there is no way to build the allow list:
 the JDK offers no way to enumerate the registered schemes. `URL`'s handler table is private, and
 `setAccessible` on it throws `InaccessibleObjectException` on JDK 17 and later, since `java.base`

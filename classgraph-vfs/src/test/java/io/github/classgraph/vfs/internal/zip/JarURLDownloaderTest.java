@@ -11,10 +11,12 @@ import java.net.MalformedURLException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
+import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -90,8 +92,41 @@ public class JarURLDownloaderTest {
          */
         CannedResponseHttpServer(final String statusLine, final @Nullable String contentLength, final byte[] body)
                 throws IOException {
+            this(statusLine, contentLength, body, /* location = */ null);
+        }
+
+        /**
+         * Constructor. Starts a server that answers with a redirect.
+         *
+         * @param statusLine
+         *            the status line to answer with, e.g. {@code "301 Moved Permanently"}
+         * @param location
+         *            the value of the {@code Location} header
+         * @throws IOException
+         *             if the server socket could not be opened
+         */
+        CannedResponseHttpServer(final String statusLine, final String location) throws IOException {
+            this(statusLine, "0", new byte[0], location);
+        }
+
+        /**
+         * Constructor. Starts the server.
+         *
+         * @param statusLine
+         *            the status line to answer with
+         * @param contentLength
+         *            the value of the {@code Content-Length} header, or null not to send that header
+         * @param body
+         *            the body to answer with
+         * @param location
+         *            the value of the {@code Location} header, or null not to send that header
+         * @throws IOException
+         *             if the server socket could not be opened
+         */
+        private CannedResponseHttpServer(final String statusLine, final @Nullable String contentLength,
+                final byte[] body, final @Nullable String location) throws IOException {
             serverSocket = new ServerSocket(0, /* backlog = */ 1, InetAddress.getLoopbackAddress());
-            final var thread = new Thread(() -> serve(statusLine, contentLength, body));
+            final var thread = new Thread(() -> serve(statusLine, contentLength, body, location));
             thread.setDaemon(true);
             thread.start();
         }
@@ -105,14 +140,20 @@ public class JarURLDownloaderTest {
          *            the value of the {@code Content-Length} header, or null not to send that header
          * @param body
          *            the body to answer with
+         * @param location
+         *            the value of the {@code Location} header, or null not to send that header
          */
-        private void serve(final String statusLine, final @Nullable String contentLength, final byte[] body) {
+        private void serve(final String statusLine, final @Nullable String contentLength, final byte[] body,
+                final @Nullable String location) {
             while (!serverSocket.isClosed()) {
                 try (var socket = serverSocket.accept()) {
                     readRequest(socket.getInputStream());
                     final var headers = new StringBuilder("HTTP/1.1 ").append(statusLine).append("\r\n");
                     if (contentLength != null) {
                         headers.append("Content-Length: ").append(contentLength).append("\r\n");
+                    }
+                    if (location != null) {
+                        headers.append("Location: ").append(location).append("\r\n");
                     }
                     // Close the connection after the response, so that a body with no content length is delimited
                     headers.append("Connection: close\r\n\r\n");
@@ -244,6 +285,135 @@ public class JarURLDownloaderTest {
         try (var server = new CannedResponseHttpServer("404 Not Found", "0", new byte[0])) {
             assertThatThrownBy(() -> JarURLDownloader.downloadJarFromURL(server.jarURL(), vfs, /* log = */ null))
                     .isInstanceOf(IOException.class).hasMessage("Got response code 404 for URL " + server.jarURL());
+        }
+    }
+
+    /**
+     * A redirect is followed to the jar, which keeps the URL it was asked for by, and the redirect is logged.
+     *
+     * @param tempDir
+     *            a temporary directory to build the jar in
+     * @throws IOException
+     *             if the jar could not be built, or the jar could not be downloaded
+     */
+    @Test
+    public void aRedirectIsFollowedToTheJar(@TempDir final Path tempDir) throws IOException {
+        final var jarBytes = buildJar(tempDir.resolve("redirected.jar"), "Downloaded after a redirect");
+        final var log = new LogNode();
+        try (var jarServer = new CannedResponseHttpServer("200 OK", String.valueOf(jarBytes.length), jarBytes);
+                var redirectServer = new CannedResponseHttpServer("302 Found", jarServer.jarURL())) {
+            final var physicalZipFile = JarURLDownloader.downloadJarFromURL(redirectServer.jarURL(), vfs, log);
+
+            assertThat(physicalZipFile.slice.load()).isEqualTo(jarBytes);
+            assertThat(physicalZipFile.getPathString()).isEqualTo(redirectServer.jarURL());
+            assertThat(log.toString())
+                    .contains("URL " + redirectServer.jarURL() + " redirects to " + jarServer.jarURL());
+        }
+    }
+
+    /**
+     * A redirect from http to https is followed. (HttpURLConnection only follows a redirect that keeps the same
+     * scheme.) The test has no TLS server, so it checks that the https URL was connected to with a TLS handshake,
+     * whose first byte is 0x16, and that the handshake then failed.
+     *
+     * @throws IOException
+     *             if a server could not be started
+     * @throws InterruptedException
+     *             if the thread was interrupted
+     */
+    @Test
+    public void aRedirectFromHttpToHttpsIsFollowed() throws IOException, InterruptedException {
+        final var firstByteReceived = new AtomicInteger(-1);
+        try (var tlsServerSocket = new ServerSocket(0, /* backlog = */ 1, InetAddress.getLoopbackAddress())) {
+            final var thread = new Thread(() -> {
+                try (var socket = tlsServerSocket.accept()) {
+                    firstByteReceived.set(socket.getInputStream().read());
+                } catch (final IOException e) {
+                    // The server socket was closed at the end of the test
+                }
+            });
+            thread.setDaemon(true);
+            thread.start();
+            final var httpsURL = "https://" + tlsServerSocket.getInetAddress().getHostAddress() + ":"
+                    + tlsServerSocket.getLocalPort() + "/downloaded.jar";
+            try (var redirectServer = new CannedResponseHttpServer("301 Moved Permanently", httpsURL)) {
+                assertThatThrownBy(
+                        () -> JarURLDownloader.downloadJarFromURL(redirectServer.jarURL(), vfs, /* log = */ null))
+                        .isInstanceOf(IOException.class);
+            }
+            thread.join(10_000);
+        }
+        assertThat(firstByteReceived.get()).isEqualTo(0x16);
+    }
+
+    /**
+     * A redirect to a scheme that has been denied is refused.
+     *
+     * @throws IOException
+     *             if the server could not be started
+     */
+    @Test
+    public void aRedirectToADeniedSchemeIsRefused() throws IOException {
+        final var httpsDeniedVfs = new Vfs(new VfsSpec().denyURLScheme("https"), new InterruptionChecker());
+        try (var redirectServer = new CannedResponseHttpServer("301 Moved Permanently",
+                "https://example.com/downloaded.jar")) {
+            assertThatThrownBy(() -> JarURLDownloader.downloadJarFromURL(redirectServer.jarURL(), httpsDeniedVfs,
+                    /* log = */ null)).isInstanceOf(IOException.class).hasMessage(
+                            "Fetching a jarfile over \"https:\" is not allowed: https://example.com/downloaded.jar"
+                                    + " (redirected from " + redirectServer.jarURL() + ")");
+        } finally {
+            httpsDeniedVfs.close(/* log = */ null);
+        }
+    }
+
+    /**
+     * A redirect to a URL that is not http or https is refused, so that a remote server cannot point the scan at a
+     * local file.
+     *
+     * @throws IOException
+     *             if the server could not be started
+     */
+    @Test
+    public void aRedirectToAFileUrlIsRefused() throws IOException {
+        try (var redirectServer = new CannedResponseHttpServer("302 Found", "file:/etc/passwd")) {
+            assertThatThrownBy(
+                    () -> JarURLDownloader.downloadJarFromURL(redirectServer.jarURL(), vfs, /* log = */ null))
+                    .isInstanceOf(IOException.class)
+                    .hasMessageContaining("to a URL that is not http or https: file:/etc/passwd");
+        }
+    }
+
+    /**
+     * A redirect from https to http is refused, since it would fetch the jar without TLS. A relative location is
+     * resolved against the URL that was redirected.
+     *
+     * @throws IOException
+     *             if the URL could not be built
+     */
+    @Test
+    public void aRedirectFromHttpsToHttpIsRefused() throws IOException {
+        final var httpsURL = URI.create("https://example.com/lib/a.jar").toURL();
+        assertThatThrownBy(() -> JarURLDownloader.redirectTarget(httpsURL, "http://example.com/lib/a.jar", vfs))
+                .isInstanceOf(IOException.class)
+                .hasMessageStartingWith("Not following the redirect from https to http");
+        assertThat(JarURLDownloader.redirectTarget(httpsURL, "../b.jar", vfs).toString())
+                .isEqualTo("https://example.com/b.jar");
+    }
+
+    /**
+     * A server that redirects to itself is given up on after a fixed number of redirects. (The redirect is to a
+     * relative location, the server's own path.)
+     *
+     * @throws IOException
+     *             if the server could not be started
+     */
+    @Test
+    public void aRedirectLoopIsGivenUpOn() throws IOException {
+        try (var loopServer = new CannedResponseHttpServer("307 Temporary Redirect", "/downloaded.jar")) {
+            assertThatThrownBy(
+                    () -> JarURLDownloader.downloadJarFromURL(loopServer.jarURL(), vfs, /* log = */ null))
+                    .isInstanceOf(IOException.class)
+                    .hasMessage("Redirected more than 20 times: " + loopServer.jarURL());
         }
     }
 
