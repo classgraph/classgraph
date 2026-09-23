@@ -168,25 +168,14 @@ public class MethodInfoList extends InfoList<MethodInfo> {
      */
     public MethodInfoList get(final String methodName) {
         Assert.notNull(methodName, "methodName");
-        var hasMethodWithName = false;
+        final List<MethodInfo> matchingMethods = new ArrayList<>(2);
         for (final MethodInfo mi : this) {
             if (mi.getName().equals(methodName)) {
-                hasMethodWithName = true;
-                break;
+                matchingMethods.add(mi);
             }
         }
-        if (!hasMethodWithName) {
-            return EMPTY_LIST;
-        } else {
-            final List<MethodInfo> matchingMethods = new ArrayList<>(2);
-            for (final MethodInfo mi : this) {
-                if (mi.getName().equals(methodName)) {
-                    matchingMethods.add(mi);
-                }
-            }
-            // The matching methods are a subsequence of this list, which is already sorted
-            return new MethodInfoList(matchingMethods);
-        }
+        // The matching methods are a subsequence of this list, which is already sorted
+        return matchingMethods.isEmpty() ? EMPTY_LIST : new MethodInfoList(matchingMethods);
     }
 
     /**

@@ -33,11 +33,9 @@ import java.io.InputStream;
 import java.net.URI;
 import java.net.URL;
 import java.nio.ByteBuffer;
-import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -46,7 +44,6 @@ import java.util.TreeMap;
 import java.util.function.Predicate;
 
 import io.github.classgraph.base.internal.utils.Assert;
-import io.github.classgraph.base.internal.utils.CollectionUtils;
 
 /**
  * An {@link AutoCloseable} list of {@link AutoCloseable} {@link Resource} objects. Closing the list closes every
@@ -104,28 +101,17 @@ public class ResourceList extends UnmodifiableList<Resource> implements AutoClos
      * @return A {@link ResourceList} of {@link Resource} objects in this list that have the given path (there may
      *         be more than one resource with a given path, from different classpath elements or modules, so this
      *         returns a {@link ResourceList} rather than a single {@link Resource}.) Returns the empty list if no
-     *         resource with is found with a matching path.
+     *         resource is found with a matching path.
      */
     public ResourceList get(final String resourcePath) {
         Assert.notNull(resourcePath, "resourcePath");
-        var hasResourceWithPath = false;
+        final List<Resource> matchingResources = new ArrayList<>(2);
         for (final Resource res : this) {
             if (res.getPath().equals(resourcePath)) {
-                hasResourceWithPath = true;
-                break;
+                matchingResources.add(res);
             }
         }
-        if (!hasResourceWithPath) {
-            return EMPTY_LIST;
-        } else {
-            final List<Resource> matchingResources = new ArrayList<>(2);
-            for (final Resource res : this) {
-                if (res.getPath().equals(resourcePath)) {
-                    matchingResources.add(res);
-                }
-            }
-            return new ResourceList(matchingResources);
-        }
+        return matchingResources.isEmpty() ? EMPTY_LIST : new ResourceList(matchingResources);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -179,11 +165,11 @@ public class ResourceList extends UnmodifiableList<Resource> implements AutoClos
      * @return The URIs of all resources in this list.
      */
     public List<URI> getURIs() {
-        final List<URI> resourceURLs = new ArrayList<>(this.size());
+        final List<URI> resourceURIs = new ArrayList<>(this.size());
         for (final Resource resource : this) {
-            resourceURLs.add(resource.getURI());
+            resourceURIs.add(resource.getURI());
         }
-        return Collections.unmodifiableList(resourceURLs);
+        return Collections.unmodifiableList(resourceURIs);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -237,20 +223,19 @@ public class ResourceList extends UnmodifiableList<Resource> implements AutoClos
      * Find duplicate resource paths within this {@link ResourceList}.
      *
      * @return A {@link List} of {@link Entry} objects for all resources in the classpath and/or module path that
-     *         have a non-unique path (i.e. where there are at least two resources with the same path). The key of
-     *         each returned {@link Entry} is the path (obtained from {@link Resource#getPath()}), and the value is
-     *         a {@link ResourceList} of at least two unique {@link Resource} objects that have that path.
+     *         have a non-unique path (i.e. where there are at least two resources with the same path), sorted by
+     *         path. The key of each returned {@link Entry} is the path (obtained from {@link Resource#getPath()}),
+     *         and the value is a {@link ResourceList} of at least two unique {@link Resource} objects that have
+     *         that path. The entries are unmodifiable.
      */
     public List<Entry<String, ResourceList>> findDuplicatePaths() {
         final List<Entry<String, ResourceList>> duplicatePaths = new ArrayList<>();
+        // asMap() is sorted by path, and its entries are unmodifiable
         for (final Entry<String, ResourceList> pathAndResourceList : asMap().entrySet()) {
-            // Find ResourceLists with two or more entries
             if (pathAndResourceList.getValue().size() > 1) {
-                duplicatePaths.add(new SimpleEntry<>(pathAndResourceList.getKey(), pathAndResourceList.getValue()));
+                duplicatePaths.add(pathAndResourceList);
             }
         }
-        // Sort in lexicographic order of path
-        CollectionUtils.sortIfNotEmpty(duplicatePaths, Comparator.comparing(Entry<String, ResourceList>::getKey));
         return Collections.unmodifiableList(duplicatePaths);
     }
 

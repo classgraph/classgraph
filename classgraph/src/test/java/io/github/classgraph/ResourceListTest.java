@@ -188,6 +188,9 @@ public class ResourceListTest {
             assertThat(duplicatePaths).hasSize(1);
             assertThat(duplicatePaths.get(0).getKey()).isEqualTo("a.txt");
             assertThat(duplicatePaths.get(0).getValue()).hasSize(2);
+            // The entries are unmodifiable, like the list that holds them
+            assertThatExceptionOfType(UnsupportedOperationException.class)
+                    .isThrownBy(() -> duplicatePaths.get(0).setValue(ResourceList.emptyList()));
 
             // Every path is a key of the map form, whether or not it is duplicated
             assertThat(scanResult.getAllResources().asMap()).containsOnlyKeys(FILE_NAMES);
