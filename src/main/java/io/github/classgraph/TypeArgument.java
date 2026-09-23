@@ -181,9 +181,9 @@ public final class TypeArgument extends HierarchicalTypeSignature {
      *            The parser.
      * @param definingClassName
      *            The name of the defining class (for resolving type variables).
-     * @return The parsed method type signature.
+     * @return The parsed type argument.
      * @throws ParseException
-     *             If method type signature could not be parsed.
+     *             If the type argument could not be parsed.
      */
     private static TypeArgument parse(final Parser parser, final String definingClassName) throws ParseException {
         final char peek = parser.peek();
@@ -210,7 +210,7 @@ public final class TypeArgument extends HierarchicalTypeSignature {
             final ReferenceTypeSignature typeSignature = ReferenceTypeSignature.parseReferenceTypeSignature(parser,
                     definingClassName);
             if (typeSignature == null) {
-                throw new ParseException(parser, "Missing type bound");
+                throw new ParseException(parser, "Missing type argument");
             }
             return new TypeArgument(Wildcard.NONE, typeSignature);
         }
@@ -330,8 +330,14 @@ public final class TypeArgument extends HierarchicalTypeSignature {
             buf.append('?');
             break;
         case EXTENDS:
-            final String typeSigStr = typeSignature.toString(useSimpleNames);
-            buf.append(typeSigStr.equals("java.lang.Object") ? "?" : "? extends " + typeSigStr);
+            // Render "? extends Object" as "?". Compare the fully qualified name, so that the check also works
+            // with simple names, and so that an annotated bound is not collapsed.
+            if (typeSignature.toString().equals("java.lang.Object")) {
+                buf.append('?');
+            } else {
+                buf.append("? extends ");
+                typeSignature.toString(useSimpleNames, buf);
+            }
             break;
         case SUPER:
             buf.append("? super ");

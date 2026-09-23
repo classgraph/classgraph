@@ -103,11 +103,11 @@ public class BaseTypeSignature extends TypeSignature {
     }
 
     /**
-     * Get the name of the type as a string.
+     * Get the type signature character for the name of a base type.
      *
      * @param typeStr
-     *            the type character, e.g. "int".
-     * @return The type, character, e.g. 'I', or '\0' if there was no match.
+     *            the name of the type, e.g. "int".
+     * @return The type signature character, e.g. 'I', or '\0' if there was no match.
      */
     static char getTypeChar(final String typeStr) {
         switch (typeStr) {
