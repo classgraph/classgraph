@@ -10,6 +10,8 @@ release.properties
 !src/test/resources/io/github/classgraph/issues/issue897/ecjenum/*.class
 !src/test/resources/io/github/classgraph/issues/issue897/fieldcrash/*.class
 !src/test/resources/io/github/classgraph/issues/issue926/*.class
+# Checked-in classfiles of local records, enums and interfaces, which need Java 16 to compile
+!src/test/resources/io/github/classgraph/features/localrecord/*.class
 
 /target/
 bin/
