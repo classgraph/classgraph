@@ -150,8 +150,9 @@ public class ToStringRenderingTest {
             assertThat(params.get("longVal")).hasToString("longVal=4L");
             assertThat(params.get("floatVal")).hasToString("floatVal=1.5f");
             assertThat(params.get("doubleVal")).hasToString("doubleVal=2.5");
-            assertThat(params.get("nan")).hasToString("nan=0.0f/0.0f");
-            assertThat(params.get("inf")).hasToString("inf=1.0/0.0");
+            // The same rendering as FieldInfo#toString gives a constant initializer value
+            assertThat(params.get("nan")).hasToString("nan=Float.NaN");
+            assertThat(params.get("inf")).hasToString("inf=Double.POSITIVE_INFINITY");
         }
     }
 

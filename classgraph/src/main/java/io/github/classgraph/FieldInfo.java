@@ -416,34 +416,7 @@ public final class FieldInfo extends ClassMemberInfo implements Comparable<Field
         if (constantInitializerValue != null) {
             final var val = constantInitializerValue;
             buf.append(" = ");
-            if (val instanceof final String str) {
-                buf.append('"').append(StringUtils.escapeString(str)).append('"');
-            } else if (val instanceof final Character chr) {
-                buf.append('\'').append(StringUtils.escapeChar(chr)).append('\'');
-            } else if (val instanceof final Float floatVal) {
-                // Render the value as valid source: a float literal needs an 'f' suffix, and NaN and the
-                // infinities have no literal form
-                if (floatVal.isNaN()) {
-                    buf.append("Float.NaN");
-                } else if (floatVal.isInfinite()) {
-                    buf.append(floatVal > 0 ? "Float.POSITIVE_INFINITY" : "Float.NEGATIVE_INFINITY");
-                } else {
-                    buf.append(floatVal).append('f');
-                }
-            } else if (val instanceof final Double doubleVal) {
-                if (doubleVal.isNaN()) {
-                    buf.append("Double.NaN");
-                } else if (doubleVal.isInfinite()) {
-                    buf.append(doubleVal > 0 ? "Double.POSITIVE_INFINITY" : "Double.NEGATIVE_INFINITY");
-                } else {
-                    buf.append(doubleVal);
-                }
-            } else if (val instanceof final Long longVal) {
-                // A long literal outside the int range needs an 'L' suffix
-                buf.append(longVal).append('L');
-            } else {
-                buf.append(val);
-            }
+            StringUtils.appendSourceLiteral(val, buf);
         }
     }
 

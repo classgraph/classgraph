@@ -144,6 +144,46 @@ public final class StringUtils {
     }
 
     /**
+     * Append a constant value to a buffer as it would be written in Java source: a string in double quotes and a
+     * character in single quotes, both escaped, a {@code long} with an {@code L} suffix, a {@code float} with an
+     * {@code f} suffix, and NaN and the infinities, which have no literal form, as the constant that names them,
+     * such as {@code Float.NaN}. Any other value is appended with {@link String#valueOf(Object)}.
+     *
+     * @param val
+     *            The value.
+     * @param buf
+     *            The buffer to append to.
+     */
+    public static void appendSourceLiteral(final Object val, final StringBuilder buf) {
+        if (val instanceof final String str) {
+            buf.append('"').append(escapeString(str)).append('"');
+        } else if (val instanceof final Character chr) {
+            buf.append('\'').append(escapeChar(chr)).append('\'');
+        } else if (val instanceof final Long longVal) {
+            // A long literal outside the int range needs an 'L' suffix
+            buf.append(longVal.longValue()).append('L');
+        } else if (val instanceof final Float floatVal) {
+            if (floatVal.isNaN()) {
+                buf.append("Float.NaN");
+            } else if (floatVal.isInfinite()) {
+                buf.append(floatVal > 0 ? "Float.POSITIVE_INFINITY" : "Float.NEGATIVE_INFINITY");
+            } else {
+                buf.append(floatVal.floatValue()).append('f');
+            }
+        } else if (val instanceof final Double doubleVal) {
+            if (doubleVal.isNaN()) {
+                buf.append("Double.NaN");
+            } else if (doubleVal.isInfinite()) {
+                buf.append(doubleVal > 0 ? "Double.POSITIVE_INFINITY" : "Double.NEGATIVE_INFINITY");
+            } else {
+                buf.append(doubleVal.doubleValue());
+            }
+        } else {
+            buf.append(val);
+        }
+    }
+
+    /**
      * Read a string in the "modified UTF-8" format that the Java classfile format stores its strings in.
      *
      * @param arr
