@@ -958,8 +958,11 @@ public class NestedJarHandler {
                     return totInflatedBytes;
 
                 } catch (final DataFormatException e) {
-                    throw new ZipException(
+                    // ZipException has no constructor that takes a cause
+                    final ZipException zipException = new ZipException(
                             e.getMessage() != null ? e.getMessage() : "Invalid deflated zip entry data");
+                    zipException.initCause(e);
+                    throw zipException;
                 }
             }
 

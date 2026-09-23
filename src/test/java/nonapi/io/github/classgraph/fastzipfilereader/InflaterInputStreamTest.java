@@ -10,7 +10,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.zip.DataFormatException;
 import java.util.zip.Deflater;
+import java.util.zip.ZipException;
 
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.junit.jupiter.api.Test;
@@ -103,6 +105,22 @@ public class InflaterInputStreamTest {
                 }
             }).isInstanceOf(EOFException.class);
         }
+    }
+
+    /**
+     * Invalid deflate data throws a {@link ZipException} whose cause is the {@link DataFormatException} the
+     * inflater threw.
+     */
+    @Test
+    public void invalidDataKeepsTheCause() {
+        // A block type of 11 (in the second and third bits of the first byte) is reserved, so is invalid
+        final byte[] invalidBytes = { (byte) 0xff, 0, 0, 0 };
+        assertThatThrownBy(new ThrowingCallable() {
+            @Override
+            public void call() throws Throwable {
+                inflate(invalidBytes);
+            }
+        }).isInstanceOf(ZipException.class).hasCauseInstanceOf(DataFormatException.class);
     }
 
     /**

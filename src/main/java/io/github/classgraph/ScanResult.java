@@ -243,7 +243,7 @@ public final class ScanResult implements Closeable {
     }
 
     // -------------------------------------------------------------------------------------------------------------
-    // Shutdown hook init code
+    // Static init code
 
     /**
      * Static initialization (warm up classloading), called when the ClassGraph class is initialized.
@@ -362,7 +362,7 @@ public final class ScanResult implements Closeable {
         // Define a new ClassLoader that can load the classes found during the scan
         this.classGraphClassLoader = new ClassGraphClassLoader(this);
 
-        // Provide the shutdown hook with a weak reference to this ScanResult
+        // Register a weak reference to this ScanResult, so that closeAll() can close it if it is not closed
         this.weakReference = new WeakReference<>(this, collectedScanResults);
         // Drop the weak references whose ScanResult was garbage collected before it was closed. Only close()
         // removes a weak reference, so without this the set would grow without limit in a program that scans
