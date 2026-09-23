@@ -64,6 +64,16 @@ public class ClassRefTypeSignatureTest {
     /** A '.' must be followed by the name of a nested class. */
     @Test
     public void aDotWithoutANameIsAParseError() {
-        assertThatExceptionOfType(TypeSignatureParseException.class).isThrownBy(() -> parse("Lp/Outer.$Inner;"));
+        assertThatExceptionOfType(TypeSignatureParseException.class).isThrownBy(() -> parse("Lp/Outer<TT;>.;"));
+        assertThatExceptionOfType(TypeSignatureParseException.class)
+                .isThrownBy(() -> parse("Lp/Outer<TT;>..Inner;"));
+    }
+
+    /** After a '.', a name can start with '$', since '$' is a legal first character of a Java identifier. */
+    @Test
+    public void aNameAfterADotCanStartWithADollarSign() throws TypeSignatureParseException {
+        final var sig = parse("Lp/Outer<TT;>.$Inner;");
+        assertThat(sig.getSuffixes()).containsExactly("$Inner");
+        assertThat(sig.getFullyQualifiedClassName()).isEqualTo("p.Outer$$Inner");
     }
 }

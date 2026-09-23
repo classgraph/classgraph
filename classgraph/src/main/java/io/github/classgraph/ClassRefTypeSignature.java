@@ -497,7 +497,11 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
                 suffixTypeArguments = new ArrayList<>();
                 while (parser.peek() == '.' || parser.peek() == '$') {
                     final var separator = parser.getc();
-                    if (TypeUtils.getIdentifierToken(parser, /* stopAtDollarSign = */ true,
+                    // A '$' is taken to separate nested class names, since before the first type arguments the
+                    // signature gives no other way to tell nested classes apart. After a '.', which javac writes
+                    // once an enclosing class has type arguments, the whole simple name of the nested class
+                    // follows, and a '$' in it is part of that name (e.g. "Outer<TT;>.Inner$Name").
+                    if (TypeUtils.getIdentifierToken(parser, /* stopAtDollarSign = */ separator == '$',
                             /* stopAtDot = */ true)) {
                         suffixes.add(parser.currToken());
                         suffixTypeArguments.add(TypeArgument.parseList(parser, definingClassName));
