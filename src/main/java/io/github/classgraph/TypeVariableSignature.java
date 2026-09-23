@@ -263,7 +263,7 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
      */
     @Override
     public int hashCode() {
-        return name.hashCode();
+        return Objects.hash(name, definingClassName);
     }
 
     /* (non-Javadoc)
@@ -277,7 +277,8 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
             return false;
         }
         final TypeVariableSignature other = (TypeVariableSignature) obj;
-        return other.name.equals(this.name) && Objects.equals(other.typeAnnotationInfo, this.typeAnnotationInfo);
+        return other.name.equals(this.name) && Objects.equals(other.definingClassName, this.definingClassName)
+                && Objects.equals(other.typeAnnotationInfo, this.typeAnnotationInfo);
     }
 
     /* (non-Javadoc)
@@ -346,11 +347,14 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
             // in the class hierarchy)
             return false;
         }
-        // Technically I think type variables are never equal to each other, due to capturing,
-        // but just compare the variable name for equality here (this should never get
-        // triggered in general, since we only compare type-erased signatures to
-        // non-type-erased signatures currently).
-        return this.equals(other);
+        // 'other' is a type variable too. Compare the names and type annotations, but unlike equals(), not the
+        // classes the two type variables are used in, so that the T of a superclass method matches the T of the
+        // method that overrides it.
+        if (!(other instanceof TypeVariableSignature)) {
+            return false;
+        }
+        final TypeVariableSignature o = (TypeVariableSignature) other;
+        return o.name.equals(this.name) && Objects.equals(o.typeAnnotationInfo, this.typeAnnotationInfo);
     }
 
     /**

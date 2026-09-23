@@ -6,6 +6,8 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
+import nonapi.io.github.classgraph.types.Parser;
+
 /** Tests for {@link TypeVariableSignature#equalsIgnoringTypeParams(TypeSignature)}. */
 public class TypeVariableSignatureTest {
     /** The class that bounds the type variable {@code T}. */
@@ -196,6 +198,29 @@ public class TypeVariableSignatureTest {
             assertThat(typeVariable(scanResult, "parameterizedBounded")
                     .equalsIgnoringTypeParams(fieldType(scanResult, "integerListField"))).isTrue();
         }
+    }
+
+    /**
+     * Two type variables are equal if they have the same name, are used in the same class, and have the same type
+     * annotations. {@link TypeVariableSignature#equalsIgnoringTypeParams(TypeSignature)} does not compare the
+     * class.
+     *
+     * @throws Exception
+     *             if a type variable could not be parsed.
+     */
+    @Test
+    public void equalityIsByNameDefiningClassAndTypeAnnotations() throws Exception {
+        final TypeVariableSignature typeVariable = TypeVariableSignature.parse(new Parser("TT;"), GENERIC);
+        final TypeVariableSignature sameVariable = TypeVariableSignature.parse(new Parser("TT;"), GENERIC);
+        final TypeVariableSignature otherClass = TypeVariableSignature.parse(new Parser("TT;"),
+                "com.example.SomeOtherClass");
+        final TypeVariableSignature differentName = TypeVariableSignature.parse(new Parser("TU;"), GENERIC);
+
+        assertThat(typeVariable).isEqualTo(sameVariable).hasSameHashCodeAs(sameVariable).isNotEqualTo(otherClass)
+                .isNotEqualTo(differentName);
+
+        assertThat(typeVariable.equalsIgnoringTypeParams(otherClass)).isTrue();
+        assertThat(typeVariable.equalsIgnoringTypeParams(differentName)).isFalse();
     }
 }
 
