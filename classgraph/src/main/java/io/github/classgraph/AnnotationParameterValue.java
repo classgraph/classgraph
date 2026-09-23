@@ -394,14 +394,33 @@ public final class AnnotationParameterValue extends ScanResultObject
         if (!(obj instanceof final AnnotationParameterValue other)) {
             return false;
         }
-        // N.B. use deepEquals, so that array-valued parameters are compared by their contents, not by identity
-        return this.name.equals(other.name) && Objects.deepEquals(value, other.value);
+        return this.name.equals(other.name) && valuesEqual(value, other.value);
+    }
+
+    /**
+     * Check whether two annotation parameter values are equal, consistently with
+     * {@link #compareValues(Object, Object)}. Arrays are compared by their contents, and an Object[] array that has
+     * not yet been converted to a primitive array or a String[] array equals the converted array.
+     *
+     * @param v0
+     *            the first value, or null.
+     * @param v1
+     *            the second value, or null.
+     * @return true if the values are equal.
+     */
+    private static boolean valuesEqual(final @Nullable Object v0, final @Nullable Object v1) {
+        if (v0 != null && v1 != null && v0.getClass() != v1.getClass() && v0.getClass().isArray()
+                && v1.getClass().isArray()) {
+            return compareValues(v0, v1) == 0;
+        }
+        return Objects.deepEquals(v0, v1);
     }
 
     @Override
     public int hashCode() {
         // N.B. wrap the value in an array, so that Arrays#deepHashCode hashes an array-valued parameter by its
-        // contents, matching equals(Object)
+        // contents, matching equals(Object). A primitive array hashes each element the same way as the boxed
+        // value, so an Object[] array that has not yet been converted hashes the same as the converted array.
         return name.hashCode() * 31 + Arrays.deepHashCode(new Object[] { value });
     }
 
