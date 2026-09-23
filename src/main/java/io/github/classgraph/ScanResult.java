@@ -930,8 +930,15 @@ public final class ScanResult implements Closeable {
     // Classes
 
     /**
-     * Get the {@link ClassInfo} object for the named class, or null if no class of the requested name was found in
-     * an accepted/non-rejected package during the scan.
+     * Get the {@link ClassInfo} object for the named class, or null if there is none.
+     *
+     * <p>
+     * There is a {@link ClassInfo} object for each class found in the accepted packages, and also for classes
+     * outside them that the scan came across: the superclasses, interfaces, annotations, and outer and nested
+     * classes of the classes it read, and, if {@link ClassGraph#enableInterClassDependencies()} was called, every
+     * class that a class in the accepted packages refers to. So unlike {@link #getAllClasses()}, this can return an
+     * external class even if {@link ClassGraph#enableExternalClasses()} was not called, and
+     * {@link ClassInfo#isExternalClass()} then returns true.
      *
      * @param className
      *            The class name.
@@ -995,6 +1002,11 @@ public final class ScanResult implements Closeable {
     /**
      * Get a map from class name to {@link ClassInfo} object for all classes, interfaces and annotations found
      * during the scan.
+     *
+     * <p>
+     * Unlike {@link #getAllClasses()}, the map also holds every class outside the accepted packages that
+     * {@link #getClassInfo(String)} returns, even if {@link ClassGraph#enableExternalClasses()} was not called.
+     * The map is the one the scan result uses itself, so it must not be modified.
      *
      * @return The map from class name to {@link ClassInfo} object for all classes, interfaces and annotations found
      *         during the scan.
