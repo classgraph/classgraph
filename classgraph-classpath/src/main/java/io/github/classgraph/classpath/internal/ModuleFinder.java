@@ -179,9 +179,9 @@ public class ModuleFinder {
             findLayerOrder(layer, layerVisited, parentLayers, layerOrder);
         }
 
-        // Remove parent layers from layer order if classpathSpec.ignoreParentModuleLayers is true
+        // Remove parent layers from layer order if ignoreParentModuleLayers() was called
         final List<ModuleLayer> layerOrderFinal;
-        if (classpathSpec.ignoreParentModuleLayers) {
+        if (classpathSpec.isParentModuleLayersIgnored()) {
             layerOrderFinal = new ArrayList<>();
             for (final ModuleLayer layer : layerOrder) {
                 if (!parentLayers.contains(layer)) {
@@ -251,8 +251,8 @@ public class ModuleFinder {
      */
     public ModuleFinder(final CallStackInfo callStackInfo, final ClasspathSpec classpathSpec,
             final ScanSourceSpec scanSourceSpec, final @Nullable LogNode log) {
-        final var scanSystemModules = classpathSpec.scanSystemModules;
-        final var scanNonSystemModules = classpathSpec.scanNonSystemModules;
+        final var scanSystemModules = classpathSpec.isSystemModulesEnabled();
+        final var scanNonSystemModules = classpathSpec.isNonSystemModulesEnabled();
 
         // Find the layers to search: the ones the caller named, or, if the caller named none, the ones detected in
         // the environment

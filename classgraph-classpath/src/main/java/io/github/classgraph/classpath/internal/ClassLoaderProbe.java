@@ -150,7 +150,7 @@ public class ClassLoaderProbe {
 
         // The ClassLoaderHandlers the user registered. These are offered each classloader before the built-in
         // handlers are, so that a user handler can override a built-in one.
-        final var userClassLoaderHandlers = classpathSpec.classLoaderHandlers;
+        final var userClassLoaderHandlers = classpathSpec.getClassLoaderHandlers();
         if (classLoaderProbeLog != null) {
             final var classLoaderHandlerLog = classLoaderProbeLog.log("ClassLoaderHandlers:");
             for (final ClassLoaderHandler classLoaderHandler : userClassLoaderHandlers) {
@@ -174,7 +174,7 @@ public class ClassLoaderProbe {
                 // The classpath is split here rather than when the caller handed it over, so that a URL scheme the
                 // caller registered afterwards still keeps its own ':' from being read as a separator
                 addNamedClasspathEntries(
-                        List.of(PathList.split(classpathString.classpath(), classpathSpec.allowedURLSchemes)),
+                        List.of(PathList.split(classpathString.classpath(), classpathSpec.getAllowedURLSchemes())),
                         classLoaderProbeLog);
             } else {
                 final var classLoaders = classpathSource instanceof final NamedClassLoaders namedClassLoaders
@@ -257,7 +257,7 @@ public class ClassLoaderProbe {
                 .subList(numClassLoadersSearched, classLoaderOrderEntries.size())) {
             final var classLoader = ent.getKey();
             for (final ClassLoaderHandler classLoaderHandler : ent.getValue()) {
-                if (classpathSpec.ignoreParentClassLoaders && allParentClassLoaders.contains(classLoader)) {
+                if (classpathSpec.isParentClassLoadersIgnored() && allParentClassLoaders.contains(classLoader)) {
                     if (classloaderURLLog != null) {
                         classloaderURLLog.log("Ignoring parent classloader " + classLoader
                                 + ", normally handled by " + classLoaderHandler.getClass().getName());

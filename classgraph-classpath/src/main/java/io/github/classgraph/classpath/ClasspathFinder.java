@@ -332,7 +332,7 @@ public final class ClasspathFinder {
      * @return this (for method chaining).
      */
     public ClasspathFinder ignoreParentClassLoaders() {
-        classpathSpec.ignoreParentClassLoaders = true;
+        classpathSpec.ignoreParentClassLoaders();
         return this;
     }
 
@@ -355,8 +355,7 @@ public final class ClasspathFinder {
      * @return this (for method chaining).
      */
     public ClasspathFinder registerClassLoaderHandler(final ClassLoaderHandler classLoaderHandler) {
-        Assert.notNull(classLoaderHandler, "classLoaderHandler");
-        classpathSpec.classLoaderHandlers.add(classLoaderHandler);
+        classpathSpec.addClassLoaderHandler(classLoaderHandler);
         return this;
     }
 
@@ -372,7 +371,7 @@ public final class ClasspathFinder {
      */
     public ClasspathFinder enableSystemModules() {
         scanSourceSpec.enableModuleScanning();
-        classpathSpec.scanSystemModules = true;
+        classpathSpec.enableSystemModules();
         return this;
     }
 
@@ -385,7 +384,7 @@ public final class ClasspathFinder {
      */
     public ClasspathFinder enableNonSystemModules() {
         scanSourceSpec.enableModuleScanning();
-        classpathSpec.scanNonSystemModules = true;
+        classpathSpec.enableNonSystemModules();
         return this;
     }
 

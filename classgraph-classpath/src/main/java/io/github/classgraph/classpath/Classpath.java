@@ -88,12 +88,12 @@ public final class Classpath implements AutoCloseable, Iterable<ClasspathEntry> 
         final var moduleFinder = classLoaderProbe.getModuleFinder();
         // The ModuleFinder lists the system modules even when they were not enabled, since the scanner may need to
         // read a class from one of them (#902), so they are dropped here unless they were enabled
-        this.systemModules = moduleFinder == null || !classpathSpec.scanSystemModules ? List.of()
+        this.systemModules = moduleFinder == null || !classpathSpec.isSystemModulesEnabled() ? List.of()
                 : List.copyOf(moduleFinder.getSystemModuleReferences());
         this.nonSystemModules = moduleFinder == null ? List.of()
                 : List.copyOf(moduleFinder.getNonSystemModuleReferences());
 
-        this.modulePathInfo = classpathSpec.modulePathInfo;
+        this.modulePathInfo = classpathSpec.getModulePathInfo();
     }
 
     // -------------------------------------------------------------------------------------------------------------

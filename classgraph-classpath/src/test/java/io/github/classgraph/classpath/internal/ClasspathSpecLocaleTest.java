@@ -19,7 +19,7 @@ public class ClasspathSpecLocaleTest {
             Locale.setDefault(new Locale("tr", "TR"));
             final var classpathSpec = new ClasspathSpec();
             classpathSpec.allowURLScheme("FILE");
-            assertTrue(classpathSpec.allowedURLSchemes.contains("file"),
+            assertTrue(classpathSpec.getAllowedURLSchemes().contains("file"),
                     "scheme should be stored as ASCII 'file' regardless of default locale");
         } finally {
             Locale.setDefault(original);

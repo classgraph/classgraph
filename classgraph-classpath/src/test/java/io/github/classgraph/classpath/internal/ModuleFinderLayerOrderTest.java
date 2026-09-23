@@ -89,7 +89,7 @@ public class ModuleFinderLayerOrderTest {
      */
     private static List<String> nonSystemModuleNames(final ModuleLayer... moduleLayers) {
         final var classpathSpec = new ClasspathSpec();
-        classpathSpec.scanNonSystemModules = true;
+        classpathSpec.enableNonSystemModules();
         final var scanSourceSpec = new ScanSourceSpec();
         scanSourceSpec.enableModuleLayers(moduleLayers);
         final var moduleFinder = new ClassLoaderProbe(classpathSpec, scanSourceSpec, new LogNode())

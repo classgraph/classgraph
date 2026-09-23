@@ -16,7 +16,7 @@ public class ClasspathSpecTest {
         classpathSpec.allowURLScheme("view-source");
         classpathSpec.allowURLScheme("ms-help");
         classpathSpec.allowURLScheme("z39.50r");
-        assertThat(classpathSpec.allowedURLSchemes).containsExactlyInAnyOrder("s3", "http", "view-source",
+        assertThat(classpathSpec.getAllowedURLSchemes()).containsExactlyInAnyOrder("s3", "http", "view-source",
                 "ms-help", "z39.50r");
     }
 
@@ -35,6 +35,6 @@ public class ClasspathSpecTest {
         assertThatIllegalArgumentException().isThrownBy(() -> classpathSpec.allowURLScheme("a/b"));
         // A one-character scheme is indistinguishable from a Windows drive letter
         assertThatIllegalArgumentException().isThrownBy(() -> classpathSpec.allowURLScheme("s"));
-        assertThat(classpathSpec.allowedURLSchemes).isNull();
+        assertThat(classpathSpec.getAllowedURLSchemes()).isEmpty();
     }
 }

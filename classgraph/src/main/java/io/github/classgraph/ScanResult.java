@@ -620,7 +620,7 @@ public final class ScanResult implements AutoCloseable {
      */
     public ModulePathInfo getModulePathInfo() {
         checkNotClosed();
-        return scanSpec.classpathSpec.modulePathInfo;
+        return scanSpec.classpathSpec.getModulePathInfo();
     }
 
     // -------------------------------------------------------------------------------------------------------------

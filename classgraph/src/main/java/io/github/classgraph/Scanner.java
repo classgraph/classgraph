@@ -269,8 +269,8 @@ class Scanner implements Callable<ScanResult> {
             // can still be read to complete the class graph above an accepted class (#902). A module of a kind that
             // is being scanned follows the accept/reject rule, so rejecting one module leaves the rest scannable
             // (#658).
-            final var isAccepted = (isSystemModules ? scanSpec.classpathSpec.scanSystemModules
-                    : scanSpec.classpathSpec.scanNonSystemModules)
+            final var isAccepted = (isSystemModules ? scanSpec.classpathSpec.isSystemModulesEnabled()
+                    : scanSpec.classpathSpec.isNonSystemModulesEnabled())
                     && scanSpec.moduleAcceptReject.isAcceptedAndNotRejected(moduleName);
             if (isAccepted) {
                 // Create a new ClasspathElementModule

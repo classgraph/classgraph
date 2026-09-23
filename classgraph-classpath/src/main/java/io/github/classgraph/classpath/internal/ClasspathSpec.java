@@ -32,6 +32,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -62,7 +63,7 @@ public class ClasspathSpec {
      * since the classfile of a class in a system module that is not being scanned may still have to be read in
      * order to complete the class graph above an accepted class (#902).
      */
-    public boolean scanSystemModules;
+    private boolean scanSystemModules;
 
     /**
      * If true, scan the non-system modules found in the module layers that are searched.
@@ -72,15 +73,15 @@ public class ClasspathSpec {
      * classpath element it finds, and it is the scanner that decides whether to open a given element. The module
      * path is different, because it has to be enumerated through a separate API, which can be skipped entirely.
      */
-    public boolean scanNonSystemModules;
+    private boolean scanNonSystemModules;
 
     /**
      * URL schemes that may start a classpath element, so that a {@code ':'}-separated classpath string is not split
-     * at a scheme's own colon. This is a parsing aid, not a permission gate -- whether a jarfile may be fetched
+     * at a scheme's own colon. This is a parsing aid, not a permission check -- whether a jarfile may be fetched
      * over a scheme is {@link io.github.classgraph.vfs.VfsSpec#denyURLScheme(String)}'s business. {@code "jar:"}
      * and {@code "file:"} are recognized without being listed here.
      */
-    public @Nullable Set<String> allowedURLSchemes;
+    private final Set<String> allowedURLSchemes = new HashSet<>();
 
     /**
      * The URL schemes that a scan or a classpath walk does not fetch a jarfile from unless asked to. These are the
@@ -95,28 +96,28 @@ public class ClasspathSpec {
     // ScanSourceSpec, since a ScanResult holds its ClasspathSpec, and a scan must not keep a classloader or a
     // module layer alive after it has finished with it
 
-    /** If non-null, a list of filters to apply to classpath element path strings. */
-    public @Nullable List<Predicate<String>> classpathElementPathFilters;
+    /** The filters to apply to classpath element path strings. */
+    private final List<Predicate<String>> classpathElementPathFilters = new ArrayList<>(2);
 
-    /** If non-null, a list of filters to apply to classpath element {@link URL}s. */
-    public @Nullable List<Predicate<URL>> classpathElementURLFilters;
+    /** The filters to apply to classpath element {@link URL}s. */
+    private final List<Predicate<URL>> classpathElementURLFilters = new ArrayList<>(2);
 
     /** If true, do not fetch paths from parent classloaders. */
-    public boolean ignoreParentClassLoaders;
+    private boolean ignoreParentClassLoaders;
 
     /**
      * The {@link ClassLoaderHandler} instances the user registered, in registration order. These are offered each
      * classloader before the built-in handlers are.
      */
-    public final List<ClassLoaderHandler> classLoaderHandlers = new ArrayList<>();
+    private final List<ClassLoaderHandler> classLoaderHandlers = new ArrayList<>();
 
     /**
      * If true, do not search module layers that are the parent of other module layers.
      */
-    public boolean ignoreParentModuleLayers;
+    private boolean ignoreParentModuleLayers;
 
     /** The module path switches the JVM was launched with. */
-    public ModulePathInfo modulePathInfo = new ModulePathInfo();
+    private final ModulePathInfo modulePathInfo = new ModulePathInfo();
 
     // -----------------------------------------------------------------------------------------------------------
 
@@ -137,10 +138,16 @@ public class ClasspathSpec {
      */
     public void filterClasspathElements(final Predicate<String> filter) {
         Assert.notNull(filter, "filter");
-        if (this.classpathElementPathFilters == null) {
-            this.classpathElementPathFilters = new ArrayList<>(2);
-        }
-        this.classpathElementPathFilters.add(filter);
+        classpathElementPathFilters.add(filter);
+    }
+
+    /**
+     * Get the classpath element path filters.
+     *
+     * @return the filters added by {@link #filterClasspathElements(Predicate)}, in the order they were added.
+     */
+    public List<Predicate<String>> getClasspathElementPathFilters() {
+        return Collections.unmodifiableList(classpathElementPathFilters);
     }
 
     /**
@@ -153,10 +160,16 @@ public class ClasspathSpec {
      */
     public void filterClasspathElementsByURL(final Predicate<URL> filter) {
         Assert.notNull(filter, "filter");
-        if (this.classpathElementURLFilters == null) {
-            this.classpathElementURLFilters = new ArrayList<>(2);
-        }
-        this.classpathElementURLFilters.add(filter);
+        classpathElementURLFilters.add(filter);
+    }
+
+    /**
+     * Get the classpath element {@link URL} filters.
+     *
+     * @return the filters added by {@link #filterClasspathElementsByURL(Predicate)}, in the order they were added.
+     */
+    public List<Predicate<URL>> getClasspathElementURLFilters() {
+        return Collections.unmodifiableList(classpathElementURLFilters);
     }
 
     /**
@@ -171,11 +184,101 @@ public class ClasspathSpec {
      */
     public void allowURLScheme(final String scheme) {
         Assert.notNull(scheme, "scheme");
-        final var normalizedScheme = URLPaths.normalizeURLScheme(scheme);
-        if (allowedURLSchemes == null) {
-            allowedURLSchemes = new HashSet<>();
-        }
-        allowedURLSchemes.add(normalizedScheme);
+        allowedURLSchemes.add(URLPaths.normalizeURLScheme(scheme));
+    }
+
+    /**
+     * Get the URL schemes that may start a classpath element.
+     *
+     * @return the schemes added by {@link #allowURLScheme(String)}, in lowercase.
+     */
+    public Set<String> getAllowedURLSchemes() {
+        return Collections.unmodifiableSet(allowedURLSchemes);
+    }
+
+    /** Scan the modules supplied by the running JVM. */
+    public void enableSystemModules() {
+        scanSystemModules = true;
+    }
+
+    /**
+     * Check whether the modules supplied by the running JVM are scanned.
+     *
+     * @return true if {@link #enableSystemModules()} was called.
+     */
+    public boolean isSystemModulesEnabled() {
+        return scanSystemModules;
+    }
+
+    /** Scan the non-system modules. */
+    public void enableNonSystemModules() {
+        scanNonSystemModules = true;
+    }
+
+    /**
+     * Check whether the non-system modules are scanned.
+     *
+     * @return true if {@link #enableNonSystemModules()} was called.
+     */
+    public boolean isNonSystemModulesEnabled() {
+        return scanNonSystemModules;
+    }
+
+    /** Do not fetch paths from parent classloaders. */
+    public void ignoreParentClassLoaders() {
+        ignoreParentClassLoaders = true;
+    }
+
+    /**
+     * Check whether parent classloaders are ignored.
+     *
+     * @return true if {@link #ignoreParentClassLoaders()} was called.
+     */
+    public boolean isParentClassLoadersIgnored() {
+        return ignoreParentClassLoaders;
+    }
+
+    /** Do not search module layers that are the parent of other module layers. */
+    public void ignoreParentModuleLayers() {
+        ignoreParentModuleLayers = true;
+    }
+
+    /**
+     * Check whether parent module layers are ignored.
+     *
+     * @return true if {@link #ignoreParentModuleLayers()} was called.
+     */
+    public boolean isParentModuleLayersIgnored() {
+        return ignoreParentModuleLayers;
+    }
+
+    /**
+     * Register a {@link ClassLoaderHandler}.
+     *
+     * @param classLoaderHandler
+     *            the handler, which is offered each classloader before the built-in handlers are.
+     */
+    public void addClassLoaderHandler(final ClassLoaderHandler classLoaderHandler) {
+        Assert.notNull(classLoaderHandler, "classLoaderHandler");
+        classLoaderHandlers.add(classLoaderHandler);
+    }
+
+    /**
+     * Get the registered {@link ClassLoaderHandler} instances.
+     *
+     * @return the handlers, in registration order.
+     */
+    public List<ClassLoaderHandler> getClassLoaderHandlers() {
+        return Collections.unmodifiableList(classLoaderHandlers);
+    }
+
+    /**
+     * Get the module path switches the JVM was launched with.
+     *
+     * @return the {@link ModulePathInfo}.
+     */
+    public ModulePathInfo getModulePathInfo() {
+        return modulePathInfo;
     }
 
     // -----------------------------------------------------------------------------------------------------------

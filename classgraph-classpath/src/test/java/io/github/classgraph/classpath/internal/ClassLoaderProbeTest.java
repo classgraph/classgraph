@@ -27,13 +27,13 @@ public class ClassLoaderProbeTest {
      */
     private static ClasspathSpec systemModuleSpec() {
         final var classpathSpec = new ClasspathSpec();
-        classpathSpec.scanSystemModules = true;
-        classpathSpec.ignoreParentClassLoaders = true;
+        classpathSpec.enableSystemModules();
+        classpathSpec.ignoreParentClassLoaders();
         return classpathSpec;
     }
 
     /**
-     * Test that {@link ClasspathSpec#scanSystemModules}, {@link ClasspathSpec#ignoreParentClassLoaders} and
+     * Test that {@link ClasspathSpec#enableSystemModules()}, {@link ClasspathSpec#ignoreParentClassLoaders()} and
      * {@link ScanSourceSpec#enableClasspathEntries} work in combination:
      * <p>
      * Only the system modules and the given classpath entries should be found.
@@ -62,7 +62,7 @@ public class ClassLoaderProbeTest {
     }
 
     /**
-     * Test that {@link ClasspathSpec#scanSystemModules}, {@link ClasspathSpec#ignoreParentClassLoaders} and
+     * Test that {@link ClasspathSpec#enableSystemModules()}, {@link ClasspathSpec#ignoreParentClassLoaders()} and
      * {@link ScanSourceSpec#enableClassLoaders} work in combination:
      * <p>
      * Only the system modules and the given classloaders should be found.
@@ -141,7 +141,7 @@ public class ClassLoaderProbeTest {
     @Test
     public void platformClassLoaderDoesNotScanClasspath() throws Exception {
         final var classpathSpec = new ClasspathSpec();
-        classpathSpec.ignoreParentClassLoaders = true;
+        classpathSpec.ignoreParentClassLoaders();
         final var scanSourceSpec = new ScanSourceSpec();
         scanSourceSpec.enableClassLoaders(ClassLoader.getPlatformClassLoader());
 

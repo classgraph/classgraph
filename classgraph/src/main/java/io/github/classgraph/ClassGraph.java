@@ -669,7 +669,7 @@ public class ClassGraph {
      * @return this (for method chaining).
      */
     public ClassGraph ignoreParentClassLoaders() {
-        scanSpec.classpathSpec.ignoreParentClassLoaders = true;
+        scanSpec.classpathSpec.ignoreParentClassLoaders();
         return this;
     }
 
@@ -692,8 +692,7 @@ public class ClassGraph {
      * @return this (for method chaining).
      */
     public ClassGraph registerClassLoaderHandler(final ClassLoaderHandler classLoaderHandler) {
-        Assert.notNull(classLoaderHandler, "classLoaderHandler");
-        scanSpec.classpathSpec.classLoaderHandlers.add(classLoaderHandler);
+        scanSpec.classpathSpec.addClassLoaderHandler(classLoaderHandler);
         return this;
     }
 
@@ -709,7 +708,7 @@ public class ClassGraph {
      */
     public ClassGraph enableSystemModules() {
         scanSourceSpec.enableModuleScanning();
-        scanSpec.classpathSpec.scanSystemModules = true;
+        scanSpec.classpathSpec.enableSystemModules();
         return this;
     }
 
@@ -722,7 +721,7 @@ public class ClassGraph {
      */
     public ClassGraph enableNonSystemModules() {
         scanSourceSpec.enableModuleScanning();
-        scanSpec.classpathSpec.scanNonSystemModules = true;
+        scanSpec.classpathSpec.enableNonSystemModules();
         return this;
     }
 
@@ -780,7 +779,7 @@ public class ClassGraph {
      * @return this (for method chaining).
      */
     public ClassGraph ignoreParentModuleLayers() {
-        scanSpec.classpathSpec.ignoreParentModuleLayers = true;
+        scanSpec.classpathSpec.ignoreParentModuleLayers();
         return this;
     }
 
@@ -1616,7 +1615,7 @@ public class ClassGraph {
                 scanSourceSpec.moduleScanningEnabled, moduleKindMethods);
         checkRequires(scanSourceSpec.searchDetectedModuleLayers, "enableDetectedModuleLayers",
                 scanSourceSpec.moduleScanningEnabled, moduleKindMethods);
-        checkRequires(scanSpec.classpathSpec.ignoreParentModuleLayers, "ignoreParentModuleLayers",
+        checkRequires(scanSpec.classpathSpec.isParentModuleLayersIgnored(), "ignoreParentModuleLayers",
                 scanSourceSpec.moduleScanningEnabled, moduleKindMethods);
     }
 
@@ -1903,6 +1902,6 @@ public class ClassGraph {
      * @return The {@link ModulePathInfo}.
      */
     public ModulePathInfo getModulePathInfo() {
-        return scanSpec.classpathSpec.modulePathInfo;
+        return scanSpec.classpathSpec.getModulePathInfo();
     }
 }

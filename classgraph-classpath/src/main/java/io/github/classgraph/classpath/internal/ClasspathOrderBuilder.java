@@ -254,21 +254,22 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
      * @return true if the classpath element passes every filter
      */
     private boolean filter(final @Nullable URL classpathElementURL, final @Nullable String classpathElementPath) {
-        if (classpathSpec.classpathElementURLFilters != null) {
+        final var urlFilters = classpathSpec.getClasspathElementURLFilters();
+        if (!urlFilters.isEmpty()) {
             // FastPathResolver strips the scheme from "file:" and "jar:file:" classpath elements, so for those the
             // URL has to be reconstituted from the resolved path before the URL filters can be applied to it
             final var url = classpathElementURL != null ? classpathElementURL
                     : classpathElementPath == null ? null : toURL(classpathElementPath);
             if (url != null) {
-                for (final Predicate<URL> urlFilter : classpathSpec.classpathElementURLFilters) {
+                for (final Predicate<URL> urlFilter : urlFilters) {
                     if (!urlFilter.test(url)) {
                         return false;
                     }
                 }
             }
         }
-        if (classpathElementPath != null && classpathSpec.classpathElementPathFilters != null) {
-            for (final Predicate<String> pathFilter : classpathSpec.classpathElementPathFilters) {
+        if (classpathElementPath != null) {
+            for (final Predicate<String> pathFilter : classpathSpec.getClasspathElementPathFilters()) {
                 if (!pathFilter.test(classpathElementPath)) {
                     return false;
                 }
@@ -703,7 +704,7 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
             final @Nullable ClassGraphLog log) {
         var added = false;
         if (pathStr != null && !pathStr.isEmpty()) {
-            for (final String pathElement : PathList.split(pathStr, classpathSpec.allowedURLSchemes)) {
+            for (final String pathElement : PathList.split(pathStr, classpathSpec.getAllowedURLSchemes())) {
                 added |= addClasspathEntry(pathElement, classLoader, log);
             }
         }
