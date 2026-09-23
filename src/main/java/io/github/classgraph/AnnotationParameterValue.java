@@ -29,6 +29,7 @@
 package io.github.classgraph;
 
 import java.lang.reflect.Array;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -244,8 +245,14 @@ public class AnnotationParameterValue extends ScanResultObject
         }
     }
 
-    /* (non-Javadoc)
-     * @see java.lang.Object#equals(java.lang.Object)
+    /**
+     * Check whether this annotation parameter value equals another, consistently with
+     * {@link #compareTo(AnnotationParameterValue)}. Arrays are compared by their contents, and an Object[] array
+     * that has not yet been converted to a primitive array or a String[] array equals the converted array.
+     *
+     * @param obj
+     *            the object to compare with.
+     * @return true if the object is an equal annotation parameter value.
      */
     @Override
     public boolean equals(final Object obj) {
@@ -255,16 +262,29 @@ public class AnnotationParameterValue extends ScanResultObject
             return false;
         }
         final AnnotationParameterValue other = (AnnotationParameterValue) obj;
-        return this.name.equals(other.name) && (value == null) == (other.value == null)
-                && (value == null || value.equals(other.value));
+        if (!Objects.equals(name, other.name) || (value == null) != (other.value == null)) {
+            return false;
+        }
+        if (value == null || value.equals(other.value)) {
+            return true;
+        }
+        final Object v0 = getValue();
+        final Object v1 = other.getValue();
+        return v0 != null && v1 != null && v0.getClass() != v1.getClass() && v0.getClass().isArray()
+                && v1.getClass().isArray() && compareValues(v0, v1) == 0;
     }
 
-    /* (non-Javadoc)
-     * @see java.lang.Object#hashCode()
+    /**
+     * Get the hash code, which is consistent with {@link #equals(Object)}.
+     *
+     * @return the hash code.
      */
     @Override
     public int hashCode() {
-        return Objects.hash(name, value);
+        // N.B. wrap the value in an array, so that Arrays#deepHashCode hashes an array-valued parameter by its
+        // contents. A primitive array hashes each element the same way as the boxed value, so an Object[] array
+        // that has not yet been converted hashes the same as the converted array.
+        return Objects.hashCode(name) * 31 + Arrays.deepHashCode(new Object[] { getValue() });
     }
 
     // -------------------------------------------------------------------------------------------------------------
