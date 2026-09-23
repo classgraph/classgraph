@@ -290,10 +290,8 @@ public final class ScanResult implements AutoCloseable {
                 ci.findReferencedClassInfo(classNameToClassInfo, refdClassInfos, log);
                 final Set<ClassInfo> refdClassesFiltered = new HashSet<>();
                 for (final ClassInfo refdClassInfo : refdClassInfos) {
-                    // Don't add self-references, or references to Object
-                    if (!ci.equals(refdClassInfo) && !"java.lang.Object".equals(refdClassInfo.getName())
-                    // Only add class to result if it is accepted, or external classes are enabled
-                            && (!refdClassInfo.isExternalClass() || scanSpec.enableExternalClasses)) {
+                    // Don't add self-references
+                    if (!ci.equals(refdClassInfo) && isListedAsDependency(refdClassInfo)) {
                         refdClassInfo.setScanResult(this);
                         refdClassesFiltered.add(refdClassInfo);
                     }
@@ -1003,6 +1001,20 @@ public final class ScanResult implements AutoCloseable {
             revMapList.put(ent.getKey(), new ClassInfoList(ent.getValue(), /* sortByName = */ true));
         }
         return Collections.unmodifiableMap(revMapList);
+    }
+
+    /**
+     * Whether a referenced class belongs in a list returned by {@link ClassInfo#getClassDependencies()} or
+     * {@link ClassMemberInfo#getClassDependencies()}.
+     *
+     * @param refdClassInfo
+     *            the referenced class.
+     * @return false for {@code java.lang.Object}, and for an external class unless
+     *         {@link ClassGraph#enableExternalClasses()} was called before scanning; otherwise true.
+     */
+    boolean isListedAsDependency(final ClassInfo refdClassInfo) {
+        return !"java.lang.Object".equals(refdClassInfo.getName())
+                && (!refdClassInfo.isExternalClass() || scanSpec.enableExternalClasses);
     }
 
     // -------------------------------------------------------------------------------------------------------------

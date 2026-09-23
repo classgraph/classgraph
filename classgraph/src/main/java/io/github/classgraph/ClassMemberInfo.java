@@ -312,13 +312,16 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
      * {@link ClassGraph#enableFieldInfo()} or {@link ClassGraph#enableMethodInfo()} has been called.
      *
      * <p>
-     * Only classes that were themselves encountered during the scan are returned. Call
-     * {@link ClassGraph#enableExternalClasses()} before scanning to also get classes outside the accepted packages.
+     * As with {@link ClassInfo#getClassDependencies()}, {@code java.lang.Object} is left out, and so are classes
+     * outside the accepted packages unless {@link ClassGraph#enableExternalClasses()} was called before scanning.
+     * The declaring class is included if the member refers to it.
      *
      * @return A {@link ClassInfoList} of the classes referenced by this class member, or the empty list if none.
      */
     public ClassInfoList getClassDependencies() {
-        return new ClassInfoList(findReferencedClassInfo(/* log = */ null), /* sortByName = */ true);
+        final var refdClassInfo = findReferencedClassInfo(/* log = */ null);
+        refdClassInfo.removeIf(classInfo -> !scanResult().isListedAsDependency(classInfo));
+        return new ClassInfoList(refdClassInfo, /* sortByName = */ true);
     }
 
 }
