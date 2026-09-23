@@ -199,12 +199,49 @@ public class AnnotationParameterValue extends ScanResultObject
         if (value == null ? other.value == null : value.equals(other.value)) {
             return 0;
         }
-        // Use toString() order (which can be slow) as a last-ditch effort -- only happens
-        // if the annotation has multiple parameters of the same name but different value.
-        final Object p0 = getValue();
-        final Object p1 = other.getValue();
-        return p0 == null || p1 == null ? (p0 == null ? 0 : 1) - (p1 == null ? 0 : 1)
-                : toStringParamValueOnly().compareTo(other.toStringParamValueOnly());
+        return compareValues(getValue(), other.getValue());
+    }
+
+    /**
+     * Compare two annotation parameter values. Values of the same class are compared by their natural order, or by
+     * their string form if they have no natural order. Arrays are compared element by element, so an Object[]
+     * array that has not yet been converted to a primitive array compares equal to the converted array. Values of
+     * different classes cannot be compared with each other, so they are ordered by class name, which keeps the
+     * order transitive.
+     *
+     * @param v0
+     *            the first value, or null.
+     * @param v1
+     *            the second value, or null.
+     * @return the result of the comparison.
+     */
+    @SuppressWarnings("unchecked")
+    private static int compareValues(final Object v0, final Object v1) {
+        if (v0 == null || v1 == null) {
+            return (v0 == null ? 0 : 1) - (v1 == null ? 0 : 1);
+        }
+        final boolean isArray0 = v0.getClass().isArray();
+        final boolean isArray1 = v1.getClass().isArray();
+        if (isArray0 && isArray1) {
+            final int len0 = Array.getLength(v0);
+            final int len1 = Array.getLength(v1);
+            for (int i = 0; i < Math.min(len0, len1); i++) {
+                final int diff = compareValues(Array.get(v0, i), Array.get(v1, i));
+                if (diff != 0) {
+                    return diff;
+                }
+            }
+            return Integer.compare(len0, len1);
+        } else if (isArray0 != isArray1) {
+            // Arrays sort before other values
+            return isArray0 ? -1 : 1;
+        } else if (v0.getClass() != v1.getClass()) {
+            return v0.getClass().getName().compareTo(v1.getClass().getName());
+        } else if (v0 instanceof Comparable) {
+            return ((Comparable<Object>) v0).compareTo(v1);
+        } else {
+            return v0.toString().compareTo(v1.toString());
+        }
     }
 
     /* (non-Javadoc)
@@ -295,16 +332,5 @@ public class AnnotationParameterValue extends ScanResultObject
                 toString(paramVal, useSimpleNames, buf);
             }
         }
-    }
-
-    /**
-     * To string, param value only.
-     * 
-     * @return the string.
-     */
-    private String toStringParamValueOnly() {
-        final StringBuilder buf = new StringBuilder();
-        toStringParamValueOnly(false, buf);
-        return buf.toString();
     }
 }
