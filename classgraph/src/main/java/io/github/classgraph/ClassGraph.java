@@ -45,9 +45,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.FutureTask;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -1453,110 +1451,6 @@ public final class ClassGraph {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Asynchronously scan the enabled classpath elements and modules, calling the {@code scanResultProcessor}
-     * callback on success or the {@code failureHandler} callback on failure. Nothing is scanned unless one of the
-     * {@code enable} methods was called.
-     *
-     * @param executorService
-     *            A custom {@link ExecutorService} to use for scheduling worker tasks.
-     * @param numParallelTasks
-     *            The number of parallel tasks to break the work into during the most CPU-intensive stage of
-     *            classpath scanning. Must be at least 1. Ideally the ExecutorService will have at least this many
-     *            threads available.
-     * @param scanResultProcessor
-     *            A callback to run on successful scan. It is passed a borrowed {@link ScanResult} that is valid
-     *            only for the duration of the callback. ClassGraph closes it after the callback returns or throws.
-     * @param failureHandler
-     *            A callback to run on failed scan. It is passed any {@link Throwable} thrown during the scan.
-     * @throws IllegalArgumentException
-     *             if {@code numParallelTasks} is less than 1, or if a config option was enabled without the config
-     *             option that reads it.
-     */
-    public void scanAsync(final ExecutorService executorService, final int numParallelTasks,
-            final Consumer<ScanResult> scanResultProcessor, final Consumer<Throwable> failureHandler) {
-        Assert.notNull(executorService, "executorService");
-        checkNumParallelTasks(numParallelTasks);
-        // If scanResultProcessor is null, the scan won't do anything after completion, and the ScanResult will
-        // simply be lost.
-        Assert.notNull(scanResultProcessor, "scanResultProcessor");
-        // The result of the Future<ScanObject> object returned by launchAsyncScan is discarded below, so a
-        // FailureHandler is required, so that exceptions are not silently swallowed.
-        Assert.notNull(failureHandler, "failureHandler");
-        checkConfigIsExplicit();
-        // Read the call stack on the calling thread, since it is the caller's classloaders and module layers that
-        // are to be searched, not those of the thread that the scan happens to run on
-        final var callStackInfo = CallStackInfo.read();
-        // Use execute() rather than submit(), since a ScanResultProcessor and FailureHandler are used
-        executorService.execute(() -> {
-            try {
-                // Call scanner, but ignore the returned ScanResult
-                new Scanner(/* performScan = */ true, callStackInfo, scanSpec, scanSourceSpec, executorService,
-                        numParallelTasks, scanResultProcessor, failureHandler, topLevelLog).call();
-            } catch (final Throwable t) {
-                // Call failure handler. Anything thrown before the Scanner starts running the scan (e.g. by a
-                // user-supplied classpath element filter, which the Scanner constructor calls) has to be caught
-                // here too, otherwise it would be thrown on the ExecutorService's thread and lost, and the caller
-                // would wait forever for a callback that never comes
-                failureHandler.accept(t);
-            }
-        });
-    }
-
-    /**
-     * Asynchronously scan the enabled classpath elements and modules, returning a {@code Future<ScanResult>}.
-     * Nothing is scanned unless one of the {@code enable} methods was called. You should assign the wrapped
-     * {@link ScanResult} in a try-with-resources statement, or manually close it when you are finished with it.
-     *
-     * <p>
-     * The scan runs on a thread of the {@link ExecutorService}, so the classes that the scanner touches are loaded
-     * on that thread. If the thread that calls this method then blocks on the returned {@link Future} while holding
-     * a lock that the classloader also acquires, the scan can never complete (#933) -- use
-     * {@link #scan(ExecutorService, int)}, which runs the scanner on the calling thread, if that is a possibility.
-     *
-     * <p>
-     * Any failure of the scan, including an exception thrown by a classpath element filter, is reported by
-     * {@link Future#get()}. If the {@link Future} is canceled while the scan is running, the {@link ScanResult} is
-     * closed once the scan finishes, since it can no longer be handed to the caller.
-     *
-     * @param executorService
-     *            A custom {@link ExecutorService} to use for scheduling worker tasks.
-     * @param numParallelTasks
-     *            The number of parallel tasks to break the work into during the most CPU-intensive stage of
-     *            classpath scanning. Must be at least 1. Ideally the ExecutorService will have at least this many
-     *            threads available.
-     * @return a {@code Future<ScanResult>}, that when resolved using get() yields a new {@link ScanResult} object
-     *         representing the result of the scan.
-     * @throws IllegalArgumentException
-     *             if {@code numParallelTasks} is less than 1, or if a config option was enabled without the config
-     *             option that reads it.
-     */
-    public Future<ScanResult> scanAsync(final ExecutorService executorService, final int numParallelTasks) {
-        Assert.notNull(executorService, "executorService");
-        checkNumParallelTasks(numParallelTasks);
-        checkConfigIsExplicit();
-        // Read the call stack on the calling thread, since it is the caller's classloaders and module layers that
-        // are to be searched, not those of the thread that the scan happens to run on
-        final var callStackInfo = CallStackInfo.read();
-        // The Scanner is built when the task runs, not here, since building it opens jarfiles and modules, and only
-        // running the Scanner closes them again -- a task that is canceled or rejected before it runs never does
-        final FutureTask<ScanResult> task = new FutureTask<>(() -> new Scanner(/* performScan = */ true,
-                callStackInfo, scanSpec, scanSourceSpec, executorService, numParallelTasks,
-                /* scanResultProcessor = */ null, /* failureHandler = */ null, topLevelLog).call()) {
-            @Override
-            protected void set(final ScanResult scanResult) {
-                super.set(scanResult);
-                if (isCancelled() && scanResult != null) {
-                    // The future was canceled while the scan was running, so the ScanResult is dropped rather than
-                    // handed to the caller, and nothing else could close it
-                    scanResult.close();
-                }
-            }
-        };
-        executorService.execute(task);
-        return task;
-    }
-
-    /**
      * Scan the enabled classpath elements and modules using the requested {@link ExecutorService} and the requested
      * degree of parallelism, blocking until the scan is complete. Nothing is scanned unless one of the
      * {@code enable} methods was called. You should assign the returned {@link ScanResult} in a try-with-resources
@@ -1694,11 +1588,8 @@ public final class ClassGraph {
         // on a worker thread could deadlock (#933) and to find the caller's classloaders and module layers
         final var callStackInfo = CallStackInfo.read();
         try {
-            final var scanResult = new Scanner(performScan, callStackInfo, scanSpec, scanSourceSpec,
-                    executorService, numTasksWithoutDeadlockHazard(callStackInfo, numParallelTasks),
-                    /* scanResultProcessor = */ null, /* failureHandler = */ null, topLevelLog).call();
-            // A Scanner that was given no scan result processor always returns a scan result
-            return Objects.requireNonNull(scanResult);
+            return new Scanner(performScan, callStackInfo, scanSpec, scanSourceSpec, executorService,
+                    numTasksWithoutDeadlockHazard(callStackInfo, numParallelTasks), topLevelLog).call();
 
         } catch (final InterruptedException e) {
             // Throwing InterruptedException cleared the interrupt status, and this method reports the interruption

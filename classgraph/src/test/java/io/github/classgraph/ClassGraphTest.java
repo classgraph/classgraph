@@ -7,18 +7,14 @@ import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
-import java.net.URLClassLoader;
 import java.net.URLConnection;
 import java.net.URLStreamHandler;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
 import java.util.logging.Handler;
@@ -484,19 +480,40 @@ public class ClassGraphTest {
 
     /** A scan can be run on a caller-supplied {@link java.util.concurrent.ExecutorService}. */
     @Test
-    public void aScanCanBeRunOnACallerSuppliedExecutorService() throws InterruptedException, ExecutionException {
+    public void aScanCanBeRunOnACallerSuppliedExecutorService() {
         final var executorService = Executors.newFixedThreadPool(3);
         try {
             try (var scanResult = new ClassGraph().enableClassInfo().enableClasspathEntries(classesDir.toString())
                     .acceptPackages(PACKAGE_NAME).scan(executorService, 3)) {
                 assertThat(scanResult.getAllClasses().getNames()).contains(PACKAGE_NAME + ".InDir");
             }
-            try (var scanResult = new ClassGraph().enableClassInfo().enableClasspathEntries(classesDir.toString())
-                    .acceptPackages(PACKAGE_NAME).scanAsync(executorService, 3).get()) {
-                assertThat(scanResult.getAllClasses().getNames()).contains(PACKAGE_NAME + ".InDir");
-            }
         } finally {
             executorService.shutdown();
+        }
+    }
+
+    /**
+     * A scan can be run in the background by calling
+     * {@link ClassGraph#scan(java.util.concurrent.ExecutorService, int)} from a task running on the same
+     * {@link java.util.concurrent.ExecutorService}, even when that task is using the only thread of the pool: the
+     * calling thread does the work of any parallel task that no worker thread picks up.
+     */
+    @Test
+    public void aScanCanBeRunInATaskOnItsOwnExecutorService() throws Exception {
+        for (final int poolSize : new int[] { 1, 3 }) {
+            final var executorService = Executors.newFixedThreadPool(poolSize);
+            try {
+                final var classNames = executorService.submit(() -> {
+                    try (var scanResult = new ClassGraph().enableClassInfo()
+                            .enableClasspathEntries(classesDir.toString()).acceptPackages(PACKAGE_NAME)
+                            .scan(executorService, 3)) {
+                        return scanResult.getAllClasses().getNames();
+                    }
+                }).get(60, TimeUnit.SECONDS);
+                assertThat(classNames).as("pool size " + poolSize).contains(PACKAGE_NAME + ".InDir");
+            } finally {
+                executorService.shutdown();
+            }
         }
     }
 
@@ -511,135 +528,10 @@ public class ClassGraphTest {
                 assertThatIllegalArgumentException()
                         .isThrownBy(() -> new ClassGraph().scan(executorService, parallelism))
                         .withMessageContaining("at least 1");
-                assertThatIllegalArgumentException()
-                        .isThrownBy(() -> new ClassGraph().scanAsync(executorService, parallelism))
-                        .withMessageContaining("at least 1");
-                assertThatIllegalArgumentException()
-                        .isThrownBy(() -> new ClassGraph().scanAsync(executorService, parallelism, scanResult -> {
-                        }, throwable -> {
-                        })).withMessageContaining("at least 1");
             }
         } finally {
             executorService.shutdown();
         }
-    }
-
-    /**
-     * An asynchronous scan searches the context classloader of the thread that asked for the scan, not that of the
-     * worker thread that the scan happens to run on.
-     */
-    @Test
-    public void anAsyncScanSearchesTheContextClassLoaderOfTheCaller() throws Exception {
-        final var classNames = new AtomicReference<List<String>>();
-        final var failure = new AtomicReference<Throwable>();
-        final var done = new CountDownLatch(1);
-        // Give the worker threads a context classloader that cannot see the fixture, which is what an
-        // ExecutorService supplied by a container looks like
-        final var executorService = Executors.newFixedThreadPool(3, runnable -> {
-            final var thread = new Thread(runnable);
-            thread.setContextClassLoader(ClassLoader.getPlatformClassLoader());
-            return thread;
-        });
-        final var previousContextClassLoader = Thread.currentThread().getContextClassLoader();
-        try (var callerClassLoader = new URLClassLoader(new URL[] { classesDir.toUri().toURL() },
-                /* parent = */ null)) {
-            Thread.currentThread().setContextClassLoader(callerClassLoader);
-            new ClassGraph().enableClassInfo().enableClasspath().acceptPackages(PACKAGE_NAME)
-                    .scanAsync(executorService, 3, scanResult -> {
-                        classNames.set(scanResult.getAllClasses().getNames());
-                        done.countDown();
-                    }, throwable -> {
-                        failure.set(throwable);
-                        done.countDown();
-                    });
-            assertThat(done.await(60, TimeUnit.SECONDS)).as("the scan completed").isTrue();
-        } finally {
-            Thread.currentThread().setContextClassLoader(previousContextClassLoader);
-            executorService.shutdown();
-        }
-        assertThat(failure.get()).isNull();
-        assertThat(classNames.get()).contains(PACKAGE_NAME + ".InDir");
-    }
-
-    /** An asynchronous scan passes its {@link ScanResult} to the scan result processor. */
-    @Test
-    public void anAsyncScanCallsTheScanResultProcessor() throws InterruptedException {
-        final var classNames = new AtomicReference<List<String>>();
-        final var failure = new AtomicReference<Throwable>();
-        final var done = new CountDownLatch(1);
-        final var executorService = Executors.newFixedThreadPool(3);
-        try {
-            new ClassGraph().enableClassInfo().enableClasspathEntries(classesDir.toString())
-                    .acceptPackages(PACKAGE_NAME).scanAsync(executorService, 3, scanResult -> {
-                        classNames.set(scanResult.getAllClasses().getNames());
-                        done.countDown();
-                    }, throwable -> {
-                        failure.set(throwable);
-                        done.countDown();
-                    });
-            assertThat(done.await(60, TimeUnit.SECONDS)).as("the scan completed").isTrue();
-        } finally {
-            executorService.shutdown();
-        }
-        assertThat(failure.get()).isNull();
-        assertThat(classNames.get()).contains(PACKAGE_NAME + ".InDir");
-    }
-
-    /** An asynchronous scan that fails passes the exception to the failure handler. */
-    @Test
-    public void aFailedAsyncScanCallsTheFailureHandler() throws InterruptedException {
-        final var failure = new AtomicReference<Throwable>();
-        final var done = new CountDownLatch(1);
-        final var executorService = Executors.newFixedThreadPool(3);
-        try {
-            new ClassGraph().enableClasspathEntries(classesDir.toString()).filterClasspathElements(path -> {
-                throw new IllegalStateException("classpath element filter failed");
-            }).scanAsync(executorService, 3, scanResult -> {
-                done.countDown();
-            }, throwable -> {
-                failure.set(throwable);
-                done.countDown();
-            });
-            assertThat(done.await(60, TimeUnit.SECONDS)).as("the failure handler was called").isTrue();
-        } finally {
-            executorService.shutdown();
-        }
-        assertThat(failure.get()).isInstanceOf(IllegalStateException.class)
-                .hasMessage("classpath element filter failed");
-    }
-
-    /**
-     * An asynchronous scan closes its {@link ScanResult} even when the scan result processor throws an
-     * {@link Error} rather than an {@link Exception}, which is what a failing assertion inside a scan result
-     * processor throws. Nothing else can close it: the scan result is never handed to the failure handler, and the
-     * one returned by the scanner is discarded.
-     *
-     * @throws InterruptedException
-     *             if the wait for the failure handler was interrupted.
-     */
-    @Test
-    public void anAsyncScanClosesItsScanResultWhenTheProcessorThrowsAnError() throws InterruptedException {
-        final var scanResultRef = new AtomicReference<ScanResult>();
-        final var failure = new AtomicReference<Throwable>();
-        final var done = new CountDownLatch(1);
-        final var executorService = Executors.newFixedThreadPool(3);
-        try {
-            new ClassGraph().enableClasspathEntries(classesDir.toString()).acceptPackages(PACKAGE_NAME)
-                    .scanAsync(executorService, 3, scanResult -> {
-                        scanResultRef.set(scanResult);
-                        throw new AssertionError("scan result processor failed");
-                    }, throwable -> {
-                        failure.set(throwable);
-                        done.countDown();
-                    });
-            assertThat(done.await(60, TimeUnit.SECONDS)).as("the failure handler was called").isTrue();
-        } finally {
-            executorService.shutdown();
-        }
-        assertThat(failure.get()).isInstanceOf(AssertionError.class).hasMessage("scan result processor failed");
-        final var scanResult = scanResultRef.get();
-        assertThat(scanResult).isNotNull();
-        assertThatIllegalStateException().isThrownBy(scanResult::getAllResources);
     }
 
     /** A deflated nested jar is spilled to disk, rather than buffered in RAM, if the RAM limit is exceeded. */

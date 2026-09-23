@@ -59,7 +59,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.function.Consumer;
 
 import io.github.classgraph.Classfile.ClassfileFormatException;
 import io.github.classgraph.Classfile.SkipClassException;
@@ -99,12 +98,6 @@ class Scanner implements Callable<ScanResult> {
     /** The number of parallel tasks. */
     private final int numParallelTasks;
 
-    /** The scan result processor, or null if none was provided. */
-    private final @Nullable Consumer<ScanResult> scanResultProcessor;
-
-    /** The failure handler, or null if none was provided. */
-    private final @Nullable Consumer<Throwable> failureHandler;
-
     /** The toplevel log. */
     private final @Nullable LogNode topLevelLog;
 
@@ -142,17 +135,12 @@ class Scanner implements Callable<ScanResult> {
      *            the executor service
      * @param numParallelTasks
      *            the num parallel tasks
-     * @param scanResultProcessor
-     *            the scan result processor
-     * @param failureHandler
-     *            the failure handler
      * @param topLevelLog
      *            the log
      */
     Scanner(final boolean performScan, final CallStackInfo callStackInfo, final ScanSpec scanSpec,
             final ScanSourceSpec scanSourceSpec, final ExecutorService executorService, final int numParallelTasks,
-            final @Nullable Consumer<ScanResult> scanResultProcessor,
-            final @Nullable Consumer<Throwable> failureHandler, final @Nullable LogNode topLevelLog) {
+            final @Nullable LogNode topLevelLog) {
         this.scanSpec = scanSpec;
         this.performScan = performScan;
         scanSpec.log(topLevelLog);
@@ -174,8 +162,6 @@ class Scanner implements Callable<ScanResult> {
         // log node that what it reads should be logged under.
         this.vfs = new Vfs(scanSpec.vfsSpec, interruptionChecker);
         this.numParallelTasks = numParallelTasks;
-        this.scanResultProcessor = scanResultProcessor;
-        this.failureHandler = failureHandler;
         this.topLevelLog = topLevelLog;
 
         final var classLoaderProbeLog = topLevelLog == null ? null : topLevelLog.log("Finding classpath");
@@ -1316,8 +1302,7 @@ class Scanner implements Callable<ScanResult> {
      * Determine the unique ordered classpath elements, and run a scan looking for file or classfile matches if
      * necessary.
      *
-     * @return the scan result, or null if a failure handler was provided and the scan failed (in which case the
-     *         failure handler was called, and the result is ignored by the caller).
+     * @return the scan result.
      * @throws InterruptedException
      *             if scanning was interrupted
      * @throws CancellationException
@@ -1326,12 +1311,11 @@ class Scanner implements Callable<ScanResult> {
      *             if a worker threw an uncaught exception
      */
     @Override
-    public @Nullable ScanResult call() throws InterruptedException, CancellationException, ExecutionException {
-        ScanResult scanResult = null;
+    public ScanResult call() throws InterruptedException, CancellationException, ExecutionException {
         final var scanStart = System.nanoTime();
         try {
             // Perform the scan
-            scanResult = openClasspathElementsThenScan();
+            final var scanResult = openClasspathElementsThenScan();
 
             // Log total time after scan completes, and flush log
             if (topLevelLog != null) {
@@ -1339,21 +1323,7 @@ class Scanner implements Callable<ScanResult> {
                         String.format(Locale.US, "Total time: %.3f sec", (System.nanoTime() - scanStart) * 1.0e-9));
                 topLevelLog.flush();
             }
-
-            // Call the scan result processor, if one was provided. The scan result is closed however the processor
-            // ends, including by throwing an Error rather than an Exception, which is what a failing assertion
-            // inside a scan result processor throws -- nothing else would ever close it, since the scan result is
-            // not passed to the failure handler, and the one returned by this method is discarded by the caller
-            // that provided a scan result processor
-            if (scanResultProcessor != null) {
-                try {
-                    scanResultProcessor.accept(scanResult);
-                } catch (final Exception e) {
-                    throw new ExecutionException(e);
-                } finally {
-                    scanResult.close();
-                }
-            }
+            return scanResult;
 
         } catch (final Throwable e) {
             if (topLevelLog != null) {
@@ -1372,36 +1342,10 @@ class Scanner implements Callable<ScanResult> {
             interruptionChecker.interrupt();
 
             // A failed scan produces no ScanResult for the caller to close, so remove the temporary files and
-            // close the resources, zipfiles and modules here, whatever the failure handler goes on to do
+            // close the resources, zipfiles and modules here
             vfs.close(topLevelLog);
 
-            if (failureHandler == null) {
-                // If there is no failure handler set, re-throw the exception
-                throw e;
-            } else {
-                // Otherwise, call the failure handler
-                try {
-                    failureHandler.accept(e);
-                } catch (final Exception f) {
-                    // The failure handler failed
-                    if (topLevelLog != null) {
-                        topLevelLog.log("~", "The failure handler threw an exception:", f);
-                        topLevelLog.flush();
-                    }
-                    // Group the two exceptions into one, using the suppressed exception mechanism to show the scan
-                    // exception below the failure handler exception
-                    final var failureHandlerException = new ExecutionException(
-                            "Exception while calling failure handler", f);
-                    failureHandlerException.addSuppressed(e);
-                    // A scan is only given a failure handler by ClassGraph#scanAsync, which runs the scanner
-                    // inside a Runnable that catches ExecutionException and passes it to the same handler.
-                    // So throwing here offers the handler a second chance to report the failure, this time with the
-                    // original scan exception attached as a suppressed exception. If it throws again, the exception
-                    // leaves the Runnable and is reported by the executor.
-                    throw failureHandlerException;
-                }
-            }
+            throw e;
         }
-        return scanResult;
     }
 }

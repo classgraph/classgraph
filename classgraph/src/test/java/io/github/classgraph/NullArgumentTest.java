@@ -6,7 +6,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.lang.annotation.Annotation;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.junit.jupiter.api.AfterAll;
@@ -91,19 +90,12 @@ class NullArgumentTest {
         rejectsNull(() -> classGraph.enableClassLoaders((ClassLoader) null));
     }
 
-    /** Null scan callbacks are rejected. */
+    /** A null {@link ExecutorService} is rejected. */
     @Test
-    void scanCallbacks() {
+    void scanExecutorService() {
         final var classGraph = new ClassGraph().enableClasspath()
                 .acceptPackages("io.github.classgraph.nonexistent");
-        final ExecutorService executorService = Executors.newFixedThreadPool(1);
-        try {
-            rejectsNull(() -> classGraph.scanAsync(null, 1, ScanResult::close, Throwable::printStackTrace));
-            rejectsNull(() -> classGraph.scanAsync(executorService, 1, null, Throwable::printStackTrace));
-            rejectsNull(() -> classGraph.scanAsync(executorService, 1, ScanResult::close, null));
-        } finally {
-            executorService.shutdown();
-        }
+        rejectsNull(() -> classGraph.scan(null, 1));
     }
 
     /**
