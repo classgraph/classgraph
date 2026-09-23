@@ -92,6 +92,29 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
         super(resourceCollection);
     }
 
+    // Declare the methods of the package-private superclass that take or return an element here, since JDK 8 javac does not
+    // emit public bridge methods for them, and mockk then cannot mock this class (#945)
+
+    @Override
+    public boolean add(final Resource element) {
+        return super.add(element);
+    }
+
+    @Override
+    public void add(final int index, final Resource element) {
+        super.add(index, element);
+    }
+
+    @Override
+    public Resource remove(final int index) {
+        return super.remove(index);
+    }
+
+    @Override
+    public Resource set(final int index, final Resource element) {
+        return super.set(index, element);
+    }
+
     /**
      * Returns a list of all resources with the requested path. (There may be more than one resource with a given
      * path, from different classpath elements or modules, so this returns a {@link ResourceList} rather than a

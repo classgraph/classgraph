@@ -82,6 +82,29 @@ public class InfoList<T extends HasName> extends PotentiallyUnmodifiableList<T> 
         return super.hashCode();
     }
 
+    // Declare the methods of the package-private superclass that take or return an element here, since JDK 8 javac does not
+    // emit public bridge methods for them, and mockk then cannot mock this class (#945)
+
+    @Override
+    public boolean add(final T element) {
+        return super.add(element);
+    }
+
+    @Override
+    public void add(final int index, final T element) {
+        super.add(index, element);
+    }
+
+    @Override
+    public T remove(final int index) {
+        return super.remove(index);
+    }
+
+    @Override
+    public T set(final int index, final T element) {
+        return super.set(index, element);
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**
