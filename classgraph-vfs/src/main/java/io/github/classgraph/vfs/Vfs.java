@@ -35,10 +35,10 @@ import java.io.InputStream;
 import java.lang.module.ModuleReference;
 import java.net.URI;
 import java.net.URL;
-import java.nio.file.FileSystemNotFoundException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -735,7 +735,7 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      * @param moduleName
      *            the name of the module to open.
      * @return the opened root.
-     * @throws FileSystemNotFoundException
+     * @throws NoSuchFileException
      *             if the boot layer has no module of that name.
      * @throws IOException
      *             if this {@link Vfs} has been closed. The module itself is not opened until its entries are listed
@@ -759,7 +759,7 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      * @param layer
      *            the layer to resolve the name in.
      * @return the opened root.
-     * @throws FileSystemNotFoundException
+     * @throws NoSuchFileException
      *             if neither the layer nor any of its ancestors has a module of that name.
      * @throws IOException
      *             if this {@link Vfs} has been closed. The module itself is not opened until its entries are listed
@@ -771,15 +771,16 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
         checkNotClosed(moduleName);
         final var resolvedModule = layer.configuration().findModule(moduleName);
         if (resolvedModule.isEmpty()) {
-            throw new FileSystemNotFoundException("No module named " + moduleName + " in the module layer");
+            throw new NoSuchFileException(moduleName, null,
+                    "No module of that name in the module layer or its parents");
         }
         return open(resolvedModule.get().reference());
     }
 
     /**
-     * Open a jarfile read from an {@link InputStream}. The stream is read to the end, into RAM or into a temporary
-     * file if it is longer than the maximum buffered jar RAM size this {@link Vfs} was constructed with, since a
-     * zipfile's central directory is at the end of the file and so cannot be reached by reading forwards.
+     * Open a jarfile read from an {@link InputStream}. The stream is read to the end, into RAM, or into a temporary
+     * file if it is longer than {@link VfsSpec#getMaxBufferedJarRAMSize()}, since a zipfile's central directory is
+     * at the end of the file and so cannot be reached by reading forwards.
      *
      * <p>
      * Unlike the other {@code open} methods, this one does not cache what it opens, since each call reads a

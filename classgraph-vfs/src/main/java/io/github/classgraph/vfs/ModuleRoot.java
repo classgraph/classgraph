@@ -33,6 +33,7 @@ import java.io.IOException;
 import java.lang.module.ModuleReader;
 import java.lang.module.ModuleReference;
 import java.net.URI;
+import java.nio.file.FileSystemNotFoundException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -124,7 +125,7 @@ public final class ModuleRoot extends VfsRoot {
         }
         try {
             return Path.of(uri);
-        } catch (final IllegalArgumentException | java.nio.file.FileSystemNotFoundException e) {
+        } catch (final IllegalArgumentException | FileSystemNotFoundException e) {
             return null;
         }
     }

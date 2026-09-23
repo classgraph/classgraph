@@ -16,6 +16,7 @@ import java.nio.file.FileSystemAlreadyExistsException;
 import java.nio.file.FileSystemNotFoundException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.ProviderNotFoundException;
@@ -676,7 +677,9 @@ public class VfsFileSystemProviderUriTest {
     }
 
     /**
-     * A module that no layer reachable from the given one has is reported as absent rather than opened empty.
+     * A module that no layer reachable from the given one has is reported as absent rather than opened empty, with
+     * the same checked exception that opening a path that names nothing throws, both from {@link Vfs} and from
+     * {@link FileSystems#newFileSystem(URI, Map)}, whose contract allows only an {@link IOException}.
      *
      * @throws IOException
      *             if the Vfs could not be closed.
@@ -685,8 +688,10 @@ public class VfsFileSystemProviderUriTest {
     public void aModuleThatNoLayerHasIsReportedAsAbsent() throws IOException {
         try (var vfs = new Vfs()) {
             assertThatThrownBy(() -> vfs.openModule("no.such.module.exists"))
-                    .isInstanceOf(FileSystemNotFoundException.class).hasMessageContaining("no.such.module.exists");
+                    .isInstanceOf(NoSuchFileException.class).hasMessageContaining("no.such.module.exists");
         }
+        assertThatThrownBy(() -> FileSystems.newFileSystem(cgvfsUri("jrt:/no.such.module.exists"), Map.of()))
+                .isInstanceOf(NoSuchFileException.class).hasMessageContaining("no.such.module.exists");
     }
 
     /**
