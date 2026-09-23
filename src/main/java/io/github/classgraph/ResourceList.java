@@ -102,7 +102,7 @@ public class ResourceList extends PotentiallyUnmodifiableList<Resource> implemen
      * @return A {@link ResourceList} of {@link Resource} objects in this list that have the given path (there may
      *         be more than one resource with a given path, from different classpath elements or modules, so this
      *         returns a {@link ResourceList} rather than a single {@link Resource}.) Returns the empty list if no
-     *         resource with is found with a matching path.
+     *         resource is found with a matching path.
      */
     public ResourceList get(final String resourcePath) {
         boolean hasResourceWithPath = false;
