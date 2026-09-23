@@ -402,8 +402,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get a ClassInfo object, or create it if it doesn't exist. N.B. not threadsafe, so ClassInfo objects should
-     * only ever be constructed by a single thread.
+     * Get a ClassInfo object, or create it if it doesn't exist.
      *
      * @param className
      *            the class name
@@ -413,6 +412,24 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     static ClassInfo getOrCreateClassInfo(final String className,
             final Map<String, ClassInfo> classNameToClassInfo) {
+        return getOrCreateClassInfo(className, classNameToClassInfo, classNameToClassInfo);
+    }
+
+    /**
+     * Get a ClassInfo object, or create it if it doesn't exist.
+     *
+     * @param className
+     *            the class name
+     * @param classNameToClassInfo
+     *            the map to look the class up in first.
+     * @param classNameToNewClassInfo
+     *            the map to look the class up in if it is not in {@code classNameToClassInfo}, and to add the new
+     *            {@link ClassInfo} object to if it is in neither map. If this map is concurrent, two threads that
+     *            ask for the same class get the same object.
+     * @return the {@link ClassInfo} object.
+     */
+    static ClassInfo getOrCreateClassInfo(final String className, final Map<String, ClassInfo> classNameToClassInfo,
+            final Map<String, ClassInfo> classNameToNewClassInfo) {
         // Look for array class names
         var numArrayDims = 0;
         var baseClassName = className;
@@ -438,6 +455,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                 : baseClassName + "[]".repeat(numArrayDims);
 
         var classInfo = classNameToClassInfo.get(canonicalClassName);
+        if (classInfo == null) {
+            classInfo = classNameToNewClassInfo.get(canonicalClassName);
+        }
         if (classInfo == null) {
             if (numArrayDims == 0) {
                 classInfo = new ClassInfo(canonicalClassName, /* classModifiers = */ 0,
@@ -475,7 +495,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                 classInfo = new ArrayClassInfo(
                         new ArrayTypeSignature(elementTypeSignature, numArrayDims, arrayTypeSigStrBuf.toString()));
             }
-            classNameToClassInfo.put(canonicalClassName, classInfo);
+            final var added = classNameToNewClassInfo.putIfAbsent(canonicalClassName, classInfo);
+            if (added != null) {
+                // Another thread added a ClassInfo object for the same class first
+                classInfo = added;
+            }
         }
         return classInfo;
     }
@@ -3948,7 +3972,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * descriptors of fields, methods or annotations.
      *
      * @param classNameToClassInfo
-     *            the map from class name to {@link ClassInfo}.
+     *            the map to add a {@link ClassInfo} object to, for a referenced class that has none in the scan
+     *            result.
      * @param refdClassInfo
      *            the referenced class info
      * @param log
@@ -3961,7 +3986,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         super.findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
         if (this.referencedClassNames != null) {
             for (final String refdClassName : this.referencedClassNames) {
-                final var classInfo = ClassInfo.getOrCreateClassInfo(refdClassName, classNameToClassInfo);
+                final var classInfo = ClassInfo.getOrCreateClassInfo(refdClassName,
+                        scanResult().classNameToClassInfo, classNameToClassInfo);
                 classInfo.setScanResult(scanResult);
                 refdClassInfo.add(classInfo);
             }

@@ -127,7 +127,8 @@ public abstract class HierarchicalTypeSignature extends ScanResultObject {
      * Get {@link ClassInfo} objects for any classes referenced in the type signature.
      *
      * @param classNameToClassInfo
-     *            the map from class name to {@link ClassInfo}.
+     *            the map to add a {@link ClassInfo} object to, for a referenced class that has none in the scan
+     *            result.
      * @param refdClassInfo
      *            the set to add the referenced class info to.
      * @param log
@@ -139,7 +140,8 @@ public abstract class HierarchicalTypeSignature extends ScanResultObject {
         final Set<String> refdClassNames = new HashSet<>();
         findReferencedClassNames(refdClassNames);
         for (final String refdClassName : refdClassNames) {
-            final var classInfo = ClassInfo.getOrCreateClassInfo(refdClassName, classNameToClassInfo);
+            final var classInfo = ClassInfo.getOrCreateClassInfo(refdClassName, scanResult().classNameToClassInfo,
+                    classNameToClassInfo);
             classInfo.scanResult = scanResult;
             refdClassInfo.add(classInfo);
         }

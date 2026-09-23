@@ -90,10 +90,18 @@ public final class ScanResult implements AutoCloseable {
     /** The map from class name to {@link ClassInfo}. */
     Map<String, ClassInfo> classNameToClassInfo;
 
+    /**
+     * The map from class name to {@link ClassInfo}, for the {@link ClassInfo} objects made after the scan for
+     * classes that are not in {@link #classNameToClassInfo}: an array class, or a class that is named only in a
+     * type signature. They are kept apart so that looking up a type cannot change what
+     * {@link #getClassInfo(String)} or {@link #getAllClasses()} returns.
+     */
+    final Map<String, ClassInfo> classNameToClassInfoMadeAfterScan = new ConcurrentHashMap<>();
+
     /** The map from package name to {@link PackageInfo}. */
     private @Nullable Map<String, PackageInfo> packageNameToPackageInfo;
 
-    /** The map from class name to {@link ClassInfo}. */
+    /** The map from module name to {@link ModuleInfo}. */
     private @Nullable Map<String, ModuleInfo> moduleNameToModuleInfo;
 
     /**
@@ -278,8 +286,10 @@ public final class ScanResult implements AutoCloseable {
         // that were not scanned
         if (scanSpec.enableInterClassDependencies) {
             for (final ClassInfo ci : new ArrayList<>(classNameToClassInfo.values())) {
+                final Set<ClassInfo> refdClassInfos = new LinkedHashSet<>();
+                ci.findReferencedClassInfo(classNameToClassInfo, refdClassInfos, log);
                 final Set<ClassInfo> refdClassesFiltered = new HashSet<>();
-                for (final ClassInfo refdClassInfo : ci.findReferencedClassInfo(log)) {
+                for (final ClassInfo refdClassInfo : refdClassInfos) {
                     // Don't add self-references, or references to Object
                     if (!ci.equals(refdClassInfo) && !"java.lang.Object".equals(refdClassInfo.getName())
                     // Only add class to result if it is accepted, or external classes are enabled

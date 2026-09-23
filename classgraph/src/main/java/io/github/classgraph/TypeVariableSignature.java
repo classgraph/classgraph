@@ -120,7 +120,8 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
             try {
                 containingClassSignature = containingClassInfo.getTypeSignature();
             } catch (final Exception e) {
-                // Ignore
+                // The class signature of a corrupt classfile may not parse. Treat the class as declaring no type
+                // parameters, so that the type variable is returned unbounded below.
             }
             if (containingClassSignature != null && !containingClassSignature.typeParameters.isEmpty()) {
                 for (final TypeParameter typeParameter : containingClassSignature.typeParameters) {

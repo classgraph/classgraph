@@ -159,7 +159,8 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
      * Get {@link ClassInfo} objects for any classes referenced in this list.
      *
      * @param classNameToClassInfo
-     *            the map from class name to {@link ClassInfo}.
+     *            the map to add a {@link ClassInfo} object to, for a referenced class that has none in the scan
+     *            result.
      * @param refdClassInfo
      *            the referenced class info
      * @param log

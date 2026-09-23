@@ -84,7 +84,8 @@ public class FieldInfoList extends MappableInfoList<FieldInfo> {
      * Get {@link ClassInfo} objects for any classes referenced in the list.
      *
      * @param classNameToClassInfo
-     *            the map from class name to {@link ClassInfo}.
+     *            the map to add a {@link ClassInfo} object to, for a referenced class that has none in the scan
+     *            result.
      * @param refdClassInfo
      *            the referenced class info
      * @param log

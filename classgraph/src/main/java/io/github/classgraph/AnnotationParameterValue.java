@@ -152,7 +152,8 @@ public class AnnotationParameterValue extends ScanResultObject
      * Get {@link ClassInfo} objects for any classes referenced in the annotation parameters.
      *
      * @param classNameToClassInfo
-     *            the map from class name to {@link ClassInfo}.
+     *            the map to add a {@link ClassInfo} object to, for a referenced class that has none in the scan
+     *            result.
      * @param refdClassInfo
      *            the referenced class info
      * @param log
@@ -171,7 +172,8 @@ public class AnnotationParameterValue extends ScanResultObject
      * @param value
      *            the annotation parameter value
      * @param classNameToClassInfo
-     *            the map from class name to {@link ClassInfo}.
+     *            the map to add a {@link ClassInfo} object to, for a referenced class that has none in the scan
+     *            result.
      * @param refdClassInfo
      *            the referenced class info
      * @param log

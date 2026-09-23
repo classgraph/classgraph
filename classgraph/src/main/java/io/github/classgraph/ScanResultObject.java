@@ -78,7 +78,7 @@ abstract class ScanResultObject {
     }
 
     /**
-     * Get {@link ClassInfo} objects for any classes referenced by this object.
+     * Get {@link ClassInfo} objects for any classes referenced by this object, once the scan is complete.
      *
      * @param log
      *            the log node, or null to skip logging
@@ -87,7 +87,7 @@ abstract class ScanResultObject {
     final Set<ClassInfo> findReferencedClassInfo(final @Nullable LogNode log) {
         final Set<ClassInfo> refdClassInfo = new LinkedHashSet<>();
         if (scanResult != null) {
-            findReferencedClassInfo(scanResult.classNameToClassInfo, refdClassInfo, log);
+            findReferencedClassInfo(scanResult.classNameToClassInfoMadeAfterScan, refdClassInfo, log);
         }
         return refdClassInfo;
     }
@@ -96,7 +96,9 @@ abstract class ScanResultObject {
      * Get {@link ClassInfo} objects for any classes referenced by this object.
      *
      * @param classNameToClassInfo
-     *            the map from class name to {@link ClassInfo}.
+     *            the map to add a {@link ClassInfo} object to, for a referenced class that has none in
+     *            {@link ScanResult#classNameToClassInfo}: that map itself while the {@link ScanResult} is being
+     *            built, or {@link ScanResult#classNameToClassInfoMadeAfterScan} after that.
      * @param refdClassInfo
      *            the referenced class info
      * @param log
