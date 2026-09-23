@@ -241,7 +241,7 @@ final class WorkQueue<T> implements AutoCloseable {
     }
 
     /**
-     * Start worker threads with a shared log.
+     * Submit workers to the {@link ExecutorService}.
      *
      * @param executorService
      *            the executor service
@@ -270,10 +270,11 @@ final class WorkQueue<T> implements AutoCloseable {
     }
 
     /**
-     * Start a worker. Called by startWorkers(), but should also be called by the main thread to do some of the work
-     * on that thread, to prevent deadlock in the case that the ExecutorService doesn't have as many threads
-     * available as numParallelTasks. When this method returns, either all the work has been completed, or this or
-     * some other thread was interrupted. If InterruptedException is thrown, this thread or another was interrupted.
+     * Take work units from the queue and process them until a poison pill is received. Each worker started by
+     * {@link #startWorkers(ExecutorService, int)} runs this, and so does the thread that called
+     * {@link #runWorkQueue}, so that the work still gets done if the ExecutorService has fewer free threads than
+     * numParallelTasks. When this method returns, either all the work has been completed, or this or some other
+     * thread was interrupted. If InterruptedException is thrown, this thread or another was interrupted.
      *
      * @throws InterruptedException
      *             if a worker thread was interrupted
@@ -281,9 +282,7 @@ final class WorkQueue<T> implements AutoCloseable {
      *             if a worker thread throws an uncaught exception
      */
     private void runWorkLoop() throws InterruptedException, ExecutionException {
-        // Get next work unit from queue
         for (;;) {
-            // Process the work unit
             try {
                 // Check for interruption
                 interruptionChecker.check();
@@ -300,7 +299,8 @@ final class WorkQueue<T> implements AutoCloseable {
                 workUnitProcessor.processWorkUnit(workUnit, this, log);
 
             } catch (InterruptedException | Error e) {
-                // On InterruptedException or OutOfMemoryError, drain work queue, send poison pills, and re-throw
+                // On InterruptedException or an Error such as OutOfMemoryError, drain the work queue, send poison
+                // pills, and re-throw
                 workUnits.clear();
                 numIncompleteWorkUnits.set(0);
                 sendPoisonPills();

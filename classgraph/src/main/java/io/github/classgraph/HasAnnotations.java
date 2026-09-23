@@ -43,10 +43,11 @@ import org.jspecify.annotations.Nullable;
  * only cares about annotations accept any of those types.
  *
  * <p>
- * Each method comes in an {@code All} form and a {@code Direct} form. The {@code All} form includes
+ * Each getter comes in an {@code All} form and a {@code Direct} form. The {@code All} form includes
  * meta-annotations -- the annotations on the element's own annotations, transitively -- and, for a class, any
  * {@link Inherited} annotations on its superclasses. The {@code Direct} form includes only the annotations written
- * on the element itself.
+ * on the element itself. {@link #hasAnnotation(String)} checks the {@code All} form; to check only the annotations
+ * written on the element, call {@code getDirectAnnotationInfo().containsName(annotationName)}.
  *
  * <p>
  * Implementations need only supply {@link #getAllAnnotationInfo()}; the rest of this interface is derived from it.

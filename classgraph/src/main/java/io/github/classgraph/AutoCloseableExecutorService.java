@@ -37,6 +37,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
+import org.jspecify.annotations.Nullable;
 
 /** A ThreadPoolExecutor that can be used in a try-with-resources block. */
 class AutoCloseableExecutorService extends ThreadPoolExecutor implements AutoCloseable {
@@ -88,10 +89,10 @@ class AutoCloseableExecutorService extends ThreadPoolExecutor implements AutoClo
      * @param runnable
      *            the Runnable
      * @param throwable
-     *            the Throwable
+     *            the Throwable, or null if the task completed normally or was run by submit()
      */
     @Override
-    protected void afterExecute(final Runnable runnable, final Throwable throwable) {
+    protected void afterExecute(final Runnable runnable, final @Nullable Throwable throwable) {
         super.afterExecute(runnable, throwable);
         if (throwable != null) {
             // Wrap the throwable in an ExecutionException (execute() does not do this)

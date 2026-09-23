@@ -78,7 +78,7 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName, HasAnnotatio
     private @Nullable AnnotationInfoList annotationInfo;
 
     /**
-     * {@link PackageInfo} objects for packages found within the class, keyed by package name, if any, else null.
+     * {@link PackageInfo} objects for packages found within the module, keyed by package name, if any, else null.
      */
     private @Nullable Map<String, PackageInfo> packageNameToPackageInfo;
 
