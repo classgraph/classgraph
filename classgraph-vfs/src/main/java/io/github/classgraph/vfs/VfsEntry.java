@@ -233,6 +233,17 @@ public abstract class VfsEntry {
     public abstract long getLastModifiedMillis();
 
     /**
+     * Returns whether this entry can be read. A lookup by name returns only an entry that can be read, but a
+     * listing does not check, and a file in a directory is the only kind of entry that can be listed and still not
+     * be readable.
+     *
+     * @return true if the entry can be read.
+     */
+    boolean isReadable() {
+        return true;
+    }
+
+    /**
      * Returns the POSIX file permissions of this entry.
      *
      * @return the permissions, as an unmodifiable set that iterates in {@link PosixFilePermission} declaration

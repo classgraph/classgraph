@@ -706,7 +706,9 @@ public class VfsTest {
     }
 
     /**
-     * A file that cannot be read is not reported as an entry, since an entry is something that can be read.
+     * A file that cannot be read is not found by a lookup, whether the name is matched exactly or with its case
+     * ignored, since what a lookup returns is something that can be read. A listing does still report it, since a
+     * listing does not spend a second syscall per file on a permission check.
      *
      * @param tempDir
      *            a temporary directory.
@@ -723,7 +725,11 @@ public class VfsTest {
         }
 
         try (var vfs = new Vfs()) {
-            assertThat(vfs.open(tempDir).getEntry("unreadable.txt")).isNull();
+            final var root = vfs.open(tempDir);
+            assertThat(root.getEntry("unreadable.txt")).isNull();
+            assertThat(root.getEntryCaseInsensitive("unreadable.txt")).isNull();
+            assertThat(root.getEntriesCaseInsensitive("UNREADABLE.txt")).isEmpty();
+            assertThat(root.getEntries()).extracting(VfsEntry::getPathFromRoot).containsExactly("unreadable.txt");
         }
     }
 

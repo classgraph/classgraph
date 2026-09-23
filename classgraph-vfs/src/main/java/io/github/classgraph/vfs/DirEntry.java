@@ -39,6 +39,7 @@ import java.util.Collections;
 import java.util.EnumSet;
 import java.util.Set;
 
+import io.github.classgraph.base.internal.path.FileUtils;
 import io.github.classgraph.vfs.internal.slice.PathSlice;
 import org.jspecify.annotations.Nullable;
 
@@ -142,6 +143,13 @@ final class DirEntry extends VfsEntry {
     }
 
     @Override
+    boolean isReadable() {
+        // A walk tells the files from the subdirectories with the metadata it already reads, and does not check
+        // whether each file can be read, so a file that was listed may still be unreadable
+        return FileUtils.canReadAndIsFile(path);
+    }
+
+    @Override
     public @Nullable Set<PosixFilePermission> getPosixFilePermissions() {
         // On a POSIX filesystem, the attributes read while listing the directory are already POSIX attributes, so
         // the permissions come for free
@@ -236,5 +244,4 @@ final class DirEntry extends VfsEntry {
             return slice.load();
         }
     }
-
 }

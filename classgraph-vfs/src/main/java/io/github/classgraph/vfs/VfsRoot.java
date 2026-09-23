@@ -154,9 +154,10 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
      * a symlink, or, on Windows, an 8.3 short name, reaches the same directory or jarfile under another name.
      *
      * <p>
-     * A directory of some filesystem other than the one the process was started in -- one of a mounted zipfile, say
-     * -- is named by its URI resolved to a path, since the string form of such a path names nothing outside its own
-     * filesystem: a directory of a mounted zipfile is called {@code "/dir"} there, whatever jarfile it is in.
+     * A directory in a filesystem other than the default one is named by its URI, with the URI scheme removed,
+     * since the string form of such a path names nothing outside its own filesystem. A directory {@code "/dir"}
+     * within a mounted zipfile {@code "/a/b.zip"}, whose URI is {@code "jar:file:///a/b.zip!/dir"}, is named
+     * {@code "/a/b.zip!/dir"}.
      *
      * @return the path of the root.
      */
@@ -587,9 +588,9 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
      * <p>
      * A root can hold more than one entry whose names differ only in case: a zipfile is free to store both
      * {@code "META-INF/MANIFEST.MF"} and {@code "meta-inf/manifest.mf"}, and a case-sensitive filesystem is free to
-     * hold both as files. The first of them in the order that {@link #getEntries()} reports is the one returned
-     * here, whether or not one of them matches the name exactly; use {@link #getEntry(String)} first if an exactly
-     * named entry should win over an earlier one that only matches when case is ignored, and
+     * hold both as files. The first readable one of them in the order that {@link #getEntries()} reports is the one
+     * returned here, whether or not one of them matches the name exactly; use {@link #getEntry(String)} first if an
+     * exactly named entry should win over an earlier one that only matches when case is ignored, and
      * {@link #getEntriesCaseInsensitive(String)} to see all of them.
      *
      * <p>
@@ -614,6 +615,10 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
      * {@link #getEntries()} reports them in. A root can hold more than one such entry: a zipfile is free to store
      * both {@code "META-INF/MANIFEST.MF"} and {@code "meta-inf/manifest.mf"}, and a case-sensitive filesystem is
      * free to hold both as files.
+     *
+     * <p>
+     * As with {@link #getEntry(String)}, an entry that cannot be read is left out, even though
+     * {@link #getEntries()} reports it.
      *
      * @param name
      *            the path of the entry relative to the package root, as {@link VfsEntry#getPathFromRoot()} returns
@@ -657,7 +662,8 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
 
             @Override
             public boolean visitEntry(final VfsEntry entry) {
-                if (entry.getPathFromRoot().equalsIgnoreCase(name)) {
+                // A listing reports a file it has not checked can be read, and a lookup must not return one
+                if (entry.getPathFromRoot().equalsIgnoreCase(name) && entry.isReadable()) {
                     matchingEntries.add(entry);
                     return !firstMatchOnly;
                 }
