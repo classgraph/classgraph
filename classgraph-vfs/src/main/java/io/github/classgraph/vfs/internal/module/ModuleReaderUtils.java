@@ -170,8 +170,8 @@ public final class ModuleReaderUtils {
         // The stream may hold an open directory of an exploded module, and it is closing the stream that closes
         // the directory, so the stream has to be closed even though nothing is read from it afterwards
         try (resourcesStream) {
-            // N.B. the returned list must be mutable, since ClasspathElementModule sorts it in place (so
-            // Stream#toList() cannot be used here)
+            // N.B. the returned list must be mutable, since ModuleRoot sorts it in place (so Stream#toList() cannot
+            // be used here)
             return resourcesStream.collect(Collectors.toCollection(ArrayList::new));
         } catch (final UncheckedIOException e) {
             // A lazy ModuleReader reports a failure to read the module as an UncheckedIOException thrown from the

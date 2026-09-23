@@ -45,8 +45,8 @@ import org.jspecify.annotations.Nullable;
 
 /** Fetch a jarfile named by a URL, so that it can be scanned. */
 final class JarURLDownloader {
-    /** HTTP(S) timeout, ms. */
-    private static final int HTTP_TIMEOUT = 5000;
+    /** The connect timeout and the read timeout of a URL connection, in milliseconds. */
+    private static final int TIMEOUT_MILLIS = 5000;
 
     /** Not instantiable. */
     private JarURLDownloader() {
@@ -144,18 +144,18 @@ final class JarURLDownloader {
                 // Wrap Path in PhysicalZipFile and return it
                 return new PhysicalZipFile(path, vfs, log);
             } catch (final IllegalArgumentException | SecurityException | URISyntaxException e) {
-                throw new IOException("Could not convert URL to URI (" + e + "): " + url, e);
+                throw new IOException("Could not convert URL to a path (" + e + "): " + url, e);
             } catch (final FileSystemNotFoundException e) {
                 // Not a custom filesystem
             }
         }
         try (final CloseableUrlConnection urlConn = new CloseableUrlConnection(url)) {
-            urlConn.conn.setConnectTimeout(HTTP_TIMEOUT);
+            urlConn.conn.setConnectTimeout(TIMEOUT_MILLIS);
             // Without a read timeout, a server that accepts the connection and then sends nothing blocks the scan
             // for as long as it cares to hold the socket open, and a blocked socket read does not answer to the
             // interruption checker, so nothing can stop the scan. This bounds the wait for the next block of the
             // response, not the time the whole download is allowed to take.
-            urlConn.conn.setReadTimeout(HTTP_TIMEOUT);
+            urlConn.conn.setReadTimeout(TIMEOUT_MILLIS);
             urlConn.conn.connect();
             if (urlConn.httpConn != null && urlConn.httpConn.getResponseCode() != HttpURLConnection.HTTP_OK) {
                 throw new IOException(

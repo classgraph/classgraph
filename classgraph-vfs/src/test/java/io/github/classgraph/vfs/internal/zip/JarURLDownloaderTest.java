@@ -358,7 +358,7 @@ public class JarURLDownloaderTest {
     public void aUrlThatIsNotAValidUriIsReported() {
         final var jarURL = "file:/jars/a jar with spaces.jar";
         assertThatThrownBy(() -> JarURLDownloader.downloadJarFromURL(jarURL, vfs, /* log = */ null))
-                .isInstanceOf(IOException.class).hasMessageStartingWith("Could not convert URL to URI (")
+                .isInstanceOf(IOException.class).hasMessageStartingWith("Could not convert URL to a path (")
                 .hasMessageEndingWith(jarURL).hasCauseInstanceOf(URISyntaxException.class);
     }
 }
