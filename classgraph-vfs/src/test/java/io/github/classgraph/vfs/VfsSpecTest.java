@@ -23,14 +23,14 @@ public class VfsSpecTest {
     public void settersChain() {
         final var vfsSpec = new VfsSpec();
         assertThat(vfsSpec.disableNestedJars().enableMultiReleaseVersions().setMaxBufferedJarRAMSize(65_536)
-                .disableURLScheme("https")).isSameAs(vfsSpec);
+                .denyURLScheme("https")).isSameAs(vfsSpec);
 
         assertThat(vfsSpec.isNestedJarsEnabled()).isFalse();
         assertThat(vfsSpec.isMultiReleaseVersionsEnabled()).isTrue();
         assertThat(vfsSpec.getMaxBufferedJarRAMSize()).isEqualTo(65_536);
         assertThat(vfsSpec.getDeniedURLSchemes()).containsExactly("https");
 
-        assertThat(vfsSpec.enableNestedJars().disableMultiReleaseVersions().enableURLScheme("https"))
+        assertThat(vfsSpec.enableNestedJars().disableMultiReleaseVersions().allowURLScheme("https"))
                 .isSameAs(vfsSpec);
         assertThat(vfsSpec.isNestedJarsEnabled()).isTrue();
         assertThat(vfsSpec.isMultiReleaseVersionsEnabled()).isFalse();
@@ -43,36 +43,35 @@ public class VfsSpecTest {
      */
     @Test
     public void deniedURLSchemesAccumulate() {
-        final var vfsSpec = new VfsSpec().disableURLScheme("HTTPS").disableURLScheme("http");
+        final var vfsSpec = new VfsSpec().denyURLScheme("HTTPS").denyURLScheme("http");
         assertThat(vfsSpec.getDeniedURLSchemes()).containsExactly("http", "https");
         assertThatThrownBy(() -> vfsSpec.getDeniedURLSchemes().add("ftp"))
                 .isInstanceOf(UnsupportedOperationException.class);
     }
 
-    /** Enabling a scheme takes it back off the denied list, whatever case it is named in. */
+    /** Allowing a scheme takes it back off the denied list, whatever case it is named in. */
     @Test
-    public void enablingASchemeUndoesDisablingIt() {
-        final var vfsSpec = new VfsSpec().disableURLScheme("http").disableURLScheme("https");
-        assertThat(vfsSpec.enableURLScheme("HTTP").getDeniedURLSchemes()).containsExactly("https");
-        // Enabling a scheme that was never denied is a no-op, rather than an error
-        assertThat(vfsSpec.enableURLScheme("ftp").getDeniedURLSchemes()).containsExactly("https");
+    public void allowingASchemeUndoesDenyingIt() {
+        final var vfsSpec = new VfsSpec().denyURLScheme("http").denyURLScheme("https");
+        assertThat(vfsSpec.allowURLScheme("HTTP").getDeniedURLSchemes()).containsExactly("https");
+        // Allowing a scheme that was never denied is a no-op, rather than an error
+        assertThat(vfsSpec.allowURLScheme("ftp").getDeniedURLSchemes()).containsExactly("https");
     }
 
     /** An invalid URL scheme is rejected. */
     @Test
     public void anInvalidURLSchemeIsRejected() {
-        assertThatThrownBy(() -> new VfsSpec().disableURLScheme("c")).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new VfsSpec().disableURLScheme("http:"))
-                .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new VfsSpec().enableURLScheme("c")).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new VfsSpec().enableURLScheme("http:"))
+        assertThatThrownBy(() -> new VfsSpec().denyURLScheme("c")).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new VfsSpec().denyURLScheme("http:")).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new VfsSpec().allowURLScheme("c")).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new VfsSpec().allowURLScheme("http:"))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     /** The settings are described in the verbose log. */
     @Test
     public void theSettingsAreDescribed() {
-        assertThat(new VfsSpec().disableURLScheme("https").setMaxBufferedJarRAMSize(1024).toString()).contains(
+        assertThat(new VfsSpec().denyURLScheme("https").setMaxBufferedJarRAMSize(1024).toString()).contains(
                 "nestedJars: true", "multiReleaseVersions: true", "deniedURLSchemes: [https]",
                 "maxBufferedJarRAMSize: 1024");
     }

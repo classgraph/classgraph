@@ -53,7 +53,7 @@ import io.github.classgraph.vfs.internal.zip.LogicalZipFile;
  *
  * <p>
  * Every setting is safe to change from any thread, at any time: each is held in a volatile field, and
- * {@link #disableURLScheme(String)} publishes an unmodifiable set rather than adding to one in place, so a setting
+ * {@link #denyURLScheme(String)} publishes an unmodifiable set rather than adding to one in place, so a setting
  * changed by one thread is seen whole by the threads that read archives, whenever they were started.
  */
 public final class VfsSpec {
@@ -186,7 +186,7 @@ public final class VfsSpec {
      *             if the scheme is shorter than two characters (a one-character scheme cannot be told apart from a
      *             Windows drive letter), or is not a valid URL scheme.
      */
-    public synchronized VfsSpec disableURLScheme(final String scheme) {
+    public synchronized VfsSpec denyURLScheme(final String scheme) {
         Assert.notNull(scheme, "scheme");
         final var normalizedScheme = URLPaths.normalizeURLScheme(scheme);
         // Copy on write, rather than adding to the set in place, so that a thread reading the set while this one
@@ -198,9 +198,8 @@ public final class VfsSpec {
     }
 
     /**
-     * Allow jarfiles to be fetched from URLs with the given scheme again, undoing a
-     * {@link #disableURLScheme(String)}. Every scheme is allowed by default, so this is only needed to take back a
-     * scheme that was denied.
+     * Allow jarfiles to be fetched from URLs with the given scheme again, undoing a {@link #denyURLScheme(String)}.
+     * Every scheme is allowed by default, so this is only needed to take back a scheme that was denied.
      *
      * <p>
      * A jarfile fetched from a URL is downloaded in full before its entries can be read, since a zipfile's central
@@ -214,13 +213,13 @@ public final class VfsSpec {
      *             if the scheme is shorter than two characters (a one-character scheme cannot be told apart from a
      *             Windows drive letter), or is not a valid URL scheme.
      */
-    public synchronized VfsSpec enableURLScheme(final String scheme) {
+    public synchronized VfsSpec allowURLScheme(final String scheme) {
         Assert.notNull(scheme, "scheme");
         final var normalizedScheme = URLPaths.normalizeURLScheme(scheme);
         if (!deniedURLSchemes.contains(normalizedScheme)) {
             return this;
         }
-        // Copy on write, for the same reason as disableURLScheme()
+        // Copy on write, for the same reason as denyURLScheme()
         final Set<String> updated = new TreeSet<>(deniedURLSchemes);
         updated.remove(normalizedScheme);
         deniedURLSchemes = Collections.unmodifiableSet(updated);

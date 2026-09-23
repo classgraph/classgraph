@@ -60,7 +60,7 @@ public class VfsTest {
     private static Vfs vfsWithoutURLSchemes(final String... urlSchemes) {
         final var vfsSpec = new VfsSpec();
         for (final var urlScheme : urlSchemes) {
-            vfsSpec.disableURLScheme(urlScheme);
+            vfsSpec.denyURLScheme(urlScheme);
         }
         return new Vfs(vfsSpec);
     }
@@ -1649,8 +1649,8 @@ public class VfsTest {
             assertThatThrownBy(() -> vfs.open((byte[]) null, "in-memory.jar"))
                     .isInstanceOf(NullPointerException.class);
             assertThatThrownBy(() -> vfs.open(new byte[0], null)).isInstanceOf(NullPointerException.class);
-            assertThatThrownBy(() -> new VfsSpec().enableURLScheme(null)).isInstanceOf(NullPointerException.class);
-            assertThatThrownBy(() -> new VfsSpec().disableURLScheme(null)).isInstanceOf(NullPointerException.class);
+            assertThatThrownBy(() -> new VfsSpec().allowURLScheme(null)).isInstanceOf(NullPointerException.class);
+            assertThatThrownBy(() -> new VfsSpec().denyURLScheme(null)).isInstanceOf(NullPointerException.class);
 
             final var root = vfs.open(jarFile.getPath());
             assertThatThrownBy(() -> root.getEntry(null)).isInstanceOf(NullPointerException.class);

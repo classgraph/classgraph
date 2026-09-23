@@ -74,13 +74,6 @@ import io.github.classgraph.vfs.VfsSpec;
  * times, and returns a new {@link Classpath} each time.
  */
 public final class ClasspathFinder {
-    /**
-     * The URL schemes a jarfile is not fetched from unless asked for. These are the schemes that every JVM can
-     * already fetch over a network, so a classpath element naming one is read from the network by default, which is
-     * not something a classpath walk should do with a path it was merely handed.
-     */
-    private static final String[] DENIED_URL_SCHEMES = { "http", "https", "ftp", "mailto" };
-
     /** Everything except the places that classpath elements and modules are looked for. */
     private final ClasspathSpec classpathSpec = new ClasspathSpec();
 
@@ -103,12 +96,12 @@ public final class ClasspathFinder {
      * <p>
      * A classpath is not always something the caller wrote, so the URL schemes that every JVM can fetch over a
      * network are denied to begin with: a jarfile is not downloaded from an {@code http:}, {@code https:},
-     * {@code ftp:} or {@code mailto:} URL unless {@link #enableURLScheme(String)} asks for it. Every other scheme
-     * is read as found.
+     * {@code ftp:} or {@code mailto:} URL unless {@link #allowURLScheme(String)} asks for it. Every other scheme is
+     * read as found.
      */
     public ClasspathFinder() {
-        for (final String scheme : DENIED_URL_SCHEMES) {
-            vfsSpec.disableURLScheme(scheme);
+        for (final String scheme : ClasspathSpec.NETWORK_URL_SCHEMES) {
+            vfsSpec.denyURLScheme(scheme);
         }
     }
 
@@ -130,7 +123,7 @@ public final class ClasspathFinder {
      * {@code "http"}.
      *
      * <p>
-     * Only {@code http}, {@code https}, {@code ftp} and {@code mailto} have to be enabled this way -- see
+     * Only {@code http}, {@code https}, {@code ftp} and {@code mailto} have to be allowed this way -- see
      * {@link #ClasspathFinder()}. A scheme that the JVM can open only because an application registered a
      * {@link java.net.URLStreamHandler} or a {@link java.nio.file.spi.FileSystemProvider} for it is already read as
      * found. Naming one here is still worth doing if classpath elements with that scheme arrive in a
@@ -144,9 +137,9 @@ public final class ClasspathFinder {
      *             if the scheme is shorter than two characters (a one-character scheme cannot be told apart from a
      *             Windows drive letter), or is not a valid URL scheme.
      */
-    public ClasspathFinder enableURLScheme(final String scheme) {
-        classpathSpec.enableURLScheme(scheme);
-        vfsSpec.enableURLScheme(scheme);
+    public ClasspathFinder allowURLScheme(final String scheme) {
+        classpathSpec.allowURLScheme(scheme);
+        vfsSpec.allowURLScheme(scheme);
         return this;
     }
 
@@ -166,8 +159,8 @@ public final class ClasspathFinder {
      *             if the scheme is shorter than two characters (a one-character scheme cannot be told apart from a
      *             Windows drive letter), or is not a valid URL scheme.
      */
-    public ClasspathFinder disableURLScheme(final String scheme) {
-        vfsSpec.disableURLScheme(scheme);
+    public ClasspathFinder denyURLScheme(final String scheme) {
+        vfsSpec.denyURLScheme(scheme);
         return this;
     }
 

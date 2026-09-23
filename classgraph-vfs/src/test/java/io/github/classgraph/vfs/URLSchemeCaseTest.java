@@ -53,7 +53,7 @@ public class URLSchemeCaseTest {
     }
 
     /**
-     * A scheme that something has registered a URL stream handler for is opened without having to be enabled,
+     * A scheme that something has registered a URL stream handler for is opened without having to be allowed,
      * whatever case the path spells it in.
      *
      * @param tempDir
@@ -62,7 +62,7 @@ public class URLSchemeCaseTest {
      *             if the jarfile could not be written or read.
      */
     @Test
-    public void aCustomURLSchemeIsOpenedWithoutBeingEnabled(@TempDir final File tempDir) throws IOException {
+    public void aCustomURLSchemeIsOpenedWithoutBeingAllowed(@TempDir final File tempDir) throws IOException {
         final var jarFile = new File(tempDir, "widget.jar");
         writeJar(jarFile);
 
@@ -86,7 +86,7 @@ public class URLSchemeCaseTest {
         final var jarFile = new File(tempDir, "widget.jar");
         writeJar(jarFile);
 
-        try (var vfs = new Vfs(new VfsSpec().disableURLScheme(SCHEME))) {
+        try (var vfs = new Vfs(new VfsSpec().denyURLScheme(SCHEME))) {
             final var url = SCHEME.toUpperCase(Locale.ROOT) + ":" + jarFile.getPath();
             assertThatThrownBy(() -> vfs.open(url)).isInstanceOf(IOException.class)
                     .hasMessageContaining("is not allowed");

@@ -152,7 +152,7 @@ public class ClasspathEntryTest {
                 assertThat(entry.getLocation()).isEqualTo(jar.toUri().toString()).startsWith("jimfs://");
                 assertThat(entry.open(classpath.getVfs())).extracting(VfsEntry::getPathFromRoot)
                         .containsExactly(ENTRY_PATH);
-                try (var denyingVfs = new Vfs(new VfsSpec().disableURLScheme("jimfs"))) {
+                try (var denyingVfs = new Vfs(new VfsSpec().denyURLScheme("jimfs"))) {
                     // Nothing is fetched over a denied scheme, so the location alone does not reach the element
                     assertThatThrownBy(() -> denyingVfs.open(entry.getLocation())).isInstanceOf(IOException.class);
                     // Opening the Path reads through its own filesystem, which fetches nothing, so the element is

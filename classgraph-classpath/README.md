@@ -142,13 +142,13 @@ handler for is opened, including one an application registered itself -- see
 schemes that fetch over a network: `http`, `https`, `ftp` and `mailto` are denied to begin with,
 because a classpath is not always something the caller wrote. An entry with a denied scheme is still
 reported, but `open` throws `IOException` for it, so the elements it declares are not found. Call
-`new ClasspathFinder().enableClasspath().enableURLScheme("https")` before `find()` to allow one, which allows it both
+`new ClasspathFinder().enableClasspath().allowURLScheme("https")` before `find()` to allow one, which allows it both
 while the classpath is being found and on the `Vfs` that `Classpath.getVfs()` hands back;
-`disableURLScheme(String)` denies a further scheme.
+`denyURLScheme(String)` denies a further scheme.
 
-Enabling a scheme is also what keeps a `':'`-separated classpath string from being split at that
-scheme's own colon, so a custom scheme is worth naming for that reason even though it needs no
-enabling to be fetched from.
+Allowing a scheme is also what keeps a `':'`-separated classpath string from being split at that
+scheme's own colon, so a custom scheme is worth naming for that reason even though it does not have
+to be allowed to be fetched from.
 
 ### List the modules
 

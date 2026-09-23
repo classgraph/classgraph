@@ -109,7 +109,7 @@ public class ClasspathFinderTest {
     @Test
     public void aURLSchemeCanBeRegisteredAfterTheClasspathThatNamesIt() {
         final var location = "s3://bucket/widget.jar";
-        try (var classpath = new ClasspathFinder().enableClasspathEntries(location).enableURLScheme("s3").find()) {
+        try (var classpath = new ClasspathFinder().enableClasspathEntries(location).allowURLScheme("s3").find()) {
             assertThat(classpath.getLocations()).containsExactly(location);
         }
     }
@@ -501,8 +501,8 @@ public class ClasspathFinderTest {
     }
 
     /**
-     * A classpath element named by a URL is only read if its scheme has been enabled. It is reported either way,
-     * but until the scheme is enabled the jarfile it names is not fetched, so the elements it declares are not
+     * A classpath element named by a URL is only read if its scheme has been allowed. It is reported either way,
+     * but until the scheme is allowed the jarfile it names is not fetched, so the elements it declares are not
      * found.
      *
      * @param tempDir
@@ -511,7 +511,7 @@ public class ClasspathFinderTest {
      *             if the jarfile could not be built, or the server could not be started.
      */
     @Test
-    public void aUrlClasspathElementIsOnlyReadIfItsSchemeIsEnabled(@TempDir final Path tempDir) throws IOException {
+    public void aUrlClasspathElementIsOnlyReadIfItsSchemeIsAllowed(@TempDir final Path tempDir) throws IOException {
         final var jarBytes = Files.readAllBytes(
                 writeJarWithManifest(tempDir.resolve("served.jar"), "Class-Path", "declared.jar").toPath());
         final var server = serve("/served.jar", jarBytes);
@@ -520,19 +520,19 @@ public class ClasspathFinderTest {
                     + "/served.jar";
             final var declaredURL = jarURL.replace("served.jar", "declared.jar");
 
-            // The scheme has not been enabled, so the jarfile is not fetched and its manifest is not read
+            // The scheme has not been allowed, so the jarfile is not fetched and its manifest is not read
             try (var classpath = new ClasspathFinder().enableClasspathEntries((Object) jarURL).find()) {
                 assertThat(classpath.getLocations()).containsExactly(jarURL);
             }
 
-            // With the scheme enabled, the jarfile is fetched, and the element its manifest declares is found too
-            try (var classpath = new ClasspathFinder().enableURLScheme("http")
+            // With the scheme allowed, the jarfile is fetched, and the element its manifest declares is found too
+            try (var classpath = new ClasspathFinder().allowURLScheme("http")
                     .enableClasspathEntries((Object) jarURL).find()) {
                 assertThat(classpath.getLocations()).containsExactly(jarURL, declaredURL);
             }
 
             // Denying the scheme again stops the jarfile from being fetched
-            try (var classpath = new ClasspathFinder().enableURLScheme("http").disableURLScheme("http")
+            try (var classpath = new ClasspathFinder().allowURLScheme("http").denyURLScheme("http")
                     .enableClasspathEntries((Object) jarURL).find()) {
                 assertThat(classpath.getLocations()).containsExactly(jarURL);
             }

@@ -9,13 +9,13 @@ import org.junit.jupiter.api.Test;
 public class ClasspathSpecTest {
     /** A valid URL scheme is accepted, in any case, and stored in lowercase. */
     @Test
-    public void aValidURLSchemeIsEnabled() {
+    public void aValidURLSchemeIsAllowed() {
         final var classpathSpec = new ClasspathSpec();
-        classpathSpec.enableURLScheme("s3");
-        classpathSpec.enableURLScheme("HTTP");
-        classpathSpec.enableURLScheme("view-source");
-        classpathSpec.enableURLScheme("ms-help");
-        classpathSpec.enableURLScheme("z39.50r");
+        classpathSpec.allowURLScheme("s3");
+        classpathSpec.allowURLScheme("HTTP");
+        classpathSpec.allowURLScheme("view-source");
+        classpathSpec.allowURLScheme("ms-help");
+        classpathSpec.allowURLScheme("z39.50r");
         assertThat(classpathSpec.allowedURLSchemes).containsExactlyInAnyOrder("s3", "http", "view-source",
                 "ms-help", "z39.50r");
     }
@@ -25,16 +25,16 @@ public class ClasspathSpecTest {
     public void aStringThatIsNotAURLSchemeIsRejected() {
         final var classpathSpec = new ClasspathSpec();
         // The commonest mistake: including the scheme's trailing ':'
-        assertThatIllegalArgumentException().isThrownBy(() -> classpathSpec.enableURLScheme("s3:"));
-        assertThatIllegalArgumentException().isThrownBy(() -> classpathSpec.enableURLScheme("s3://"));
+        assertThatIllegalArgumentException().isThrownBy(() -> classpathSpec.allowURLScheme("s3:"));
+        assertThatIllegalArgumentException().isThrownBy(() -> classpathSpec.allowURLScheme("s3://"));
         // A scheme has to start with a letter
-        assertThatIllegalArgumentException().isThrownBy(() -> classpathSpec.enableURLScheme("3s"));
-        assertThatIllegalArgumentException().isThrownBy(() -> classpathSpec.enableURLScheme("-s3"));
+        assertThatIllegalArgumentException().isThrownBy(() -> classpathSpec.allowURLScheme("3s"));
+        assertThatIllegalArgumentException().isThrownBy(() -> classpathSpec.allowURLScheme("-s3"));
         // A scheme cannot contain a space or a path separator
-        assertThatIllegalArgumentException().isThrownBy(() -> classpathSpec.enableURLScheme("my scheme"));
-        assertThatIllegalArgumentException().isThrownBy(() -> classpathSpec.enableURLScheme("a/b"));
+        assertThatIllegalArgumentException().isThrownBy(() -> classpathSpec.allowURLScheme("my scheme"));
+        assertThatIllegalArgumentException().isThrownBy(() -> classpathSpec.allowURLScheme("a/b"));
         // A one-character scheme is indistinguishable from a Windows drive letter
-        assertThatIllegalArgumentException().isThrownBy(() -> classpathSpec.enableURLScheme("s"));
+        assertThatIllegalArgumentException().isThrownBy(() -> classpathSpec.allowURLScheme("s"));
         assertThat(classpathSpec.allowedURLSchemes).isNull();
     }
 }

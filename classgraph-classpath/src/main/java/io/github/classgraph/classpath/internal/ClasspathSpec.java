@@ -29,6 +29,7 @@
 package io.github.classgraph.classpath.internal;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -76,10 +77,17 @@ public class ClasspathSpec {
     /**
      * URL schemes that may start a classpath element, so that a {@code ':'}-separated classpath string is not split
      * at a scheme's own colon. This is a parsing aid, not a permission gate -- whether a jarfile may be fetched
-     * over a scheme is {@link io.github.classgraph.vfs.VfsSpec#disableURLScheme(String)}'s business. {@code "jar:"}
+     * over a scheme is {@link io.github.classgraph.vfs.VfsSpec#denyURLScheme(String)}'s business. {@code "jar:"}
      * and {@code "file:"} are recognized without being listed here.
      */
     public @Nullable Set<String> allowedURLSchemes;
+
+    /**
+     * The URL schemes that a scan or a classpath walk does not fetch a jarfile from unless asked to. These are the
+     * schemes that every JVM can fetch over a network, so a classpath element naming one would otherwise be read
+     * from the network, which is not something to do with a path that was merely handed over.
+     */
+    public static final List<String> NETWORK_URL_SCHEMES = List.of("http", "https", "ftp", "mailto");
 
     // -----------------------------------------------------------------------------------------------------------
 
@@ -161,7 +169,7 @@ public class ClasspathSpec {
      *             if the scheme is shorter than two characters (a one-character scheme cannot be told apart from a
      *             Windows drive letter), or is not a valid URL scheme.
      */
-    public void enableURLScheme(final String scheme) {
+    public void allowURLScheme(final String scheme) {
         Assert.notNull(scheme, "scheme");
         final var normalizedScheme = URLPaths.normalizeURLScheme(scheme);
         if (allowedURLSchemes == null) {
@@ -182,6 +190,10 @@ public class ClasspathSpec {
         if (log != null) {
             final var classpathSpecLog = log.log("ClasspathSpec:");
             for (final Field field : ClasspathSpec.class.getDeclaredFields()) {
+                if (Modifier.isStatic(field.getModifiers())) {
+                    // A constant, not a setting
+                    continue;
+                }
                 try {
                     classpathSpecLog.log(field.getName() + ": " + field.get(this));
                 } catch (final ReflectiveOperationException e) {

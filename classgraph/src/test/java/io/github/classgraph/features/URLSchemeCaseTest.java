@@ -22,14 +22,14 @@ public class URLSchemeCaseTest {
 
     /** A classpath string whose URL scheme is written in uppercase is not split at the scheme's colon. */
     @Test
-    public void anUppercaseURLSchemeIsStillTheEnabledScheme() {
+    public void anUppercaseURLSchemeIsStillTheAllowedScheme() {
         final var filePath = getClass().getClassLoader().getResource("nested-jars-level1.zip").getPath();
         final var upperCaseSchemeURL = CustomURLScheme.SCHEME.toUpperCase(Locale.ROOT) + ":" + filePath;
 
-        // The scheme has to be enabled for a classpath *string*: a classpath string is split on ':' on Unix, so
+        // The scheme has to be allowed for a classpath *string*: a classpath string is split on ':' on Unix, so
         // without this the string would be split at the scheme's own colon. (The scheme does not have to be
-        // enabled to be fetched from -- only http, https, ftp and mailto do)
-        try (var scanResult = new ClassGraph().enableURLScheme(CustomURLScheme.SCHEME)
+        // allowed to be fetched from -- only http, https, ftp and mailto do)
+        try (var scanResult = new ClassGraph().allowURLScheme(CustomURLScheme.SCHEME)
                 .enableClasspathEntries(upperCaseSchemeURL).scan()) {
             assertThat(scanResult.getAllResources().getPaths()).containsExactly("level2.jar");
         }

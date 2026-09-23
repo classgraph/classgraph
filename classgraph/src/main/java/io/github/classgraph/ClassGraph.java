@@ -60,6 +60,7 @@ import io.github.classgraph.base.internal.utils.VersionFinder;
 import io.github.classgraph.classpath.ClassLoaderHandler;
 import io.github.classgraph.classpath.ModulePathInfo;
 import io.github.classgraph.classpath.internal.CallStackInfo;
+import io.github.classgraph.classpath.internal.ClasspathSpec;
 import io.github.classgraph.classpath.internal.ScanSourceSpec;
 import org.jspecify.annotations.Nullable;
 
@@ -154,13 +155,6 @@ public class ClassGraph {
     private static final String MAVEN_ARTIFACT_ID = "classgraph";
 
     /**
-     * The URL schemes a scan does not fetch a jarfile from unless asked to. These are the schemes that every JVM
-     * can already fetch over a network, so a classpath element naming one is read from the network by default,
-     * which is not something a scan should do with a path it was merely handed.
-     */
-    private static final String[] DENIED_URL_SCHEMES = { "http", "https", "ftp", "mailto" };
-
-    /**
      * If non-null, log while scanning.
      */
     private @Nullable LogNode topLevelLog;
@@ -181,14 +175,14 @@ public class ClassGraph {
      * A scan reads whatever the classpath names, and a classpath is not always something the caller wrote, so the
      * URL schemes that every JVM can fetch over a network are denied to begin with: a jarfile is not downloaded
      * from an {@code http:}, {@code https:}, {@code ftp:} or {@code mailto:} URL unless
-     * {@link #enableURLScheme(String)} or {@link #enableRemoteJarScanning()} asks for it. Every other scheme is
-     * read as found, including one that an application registered a {@link java.net.URLStreamHandler} or a
+     * {@link #allowURLScheme(String)} or {@link #enableRemoteJarScanning()} asks for it. Every other scheme is read
+     * as found, including one that an application registered a {@link java.net.URLStreamHandler} or a
      * {@link java.nio.file.spi.FileSystemProvider} for, since registering one is what says those URLs are meant to
      * be read.
      */
     public ClassGraph() {
-        for (final String scheme : DENIED_URL_SCHEMES) {
-            scanSpec.vfsSpec.disableURLScheme(scheme);
+        for (final String scheme : ClasspathSpec.NETWORK_URL_SCHEMES) {
+            scanSpec.vfsSpec.denyURLScheme(scheme);
         }
     }
 
@@ -1274,28 +1268,24 @@ public class ClassGraph {
      * Enable classpath elements to be fetched from remote ({@code "http:"}/{@code "https:"}) URLs. Equivalent to:
      *
      * <p>
-     * {@code new ClassGraph().enableURLScheme("http").enableURLScheme("https");}
+     * {@code new ClassGraph().allowURLScheme("http").allowURLScheme("https");}
      *
      * <p>
      * Scanning from http(s) URLs is disabled by default, as downloading and reading jars from a remote server may
-     * present a security vulnerability. A custom URL scheme needs no enabling -- see
-     * {@link #enableURLScheme(String)}.
+     * present a security vulnerability. A custom URL scheme does not have to be allowed -- see
+     * {@link #allowURLScheme(String)}.
      *
      * @return this (for method chaining).
      */
     public ClassGraph enableRemoteJarScanning() {
-        scanSpec.classpathSpec.enableURLScheme("http");
-        scanSpec.vfsSpec.enableURLScheme("http");
-        scanSpec.classpathSpec.enableURLScheme("https");
-        scanSpec.vfsSpec.enableURLScheme("https");
-        return this;
+        return allowURLScheme("http").allowURLScheme("https");
     }
 
     /**
-     * Enable classpath elements to be fetched from {@link URL} connections with the specified URL scheme.
+     * Allow classpath elements to be fetched from {@link URL} connections with the specified URL scheme.
      *
      * <p>
-     * Only {@code http}, {@code https}, {@code ftp} and {@code mailto} have to be enabled this way -- see
+     * Only {@code http}, {@code https}, {@code ftp} and {@code mailto} have to be allowed this way -- see
      * {@link #ClassGraph()}. A scheme that the JVM can open only because an application registered a
      * {@link java.net.URLStreamHandler} or a {@link java.nio.file.spi.FileSystemProvider} for it is already read as
      * found. Naming one here is still worth doing if classpath elements with that scheme arrive in a
@@ -1310,10 +1300,10 @@ public class ClassGraph {
      *             if the scheme is shorter than two characters (a one-character scheme cannot be told apart from a
      *             Windows drive letter), or is not a valid URL scheme.
      */
-    public ClassGraph enableURLScheme(final String scheme) {
+    public ClassGraph allowURLScheme(final String scheme) {
         Assert.notNull(scheme, "scheme");
-        scanSpec.classpathSpec.enableURLScheme(scheme);
-        scanSpec.vfsSpec.enableURLScheme(scheme);
+        scanSpec.classpathSpec.allowURLScheme(scheme);
+        scanSpec.vfsSpec.allowURLScheme(scheme);
         return this;
     }
 
@@ -1334,9 +1324,9 @@ public class ClassGraph {
      *             if the scheme is shorter than two characters (a one-character scheme cannot be told apart from a
      *             Windows drive letter), or is not a valid URL scheme.
      */
-    public ClassGraph disableURLScheme(final String scheme) {
+    public ClassGraph denyURLScheme(final String scheme) {
         Assert.notNull(scheme, "scheme");
-        scanSpec.vfsSpec.disableURLScheme(scheme);
+        scanSpec.vfsSpec.denyURLScheme(scheme);
         return this;
     }
 

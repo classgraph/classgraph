@@ -45,7 +45,7 @@ class URLSchemeDenyTest {
     @Test
     void enablingANetworkSchemeUndoesTheDefault() {
         assertThat(
-                new ClassGraph().enableClasspath().enableURLScheme("https").scanSpec.vfsSpec.getDeniedURLSchemes())
+                new ClassGraph().enableClasspath().allowURLScheme("https").scanSpec.vfsSpec.getDeniedURLSchemes())
                 .containsExactlyInAnyOrder("http", "ftp", "mailto");
         assertThat(
                 new ClassGraph().enableClasspath().enableRemoteJarScanning().scanSpec.vfsSpec.getDeniedURLSchemes())
@@ -53,13 +53,13 @@ class URLSchemeDenyTest {
     }
 
     /**
-     * A scheme that something has registered a URL stream handler for is scanned without being enabled.
+     * A scheme that something has registered a URL stream handler for is scanned without being allowed.
      *
      * @throws MalformedURLException
      *             if the URL could not be built.
      */
     @Test
-    void aCustomURLSchemeIsScannedWithoutBeingEnabled() throws MalformedURLException {
+    void aCustomURLSchemeIsScannedWithoutBeingAllowed() throws MalformedURLException {
         try (var scanResult = new ClassGraph().enableClasspathEntries((Object) customSchemeJarURL()).scan()) {
             assertThat(scanResult.getAllResources().getPaths()).containsExactly("level2.jar");
         }
@@ -73,7 +73,7 @@ class URLSchemeDenyTest {
      */
     @Test
     void aDeniedURLSchemeIsNotFetched() throws MalformedURLException {
-        try (var scanResult = new ClassGraph().disableURLScheme(CustomURLScheme.SCHEME)
+        try (var scanResult = new ClassGraph().denyURLScheme(CustomURLScheme.SCHEME)
                 .enableClasspathEntries((Object) customSchemeJarURL()).scan()) {
             assertThat(scanResult.getAllResources().getPaths()).isEmpty();
         }

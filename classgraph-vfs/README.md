@@ -258,14 +258,14 @@ changed by a method that returns the same `VfsSpec`, so the ones that differ fro
 chained onto the constructor call and the rest left alone:
 
 ```java
-new Vfs(new VfsSpec().disableURLScheme("https").setMaxBufferedJarRAMSize(65536))
+new Vfs(new VfsSpec().denyURLScheme("https").setMaxBufferedJarRAMSize(65536))
 ```
 
 | Setting | Default | Effect |
 | --- | --- | --- |
 | `enableNestedJars()` / `disableNestedJars()` | enabled | Whether `!/` in a path may name a jarfile within a jarfile, rather than only a package root within a jarfile |
 | `enableMultiReleaseVersions()` / `disableMultiReleaseVersions()` | enabled | Whether to serve each entry of a multi-release jarfile in the highest version that does not exceed this JVM's major version, as the JVM does, rather than reporting every version under its own `META-INF/versions/<N>/` path |
-| `disableURLScheme(String)` / `enableURLScheme(String)` | none denied | A URL scheme a jarfile may **not** be opened from, e.g. `"https"`. Every scheme the JVM has a handler for is allowed until it is denied. Denying `file:` or `jar:` has no effect, since both prefixes are stripped before a path is opened. Call once per scheme |
+| `denyURLScheme(String)` / `allowURLScheme(String)` | none denied | A URL scheme a jarfile may **not** be opened from, e.g. `"https"`. Every scheme the JVM has a handler for is allowed until it is denied. Denying `file:` or `jar:` has no effect, since both prefixes are stripped before a path is opened. Call once per scheme |
 | `setMaxBufferedJarRAMSize(int)` | 64MB | How many bytes of a jarfile may be held in RAM before it is spilled to a temporary file |
 
 `new Vfs()` uses the default of every setting. Each setting has a matching getter --
@@ -309,12 +309,12 @@ java.io.IOException: Could not open s3://bucket/lib.jar :
 To keep a jarfile from being fetched over a scheme, name it:
 
 ```java
-new Vfs(new VfsSpec().disableURLScheme("https"))
+new Vfs(new VfsSpec().denyURLScheme("https"))
 ```
 
 A `Vfs` denies nothing by default. `ClassGraph` and `ClasspathFinder` construct theirs with `http`,
 `https`, `ftp` and `mailto` denied, because a classpath is not always something the caller wrote,
-and those four fetch over a network on any JVM. `enableURLScheme(String)` takes a scheme back off
+and those four fetch over a network on any JVM. `allowURLScheme(String)` takes a scheme back off
 that list.
 
 The list is a deny list rather than an allow list because there is no way to build the allow list:
@@ -324,7 +324,7 @@ does not open `java.net`; `ServiceLoader<URLStreamHandlerProvider>` sees only th
 in service files, so it misses every handler installed by `URL.setURLStreamHandlerFactory`; and the
 `URLConnection` a handler returns does not say who registered it, because a custom handler that
 delegates to `file:` returns the JDK's own `sun.net.www.protocol.file.FileURLConnection`. Requiring
-each scheme to be enabled would therefore have meant every application that installs a handler also
+each scheme to be allowed would therefore have meant every application that installs a handler also
 naming it here, to no benefit -- installing the handler is already the statement that those URLs are
 meant to be read.
 

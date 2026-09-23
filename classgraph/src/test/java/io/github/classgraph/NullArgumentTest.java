@@ -63,8 +63,8 @@ class NullArgumentTest {
         rejectsNull(() -> classGraph.filterClasspathElements(null));
         rejectsNull(() -> classGraph.filterClasspathElementsByURL(null));
         // Previously reported the misleading "URL schemes must contain at least two characters"
-        rejectsNull(() -> classGraph.enableURLScheme(null));
-        rejectsNull(() -> classGraph.disableURLScheme(null));
+        rejectsNull(() -> classGraph.allowURLScheme(null));
+        rejectsNull(() -> classGraph.denyURLScheme(null));
         rejectsNull(() -> classGraph.setWorkerTimeout(null));
     }
 
