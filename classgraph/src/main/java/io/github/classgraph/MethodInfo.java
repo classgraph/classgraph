@@ -231,8 +231,10 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
      * there is no generic type signature to compare the descriptor against. Currently handles the two standard Java
      * cases: the leading enclosing-instance parameter of a non-static inner class constructor, and the leading
      * {@code (String name, int ordinal)} parameters of an enum constructor. (Local and anonymous classes may add a
-     * varying number of synthetic params, and are deliberately not special-cased here -- any resulting mismatch is
-     * handled gracefully by {@link #decorateMethodType}.)
+     * varying number of synthetic params, and are deliberately not special-cased here. If the count is wrong for
+     * one of them, a parameter type annotation whose index falls past the last parameter is dropped, one whose type
+     * path does not fit the parameter's type is skipped by {@link #decorateMethodType}, and any other is attached
+     * to the wrong parameter.)
      *
      * @return the number of implicit prefix parameters (0 if none, or if it cannot be determined).
      */
