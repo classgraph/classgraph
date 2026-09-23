@@ -340,10 +340,11 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
      * modules.
      *
      * <p>
-     * Note: The ZIP format has no notion of timezone, so timestamps are only meaningful if it is known what
-     * timezone they were created in. We arbitrarily assume that zipfile timestamps are in the UTC timezone. This
-     * may be a wrong assumption, so you may need to apply a timezone correction if you know the timezone used by
-     * the zipfile creator.
+     * Note: The MS-DOS timestamp of a zip entry is a local date and time, and does not record which time zone it
+     * is in. We arbitrarily assume that it is in UTC, so if the zipfile was written in another time zone, you will
+     * need to correct for the offset yourself. (java.util.zip.ZipFile assumes instead that it is in the default
+     * time zone of the JVM reading it.) An entry that also has an extended timestamp extra field, which is in UTC,
+     * gets its time from that field, and needs no correction.
      *
      * @return The millis since the epoch indicating the date / time that this file resource was last modified.
      *         Returns 0L if the last modified date is unknown.
