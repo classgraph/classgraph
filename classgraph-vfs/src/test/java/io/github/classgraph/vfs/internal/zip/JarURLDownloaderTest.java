@@ -188,7 +188,7 @@ public class JarURLDownloaderTest {
             assertThat(physicalZipFile.getPathString()).isEqualTo(server.jarURL());
 
             assertThat(log.toString()).contains("Downloading jar from URL " + server.jarURL() + " (took ")
-                    .contains("time-consuming to scan jars at non-\"file:\" URLs");
+                    .contains("a jar at a non-\"file:\" URL is downloaded by every Vfs that opens it");
         }
     }
 

@@ -174,9 +174,9 @@ final class JarURLDownloader {
                         vfs, subLog);
                 if (subLog != null) {
                     subLog.addElapsedTime();
-                    subLog.log("***** Note that it is time-consuming to scan jars at non-\"file:\" URLs, "
-                            + "the URL must be opened (possibly after an http(s) fetch) for every scan, "
-                            + "and the same URL must also be separately opened by the ClassLoader *****");
+                    subLog.log(
+                            "***** Note that a jar at a non-\"file:\" URL is downloaded by every Vfs that opens it, "
+                                    + "and the ClassLoader downloads it separately *****");
                 }
                 return physicalZipFile;
 

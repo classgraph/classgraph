@@ -614,7 +614,7 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
             throw new IOException("Path " + childPath + " does not exist in jarfile " + containerZipFile);
         }
         if (!vfsSpec.isNestedJarsEnabled()) {
-            throw new IOException("Nested jar scanning is disabled -- skipping nested jar " + resolvedPath);
+            throw new IOException("Nested jars are disabled -- cannot open nested jar " + resolvedPath);
         }
         return recordPathKey(resolvedPath, adoptWithin(container,
                 new ArchiveRoot(this, container, JarOpener.openNestedJar(childZipEntry, logNode))));

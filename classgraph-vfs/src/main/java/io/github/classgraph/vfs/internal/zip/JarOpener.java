@@ -116,8 +116,7 @@ public final class JarOpener {
         // JVM's own reason for not being able to open it. ("file:" and "jar:" never reach here --
         // FastPathResolver.resolve() has already stripped them)
         if (vfs.getVfsSpec().getDeniedURLSchemes().contains(scheme)) {
-            throw new IOException("Fetching a jarfile over \"" + scheme
-                    + ":\" is not allowed -- cannot read classpath element: " + url);
+            throw new IOException("Fetching a jarfile over \"" + scheme + ":\" is not allowed: " + url);
         }
         // Read the jar from the URL into RAM, or into a temporary file if it is too large for RAM
         return readCentralDirectory(JarURLDownloader.downloadJarFromURL(url, vfs, log), log);
