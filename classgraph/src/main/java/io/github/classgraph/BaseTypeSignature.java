@@ -38,7 +38,7 @@ import org.jspecify.annotations.Nullable;
 /**
  * A type signature for a base type (byte, char, double, float, int, long, short, boolean, or void). This
  * corresponds to the {@code BaseType} production of the signature grammar in section 4.7.9.1 of the JVM
- * Specification.
+ * Specification, or, for void, to the {@code VoidDescriptor} production.
  */
 public class BaseTypeSignature extends TypeSignature {
     /** The type signature character used to represent the base type. */
@@ -86,11 +86,11 @@ public class BaseTypeSignature extends TypeSignature {
     }
 
     /**
-     * Get the name of the type as a string.
+     * Get the type signature character for the name of a base type.
      *
      * @param typeStr
-     *            the type character, e.g. "int".
-     * @return The type, character, e.g. 'I', or '\0' if there was no match.
+     *            the name of the type, e.g. "int".
+     * @return The type signature character, e.g. 'I', or '\0' if there was no match.
      */
     static char getTypeChar(final String typeStr) {
         return switch (typeStr) {

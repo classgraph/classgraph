@@ -188,9 +188,9 @@ public final class TypeArgument extends HierarchicalTypeSignature {
      *            The parser.
      * @param definingClassName
      *            The name of the defining class (for resolving type variables).
-     * @return The parsed method type signature.
+     * @return The parsed type argument.
      * @throws TypeSignatureParseException
-     *             If method type signature could not be parsed.
+     *             If the type argument could not be parsed.
      */
     private static TypeArgument parse(final TypeSignatureParser parser, final @Nullable String definingClassName)
             throws TypeSignatureParseException {
@@ -215,7 +215,7 @@ public final class TypeArgument extends HierarchicalTypeSignature {
         } else {
             final var typeSignature = ReferenceTypeSignature.parseReferenceTypeSignature(parser, definingClassName);
             if (typeSignature == null) {
-                throw new TypeSignatureParseException(parser, "Missing type bound");
+                throw new TypeSignatureParseException(parser, "Missing type argument");
             }
             return new TypeArgument(Wildcard.NONE, typeSignature);
         }
@@ -322,8 +322,15 @@ public final class TypeArgument extends HierarchicalTypeSignature {
         switch (wildcard) {
         case ANY -> buf.append('?');
         case EXTENDS -> {
-            final var typeSigStr = Objects.requireNonNull(typeSignature).toString(useSimpleNames);
-            buf.append("java.lang.Object".equals(typeSigStr) ? "?" : "? extends " + typeSigStr);
+            // Render "? extends Object" as "?". Compare the fully qualified name, so that the check also works
+            // with simple names, and so that an annotated bound is not collapsed.
+            final var typeSig = Objects.requireNonNull(typeSignature);
+            if ("java.lang.Object".equals(typeSig.toString())) {
+                buf.append('?');
+            } else {
+                buf.append("? extends ");
+                typeSig.toString(useSimpleNames, buf);
+            }
         }
         case SUPER -> {
             buf.append("? super ");
