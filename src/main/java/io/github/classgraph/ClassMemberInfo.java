@@ -39,7 +39,7 @@ import nonapi.io.github.classgraph.utils.Assert;
  * classfile for the class.
  */
 public abstract class ClassMemberInfo extends ScanResultObject implements HasName {
-    /** Defining class name. */
+    /** The name of the class that declares this member. */
     protected String declaringClassName;
 
     /** The name of the class member. */
@@ -149,7 +149,7 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
     /**
      * Get the modifiers as a string, e.g. "public static final". For the modifier bits, call getModifiers().
      *
-     * @return The modifiers modifiers, as a string.
+     * @return The modifiers, as a string.
      */
     public abstract String getModifiersStr();
 
@@ -229,7 +229,7 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
 
     /**
      * Returns the parsed type signature for the class member, possibly including type parameters. If this returns
-     * null, that no type signature information is available for this class member, call
+     * null, indicating that no type signature information is available for this class member, call
      * {@link #getTypeDescriptor()} instead.
      *
      * @return The parsed type signature for the class member, or null if not available.

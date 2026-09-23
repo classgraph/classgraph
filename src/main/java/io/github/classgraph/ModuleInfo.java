@@ -60,7 +60,7 @@ public class ModuleInfo implements Comparable<ModuleInfo>, HasName {
     /** {@link AnnotationInfo} objects for any annotations on the module-info.class file, if present, else null. */
     private AnnotationInfoList annotationInfo;
 
-    /** {@link PackageInfo} objects for packages found within the class, if any, else null. */
+    /** {@link PackageInfo} objects for packages found within the module, if any, else null. */
     private Set<PackageInfo> packageInfoSet;
 
     /** Set of classes in the module. */

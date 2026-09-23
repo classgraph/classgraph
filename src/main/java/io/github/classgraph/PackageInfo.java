@@ -109,8 +109,7 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
     }
 
     /**
-     * Merge a {@link ClassInfo} object for a package-info.class file into this PackageInfo. (The same
-     * package-info.class file may be present in multiple definitions of the package in different modules.)
+     * Add a class to this package.
      *
      * @param classInfo
      *            the {@link ClassInfo} object to add to the package.
@@ -206,9 +205,11 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * The parent package of this package, or null if this is the root package.
+     * The parent package of this package, or null if this is the root package or if the parent package was not
+     * accepted for scanning.
      *
-     * @return the parent package, or null if this is the root package.
+     * @return the parent package, or null if this is the root package or if the parent package was not accepted
+     *         for scanning.
      */
     public PackageInfo getParent() {
         return parent;
@@ -288,7 +289,7 @@ public class PackageInfo implements Comparable<PackageInfo>, HasName {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get the name of the parent package of a parent, or the package of the named class.
+     * Get the name of the parent package of a package, or the package of the named class.
      *
      * @param packageOrClassName
      *            The package or class name.

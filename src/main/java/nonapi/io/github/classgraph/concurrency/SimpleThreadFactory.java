@@ -60,7 +60,8 @@ public class SimpleThreadFactory implements java.util.concurrent.ThreadFactory {
     }
 
     /**
-     * New thread.
+     * Create a thread in the security manager's thread group, if a security manager is installed, or else in the
+     * current thread's group.
      *
      * @param runnable
      *            the runnable
