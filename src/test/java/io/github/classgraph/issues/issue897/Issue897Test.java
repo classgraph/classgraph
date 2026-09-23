@@ -59,6 +59,36 @@ public class Issue897Test {
     @interface Anno {
     }
 
+    /**
+     * Declare a local class in a static method, which has no enclosing instance.
+     *
+     * @return the local class.
+     */
+    private static Class<?> localClassInStaticMethod() {
+        class LocalInStatic {
+            @SuppressWarnings("unused")
+            LocalInStatic(@Anno final String s) {
+            }
+        }
+        return LocalInStatic.class;
+    }
+
+    /**
+     * Declare a local class in an instance method, which has an enclosing instance.
+     *
+     * @return the local class.
+     */
+    // Must not be static, or the local class would have no enclosing instance
+    @SuppressWarnings("static-method")
+    private Class<?> localClassInInstanceMethod() {
+        class LocalInInstance {
+            @SuppressWarnings("unused")
+            LocalInInstance(@Anno final String s) {
+            }
+        }
+        return LocalInInstance.class;
+    }
+
     /** Collect the names of all type annotations on a type signature, including those on nested suffixes. */
     private static List<String> typeAnnotationNames(final TypeSignature typeSignature) {
         final List<String> names = new ArrayList<>();
@@ -117,6 +147,31 @@ public class Issue897Test {
             // ...and not to the compiler-generated enclosing-instance parameter.
             assertThat(typeAnnotationNames(parameterInfo[0].getTypeSignatureOrTypeDescriptor()))
                     .doesNotContain(annoName);
+        }
+    }
+
+    /**
+     * A type annotation on a constructor parameter of a local class is attached to that parameter, whether or not
+     * the constructor also has an enclosing-instance parameter, which only a local class declared in an instance
+     * context has.
+     */
+    @Test
+    public void annotationOnLocalClassConstructor() {
+        final List<Class<?>> localClasses = new ArrayList<>();
+        localClasses.add(localClassInStaticMethod());
+        localClasses.add(new Issue897Test().localClassInInstanceMethod());
+        try (ScanResult scanResult = new ClassGraph()
+                .acceptPackagesNonRecursive(Issue897Test.class.getPackage().getName()).ignoreClassVisibility()
+                .enableMethodInfo().ignoreMethodVisibility().enableAnnotationInfo().scan()) {
+            for (final Class<?> localClass : localClasses) {
+                final MethodParameterInfo[] parameterInfo = scanResult.getClassInfo(localClass.getName())
+                        .getDeclaredConstructorInfo().get(0).getParameterInfo();
+                final MethodParameterInfo stringParam = parameterInfo[parameterInfo.length - 1];
+                assertThat(((ClassRefTypeSignature) stringParam.getTypeDescriptor()).getFullyQualifiedClassName())
+                        .isEqualTo(String.class.getName());
+                assertThat(typeAnnotationNames(stringParam.getTypeDescriptor())).as(localClass.getName())
+                        .containsExactly(Anno.class.getName());
+            }
         }
     }
 

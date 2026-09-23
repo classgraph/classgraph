@@ -117,6 +117,9 @@ class Classfile {
     /** Whether the class' own {@code InnerClasses} entry says it has no simple name, i.e. it is anonymous. */
     private boolean hasNoSimpleName;
 
+    /** The access flags in the class' own {@code InnerClasses} entry, or -1 if it has no such entry. */
+    private int ownInnerClassAccessFlags = -1;
+
     /**
      * The fully qualified name of the method or constructor that a local or anonymous class is declared in, or
      * null if it is not declared in a method or constructor.
@@ -523,6 +526,12 @@ class Classfile {
             if (hasEnclosingMethodAttribute) {
                 classInfo.setLocalOrAnonymousClass(/* isAnonymous = */ hasNoSimpleName,
                         fullyQualifiedDefiningMethodName);
+                // The InnerClasses entry of a local or anonymous class has an outer class index of 0, so it adds
+                // no containment entry, and the flags that only it holds (such as the ACC_STATIC of a local
+                // record, enum or interface) have to be applied here
+                if (ownInnerClassAccessFlags != -1) {
+                    classInfo.setNestedClassModifiers(ownInnerClassAccessFlags);
+                }
             }
             if (fieldInfoList != null) {
                 classInfo.addFieldInfo(fieldInfoList, classNameToClassInfo);
@@ -2079,11 +2088,14 @@ class Classfile {
                     final int outerClassInfoCpIdx = reader.readUnsignedShort();
                     final int innerNameCpIdx = reader.readUnsignedShort();
                     final int innerClassAccessFlags = reader.readUnsignedShort();
-                    // An inner_name_index of 0 in the class' own entry means that the class is anonymous
-                    // (JVMS 4.7.6)
-                    if (innerNameCpIdx == 0 && innerClassInfoCpIdx != 0
+                    if (innerClassInfoCpIdx != 0
                             && className.equals(getConstantPoolClassName(innerClassInfoCpIdx))) {
-                        hasNoSimpleName = true;
+                        ownInnerClassAccessFlags = innerClassAccessFlags;
+                        // An inner_name_index of 0 in the class' own entry means that the class is anonymous
+                        // (JVMS 4.7.6)
+                        if (innerNameCpIdx == 0) {
+                            hasNoSimpleName = true;
+                        }
                     }
                     // The outer_class_info_index of a local or anonymous class is 0; these classes are linked to
                     // the class they are declared in by the EnclosingMethod attribute instead
