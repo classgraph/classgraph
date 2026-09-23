@@ -333,6 +333,31 @@ public class VfsTest {
     }
 
     /**
+     * A jarfile whose manifest puts its Spring Boot classes and lib jars somewhere other than the usual places is
+     * still a valid jarfile, and opens like any other.
+     */
+    @Test
+    public void aJarfileWithANonstandardSpringBootLayoutOpens(@TempDir final File tempDir) throws IOException {
+        final var jarFile = new File(tempDir, "app.jar");
+        try (var fileOut = new FileOutputStream(jarFile); var zipOut = new ZipOutputStream(fileOut)) {
+            zipOut.putNextEntry(new ZipEntry("META-INF/MANIFEST.MF"));
+            zipOut.write(
+                    "Manifest-Version: 1.0\nSpring-Boot-Classes: custom/classes/\nSpring-Boot-Lib: custom/lib/\n\n"
+                            .getBytes(StandardCharsets.UTF_8));
+            zipOut.closeEntry();
+            zipOut.putNextEntry(new ZipEntry("custom/classes/widget.txt"));
+            zipOut.write(RESOURCE_CONTENT.getBytes(StandardCharsets.UTF_8));
+            zipOut.closeEntry();
+        }
+
+        try (var vfs = new Vfs()) {
+            final var root = vfs.open(jarFile.getPath());
+            assertThat(root.getManifestEntry("Spring-Boot-Classes")).isEqualTo("custom/classes/");
+            assertThat(entryContent(root, "custom/classes/widget.txt")).isEqualTo(RESOURCE_CONTENT);
+        }
+    }
+
+    /**
      * The Unix mode bits of a jarfile entry are decoded into an unmodifiable set of POSIX permissions that iterates
      * in {@link PosixFilePermission} declaration order.
      *

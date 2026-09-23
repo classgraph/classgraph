@@ -299,6 +299,10 @@ class ClasspathElementZip extends ClasspathElement {
                 }
                 return null;
             }
+            // Only the standard locations of a Spring Boot jar's classes and lib jars are looked in, so a jar that
+            // declares a different layout is skipped rather than scanned as if it held nothing
+            checkSpringBootLayout(root, "Spring-Boot-Classes", "classes", "BOOT-INF/classes", "WEB-INF/classes");
+            checkSpringBootLayout(root, "Spring-Boot-Lib", "lib jars", "BOOT-INF/lib", "WEB-INF/lib");
         } catch (final IOException | IllegalArgumentException e) {
             if (log != null) {
                 log.log("Could not open jarfile " + rawPath + " : " + e);
@@ -328,6 +332,40 @@ class ClasspathElementZip extends ClasspathElement {
     private static boolean isJREJar(final VfsRoot root) throws IOException {
         return JRE_IMPLEMENTATION_TITLE.equalsIgnoreCase(root.getManifestEntry("Implementation-Title"))
                 || JRE_SPECIFICATION_TITLE.equalsIgnoreCase(root.getManifestEntry("Specification-Title"));
+    }
+
+    /**
+     * Check that a Spring Boot manifest attribute names one of the standard locations, if the manifest has the
+     * attribute at all. A trailing {@code '/'} is optional.
+     *
+     * @param root
+     *            the jarfile, as a root of the virtual filesystem
+     * @param key
+     *            the manifest attribute to check
+     * @param description
+     *            what is stored at the location, for the exception message
+     * @param standardLocations
+     *            the locations that are looked in
+     * @throws IOException
+     *             if the manifest could not be read, or the attribute names a location that is not one of the
+     *             standard locations.
+     */
+    private static void checkSpringBootLayout(final VfsRoot root, final String key, final String description,
+            final String... standardLocations) throws IOException {
+        final var location = root.getManifestEntry(key);
+        if (location == null) {
+            return;
+        }
+        final var locationWithoutSlash = location.endsWith("/") ? location.substring(0, location.length() - 1)
+                : location;
+        for (final String standardLocation : standardLocations) {
+            if (standardLocation.equals(locationWithoutSlash)) {
+                return;
+            }
+        }
+        throw new IOException("Spring Boot " + description + " are at \"" + location
+                + "\" rather than the standard location \"" + String.join("/\" or \"", standardLocations)
+                + "/\" -- please report this at https://github.com/classgraph/classgraph/issues");
     }
 
     /**

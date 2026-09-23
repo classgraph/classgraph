@@ -95,12 +95,6 @@ public class LogicalZipFile extends ZipFileSlice {
     /** The {@code "Multi-Release"} manifest key. */
     private static final String MULTI_RELEASE_KEY = "Multi-Release";
 
-    /** The {@code "Spring-Boot-Classes"} manifest key. */
-    private static final String SPRING_BOOT_CLASSES_KEY = "Spring-Boot-Classes";
-
-    /** The {@code "Spring-Boot-Lib"} manifest key. */
-    private static final String SPRING_BOOT_LIB_KEY = "Spring-Boot-Lib";
-
     // -------------------------------------------------------------------------------------------------------------
 
     /**
@@ -192,7 +186,7 @@ public class LogicalZipFile extends ZipFileSlice {
      * @param manifestZipEntry
      *            the manifest zip entry
      * @throws IOException
-     *             if the manifest names a nonstandard Spring Boot layout.
+     *             if the manifest could not be read.
      * @throws InterruptedException
      *             If the thread was interrupted.
      */
@@ -207,46 +201,6 @@ public class LogicalZipFile extends ZipFileSlice {
         // entries mask their unversioned counterparts, so this has to be read while the zipfile is being parsed
         // rather than left to the caller: it determines the name of every entry of the zipfile.
         isMultiReleaseJar = "true".equalsIgnoreCase(manifestMap.get(MULTI_RELEASE_KEY));
-
-        // ClassGraph looks for the classes and the lib jars of a Spring Boot jar in the standard locations, so a
-        // jar that declares a different layout has to be rejected rather than silently scanned as if it were empty
-        checkSpringBootLayout(manifestMap, SPRING_BOOT_CLASSES_KEY, "classes", "BOOT-INF/classes",
-                "WEB-INF/classes");
-        checkSpringBootLayout(manifestMap, SPRING_BOOT_LIB_KEY, "lib jars", "BOOT-INF/lib", "WEB-INF/lib");
-    }
-
-    /**
-     * Check that a Spring Boot manifest entry names one of the standard locations, if it is present at all. A
-     * trailing {@code '/'} is optional in both the manifest entry and the standard locations.
-     *
-     * @param manifestMap
-     *            the main section of the manifest
-     * @param key
-     *            the manifest key to check
-     * @param description
-     *            what is stored at the named location, for the exception message
-     * @param standardLocations
-     *            the locations ClassGraph knows how to scan
-     * @throws IOException
-     *             if the manifest entry is present and names a location that is not one of the standard locations.
-     */
-    private static void checkSpringBootLayout(final Map<String, String> manifestMap, final String key,
-            final String description, final String... standardLocations) throws IOException {
-        final var location = manifestMap.get(key);
-        if (location == null) {
-            return;
-        }
-        final var locationWithoutSlash = location.endsWith("/") ? location.substring(0, location.length() - 1)
-                : location;
-        for (final String standardLocation : standardLocations) {
-            if (standardLocation.equals(locationWithoutSlash)) {
-                return;
-            }
-        }
-        throw new IOException(
-                "Spring boot " + description + " are at \"" + location + "\" rather than the standard location \""
-                        + StringUtils.join("/\" or \"", List.of(standardLocations))
-                        + "/\" -- please report this at https://github.com/classgraph/classgraph/issues");
     }
 
     /**
