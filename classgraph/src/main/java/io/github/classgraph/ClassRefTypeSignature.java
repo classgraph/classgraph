@@ -107,8 +107,8 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
      * classfile relative to the package root.
      *
      * <p>
-     * For comparison, {@link #toString()} uses '.' to separate suffixes, and includes type parameters, whereas this
-     * method uses '$' to separate suffixes, and does not include type parameters.
+     * For comparison, {@link #toString()} also uses '$' to separate suffixes, but includes type arguments, e.g.
+     * {@code "xyz.Cls<java.lang.String>$InnerCls<java.lang.Integer>"}.
      *
      * @return The fully-qualified name of the class, including suffixes but without type arguments.
      */
@@ -485,7 +485,6 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
             final @Nullable String definingClassName) throws TypeSignatureParseException {
         if (parser.peek() == 'L') {
             parser.next();
-            final var startParserPosition = parser.getPosition();
             if (!TypeUtils.getIdentifierToken(parser, /* stopAtDollarSign = */ true, /* stopAtDot = */ true)) {
                 throw new TypeSignatureParseException(parser, "Could not parse identifier token");
             }
@@ -493,29 +492,26 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
             final var typeArguments = TypeArgument.parseList(parser, definingClassName);
             List<String> suffixes;
             List<List<TypeArgument>> suffixTypeArguments;
-            var dropSuffixes = false;
             if (parser.peek() == '.' || parser.peek() == '$') {
                 suffixes = new ArrayList<>();
                 suffixTypeArguments = new ArrayList<>();
                 while (parser.peek() == '.' || parser.peek() == '$') {
-                    parser.advance(1);
-                    if (!TypeUtils.getIdentifierToken(parser, /* stopAtDollarSign = */ true,
+                    final var separator = parser.getc();
+                    if (TypeUtils.getIdentifierToken(parser, /* stopAtDollarSign = */ true,
                             /* stopAtDot = */ true)) {
-                        // Got the empty string as the next token after '$', i.e. found an empty suffix.
-                        suffixes.add("");
-                        suffixTypeArguments.add(List.of());
-                        dropSuffixes = true;
-                    } else {
                         suffixes.add(parser.currToken());
                         suffixTypeArguments.add(TypeArgument.parseList(parser, definingClassName));
+                    } else if (separator == '$') {
+                        // A '$' that is not followed by a name is part of the preceding name, as in "$$", or in a
+                        // name that ends in '$' (which Scala uses for the class of an object, e.g. "Outer$Inner$")
+                        if (suffixes.isEmpty()) {
+                            className += '$';
+                        } else {
+                            suffixes.set(suffixes.size() - 1, suffixes.get(suffixes.size() - 1) + '$');
+                        }
+                    } else {
+                        throw new TypeSignatureParseException(parser, "Missing class name after '.'");
                     }
-                }
-                if (dropSuffixes) {
-                    // Got an empty suffix -- either "$$", or a class name ending in a '$' (which Scala uses). In
-                    // this case, take the whole class reference as a single class name without suffixes.
-                    className = parser.getSubstring(startParserPosition, parser.getPosition()).replace('/', '.');
-                    suffixes = List.of();
-                    suffixTypeArguments = List.of();
                 }
             } else {
                 suffixes = List.of();

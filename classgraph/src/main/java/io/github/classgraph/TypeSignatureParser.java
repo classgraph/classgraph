@@ -28,8 +28,10 @@
  */
 package io.github.classgraph;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import io.github.classgraph.base.internal.utils.StringUtils;
-import org.jspecify.annotations.Nullable;
 
 /**
  * The recursive descent parser that the type signature classes read JVM type signatures with. It holds the string
@@ -46,8 +48,8 @@ class TypeSignatureParser {
     /** The token buffer. */
     private final StringBuilder token = new StringBuilder();
 
-    /** Extra parsing state. */
-    private @Nullable Object state;
+    /** The type variable signatures parsed so far, which a method signature links back to once it is parsed. */
+    private final List<TypeVariableSignature> typeVariableSignatures = new ArrayList<>();
 
     /** How much context to show before the current position. */
     private static final int SHOW_BEFORE = 80;
@@ -84,25 +86,22 @@ class TypeSignatureParser {
     }
 
     /**
-     * Set the "state object" from the parser (can be used to parse state between parser functions).
+     * Record a type variable signature that has been parsed.
      *
-     * @param state
-     *            The state object.
-     * @return The old value of the state object.
+     * @param typeVariableSignature
+     *            The type variable signature.
      */
-    public @Nullable Object setState(final @Nullable Object state) {
-        final var oldState = this.state;
-        this.state = state;
-        return oldState;
+    public void addTypeVariableSignature(final TypeVariableSignature typeVariableSignature) {
+        typeVariableSignatures.add(typeVariableSignature);
     }
 
     /**
-     * Get the "state object" from the parser (can be used to parse state between parser functions).
+     * Get the type variable signatures parsed so far.
      *
-     * @return The current value of the state object.
+     * @return The type variable signatures, in the order they were parsed.
      */
-    public @Nullable Object getState() {
-        return state;
+    public List<TypeVariableSignature> getTypeVariableSignatures() {
+        return typeVariableSignatures;
     }
 
     /**
@@ -152,24 +151,6 @@ class TypeSignatureParser {
     }
 
     /**
-     * Advance numChars character positions.
-     *
-     * @param numChars
-     *            The number of character positions to advance.
-     * @throws IllegalArgumentException
-     *             If there are insufficient characters remaining in the string.
-     */
-    public void advance(final int numChars) {
-        // Advancing to exactly the end of the string is valid -- peek() and hasMore() both handle that position.
-        // Compare by subtraction rather than addition, so that a large numChars cannot overflow int and slip past
-        // the range check.
-        if (numChars < 0 || numChars > string.length() - position) {
-            throw new IllegalArgumentException("Invalid skip distance");
-        }
-        position += numChars;
-    }
-
-    /**
      * Check to see if there are more characters to parse.
      *
      * @return true if the input has not all been consumed.
@@ -188,19 +169,6 @@ class TypeSignatureParser {
     }
 
     /**
-     * Return a subsequence of the input string.
-     *
-     * @param startPosition
-     *            The start position.
-     * @param endPosition
-     *            The end position.
-     * @return The subsequence.
-     */
-    public CharSequence getSubsequence(final int startPosition, final int endPosition) {
-        return string.subSequence(startPosition, endPosition);
-    }
-
-    /**
      * Return a substring of the input string.
      *
      * @param startPosition
@@ -211,16 +179,6 @@ class TypeSignatureParser {
      */
     public String getSubstring(final int startPosition, final int endPosition) {
         return string.substring(startPosition, endPosition);
-    }
-
-    /**
-     * Append the given string to the token buffer.
-     *
-     * @param str
-     *            The string to append.
-     */
-    public void appendToToken(final String str) {
-        token.append(str);
     }
 
     /**

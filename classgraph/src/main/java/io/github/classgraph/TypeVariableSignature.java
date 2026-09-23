@@ -28,7 +28,6 @@
  */
 package io.github.classgraph;
 
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -215,14 +214,8 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
             final TypeVariableSignature typeVariableSignature = new TypeVariableSignature(parser.currToken(),
                     definingClassName);
 
-            // Save type variable signatures in the parser state, so method and class type signatures can link to
-            // type signatures
-            @SuppressWarnings("unchecked")
-            var typeVariableSignatures = (List<TypeVariableSignature>) parser.getState();
-            if (typeVariableSignatures == null) {
-                parser.setState(typeVariableSignatures = new ArrayList<>());
-            }
-            typeVariableSignatures.add(typeVariableSignature);
+            // Record the type variable signature, so that a method signature can link it back to the method
+            parser.addTypeVariableSignature(typeVariableSignature);
 
             return typeVariableSignature;
         } else {

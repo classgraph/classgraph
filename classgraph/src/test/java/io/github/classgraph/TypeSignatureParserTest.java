@@ -2,53 +2,13 @@ package io.github.classgraph;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.junit.jupiter.api.Test;
 
 /**
  * Tests for {@link TypeSignatureParser}.
- *
- * <p>
- * The end-of-string position is a valid parser position -- it is what {@link TypeSignatureParser#getPosition()}
- * returns once the whole input has been consumed, and {@link TypeSignatureParser#peek()} and
- * {@link TypeSignatureParser#hasMore()} both handle it. Rejecting it in {@link TypeSignatureParser#advance(int)}
- * made a truncated type signature throw {@link IllegalArgumentException} out of the signature parser, rather than
- * the {@link TypeSignatureParseException} that its callers catch.
  */
 public class TypeSignatureParserTest {
-    /** Advancing to exactly the end of the input is valid. */
-    @Test
-    public void canAdvanceToEndOfString() throws TypeSignatureParseException {
-        final var parser = new TypeSignatureParser("abc");
-        parser.advance(3);
-        assertThat(parser.getPosition()).isEqualTo(3);
-        assertThat(parser.hasMore()).isFalse();
-        assertThat(parser.peek()).isEqualTo('\0');
-    }
-
-    /** Advancing past the end of the input is still rejected. */
-    @Test
-    public void cannotAdvancePastEndOfString() throws TypeSignatureParseException {
-        final var parser = new TypeSignatureParser("abc");
-        assertThatExceptionOfType(IllegalArgumentException.class).isThrownBy(() -> parser.advance(4));
-    }
-
-    /**
-     * A negative skip distance, and one large enough to overflow int when added to the position, are rejected.
-     */
-    @Test
-    public void invalidSkipDistancesAreRejected() throws TypeSignatureParseException {
-        final var parser = new TypeSignatureParser("abc");
-        parser.advance(2);
-        assertThatThrownBy(() -> parser.advance(-1)).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> parser.advance(Integer.MAX_VALUE)).isInstanceOf(IllegalArgumentException.class);
-        // The failed calls must not have moved the position
-        assertThat(parser.getPosition()).isEqualTo(2);
-    }
-
-    // -----------------------------------------------------------------------------------------------------------
-
     /** There is nothing to parse in a null string, and that is a parse error rather than a null dereference. */
     @Test
     public void aNullStringCannotBeParsed() {
@@ -74,7 +34,8 @@ public class TypeSignatureParserTest {
         assertThat(parser.peek()).isEqualTo('a');
         assertThat(parser.peek()).isEqualTo('a');
         assertThat(parser.getPosition()).isZero();
-        parser.advance(2);
+        parser.next();
+        parser.next();
         assertThat(parser.peek()).isEqualTo('\0');
     }
 
@@ -98,14 +59,14 @@ public class TypeSignatureParserTest {
         assertThat(parser.peek()).isEqualTo('b');
     }
 
-    /** Characters and strings are accumulated into the token buffer, which is emptied when the token is read. */
+    /** Characters are accumulated into the token buffer, which is emptied when the token is read. */
     @Test
     public void theTokenBufferAccumulatesUntilItIsRead() throws TypeSignatureParseException {
         final var parser = new TypeSignatureParser("");
         assertThat(parser.currToken()).isEmpty();
         parser.appendToToken('a');
-        parser.appendToToken("bc");
-        assertThat(parser.currToken()).isEqualTo("abc");
+        parser.appendToToken('b');
+        assertThat(parser.currToken()).isEqualTo("ab");
         // Reading the token empties the buffer, so the next token starts from scratch
         parser.appendToToken('d');
         assertThat(parser.currToken()).isEqualTo("d");
@@ -115,22 +76,10 @@ public class TypeSignatureParserTest {
     @Test
     public void partOfTheInputCanBeReadBackWithoutMovingThePosition() throws TypeSignatureParseException {
         final var parser = new TypeSignatureParser("abcdef");
-        parser.advance(4);
-        assertThat(parser.getSubstring(1, 3)).isEqualTo("bc");
-        assertThat(parser.getSubsequence(1, 3).toString()).isEqualTo("bc");
-        assertThat(parser.getPosition()).isEqualTo(4);
-    }
-
-    /** The state object handed to the parser is handed back when it is replaced, so that it can be restored. */
-    @Test
-    public void theStateObjectIsHandedBackWhenItIsReplaced() throws TypeSignatureParseException {
-        final var parser = new TypeSignatureParser("abc");
-        assertThat(parser.getState()).isNull();
-        assertThat(parser.setState("first")).isNull();
-        assertThat(parser.getState()).isEqualTo("first");
-        assertThat(parser.setState("second")).isEqualTo("first");
-        assertThat(parser.setState(null)).isEqualTo("second");
-        assertThat(parser.getState()).isNull();
+        parser.expect('a');
+        parser.expect('b');
+        assertThat(parser.getSubstring(0, 3)).isEqualTo("abc");
+        assertThat(parser.getPosition()).isEqualTo(2);
     }
 
     /**
@@ -140,10 +89,12 @@ public class TypeSignatureParserTest {
     @Test
     public void theParsingContextShowsTheInputOnEitherSideOfThePosition() throws TypeSignatureParseException {
         final var parser = new TypeSignatureParser("ab\ncd");
-        parser.advance(3);
-        parser.appendToToken("tok");
+        parser.next();
+        parser.next();
+        parser.next();
+        parser.appendToToken('t');
         assertThat(parser.getPositionInfo()).contains("before: \"ab\\n\"").contains("after: \"cd\"")
-                .contains("position: 3").contains("token: \"tok\"");
+                .contains("position: 3").contains("token: \"t\"");
         // The context is what a parse error reports, so the two are the same
         assertThat(parser).hasToString(parser.getPositionInfo());
     }
@@ -152,7 +103,9 @@ public class TypeSignatureParserTest {
     @Test
     public void onlyAWindowOfTheInputAroundThePositionIsShown() throws TypeSignatureParseException {
         final var parser = new TypeSignatureParser("x".repeat(500));
-        parser.advance(250);
+        for (var i = 0; i < 250; i++) {
+            parser.next();
+        }
         final var positionInfo = parser.getPositionInfo();
         assertThat(positionInfo).contains("position: 250");
         assertThat(positionInfo.length()).isLessThan(300);

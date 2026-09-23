@@ -3,7 +3,6 @@ package io.github.classgraph;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 
@@ -222,15 +221,15 @@ public class TypeVariableSignatureTest {
         assertThat(typeVariable.toStringWithTypeBound()).isEqualTo("T");
     }
 
-    /** Parsing reads one type variable, and records it in the parser state so that signatures can link to it. */
+    /** Parsing reads one type variable, and records it in the parser so that a method signature can link to it. */
     @Test
-    public void parsingReadsOneTypeVariableAndRecordsItInTheParserState() throws TypeSignatureParseException {
+    public void parsingReadsOneTypeVariableAndRecordsItInTheParser() throws TypeSignatureParseException {
         final var parser = new TypeSignatureParser("TT;TU;");
         final var first = TypeVariableSignature.parse(parser, GENERIC);
         final var second = TypeVariableSignature.parse(parser, GENERIC);
         assertThat(first.getName()).isEqualTo("T");
         assertThat(second.getName()).isEqualTo("U");
-        assertThat(new ArrayList<Object>((List<?>) parser.getState())).containsExactly(first, second);
+        assertThat(parser.getTypeVariableSignatures()).containsExactly(first, second);
 
         // Anything that is not a type variable is left for the caller to parse
         final var classTypeParser = new TypeSignatureParser("Ljava/lang/String;");

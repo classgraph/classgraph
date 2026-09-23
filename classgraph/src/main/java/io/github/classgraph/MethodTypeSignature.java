@@ -376,12 +376,8 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
                 throwsSignatures);
         // Add back-links from type variable signature to the method signature it is part of, and to the enclosing
         // class' type signature
-        @SuppressWarnings("unchecked")
-        final var typeVariableSignatures = (List<TypeVariableSignature>) parser.getState();
-        if (typeVariableSignatures != null) {
-            for (final TypeVariableSignature typeVariableSignature : typeVariableSignatures) {
-                typeVariableSignature.containingMethodSignature = methodSignature;
-            }
+        for (final TypeVariableSignature typeVariableSignature : parser.getTypeVariableSignatures()) {
+            typeVariableSignature.containingMethodSignature = methodSignature;
         }
         return methodSignature;
     }

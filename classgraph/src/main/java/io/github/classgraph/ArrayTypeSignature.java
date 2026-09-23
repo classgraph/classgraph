@@ -349,7 +349,7 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
             if (elementTypeSignature == null) {
                 throw new TypeSignatureParseException(parser, "elementTypeSignature == null");
             }
-            final var typeSignatureStr = parser.getSubsequence(begin, parser.getPosition()).toString();
+            final var typeSignatureStr = parser.getSubstring(begin, parser.getPosition());
             return new ArrayTypeSignature(elementTypeSignature, numArrayDims, typeSignatureStr);
         } else {
             return null;
