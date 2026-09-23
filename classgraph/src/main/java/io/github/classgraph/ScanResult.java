@@ -258,7 +258,7 @@ public final class ScanResult implements AutoCloseable {
             }
         }
 
-        // Provide the shutdown hook with a weak reference to this ScanResult
+        // Register a weak reference to this ScanResult, so that closeAll() can close it if it is not closed
         this.weakReference = new WeakReference<>(this, collectedScanResults);
         // Drop the weak references whose ScanResult was garbage collected before it was closed. Only close()
         // removes a weak reference, so without this the set would grow without limit in a program that scans

@@ -116,6 +116,19 @@ class RecycledInflaterInputStreamTest {
     }
 
     /**
+     * Invalid deflate data must throw a {@link java.util.zip.ZipException} whose cause is the
+     * {@link java.util.zip.DataFormatException} that the inflater threw, so that the stack trace shows where the
+     * data was rejected.
+     */
+    @Test
+    void invalidDataKeepsTheCause() {
+        // The first three bits of a deflate block are BFINAL and a two-bit BTYPE, and BTYPE 11 is reserved
+        final var invalidBytes = new byte[] { (byte) 0xff, 0, 0, 0 };
+        assertThatThrownBy(() -> inflate(invalidBytes)).isInstanceOf(java.util.zip.ZipException.class)
+                .hasCauseInstanceOf(java.util.zip.DataFormatException.class);
+    }
+
+    /**
      * {@link java.io.InputStream#mark(int)} has to be a no-op when mark is not supported, and
      * {@link java.io.InputStream#reset()} has to throw an {@link IOException}, not an unchecked exception.
      */

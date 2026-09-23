@@ -36,10 +36,17 @@ import java.util.regex.Pattern;
 import io.github.classgraph.base.internal.path.PathSyntax;
 
 /**
- * The temporary files that nested jarfiles are extracted to, when a nested jarfile is deflated, or is too large to
- * buffer in RAM. A temporary file is owned by the slice that reads through it, and is deleted when that slice is
- * closed; the {@link File#deleteOnExit()} hook that {@link #create(String)} registers is the backstop for a file
- * that could not be deleted then.
+ * The temporary files that jarfiles read from a stream (a deflated nested jarfile, or a jarfile downloaded from a
+ * URL) are written to when they are too large to buffer in RAM. A temporary file is owned by the slice that reads
+ * through it, and is deleted when that slice is closed; the {@link File#deleteOnExit()} hook that
+ * {@link #create(String)} registers is the backstop for a file that could not be deleted then, and for the files of
+ * a {@code ScanResult} that is never closed.
+ *
+ * <p>
+ * The JDK keeps each path passed to {@link File#deleteOnExit()} until the JVM exits, even after the file has been
+ * deleted, so every temporary file costs about 100 bytes of heap for the life of the JVM. A temporary file is only
+ * created for a jarfile larger than {@link io.github.classgraph.vfs.VfsSpec#getMaxBufferedJarRAMSize()} (64MB by
+ * default), so this is small next to the disk space that a file left behind would take.
  */
 public final class TempFile {
     /** Not instantiable. */

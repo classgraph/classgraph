@@ -182,7 +182,11 @@ public class RecycledInflaterInputStream extends InputStream {
             return totInflatedBytes;
 
         } catch (final DataFormatException e) {
-            throw new ZipException(e.getMessage() != null ? e.getMessage() : "Invalid deflated zip entry data");
+            // ZipException has no constructor that takes a cause
+            final var zipException = new ZipException(
+                    e.getMessage() != null ? e.getMessage() : "Invalid deflated zip entry data");
+            zipException.initCause(e);
+            throw zipException;
         }
     }
 
