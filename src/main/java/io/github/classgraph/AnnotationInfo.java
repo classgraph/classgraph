@@ -128,19 +128,22 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
      *         annotation class definition (if requested), or the empty list if none.
      */
     public AnnotationParameterValueList getParameterValues(final boolean includeDefaultValues) {
-        final ClassInfo classInfo = getClassInfo();
-        if (classInfo == null) {
-            // ClassInfo has not yet been set, just return values without defaults
-            // (happens when trying to log AnnotationInfo during scanning, before ScanResult is available)
+        if (scanResult == null) {
+            // Scanning has not finished, so the annotation class may not have been read yet -- return the values
+            // without defaults, and without converting arrays (happens when AnnotationInfo is logged during
+            // scanning)
             return annotationParamValues == null ? AnnotationParameterValueList.EMPTY_LIST : annotationParamValues;
         }
-        // Lazily convert any Object[] arrays of boxed types to primitive arrays
+        // Lazily convert any Object[] arrays of boxed types to primitive arrays. If the annotation class was not
+        // scanned, the element type of each array is worked out from its elements.
+        final ClassInfo classInfo = getClassInfo();
         if (annotationParamValues != null && !annotationParamValuesHasBeenConvertedToPrimitive) {
             annotationParamValues.convertWrapperArraysToPrimitiveArrays(classInfo);
             annotationParamValuesHasBeenConvertedToPrimitive = true;
         }
-        if (!includeDefaultValues) {
-            // Don't include defaults
+        if (!includeDefaultValues || classInfo == null) {
+            // Don't include defaults, or there are no defaults to include, since they are declared by the
+            // annotation class, which was not scanned
             return annotationParamValues == null ? AnnotationParameterValueList.EMPTY_LIST : annotationParamValues;
         }
         if (annotationParamValuesWithDefaults == null) {
@@ -545,7 +548,9 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
         int h = name.hashCode();
         if (annotationParamValues != null) {
             for (final AnnotationParameterValue e : annotationParamValues) {
-                h = h * 7 + e.getName().hashCode() * 3 + e.getValue().hashCode();
+                // Hash an array-valued parameter by its elements, matching equals(Object), and in the same way
+                // whether or not it has been converted from an Object[] array to a primitive array
+                h = h * 7 + e.getName().hashCode() * 3 + Arrays.deepHashCode(new Object[] { e.getValue() });
             }
         }
         return h;
