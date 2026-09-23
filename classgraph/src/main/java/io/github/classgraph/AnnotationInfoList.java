@@ -62,8 +62,8 @@ import org.jspecify.annotations.Nullable;
  */
 public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     /**
-     * The set of annotations directly related to a class or method and not inherited through a meta-annotated
-     * annotation. This field is nullable, as the annotation info list is incrementally built. See
+     * The annotations that are directly present on the annotated item, rather than reached through a
+     * meta-annotation or inherited, or null if this list holds only directly present annotations. See
      * {@link #directOnly()}.
      */
     private final @Nullable AnnotationInfoList directlyRelatedAnnotations;
@@ -185,9 +185,9 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
      * @param containingClassInfo
      *            the containing class
      * @param forwardRelType
-     *            the forward relationship type for linking (or null for none)
+     *            the forward relationship type for linking
      * @param reverseRelType0
-     *            the first reverse relationship type for linking (or null for none)
+     *            the first reverse relationship type for linking
      * @param reverseRelType1
      *            the second reverse relationship type for linking (or null for none)
      */
@@ -219,19 +219,14 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
                                 if (value instanceof final AnnotationInfo ai) {
                                     annotations.add(ai);
 
-                                    // Link annotation, if necessary
-                                    if (forwardRelType != null
-                                            && (reverseRelType0 != null || reverseRelType1 != null)) {
-                                        final var annotationClass = ai.getClassInfo();
-                                        if (annotationClass != null) {
-                                            final var containingClass = Objects.requireNonNull(containingClassInfo);
-                                            containingClass.addRelatedClass(forwardRelType, annotationClass);
-                                            if (reverseRelType0 != null) {
-                                                annotationClass.addRelatedClass(reverseRelType0, containingClass);
-                                            }
-                                            if (reverseRelType1 != null) {
-                                                annotationClass.addRelatedClass(reverseRelType1, containingClass);
-                                            }
+                                    // Link annotation
+                                    final var annotationClass = ai.getClassInfo();
+                                    if (annotationClass != null) {
+                                        final var containingClass = Objects.requireNonNull(containingClassInfo);
+                                        containingClass.addRelatedClass(forwardRelType, annotationClass);
+                                        annotationClass.addRelatedClass(reverseRelType0, containingClass);
+                                        if (reverseRelType1 != null) {
+                                            annotationClass.addRelatedClass(reverseRelType1, containingClass);
                                         }
                                     }
                                 }

@@ -81,7 +81,7 @@ public class AnnotationParameterValueList extends MappableInfoList<AnnotationPar
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get {@link ClassInfo} objects for any classes referenced in the methods in this list.
+     * Get {@link ClassInfo} objects for any classes referenced in the annotation parameter values in this list.
      *
      * @param classNameToClassInfo
      *            the map to add a {@link ClassInfo} object to, for a referenced class that has none in the scan
