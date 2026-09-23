@@ -465,6 +465,9 @@ public class NestedJarHandler {
     /** The connect timeout and the read timeout of a URL connection, in milliseconds. */
     private static final int HTTP_TIMEOUT = 5000;
 
+    /** The most redirects that are followed for one URL. (The JDK's default for {@code http.maxRedirects}.) */
+    private static final int MAX_REDIRECTS = 20;
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**
@@ -673,7 +676,8 @@ public class NestedJarHandler {
     /**
      * Read a jar from a URL into RAM, or into a temporary file if it is larger than the maximum buffered jar RAM
      * size. A URL that names a {@link Path} in an installed filesystem is opened as that {@link Path} rather than
-     * read through the URL.
+     * read through the URL. An http or https redirect is followed, as long as
+     * {@link #redirectTarget(URL, String, Set)} allows it.
      *
      * @param jarURL
      *            the jar URL
@@ -681,12 +685,12 @@ public class NestedJarHandler {
      *            the log
      * @return the jar, as a {@link PhysicalZipFile}.
      * @throws IOException
-     *             If the jar could not be read, the jar URL is malformed, or the temporary file could not be
-     *             created or written.
+     *             If the jar could not be read, the jar URL is malformed, a redirect could not be followed, or the
+     *             temporary file could not be created or written.
      * @throws InterruptedException
      *             if the thread was interrupted
      */
-    private PhysicalZipFile downloadJarFromURL(final String jarURL, final LogNode log)
+    PhysicalZipFile downloadJarFromURL(final String jarURL, final LogNode log)
             throws IOException, InterruptedException {
         URL url = null;
         try {
@@ -722,45 +726,128 @@ public class NestedJarHandler {
                 // Not a custom filesystem
             }
         }
-        try (final CloseableUrlConnection urlConn = new CloseableUrlConnection(url)) {
-            long contentLengthHint = -1L;
-            urlConn.conn.setConnectTimeout(HTTP_TIMEOUT);
-            // Without a read timeout, a server that accepts the connection and then sends nothing blocks the scan
-            // for as long as it cares to hold the socket open, and a blocked socket read does not answer to the
-            // interruption checker, so nothing can stop the scan. This bounds the wait for the next block of the
-            // response, not the time the whole download is allowed to take.
-            urlConn.conn.setReadTimeout(HTTP_TIMEOUT);
-            urlConn.conn.connect();
-            if (urlConn.httpConn != null
-                    && urlConn.httpConn.getResponseCode() != HttpURLConnection.HTTP_OK) {
-                throw new IOException("Got response code " + urlConn.httpConn.getResponseCode() + " for URL " + url);
-            }
-            // Try to read content length hint
-            contentLengthHint = urlConn.conn.getContentLengthLong();
-            if (contentLengthHint < -1L) {
-                contentLengthHint = -1L;
-            }
-            // Fetch content from URL
-            final LogNode subLog = log == null ? null : log.log("Downloading jar from URL " + jarURL);
-            try (InputStream inputStream = urlConn.conn.getInputStream()) {
-                // Fetch the jar contents from the URL's InputStream. If it doesn't fit in RAM,
-                // spill over to disk.
-                final PhysicalZipFile physicalZipFile = new PhysicalZipFile(inputStream, contentLengthHint, jarURL,
-                        this, subLog);
-                if (subLog != null) {
-                    subLog.addElapsedTime();
-                    subLog.log("***** Note that it is time-consuming to scan jars at non-\"file:\" URLs, "
-                            + "the URL must be opened (possibly after an http(s) fetch) for every scan, "
-                            + "and the same URL must also be separately opened by the ClassLoader *****");
+        for (int numRedirects = 0;; numRedirects++) {
+            try (final CloseableUrlConnection urlConn = new CloseableUrlConnection(url)) {
+                long contentLengthHint = -1L;
+                urlConn.conn.setConnectTimeout(HTTP_TIMEOUT);
+                // Without a read timeout, a server that accepts the connection and then sends nothing blocks the
+                // scan for as long as it cares to hold the socket open, and a blocked socket read does not answer
+                // to the interruption checker, so nothing can stop the scan. This bounds the wait for the next
+                // block of the response, not the time the whole download is allowed to take.
+                urlConn.conn.setReadTimeout(HTTP_TIMEOUT);
+                if (urlConn.httpConn != null) {
+                    // HttpURLConnection only follows a redirect that keeps the same scheme, so it does not follow
+                    // a redirect from http to https. Redirects are followed below instead, so that every redirect
+                    // is checked the same way.
+                    urlConn.httpConn.setInstanceFollowRedirects(false);
                 }
-                return physicalZipFile;
+                urlConn.conn.connect();
+                if (urlConn.httpConn != null) {
+                    final int responseCode = urlConn.httpConn.getResponseCode();
+                    if (isRedirect(responseCode)) {
+                        if (numRedirects == MAX_REDIRECTS) {
+                            throw new IOException("Redirected more than " + MAX_REDIRECTS + " times: " + jarURL);
+                        }
+                        final String location = urlConn.httpConn.getHeaderField("Location");
+                        if (location == null) {
+                            throw new IOException(
+                                    "Got response code " + responseCode + " with no Location for URL " + url);
+                        }
+                        final URL redirectURL = redirectTarget(url, location, scanSpec.allowedURLSchemes);
+                        if (log != null) {
+                            log.log("URL " + url + " redirects to " + redirectURL);
+                        }
+                        url = redirectURL;
+                        continue;
+                    }
+                    if (responseCode != HttpURLConnection.HTTP_OK) {
+                        throw new IOException("Got response code " + responseCode + " for URL " + url);
+                    }
+                }
+                // Try to read content length hint
+                contentLengthHint = urlConn.conn.getContentLengthLong();
+                if (contentLengthHint < -1L) {
+                    contentLengthHint = -1L;
+                }
+                // Fetch content from URL
+                final LogNode subLog = log == null ? null : log.log("Downloading jar from URL " + jarURL);
+                try (InputStream inputStream = urlConn.conn.getInputStream()) {
+                    // Fetch the jar contents from the URL's InputStream. If it doesn't fit in RAM,
+                    // spill over to disk.
+                    final PhysicalZipFile physicalZipFile = new PhysicalZipFile(inputStream, contentLengthHint,
+                            jarURL, this, subLog);
+                    if (subLog != null) {
+                        subLog.addElapsedTime();
+                        subLog.log("***** Note that it is time-consuming to scan jars at non-\"file:\" URLs, "
+                                + "the URL must be opened (possibly after an http(s) fetch) for every scan, "
+                                + "and the same URL must also be separately opened by the ClassLoader *****");
+                    }
+                    return physicalZipFile;
 
-            } catch (final MalformedURLException e) {
-                // Chain the cause, as well as naming the URL -- otherwise which part of the URL the stream handler
-                // could not make sense of is lost
-                throw new IOException("Malformed URL: " + jarURL, e);
+                } catch (final MalformedURLException e) {
+                    // Chain the cause, as well as naming the URL -- otherwise which part of the URL the stream
+                    // handler could not make sense of is lost
+                    throw new IOException("Malformed URL: " + jarURL, e);
+                }
             }
         }
+    }
+
+    /**
+     * Whether an HTTP response code is a redirect that should be followed.
+     *
+     * @param responseCode
+     *            the HTTP response code.
+     * @return true for 301, 302, 303, 307 and 308. (300 and 305 are left alone, as HttpURLConnection leaves them.)
+     */
+    private static boolean isRedirect(final int responseCode) {
+        switch (responseCode) {
+        case HttpURLConnection.HTTP_MOVED_PERM:
+        case HttpURLConnection.HTTP_MOVED_TEMP:
+        case HttpURLConnection.HTTP_SEE_OTHER:
+        case 307:
+        case 308:
+            return true;
+        default:
+            return false;
+        }
+    }
+
+    /**
+     * Find the URL that a redirect points to, and check that it may be fetched. A redirect may only go to an http
+     * or https URL, may not go from https to http, and may only go to a scheme that has been enabled.
+     *
+     * @param url
+     *            the URL that was redirected.
+     * @param location
+     *            the value of the redirect's {@code Location} header, which may be relative to {@code url}.
+     * @param allowedURLSchemes
+     *            the URL schemes that have been enabled, or null if none has.
+     * @return the URL to fetch next.
+     * @throws IOException
+     *             if the location is not a valid URL, or the redirect may not be followed.
+     */
+    static URL redirectTarget(final URL url, final String location, final Set<String> allowedURLSchemes)
+            throws IOException {
+        final URL redirectURL;
+        try {
+            redirectURL = url.toURI().resolve(location).toURL();
+        } catch (final URISyntaxException | IllegalArgumentException | MalformedURLException e) {
+            throw new IOException("Could not follow the redirect from " + url + " to " + location, e);
+        }
+        final String scheme = redirectURL.getProtocol().toLowerCase(Locale.ROOT);
+        if (!"http".equals(scheme) && !"https".equals(scheme)) {
+            throw new IOException("Not following the redirect from " + url + " to a URL that is not http or https: "
+                    + redirectURL);
+        }
+        if ("https".equalsIgnoreCase(url.getProtocol()) && "http".equals(scheme)) {
+            throw new IOException("Not following the redirect from https to http: " + url + " to " + redirectURL);
+        }
+        if (allowedURLSchemes == null || !allowedURLSchemes.contains(scheme)) {
+            throw new IOException("Scanning of URL scheme \"" + scheme + "\" has not been enabled -- cannot follow "
+                    + "the redirect from " + url + " to " + redirectURL);
+        }
+        return redirectURL;
     }
 
     /**
