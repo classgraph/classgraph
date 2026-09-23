@@ -34,6 +34,7 @@ import java.io.IOException;
 import java.lang.ref.PhantomReference;
 import java.lang.ref.ReferenceQueue;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
@@ -833,8 +834,12 @@ public final class FileUtils {
                 try {
                     cleanerCleanMethod.invoke(theUnsafe, byteBuffer);
                     return true;
-                } catch (final IllegalArgumentException e) {
-                    // Buffer is a duplicate or slice
+                } catch (final InvocationTargetException e) {
+                    // invokeCleaner throws IllegalArgumentException if the buffer is a duplicate or a slice, which
+                    // is expected. Method.invoke wraps whatever it throws.
+                    if (log != null && !(e.getCause() instanceof IllegalArgumentException)) {
+                        log.log("Could not unmap ByteBuffer: " + e.getCause());
+                    }
                     return false;
                 }
             } else {

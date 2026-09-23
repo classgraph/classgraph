@@ -30,6 +30,7 @@ import nonapi.io.github.classgraph.fileslice.reader.RandomAccessReader;
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 import nonapi.io.github.classgraph.utils.FileUtils;
+import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.VersionFinder;
 
 /** Tests for the identity of a {@link Slice}, and for the closing of the slices that a scan left open. */
@@ -826,5 +827,18 @@ public class SliceTest {
             initialized.set(null, false);
             nestedJarHandler.close(/* log = */ null);
         }
+    }
+
+    /**
+     * On JDK 9 to 21, the cleaner refuses a duplicate or a slice of a direct buffer. That is expected, so it must
+     * not be logged as a failure to unmap.
+     */
+    @Test
+    public void aViewOfADirectBufferIsNotUnmappedAndNotLoggedAsAFailure() {
+        assumeTrue(VersionFinder.JAVA_MAJOR_VERSION >= 9 && VersionFinder.JAVA_MAJOR_VERSION < 22);
+        final ByteBuffer view = ByteBuffer.allocateDirect(32).duplicate();
+        final LogNode log = new LogNode();
+        assertThat(FileUtils.closeDirectByteBuffer(view, new ReflectionUtils(), log)).isFalse();
+        assertThat(log.toString()).doesNotContain("Could not unmap");
     }
 }
