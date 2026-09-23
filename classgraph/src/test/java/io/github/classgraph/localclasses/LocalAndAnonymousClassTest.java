@@ -60,6 +60,16 @@ public class LocalAndAnonymousClassTest {
             };
         }
 
+        /** A method that declares a local record, enum and interface, which are local but not inner classes. */
+        void staticLocals() {
+            record LocalRecord() {
+            }
+            enum LocalEnum {
+            }
+            interface LocalInterface {
+            }
+        }
+
         /** A member class, which is neither local nor anonymous. */
         static class Member {
         }
@@ -91,15 +101,15 @@ public class LocalAndAnonymousClassTest {
                 .acceptPackages(LocalAndAnonymousClassTest.class.getPackageName()).ignoreClassVisibility().scan()) {
             for (final ClassInfo classInfo : scanResult.getAllClasses()) {
                 classGraphDescriptions.add(classInfo.getName() + " local=" + classInfo.isLocalClass()
-                        + " anonymous=" + classInfo.isAnonymousInnerClass() + " in="
+                        + " anonymous=" + classInfo.isAnonymousClass() + " in="
                         + classInfo.getFullyQualifiedDefiningMethodName());
                 final var cls = Class.forName(classInfo.getName());
                 jdkDescriptions.add(cls.getName() + " local=" + cls.isLocalClass() + " anonymous="
                         + cls.isAnonymousClass() + " in=" + jdkDefiningMethodName(cls));
             }
         }
-        // Declarer, its 8 local, anonymous and member classes, and this test class
-        assertThat(classGraphDescriptions).hasSize(10);
+        // Declarer, its 11 local, anonymous and member classes, and this test class
+        assertThat(classGraphDescriptions).hasSize(13);
         assertThat(classGraphDescriptions).containsExactlyElementsOf(jdkDescriptions);
     }
 }

@@ -1597,8 +1597,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Checks if this class is an inner class.
      *
-     * @return true if this is an inner class (call {@link #isAnonymousInnerClass()} to test if this is an anonymous
-     *         inner class). If true, the containing class can be determined by calling {@link #getOuterClasses()}.
+     * @return true if this is an inner class (call {@link #isAnonymousClass()} to test if this is an anonymous
+     *         class). If true, the containing class can be determined by calling {@link #getOuterClasses()}.
      */
     public boolean isInnerClass() {
         return !outerClassesIncludingExternal().isEmpty();
@@ -1615,12 +1615,12 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Checks if this class is an anonymous inner class. This matches {@link Class#isAnonymousClass()}.
+     * Checks if this class is an anonymous class. This matches {@link Class#isAnonymousClass()}.
      *
-     * @return true if this is an anonymous inner class. If true, the name of the method or constructor it is
-     *         declared in can be obtained by calling {@link #getFullyQualifiedDefiningMethodName()}.
+     * @return true if this is an anonymous class. If true, the name of the method or constructor it is declared in
+     *         can be obtained by calling {@link #getFullyQualifiedDefiningMethodName()}.
      */
-    public boolean isAnonymousInnerClass() {
+    public boolean isAnonymousClass() {
         return isAnonymousClass;
     }
 
