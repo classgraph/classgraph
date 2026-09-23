@@ -39,4 +39,27 @@ public class TempFilenameSanitizationTest {
             nestedJarHandler.close(/* log = */ null);
         }
     }
+
+    /**
+     * A zip entry name can be any length, but a filename is limited to 255 bytes on Linux and macOS, and to 255
+     * UTF-16 characters on Windows, so a nested jar with a long name must still get a temporary file.
+     */
+    @Test
+    public void aLongEntryNameIsShortened() throws Exception {
+        final StringBuilder longName = new StringBuilder("BOOT-INF/lib/");
+        for (int i = 0; i < 300; i++) {
+            longName.append('é');
+        }
+        longName.append(".jar");
+        final NestedJarHandler nestedJarHandler = new NestedJarHandler(new ScanSpec(), new InterruptionChecker(),
+                new ReflectionUtils());
+        try {
+            final File tempFile = nestedJarHandler.makeTempFile(longName.toString(),
+                    /* onlyUseLeafname = */ true);
+            assertThat(tempFile).exists();
+            assertThat(tempFile.getName()).endsWith("é.jar");
+        } finally {
+            nestedJarHandler.close(/* log = */ null);
+        }
+    }
 }

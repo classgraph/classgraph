@@ -520,19 +520,40 @@ public class NestedJarHandler {
     }
 
     /**
+     * The most characters of a path that are kept in the name of its temporary file. A filename is limited to 255
+     * bytes on Linux and macOS, and to 255 UTF-16 characters on Windows. A UTF-16 character takes at most 3 bytes
+     * in UTF-8, so this leaves room for the prefix and the random number that
+     * {@link File#createTempFile(String, String)} adds.
+     */
+    private static final int MAX_TEMP_FILENAME_BASE_LENGTH = 64;
+
+    /**
      * Create a temporary file, and mark it for deletion on exit.
-     * 
+     *
+     * <p>
+     * The file is named after {@code filePathBase}, or its leafname, with any character that is not valid in a
+     * filename replaced, and with all but the last {@value #MAX_TEMP_FILENAME_BASE_LENGTH} characters removed if
+     * it is longer than that.
+     *
      * @param filePathBase
      *            The path to derive the temporary filename from.
      * @param onlyUseLeafname
-     *            If true, only use the leafname of filePath to derive the temporary filename.
+     *            If true, only use the leafname of filePathBase to derive the temporary filename.
      * @return The temporary {@link File}.
      * @throws IOException
      *             If the temporary file could not be created.
      */
     public File makeTempFile(final String filePathBase, final boolean onlyUseLeafname) throws IOException {
-        final File tempFile = File.createTempFile(TEMP_FILENAME_PREFIX, TEMP_FILENAME_LEAF_SEPARATOR
-                + sanitizeFilename(onlyUseLeafname ? leafname(filePathBase) : filePathBase));
+        String filenameBase = sanitizeFilename(onlyUseLeafname ? leafname(filePathBase) : filePathBase);
+        if (filenameBase.length() > MAX_TEMP_FILENAME_BASE_LENGTH) {
+            // Keep the end of the name, which holds the extension, without splitting a surrogate pair
+            int startIdx = filenameBase.length() - MAX_TEMP_FILENAME_BASE_LENGTH;
+            if (Character.isLowSurrogate(filenameBase.charAt(startIdx))) {
+                startIdx++;
+            }
+            filenameBase = filenameBase.substring(startIdx);
+        }
+        final File tempFile = File.createTempFile(TEMP_FILENAME_PREFIX, TEMP_FILENAME_LEAF_SEPARATOR + filenameBase);
         tempFile.deleteOnExit();
         tempFiles.add(tempFile);
         return tempFile;
