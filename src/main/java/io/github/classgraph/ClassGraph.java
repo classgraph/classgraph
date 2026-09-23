@@ -306,14 +306,12 @@ public class ClassGraph {
      * blocks -- so your mileage may vary in being able to extract constant initializer values.
      *
      * <p>
-     * In fact in Kotlin, even constant initializers for non-static / non-final fields are stored in a field
-     * attribute in the classfile (and so these values may be picked up by ClassGraph by calling this method),
-     * although any field initializers for non-static fields are supposed to be ignored by the JVM according to the
-     * classfile spec, so the Kotlin compiler may change in future to stop generating these values, and you probably
-     * shouldn't rely on being able to get the initializers for non-static fields in Kotlin. (As far as non-final
-     * fields, javac simply does not add constant initializer values to the field attributes list for non-final
-     * fields, even if they are static, but the spec doesn't say whether or not the JVM should ignore constant
-     * initializers for non-final fields.)
+     * Despite the name of this method, the constant initializer value of a non-static field is also returned, if
+     * the classfile stores one. javac stores one for a final instance field with a constant initializer (e.g.
+     * {@code final int x = 5;}), and the Kotlin compiler stores them even for non-final fields. The classfile spec
+     * says the JVM must ignore the constant initializer value of a non-static field, so a compiler could stop
+     * storing these values at any time, and you probably shouldn't rely on them. (javac does not store constant
+     * initializer values for non-final fields, even if they are static.)
      *
      * <p>
      * Automatically calls {@link #enableClassInfo()} and {@link #enableFieldInfo()}.

@@ -111,7 +111,16 @@ class Classfile {
     /** The class annotations. */
     private AnnotationInfoList classAnnotations;
 
-    /** The fully qualified name of the defining method. */
+    /** Whether the classfile has an {@code EnclosingMethod} attribute, i.e. is a local or anonymous class. */
+    private boolean hasEnclosingMethodAttribute;
+
+    /** Whether the class' own {@code InnerClasses} entry says it has no simple name, i.e. it is anonymous. */
+    private boolean hasNoSimpleName;
+
+    /**
+     * The fully qualified name of the method or constructor that a local or anonymous class is declared in, or
+     * null if it is not declared in a method or constructor.
+     */
     private String fullyQualifiedDefiningMethodName;
 
     /** Class containment entries. */
@@ -511,8 +520,9 @@ class Classfile {
             if (annotationParamDefaultValues != null) {
                 classInfo.addAnnotationParamDefaultValues(annotationParamDefaultValues);
             }
-            if (fullyQualifiedDefiningMethodName != null) {
-                classInfo.addFullyQualifiedDefiningMethodName(fullyQualifiedDefiningMethodName);
+            if (hasEnclosingMethodAttribute) {
+                classInfo.setLocalOrAnonymousClass(/* isAnonymous = */ hasNoSimpleName,
+                        fullyQualifiedDefiningMethodName);
             }
             if (fieldInfoList != null) {
                 classInfo.addFieldInfo(fieldInfoList, classNameToClassInfo);
@@ -538,7 +548,7 @@ class Classfile {
             final String packageName = PackageInfo.getParentPackageName(className);
             packageInfo = PackageInfo.getOrCreatePackage(packageName, packageNameToPackageInfo, scanSpec);
             if (isPackageDescriptor) {
-                // Add any class annotations on the package-info.class file to the ModuleInfo
+                // Add any class annotations on the package-info.class file to the PackageInfo
                 packageInfo.addAnnotations(classAnnotations);
             } else if (classInfo != null) {
                 // Add ClassInfo to PackageInfo, and vice versa
@@ -626,7 +636,7 @@ class Classfile {
             cpIdxToUse = cpIdx;
         } else if (t == 7 || t == 8 || t == 19) {
             // t == 7 => CONSTANT_Class, e.g. "[[I", "[Ljava/lang/Thread;"; t == 8 => CONSTANT_String;
-            // t == 19 => CONSTANT_Method_Info
+            // t == 19 => CONSTANT_Module
             final int indirIdx = indirectStringRefs[cpIdx];
             if (indirIdx == -1) {
                 // Should not happen
@@ -890,12 +900,14 @@ class Classfile {
     private Object getFieldConstantPoolValue(final int tag, final char fieldTypeDescriptorFirstChar,
             final int cpIdx) throws ClassfileFormatException, IOException {
         switch (tag) {
+        // The JVMS (table 4.7.2-A) allows only CONSTANT_String for a String constant, but a CONSTANT_Utf8 or
+        // CONSTANT_Class entry is read as its string rather than rejected
         case 1: // Modified UTF8
-        case 7: // Class -- N.B. Unused? Class references do not seem to actually be stored as constant initalizers
+        case 7: // Class
         case 8: // String
             // Forward or backward indirect reference to a modified UTF8 entry
             return getConstantPoolString(cpIdx);
-        case 3: // int, short, char, byte, boolean are all represented by Constant_INTEGER
+        case 3: // int, short, char, byte, boolean are all represented by CONSTANT_Integer
             final int intVal = cpReadInt(cpIdx);
             switch (fieldTypeDescriptorFirstChar) {
             case 'I':
@@ -911,7 +923,7 @@ class Classfile {
             default:
                 // Fall through
             }
-            throw new ClassfileFormatException("Unknown Constant_INTEGER type " + fieldTypeDescriptorFirstChar
+            throw new ClassfileFormatException("Unknown CONSTANT_Integer type " + fieldTypeDescriptorFirstChar
                     + ", " + "cannot continue reading class. Please report this at "
                     + "https://github.com/classgraph/classgraph/issues");
         case 4: // float
@@ -939,7 +951,7 @@ class Classfile {
      *             If an IO exception occurs.
      */
     private AnnotationInfo readAnnotation() throws IOException {
-        // Lcom/xyz/Annotation; -> Lcom.xyz.Annotation;
+        // Lcom/xyz/Annotation; -> com.xyz.Annotation
         final String annotationClassName = getConstantPoolClassDescriptor(reader.readUnsignedShort());
         final int numElementValuePairs = reader.readUnsignedShort();
         AnnotationParameterValueList paramVals = null;
@@ -991,9 +1003,9 @@ class Classfile {
             return new AnnotationEnumValue(annotationClassName, annotationConstName);
         }
         case 'c':
-            // Return type is AnnotationClassRef (for class references in annotations). The JVMS says the
-            // class_info_index of a tag 'c' entry refers to a CONSTANT_Class entry, but javac writes the type
-            // descriptor directly as a UTF8 constant (e.g. "Ljava/lang/String;"), so handle both encodings.
+            // Return type is AnnotationClassRef (for class references in annotations). The JVMS (4.7.16.1) says
+            // the class_info_index of a tag 'c' entry refers to a CONSTANT_Utf8 entry holding a return descriptor
+            // (e.g. "Ljava/lang/String;"), which is what javac writes. A CONSTANT_Class entry is also accepted.
             final int classRefCpIdx = reader.readUnsignedShort();
             final String classRefStr = getConstantPoolString(classRefCpIdx);
             return new AnnotationClassRef(classRefStr == null || entryTag[classRefCpIdx] == 1 ? classRefStr
@@ -1273,7 +1285,7 @@ class Classfile {
                 reader.skip(strLen);
                 break;
             // There is no constant pool tag type 2
-            case 3: // int, short, char, byte, boolean are all represented by Constant_INTEGER
+            case 3: // int, short, char, byte, boolean are all represented by CONSTANT_Integer
             case 4: // float
                 reader.skip(4);
                 break;
@@ -1527,9 +1539,9 @@ class Classfile {
                 final int attributesCount = reader.readUnsignedShort();
                 for (int j = 0; j < attributesCount; j++) {
                     final int attributeNameCpIdx = reader.readUnsignedShort();
-                    final int attributeLength = reader.readInt(); // == 2
-                    // See if field name matches one of the requested names for this class, and if it does,
-                    // check if it is initialized with a constant value
+                    final int attributeLength = reader.readInt();
+                    // Read the field's constant initializer value, if any. This is read for non-static fields
+                    // too, even though the JVM ignores it for them (JVMS 4.7.2)
                     if ((getStaticFinalFieldConstValue)
                             && constantPoolStringEquals(attributeNameCpIdx, "ConstantValue")) {
                         // http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.7.2
@@ -2099,8 +2111,16 @@ class Classfile {
                 for (int j = 0; j < numInnerClasses; j++) {
                     final int innerClassInfoCpIdx = reader.readUnsignedShort();
                     final int outerClassInfoCpIdx = reader.readUnsignedShort();
-                    reader.skip(2); // inner_name_idx
+                    final int innerNameCpIdx = reader.readUnsignedShort();
                     final int innerClassAccessFlags = reader.readUnsignedShort();
+                    // An inner_name_index of 0 in the class' own entry means that the class is anonymous
+                    // (JVMS 4.7.6)
+                    if (innerNameCpIdx == 0 && innerClassInfoCpIdx != 0
+                            && className.equals(getConstantPoolClassName(innerClassInfoCpIdx))) {
+                        hasNoSimpleName = true;
+                    }
+                    // The outer_class_info_index of a local or anonymous class is 0; these classes are linked to
+                    // the class they are declared in by the EnclosingMethod attribute instead
                     if (innerClassInfoCpIdx != 0 && outerClassInfoCpIdx != 0) {
                         final String innerClassName = getConstantPoolClassName(innerClassInfoCpIdx);
                         final String outerClassName = getConstantPoolClassName(outerClassInfoCpIdx);
@@ -2112,7 +2132,7 @@ class Classfile {
                             // Invalid according to spec
                             throw new ClassfileFormatException("Inner and outer class name cannot be the same");
                         }
-                        // Record types have a Lookup inner class for boostrap methods in JDK 14 -- drop this
+                        // Record types have a Lookup inner class for bootstrap methods in JDK 14 -- drop this
                         if (!("java.lang.invoke.MethodHandles$Lookup".equals(innerClassName)
                                 && "java.lang.invoke.MethodHandles".equals(outerClassName))) {
                             // Store relationship between inner class and outer class
@@ -2130,26 +2150,24 @@ class Classfile {
             } else if (constantPoolStringEquals(attributeNameCpIdx, "SourceFile")) {
                 sourceFile = getConstantPoolString(reader.readUnsignedShort());
             } else if (constantPoolStringEquals(attributeNameCpIdx, "EnclosingMethod")) {
+                hasEnclosingMethodAttribute = true;
                 final String innermostEnclosingClassName = getConstantPoolClassName(reader.readUnsignedShort());
                 final int enclosingMethodCpIdx = reader.readUnsignedShort();
-                String definingMethodName;
-                if (enclosingMethodCpIdx == 0) {
-                    // A cpIdx of 0 (which is an invalid value) is used for anonymous inner classes declared in
-                    // class initializer code, e.g. assigned to a class field.
-                    definingMethodName = "<clinit>";
-                } else {
-                    definingMethodName = getConstantPoolString(enclosingMethodCpIdx, /* subFieldIdx = */ 0);
+                // A method_index of 0 means the class is declared in an initializer (a static or instance
+                // initializer block, or a field initializer) rather than in a method or constructor (JVMS 4.7.7).
+                // The classfile does not say which initializer, so no defining method name is recorded.
+                if (enclosingMethodCpIdx != 0) {
+                    final String definingMethodName = getConstantPoolString(enclosingMethodCpIdx,
+                            /* subFieldIdx = */ 0);
                     // Could also fetch method type signature using subFieldIdx = 1, if needed
+                    this.fullyQualifiedDefiningMethodName = innermostEnclosingClassName + "." + definingMethodName;
                 }
-                // Link anonymous inner classes into the class with their containing method
+                // Link local and anonymous classes to the class they are declared in
                 if (classContainmentEntries == null) {
                     classContainmentEntries = new ArrayList<>();
                 }
                 classContainmentEntries
                         .add(new ClassContainment(className, classModifiers, innermostEnclosingClassName));
-                // Also store the fully-qualified name of the enclosing method, to mark this as an anonymous inner
-                // class
-                this.fullyQualifiedDefiningMethodName = innermostEnclosingClassName + "." + definingMethodName;
             } else if (constantPoolStringEquals(attributeNameCpIdx, "Module")) {
                 final int moduleNameCpIdx = reader.readUnsignedShort();
                 classpathElement.moduleNameFromModuleDescriptor = getConstantPoolString(moduleNameCpIdx);

@@ -99,8 +99,14 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /** The name of the source file this class has been compiled from */
     private String sourceFile;
 
-    /** The fully-qualified defining method name, for anonymous inner classes. */
+    /**
+     * The fully-qualified name of the method or constructor that a local or anonymous class is declared in, or
+     * null if the class is not declared in a method or constructor.
+     */
     private String fullyQualifiedDefiningMethodName;
+
+    /** Whether this is an anonymous class. */
+    private boolean isAnonymousClass;
 
     /**
      * If true, this class is only being referenced by another class' classfile as a superclass / implemented
@@ -593,12 +599,16 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Add containing method name, for anonymous inner classes.
+     * Mark this class as a local or anonymous class.
      *
+     * @param isAnonymous
+     *            true if the class is anonymous, false if it is local
      * @param fullyQualifiedDefiningMethodName
-     *            the fully qualified defining method name
+     *            the fully qualified name of the method or constructor the class is declared in, or null if it is
+     *            declared in an initializer
      */
-    void addFullyQualifiedDefiningMethodName(final String fullyQualifiedDefiningMethodName) {
+    void setLocalOrAnonymousClass(final boolean isAnonymous, final String fullyQualifiedDefiningMethodName) {
+        this.isAnonymousClass = isAnonymous;
         this.fullyQualifiedDefiningMethodName = fullyQualifiedDefiningMethodName;
     }
 
@@ -1462,13 +1472,14 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Checks if this class is an anonymous inner class.
+     * Checks if this class is an anonymous class (like {@link Class#isAnonymousClass()}). A named class declared in
+     * a method, constructor or initializer (a local class) is not anonymous.
      *
-     * @return true if this is an anonymous inner class. If true, the name of the containing method can be obtained
-     *         by calling {@link #getFullyQualifiedDefiningMethodName()}.
+     * @return true if this is an anonymous class. If true, the name of the method or constructor it is declared in
+     *         can be obtained by calling {@link #getFullyQualifiedDefiningMethodName()}.
      */
     public boolean isAnonymousInnerClass() {
-        return fullyQualifiedDefiningMethodName != null;
+        return isAnonymousClass;
     }
 
     /**
@@ -1963,11 +1974,13 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Gets fully-qualified method name (i.e. fully qualified classname, followed by dot, followed by method name)
-     * for the defining method, if this is an anonymous inner class.
+     * Gets the fully-qualified name (the fully-qualified class name, a dot, and the method name) of the method or
+     * constructor that this local or anonymous class is declared in. The method name is {@code "<init>"} for a
+     * constructor.
      *
-     * @return The fully-qualified method name (i.e. fully qualified classname, followed by dot, followed by method
-     *         name) for the defining method, if this is an anonymous inner class, or null if not.
+     * @return The fully-qualified name of the method or constructor that this class is declared in, or null if
+     *         this class is not a local or anonymous class, or if it is declared in an initializer (a static or
+     *         instance initializer block, or a field initializer).
      */
     public String getFullyQualifiedDefiningMethodName() {
         return fullyQualifiedDefiningMethodName;
