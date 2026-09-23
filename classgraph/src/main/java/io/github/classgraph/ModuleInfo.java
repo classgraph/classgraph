@@ -31,6 +31,7 @@ package io.github.classgraph;
 import java.lang.module.ModuleReference;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -312,12 +313,9 @@ public final class ModuleInfo implements Comparable<ModuleInfo>, HasName, HasAnn
         if (diff != 0) {
             return diff;
         }
-        final var thisLoc = this.getLocationURI();
-        final var otherLoc = other.getLocationURI();
-        if (thisLoc != null && otherLoc != null) {
-            return thisLoc.compareTo(otherLoc);
-        }
-        return 0;
+        // A module with no known location sorts before one with a location, so that the order is transitive
+        return Comparator.nullsFirst(Comparator.<URI> naturalOrder()).compare(this.getLocationURI(),
+                other.getLocationURI());
     }
 
     @Override

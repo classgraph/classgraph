@@ -4,8 +4,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 
 import java.io.IOException;
+import java.lang.module.ModuleDescriptor;
+import java.lang.module.ModuleReader;
+import java.lang.module.ModuleReference;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 import javax.tools.ToolProvider;
 
@@ -212,6 +217,48 @@ public class ModuleInfoTest {
             assertThat(earlierName.compareTo(moduleInfo)).isNegative();
             assertThat(moduleInfo).isNotEqualTo(earlierName);
         }
+    }
+
+    /**
+     * A module with no known location sorts before a module of the same name that has one. It used to compare equal
+     * to every module of the same name, so the ordering was not transitive: with locations {@code null}, {@code a}
+     * and {@code b}, the first compared equal to the other two, which did not compare equal to each other.
+     */
+    @Test
+    public void aModuleWithNoLocationSortsBeforeOneWithALocation() {
+        final var noLocation = moduleWithLocation(null);
+        final var locationA = moduleWithLocation(URI.create("file:/a"));
+        final var locationB = moduleWithLocation(URI.create("file:/b"));
+        assertThat(noLocation.getLocationURI()).isNull();
+
+        assertThat(noLocation.compareTo(locationA)).isNegative();
+        assertThat(locationA.compareTo(noLocation)).isPositive();
+        assertThat(noLocation.compareTo(locationB)).isNegative();
+        assertThat(locationA.compareTo(locationB)).isNegative();
+        assertThat(noLocation.compareTo(moduleWithLocation(null))).isZero();
+        assertThat(noLocation).isNotEqualTo(locationA).isEqualTo(moduleWithLocation(null));
+    }
+
+    /**
+     * Construct a {@link ModuleInfo} for a module named {@code com.xyz.located}, with the given location.
+     *
+     * @param location
+     *            the module location, or null for none.
+     * @return the {@link ModuleInfo}.
+     */
+    private static ModuleInfo moduleWithLocation(final URI location) {
+        final var moduleReference = new ModuleReference(ModuleDescriptor.newModule("com.xyz.located").build(),
+                location) {
+            @Override
+            public ModuleReader open() {
+                throw new UnsupportedOperationException();
+            }
+        };
+        // The classpath element is never opened, so the module is never read
+        final var classpathElement = new ClasspathElementModule(moduleReference, VFS,
+                new ClasspathEntryWorkUnit(null, null, null, 0, "", List.of(), List.of()),
+                /* isLookupOnly = */ false, new ScanSpec());
+        return new ModuleInfo(moduleReference, classpathElement, "com.xyz.located");
     }
 
     /**
