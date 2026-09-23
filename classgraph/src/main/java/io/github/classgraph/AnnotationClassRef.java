@@ -109,10 +109,12 @@ public class AnnotationClassRef extends ScanResultObject {
     }
 
     /**
-     * Get the class info.
+     * Get the class info for the referenced class.
      *
      * @return The {@link ClassInfo} object for the referenced class, or null if the referenced class was not
      *         encountered during scanning (i.e. if no ClassInfo object was created for the class during scanning).
+     *         For an array class such as {@code String[].class}, an {@link ArrayClassInfo} is returned, which is
+     *         never null. For a primitive class such as {@code int.class}, null is always returned.
      */
     @Override
     public @Nullable ClassInfo getClassInfo() {

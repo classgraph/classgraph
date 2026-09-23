@@ -8,4 +8,7 @@ import io.github.classgraph.test.typeannotation.external.ExternalTypeAnnotation;
 public class UsesExternalTypeAnnotation {
     /** A field whose type carries the external type annotation. */
     public @ExternalTypeAnnotation String field;
+
+    /** A field whose type carries the external type annotation, with array-typed parameter values. */
+    public @ExternalTypeAnnotation(ints = { 1, 2 }, strings = { "a" }) String arrays;
 }

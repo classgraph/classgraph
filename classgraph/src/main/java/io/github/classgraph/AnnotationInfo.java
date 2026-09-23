@@ -122,19 +122,22 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
      */
     AnnotationParameterValueList getParameterValues(final boolean includeDefaultValues) {
         final var paramValues = annotationParamValues;
-        final var classInfo = getClassInfo();
-        if (classInfo == null) {
-            // ClassInfo has not yet been set, just return values without defaults (happens when trying to log
-            // AnnotationInfo during scanning, before ScanResult is available)
+        if (scanResult == null) {
+            // Scanning has not finished, so the annotation class may not have been read yet -- return the values
+            // without defaults, and without converting arrays (happens when AnnotationInfo is logged during
+            // scanning)
             return paramValues == null ? AnnotationParameterValueList.EMPTY_LIST : paramValues;
         }
-        // Lazily convert any Object[] arrays of boxed types to primitive arrays
+        // Lazily convert any Object[] arrays of boxed types to primitive arrays. If the annotation class was not
+        // scanned, the element type of each array is worked out from its elements.
+        final var classInfo = getClassInfo();
         if (paramValues != null && !annotationParamValuesHasBeenConvertedToPrimitive) {
             AnnotationParameterValueList.convertWrapperArraysToPrimitiveArrays(paramValues, classInfo);
             annotationParamValuesHasBeenConvertedToPrimitive = true;
         }
-        if (!includeDefaultValues) {
-            // Don't include defaults
+        if (!includeDefaultValues || classInfo == null) {
+            // Don't include defaults, or there are no defaults to include, since they are declared by the
+            // annotation class, which was not scanned
             return paramValues == null ? AnnotationParameterValueList.EMPTY_LIST : paramValues;
         }
         if (annotationParamValuesWithDefaults == null) {
@@ -334,7 +337,9 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
         final var paramValues = annotationParamValues;
         if (paramValues != null) {
             for (final AnnotationParameterValue e : paramValues) {
-                h = h * 7 + e.getName().hashCode() * 3 + Objects.requireNonNull(e.getValue()).hashCode();
+                // AnnotationParameterValue#hashCode() hashes an array-valued parameter by its elements, matching
+                // equals(Object)
+                h = h * 7 + e.hashCode();
             }
         }
         return h;

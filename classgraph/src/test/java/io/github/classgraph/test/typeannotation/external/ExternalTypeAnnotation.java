@@ -13,4 +13,13 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE_USE)
 public @interface ExternalTypeAnnotation {
+    /**
+     * @return the ints.
+     */
+    int[] ints() default {};
+
+    /**
+     * @return the strings.
+     */
+    String[] strings() default {};
 }

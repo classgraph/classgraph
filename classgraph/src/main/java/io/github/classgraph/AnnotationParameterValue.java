@@ -39,7 +39,7 @@ import io.github.classgraph.base.internal.utils.StringUtils;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A wrapper used to pair annotation parameter names with annotation parameter values.
+ * The name and value of an annotation parameter.
  */
 public class AnnotationParameterValue extends ScanResultObject
         implements HasName, Comparable<AnnotationParameterValue> {
@@ -100,15 +100,25 @@ public class AnnotationParameterValue extends ScanResultObject
      *         float[], or double[]), for arrays of primitives
      *         <li>A 1-dimensional {@link Object}[] array for array types (and then the array element type may be
      *         one of the types in this list)
-     *         <li>{@link AnnotationEnumValue}, for enum constants (this wraps the enum class and the string name of
-     *         the constant)
-     *         <li>{@link AnnotationClassRef}, for Class references within annotations (this wraps the name of the
+     *         <li>{@link AnnotationEnumValue}, for enum constants (this holds the name of the enum class and the
+     *         name of the constant)
+     *         <li>{@link AnnotationClassRef}, for Class references within annotations (this holds the name of the
      *         referenced class)
      *         <li>{@link AnnotationInfo}, for nested annotations
      *         </ul>
+     *         An empty array is returned as an {@link Object}[] array if the annotation class was not scanned,
+     *         since its element type cannot then be known. An array is copied each time it is returned, as
+     *         {@link java.lang.annotation.Annotation} does, so changing it does not change this parameter value.
      */
     public @Nullable Object getValue() {
-        return value;
+        final var val = value;
+        if (val != null && val.getClass().isArray()) {
+            final var length = Array.getLength(val);
+            final var copy = Array.newInstance(val.getClass().getComponentType(), length);
+            System.arraycopy(val, 0, copy, 0, length);
+            return copy;
+        }
+        return val;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -201,11 +211,12 @@ public class AnnotationParameterValue extends ScanResultObject
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * For primitive array type params, replace Object[] arrays containing boxed types with primitive arrays (need
-     * to check the type of each method of the annotation class to determine if it is a primitive array type).
+     * Replace an Object[] array of boxed primitive values or strings with an array of the primitive type or a
+     * String[] array. The element type is read from the parameter's method in the annotation class, if the
+     * annotation class was scanned, and is otherwise worked out from the elements.
      *
      * @param annotationClassInfo
-     *            the annotation class info
+     *            the annotation class, or null if the annotation class was not scanned
      */
     void convertWrapperArraysToPrimitiveArrays(final @Nullable ClassInfo annotationClassInfo) {
         if (value instanceof final AnnotationInfo annotationInfo) {
@@ -330,8 +341,9 @@ public class AnnotationParameterValue extends ScanResultObject
         if (Objects.deepEquals(value, other.value)) {
             return 0;
         }
-        // Use toString() order (which can be slow) as a last-ditch effort -- only happens if the annotation has
-        // multiple parameters of the same name but different value.
+        // Order by the string form of the values, which is slower, but works for values of any type. This also
+        // treats an Object[] array that has not yet been converted to a primitive array as equal to the converted
+        // array, since both have the same string form.
         final var p0 = value;
         final var p1 = other.value;
         return p0 == null || p1 == null ? (p0 == null ? 0 : 1) - (p1 == null ? 0 : 1)
@@ -417,7 +429,7 @@ public class AnnotationParameterValue extends ScanResultObject
     }
 
     /**
-     * To string, param value only.
+     * Write the parameter value, without the parameter name, to the buffer.
      *
      * @param useSimpleNames
      *            if true, strip package and outer class names from class names
@@ -441,9 +453,9 @@ public class AnnotationParameterValue extends ScanResultObject
     }
 
     /**
-     * To string, param value only.
+     * Render the parameter value, without the parameter name.
      *
-     * @return the string.
+     * @return the string form of the parameter value.
      */
     private String toStringParamValueOnly() {
         final StringBuilder buf = new StringBuilder();
