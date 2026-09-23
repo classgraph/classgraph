@@ -286,6 +286,14 @@ public class Issue735Test {
                 .resolveTypeVariables(scanResult.getClassInfo(PairBound.class.getName()));
         assertThat(((ArrayTypeSignature) grid).getTypeSignatureString()).isEqualTo("[[Ljava/lang/String;");
         assertThat(((ArrayTypeSignature) grid).getNestedType()).isEqualTo(resolved);
+
+        // A nested class is separated from its enclosing class by '$', as in the class name, unless an enclosing
+        // class has type arguments, in which case the separator is '.', exactly as javac writes it
+        final var inner = scanResult.getClassInfo(Generic.class.getName()).getMethodInfo("getArrayOfT").get(0)
+                .getTypeSignatureOrTypeDescriptor().getResultType()
+                .resolveTypeVariables(scanResult.getClassInfo(BoundToInnerOfParameterizedOuter.class.getName()));
+        assertThat(((ArrayTypeSignature) inner).getTypeSignatureString())
+                .isEqualTo("[L" + Outer.class.getName().replace('.', '/') + "<Ljava/lang/Short;>.Inner;");
     }
 
     /** A binding that has to be composed across two levels of the hierarchy. */

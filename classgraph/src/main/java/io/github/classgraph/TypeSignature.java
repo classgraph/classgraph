@@ -284,12 +284,17 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
             toTypeSignatureStr(Objects.requireNonNull(typeArgument.getTypeSignature()), buf);
         } else if (typeSignature instanceof final ClassRefTypeSignature classRefTypeSignature) {
             buf.append('L').append(classRefTypeSignature.getBaseClassName().replace('.', '/'));
-            toTypeArgumentsStr(classRefTypeSignature.getTypeArguments(), buf);
+            final var typeArguments = classRefTypeSignature.getTypeArguments();
+            toTypeArgumentsStr(typeArguments, buf);
+            // Like javac, separate a nested class from its enclosing class with '$', as in the class name, until
+            // an enclosing class has type arguments, and with '.' from then on
+            var enclosingHasTypeArguments = !typeArguments.isEmpty();
             final var suffixes = classRefTypeSignature.getSuffixes();
             final var suffixTypeArguments = classRefTypeSignature.getSuffixTypeArguments();
             for (var i = 0; i < suffixes.size(); i++) {
-                buf.append('.').append(suffixes.get(i));
+                buf.append(enclosingHasTypeArguments ? '.' : '$').append(suffixes.get(i));
                 toTypeArgumentsStr(suffixTypeArguments.get(i), buf);
+                enclosingHasTypeArguments |= !suffixTypeArguments.get(i).isEmpty();
             }
             buf.append(';');
         } else {
