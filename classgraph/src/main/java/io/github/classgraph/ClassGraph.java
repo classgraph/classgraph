@@ -45,6 +45,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
@@ -1512,6 +1513,11 @@ public class ClassGraph {
      * a lock that the classloader also acquires, the scan can never complete (#933) -- use
      * {@link #scan(ExecutorService, int)}, which runs the scanner on the calling thread, if that is a possibility.
      *
+     * <p>
+     * Any failure of the scan, including an exception thrown by a classpath element filter, is reported by
+     * {@link Future#get()}. If the {@link Future} is canceled while the scan is running, the {@link ScanResult} is
+     * closed once the scan finishes, since it can no longer be handed to the caller.
+     *
      * @param executorService
      *            A custom {@link ExecutorService} to use for scheduling worker tasks.
      * @param numParallelTasks
@@ -1530,9 +1536,24 @@ public class ClassGraph {
         checkConfigIsExplicit();
         // Read the call stack on the calling thread, since it is the caller's classloaders and module layers that
         // are to be searched, not those of the thread that the scan happens to run on
-        return executorService.submit(new Scanner(/* performScan = */ true, CallStackInfo.read(), scanSpec,
-                scanSourceSpec, executorService, numParallelTasks, /* scanResultProcessor = */ null,
-                /* failureHandler = */ null, topLevelLog));
+        final var callStackInfo = CallStackInfo.read();
+        // The Scanner is built when the task runs, not here, since building it opens jarfiles and modules, and only
+        // running the Scanner closes them again -- a task that is canceled or rejected before it runs never does
+        final FutureTask<ScanResult> task = new FutureTask<>(() -> new Scanner(/* performScan = */ true,
+                callStackInfo, scanSpec, scanSourceSpec, executorService, numParallelTasks,
+                /* scanResultProcessor = */ null, /* failureHandler = */ null, topLevelLog).call()) {
+            @Override
+            protected void set(final ScanResult scanResult) {
+                super.set(scanResult);
+                if (isCancelled() && scanResult != null) {
+                    // The future was canceled while the scan was running, so the ScanResult is dropped rather than
+                    // handed to the caller, and nothing else could close it
+                    scanResult.close();
+                }
+            }
+        };
+        executorService.execute(task);
+        return task;
     }
 
     /**

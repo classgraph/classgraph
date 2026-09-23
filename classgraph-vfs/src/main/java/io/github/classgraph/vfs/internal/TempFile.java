@@ -38,15 +38,12 @@ import io.github.classgraph.base.internal.path.PathSyntax;
 /**
  * The temporary files that jarfiles read from a stream (a deflated nested jarfile, or a jarfile downloaded from a
  * URL) are written to when they are too large to buffer in RAM. A temporary file is owned by the slice that reads
- * through it, and is deleted when that slice is closed; the {@link File#deleteOnExit()} hook that
- * {@link #create(String)} registers is the backstop for a file that could not be deleted then, and for the files of
- * a {@code ScanResult} that is never closed.
+ * through it, and is deleted when that slice is closed, which closing the {@link io.github.classgraph.vfs.Vfs} that
+ * opened it does.
  *
  * <p>
- * The JDK keeps each path passed to {@link File#deleteOnExit()} until the JVM exits, even after the file has been
- * deleted, so every temporary file costs about 100 bytes of heap for the life of the JVM. A temporary file is only
- * created for a jarfile larger than {@link io.github.classgraph.vfs.VfsSpec#getMaxBufferedJarRAMSize()} (64MB by
- * default), so this is small next to the disk space that a file left behind would take.
+ * {@link File#deleteOnExit()} is not used: the JDK keeps every path passed to it until the JVM exits, even after
+ * the file has been deleted, so a long-running JVM that scans repeatedly would accumulate them without limit.
  */
 public final class TempFile {
     /** Not instantiable. */
@@ -84,8 +81,8 @@ public final class TempFile {
     }
 
     /**
-     * Create a temporary file, and mark it for deletion on exit. The caller owns the file that is returned, and
-     * must delete it with {@link #delete(File)} once nothing is reading through it.
+     * Create a temporary file. The caller owns the file that is returned, and must delete it with
+     * {@link #delete(File)} once nothing is reading through it.
      *
      * <p>
      * The file is named after the leafname of {@code path}, with any character that is not valid in a filename
@@ -108,15 +105,12 @@ public final class TempFile {
             }
             leafname = leafname.substring(startIdx);
         }
-        final var tempFile = File.createTempFile(PathSyntax.TEMP_FILENAME_PREFIX,
+        return File.createTempFile(PathSyntax.TEMP_FILENAME_PREFIX,
                 PathSyntax.TEMP_FILENAME_LEAF_SEPARATOR + leafname);
-        tempFile.deleteOnExit();
-        return tempFile;
     }
 
     /**
-     * Delete a temporary file, ignoring any failure. The file was created with {@link File#deleteOnExit()}, so a
-     * file that cannot be deleted now is deleted when the JVM exits.
+     * Delete a temporary file, ignoring any failure. The caller decides whether a failure is worth logging.
      *
      * @param tempFile
      *            the temp file

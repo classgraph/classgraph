@@ -625,8 +625,8 @@ public final class PathSlice extends Slice {
         // Windows refuses to delete a file that is still memory-mapped, so a delete that failed may be waiting on
         // a mapping that could not be unmapped explicitly -- one whose arena would not close, say. Those are left
         // to the garbage collector, which only runs when it chooses to, so ask for a collection and try again. If
-        // the JVM was started with -XX:+DisableExplicitGC then this is a no-op, and the file is left to the
-        // File#deleteOnExit() hook that TempFile#create registered.
+        // the JVM was started with -XX:+DisableExplicitGC then this is a no-op, and the file is left behind, and
+        // logged.
         // #939
         OffHeapMemory.freeUnreachableBuffers();
         if (!TempFile.delete(fileToDelete) && tempFileLog != null) {

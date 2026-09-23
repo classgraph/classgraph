@@ -51,11 +51,18 @@ public class CustomURLScheme {
     /** Any URLs that were remapped. */
     public static Map<String, String> remappedURLs = new HashMap<>();
 
+    /** An action to run each time a connection is opened, or null for none. */
+    public static volatile Runnable onOpenConnection;
+
     static {
         URL.setURLStreamHandlerFactory(
                 protocol -> SCHEME.equals(protocol) || SCHEME_WITH_DIGIT.equals(protocol) ? new URLStreamHandler() {
                     @Override
                     protected URLConnection openConnection(final URL url) throws IOException {
+                        final var action = onOpenConnection;
+                        if (action != null) {
+                            action.run();
+                        }
                         // Record that the URL was remapped, so we know this custom URLStreamHandler was called
                         final var newURL = "file:" + url.getPath();
                         remappedURLs.put(url.toString(), newURL);
