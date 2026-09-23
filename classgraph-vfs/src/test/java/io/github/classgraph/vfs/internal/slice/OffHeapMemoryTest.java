@@ -14,6 +14,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.security.Permission;
 
+import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.utils.VersionFinder;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -214,9 +215,10 @@ public class OffHeapMemoryTest {
         Files.write(file, new byte[4096]);
         try (var fileChannel = FileChannel.open(file, StandardOpenOption.READ)) {
             final var mapped = fileChannel.map(MapMode.READ_ONLY, 0L, Files.size(file));
-            assertThat(
-                    OffHeapMemory.closeDirectByteBuffer(mapped.slice(0, 16).asReadOnlyBuffer(), /* log = */ null))
-                    .isFalse();
+            final var log = new LogNode();
+            assertThat(OffHeapMemory.closeDirectByteBuffer(mapped.slice(0, 16).asReadOnlyBuffer(), log)).isFalse();
+            // A view is refused as expected, not reported as a failure to call Unsafe::invokeCleaner
+            assertThat(log.toString()).doesNotContain("Could not unmap");
             // The view could not be unmapped, so the mapping is still there to read through
             assertThat(mapped.get(0)).isEqualTo((byte) 0);
             assertThat(OffHeapMemory.closeDirectByteBuffer(mapped, /* log = */ null)).isTrue();

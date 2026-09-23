@@ -31,6 +31,7 @@ package io.github.classgraph.vfs.internal.slice;
 import java.io.IOException;
 import java.lang.ref.PhantomReference;
 import java.lang.ref.ReferenceQueue;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel.MapMode;
@@ -129,8 +130,12 @@ final class OffHeapMemory {
         try {
             invokeCleaner.invoke(unsafe, byteBuffer);
             return true;
-        } catch (final IllegalArgumentException e) {
-            // The buffer is a duplicate or a slice of the mapping, not the mapping itself
+        } catch (final InvocationTargetException e) {
+            // invokeCleaner throws IllegalArgumentException if the buffer is a duplicate or a slice of the mapping,
+            // not the mapping itself. Method.invoke wraps whatever it throws.
+            if (log != null && !(e.getCause() instanceof IllegalArgumentException)) {
+                log.log("Could not unmap ByteBuffer: " + e.getCause());
+            }
             return false;
         } catch (final ReflectiveOperationException | SecurityException e) {
             if (log != null) {
