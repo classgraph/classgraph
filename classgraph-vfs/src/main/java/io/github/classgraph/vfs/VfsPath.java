@@ -31,6 +31,7 @@ package io.github.classgraph.vfs;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.file.FileSystem;
 import java.nio.file.FileSystemNotFoundException;
 import java.nio.file.LinkOption;
 import java.nio.file.NoSuchFileException;
@@ -162,7 +163,16 @@ public final class VfsPath implements Path {
     // -------------------------------------------------------------------------------------------------------------
 
     @Override
-    public VfsFileSystem getFileSystem() {
+    public FileSystem getFileSystem() {
+        return fileSystem;
+    }
+
+    /**
+     * Returns the filesystem this path belongs to, as the type the rest of the package reads it through.
+     *
+     * @return the filesystem.
+     */
+    VfsFileSystem vfsFileSystem() {
         return fileSystem;
     }
 

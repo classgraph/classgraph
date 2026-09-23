@@ -131,7 +131,7 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
      * The filesystems created from a URI by {@link #newFileSystem(URI, Map)}, keyed by every path they can be named
      * by. This is static rather than per-instance because {@link java.util.ServiceLoader} constructs an instance of
      * its own, so the instance a caller reaches through {@link FileSystemProvider#installedProviders()} need not be
-     * the one a {@link VfsPath} reports from {@link VfsPath#getFileSystem()}.
+     * the one {@link VfsFileSystem#provider()} returns.
      */
     private static final Map<String, VfsFileSystem> FILESYSTEMS_BY_PATH = new ConcurrentHashMap<>();
 
@@ -210,7 +210,7 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
      *             if the entries of the root could not be listed.
      */
     private static VfsEntry entryOf(final VfsPath path) throws IOException {
-        final var fileSystem = path.getFileSystem();
+        final var fileSystem = path.vfsFileSystem();
         final var name = path.entryName();
         final var entry = fileSystem.entry(name);
         if (entry == null) {
@@ -698,7 +698,7 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
     public DirectoryStream<Path> newDirectoryStream(final Path dir, final Filter<? super Path> filter)
             throws IOException {
         final var dirPath = check(dir);
-        final var fileSystem = dirPath.getFileSystem();
+        final var fileSystem = dirPath.vfsFileSystem();
         final var name = dirPath.entryName();
         // A name can be a file and a directory at the same time, if the archive holds both "a/b" and "a/b/c". The
         // file wins, so that a name is never reported as a file by Files#isDirectory and listed as a directory
@@ -806,7 +806,7 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
     @Override
     public boolean isSameFile(final Path path, final Path path2) {
         final var vfsPath = check(path);
-        vfsPath.getFileSystem().ensureOpen();
+        vfsPath.vfsFileSystem().ensureOpen();
         // A path of another filesystem is answered, not rejected, as FileSystemProvider#isSameFile requires
         if (!(path2 instanceof final VfsPath vfsPath2)) {
             return false;
@@ -816,13 +816,13 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
 
     @Override
     public boolean isHidden(final Path path) {
-        check(path).getFileSystem().ensureOpen();
+        check(path).vfsFileSystem().ensureOpen();
         return false;
     }
 
     @Override
     public FileStore getFileStore(final Path path) {
-        final var fileSystem = check(path).getFileSystem();
+        final var fileSystem = check(path).vfsFileSystem();
         fileSystem.ensureOpen();
         return fileSystem.fileStore();
     }
@@ -836,7 +836,7 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
                         "A virtual filesystem is read-only and holds no executable files");
             }
         }
-        if (!vfsPath.getFileSystem().exists(vfsPath.entryName())) {
+        if (!vfsPath.vfsFileSystem().exists(vfsPath.entryName())) {
             throw new NoSuchFileException(path.toString());
         }
     }
@@ -939,7 +939,7 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
      */
     private static BasicFileAttributes attributesOf(final VfsPath path) throws IOException {
         final var name = path.entryName();
-        final var fileSystem = path.getFileSystem();
+        final var fileSystem = path.vfsFileSystem();
         final var entry = fileSystem.entry(name);
         if (entry == null) {
             if (!fileSystem.isDirectory(name)) {
