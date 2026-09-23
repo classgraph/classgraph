@@ -131,7 +131,32 @@ public class ClassTypeSignatureTest {
         }
     }
 
-    /** Class type signatures are equal if their type parameters, superclass and superinterfaces are equal. */
+    /**
+     * Two classes with the same type parameters and supertypes do not have equal type signatures, and neither do
+     * two signatures that differ only in their throws suffix.
+     */
+    @Test
+    public void signaturesOfDifferentClassesOrThrowsSuffixesAreNotEqual() throws Exception {
+        try (var scanResult = scanFixture()) {
+            final var base = classInfo(scanResult, Base.class);
+            final var iface = classInfo(scanResult, Iface.class);
+            final var baseSig = ClassTypeSignature.parse("<T:Ljava/lang/Object;>Ljava/lang/Object;", base);
+            final var ifaceSig = ClassTypeSignature.parse("<T:Ljava/lang/Object;>Ljava/lang/Object;", iface);
+            assertThat(baseSig).isNotEqualTo(ifaceSig);
+
+            final var throwsSig = ClassTypeSignature
+                    .parse("<T:Ljava/lang/Object;>Ljava/lang/Object;^Ljava/lang/Exception;", base);
+            assertThat(baseSig).isNotEqualTo(throwsSig);
+            final var sameThrowsSig = ClassTypeSignature
+                    .parse("<T:Ljava/lang/Object;>Ljava/lang/Object;^Ljava/lang/Exception;", base);
+            assertThat(sameThrowsSig).isEqualTo(throwsSig).hasSameHashCodeAs(throwsSig);
+        }
+    }
+
+    /**
+     * Class type signatures are equal if they belong to the same class, and their type parameters, superclass,
+     * superinterfaces and throws suffixes are equal.
+     */
     @Test
     public void signaturesAreComparedByTypeParametersSuperclassAndInterfaces() {
         try (var scanResult = scanFixture(); var scanResult2 = scanFixture()) {
