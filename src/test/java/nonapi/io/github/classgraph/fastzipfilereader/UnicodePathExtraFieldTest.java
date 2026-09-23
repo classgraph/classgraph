@@ -40,11 +40,13 @@ public class UnicodePathExtraFieldTest {
     /**
      * Build an Info-ZIP Unicode path extra field (tag 0x7075) holding the given entry name.
      *
+     * @param version
+     *            the version of the extra field
      * @param unicodeName
      *            the entry name to store in the extra field
      * @return the extra field bytes
      */
-    private static byte[] makeUnicodePathExtraField(final String unicodeName) {
+    private static byte[] makeUnicodePathExtraField(final int version, final String unicodeName) {
         final byte[] nameBytes = unicodeName.getBytes(StandardCharsets.UTF_8);
         final ByteArrayOutputStream buf = new ByteArrayOutputStream();
         // Header ID 0x7075, little-endian
@@ -55,7 +57,7 @@ public class UnicodePathExtraFieldTest {
         buf.write(dataSize & 0xff);
         buf.write((dataSize >> 8) & 0xff);
         // Version
-        buf.write(1);
+        buf.write(version);
         // CRC32 of the legacy name (not checked by the reader)
         for (int i = 0; i < 4; i++) {
             buf.write(0);
@@ -82,12 +84,33 @@ public class UnicodePathExtraFieldTest {
      */
     private static List<String> entryNamesReadBack(final File tempDir, final String jarName,
             final String[][] legacyAndUnicodeNames) throws Exception {
+        return entryNamesReadBack(tempDir, jarName, /* version = */ 1, legacyAndUnicodeNames);
+    }
+
+    /**
+     * Write a jar whose entries each carry a Unicode path extra field of the given version, and return the entry
+     * names ClassGraph reads back from its central directory.
+     *
+     * @param tempDir
+     *            the directory to write the jar into
+     * @param jarName
+     *            the name of the jar to write
+     * @param version
+     *            the version of every Unicode path extra field
+     * @param legacyAndUnicodeNames
+     *            for each entry, the name stored in the entry name field, then the name stored in the extra field
+     * @return the entry names read back from the jar
+     * @throws Exception
+     *             if the jar could not be written or read
+     */
+    private static List<String> entryNamesReadBack(final File tempDir, final String jarName, final int version,
+            final String[][] legacyAndUnicodeNames) throws Exception {
         final File jarFile = new File(tempDir, jarName);
         try (OutputStream fileOut = new FileOutputStream(jarFile);
                 ZipOutputStream zipOut = new ZipOutputStream(fileOut)) {
             for (final String[] names : legacyAndUnicodeNames) {
                 final ZipEntry entry = new ZipEntry(names[0]);
-                entry.setExtra(makeUnicodePathExtraField(names[1]));
+                entry.setExtra(makeUnicodePathExtraField(version, names[1]));
                 zipOut.putNextEntry(entry);
                 zipOut.write("contents".getBytes(StandardCharsets.UTF_8));
                 zipOut.closeEntry();
@@ -143,5 +166,16 @@ public class UnicodePathExtraFieldTest {
         assertThat(entryNamesReadBack(tempDir, "directory-unicode-path.jar", new String[][] {
                 { "pkg/dir.txt", "pkg/dir/" }, { "pkg/root.txt", "/" }, { "pkg/kept.txt", "pkg/kept.txt" } }))
                         .containsExactly("pkg/kept.txt");
+    }
+
+    /**
+     * Only version 1 of the Unicode path extra field is defined, so a field of any other version is ignored, and
+     * the entry keeps the name in its central directory record, as it does with java.util.zip.ZipFile, which does
+     * not read this extra field at all.
+     */
+    @Test
+    public void unicodePathExtraFieldOfAnUnknownVersionIsIgnored(@TempDir final File tempDir) throws Exception {
+        assertThat(entryNamesReadBack(tempDir, "unknown-version-unicode-path.jar", /* version = */ 2,
+                new String[][] { { LEGACY_NAME, UNICODE_NAME } })).containsExactly(LEGACY_NAME);
     }
 }

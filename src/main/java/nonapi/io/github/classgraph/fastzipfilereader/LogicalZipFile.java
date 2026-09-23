@@ -606,8 +606,8 @@ public class LogicalZipFile extends ZipFileSlice {
             for (long entOff = 0; entOff + 46 <= cenSize;) {
                 final long sig = cenReader.readUnsignedInt(entOff);
                 if (sig != 0x02014b50L) {
-                    throw new IOException("Invalid central directory signature: 0x"
-                            + Integer.toString((int) sig, 16) + ": " + getPath());
+                    throw new IOException(
+                            "Invalid central directory signature: 0x" + Long.toHexString(sig) + ": " + getPath());
                 }
                 final int filenameLen = cenReader.readUnsignedShort(entOff + 28);
                 final int extraFieldLen = cenReader.readUnsignedShort(entOff + 30);
@@ -639,8 +639,8 @@ public class LogicalZipFile extends ZipFileSlice {
             for (long entOff = 0; entOff + 46 <= cenSize; entOff += entSize) {
                 final long sig = cenReader.readUnsignedInt(entOff);
                 if (sig != 0x02014b50L) {
-                    throw new IOException("Invalid central directory signature: 0x"
-                            + Integer.toString((int) sig, 16) + ": " + getPath());
+                    throw new IOException(
+                            "Invalid central directory signature: 0x" + Long.toHexString(sig) + ": " + getPath());
                 }
                 final int filenameLen = cenReader.readUnsignedShort(entOff + 28);
                 final int extraFieldLen = cenReader.readUnsignedShort(entOff + 30);
@@ -798,8 +798,14 @@ public class LogicalZipFile extends ZipFileSlice {
                             // record, when this extra field has an empty data area.)
                             final int version = cenReader.readUnsignedByte(tagOff + 4 + 0);
                             if (version != 1) {
-                                throw new IOException("Unknown Unicode entry name format " + version
-                                        + " in extra field: " + entryNameSanitized);
+                                // Only version 1 is defined. The entry is still readable under the name in its
+                                // central directory record, which is the only name java.util.zip.ZipFile reads,
+                                // so keep that name rather than rejecting the whole zipfile
+                                if (log != null) {
+                                    log.log("Ignoring the Unicode entry name of zip entry, since its Unicode path "
+                                            + "extra field is of unknown version " + version + ": "
+                                            + entryNameSanitized);
+                                }
                             } else if (size > 5) {
                                 // Replace non-Unicode entry name with Unicode version. The data area of this
                                 // extra field is version(1) + nameCRC32(4) + name, so the name starts 5 bytes
