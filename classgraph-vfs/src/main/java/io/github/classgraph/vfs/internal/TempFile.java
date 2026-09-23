@@ -38,8 +38,8 @@ import io.github.classgraph.base.internal.path.PathSyntax;
 /**
  * The temporary files that nested jarfiles are extracted to, when a nested jarfile is deflated, or is too large to
  * buffer in RAM. A temporary file is owned by the slice that reads through it, and is deleted when that slice is
- * closed; the {@link File#deleteOnExit()} hook that {@link #create(String, boolean)} registers is the backstop for
- * a file that could not be deleted then.
+ * closed; the {@link File#deleteOnExit()} hook that {@link #create(String)} registers is the backstop for a file
+ * that could not be deleted then.
  */
 public final class TempFile {
     /** Not instantiable. */
@@ -54,6 +54,14 @@ public final class TempFile {
      * shell command or a log message without quoting.
      */
     private static final Pattern UNSAFE_FILENAME_CHARS = Pattern.compile("[\\x00-\\x1f\"*/:<>?\\\\|&= ]");
+
+    /**
+     * The most characters of a zip entry's leafname that are kept in the name of its temporary file. A filename is
+     * limited to 255 bytes on Linux and macOS, and to 255 UTF-16 characters on Windows. A UTF-16 character takes at
+     * most 3 bytes in UTF-8, so this leaves room for the prefix and the random number that
+     * {@link File#createTempFile(String, String)} adds.
+     */
+    private static final int MAX_LEAFNAME_LENGTH = 64;
 
     /**
      * Replace any character that is not valid in a filename on every supported platform with an underscore. Zip
@@ -72,18 +80,29 @@ public final class TempFile {
      * Create a temporary file, and mark it for deletion on exit. The caller owns the file that is returned, and
      * must delete it with {@link #delete(File)} once nothing is reading through it.
      *
-     * @param filePathBase
+     * <p>
+     * The file is named after the leafname of {@code path}, with any character that is not valid in a filename
+     * replaced, and with all but the last {@value #MAX_LEAFNAME_LENGTH} characters removed if it is longer than
+     * that.
+     *
+     * @param path
      *            The path to derive the temporary filename from.
-     * @param onlyUseLeafname
-     *            If true, only use the leafname of filePathBase to derive the temporary filename.
      * @return The temporary {@link File}.
      * @throws IOException
      *             If the temporary file could not be created.
      */
-    public static File create(final String filePathBase, final boolean onlyUseLeafname) throws IOException {
+    public static File create(final String path) throws IOException {
+        var leafname = sanitizeFilename(PathSyntax.simpleName(path));
+        if (leafname.length() > MAX_LEAFNAME_LENGTH) {
+            // Keep the end of the name, which holds the extension, without splitting a surrogate pair
+            var startIdx = leafname.length() - MAX_LEAFNAME_LENGTH;
+            if (Character.isLowSurrogate(leafname.charAt(startIdx))) {
+                startIdx++;
+            }
+            leafname = leafname.substring(startIdx);
+        }
         final var tempFile = File.createTempFile(PathSyntax.TEMP_FILENAME_PREFIX,
-                PathSyntax.TEMP_FILENAME_LEAF_SEPARATOR
-                        + sanitizeFilename(onlyUseLeafname ? PathSyntax.simpleName(filePathBase) : filePathBase));
+                PathSyntax.TEMP_FILENAME_LEAF_SEPARATOR + leafname);
         tempFile.deleteOnExit();
         return tempFile;
     }

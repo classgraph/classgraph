@@ -41,20 +41,35 @@ class TempFilenameSanitizationTest {
     /**
      * Every ASCII character that Windows rejects in a filename (the control characters, and {@code " * / < > ? \
      * |}), plus {@code :}, which Windows accepts but treats as the start of an NTFS alternate data stream. Linux
-     * and macOS reject only {@code /}. (Measured on real GitHub Actions runners for all three platforms.)
+     * and macOS reject only {@code /}, which is left out here, since the temporary file is named after the part of
+     * the entry name after its last {@code /}. (Measured on real GitHub Actions runners for all three platforms.)
      */
-    private static final String UNSAFE_CHARS = "\b\t\n\f\r\"*/:<>?\\|";
+    private static final String UNSAFE_CHARS = "\b\t\n\f\r\"*:<>?\\|";
 
     /** A nested jar whose entry name is not a valid filename must still get a temporary file. */
     @Test
     void unsafeCharactersInEntryNameAreReplaced() throws Exception {
-        final var tempFile = TempFile.create("BOOT-INF/lib/na" + UNSAFE_CHARS + "me.jar",
-                /* onlyUseLeafname = */ false);
+        final var tempFile = TempFile.create("BOOT-INF/lib/na" + UNSAFE_CHARS + "me.jar");
         try {
             assertThat(tempFile).exists();
             for (var i = 0; i < UNSAFE_CHARS.length(); i++) {
                 assertThat(tempFile.getName()).doesNotContain(UNSAFE_CHARS.substring(i, i + 1));
             }
+        } finally {
+            assertThat(TempFile.delete(tempFile)).isTrue();
+        }
+    }
+
+    /**
+     * A zip entry name can be any length, but a filename is limited to 255 bytes on Linux and macOS, and to 255
+     * UTF-16 characters on Windows, so a nested jar with a long name must still get a temporary file.
+     */
+    @Test
+    void aLongEntryNameIsShortened() throws Exception {
+        final var tempFile = TempFile.create("BOOT-INF/lib/" + "é".repeat(300) + ".jar");
+        try {
+            assertThat(tempFile).exists();
+            assertThat(tempFile.getName()).endsWith("é.jar");
         } finally {
             assertThat(TempFile.delete(tempFile)).isTrue();
         }

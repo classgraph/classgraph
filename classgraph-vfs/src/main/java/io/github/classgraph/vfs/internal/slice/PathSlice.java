@@ -393,7 +393,7 @@ public final class PathSlice extends Slice {
      * slice is closed.
      *
      * @param tempFile
-     *            the temporary file, as returned by {@link TempFile#create(String, boolean)}.
+     *            the temporary file, as returned by {@link TempFile#create(String)}.
      * @param vfs
      *            the {@link Vfs} that opened this slice
      * @param log

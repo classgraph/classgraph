@@ -270,7 +270,7 @@ public abstract class Slice implements AutoCloseable {
         // Create temp file
         File tempFile;
         try {
-            tempFile = TempFile.create(tempFileBaseName, /* onlyUseLeafname = */ true);
+            tempFile = TempFile.create(tempFileBaseName);
         } catch (final IOException e) {
             // Chain the cause, so that the reason the temporary file could not be created is reachable from the
             // stack trace
