@@ -41,8 +41,8 @@ import org.jspecify.annotations.Nullable;
 
 // TODO: once ClassGraph's minimum supported JDK version is 21 or later, this sealed hierarchy lets a pattern switch
 // over a TypeSignature list BaseTypeSignature, ArrayTypeSignature, ClassRefTypeSignature and TypeVariableSignature
-// with no default case. Mention this in the javadoc below, and use such a switch wherever ClassGraph tests for more
-// than one of these subclasses in turn (none does at present).
+// with no default case. Mention this in the javadoc below. Each place that tests for more than one of these
+// subclasses in turn, and so could use such a switch, has a TODO of its own.
 
 /**
  * A type signature for a reference type or base type. Subclasses are {@link ReferenceTypeSignature} (whose own
@@ -249,6 +249,7 @@ public abstract sealed class TypeSignature extends HierarchicalTypeSignature
      *            the buffer to append to
      */
     private static void toTypeSignatureStr(final HierarchicalTypeSignature typeSignature, final StringBuilder buf) {
+        // TODO: once ClassGraph's minimum supported JDK version is 21 or later, make this a pattern switch
         if (typeSignature instanceof final BaseTypeSignature baseTypeSignature) {
             buf.append(baseTypeSignature.getTypeSignatureChar());
         } else if (typeSignature instanceof final ArrayTypeSignature arrayTypeSignature) {

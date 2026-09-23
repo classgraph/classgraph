@@ -395,6 +395,8 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
      */
     private static boolean boundIsReconcilableWith(final ReferenceTypeSignature bound,
             final ClassRefTypeSignature other, final Set<String> visitedTypeVariableNames) {
+        // TODO: once ClassGraph's minimum supported JDK version is 21 or later, make this a pattern switch over the
+        // sealed ReferenceTypeSignature hierarchy, with an explicit ArrayTypeSignature case
         if (bound instanceof final ClassRefTypeSignature classRefBound) {
             // A type variable with no bound of its own is written into the classfile with java.lang.Object as its
             // bound, and java.lang.Object can be reconciled with any type. Otherwise the bound is compared with the

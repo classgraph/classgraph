@@ -93,6 +93,8 @@ public final class AnnotationClassRef extends ScanResultObject {
         var name = className;
         if (name == null) {
             final var typeSig = getTypeSignature();
+            // TODO: once ClassGraph's minimum supported JDK version is 21 or later, make this a pattern switch over
+            // the sealed TypeSignature hierarchy, with an explicit TypeVariableSignature case in place of the else
             if (typeSig instanceof final BaseTypeSignature baseTypeSignature) {
                 name = baseTypeSignature.getTypeName();
             } else if (typeSig instanceof final ClassRefTypeSignature classRefTypeSignature) {

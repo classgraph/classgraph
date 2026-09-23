@@ -64,6 +64,7 @@ public class ReturnedListsAreUnmodifiableTest {
             return;
         }
         objects.add(typeSignature);
+        // TODO: once the tests compile at Java 21 or later, make this a pattern switch
         if (typeSignature instanceof final ClassRefTypeSignature classRefTypeSignature) {
             for (final TypeArgument typeArgument : classRefTypeSignature.getTypeArguments()) {
                 addTypeSignature(typeArgument.getTypeSignature(), objects);

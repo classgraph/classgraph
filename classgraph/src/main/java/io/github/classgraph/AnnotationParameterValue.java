@@ -284,6 +284,7 @@ public final class AnnotationParameterValue extends ScanResultObject
                 throw new IllegalArgumentException("Annotations only support 1-dimensional arrays");
             }
             final var elementTypeSig = arrayTypeSig.getElementTypeSignature();
+            // TODO: once ClassGraph's minimum supported JDK version is 21 or later, make this a pattern switch
             if (elementTypeSig instanceof final ClassRefTypeSignature classRefTypeSignature) {
                 // Look up the name of the element type, for non-primitive arrays
                 return classRefTypeSignature.getClassName();
