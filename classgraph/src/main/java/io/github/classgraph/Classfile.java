@@ -857,29 +857,6 @@ class Classfile {
     }
 
     /**
-     * Get the first UTF8 byte of a string in the constant pool, or '\0' if the string is null or empty.
-     *
-     * @param cpIdx
-     *            the constant pool index
-     * @return the first byte of the constant pool string
-     * @throws ClassfileFormatException
-     *             If a problem occurs.
-     * @throws IOException
-     *             If an IO exception occurs.
-     */
-    private byte getConstantPoolStringFirstByte(final int cpIdx) throws ClassfileFormatException, IOException {
-        final var constantPoolStringOffset = getConstantPoolStringOffset(cpIdx, /* subFieldIdx = */ 0);
-        if (constantPoolStringOffset == 0) {
-            return '\0';
-        }
-        final var utfLen = reader().readUnsignedShort(constantPoolStringOffset);
-        if (utfLen == 0) {
-            return '\0';
-        }
-        return reader().readByte(constantPoolStringOffset + 2L);
-    }
-
-    /**
      * Get a string from the constant pool, and interpret it as a class name by replacing '/' with '.'.
      *
      * @param cpIdx
@@ -981,54 +958,40 @@ class Classfile {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get a field constant from the constant pool.
+     * Get the value of a field's {@code ConstantValue} attribute from the constant pool.
      *
-     * @param tag
-     *            the tag
-     * @param fieldTypeDescriptorFirstChar
-     *            the first char of the field type descriptor
      * @param cpIdx
-     *            the constant pool index
-     * @return the field constant pool value, or null if the constant pool entry is a null string reference
+     *            the constant pool index held by the {@code ConstantValue} attribute
+     * @param fieldTypeDescriptor
+     *            the field type descriptor
+     * @return the constant value, or null if the constant pool entry does not hold a value of the field's type
      * @throws ClassfileFormatException
      *             If a problem occurs.
      * @throws IOException
      *             If an IO exception occurs.
      */
-    private @Nullable Object getFieldConstantPoolValue(final int tag, final char fieldTypeDescriptorFirstChar,
-            final int cpIdx) throws ClassfileFormatException, IOException {
-        return switch (tag) {
+    private @Nullable Object getFieldConstantPoolValue(final int cpIdx, final String fieldTypeDescriptor)
+            throws ClassfileFormatException, IOException {
+        if (cpIdx < 1 || cpIdx >= cpCount) {
+            return null;
+        }
+        return switch (entryTag[cpIdx]) {
         // 8 => String. The JVMS (table 4.7.2-A) allows only CONSTANT_String for a String constant, but a
         // CONSTANT_Utf8 (1) or CONSTANT_Class (7) entry is read as its string rather than rejected
-        case 1, 7, 8 ->
-            // Forward or backward indirect reference to a modified UTF8 entry
-            getConstantPoolString(cpIdx);
-        case 3 -> {
-            // int, short, char, byte, boolean are all represented by CONSTANT_Integer
-            final var intVal = cpReadInt(cpIdx);
-            yield switch (fieldTypeDescriptorFirstChar) {
-            case 'I' -> intVal;
-            case 'S' -> (short) intVal;
-            case 'C' -> (char) intVal;
-            case 'B' -> (byte) intVal;
-            case 'Z' -> intVal != 0;
-            default -> throw new ClassfileFormatException("Unknown CONSTANT_Integer type "
-                    + fieldTypeDescriptorFirstChar + ", cannot continue reading class. Please report this at "
-                    + "https://github.com/classgraph/classgraph/issues");
-            };
-        }
-        case 4 -> // float
-            Float.intBitsToFloat(cpReadInt(cpIdx));
-        case 5 -> // long
-            cpReadLong(cpIdx);
-        case 6 -> // double
-            Double.longBitsToDouble(cpReadLong(cpIdx));
-        default ->
-            // ClassGraph doesn't expect other types (N.B. in particular, enum values are not stored in the constant
-            // pool, so don't need to be handled)
-            throw new ClassfileFormatException("Unknown field constant pool tag " + tag + ", "
-                    + "cannot continue reading class. Please report this at "
-                    + "https://github.com/classgraph/classgraph/issues");
+        case 1, 7, 8 -> fieldTypeDescriptor.equals("Ljava/lang/String;") ? getConstantPoolString(cpIdx) : null;
+        // int, short, char, byte and boolean are all represented by CONSTANT_Integer
+        case 3 -> switch (fieldTypeDescriptor) {
+        case "I" -> cpReadInt(cpIdx);
+        case "S" -> (short) cpReadInt(cpIdx);
+        case "C" -> (char) cpReadInt(cpIdx);
+        case "B" -> (byte) cpReadInt(cpIdx);
+        case "Z" -> cpReadInt(cpIdx) != 0;
+        default -> null;
+        };
+        case 4 -> fieldTypeDescriptor.equals("F") ? Float.intBitsToFloat(cpReadInt(cpIdx)) : null;
+        case 5 -> fieldTypeDescriptor.equals("J") ? cpReadLong(cpIdx) : null;
+        case 6 -> fieldTypeDescriptor.equals("D") ? Double.longBitsToDouble(cpReadLong(cpIdx)) : null;
+        default -> null;
         };
     }
 
@@ -1652,7 +1615,6 @@ class Classfile {
         final var fieldNameCpIdx = reader().readUnsignedShort();
         final var fieldName = requireConstantPoolString(getConstantPoolString(fieldNameCpIdx), "field name");
         final var fieldTypeDescriptorCpIdx = reader().readUnsignedShort();
-        final var fieldTypeDescriptorFirstChar = (char) getConstantPoolStringFirstByte(fieldTypeDescriptorCpIdx);
         final var fieldTypeDescriptor = requireConstantPoolString(getConstantPoolString(fieldTypeDescriptorCpIdx),
                 "field type descriptor");
 
@@ -1665,16 +1627,15 @@ class Classfile {
             final var attributeNameCpIdx = reader().readUnsignedShort();
             final var attributeLength = reader().readInt();
             // Read the field's constant initializer value, if any. This is read for non-static fields too, even
-            // though the JVM ignores it for them (JVMS 4.7.2)
+            // though the JVM ignores it for them (JVMS 4.7.2). Because the JVM ignores it, a non-static field's
+            // ConstantValue attribute can have the wrong length or hold a value of the wrong type, and the class
+            // still loads, so such an attribute is ignored here rather than rejected.
             if (getStaticFinalFieldConstValue && constantPoolStringEquals(attributeNameCpIdx, "ConstantValue")) {
-                // http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.7.2
-                final var cpIdx = reader().readUnsignedShort();
-                if (cpIdx < 1 || cpIdx >= cpCount) {
-                    throw new ClassfileFormatException("Constant pool index " + cpIdx + ", should be in range [1, "
-                            + (cpCount - 1) + "] -- cannot continue reading class. "
-                            + "Please report this at https://github.com/classgraph/classgraph/issues");
+                if (attributeLength == 2) {
+                    fieldConstValue = getFieldConstantPoolValue(reader().readUnsignedShort(), fieldTypeDescriptor);
+                } else {
+                    reader().skip(attributeLength);
                 }
-                fieldConstValue = getFieldConstantPoolValue(entryTag[cpIdx], fieldTypeDescriptorFirstChar, cpIdx);
             } else if (constantPoolStringEquals(attributeNameCpIdx, "Signature")) {
                 fieldTypeSignatureStr = getConstantPoolString(reader().readUnsignedShort());
             } else if (isAnnotationsAttribute(attributeNameCpIdx)) {

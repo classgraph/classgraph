@@ -230,15 +230,16 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
     }
 
     /**
-     * Returns the constant initializer value of a field. Requires
-     * {@link ClassGraph#enableStaticFinalFieldConstantInitializerValues()} to have been called. Will only return
-     * non-null for fields that have constant initializers, which is usually only fields of primitive type, or
-     * String constants. Also note that it is up to the compiler as to whether or not a constant-valued field is
-     * assigned as a constant in the field definition itself, or whether it is assigned manually in static or
-     * non-static class initializer blocks or the constructor -- so your mileage may vary in being able to extract
-     * constant initializer values.
+     * Returns the constant initializer value of a field, which is the value stored in the field's
+     * {@code ConstantValue} attribute in the classfile. Requires
+     * {@link ClassGraph#enableStaticFinalFieldConstantInitializerValues()} to have been called. javac stores a
+     * constant initializer value for a final field of primitive or String type whose initializer is a constant
+     * expression, e.g. {@code static final int X = 5;}. A field that is initialized any other way, or that is
+     * assigned in an initializer block or a constructor, has no constant initializer value. See
+     * {@link ClassGraph#enableStaticFinalFieldConstantInitializerValues()} for non-static fields.
      *
-     * @return The initializer value, if this field has a constant initializer value, or null if none.
+     * @return The constant initializer value (a boxed primitive or a String), or null if the field has none, or if
+     *         the classfile stores a value that does not fit the field's type.
      * @throws IllegalStateException
      *             if {@link ClassGraph#enableStaticFinalFieldConstantInitializerValues()} was not called prior to
      *             initiating the scan.
