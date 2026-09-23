@@ -1021,8 +1021,15 @@ public final class ScanResult implements AutoCloseable {
     // Classes
 
     /**
-     * Get the {@link ClassInfo} object for the named class, or null if no class of the requested name was found in
-     * an accepted/non-rejected package during the scan.
+     * Get the {@link ClassInfo} object for the named class, or null if there is none.
+     *
+     * <p>
+     * There is a {@link ClassInfo} object for each class found in the accepted packages, and also for classes
+     * outside them that the scan came across: the superclasses, interfaces, annotations, and outer and nested
+     * classes of the classes it read, and, if {@link ClassGraph#enableInterClassDependencies()} was called, every
+     * class that a class in the accepted packages refers to. So unlike {@link #getAllClasses()}, this can return an
+     * external class even if {@link ClassGraph#enableExternalClasses()} was not called, and
+     * {@link ClassInfo#isExternalClass()} then returns true.
      *
      * @param className
      *            The fully-qualified name of the class, in the same form as {@link Class#getName()}: {@code '.'}
@@ -1080,7 +1087,7 @@ public final class ScanResult implements AutoCloseable {
 
     /**
      * Get a map from class name to {@link ClassInfo} object for all classes, interfaces and annotations found
-     * during the scan.
+     * during the scan. The map holds the same classes as {@link #getAllClasses()}.
      *
      * @return An unmodifiable map from class name to {@link ClassInfo} object for all classes, interfaces and
      *         annotations found during the scan, sorted by class name.
@@ -1089,10 +1096,7 @@ public final class ScanResult implements AutoCloseable {
      *             called before scanning.
      */
     public Map<String, ClassInfo> getAllClassesAsMap() {
-        checkClassInfoEnabled();
-        // Copied into a sorted map rather than wrapped, since classes are collected into a hash map by the
-        // scanning threads, which leaves the hash map's iteration order undefined
-        return Collections.unmodifiableMap(new TreeMap<>(classNameToClassInfo));
+        return getAllClasses().asMap();
     }
 
     /**
