@@ -84,6 +84,36 @@ public class ClasspathOrderTest {
     }
 
     /**
+     * A "/*" suffix adds only the directory entries whose names end in ".jar" or ".JAR", as the java launcher does.
+     * The launcher decides by the name alone, so a hidden jarfile and a directory named like a jarfile are added
+     * too, and a subdirectory, a zipfile or a ".Jar" file is not.
+     *
+     * @param tempDir
+     *            the temporary directory to create the directory entries in.
+     * @throws IOException
+     *             if a directory entry could not be created.
+     */
+    @Test
+    public void wildcardDirectoriesAddOnlyJarfiles(@TempDir final Path tempDir) throws IOException {
+        final List<String> expected = new ArrayList<>();
+        for (final String name : new String[] { "a.jar", "b.JAR", ".hidden.jar", "c.zip", "d.txt", "jar",
+                "e.jar.bak", "f.Jar" }) {
+            Files.write(tempDir.resolve(name), new byte[] { 'P', 'K' });
+            if (name.endsWith(".jar") || name.endsWith(".JAR")) {
+                expected.add(FastPathResolver.resolveFilePath(FileUtils.currDirPath(),
+                        tempDir.resolve(name).toString()));
+            }
+        }
+        Files.createDirectory(tempDir.resolve("sub"));
+        expected.add(FastPathResolver.resolveFilePath(FileUtils.currDirPath(),
+                Files.createDirectory(tempDir.resolve("dir.jar")).toString()));
+        final ScanSpec scanSpec = new ScanSpec();
+        final ClasspathOrder classpathOrder = new ClasspathOrder(scanSpec, new ReflectionUtils());
+        assertThat(classpathOrder.addClasspathEntry(tempDir + "/*", null, scanSpec, null)).isTrue();
+        assertThat(classpathOrder.getClasspathEntryUniqueResolvedPaths()).containsExactlyInAnyOrderElementsOf(expected);
+    }
+
+    /**
      * Every classpath element is offered to the URL filters, including the ones whose "file:" or "jar:file:" scheme
      * was stripped off when their path was resolved.
      */

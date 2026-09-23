@@ -520,8 +520,9 @@ public class ClasspathOrder {
             if (baseDirFiles != null) {
                 for (final File fileInDir : baseDirFiles) {
                     final String name = fileInDir.getName();
-                    if (!name.equals(".") && !name.equals("..")) {
-                        // Add each directory entry as a classpath element
+                    // The java launcher adds only the entries whose names end in ".jar" or ".JAR" (not ".Jar"), and
+                    // decides by the name alone, so it also adds a directory with such a name
+                    if (name.endsWith(".jar") || name.endsWith(".JAR")) {
                         final String fileInDirPath = fileInDir.getPath();
                         final String fileInDirPathResolved = FastPathResolver
                                 .resolveFilePath(FileUtils.currDirPath(), fileInDirPath);

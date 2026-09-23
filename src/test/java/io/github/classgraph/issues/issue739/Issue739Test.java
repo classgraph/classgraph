@@ -28,9 +28,11 @@ public class Issue739Test {
                 }
             });
         }
-        assertThat(paths).contains("issue673/a.zip");
-        assertThat(paths).contains("multi-release-jar.src.zip!/multi-release-jar/src/main/java-9/module-info.java");
-        assertThat(paths).contains("zip64.zip!/10046");
         assertThat(paths).contains("record.jar!/pkg/Record.class");
+        // As in the java launcher, only the jarfiles in the directory are added, not zipfiles or subdirectories
+        for (final String path : paths) {
+            assertThat(path).doesNotContain(".zip!/");
+        }
+        assertThat(paths).doesNotContain("issue673/a.zip");
     }
 }
