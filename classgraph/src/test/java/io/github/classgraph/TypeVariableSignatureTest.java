@@ -80,6 +80,42 @@ public class TypeVariableSignatureTest {
         public <M extends ClassBound> M methodScoped(final M param) {
             return param;
         }
+
+        /**
+         * A method that declares a type variable that shadows the class' {@code T}.
+         *
+         * @param <T>
+         *            a type variable declared by the method.
+         * @param param
+         *            a parameter of the method's own type variable's type.
+         */
+        @SuppressWarnings("hiding")
+        public <T extends InterfaceBound> void shadowing(final T param) {
+        }
+
+        /**
+         * Another method that declares a type variable that shadows the class' {@code T}, with a different bound.
+         *
+         * @param <T>
+         *            a type variable declared by the method.
+         * @param param
+         *            a parameter of the method's own type variable's type.
+         */
+        @SuppressWarnings("hiding")
+        public <T> void alsoShadowing(final T param) {
+        }
+
+        /** An inner class, which can use the type variables of the class it is declared in. */
+        public class Inner {
+            /** A field of the enclosing class' type variable's type. */
+            public T innerField;
+
+            /** An inner class of an inner class. */
+            public class Deeper {
+                /** A field of the outermost class' type variable's type. */
+                public U deeperField;
+            }
+        }
     }
 
     /**
@@ -198,6 +234,22 @@ public class TypeVariableSignatureTest {
         }
     }
 
+    /** A type variable used in an inner class resolves to the type parameter of the class it is nested in. */
+    @Test
+    public void aTypeVariableUsedInAnInnerClassResolvesToTheTypeParameterOfTheEnclosingClass() {
+        try (var scanResult = new ClassGraph().enableClasspath()
+                .acceptClasses(GENERIC, Generic.Inner.class.getName(), Generic.Inner.Deeper.class.getName())
+                .enableClassInfo().enableFieldInfo().scan()) {
+            final var inInner = (TypeVariableSignature) scanResult.getClassInfo(Generic.Inner.class.getName())
+                    .getFieldInfo("innerField").getTypeSignatureOrTypeDescriptor();
+            assertThat(inInner.resolve().toString()).isEqualTo("T extends " + ClassBound.class.getName());
+            final var inDeeper = (TypeVariableSignature) scanResult
+                    .getClassInfo(Generic.Inner.Deeper.class.getName()).getFieldInfo("deeperField")
+                    .getTypeSignatureOrTypeDescriptor();
+            assertThat(inDeeper.resolve().toString()).isEqualTo("U extends " + InterfaceBound.class.getName());
+        }
+    }
+
     /** A type variable that is used outside any class resolves to an unbounded type parameter of its own name. */
     // #706
     @Test
@@ -265,6 +317,32 @@ public class TypeVariableSignatureTest {
 
         assertThat(typeVariable.equalsIgnoringTypeParams(otherClass)).isTrue();
         assertThat(typeVariable.equalsIgnoringTypeParams(differentName)).isFalse();
+    }
+
+    /**
+     * A type variable declared by a method does not equal a type variable of the same name declared by the class,
+     * but the type variables of two methods that each declare one of the same name are equal.
+     */
+    @Test
+    public void aTypeVariableDeclaredByAMethodDoesNotEqualOneDeclaredByTheClass() {
+        try (var scanResult = scan()) {
+            final var classInfo = scanResult.getClassInfo(GENERIC);
+            final var shadowing = classInfo.getMethodInfo("shadowing").get(0).getTypeSignatureOrTypeDescriptor();
+            final var alsoShadowing = classInfo.getMethodInfo("alsoShadowing").get(0)
+                    .getTypeSignatureOrTypeDescriptor();
+            final var methodT = shadowing.getParameterTypeSignatures().get(0);
+            final var otherMethodT = alsoShadowing.getParameterTypeSignatures().get(0);
+            final var classT = typeVariable(scanResult, "classBounded");
+
+            assertThat(methodT).isNotEqualTo(classT);
+            assertThat(classT).isNotEqualTo(methodT);
+            assertThat(methodT).isEqualTo(otherMethodT).hasSameHashCodeAs(otherMethodT);
+            // The two method signatures differ in the bounds of their type parameters
+            assertThat(shadowing).isNotEqualTo(alsoShadowing);
+            assertThat(((TypeVariableSignature) methodT).resolve().toString())
+                    .isEqualTo("T extends " + InterfaceBound.class.getName());
+            assertThat(((TypeVariableSignature) otherMethodT).resolve().toString()).isEqualTo("T");
+        }
     }
 
     /** Every type variable can be reconciled with {@link Object}, whatever its bounds. */

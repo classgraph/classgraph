@@ -47,12 +47,17 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
     /** The type variable name. */
     private final String name;
 
-    /** The name of the class that this type variable is defined in. */
+    /**
+     * The name of the class that this type variable is used in, which may be nested in the class that declares it.
+     */
     private final @Nullable String definingClassName;
 
-    /** The method signature that this type variable is part of. */
+    /**
+     * The type parameter that declares this type variable, if it is declared by the method whose signature this
+     * type variable is part of, otherwise null.
+     */
     @Nullable
-    MethodTypeSignature containingMethodSignature;
+    TypeParameter methodTypeParameter;
 
     /** The resolved type parameter, if any. */
     private @Nullable TypeParameter typeParameterCached;
@@ -85,14 +90,19 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
     }
 
     /**
-     * Look up a type variable (e.g. "T") in the defining method and/or enclosing class' type parameters, and return
-     * the type parameter with the same name (e.g. "T extends com.xyz.Cls").
+     * Look up a type variable (e.g. "T") in the type parameters of the method whose signature it is part of, then
+     * in those of the class it is used in, then, if that class is an inner member class, in those of the classes it
+     * is nested in, and return the type parameter with the same name (e.g. "T extends com.xyz.Cls").
+     *
+     * <p>
+     * A type variable declared by a method that a local or anonymous class is declared in is not found, since the
+     * classfile does not record which overload of the method that is.
      *
      * @return the type parameter (e.g. "T extends com.xyz.Cls", or simply "T" if the type parameter does not have
-     *         any bounds). If no type parameter of the same name is declared by the defining method or the
-     *         enclosing class, an unbounded type parameter with just the type variable's name is returned.
+     *         any bounds). If no type parameter of the same name is found, an unbounded type parameter with just
+     *         the type variable's name is returned.
      * @throws IllegalStateException
-     *             if the enclosing class was not found during the scan.
+     *             if the class that the type variable is used in was not found during the scan.
      */
     // #706
     public TypeParameter resolve() {
@@ -100,35 +110,33 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
         if (cached != null) {
             return cached;
         }
-        // Try resolving the type variable against the containing method
-        final var methodSignature = containingMethodSignature;
-        if (methodSignature != null && !methodSignature.typeParameters.isEmpty()) {
-            for (final TypeParameter typeParameter : methodSignature.typeParameters) {
-                if (typeParameter.name.equals(this.name)) {
-                    typeParameterCached = typeParameter;
-                    return typeParameter;
-                }
-            }
+        final var declaredByMethod = methodTypeParameter;
+        if (declaredByMethod != null) {
+            typeParameterCached = declaredByMethod;
+            return declaredByMethod;
         }
-        // If that failed, try resolving the type variable against the containing class
         if (getClassName() != null) {
             final var containingClassInfo = getClassInfo();
             if (containingClassInfo == null) {
                 throw new IllegalStateException("Could not find ClassInfo object for " + definingClassName);
             }
-            ClassTypeSignature containingClassSignature = null;
-            try {
-                containingClassSignature = containingClassInfo.getTypeSignature();
-            } catch (final Exception e) {
-                // The class signature of a corrupt classfile may not parse. Treat the class as declaring no type
-                // parameters, so that the type variable is returned unbounded below.
-            }
-            if (containingClassSignature != null && !containingClassSignature.typeParameters.isEmpty()) {
-                for (final TypeParameter typeParameter : containingClassSignature.typeParameters) {
-                    if (typeParameter.name.equals(this.name)) {
-                        typeParameterCached = typeParameter;
-                        return typeParameter;
-                    }
+            // The enclosing classes are listed innermost first. Only an inner member class can use the type
+            // variables of the class it is declared in, and a class that was not read may declare the name too, so
+            // stop at a static, local or anonymous class, and at a class that was not read.
+            final var enclosingClasses = containingClassInfo.enclosingClassesIncludingExternal();
+            var classInfo = containingClassInfo;
+            for (var i = 0;; i++) {
+                final var typeParameter = findClassTypeParameter(classInfo);
+                if (typeParameter != null) {
+                    typeParameterCached = typeParameter;
+                    return typeParameter;
+                }
+                if (i == enclosingClasses.size() || !classInfo.isMemberClass() || classInfo.isStatic()) {
+                    break;
+                }
+                classInfo = enclosingClasses.get(i);
+                if (!classInfo.isScannedClass) {
+                    break;
                 }
             }
         }
@@ -138,6 +146,31 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
         typeParameter.setScanResult(scanResult);
         typeParameterCached = typeParameter;
         return typeParameter;
+    }
+
+    /**
+     * Find the type parameter of a class that has the name of this type variable.
+     *
+     * @param classInfo
+     *            the class.
+     * @return the type parameter, or null if the class declares no type parameter of that name.
+     */
+    private @Nullable TypeParameter findClassTypeParameter(final ClassInfo classInfo) {
+        ClassTypeSignature classSignature = null;
+        try {
+            classSignature = classInfo.getTypeSignature();
+        } catch (final Exception e) {
+            // The class signature of a corrupt classfile may not parse. Treat the class as declaring no type
+            // parameters.
+        }
+        if (classSignature != null) {
+            for (final TypeParameter typeParameter : classSignature.typeParameters) {
+                if (typeParameter.name.equals(name)) {
+                    return typeParameter;
+                }
+            }
+        }
+        return null;
     }
 
     /**
@@ -154,13 +187,8 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
     TypeArgument substitution(final Map<String, TypeArgument> substitutions) {
         // A type variable declared by the method itself shadows any type variable of the same name declared by the
         // enclosing class, and is not bound by the context class
-        final var methodSignature = containingMethodSignature;
-        if (methodSignature != null) {
-            for (final TypeParameter typeParameter : methodSignature.typeParameters) {
-                if (typeParameter.getName().equals(name)) {
-                    return null;
-                }
-            }
+        if (methodTypeParameter != null) {
+            return null;
         }
         return substitutions.get(TypeSignature.substitutionKey(definingClassName, name));
     }
@@ -262,9 +290,17 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
 
     @Override
     public int hashCode() {
-        return Objects.hash(name, definingClassName);
+        return (name.hashCode() * 31 + Objects.hashCode(definingClassName)) * 2
+                + (methodTypeParameter == null ? 0 : 1);
     }
 
+    /**
+     * Two type variables are equal if they have the same name and type annotations, are used in the same class, and
+     * are either both declared by the method whose signature they are part of, or both not. So the {@code T} of a
+     * method that declares {@code <T>} does not equal a {@code T} declared by the class, but the {@code T}s of two
+     * methods that each declare {@code <T>} are equal, as are the signatures of {@code <T> void a(T t)} and
+     * {@code <T> void b(T t)}, even though the two {@code T}s may have different bounds.
+     */
     @Override
     public boolean equals(final @Nullable Object obj) {
         if (obj == this) {
@@ -274,12 +310,13 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
             return false;
         }
         return other.name.equals(this.name) && Objects.equals(other.definingClassName, this.definingClassName)
+                && (other.methodTypeParameter == null) == (this.methodTypeParameter == null)
                 && Objects.equals(other.typeAnnotations, this.typeAnnotations);
     }
 
     @Override
     public boolean equalsIgnoringTypeParams(final @Nullable TypeSignature other) {
-        return equalsIgnoringTypeParams(other, new HashSet<>());
+        return equalsIgnoringTypeParams(other, null);
     }
 
     /**
@@ -287,18 +324,19 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
      *
      * @param other
      *            the other type signature to compare to, or null.
-     * @param visitedTypeVariableNames
+     * @param visited
      *            the names of the type variables whose bounds are already being compared, so that a chain of type
-     *            variable bounds that loops back on itself is not followed forever.
+     *            variable bounds that loops back on itself is not followed forever, or null if none are.
      * @return true if the two type signatures are equal, ignoring type parameters.
      */
     private boolean equalsIgnoringTypeParams(final @Nullable TypeSignature other,
-            final Set<String> visitedTypeVariableNames) {
+            final @Nullable Set<String> visited) {
         if (other instanceof final ClassRefTypeSignature otherClassRef) {
             if ("java.lang.Object".equals(otherClassRef.className)) {
                 // java.lang.Object can be reconciled with any type, so it can be reconciled with any type variable
                 return true;
             }
+            final var visitedTypeVariableNames = visited == null ? new HashSet<String>() : visited;
             if (!visitedTypeVariableNames.add(name)) {
                 // Cyclic type variable bounds ("class C<A extends B, B extends A>") are rejected by javac, but a
                 // classfile can still contain them, so stop rather than following the cycle forever

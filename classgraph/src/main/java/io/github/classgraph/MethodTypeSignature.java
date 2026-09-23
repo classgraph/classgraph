@@ -350,10 +350,15 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
         }
         final MethodTypeSignature methodSignature = new MethodTypeSignature(typeParameters, paramTypes, resultType,
                 throwsSignatures);
-        // Add back-links from type variable signature to the method signature it is part of, and to the enclosing
-        // class' type signature
+        // Link each type variable declared by this method to its type parameter. Any other type variable is declared
+        // by the class.
         for (final TypeVariableSignature typeVariableSignature : parser.getTypeVariableSignatures()) {
-            typeVariableSignature.containingMethodSignature = methodSignature;
+            for (final TypeParameter typeParameter : typeParameters) {
+                if (typeParameter.name.equals(typeVariableSignature.getName())) {
+                    typeVariableSignature.methodTypeParameter = typeParameter;
+                    break;
+                }
+            }
         }
         return methodSignature;
     }

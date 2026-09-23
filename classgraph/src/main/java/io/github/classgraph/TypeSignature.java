@@ -142,24 +142,9 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
             }
             return;
         }
-        // A type variable that appears within a class signature has no defining class name recorded (unlike one in
-        // a method or field signature), so alias the bindings of this class' own type parameters under the key that
-        // those type variables will look themselves up by, in order to compose them
-        var composeWith = substitutions;
-        final var ownTypeParameters = classSignature.getTypeParameters();
-        if (!ownTypeParameters.isEmpty()) {
-            composeWith = new HashMap<>(substitutions);
-            for (final TypeParameter ownTypeParameter : ownTypeParameters) {
-                final var binding = substitutions
-                        .get(substitutionKey(classInfo.getName(), ownTypeParameter.getName()));
-                if (binding != null) {
-                    composeWith.put(substitutionKey(null, ownTypeParameter.getName()), binding);
-                }
-            }
-        }
-        addSupertypeSubstitutions(classSignature.getSuperclassSignature(), substitutions, composeWith, visited);
+        addSupertypeSubstitutions(classSignature.getSuperclassSignature(), substitutions, visited);
         for (final ClassRefTypeSignature superinterfaceSignature : classSignature.getSuperinterfaceSignatures()) {
-            addSupertypeSubstitutions(superinterfaceSignature, substitutions, composeWith, visited);
+            addSupertypeSubstitutions(superinterfaceSignature, substitutions, visited);
         }
     }
 
@@ -170,16 +155,13 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
      * @param supertypeSignature
      *            the signature of the supertype, as referenced by the subclass.
      * @param substitutions
-     *            the substitution map to add to.
-     * @param composeWith
-     *            the substitution map to compose the supertype's type arguments with, i.e. the bindings that the
-     *            subclass' own type parameters already have.
+     *            the substitution map to add to, which already holds the bindings of the subclass' own type
+     *            parameters.
      * @param visited
      *            the names of the classes already visited.
      */
     private static void addSupertypeSubstitutions(final @Nullable ClassRefTypeSignature supertypeSignature,
-            final Map<String, TypeArgument> substitutions, final Map<String, TypeArgument> composeWith,
-            final Set<String> visited) {
+            final Map<String, TypeArgument> substitutions, final Set<String> visited) {
         if (supertypeSignature == null) {
             return;
         }
@@ -188,13 +170,13 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
         // all attached to the last level), so bind the type parameters of each level in turn
         final StringBuilder classNameBuf = new StringBuilder(supertypeSignature.getBaseClassName());
         addTypeArgumentSubstitutions(supertypeSignature, classNameBuf.toString(),
-                supertypeSignature.getTypeArguments(), substitutions, composeWith);
+                supertypeSignature.getTypeArguments(), substitutions);
         final var suffixes = supertypeSignature.getSuffixes();
         final var suffixTypeArguments = supertypeSignature.getSuffixTypeArguments();
         for (var i = 0; i < suffixes.size(); i++) {
             classNameBuf.append('$').append(suffixes.get(i));
             addTypeArgumentSubstitutions(supertypeSignature, classNameBuf.toString(), suffixTypeArguments.get(i),
-                    substitutions, composeWith);
+                    substitutions);
         }
         addSubstitutions(supertypeSignature.getClassInfo(), substitutions, visited);
     }
@@ -209,13 +191,11 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
      * @param typeArguments
      *            the type arguments supplied for that class' type parameters.
      * @param substitutions
-     *            the substitution map to add to.
-     * @param composeWith
-     *            the substitution map to compose the type arguments with.
+     *            the substitution map to add to, and to compose the type arguments with.
      */
     private static void addTypeArgumentSubstitutions(final ClassRefTypeSignature supertypeSignature,
             final String className, final List<TypeArgument> typeArguments,
-            final Map<String, TypeArgument> substitutions, final Map<String, TypeArgument> composeWith) {
+            final Map<String, TypeArgument> substitutions) {
         if (typeArguments.isEmpty() || supertypeSignature.scanResult == null) {
             // The class is referenced in raw form, so there is nothing to substitute
             return;
@@ -234,7 +214,7 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
             // Compose with the substitutions already collected from the classes below this one, so that "class
             // Derived extends Mid<String>" and "class Mid<U> extends Base<U>" map Base's T to String
             substitutions.put(substitutionKey(className, typeParameters.get(i).getName()),
-                    typeArguments.get(i).substituteTypeVariables(composeWith));
+                    typeArguments.get(i).substituteTypeVariables(substitutions));
         }
     }
 
