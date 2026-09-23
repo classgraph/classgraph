@@ -36,7 +36,6 @@ import java.util.Objects;
 import java.util.Set;
 
 import io.github.classgraph.Classfile.TypePathNode;
-import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.utils.Assert;
 import org.jspecify.annotations.Nullable;
 
@@ -337,32 +336,11 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
      * @param refdClassNames
      *            the referenced class names.
      */
-    protected void findReferencedClassNames(final Set<String> refdClassNames) {
+    @Override
+    void findReferencedClassNames(final Set<String> refdClassNames) {
         final var className = getClassName();
         if (className != null && !className.isEmpty()) {
             refdClassNames.add(className);
-        }
-    }
-
-    /**
-     * Get {@link ClassInfo} objects for any classes referenced in the type signature.
-     *
-     * @param classNameToClassInfo
-     *            the map from class name to {@link ClassInfo}.
-     * @param refdClassInfo
-     *            the referenced class info.
-     * @param log
-     *            the log node, or null to skip logging
-     */
-    @Override
-    final void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
-            final Set<ClassInfo> refdClassInfo, final @Nullable LogNode log) {
-        final Set<String> refdClassNames = new HashSet<>();
-        findReferencedClassNames(refdClassNames);
-        for (final String refdClassName : refdClassNames) {
-            final var classInfo = ClassInfo.getOrCreateClassInfo(refdClassName, classNameToClassInfo);
-            classInfo.scanResult = scanResult;
-            refdClassInfo.add(classInfo);
         }
     }
 

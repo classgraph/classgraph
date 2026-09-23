@@ -204,7 +204,7 @@ public class BaseTypeSignature extends TypeSignature {
      *            the referenced class names.
      */
     @Override
-    protected void findReferencedClassNames(final Set<String> refdClassNames) {
+    void findReferencedClassNames(final Set<String> refdClassNames) {
         // Don't add byte.class, int.class, etc.
     }
 

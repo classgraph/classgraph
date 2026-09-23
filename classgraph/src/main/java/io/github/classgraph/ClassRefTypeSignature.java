@@ -340,7 +340,7 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
      *            the referenced class names.
      */
     @Override
-    protected void findReferencedClassNames(final Set<String> refdClassNames) {
+    void findReferencedClassNames(final Set<String> refdClassNames) {
         refdClassNames.add(getFullyQualifiedClassName());
         for (final TypeArgument typeArgument : typeArguments) {
             typeArgument.findReferencedClassNames(refdClassNames);

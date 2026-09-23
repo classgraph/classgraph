@@ -192,7 +192,8 @@ public final class TypeParameter extends HierarchicalTypeSignature {
      * @param refdClassNames
      *            the referenced class names.
      */
-    protected void findReferencedClassNames(final Set<String> refdClassNames) {
+    @Override
+    void findReferencedClassNames(final Set<String> refdClassNames) {
         final var bound = classBound;
         if (bound != null) {
             bound.findReferencedClassNames(refdClassNames);

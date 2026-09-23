@@ -29,9 +29,13 @@
 package io.github.classgraph;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import io.github.classgraph.Classfile.TypePathNode;
+import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.utils.CollectionUtils;
 import org.jspecify.annotations.Nullable;
 
@@ -110,6 +114,36 @@ public abstract class HierarchicalTypeSignature extends ScanResultObject {
      *            the annotation
      */
     abstract void addTypeAnnotation(List<TypePathNode> typePath, AnnotationInfo annotationInfo);
+
+    /**
+     * Get the names of any classes referenced in the type signature.
+     *
+     * @param refdClassNames
+     *            the set to add the referenced class names to.
+     */
+    abstract void findReferencedClassNames(Set<String> refdClassNames);
+
+    /**
+     * Get {@link ClassInfo} objects for any classes referenced in the type signature.
+     *
+     * @param classNameToClassInfo
+     *            the map from class name to {@link ClassInfo}.
+     * @param refdClassInfo
+     *            the set to add the referenced class info to.
+     * @param log
+     *            the log node, or null to skip logging
+     */
+    @Override
+    final void findReferencedClassInfo(final Map<String, ClassInfo> classNameToClassInfo,
+            final Set<ClassInfo> refdClassInfo, final @Nullable LogNode log) {
+        final Set<String> refdClassNames = new HashSet<>();
+        findReferencedClassNames(refdClassNames);
+        for (final String refdClassName : refdClassNames) {
+            final var classInfo = ClassInfo.getOrCreateClassInfo(refdClassName, classNameToClassInfo);
+            classInfo.scanResult = scanResult;
+            refdClassInfo.add(classInfo);
+        }
+    }
 
     /**
      * Render type signature to string.

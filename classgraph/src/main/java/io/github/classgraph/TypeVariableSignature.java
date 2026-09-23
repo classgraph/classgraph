@@ -243,7 +243,7 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
      *            the referenced class names.
      */
     @Override
-    protected void findReferencedClassNames(final Set<String> refdClassNames) {
+    void findReferencedClassNames(final Set<String> refdClassNames) {
         // Any class names present in resolved type variables have to be present in enclosing method or class, so
         // there's no need to look up class references in resolved type variables
     }

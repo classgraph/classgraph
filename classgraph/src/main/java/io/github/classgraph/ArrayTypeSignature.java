@@ -239,7 +239,7 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
      *            the referenced class names.
      */
     @Override
-    protected void findReferencedClassNames(final Set<String> refdClassNames) {
+    void findReferencedClassNames(final Set<String> refdClassNames) {
         nestedType.findReferencedClassNames(refdClassNames);
     }
 

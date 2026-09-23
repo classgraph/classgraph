@@ -278,7 +278,8 @@ public final class TypeArgument extends HierarchicalTypeSignature {
      * @param refdClassNames
      *            the referenced class names.
      */
-    protected void findReferencedClassNames(final Set<String> refdClassNames) {
+    @Override
+    void findReferencedClassNames(final Set<String> refdClassNames) {
         final var typeSig = typeSignature;
         if (typeSig != null) {
             typeSig.findReferencedClassNames(refdClassNames);
