@@ -203,7 +203,7 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
     }
 
     /**
-     * Return an {@link ArrayClassInfo} instance for the array class, cast to its superclass.
+     * Return an {@link ArrayClassInfo} instance for the array class.
      *
      * @return the {@link ArrayClassInfo} instance.
      */
@@ -211,11 +211,18 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
         if (arrayClassInfo == null) {
             if (scanResult != null) {
                 final String clsName = getClassName();
-                // Cache ArrayClassInfo instances using scanResult.classNameToClassInfo, if scanResult is available
+                // Use the ArrayClassInfo instance for the same array class if there is one already, so that all
+                // array types with the same class name share one. The scan result's own map is only read, not
+                // added to, so that looking up an array type does not add a class to the scan result.
                 arrayClassInfo = (ArrayClassInfo) scanResult.classNameToClassInfo.get(clsName);
                 if (arrayClassInfo == null) {
-                    scanResult.classNameToClassInfo.put(clsName, arrayClassInfo = new ArrayClassInfo(this));
-                    arrayClassInfo.setScanResult(this.scanResult);
+                    final ArrayClassInfo newArrayClassInfo = new ArrayClassInfo(this);
+                    newArrayClassInfo.setScanResult(this.scanResult);
+                    arrayClassInfo = scanResult.arrayClassNameToArrayClassInfo.putIfAbsent(clsName,
+                            newArrayClassInfo);
+                    if (arrayClassInfo == null) {
+                        arrayClassInfo = newArrayClassInfo;
+                    }
                 }
             } else {
                 // scanResult is not yet available, create an uncached instance of an ArrayClassInfo for this type

@@ -97,10 +97,17 @@ public final class ScanResult implements Closeable {
     /** The map from class name to {@link ClassInfo}. */
     Map<String, ClassInfo> classNameToClassInfo;
 
+    /**
+     * The map from array class name to {@link ArrayClassInfo}, for the {@link ArrayClassInfo} objects made after
+     * the scan for array classes that are not in {@link #classNameToClassInfo}. They are kept apart so that looking
+     * up an array type cannot change what {@link #getClassInfo(String)} or {@link #getAllClasses()} returns.
+     */
+    final ConcurrentHashMap<String, ArrayClassInfo> arrayClassNameToArrayClassInfo = new ConcurrentHashMap<>();
+
     /** The map from package name to {@link PackageInfo}. */
     private Map<String, PackageInfo> packageNameToPackageInfo;
 
-    /** The map from class name to {@link ClassInfo}. */
+    /** The map from module name to {@link ModuleInfo}. */
     private Map<String, ModuleInfo> moduleNameToModuleInfo;
 
     /**
