@@ -71,7 +71,9 @@ public class MappableInfoList<T extends HasName> extends InfoList<T> {
 
     /**
      * Get an index for this list, as a map from the name of each list item (obtained by calling {@code getName()}
-     * on each list item) to the list item.
+     * on each list item) to the list item. If more than one item has the same name, as a repeated annotation does
+     * in an {@link AnnotationInfoList}, the name is mapped to the first of them, which is the item that
+     * {@link #get(String)} returns.
      *
      * @return An index for this list, as a map from the name of each list item (obtained by calling
      *         {@code getName()} on each list item) to the list item.
@@ -79,7 +81,7 @@ public class MappableInfoList<T extends HasName> extends InfoList<T> {
     public Map<String, T> asMap() {
         final Map<String, T> nameToInfoObject = new HashMap<>();
         for (final T i : this) {
-            if (i != null) {
+            if (i != null && !nameToInfoObject.containsKey(i.getName())) {
                 nameToInfoObject.put(i.getName(), i);
             }
         }

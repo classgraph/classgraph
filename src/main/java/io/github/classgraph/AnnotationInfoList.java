@@ -46,8 +46,8 @@ import nonapi.io.github.classgraph.utils.LogNode;
 /** A list of {@link AnnotationInfo} objects. */
 public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     /**
-     * The set of annotations directly related to a class or method and not inherited through a meta-annotated
-     * annotation. This field is nullable, as the annotation info list is incrementally built. See
+     * The annotations that are directly present on the annotated item, rather than reached through a
+     * meta-annotation or inherited, or null if this list holds only directly present annotations. See
      * {@link #directOnly()}.
      */
     private AnnotationInfoList directlyRelatedAnnotations;
