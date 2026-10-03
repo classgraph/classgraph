@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.lang.annotation.Annotation;
+import java.lang.annotation.Inherited;
 import java.lang.annotation.Repeatable;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -65,6 +66,21 @@ public class RepeatableAnnotationTest {
 
     /** A class carrying no repeatable annotation at all. */
     public static class NotTagged {
+    }
+
+    /** An annotation that subclasses inherit. */
+    @Inherited
+    @Retention(RetentionPolicy.RUNTIME)
+    public @interface InheritedTag {
+    }
+
+    /** A class carrying the inherited annotation. */
+    @InheritedTag
+    public static class InheritedTagBase {
+    }
+
+    /** A class that inherits the annotation, rather than carrying it. */
+    public static class InheritsTag extends InheritedTagBase {
     }
 
     /** The scan of the test classes. */
@@ -148,6 +164,14 @@ public class RepeatableAnnotationTest {
         assertThat(method.getAllAnnotationInfo().directOnly().getRepeatable(Tag.class))
                 .extracting(ai -> ai.getParameterValues().getValue("value"))
                 .containsExactly("on a method", "twice");
+    }
+
+    /** The annotations {@code getRepeatable} returns keep the record of which of them are directly present. */
+    @Test
+    public void anInheritedAnnotationIsNotReportedAsDirectlyPresent() {
+        final var allAnnotations = scanResult.getClassInfo(InheritsTag.class.getName()).getAllAnnotationInfo();
+        assertThat(allAnnotations.getRepeatable(InheritedTag.class)).hasSize(1);
+        assertThat(allAnnotations.getRepeatable(InheritedTag.class).directOnly()).isEmpty();
     }
 
     /** Asking for a class that is not an annotation, or for nothing at all, is a programming error. */

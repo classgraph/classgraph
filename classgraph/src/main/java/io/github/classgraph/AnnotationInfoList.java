@@ -395,9 +395,8 @@ public final class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
      * @return The list of directly-related annotations.
      */
     public AnnotationInfoList directOnly() {
-        // If directlyRelatedAnnotations == null, this is already a list of direct annotations (the list of
-        // AnnotationInfo objects created when the classfile is read). Otherwise return a new list consisting of
-        // only the direct annotations.
+        // If directlyRelatedAnnotations == null, this list was itself returned by directOnly(). Otherwise return a
+        // new list consisting of only the direct annotations.
         return this.directlyRelatedAnnotations == null ? this
                 // Make .directOnly() idempotent
                 : new AnnotationInfoList(directlyRelatedAnnotations, /* directlyRelatedAnnotations = */ null);
@@ -429,23 +428,7 @@ public final class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
      */
     public AnnotationInfoList getRepeatable(final String name) {
         Assert.notNull(name, "name");
-        var hasNamedAnnotation = false;
-        for (final AnnotationInfo ai : this) {
-            if (ai.getName().equals(name)) {
-                hasNamedAnnotation = true;
-                break;
-            }
-        }
-        if (!hasNamedAnnotation) {
-            return AnnotationInfoList.EMPTY_LIST;
-        }
-        final List<AnnotationInfo> matchingAnnotations = new ArrayList<>();
-        for (final AnnotationInfo ai : this) {
-            if (ai.getName().equals(name)) {
-                matchingAnnotations.add(ai);
-            }
-        }
-        // The matching annotations are a subsequence of this list, which is already sorted
-        return new AnnotationInfoList(matchingAnnotations);
+        // Filtered rather than copied, so that directOnly() still leaves out the inherited and meta-annotations
+        return filter(ai -> ai.getName().equals(name));
     }
 }
