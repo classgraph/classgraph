@@ -28,6 +28,9 @@
  */
 package nonapi.io.github.classgraph.classloaderhandler;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+
 import nonapi.io.github.classgraph.classpath.ClassLoaderFinder;
 import nonapi.io.github.classgraph.classpath.ClassLoaderOrder;
 import nonapi.io.github.classgraph.classpath.ClasspathOrder;
@@ -76,7 +79,10 @@ class UnoOneJarClassLoaderHandler implements ClassLoaderHandler {
         // as a separator
         final String unoJarClassPath = VersionFinder.getProperty("uno-jar.class.path");
         if (unoJarClassPath != null) {
-            classpathOrder.addClasspathEntryObject(unoJarClassPath.split("\\|"), classLoader, scanSpec, log);
+            // Each element is added as it is, since passing a string to addClasspathEntryObject would split it
+            // again at the platform's path separator
+            classpathOrder.addClasspathEntries(new ArrayList<Object>(Arrays.asList(unoJarClassPath.split("\\|"))),
+                    classLoader, scanSpec, log);
         }
 
         // For One-Jar:
@@ -91,7 +97,8 @@ class UnoOneJarClassLoaderHandler implements ClassLoaderHandler {
         // on the commandline, with '|' as a separator
         final String oneJarClassPath = VersionFinder.getProperty("one-jar.class.path");
         if (oneJarClassPath != null) {
-            classpathOrder.addClasspathEntryObject(oneJarClassPath.split("\\|"), classLoader, scanSpec, log);
+            classpathOrder.addClasspathEntries(new ArrayList<Object>(Arrays.asList(oneJarClassPath.split("\\|"))),
+                    classLoader, scanSpec, log);
         }
 
         // For both UnoJar and OneJar, "libs/" and "main/" will be automatically picked up as library roots

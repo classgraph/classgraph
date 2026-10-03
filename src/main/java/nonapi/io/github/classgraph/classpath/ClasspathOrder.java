@@ -410,6 +410,7 @@ public class ClasspathOrder {
             pathElementStr = pathElementStr.substring(0, pathElementStr.length() - 2);
             // Leave pathElementURL null, so that wildcards can be handled below
         } else if (pathElementStr.equals("*")) {
+            // Reached when the current directory path is empty, because user.dir could not be read
             hasWildcardSuffix = true;
             pathElementStr = "";
             // Leave pathElementURL null, so that wildcards can be handled below
@@ -492,8 +493,10 @@ public class ClasspathOrder {
                 return false;
             }
 
-            // Check the path before the "/*" suffix is a directory 
-            final File baseDir = new File(baseDirPathResolved);
+            // Check the path before the "/*" suffix is a directory. The path is empty when it names the current
+            // directory and user.dir could not be read. "." rather than "" names the current directory, since
+            // before JDK 25 new File("") does not exist and lists nothing
+            final File baseDir = new File(baseDirPathResolved.isEmpty() ? "." : baseDirPathResolved);
             if (!baseDir.exists()) {
                 if (log != null) {
                     log.log("Directory does not exist for wildcard classpath element: " + pathElementStr);
