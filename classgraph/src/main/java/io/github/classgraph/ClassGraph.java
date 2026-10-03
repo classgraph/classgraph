@@ -78,8 +78,8 @@ import org.jspecify.annotations.Nullable;
  * <p>
  * The methods that say where to scan come in pairs: the method with no arguments enables the sources found in the
  * current runtime environment ({@link #enableClasspath()}, {@link #enableSystemModules()},
- * {@link #enableSystemModules()}, {@link #enableNonSystemModules()}), and the method that takes varargs enables
- * exactly the sources it is given ({@link #enableClassLoaders(ClassLoader...)},
+ * {@link #enableNonSystemModules()}, {@link #enableDetectedModuleLayers()}), and the method that takes varargs
+ * enables exactly the sources it is given ({@link #enableClassLoaders(ClassLoader...)},
  * {@link #enableModuleLayers(ModuleLayer...)}, {@link #enableClasspathEntries(Object...)}). Calling only the
  * varargs method scans only what it names, which is how the environment's own sources are left out.
  *
@@ -197,7 +197,8 @@ public final class ClassGraph {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Switches on verbose logging to System.err.
+     * Switches on verbose logging. The log is written to the {@code io.github.classgraph.ClassGraph}
+     * {@link java.util.logging.Logger} at {@code INFO} level, which by default writes to System.err.
      *
      * @return this (for method chaining).
      */
@@ -209,7 +210,7 @@ public final class ClassGraph {
     }
 
     /**
-     * Switches on verbose logging to System.err if verbose is true.
+     * Switches on verbose logging if verbose is true, as {@link #verbose()} does.
      *
      * @param verbose
      *            if true, enable verbose logging.
@@ -244,7 +245,7 @@ public final class ClassGraph {
      * By default, only public classes are scanned.
      *
      * <p>
-     * This has no effect unless {@link #enableClassInfo()} is also called.
+     * {@link #enableClassInfo()} has to be called too, or the scan throws {@link IllegalArgumentException}.
      *
      * @return this (for method chaining).
      */
@@ -258,7 +259,7 @@ public final class ClassGraph {
      * {@link ClassInfo#getMethodInfo()} etc. By default, method info is not scanned.
      *
      * <p>
-     * This has no effect unless {@link #enableClassInfo()} is also called.
+     * {@link #enableClassInfo()} has to be called too, or the scan throws {@link IllegalArgumentException}.
      *
      * @return this (for method chaining).
      */
@@ -272,7 +273,7 @@ public final class ClassGraph {
      * scanned. By default, only public methods are scanned.
      *
      * <p>
-     * This has no effect unless {@link #enableMethodInfo()} is also called.
+     * {@link #enableMethodInfo()} has to be called too, or the scan throws {@link IllegalArgumentException}.
      *
      * @return this (for method chaining).
      */
@@ -286,7 +287,7 @@ public final class ClassGraph {
      * {@link ClassInfo#getFieldInfo()}. By default, field info is not scanned.
      *
      * <p>
-     * This has no effect unless {@link #enableClassInfo()} is also called.
+     * {@link #enableClassInfo()} has to be called too, or the scan throws {@link IllegalArgumentException}.
      *
      * @return this (for method chaining).
      */
@@ -300,7 +301,7 @@ public final class ClassGraph {
      * By default, only public fields are scanned.
      *
      * <p>
-     * This has no effect unless {@link #enableFieldInfo()} is also called.
+     * {@link #enableFieldInfo()} has to be called too, or the scan throws {@link IllegalArgumentException}.
      *
      * @return this (for method chaining).
      */
@@ -332,7 +333,7 @@ public final class ClassGraph {
      * initializer values for non-final fields, even if they are static.)
      *
      * <p>
-     * This has no effect unless {@link #enableFieldInfo()} is also called.
+     * {@link #enableFieldInfo()} has to be called too, or the scan throws {@link IllegalArgumentException}.
      *
      * @return this (for method chaining).
      */
@@ -348,7 +349,7 @@ public final class ClassGraph {
      * annotation info is not scanned.
      *
      * <p>
-     * This has no effect unless {@link #enableClassInfo()} is also called.
+     * {@link #enableClassInfo()} has to be called too, or the scan throws {@link IllegalArgumentException}.
      *
      * @return this (for method chaining).
      */
@@ -363,7 +364,7 @@ public final class ClassGraph {
      * {@link ScanResult#getReverseClassDependencyMap()}.
      *
      * <p>
-     * This has no effect unless {@link #enableClassInfo()} is also called.
+     * {@link #enableClassInfo()} has to be called too, or the scan throws {@link IllegalArgumentException}.
      *
      * <p>
      * Only the dependencies that are recorded by the other options are found, so to see the dependencies of a
@@ -385,8 +386,8 @@ public final class ClassGraph {
      * Causes only runtime visible annotations to be scanned (causes runtime invisible annotations to be ignored).
      *
      * <p>
-     * This narrows what is scanned; it does not enable the scanning of annotations. Call
-     * {@link #enableAnnotationInfo()} to scan annotations in the first place.
+     * This narrows what is scanned; it does not enable the scanning of annotations, so
+     * {@link #enableAnnotationInfo()} has to be called too, or the scan throws {@link IllegalArgumentException}.
      *
      * @return this (for method chaining).
      */
@@ -435,7 +436,7 @@ public final class ClassGraph {
      * annotation.
      *
      * <p>
-     * This has no effect unless {@link #enableClassInfo()} is also called.
+     * {@link #enableClassInfo()} has to be called too, or the scan throws {@link IllegalArgumentException}.
      *
      * <p>
      * Scanning is always extended upwards from an accepted class in this way, so that the part of the class graph
@@ -665,6 +666,11 @@ public final class ClassGraph {
      * Ignore parent classloaders (i.e. only obtain paths to scan from classloaders that are not the parent of
      * another classloader).
      *
+     * <p>
+     * This says which classloaders are searched, so {@link #enableClasspath()} or
+     * {@link #enableClassLoaders(ClassLoader...)} has to be called too, or the scan throws
+     * {@link IllegalArgumentException}.
+     *
      * @return this (for method chaining).
      */
     public ClassGraph ignoreParentClassLoaders() {
@@ -725,9 +731,9 @@ public final class ClassGraph {
     }
 
     /**
-     * Scan the non-system modules of the given ModuleLayers, and of their parent layers, rather than of the
-     * ModuleLayers that are visible from the caller. Use this method if you define your own ModuleLayer, but the
-     * scanning code is not running within it.
+     * Scan the modules of the given ModuleLayers, and of their parent layers, rather than those of the ModuleLayers
+     * that are visible from the caller. Use this method if you define your own ModuleLayer, but the scanning code
+     * is not running within it.
      *
      * <p>
      * The given layers replace the ones that are visible from the caller, rather than adding to them, so
@@ -735,8 +741,9 @@ public final class ClassGraph {
      * {@link #enableDetectedModuleLayers()} as well to scan both.
      *
      * <p>
-     * This says which layers the modules are looked for in; it does not enable a kind of module, so it has no
-     * effect unless {@link #enableSystemModules()} or {@link #enableNonSystemModules()} is also called.
+     * This says which layers the modules are looked for in; it does not enable a kind of module, so
+     * {@link #enableSystemModules()} or {@link #enableNonSystemModules()} has to be called too, or the scan throws
+     * {@link IllegalArgumentException}.
      *
      * @param moduleLayers
      *            The ModuleLayers to scan.
@@ -759,8 +766,9 @@ public final class ClassGraph {
      * the layers you can already see.
      *
      * <p>
-     * This says which layers the modules are looked for in; it does not enable a kind of module, so it has no
-     * effect unless {@link #enableSystemModules()} or {@link #enableNonSystemModules()} is also called.
+     * This says which layers the modules are looked for in; it does not enable a kind of module, so
+     * {@link #enableSystemModules()} or {@link #enableNonSystemModules()} has to be called too, or the scan throws
+     * {@link IllegalArgumentException}.
      *
      * @return this (for method chaining).
      */
@@ -773,7 +781,8 @@ public final class ClassGraph {
      * Ignore parent module layers (i.e. only scan module layers that are not the parent of another module layer).
      *
      * <p>
-     * This has no effect unless {@link #enableSystemModules()} or {@link #enableNonSystemModules()} is also called.
+     * {@link #enableSystemModules()} or {@link #enableNonSystemModules()} has to be called too, or the scan throws
+     * {@link IllegalArgumentException}.
      *
      * @return this (for method chaining).
      */
@@ -1432,13 +1441,18 @@ public final class ClassGraph {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Sets the logger to "realtime logging mode", where log entries are written out immediately to stderr, rather
-     * than only after the scan has completed. Can help to identify problems where scanning is stuck in a loop, or
-     * where one scanning step is taking much longer than it should, etc.
+     * Sets the logger to "realtime logging mode", where each log entry is written to the logger as soon as it is
+     * made, rather than only after the scan has completed. Can help to identify problems where scanning is stuck in
+     * a loop, or where one scanning step is taking much longer than it should, etc.
      *
      * <p>
-     * This says when the log is written, not whether there is a log, so it has no effect unless {@link #verbose()}
-     * is also called.
+     * This is a setting of the whole JVM, not of this {@link ClassGraph} instance, since the log is written by code
+     * that every scan shares: once it is called, the log of every later scan that calls {@link #verbose()} is
+     * written in realtime.
+     *
+     * <p>
+     * This says when the log is written, not whether there is a log, so {@link #verbose()} has to be called too, or
+     * the scan throws {@link IllegalArgumentException}.
      *
      * @return this (for method chaining).
      */
@@ -1532,6 +1546,8 @@ public final class ClassGraph {
                 scanSourceSpec.moduleScanningEnabled, moduleKindMethods);
         checkRequires(scanSpec.classpathSpec.isParentModuleLayersIgnored(), "ignoreParentModuleLayers",
                 scanSourceSpec.moduleScanningEnabled, moduleKindMethods);
+        checkRequires(scanSpec.classpathSpec.isParentClassLoadersIgnored(), "ignoreParentClassLoaders",
+                scanSourceSpec.searchesClassLoaders(), "enableClasspath or enableClassLoaders");
     }
 
     /**

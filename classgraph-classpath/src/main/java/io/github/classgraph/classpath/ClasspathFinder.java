@@ -329,6 +329,11 @@ public final class ClasspathFinder {
      * Do not search the parents of the classloaders that are searched. The classpath elements that only a parent
      * classloader declares are left out of the result.
      *
+     * <p>
+     * This says which classloaders are searched, so {@link #enableClasspath()} or
+     * {@link #enableClassLoaders(ClassLoader...)} has to be called too, or {@link #find()} throws
+     * {@link IllegalArgumentException}.
+     *
      * @return this (for method chaining).
      */
     public ClasspathFinder ignoreParentClassLoaders() {
@@ -513,6 +518,10 @@ public final class ClasspathFinder {
                                 + "ClasspathFinder#enableSystemModules() or "
                                 + "ClasspathFinder#enableNonSystemModules() is also called");
             }
+        }
+        if (classpathSpec.isParentClassLoadersIgnored() && !scanSourceSpec.searchesClassLoaders()) {
+            throw new IllegalArgumentException("ClasspathFinder#ignoreParentClassLoaders() has no effect unless "
+                    + "ClasspathFinder#enableClasspath() or ClasspathFinder#enableClassLoaders() is also called");
         }
     }
 }

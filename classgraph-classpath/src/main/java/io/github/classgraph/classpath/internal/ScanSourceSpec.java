@@ -223,7 +223,19 @@ public class ScanSourceSpec {
     }
 
     /**
-     * Search the given module layers, instead of the ones that {@link #enableDetectedModuleLayers()} asks for.
+     * Whether any classloader is asked for classpath elements, as opposed to the classpath elements all being given
+     * directly.
+     *
+     * @return true if the classloaders detected in the environment, or classloaders the caller named, are searched.
+     */
+    public boolean searchesClassLoaders() {
+        return classpathSources.stream()
+                .anyMatch(source -> source instanceof DetectedClassLoaders || source instanceof NamedClassLoaders);
+    }
+
+    /**
+     * Search the given module layers instead of the ones that are visible from the caller, unless
+     * {@link #enableDetectedModuleLayers()} is called as well, in which case both are searched.
      *
      * @param moduleLayers
      *            the module layers to search.

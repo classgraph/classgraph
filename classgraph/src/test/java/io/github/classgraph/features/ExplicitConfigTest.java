@@ -91,6 +91,17 @@ public class ExplicitConfigTest {
     }
 
     /**
+     * Ignoring the parent classloaders says which classloaders are searched, so a classloader has to be searched.
+     */
+    @Test
+    public void ignoringTheParentClassLoadersNeedsAClassLoaderToBeSearched() {
+        final var message = "ClassGraph#ignoreParentClassLoaders() has no effect unless ClassGraph#enableClasspath() "
+                + "or ClassGraph#enableClassLoaders() is also called";
+        assertRefused(ClassGraph::ignoreParentClassLoaders, message);
+        assertRefused(classGraph -> classGraph.enableClasspathEntries("a.jar").ignoreParentClassLoaders(), message);
+    }
+
+    /**
      * Inter-class dependencies are found with the class info alone: the dependencies that the members name are
      * simply not among them, since those members were not read.
      */

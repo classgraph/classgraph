@@ -114,6 +114,25 @@ public class ClasspathFinderTest {
         }
     }
 
+    /**
+     * Ignoring the parent classloaders says which classloaders are searched, so it is refused when no classloader
+     * is searched, rather than being silently ignored.
+     */
+    @Test
+    public void ignoringTheParentClassLoadersNeedsAClassLoaderToBeSearched() {
+        final var message = "ClasspathFinder#ignoreParentClassLoaders() has no effect unless "
+                + "ClasspathFinder#enableClasspath() or ClasspathFinder#enableClassLoaders() is also called";
+        assertThatThrownBy(() -> new ClasspathFinder().ignoreParentClassLoaders().find())
+                .isInstanceOf(IllegalArgumentException.class).hasMessage(message);
+        assertThatThrownBy(
+                () -> new ClasspathFinder().enableClasspathEntries("a.jar").ignoreParentClassLoaders().find())
+                .isInstanceOf(IllegalArgumentException.class).hasMessage(message);
+        try (var classpath = new ClasspathFinder().enableClassLoaders(ClasspathFinderTest.class.getClassLoader())
+                .ignoreParentClassLoaders().find()) {
+            assertThat(classpath.getLocations()).isNotEmpty();
+        }
+    }
+
     /** A classloader is passed to {@code enableClassLoaders}, not to {@code enableClasspathEntries}. */
     @Test
     public void aClassLoaderIsNotAClasspathElement() {
