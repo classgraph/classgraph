@@ -291,12 +291,13 @@ public final class URLPathEncoder {
     public static String normalizeURLPath(final String urlPath) {
         String urlPathNormalized = urlPath;
         boolean hasNestedJarSeparator = false;
-        if (urlPathNormalized.startsWith("jrt:") || urlPathNormalized.startsWith("http://")
-                || urlPathNormalized.startsWith("https://")) {
-            // These schemes do not name a file, so there is no file path to normalize, and what is left is still a
-            // URL, which is already percent-encoded: encoding it again would turn "%20" into "%2520" and the colon
-            // before a port number into "%3a", naming a resource on a host that does not exist. Only what a URI
-            // cannot hold is escaped
+        if (JarUtils.URL_SCHEME_PATTERN.matcher(urlPathNormalized).matches()
+                && !urlPathNormalized.startsWith("file:") && !urlPathNormalized.startsWith("jar:")) {
+            // A scheme other than "file:" does not name a file -- "jrt:", "http:" and "https:" do not, and nor does
+            // a custom scheme, which names something only its URL handler can reach -- so there is no file path to
+            // normalize, and what is left is still a URL, which is already percent-encoded: encoding it again would
+            // turn "%20" into "%2520" and the colon before a port number into "%3a", naming a resource on a host
+            // that does not exist. Only what a URI cannot hold is escaped
             urlPathNormalized = encodeURL(urlPathNormalized);
         } else {
 

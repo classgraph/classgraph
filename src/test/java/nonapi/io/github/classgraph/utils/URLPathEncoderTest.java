@@ -137,6 +137,21 @@ public class URLPathEncoderTest {
                 .isEqualTo("https://example.com/x.jar");
     }
 
+    /**
+     * A URL with a custom scheme names something only the scheme's handler can reach, so it stays a URL with that
+     * scheme. Read as a file path, it would become {@code "file:custom%3a/dir/x.jar"}, a relative file that does
+     * not exist.
+     */
+    @Test
+    public void aCustomSchemeIsKept() {
+        assertThat(URLPathEncoder.normalizeURLPath("custom:/dir/x.jar")).isEqualTo("custom:/dir/x.jar");
+        assertThat(URLPathEncoder.normalizeURLPath("custom:///dir/x.jar")).isEqualTo("custom:///dir/x.jar");
+        assertThat(URLPathEncoder.normalizeURLPath("s3://bucket/dir/x.jar")).isEqualTo("s3://bucket/dir/x.jar");
+        // A character a URI cannot hold is escaped, and an escape that is already written is kept
+        assertThat(URLPathEncoder.normalizeURLPath("custom:/dir/a b%20c.jar"))
+                .isEqualTo("custom:/dir/a%20b%20c.jar");
+    }
+
     /** A URL is already percent-encoded, so it must not be encoded a second time. */
     @Test
     public void aUrlIsNotEncodedASecondTime() {

@@ -608,11 +608,14 @@ public final class FastPathResolver {
         }
 
         // Add any prefix back, e.g. "https://". A prefix that already ends with a separator supplies the root
-        // path's own separator, so joining the two must not double it ("C:/" must not become "C://")
+        // path's own separator, so joining the two must not double it ("C:/" must not become "C://").
+        // The exception is a prefix that ends with an empty authority, as in "custom:///a/b": its "//" introduces
+        // the authority, and the path keeps its own separator, which would otherwise turn "a" into the authority
         if (prefix.isEmpty()) {
             return pathResolved;
         }
-        return prefix.endsWith("/") && pathResolved.startsWith("/") ? prefix + pathResolved.substring(1)
+        return prefix.endsWith("/") && !prefix.endsWith("://") && pathResolved.startsWith("/")
+                ? prefix + pathResolved.substring(1)
                 : prefix + pathResolved;
     }
 
