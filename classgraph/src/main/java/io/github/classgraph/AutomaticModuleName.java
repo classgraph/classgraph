@@ -28,6 +28,7 @@
  */
 package io.github.classgraph;
 
+import java.lang.module.ModuleDescriptor;
 import java.util.regex.Pattern;
 
 import io.github.classgraph.base.internal.path.PathSyntax;
@@ -59,7 +60,8 @@ final class AutomaticModuleName {
      * @param jarPath
      *            The jar path, as normalized by {@code FastPathResolver}: directory separators are '/' on every
      *            platform, and nested jar separators are "!/".
-     * @return The automatic module name.
+     * @return The automatic module name, or the empty string if the module system could not derive a name for the
+     *         jarfile.
      */
     static String derive(final String jarPath) {
         // If jar path does not end in a file extension (with ".jar" most likely), strip off everything after the
@@ -103,6 +105,14 @@ final class AutomaticModuleName {
         }
         if (moduleName.endsWith(".")) {
             moduleName = moduleName.substring(0, moduleName.length() - 1);
+        }
+
+        // The module system cannot name a jarfile whose derived name is not a legal module name, because a part of
+        // it starts with a digit or is a Java keyword, as for "x-1a.jar" or "foo-int.jar"
+        try {
+            ModuleDescriptor.newAutomaticModule(moduleName);
+        } catch (final IllegalArgumentException e) {
+            return "";
         }
         return moduleName;
     }

@@ -1,8 +1,10 @@
 package io.github.classgraph;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 import java.io.IOException;
+import java.lang.module.FindException;
 import java.lang.module.ModuleFinder;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -53,6 +55,28 @@ public class AutomaticModuleNameTest {
             new JarOutputStream(Files.newOutputStream(jarPath)).close();
             final var moduleName = ModuleFinder.of(jarPath).findAll().iterator().next().descriptor().name();
             assertThat(AutomaticModuleName.derive(jarPath.toString())).as(jarName).isEqualTo(moduleName);
+            Files.delete(jarPath);
+        }
+    }
+
+    /**
+     * When the name derived from a jarfile name is not a legal module name, because a part of it starts with a
+     * digit or is a Java keyword, the module system cannot derive a name for the jarfile, and neither can
+     * ClassGraph.
+     *
+     * @param dir
+     *            a directory to write the jarfiles to.
+     * @throws IOException
+     *             if a jarfile could not be written.
+     */
+    @Test
+    public void noNameIsDerivedWhenTheModuleSystemCannotDeriveOne(@TempDir final Path dir) throws IOException {
+        for (final String jarName : new String[] { "x-1a.jar", "Foo-Bar_2.jar", "foo-1-2.jar", "foo-int.jar" }) {
+            final var jarPath = dir.resolve(jarName);
+            new JarOutputStream(Files.newOutputStream(jarPath)).close();
+            assertThatExceptionOfType(FindException.class).as(jarName)
+                    .isThrownBy(() -> ModuleFinder.of(jarPath).findAll());
+            assertThat(AutomaticModuleName.derive(jarPath.toString())).as(jarName).isEmpty();
             Files.delete(jarPath);
         }
     }
