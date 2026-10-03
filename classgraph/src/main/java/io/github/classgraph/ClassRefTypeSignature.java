@@ -399,8 +399,9 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
         if (!(other instanceof final ClassRefTypeSignature o)) {
             return false;
         }
-        return o.className.equals(this.className) && Objects.equals(this.typeAnnotations, o.typeAnnotations)
-                && suffixesMatch(o, this);
+        // The type arguments of the classes in the suffixes are type parameters too, and type annotations are not
+        // compared here by any other kind of type signature
+        return o.className.equals(this.className) && o.suffixes.equals(this.suffixes);
     }
 
     // -------------------------------------------------------------------------------------------------------------

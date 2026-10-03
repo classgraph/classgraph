@@ -377,9 +377,9 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
         // capture conversion can make two occurrences of one type variable denote different types, but this method
         // compares signatures as they are written, not the types they denote at any particular use site. Unlike
         // equals(), this does not compare the classes the two type variables are used in, so that the T of a
-        // superclass method matches the T of the method that overrides it.
-        return other instanceof final TypeVariableSignature o && o.name.equals(this.name)
-                && Objects.equals(o.typeAnnotations, this.typeAnnotations);
+        // superclass method matches the T of the method that overrides it. As for the other kinds of type
+        // signature, type annotations are not compared.
+        return other instanceof final TypeVariableSignature o && o.name.equals(this.name);
     }
 
     /**
