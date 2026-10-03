@@ -60,6 +60,29 @@ public class ModifierPredicatesTest {
     public interface Interface {
     }
 
+    /** An interface with a method of each kind that an interface can declare. */
+    @SuppressWarnings("unused")
+    public interface InterfaceMethods {
+        /** An abstract method. */
+        void abstractMethod();
+
+        /** A default method. */
+        default void defaultMethod() {
+        }
+
+        /** A static method. */
+        static void staticMethod() {
+        }
+
+        /** A private method. */
+        private void privateMethod() {
+        }
+
+        /** A private static method. */
+        private static void privateStaticMethod() {
+        }
+    }
+
     /** An annotation. */
     public @interface Annotation {
     }
@@ -220,6 +243,24 @@ public class ModifierPredicatesTest {
         assertThat(abstractClassMethods.getSingleMethod("abstractMethod").isNative()).isFalse();
         assertThat(abstractClassMethods.getSingleMethod("nativeMethod").isNative()).isTrue();
         assertThat(abstractClassMethods.getSingleMethod("nativeMethod").isAbstract()).isFalse();
+    }
+
+    /**
+     * Only a public instance method with a body is a default method of an interface, as for
+     * {@link java.lang.reflect.Method#isDefault()}: a static or private interface method has a body too, but is not
+     * a default method.
+     */
+    @Test
+    public void onlyAPublicInstanceMethodWithABodyIsADefaultMethod() {
+        final var methods = classInfo(InterfaceMethods.class).getDeclaredMethodInfo();
+        for (final var method : methods) {
+            final String name = method.getName();
+            assertThat(method.isDefault()).as(name).isEqualTo("defaultMethod".equals(name));
+            assertThat(method.toString()).as(name).contains(" void " + name + "()")
+                    .satisfies(s -> assertThat(s.contains("default ")).isEqualTo("defaultMethod".equals(name)));
+        }
+        assertThat(methods.getNames()).containsExactlyInAnyOrder("abstractMethod", "defaultMethod", "staticMethod",
+                "privateMethod", "privateStaticMethod");
     }
 
     /**

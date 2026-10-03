@@ -495,14 +495,16 @@ public final class MethodInfo extends ClassMemberInfo implements Comparable<Meth
     }
 
     /**
-     * Returns true if this is a default method (i.e. if this is a method in an interface and the method has a
-     * body).
+     * Returns true if this is a default method, which is a public instance method of an interface that has a body,
+     * as for {@link java.lang.reflect.Method#isDefault()}. A static or private method of an interface has a body
+     * too, but is not a default method.
      *
      * @return True if this is a default method.
      */
     public boolean isDefault() {
         final var classInfo = getClassInfo();
-        return classInfo != null && classInfo.isInterface() && hasBody;
+        return classInfo != null && classInfo.isInterface()
+                && (modifiers & (Modifier.ABSTRACT | Modifier.PUBLIC | Modifier.STATIC)) == Modifier.PUBLIC;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -739,6 +741,8 @@ public final class MethodInfo extends ClassMemberInfo implements Comparable<Meth
      */
     public boolean hasParameterAnnotation(final String annotationName) {
         Assert.notNull(annotationName, "annotationName");
+        // Checked here too, since a method with no parameters never asks a parameter for its annotations
+        scanResult().scanSpec.checkAnnotationInfoEnabled();
         for (final MethodParameterInfo methodParameterInfo : getParameterInfo()) {
             if (methodParameterInfo.hasAnnotation(annotationName)) {
                 return true;

@@ -275,6 +275,13 @@ public class MethodParameterInfoTest {
             final var param = paramsOf(scanResult, Fixture.class, "generic").get(0);
             assertThatIllegalStateException().isThrownBy(param::getAllAnnotationInfo)
                     .withMessageContaining("enableAnnotationInfo");
+
+            // A method with no parameters throws too, rather than answering that no parameter is annotated
+            final var noParameters = scanResult.getClassInfo(Fixture.class.getName()).getConstructorInfo().get(0);
+            assertThat(noParameters.getParameterInfo()).isEmpty();
+            assertThatIllegalStateException()
+                    .isThrownBy(() -> noParameters.hasParameterAnnotation(Param.class.getName()))
+                    .withMessageContaining("enableAnnotationInfo");
         }
     }
 
