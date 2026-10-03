@@ -160,6 +160,24 @@ public class ResourceTest {
         }
     }
 
+    /**
+     * A resource of a module still names itself after its {@link ScanResult} has been closed, as a resource of a
+     * directory or a jarfile does, so that it can still be printed, compared, or kept in a set.
+     */
+    @Test
+    public void aModuleResourceOfAClosedScanResultStillHasAURI() {
+        final Resource resource;
+        final URI uri;
+        try (var scanResult = new ClassGraph().enableSystemModules().acceptPathsNonRecursive("java/lang").scan()) {
+            resource = scanResult.getResourcesWithPath("java/lang/Object.class").get(0);
+            uri = resource.getURI();
+        }
+        assertThat(uri.getScheme()).isEqualTo("jrt");
+        assertThat(resource.getURI()).isEqualTo(uri);
+        assertThat(resource.toString()).isEqualTo(uri.toString());
+        assertThat(resource.hashCode()).isEqualTo(uri.toString().hashCode());
+    }
+
     /** A resource is read through the virtual filesystem, and hands out the entry it is read from. */
     @Test
     public void aResourceHandsOutTheVfsEntryItIsReadFrom() throws IOException {

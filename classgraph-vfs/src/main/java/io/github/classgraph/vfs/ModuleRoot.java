@@ -103,7 +103,17 @@ public final class ModuleRoot extends VfsRoot {
         // Only the module can say how it names something within itself: a module of the running JDK names its
         // resources with "jrt:" URIs that have nothing to do with the module's own location
         try {
-            final var recycler = moduleReaderRecycler();
+            final Recycler<ModuleReader, IOException> recycler;
+            try {
+                recycler = moduleReaderRecycler();
+            } catch (final IOException e) {
+                // This root has been closed. A URI only names the path, as it does for a directory or a jarfile,
+                // whose roots can still name a path once closed, so the URI is asked of a reader that is opened for
+                // this one lookup, and so is not left open by the closed root
+                try (var reader = ModuleReaderUtils.openModule(moduleReference)) {
+                    return ModuleReaderUtils.find(reader, pathWithinRoot);
+                }
+            }
             final var reader = recycler.acquire();
             try {
                 return ModuleReaderUtils.find(reader, pathWithinRoot);
