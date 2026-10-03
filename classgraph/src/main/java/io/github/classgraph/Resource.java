@@ -205,7 +205,7 @@ public final class Resource implements AutoCloseable, Comparable<Resource> {
     /**
      * Get the {@link URI} of the classpath element or module that this resource was obtained from.
      *
-     * @return The {@link URL} of the classpath element or module that this resource was found within.
+     * @return The {@link URI} of the classpath element or module that this resource was found within.
      * @throws IllegalStateException
      *             if the classpath element does not have a valid URI (e.g. for modules whose location URI is null).
      */

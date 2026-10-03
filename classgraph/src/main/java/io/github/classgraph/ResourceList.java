@@ -163,6 +163,9 @@ public final class ResourceList extends UnmodifiableList<Resource> implements Au
      * Get the URIs of all resources in this list, by calling {@link Resource#getURI()} for each item in the list.
      *
      * @return The URIs of all resources in this list.
+     * @throws IllegalStateException
+     *             if any resource's {@link URI} could not be formed, for example for a resource obtained from a
+     *             module that does not report where its resources are.
      */
     public List<URI> getURIs() {
         final List<URI> resourceURIs = new ArrayList<>(this.size());

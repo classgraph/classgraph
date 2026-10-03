@@ -940,12 +940,14 @@ class Scanner implements Callable<ScanResult> {
     }
 
     /**
-     * Find classpath elements whose path is a prefix of another classpath element, and record the nesting.
+     * Read the automatic module name that each classpath element's manifest declares, then find the directories
+     * whose path is a prefix of another directory's path, and the jarfiles whose path is a prefix of another
+     * jarfile's path, and record the nesting.
      *
      * @param finalTraditionalClasspathEltOrder
-     *            the final traditional classpath elt order
+     *            the classpath elements, in classpath order
      * @param classLoaderProbeLog
-     *            the classpath finder log
+     *            the log, or null to skip logging
      */
     private static void preprocessClasspathElementsByType(
             final List<ClasspathElement> finalTraditionalClasspathEltOrder,

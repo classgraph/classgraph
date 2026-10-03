@@ -68,8 +68,8 @@ public final class MethodInfoList extends InfoList<MethodInfo> {
 
     /**
      * Construct a new unmodifiable {@link MethodInfoList} from a completed collection of {@link MethodInfo}
-     * objects. The collection is copied, and the methods are sorted by name, then by type descriptor, so that
-     * overloads of the same method name are listed in a deterministic order.
+     * objects. The collection is copied, and the methods are sorted by the name of their declaring class, then by
+     * name, then by type descriptor, so that overloads of the same method name are listed in a deterministic order.
      *
      * @param methodInfoCollection
      *            the collection of {@link MethodInfo} objects.
