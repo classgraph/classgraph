@@ -963,10 +963,12 @@ public final class ScanResult implements AutoCloseable {
      *         that class (i.e. returns a map from dependents to dependencies), sorted by class name. Each map value
      *         is the result of calling {@link ClassInfo#getClassDependencies()} on the corresponding key.
      * @throws IllegalStateException
-     *             if this {@link ScanResult} has been closed, or if {@link ClassGraph#enableClassInfo()} was not
-     *             called before scanning.
+     *             if this {@link ScanResult} has been closed, or if {@link ClassGraph#enableClassInfo()} and
+     *             {@link ClassGraph#enableInterClassDependencies()} were not both called before scanning.
      */
     public Map<ClassInfo, ClassInfoList> getClassDependencyMap() {
+        // Checked here too, since with no classes no class is asked for its dependencies
+        scanSpec.checkInterClassDependenciesEnabled();
         final Map<ClassInfo, ClassInfoList> map = new TreeMap<>();
         for (final ClassInfo ci : getAllClasses()) {
             map.put(ci, ci.getClassDependencies());
@@ -986,10 +988,12 @@ public final class ScanResult implements AutoCloseable {
      *         accepted classes that referenced that class as a dependency (i.e. returns a map from dependencies to
      *         dependents), sorted by class name.
      * @throws IllegalStateException
-     *             if this {@link ScanResult} has been closed, or if {@link ClassGraph#enableClassInfo()} was not
-     *             called before scanning.
+     *             if this {@link ScanResult} has been closed, or if {@link ClassGraph#enableClassInfo()} and
+     *             {@link ClassGraph#enableInterClassDependencies()} were not both called before scanning.
      */
     public Map<ClassInfo, ClassInfoList> getReverseClassDependencyMap() {
+        // Checked here too, since with no classes no class is asked for its dependencies
+        scanSpec.checkInterClassDependenciesEnabled();
         final Map<ClassInfo, Set<ClassInfo>> revMapSet = new HashMap<>();
         for (final ClassInfo ci : getAllClasses()) {
             for (final ClassInfo dep : ci.getClassDependencies()) {

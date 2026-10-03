@@ -134,12 +134,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     private @Nullable String fullyQualifiedDefiningMethodName;
 
     /**
-     * If true, this class is only being referenced by another class' classfile as a superclass / implemented
-     * interface / annotation, but this class is not itself an accepted (non-rejected) class, or in a accepted
-     * (non-rejected) package.
+     * If true, this class is not an accepted class: it is known only because an accepted class refers to it, and
+     * its classfile was either not read at all, or read only because scanning was extended to the classes that
+     * accepted classes refer to.
      *
-     * If false, this classfile was matched during scanning (i.e. its classfile contents read), i.e. this class is a
-     * accepted (and non-rejected) class in an accepted (and non-rejected) package.
+     * If false, this class's classfile was read because the class itself is accepted.
      */
     boolean isExternalClass = true;
 
@@ -1238,7 +1237,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *            the classes
      * @param scanSpec
      *            the scan spec
-     * @return A list of all annotation classes found during the scan, or the empty list if none.
+     * @return A list of all implemented interface classes found during the scan, or the empty list if none.
      */
     static ClassInfoList getAllImplementedInterfaceClasses(final Collection<ClassInfo> classes,
             final ScanSpec scanSpec) {
@@ -1352,8 +1351,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Checks if this is an external class.
      *
-     * @return true if this class is an external class, i.e. was referenced by an accepted class as a superclass,
-     *         interface, or annotation, but is not itself an accepted class.
+     * @return true if this class is an external class, i.e. is not itself an accepted class, and is known only
+     *         because an accepted class refers to it, for example as its superclass, an interface, an annotation or
+     *         an enclosing class. An external class may still have been scanned: see the class documentation.
      */
     public boolean isExternalClass() {
         return isExternalClass;
@@ -1389,12 +1389,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * a legal class modifier. {@link Class#getModifiers()} masks it out for the same reason.
      *
      * <p>
-     * <b>Note:</b> comparing the returned value against a hardcoded integer is fragile, and the value of that bit
-     * changed in version 4.8.186: a {@code protected static} nested class previously returned 0x002C, and now
-     * returns 0x000C. Prefer the named accessors ({@link #isPublic()}, {@link #isProtected()},
-     * {@link #isPrivate()}, {@link #isStatic()}, {@link #isFinal()}, {@link #isAbstract()}, {@link #isInterface()},
-     * {@link #isAnnotation()}, {@link #isEnum()}, {@link #isSynthetic()}), or test individual bits with the
-     * {@link Modifier} predicates, rather than comparing the whole value.
+     * <b>Note:</b> comparing the returned value against a hardcoded integer is fragile. Prefer the named accessors
+     * ({@link #isPublic()}, {@link #isProtected()}, {@link #isPrivate()}, {@link #isStatic()}, {@link #isFinal()},
+     * {@link #isAbstract()}, {@link #isInterface()}, {@link #isAnnotation()}, {@link #isEnum()},
+     * {@link #isSynthetic()}), or test individual bits with the {@link Modifier} predicates, rather than comparing
+     * the whole value.
      *
      * @return The class modifier bits, e.g. {@link Modifier#PUBLIC}.
      */
@@ -1406,7 +1405,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Get the class modifiers as a String.
      *
-     * @return The field modifiers as a string, e.g. "public static final". For the modifier bits, call
+     * @return The class modifiers as a string, e.g. "public static final". For the modifier bits, call
      *         {@link #getModifiers()}.
      */
     public String getModifiersString() {
@@ -2046,7 +2045,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get the order that fields are overridden in (base class first).
+     * Get the order that fields are searched in: this class first, then its superinterfaces, then its superclass,
+     * recursively.
      *
      * @return the override order
      */
@@ -3286,9 +3286,13 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @param methodAnnotationName
      *            the name of the method annotation.
      * @return the filtered list.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
      */
-    private static MethodInfoList filterByAnnotation(final MethodInfoList methodInfoList,
+    private MethodInfoList filterByAnnotation(final MethodInfoList methodInfoList,
             final String methodAnnotationName) {
+        // Checked here too, since an empty list never asks a method for its annotations
+        scanResult().scanSpec.checkAnnotationInfoEnabled();
         return methodInfoList.filter(methodInfo -> methodInfo.hasAnnotation(methodAnnotationName));
     }
 
@@ -3385,7 +3389,10 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Returns information on all visible fields declared by this class, or by its superclasses. See also:
+     * Returns information on all visible fields declared by this class, or by its superclasses or superinterfaces.
+     * A field hides any field of the same name in a supertype that is searched after it. The supertypes are
+     * searched in the order that the JVM resolves a field reference in: a class's superinterfaces before its
+     * superclass. See also:
      *
      * <ul>
      * <li>{@link #getFieldInfo(String)}
@@ -3401,7 +3408,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * By default only returns information for public fields, unless {@link ClassGraph#ignoreFieldVisibility()} was
      * called before the scan.
      *
-     * @return the list of FieldInfo objects for visible fields of this class or its superclasses, or the empty list
+     * @return the list of FieldInfo objects for visible fields of this class or its supertypes, or the empty list
      *         if no fields were found or visible.
      * @throws IllegalStateException
      *             if {@link ClassGraph#enableFieldInfo()} was not called prior to initiating the scan.
@@ -3481,7 +3488,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Returns information on the named field declared by this class, or by its superclasses. See also:
+     * Returns information on the named field declared by this class, or by its superclasses or superinterfaces,
+     * searched in the order that the JVM resolves a field reference in: a class's superinterfaces before its
+     * superclass. See also:
      *
      * <ul>
      * <li>{@link #getDeclaredFieldInfo(String)}
@@ -3499,7 +3508,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *
      * @param fieldName
      *            The field name.
-     * @return the {@link FieldInfo} object for the named field of this class or its superclasses, or null if the
+     * @return the {@link FieldInfo} object for the named field of this class or its supertypes, or null if the
      *         field was not found or is not visible.
      * @throws IllegalStateException
      *             if {@link ClassGraph#enableFieldInfo()} was not called prior to initiating the scan.
@@ -3653,9 +3662,12 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @param fieldAnnotationName
      *            the name of the field annotation.
      * @return the filtered list.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
      */
-    private static FieldInfoList filterByAnnotation(final FieldInfoList fieldInfoList,
-            final String fieldAnnotationName) {
+    private FieldInfoList filterByAnnotation(final FieldInfoList fieldInfoList, final String fieldAnnotationName) {
+        // Checked here too, since an empty list never asks a field for its annotations
+        scanResult().scanSpec.checkAnnotationInfoEnabled();
         return fieldInfoList.filter(fieldInfo -> fieldInfo.hasAnnotation(fieldAnnotationName));
     }
 

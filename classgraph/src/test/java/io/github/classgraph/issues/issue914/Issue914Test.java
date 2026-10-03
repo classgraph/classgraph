@@ -82,6 +82,10 @@ public class Issue914Test {
         }
     }
 
+    /** A class with no fields, and no methods other than its constructor. */
+    public static class NoMembers {
+    }
+
     private static final String MARKER = Marker.class.getName();
 
     /**
@@ -206,6 +210,19 @@ public class Issue914Test {
             assertThatThrownBy(() -> sub.getMethodInfoWithAnnotation(MARKER))
                     .isInstanceOf(IllegalStateException.class);
             assertThatThrownBy(() -> sub.getFieldInfoWithAnnotation(MARKER))
+                    .isInstanceOf(IllegalStateException.class);
+
+            // A class with no methods or fields to test the annotation on throws too
+            final var noMembers = scanResult.getClassInfo(NoMembers.class.getName());
+            assertThat(noMembers.getMethodInfo()).isEmpty();
+            assertThat(noMembers.getFieldInfo()).isEmpty();
+            assertThatThrownBy(() -> noMembers.getMethodInfoWithAnnotation(MARKER))
+                    .isInstanceOf(IllegalStateException.class);
+            assertThatThrownBy(() -> noMembers.getDeclaredMethodInfoWithAnnotation(MARKER))
+                    .isInstanceOf(IllegalStateException.class);
+            assertThatThrownBy(() -> noMembers.getFieldInfoWithAnnotation(MARKER))
+                    .isInstanceOf(IllegalStateException.class);
+            assertThatThrownBy(() -> noMembers.getDeclaredFieldInfoWithAnnotation(MARKER))
                     .isInstanceOf(IllegalStateException.class);
         }
     }

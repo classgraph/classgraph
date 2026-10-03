@@ -116,4 +116,20 @@ public class ClassDependencyMapTest {
         assertThatThrownBy(() -> scanResult.getReverseClassDependencyMap().clear())
                 .isInstanceOf(UnsupportedOperationException.class);
     }
+
+    /**
+     * Without {@link ClassGraph#enableInterClassDependencies()}, both maps throw, even when no class was found and
+     * there is no class to ask for its dependencies.
+     */
+    @Test
+    public void bothMapsRequireInterClassDependenciesToBeEnabled() {
+        try (var withoutDependencies = new ClassGraph().enableClassInfo().enableClasspath()
+                .acceptClasses(Leaf.class.getName() + "DoesNotExist").scan()) {
+            assertThat(withoutDependencies.getAllClasses()).isEmpty();
+            assertThatThrownBy(withoutDependencies::getClassDependencyMap).isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("enableInterClassDependencies");
+            assertThatThrownBy(withoutDependencies::getReverseClassDependencyMap)
+                    .isInstanceOf(IllegalStateException.class).hasMessageContaining("enableInterClassDependencies");
+        }
+    }
 }
