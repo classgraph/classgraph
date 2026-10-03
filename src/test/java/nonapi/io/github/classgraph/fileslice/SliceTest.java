@@ -22,6 +22,8 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.api.Timeout.ThreadMode;
 import org.junit.jupiter.api.io.TempDir;
 
 import nonapi.io.github.classgraph.concurrency.InterruptionChecker;
@@ -307,6 +309,51 @@ public class SliceTest {
             final Slice slice = nestedJarHandler.readAllBytesWithSpilloverToDisk(stream, "zeroreads.bin",
                     /* inputStreamLengthHint = */ -1L, /* log = */ null);
             assertThat(slice.sliceLength).isEqualTo(CONTENT.length);
+            assertThat(slice.load()).containsExactly(CONTENT);
+        } finally {
+            nestedJarHandler.close(/* log = */ null);
+        }
+    }
+
+    /**
+     * A stream that is too long to hold in RAM, and that returns zero from a read of a non-empty buffer, is copied
+     * to disk in full, including when it returns zero rather than -1 at its end. Before the fix, the copy to disk
+     * read such a stream forever.
+     *
+     * <p>
+     * The timeout runs the test in a separate thread, since a same-thread timeout is only checked once the test
+     * method returns, which a non-terminating loop never does.
+     *
+     * @throws IOException
+     *             if the stream could not be read
+     */
+    @Test
+    @Timeout(value = 60, threadMode = ThreadMode.SEPARATE_THREAD)
+    public void aStreamThatReturnsZeroIsSpilledToDiskInFull() throws IOException {
+        final InputStream stream = new InputStream() {
+            private final InputStream wrapped = new ByteArrayInputStream(CONTENT);
+
+            /** The number of calls to {@link #read(byte[], int, int)} so far. */
+            private int numBulkReads;
+
+            @Override
+            public int read() throws IOException {
+                return wrapped.read();
+            }
+
+            @Override
+            public int read(final byte[] buf, final int off, final int len) throws IOException {
+                if (len == 0 || numBulkReads++ % 2 == 0) {
+                    return 0;
+                }
+                return Math.max(wrapped.read(buf, off, len), 0);
+            }
+        };
+        final NestedJarHandler nestedJarHandler = nestedJarHandler(/* maxBufferedJarRAMSize = */ 4);
+        try {
+            final Slice slice = nestedJarHandler.readAllBytesWithSpilloverToDisk(stream, "zeroreads.bin",
+                    /* inputStreamLengthHint = */ CONTENT.length, /* log = */ null);
+            assertThat(slice).isInstanceOf(FileSlice.class);
             assertThat(slice.load()).containsExactly(CONTENT);
         } finally {
             nestedJarHandler.close(/* log = */ null);

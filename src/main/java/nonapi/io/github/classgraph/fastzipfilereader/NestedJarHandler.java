@@ -1257,12 +1257,25 @@ public class NestedJarHandler {
                 outputStream.write(buf, 0, bufBytesUsed);
                 outputStream.write(overflowBuf);
             }
-            // Copy the rest of the InputStream to the file. (The loop ends only at the end of the stream, and not
-            // as soon as a read returns zero, because a stream that returns zero from a read of a non-empty buffer
-            // would otherwise end the loop early, silently truncating the file.)
+            // Copy the rest of the InputStream to the file. A stream can return zero from a read of a non-empty
+            // buffer, at its end or before it, so zero is not taken for the end of the stream, which would
+            // truncate the file, and is not simply read past, which loops forever on a stream that returns zero at
+            // its end. Instead the stream is asked for a single byte, which InputStream#read() can only answer with
+            // a byte or the end of the stream.
             final byte[] copyBuf = new byte[8192];
-            for (int bytesRead; (bytesRead = inputStream.read(copyBuf, 0, copyBuf.length)) >= 0;) {
-                outputStream.write(copyBuf, 0, bytesRead);
+            for (;;) {
+                final int bytesRead = inputStream.read(copyBuf, 0, copyBuf.length);
+                if (bytesRead > 0) {
+                    outputStream.write(copyBuf, 0, bytesRead);
+                } else if (bytesRead < 0) {
+                    break;
+                } else {
+                    final int nextByte = inputStream.read();
+                    if (nextByte < 0) {
+                        break;
+                    }
+                    outputStream.write(nextByte);
+                }
             }
         }
 

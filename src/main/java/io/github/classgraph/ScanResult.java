@@ -443,9 +443,11 @@ public final class ScanResult implements Closeable {
 
     /**
      * Returns all unique directories or zip/jarfiles on the classpath, in classloader resolution order, as a
-     * classpath string, delineated with the standard path separator character.
+     * classpath string, delineated with the standard path separator character. Where the path separator is ':', a
+     * ':' inside a file path is written as {@code "\:"}, which ClassGraph reads back as part of the path, but the
+     * {@code java} launcher does not.
      *
-     * @return a the unique directories and jarfiles on the classpath, in classpath resolution order, as a path
+     * @return the unique directories and jarfiles on the classpath, in classpath resolution order, as a path
      *         string.
      */
     public String getClasspath() {

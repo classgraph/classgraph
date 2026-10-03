@@ -231,9 +231,25 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
             // exhausted. (Each call may still transfer more than the target, filling the rest of the buffer.)
             while (arrUsed < targetArrUsed) {
                 final int numRead = inflaterInputStream.read(arr, arrUsed, arr.length - arrUsed);
-                if (numRead <= 0) {
-                    // -1 => end of stream; 0 => the buffer has no space left
+                if (numRead < 0) {
+                    // End of stream
                     break;
+                }
+                if (numRead == 0) {
+                    if (arrUsed == arr.length) {
+                        // The buffer has no space left, since the length hint is shorter than the target
+                        break;
+                    }
+                    // The stream transferred nothing into a buffer that has room, which InputStream#read should
+                    // never do, but some streams do, at their end or before it. Taking zero for the end would
+                    // truncate the classfile, and reading again could loop forever, so ask for a single byte, which
+                    // InputStream#read() can only answer with a byte or the end of the stream
+                    final int nextByte = inflaterInputStream.read();
+                    if (nextByte < 0) {
+                        break;
+                    }
+                    arr[arrUsed++] = (byte) nextByte;
+                    continue;
                 }
                 arrUsed += numRead;
             }

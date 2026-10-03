@@ -42,6 +42,41 @@ public class ClassfileReaderShortReadTest {
         }
     }
 
+    /**
+     * An {@link InputStream} whose {@link InputStream#read(byte[], int, int)} returns zero on every other call, and
+     * at the end of the stream returns zero rather than -1, although {@link InputStream#read()} reports the end of
+     * the stream correctly. {@link InputStream#read(byte[], int, int)} should block rather than return zero, but
+     * some streams return zero anyway.
+     */
+    private static final class ZeroReadInputStream extends InputStream {
+        private final InputStream wrapped;
+
+        /** The number of calls to {@link #read(byte[], int, int)} so far. */
+        private int numBulkReads;
+
+        ZeroReadInputStream(final InputStream wrapped) {
+            this.wrapped = wrapped;
+        }
+
+        @Override
+        public int read() throws IOException {
+            return wrapped.read();
+        }
+
+        @Override
+        public int read(final byte[] buf, final int off, final int len) throws IOException {
+            if (len == 0 || numBulkReads++ % 2 == 0) {
+                return 0;
+            }
+            return Math.max(wrapped.read(buf, off, len), 0);
+        }
+
+        @Override
+        public void close() throws IOException {
+            wrapped.close();
+        }
+    }
+
     /** Content with a different value every few bytes, so content read at the wrong offset does not still match. */
     private static byte[] content(final int length) {
         final byte[] content = new byte[length];
@@ -82,6 +117,23 @@ public class ClassfileReaderShortReadTest {
         final int length = 40000;
         final byte[] content = content(length);
         try (ClassfileReader reader = shortReadReader(content)) {
+            final byte[] readBack = new byte[length];
+            assertThat(reader.read(0, readBack, 0, length)).isEqualTo(length);
+            assertThat(readBack).isEqualTo(content);
+        }
+    }
+
+    /**
+     * A stream that returns zero from a read with room in the buffer is not taken to have ended there. Before the
+     * fix, the first zero ended the read, and the reader threw an {@link IOException} for a classfile that was
+     * still there to be read.
+     */
+    @Test
+    public void contentIsReadInFullFromAStreamThatReturnsZero() throws IOException {
+        final int length = 40000;
+        final byte[] content = content(length);
+        try (ClassfileReader reader = new ClassfileReader(
+                new ZeroReadInputStream(new ByteArrayInputStream(content)), null)) {
             final byte[] readBack = new byte[length];
             assertThat(reader.read(0, readBack, 0, length)).isEqualTo(length);
             assertThat(readBack).isEqualTo(content);
