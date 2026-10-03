@@ -145,7 +145,10 @@ public class ZipFileSlice {
     }
 
     /**
-     * Get the physical {@link File} that this ZipFileSlice is a slice of.
+     * Get the physical {@link File} that this ZipFileSlice is a slice of. For a nested jarfile stored uncompressed,
+     * this is the file of the jarfile that encloses it, since the nested jarfile is read in place as a byte range
+     * of that file. For a deflated nested jarfile too large to hold in RAM, it is the temporary file the nested
+     * jarfile was inflated to.
      *
      * @return the physical {@link File} that this ZipFileSlice is a slice of, or null if the physical zipfile is
      *         held in RAM (read from a stream, downloaded from a URL, or inflated from a nested jar), or is a
@@ -166,7 +169,8 @@ public class ZipFileSlice {
     }
 
     /**
-     * Get the physical {@link Path} that this ZipFileSlice is a slice of.
+     * Get the physical {@link Path} that this ZipFileSlice is a slice of, chosen the same way as
+     * {@link #getPhysicalFile()}.
      *
      * @return the physical {@link Path} that this ZipFileSlice is a slice of, or null if the physical zipfile is
      *         held in RAM (read from a stream, downloaded from a URL, or inflated from a nested jar).

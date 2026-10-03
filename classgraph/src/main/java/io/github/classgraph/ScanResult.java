@@ -525,7 +525,9 @@ public final class ScanResult implements AutoCloseable {
     /**
      * Returns the unique directories and zip/jarfiles that were scanned, in classloader resolution order, as a
      * classpath string, delineated with the standard path separator character. Only the classpath elements that
-     * were actually scanned are listed, as described in {@link #getClasspathFiles()}.
+     * were actually scanned are listed, as described in {@link #getClasspathFiles()}. Where the path separator is
+     * ':', a ':' inside a file path is written as {@code "\:"}, which ClassGraph reads back as part of the path,
+     * but the {@code java} launcher does not.
      *
      * @return the unique directories and jarfiles that were scanned, in classpath resolution order, as a path
      *         string.

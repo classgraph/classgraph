@@ -1747,7 +1747,8 @@ public final class ClassGraph {
      * not included in the returned list. Note that the returned string contains only base files, and does not
      * include package roots or nested jars within jars, since the path separator (':') conflicts with the URL
      * scheme separator character (also ':') on Linux and Mac OS X. Call {@link #getClasspathURIs()} to get the full
-     * URIs for classpath elements and modules.
+     * URIs for classpath elements and modules. Where the path separator is ':', a ':' inside a file path is written
+     * as {@code "\:"}, which ClassGraph reads back as part of the path, but the {@code java} launcher does not.
      *
      * @return a classpath path string consisting of the unique enabled directories and jarfiles, in classpath
      *         resolution order.

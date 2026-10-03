@@ -88,8 +88,8 @@ public final class ModulePathInfo {
             if (argPartSeparatorChar == '\0') {
                 values.add(argParam);
             } else {
-                values.addAll(
-                        Arrays.asList(PathList.split(argParam, argPartSeparatorChar, /* classpathSpec = */ null)));
+                values.addAll(Arrays
+                        .asList(PathList.split(argParam, argPartSeparatorChar, /* allowedURLSchemes = */ null)));
             }
         }
     }
