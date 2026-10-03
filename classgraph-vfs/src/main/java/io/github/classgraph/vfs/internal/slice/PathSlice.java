@@ -310,7 +310,8 @@ public final class PathSlice extends Slice {
         final var fileChannelOpened = openedChannel.channel();
         this.fileChannel = fileChannelOpened;
         // Nothing but this constructor knows about the file channel yet, so if anything below throws, this is the
-        // only place the channel -- and the temporary file, if this slice owns one -- can be released
+        // only place the channel can be released. A temporary file is not deleted here: until this constructor
+        // returns, the caller that created the file still owns it, and deletes it when this throws
         try {
             if (memoryMapWholeFile && VersionFinder.OS == OperatingSystem.Windows) {
                 // Memory-map the whole file, if it can be mapped -- otherwise fall through and read through the
@@ -324,7 +325,15 @@ public final class PathSlice extends Slice {
                 backingByteBuffer = mapping == null ? null : mapping.byteBuffer;
             }
         } catch (final RuntimeException | Error e) {
-            close();
+            // The mapping was not made, since nothing after FileMapping#map can throw, so there is only the
+            // channel to release
+            isClosed.set(true);
+            fileChannel = null;
+            try {
+                fileChannelOpened.close();
+            } catch (final IOException e2) {
+                e.addSuppressed(e2);
+            }
             throw e;
         }
     }

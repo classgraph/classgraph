@@ -37,6 +37,8 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.TreeMap;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * A parser for the main section of a jarfile manifest, {@code META-INF/MANIFEST.MF}.
  *
@@ -190,9 +192,11 @@ public final class ManifestParser {
                 curr = skipLineTerminator(manifest, lineEndIdx);
                 continue;
             }
-            final var name = new String(manifest, curr, colonIdx - curr, StandardCharsets.UTF_8);
-            final var valueEndIdx = readValue(manifest, colonIdx + 1, attributes, name);
-            curr = valueEndIdx;
+            // A line whose name is not a valid attribute name, such as one with a space before the ':', is skipped
+            // along with the lines that continue its value. (The JDK rejects the whole manifest instead, but the
+            // rest of the manifest can still be read.)
+            curr = readValue(manifest, colonIdx + 1, isValidName(manifest, curr, colonIdx) ? attributes : null,
+                    new String(manifest, curr, colonIdx - curr, StandardCharsets.UTF_8));
         }
         return Collections.unmodifiableMap(attributes);
     }
@@ -209,13 +213,13 @@ public final class ManifestParser {
      * @param valueStartIdx
      *            the index of the first character after the ':' that separates the value from its name.
      * @param attributes
-     *            the map to store the attribute in.
+     *            the map to store the attribute in, or null to skip the value without storing it.
      * @param name
      *            the name of the attribute.
      * @return the index of the start of the line after the value.
      */
     private static int readValue(final byte[] manifest, final int valueStartIdx,
-            final Map<String, String> attributes, final String name) {
+            final @Nullable Map<String, String> attributes, final String name) {
         final var len = manifest.length;
         // Skip the space that separates the ':' from the value. The jarfile specification requires exactly one,
         // but manifests in the wild are not always so careful.
@@ -248,8 +252,35 @@ public final class ManifestParser {
             }
             value = buf.toString(StandardCharsets.UTF_8);
         }
-        attributes.put(name, value.endsWith(" ") ? value.trim() : value);
+        if (attributes != null) {
+            attributes.put(name, value.endsWith(" ") ? value.trim() : value);
+        }
         return nextLineIdx;
+    }
+
+    /**
+     * Determines whether an attribute name is valid: 1 to 70 characters, each an ASCII letter or digit, '-' or '_',
+     * which is the rule {@link java.util.jar.Attributes.Name} applies.
+     *
+     * @param manifest
+     *            the bytes of the manifest file.
+     * @param startIdx
+     *            the index of the first byte of the name.
+     * @param endIdx
+     *            the index after the last byte of the name.
+     * @return true if the name is valid.
+     */
+    private static boolean isValidName(final byte[] manifest, final int startIdx, final int endIdx) {
+        if (endIdx <= startIdx || endIdx - startIdx > 70) {
+            return false;
+        }
+        for (var i = startIdx; i < endIdx; i++) {
+            final var b = manifest[i];
+            if (!(b >= 'a' && b <= 'z' || b >= 'A' && b <= 'Z' || b >= '0' && b <= '9' || b == '-' || b == '_')) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**

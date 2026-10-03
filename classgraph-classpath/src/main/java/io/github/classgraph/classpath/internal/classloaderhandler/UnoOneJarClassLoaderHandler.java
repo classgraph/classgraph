@@ -90,7 +90,9 @@ class UnoOneJarClassLoaderHandler implements ClassLoaderHandler {
         // a separator
         final var unoJarClassPath = VersionFinder.getProperty("uno-jar.class.path");
         if (unoJarClassPath != null) {
-            classpathOrder.addClasspathEntryObject(unoJarClassPath.split("\\|"), classLoader, log);
+            // Each element is added as it is, since passing a string to addClasspathEntryObject would split it
+            // again at the platform's path separator
+            classpathOrder.addClasspathEntries(List.of(unoJarClassPath.split("\\|")), classLoader, log);
         }
 
         // For One-Jar:
@@ -104,7 +106,7 @@ class UnoOneJarClassLoaderHandler implements ClassLoaderHandler {
         // commandline, with '|' as a separator
         final var oneJarClassPath = VersionFinder.getProperty("one-jar.class.path");
         if (oneJarClassPath != null) {
-            classpathOrder.addClasspathEntryObject(oneJarClassPath.split("\\|"), classLoader, log);
+            classpathOrder.addClasspathEntries(List.of(oneJarClassPath.split("\\|")), classLoader, log);
         }
 
         // For both Uno-Jar and One-Jar, "lib/" and "main/" are automatically picked up as library roots for nested

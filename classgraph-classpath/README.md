@@ -139,8 +139,9 @@ if (entry instanceof ClasspathEntry.OfURL urlEntry) {
 A classpath entry can also be a URL for something that is not a local file. Any scheme the JVM has a
 handler for is opened, including one an application registered itself -- see
 [custom URL schemes](../classgraph-vfs/README.md#custom-url-schemes). The exceptions are the four
-schemes that fetch over a network: `http`, `https`, `ftp` and `mailto` are denied to begin with,
-because a classpath is not always something the caller wrote. An entry with a denied scheme is still
+schemes whose handlers connect over a network: `http`, `https`, `ftp` and `mailto` (which connects
+to a mail server, though it cannot fetch a jarfile) are denied to begin with, because a classpath is
+not always something the caller wrote. An entry with a denied scheme is still
 reported, but `open` throws `IOException` for it, so the elements it declares are not found. Call
 `new ClasspathFinder().enableClasspath().allowURLScheme("https")` before `find()` to allow one, which allows it both
 while the classpath is being found and on the `Vfs` that `Classpath.getVfs()` hands back;

@@ -314,7 +314,8 @@ new Vfs(new VfsSpec().denyURLScheme("https"))
 
 A `Vfs` denies nothing by default. `ClassGraph` and `ClasspathFinder` construct theirs with `http`,
 `https`, `ftp` and `mailto` denied, because a classpath is not always something the caller wrote,
-and those four fetch over a network on any JVM. `allowURLScheme(String)` takes a scheme back off
+and the handlers for those four connect over a network on any JVM (`mailto` connects to a mail
+server, though it cannot fetch a jarfile). `allowURLScheme(String)` takes a scheme back off
 that list.
 
 An `http` or `https` redirect is followed, including one from `http` to `https`, up to 20 times.

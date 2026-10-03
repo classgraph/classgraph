@@ -11,6 +11,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -87,6 +88,34 @@ public class ClasspathFinderTest {
         try (var classpath = new ClasspathFinder().enableClasspathEntries(jar.toPath()).find()) {
             assertThat(classpath.getLocations()).isEqualTo(expected);
         }
+    }
+
+    /**
+     * The classpath entry {@code "*"} adds the jarfiles in the current directory even when {@code user.dir} cannot
+     * be read, which leaves the current directory path empty. This has to run in a child JVM, since the current
+     * directory is read only once per JVM.
+     *
+     * @param tempDir
+     *            the directory to run the child JVM in.
+     * @throws Exception
+     *             if the jarfile could not be written, or the child JVM could not be run.
+     */
+    @Test
+    public void aWildcardFindsTheJarfilesInTheCurrentDirectoryWhenUserDirCannotBeRead(@TempDir final Path tempDir)
+            throws Exception {
+        final var jar = writeJarWithManifest(tempDir.resolve("a.jar"));
+        final var command = List.of(
+                ProcessHandle.current().info().command()
+                        .orElseGet(() -> Path.of(System.getProperty("java.home"), "bin", "java").toString()),
+                "-cp", System.getProperty("java.class.path"), CurrentDirWildcardPrinter.class.getName());
+        final var process = new ProcessBuilder(command).directory(tempDir.toFile()).redirectErrorStream(true)
+                .start();
+        final String output;
+        try (var inputStream = process.getInputStream()) {
+            output = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+        }
+        assertThat(process.waitFor()).as("Child JVM output:%n%s", output).isZero();
+        assertThat(output.lines()).as("Child JVM output:%n%s", output).containsExactly(location(jar));
     }
 
     /** An empty classpath override is a caller error, rather than a silent scan of nothing. */
@@ -185,6 +214,39 @@ public class ClasspathFinderTest {
         assertThat(new ClasspathFinder().enableModuleLayers(ModuleLayer.empty()).enableDetectedModuleLayers()
                 .enableSystemModules().enableNonSystemModules().find().getModules())
                 .anyMatch(module -> "java.base".equals(module.descriptor().name()));
+    }
+
+    /**
+     * Ignoring the parent module layers leaves out the boot layer when a layer below it is searched. The child
+     * layer here resolves no modules of its own, so every module found without the option came from the boot layer.
+     */
+    @Test
+    public void ignoringTheParentModuleLayersLeavesOutTheBootLayer() {
+        final var bootLayer = ModuleLayer.boot();
+        final var childLayer = bootLayer.defineModulesWithOneLoader(bootLayer.configuration()
+                .resolve(java.lang.module.ModuleFinder.of(), java.lang.module.ModuleFinder.of(), Set.of()),
+                ClassLoader.getSystemClassLoader());
+        try (var classpath = new ClasspathFinder().enableModuleLayers(childLayer).enableSystemModules()
+                .enableNonSystemModules().find()) {
+            assertThat(classpath.getModules()).anyMatch(module -> "java.base".equals(module.descriptor().name()));
+        }
+        try (var classpath = new ClasspathFinder().enableModuleLayers(childLayer).enableSystemModules()
+                .enableNonSystemModules().ignoreParentModuleLayers().find()) {
+            assertThat(classpath.getModules()).isEmpty();
+        }
+    }
+
+    /**
+     * Ignoring the parent module layers says which layers are searched, so it is refused when no modules are
+     * searched, rather than being silently ignored.
+     */
+    @Test
+    public void ignoringTheParentModuleLayersNeedsModulesToBeSearched() {
+        assertThatThrownBy(() -> new ClasspathFinder().enableClasspath().ignoreParentModuleLayers().find())
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("ClasspathFinder#ignoreParentModuleLayers() has no effect unless "
+                        + "ClasspathFinder#enableSystemModules() or ClasspathFinder#enableNonSystemModules() "
+                        + "is also called");
     }
 
     /** The module path switches the JVM was launched with are reachable from the result. */

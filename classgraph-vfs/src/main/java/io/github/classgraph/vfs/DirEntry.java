@@ -109,6 +109,8 @@ final class DirEntry extends VfsEntry {
             try {
                 return attributesCurr.size();
             } catch (final UnsupportedOperationException e) {
+                // The fallback attributes of FileUtils#readAttributes do not throw this, but the attributes of a
+                // directory on another filesystem come from that filesystem's own provider, which may
                 return -1L;
             }
         }
@@ -132,6 +134,7 @@ final class DirEntry extends VfsEntry {
             try {
                 return attributesCurr.lastModifiedTime().toMillis();
             } catch (final UnsupportedOperationException e) {
+                // As in getLength(), another filesystem's provider may throw this
                 return 0L;
             }
         }

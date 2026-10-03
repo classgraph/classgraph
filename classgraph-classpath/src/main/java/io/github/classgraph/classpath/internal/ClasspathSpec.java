@@ -85,8 +85,9 @@ public class ClasspathSpec {
 
     /**
      * The URL schemes that a scan or a classpath walk does not fetch a jarfile from unless asked to. These are the
-     * schemes that every JVM can fetch over a network, so a classpath element naming one would otherwise be read
-     * from the network, which is not something to do with a path that was merely handed over.
+     * schemes whose handler in every JVM connects over a network, so a classpath element naming one would otherwise
+     * open a network connection, which is not something to do with a path that was merely handed over. The
+     * {@code mailto} handler cannot fetch a jarfile, but it still connects to a mail server before it fails.
      */
     public static final List<String> NETWORK_URL_SCHEMES = List.of("http", "https", "ftp", "mailto");
 

@@ -94,8 +94,8 @@ public final class ClasspathFinder {
      * Constructor.
      *
      * <p>
-     * A classpath is not always something the caller wrote, so the URL schemes that every JVM can fetch over a
-     * network are denied to begin with: a jarfile is not downloaded from an {@code http:}, {@code https:},
+     * A classpath is not always something the caller wrote, so the URL schemes whose handlers in every JVM connect
+     * over a network are denied to begin with: no connection is opened for an {@code http:}, {@code https:},
      * {@code ftp:} or {@code mailto:} URL unless {@link #allowURLScheme(String)} asks for it. Every other scheme is
      * read as found.
      */
@@ -438,6 +438,22 @@ public final class ClasspathFinder {
         return this;
     }
 
+    /**
+     * Do not search a module layer that is the parent of another module layer that is searched, so that only the
+     * modules of the innermost layers are found.
+     *
+     * <p>
+     * This says which layers the modules are looked for in; it does not enable a kind of module, so
+     * {@link #enableSystemModules()} or {@link #enableNonSystemModules()} has to be called too, or {@link #find()}
+     * throws {@link IllegalArgumentException}.
+     *
+     * @return this (for method chaining).
+     */
+    public ClasspathFinder ignoreParentModuleLayers() {
+        classpathSpec.ignoreParentModuleLayers();
+        return this;
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**
@@ -517,6 +533,12 @@ public final class ClasspathFinder {
                         "ClasspathFinder#enableDetectedModuleLayers() has no effect unless "
                                 + "ClasspathFinder#enableSystemModules() or "
                                 + "ClasspathFinder#enableNonSystemModules() is also called");
+            }
+            if (classpathSpec.isParentModuleLayersIgnored()) {
+                throw new IllegalArgumentException(
+                        "ClasspathFinder#ignoreParentModuleLayers() has no effect unless "
+                                + "ClasspathFinder#enableSystemModules() or ClasspathFinder#enableNonSystemModules() "
+                                + "is also called");
             }
         }
         if (classpathSpec.isParentClassLoadersIgnored() && !scanSourceSpec.searchesClassLoaders()) {

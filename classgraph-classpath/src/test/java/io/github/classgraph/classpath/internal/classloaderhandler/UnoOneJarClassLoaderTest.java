@@ -3,6 +3,7 @@ package io.github.classgraph.classpath.internal.classloaderhandler;
 import static io.github.classgraph.classpath.Locations.location;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -148,6 +149,28 @@ public class UnoOneJarClassLoaderTest {
             throws IOException {
         final var libJar = Files.createFile(tempDir.resolve("lib.jar"));
         final var classesDir = Files.createDirectory(tempDir.resolve("classes"));
+        System.setProperty("one-jar.class.path", libJar + "|" + classesDir);
+        assertThat(locations(new com.simontuffs.onejar.JarClassLoader())).containsExactly(location(libJar),
+                location(classesDir));
+    }
+
+    /**
+     * Only {@code '|'} separates the extra classpath entries, so an entry whose name contains the platform's path
+     * separator is not split there.
+     *
+     * @param tempDir
+     *            a temporary directory to create the application in.
+     * @throws IOException
+     *             if the application could not be created.
+     */
+    @Test
+    public void anExtraClasspathEntryIsNotSplitAtThePathSeparator(@TempDir final Path tempDir) throws IOException {
+        final var libJar = Files.createFile(tempDir.resolve("lib" + File.pathSeparator + "1.jar"));
+        final var classesDir = Files.createDirectory(tempDir.resolve("classes"));
+        System.setProperty("uno-jar.class.path", libJar + "|" + classesDir);
+        assertThat(locations(new com.needhamsoftware.unojar.JarClassLoader(/* oneJarPath = */ null)))
+                .containsExactly(location(libJar), location(classesDir));
+        System.clearProperty("uno-jar.class.path");
         System.setProperty("one-jar.class.path", libJar + "|" + classesDir);
         assertThat(locations(new com.simontuffs.onejar.JarClassLoader())).containsExactly(location(libJar),
                 location(classesDir));

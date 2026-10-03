@@ -147,6 +147,22 @@ public class ManifestParserTest {
     }
 
     /**
+     * A line whose attribute name is not a valid name -- here because of a space before the colon -- is skipped,
+     * along with the lines that continue its value, and the attributes after it are still read. It used to be
+     * stored under the name with the space in it, which no lookup of the attribute could match. (The JDK's own
+     * manifest parser rejects such a manifest outright.)
+     */
+    @Test
+    public void aLineWithAnInvalidNameIsSkipped() {
+        assertThat(parse("Manifest-Version: 1.0\r\n" //
+                + "Class-Path : lib/a.jar\r\n" //
+                + "  lib/b.jar\r\n" //
+                + "Main-Class: com.xyz.Main\r\n" //
+                + "\r\n"))
+                .containsOnly(Map.entry("Manifest-Version", "1.0"), Map.entry("Main-Class", "com.xyz.Main"));
+    }
+
+    /**
      * The space that separates an attribute from its value is not part of the value. The jarfile specification
      * requires exactly one space and no trailing space, but manifests in the wild are not always so careful.
      */

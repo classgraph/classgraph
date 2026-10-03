@@ -641,8 +641,10 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
             pathElementStr = pathElementStr.substring(0, pathElementStr.length() - 2);
             // Leave pathElementURL null, so that wildcards can be handled below
         } else if ("*".equals(pathElementStr)) {
+            // Reached when the current directory path is empty, because user.dir could not be read. "." rather than
+            // "" names the current directory, since before JDK 25 new File("") does not exist and lists nothing
             hasWildcardSuffix = true;
-            pathElementStr = "";
+            pathElementStr = ".";
             // Leave pathElementURL null, so that wildcards can be handled below
         } else if (!(pathElement instanceof Path) && URLPaths.startsWithURLScheme(pathElementStr)) {
             // Path element string is a URL with a scheme other than `[jar:]file:`, so the URL has to actually be

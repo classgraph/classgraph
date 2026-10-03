@@ -172,8 +172,8 @@ public final class ClassGraph {
      *
      * <p>
      * A scan reads whatever the classpath names, and a classpath is not always something the caller wrote, so the
-     * URL schemes that every JVM can fetch over a network are denied to begin with: a jarfile is not downloaded
-     * from an {@code http:}, {@code https:}, {@code ftp:} or {@code mailto:} URL unless
+     * URL schemes whose handlers in every JVM connect over a network are denied to begin with: no connection is
+     * opened for an {@code http:}, {@code https:}, {@code ftp:} or {@code mailto:} URL unless
      * {@link #allowURLScheme(String)} or {@link #enableRemoteJarScanning()} asks for it. Every other scheme is read
      * as found, including one that an application registered a {@link java.net.URLStreamHandler} or a
      * {@link java.nio.file.spi.FileSystemProvider} for, since registering one is what says those URLs are meant to

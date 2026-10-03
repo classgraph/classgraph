@@ -171,8 +171,8 @@ public final class VfsSpec {
      * {@code ftp}, {@code mailto}, {@code jrt} and {@code jmod}), or because something registered a handler or a
      * {@link java.nio.file.spi.FileSystemProvider} for it. Denying a scheme is how a caller that reads paths it
      * does not control keeps a jarfile from being fetched over one -- {@code ClassGraph} denies the four schemes
-     * that fetch over a network ({@code http}, {@code https}, {@code ftp} and {@code mailto}) for exactly that
-     * reason.
+     * whose handlers connect over a network ({@code http}, {@code https}, {@code ftp} and {@code mailto}, which
+     * connects to a mail server even though it cannot fetch a jarfile) for exactly that reason.
      *
      * <p>
      * Denying {@code file:} or {@code jar:} has no effect. A {@code file:} URL names a local file, and a
