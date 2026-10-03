@@ -102,7 +102,10 @@ class Classfile {
     /** Whether this class is an annotation. */
     private boolean isAnnotation;
 
-    /** The superclass name. (can be null if no superclass, or if superclass is rejected.) */
+    /**
+     * The superclass name, or null if the classfile names no superclass, which is the case only for
+     * {@code java.lang.Object} and {@code module-info}.
+     */
     private String superclassName;
 
     /** The implemented interfaces. */

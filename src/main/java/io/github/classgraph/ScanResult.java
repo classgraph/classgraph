@@ -887,8 +887,12 @@ public final class ScanResult implements Closeable {
      * @return A map from a {@link ClassInfo} object for each accepted class to a list of the classes referenced by
      *         that class (i.e. returns a map from dependents to dependencies). Each map value is the result of
      *         calling {@link ClassInfo#getClassDependencies()} on the corresponding key.
+     * @throws IllegalArgumentException
+     *             if this {@link ScanResult} has been closed, or if {@link ClassGraph#enableInterClassDependencies()}
+     *             was not called before scanning.
      */
     public Map<ClassInfo, ClassInfoList> getClassDependencyMap() {
+        checkInterClassDependenciesEnabled();
         final Map<ClassInfo, ClassInfoList> map = new HashMap<>();
         for (final ClassInfo ci : getAllClasses()) {
             map.put(ci, ci.getClassDependencies());
@@ -907,8 +911,12 @@ public final class ScanResult implements Closeable {
      * @return A map from a {@link ClassInfo} object for each dependency class (accepted or not) to a list of the
      *         accepted classes that referenced that class as a dependency (i.e. returns a map from dependencies to
      *         dependents).
+     * @throws IllegalArgumentException
+     *             if this {@link ScanResult} has been closed, or if {@link ClassGraph#enableInterClassDependencies()}
+     *             was not called before scanning.
      */
     public Map<ClassInfo, ClassInfoList> getReverseClassDependencyMap() {
+        checkInterClassDependenciesEnabled();
         final Map<ClassInfo, Set<ClassInfo>> revMapSet = new HashMap<>();
         for (final ClassInfo ci : getAllClasses()) {
             for (final ClassInfo dep : ci.getClassDependencies()) {
@@ -924,6 +932,24 @@ public final class ScanResult implements Closeable {
             revMapList.put(ent.getKey(), new ClassInfoList(ent.getValue(), /* sortByName = */ true));
         }
         return revMapList;
+    }
+
+    /**
+     * Checks that inter-class dependencies were enabled. Checked by the dependency maps before asking any class for
+     * its dependencies, since a scan that found no classes never asks one.
+     *
+     * @throws IllegalArgumentException
+     *             if this {@link ScanResult} has been closed, or class info or inter-class dependencies were not
+     *             enabled.
+     */
+    private void checkInterClassDependenciesEnabled() {
+        if (closed.get()) {
+            throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
+        }
+        if (!scanSpec.enableClassInfo || !scanSpec.enableInterClassDependencies) {
+            throw new IllegalArgumentException(
+                    "Please call ClassGraph#enableInterClassDependencies() before #scan()");
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------

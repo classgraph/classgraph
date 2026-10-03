@@ -361,4 +361,19 @@ public class JarUtilsTest {
         assertThat(JarUtils.derivedAutomaticModuleName("/a/outer.jar!/dir!name/classes")).isEqualTo("outer");
         assertThat(JarUtils.derivedAutomaticModuleName("/a/outer.jar!/lib/we!rd-1.0.jar")).isEqualTo("we.rd");
     }
+
+    /**
+     * When the name derived from a jarfile name is not a legal module name, because a part of it starts with a
+     * digit or is a Java keyword, the module system cannot derive a name for the jarfile ({@code ModuleFinder}
+     * throws {@code FindException}), and neither can ClassGraph.
+     */
+    @Test
+    public void noAutomaticModuleNameIsDerivedWhenTheModuleSystemCannotDeriveOne() {
+        for (final String jarName : new String[] { "x-1a.jar", "Foo-Bar_2.jar", "foo-1-2.jar", "foo-int.jar",
+                "true.jar", "a-null-b.jar" }) {
+            assertThat(JarUtils.derivedAutomaticModuleName("/a/b/" + jarName)).as(jarName).isEmpty();
+        }
+        // A keyword or a digit within a part is fine
+        assertThat(JarUtils.derivedAutomaticModuleName("/a/b/integer-x1.jar")).isEqualTo("integer.x1");
+    }
 }

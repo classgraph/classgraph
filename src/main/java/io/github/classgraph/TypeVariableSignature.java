@@ -382,14 +382,14 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
             // in the class hierarchy)
             return false;
         }
-        // 'other' is a type variable too. Compare the names and type annotations, but unlike equals(), not the
-        // classes the two type variables are used in, so that the T of a superclass method matches the T of the
-        // method that overrides it.
+        // 'other' is a type variable too. Compare the names, but unlike equals(), not the classes the two type
+        // variables are used in, so that the T of a superclass method matches the T of the method that overrides
+        // it. As for the other kinds of type signature, type annotations are not compared.
         if (!(other instanceof TypeVariableSignature)) {
             return false;
         }
         final TypeVariableSignature o = (TypeVariableSignature) other;
-        return o.name.equals(this.name) && Objects.equals(o.typeAnnotationInfo, this.typeAnnotationInfo);
+        return o.name.equals(this.name);
     }
 
     /**

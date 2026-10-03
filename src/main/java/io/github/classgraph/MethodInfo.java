@@ -488,14 +488,16 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
     }
 
     /**
-     * Returns true if this is a default method (i.e. if this is a method in an interface and the method has a
-     * body).
-     * 
+     * Returns true if this is a default method, which is a public instance method of an interface that has a body,
+     * as for {@link java.lang.reflect.Method#isDefault()}. A static or private method of an interface has a body
+     * too, but is not a default method.
+     *
      * @return True if this is a default method.
      */
     public boolean isDefault() {
         final ClassInfo classInfo = getClassInfo();
-        return classInfo != null && classInfo.isInterface() && hasBody;
+        return classInfo != null && classInfo.isInterface()
+                && (modifiers & (Modifier.ABSTRACT | Modifier.PUBLIC | Modifier.STATIC)) == Modifier.PUBLIC;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -676,8 +678,14 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
      * @param annotationName
      *            The name of a method parameter annotation.
      * @return true if this method has a parameter with the named annotation.
+     * @throws IllegalArgumentException
+     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
      */
     public boolean hasParameterAnnotation(final String annotationName) {
+        // Checked here too, since a method with no parameters never asks a parameter for its annotations
+        if (!scanResult.scanSpec.enableAnnotationInfo) {
+            throw new IllegalArgumentException("Please call ClassGraph#enableAnnotationInfo() before #scan()");
+        }
         for (final MethodParameterInfo methodParameterInfo : getParameterInfo()) {
             if (methodParameterInfo.hasAnnotation(annotationName)) {
                 return true;

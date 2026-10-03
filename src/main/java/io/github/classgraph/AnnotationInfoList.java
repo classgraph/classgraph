@@ -409,23 +409,13 @@ public class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
      * @return The list of annotations with the given name, or the empty list if none found.
      */
     public AnnotationInfoList getRepeatable(final String name) {
-        boolean hasNamedAnnotation = false;
-        for (final AnnotationInfo ai : this) {
-            if (ai.getName().equals(name)) {
-                hasNamedAnnotation = true;
-                break;
+        // filter() keeps the record of which of the matching annotations are directly present
+        return filter(new AnnotationInfoFilter() {
+            @Override
+            public boolean accept(final AnnotationInfo ai) {
+                return ai.getName().equals(name);
             }
-        }
-        if (!hasNamedAnnotation) {
-            return AnnotationInfoList.EMPTY_LIST;
-        }
-        final AnnotationInfoList matchingAnnotations = new AnnotationInfoList(size());
-        for (final AnnotationInfo ai : this) {
-            if (ai.getName().equals(name)) {
-                matchingAnnotations.add(ai);
-            }
-        }
-        return matchingAnnotations;
+        });
     }
 
     // -------------------------------------------------------------------------------------------------------------

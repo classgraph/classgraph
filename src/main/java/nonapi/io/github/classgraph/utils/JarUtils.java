@@ -30,6 +30,7 @@ package nonapi.io.github.classgraph.utils;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -63,6 +64,18 @@ public final class JarUtils {
 
     /** The Constant TRAILING_DOTS. */
     private static final Pattern TRAILING_DOTS = Pattern.compile("\\.$");
+
+    /**
+     * The words that cannot be part of a module name, as for {@code ModuleDescriptor.newAutomaticModule}: the Java
+     * keywords and the literals {@code true}, {@code false} and {@code null}. ({@code "_"} is one too, but cannot
+     * occur in a derived name.)
+     */
+    private static final Set<String> JAVA_KEYWORDS = new HashSet<>(Arrays.asList("abstract", "assert", "boolean",
+            "break", "byte", "case", "catch", "char", "class", "const", "continue", "default", "do", "double", "else",
+            "enum", "extends", "final", "finally", "float", "for", "goto", "if", "implements", "import",
+            "instanceof", "int", "interface", "long", "native", "new", "package", "private", "protected", "public",
+            "return", "short", "static", "strictfp", "super", "switch", "synchronized", "this", "throw", "throws",
+            "transient", "try", "void", "volatile", "while", "true", "false", "null"));
 
     /** The Constant DOUBLE_BACKSHLASH_WITH_COLON. */
     private static final Pattern DOUBLE_BACKSHLASH_WITH_COLON = Pattern.compile("\\\\:");
@@ -566,7 +579,8 @@ public final class JarUtils {
      * 
      * @param jarPath
      *            The jar path.
-     * @return The automatic module name.
+     * @return The automatic module name, or the empty string if the module system could not derive a name for the
+     *         jarfile.
      */
     public static String derivedAutomaticModuleName(final String jarPath) {
         // If jar path does not end in a file extension (with ".jar" most likely), strip off everything after the
@@ -616,6 +630,15 @@ public final class JarUtils {
         final int len = moduleName.length();
         if (len > 0 && moduleName.charAt(len - 1) == '.') {
             moduleName = TRAILING_DOTS.matcher(moduleName).replaceAll("");
+        }
+
+        // The module system cannot name a jarfile whose derived name is not a legal module name, because a part of
+        // it starts with a digit or is a Java keyword, as for "x-1a.jar" or "foo-int.jar". Every part is a
+        // nonempty run of ASCII letters and digits by this point.
+        for (final String part : moduleName.split("\\.")) {
+            if (part.isEmpty() || Character.isDigit(part.charAt(0)) || JAVA_KEYWORDS.contains(part)) {
+                return "";
+            }
         }
         return moduleName;
     }

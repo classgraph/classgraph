@@ -482,12 +482,12 @@ public class ScanSpec {
     }
 
     /**
-     * Returns true if the given directory path is a descendant of a rejected path, or an ancestor or descendant of
+     * Returns whether the given directory path is a descendant of a rejected path, or an ancestor or descendant of
      * an accepted path. The path should end in "/".
      *
      * @param relativePath
      *            the relative path
-     * @return the {@link ScanSpecPathMatch}
+     * @return the {@link ScanSpecPathMatch} that says which of those the path is, if any
      */
     public ScanSpecPathMatch dirAcceptMatchStatus(final String relativePath) {
         // In rejected path

@@ -338,10 +338,10 @@ public class MethodParameterInfo {
     }
 
     /**
-     * Convert modifiers into a string representation, e.g. "public static final".
+     * Convert method parameter modifiers into a string representation, e.g. "final synthetic".
      *
      * @param modifiers
-     *            The field or method modifiers.
+     *            The method parameter modifiers.
      * @param buf
      *            The buffer to write the result into.
      */

@@ -363,7 +363,7 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
     }
 
     /**
-     * Compare base types, ignoring generic type parameters.
+     * Compare base types, ignoring generic type parameters and type annotations.
      *
      * @param other
      *            the other {@link TypeSignature} to compare to.

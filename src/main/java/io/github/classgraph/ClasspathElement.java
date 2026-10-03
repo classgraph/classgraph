@@ -551,9 +551,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
             }
         }
         if (foundMasked) {
-            // Remove masked (duplicated) paths. N.B. this replaces the concurrent collection with a non-concurrent
-            // collection, but this is the last time the collection is changed during a scan, and this method is
-            // run from a single thread.
+            // Remove masked (duplicated) paths
             acceptedClassfileResources = acceptedClassfileResourcesFiltered;
         }
     }
