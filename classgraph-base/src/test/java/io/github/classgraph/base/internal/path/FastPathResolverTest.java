@@ -225,6 +225,28 @@ public class FastPathResolverTest {
     }
 
     /**
+     * A URL with an empty authority, such as {@code "custom:///a/b"}, keeps all three slashes: the first two
+     * introduce the empty authority, and the third begins the path. Dropping one would turn the first segment of
+     * the path into the authority, so {@code "custom:///a/b"} would name the path {@code "/b"} on the host
+     * {@code "a"}.
+     */
+    @Test
+    public void aUrlWithAnEmptyAuthorityKeepsThePathSeparator() {
+        assertThat(FastPathResolver.resolve("custom:///a/b")).isEqualTo("custom:///a/b");
+        assertThat(FastPathResolver.resolve("/base", "custom:///a/b")).isEqualTo("custom:///a/b");
+        assertThat(FastPathResolver.resolve("custom:///a/b!/c.jar")).isEqualTo("custom:///a/b!/c.jar");
+        // A ".." segment cannot climb out of the path into the authority
+        assertThat(FastPathResolver.resolve("s3:///bucket/../x")).isEqualTo("s3:///x");
+        // A path resolved against a base path with an empty authority keeps it empty
+        assertThat(FastPathResolver.resolve("custom:///a/b", "x.jar")).isEqualTo("custom:///a/b/x.jar");
+        // The root path of a URL with an empty authority
+        assertThat(FastPathResolver.resolve("custom:///")).isEqualTo("custom:///");
+        // A URL with no authority still has just the one slash before its path
+        assertThat(FastPathResolver.resolve("custom:/")).isEqualTo("custom:/");
+        assertThat(FastPathResolver.resolve("custom:/a/b")).isEqualTo("custom:/a/b");
+    }
+
+    /**
      * A URL scheme is case-insensitive, and its canonical form is lowercase (RFC 3986 section 3.1), so a scheme
      * that is kept must be lowercased whatever case it was written in -- otherwise the same resource named
      * {@code "s3://bucket/key"} and {@code "S3://bucket/key"} is two different resources.

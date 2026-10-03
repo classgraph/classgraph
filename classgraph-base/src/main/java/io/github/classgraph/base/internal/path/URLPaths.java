@@ -259,11 +259,12 @@ public final class URLPaths {
      * @return the URL string
      */
     public static String normalizeURLPath(final String urlPath) {
-        if (urlPath.startsWith("jrt:") || urlPath.startsWith("http://") || urlPath.startsWith("https://")) {
-            // These schemes do not name a file, so there is no file path to normalize, and what is left is still a
-            // URL: FastPathResolver keeps the percent encoding of a URL rather than decoding it, so encoding it
-            // again here would name a resource on a host that does not exist. Only what a URI cannot hold is
-            // escaped
+        if (startsWithURLScheme(urlPath) && !urlPath.startsWith("file:") && !urlPath.startsWith("jar:")) {
+            // A scheme other than "file:" does not name a file -- "jrt:", "http:" and "https:" do not, and nor does
+            // a custom scheme, which names something only its URL handler can reach -- so there is no file path to
+            // normalize, and what is left is still a URL: FastPathResolver keeps the percent encoding of a URL
+            // rather than decoding it, so encoding it again here would name a resource on a host that does not
+            // exist. Only what a URI cannot hold is escaped
             final var url = encodeURL(urlPath);
             // A "!/" separates a jarfile from a path within it whatever the jarfile is fetched over, so a jarfile
             // nested inside a jarfile that was fetched over http is named by a "jar:" URL, exactly as a nested

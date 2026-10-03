@@ -132,6 +132,23 @@ public class URLPathsTest {
     }
 
     /**
+     * A URL with a custom scheme names something only the scheme's handler can reach, so it stays a URL with that
+     * scheme. Read as a file path, it would become {@code "file:custom%3a/dir/x.jar"}, a relative file that does
+     * not exist.
+     */
+    @Test
+    public void aCustomSchemeIsKept() {
+        assertThat(URLPaths.normalizeURLPath("custom:/dir/x.jar")).isEqualTo("custom:/dir/x.jar");
+        assertThat(URLPaths.normalizeURLPath("custom:///dir/x.jar")).isEqualTo("custom:///dir/x.jar");
+        assertThat(URLPaths.normalizeURLPath("s3://bucket/dir/x.jar")).isEqualTo("s3://bucket/dir/x.jar");
+        // A jarfile nested inside one read through a custom scheme is named by a "jar:" URL
+        assertThat(URLPaths.normalizeURLPath("custom:/dir/x.jar!/lib/y.jar"))
+                .isEqualTo("jar:custom:/dir/x.jar!/lib/y.jar");
+        // A character a URI cannot hold is escaped, and an escape that is already written is kept
+        assertThat(URLPaths.normalizeURLPath("custom:/dir/a b%20c.jar")).isEqualTo("custom:/dir/a%20b%20c.jar");
+    }
+
+    /**
      * A URL keeps the percent encoding it was written with, since a path that is still a URL is never decoded, so
      * encoding it a second time would name a resource that does not exist. Only a lone {@code '%'} that does not
      * introduce an escape is encoded.
