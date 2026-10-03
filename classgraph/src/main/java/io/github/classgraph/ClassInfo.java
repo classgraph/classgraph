@@ -2033,7 +2033,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             final List<ClassInfo> overrideOrderOut) {
         if (visited.add(this)) {
             overrideOrderOut.add(this);
-            for (final ClassInfo iface : allSuperinterfacesIncludingExternal()) {
+            // Only the direct superinterfaces, since the interfaces of the superclass are searched after the
+            // superclass itself, by the recursion into the superclass (JVMS 5.4.3.2)
+            for (final ClassInfo iface : allSuperinterfacesIncludingExternal().directOnly()) {
                 iface.getFieldOverrideOrder(visited, overrideOrderOut);
             }
             final var superclass = superclassIncludingExternal();
