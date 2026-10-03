@@ -325,11 +325,26 @@ public abstract class Slice implements AutoCloseable {
                 outputStream.write(buf, 0, bufBytesUsed);
                 outputStream.write(overflowBuf);
             }
-            // Copy the rest of the InputStream to the file. (This is InputStream#transferTo rather than a copy
-            // loop of its own, because a stream that returns zero from a read of a non-empty buffer would end a
-            // copy loop early, silently truncating the file, whereas transferTo keeps reading until the end of
-            // the stream is reached.)
-            inputStream.transferTo(outputStream);
+            // Copy the rest of the InputStream to the file. A stream can return zero from a read of a non-empty
+            // buffer, at its end or before it, so zero is not taken for the end of the stream, which would
+            // truncate the file, and is not simply read past, which InputStream#transferTo does, and which loops
+            // forever on a stream that returns zero at its end. Instead the stream is asked for a single byte,
+            // which InputStream#read() can only answer with a byte or the end of the stream.
+            final var copyBuf = new byte[DEFAULT_BUFFER_SIZE];
+            for (;;) {
+                final var bytesRead = inputStream.read(copyBuf, 0, copyBuf.length);
+                if (bytesRead > 0) {
+                    outputStream.write(copyBuf, 0, bytesRead);
+                } else if (bytesRead < 0) {
+                    break;
+                } else {
+                    final var nextByte = inputStream.read();
+                    if (nextByte < 0) {
+                        break;
+                    }
+                    outputStream.write(nextByte);
+                }
+            }
         }
 
         // Return a new PathSlice that owns the temporary file, and deletes it when it is closed

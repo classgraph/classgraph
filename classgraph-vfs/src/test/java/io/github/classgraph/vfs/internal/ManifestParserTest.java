@@ -10,6 +10,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.api.Timeout.ThreadMode;
 
 /**
  * Tests {@link ManifestParser}, which reads the main section of a jarfile manifest.
@@ -293,5 +295,37 @@ public class ManifestParserTest {
             assertThat(parseStream("", chunkSize)).isEmpty();
             assertThat(parseStream("\r\nName: com/xyz/Widget.class\r\n", chunkSize)).isEmpty();
         }
+    }
+
+    /**
+     * A stream whose {@link java.io.InputStream#read(byte[], int, int)} returns zero on every other call, and at
+     * its end returns zero rather than -1, is read in full rather than read forever.
+     * {@link java.io.InputStream#read(byte[], int, int)} should block rather than return zero, but some streams
+     * return zero anyway.
+     *
+     * <p>
+     * The timeout runs the test in a separate thread, since a same-thread timeout is only checked once the test
+     * method returns, which a non-terminating loop never does.
+     *
+     * @throws IOException
+     *             if the manifest could not be read.
+     */
+    @Test
+    @Timeout(value = 60, threadMode = ThreadMode.SEPARATE_THREAD)
+    public void aStreamThatReturnsZeroIsReadInFull() throws IOException {
+        final var bytes = "Manifest-Version: 1.0\r\nMain-Class: com.xyz.Main".getBytes(StandardCharsets.UTF_8);
+        final var zeroReadStream = new ByteArrayInputStream(bytes) {
+            /** The number of calls to {@link #read(byte[], int, int)} so far. */
+            private int numBulkReads;
+
+            @Override
+            public synchronized int read(final byte[] dstBuf, final int off, final int len) {
+                if (len == 0 || numBulkReads++ % 2 == 0) {
+                    return 0;
+                }
+                return Math.max(super.read(dstBuf, off, len), 0);
+            }
+        };
+        assertThat(ManifestParser.parse(zeroReadStream)).containsEntry("Main-Class", "com.xyz.Main");
     }
 }

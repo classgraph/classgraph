@@ -12,6 +12,8 @@ import java.nio.file.Path;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.api.Timeout.ThreadMode;
 import org.junit.jupiter.api.io.TempDir;
 
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
@@ -321,6 +323,51 @@ public class SliceTest {
             final var slice = Slice.fromInputStream(stream, "zeroreads.bin", /* inputStreamLengthHint = */ -1L, vfs,
                     /* log = */ null);
             assertThat(slice.sliceLength).isEqualTo(CONTENT.length);
+            assertThat(slice.load()).containsExactly(CONTENT);
+        } finally {
+            vfs.close(/* log = */ null);
+        }
+    }
+
+    /**
+     * A stream that is too long to hold in RAM, and that returns zero from a read of a non-empty buffer, is copied
+     * to disk in full, including when it returns zero rather than -1 at its end. Before the fix, the copy to disk
+     * read such a stream forever.
+     *
+     * <p>
+     * The timeout runs the test in a separate thread, since a same-thread timeout is only checked once the test
+     * method returns, which a non-terminating loop never does.
+     *
+     * @throws IOException
+     *             if the stream could not be read
+     */
+    @Test
+    @Timeout(value = 60, threadMode = ThreadMode.SEPARATE_THREAD)
+    public void aStreamThatReturnsZeroIsSpilledToDiskInFull() throws IOException {
+        final var stream = new InputStream() {
+            private final InputStream wrapped = new ByteArrayInputStream(CONTENT);
+
+            /** The number of calls to {@link #read(byte[], int, int)} so far. */
+            private int numBulkReads;
+
+            @Override
+            public int read() throws IOException {
+                return wrapped.read();
+            }
+
+            @Override
+            public int read(final byte[] buf, final int off, final int len) throws IOException {
+                if (len == 0 || numBulkReads++ % 2 == 0) {
+                    return 0;
+                }
+                return Math.max(wrapped.read(buf, off, len), 0);
+            }
+        };
+        final var vfs = vfs(/* maxBufferedJarRAMSize = */ 4);
+        try {
+            final var slice = Slice.fromInputStream(stream, "zeroreads.bin",
+                    /* inputStreamLengthHint = */ CONTENT.length, vfs, /* log = */ null);
+            assertThat(slice).isInstanceOf(PathSlice.class);
             assertThat(slice.load()).containsExactly(CONTENT);
         } finally {
             vfs.close(/* log = */ null);

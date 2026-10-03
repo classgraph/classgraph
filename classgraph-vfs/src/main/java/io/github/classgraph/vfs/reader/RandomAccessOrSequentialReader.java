@@ -483,9 +483,17 @@ public final class RandomAccessOrSequentialReader implements RandomAccessReader,
                 break;
             }
             if (numRead == 0) {
-                // The stream transferred nothing into a buffer that has room, which InputStream#read only does at
-                // the end of a stream that does not report the end by returning -1
-                break;
+                // The stream transferred nothing into a buffer that has room, which InputStream#read should never
+                // do, but some streams do, at their end or before it. Taking zero for the end would truncate the
+                // content, and reading again could loop forever, so ask for a single byte, which InputStream#read()
+                // can only answer with a byte or the end of the stream, as Slice#fromInputStream does
+                final var nextByte = inputStream.read();
+                if (nextByte < 0) {
+                    eof = true;
+                    break;
+                }
+                arr[arrUsed++] = (byte) nextByte;
+                continue;
             }
             arrUsed += numRead;
         }

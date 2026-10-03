@@ -112,7 +112,19 @@ public final class ManifestParser {
                 }
                 buf = Arrays.copyOf(buf, (int) Math.min(buf.length * 2L, MAX_MAIN_SECTION_SIZE));
             }
-            final var numBytes = manifestInputStream.read(buf, numBytesRead, buf.length - numBytesRead);
+            var numBytes = manifestInputStream.read(buf, numBytesRead, buf.length - numBytesRead);
+            if (numBytes == 0) {
+                // The stream transferred nothing into a buffer that has room, which InputStream#read should never
+                // do, but some streams do, at their end or before it. Reading again could loop forever, so ask for
+                // a single byte, which InputStream#read() can only answer with a byte or the end of the stream
+                final var nextByte = manifestInputStream.read();
+                if (nextByte < 0) {
+                    numBytes = -1;
+                } else {
+                    buf[numBytesRead] = (byte) nextByte;
+                    numBytes = 1;
+                }
+            }
             final var atEndOfStream = numBytes < 0;
             if (!atEndOfStream) {
                 numBytesRead += numBytes;

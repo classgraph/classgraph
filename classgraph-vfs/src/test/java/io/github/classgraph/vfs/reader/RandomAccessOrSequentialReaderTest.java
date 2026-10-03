@@ -20,6 +20,8 @@ import java.util.zip.ZipOutputStream;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.api.Timeout.ThreadMode;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
@@ -82,6 +84,41 @@ public class RandomAccessOrSequentialReaderTest {
         @Override
         public int read(final byte[] buf, final int off, final int len) throws IOException {
             return len == 0 ? 0 : wrapped.read(buf, off, 1);
+        }
+
+        @Override
+        public void close() throws IOException {
+            wrapped.close();
+        }
+    }
+
+    /**
+     * An {@link InputStream} whose {@link InputStream#read(byte[], int, int)} returns zero on every other call, and
+     * at the end of the stream returns zero rather than -1, although {@link InputStream#read()} reports the end of
+     * the stream correctly. {@link InputStream#read(byte[], int, int)} should block rather than return zero, but
+     * some streams return zero anyway.
+     */
+    private static final class ZeroReadInputStream extends InputStream {
+        private final InputStream wrapped;
+
+        /** The number of calls to {@link #read(byte[], int, int)} so far. */
+        private int numBulkReads;
+
+        ZeroReadInputStream(final InputStream wrapped) {
+            this.wrapped = wrapped;
+        }
+
+        @Override
+        public int read() throws IOException {
+            return wrapped.read();
+        }
+
+        @Override
+        public int read(final byte[] buf, final int off, final int len) throws IOException {
+            if (len == 0 || numBulkReads++ % 2 == 0) {
+                return 0;
+            }
+            return Math.max(wrapped.read(buf, off, len), 0);
         }
 
         @Override
@@ -978,6 +1015,33 @@ public class RandomAccessOrSequentialReaderTest {
 
             // The content really has not ended: a read with room for it still reads it
             assertThat(reader.read(0, dstArr, 0, 4)).isEqualTo(4);
+        }
+    }
+
+    /**
+     * A stream that returns zero from a read with room in its destination is neither taken to have ended there nor
+     * read forever. Before the fix, finding the length of the content looped forever, and a read that met a zero
+     * partway through stopped short of the content it asked for.
+     *
+     * <p>
+     * The timeout runs the test in a separate thread, since a same-thread timeout is only checked once the test
+     * method returns, which a non-terminating loop never does.
+     *
+     * @throws IOException
+     *             if the content could not be read.
+     */
+    @Test
+    @Timeout(value = 60, threadMode = ThreadMode.SEPARATE_THREAD)
+    public void aStreamThatReturnsZeroIsReadInFull() throws IOException {
+        try (var reader = new RandomAccessOrSequentialReader(
+                new ZeroReadInputStream(new ByteArrayInputStream(PATTERN)))) {
+            final var dstArr = new byte[PATTERN.length];
+            assertThat(reader.read(0, dstArr, 0, PATTERN.length)).isEqualTo(PATTERN.length);
+            assertThat(dstArr).isEqualTo(PATTERN);
+        }
+        try (var reader = new RandomAccessOrSequentialReader(
+                new ZeroReadInputStream(new ByteArrayInputStream(PATTERN)))) {
+            assertThat(reader.length()).isEqualTo(PATTERN.length);
         }
     }
 
