@@ -179,9 +179,9 @@ public abstract sealed class ClasspathEntry {
      * Returns the location of the classpath element. This is an absolute path for a local directory or jarfile,
      * with {@code '/'} as the separator on every platform. A jarfile nested inside another jarfile is written in
      * the Java {@code outer.jar!/inner.jar} form. Anything that is not a local file, for example a classpath
-     * element served over HTTP by a container, is the URL or URI it was found as. A location a classloader declared
-     * has been checked to be there, but one that a jarfile's manifest declared has not, so a location may still
-     * name a directory or jarfile that does not exist.
+     * element served over HTTP by a container, is the URL or URI it was found as. A local path is canonical, and
+     * the file or directory it names was there when the classpath was found, but neither a URL nor a path within a
+     * jarfile has been checked, so either may name something that does not exist.
      *
      * <p>
      * This is a name to report the classpath element by. To read it, call {@link #open(Vfs)}, which opens it in the

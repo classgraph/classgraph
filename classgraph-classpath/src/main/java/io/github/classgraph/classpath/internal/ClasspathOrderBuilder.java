@@ -299,7 +299,7 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
      * @return the location of the classpath element, or null if the filesystem says it is not there or that it
      *         cannot be read, in which case the reason has been logged.
      */
-    private static @Nullable String toLocation(final Object pathElement, final String pathElementStr,
+    public static @Nullable String toLocation(final Object pathElement, final String pathElementStr,
             final @Nullable ClassGraphLog log) {
         final Path path;
         final String nestedSuffix;

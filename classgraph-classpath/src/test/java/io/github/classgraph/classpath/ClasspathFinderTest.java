@@ -319,6 +319,29 @@ public class ClasspathFinderTest {
     }
 
     /**
+     * A classpath element that a manifest names through a symbolic link is reported under the path it is stored at,
+     * so a jarfile reached directly and through a manifest entry that goes through a symbolic link is one classpath
+     * element rather than two.
+     */
+    @Test
+    public void aJarNamedByAManifestThroughASymlinkIsOneElement(@TempDir final Path tempDir) throws IOException {
+        final var dir = Files.createDirectory(tempDir.resolve("real"));
+        final var shared = writeJarWithManifest(dir.resolve("shared.jar"));
+        final var namesShared = writeJarWithManifest(dir.resolve("names-shared.jar"), "Class-Path",
+                "../link/shared.jar");
+        try {
+            Files.createSymbolicLink(tempDir.resolve("link"), dir);
+        } catch (IOException | UnsupportedOperationException | SecurityException e) {
+            // Creating a symlink needs a privilege that is not granted by default on Windows
+            abort("Symlinks cannot be created: " + e);
+            return;
+        }
+        try (var classpath = new ClasspathFinder().enableClasspathEntries(shared, namesShared).find()) {
+            assertThat(classpath.getLocations()).containsExactly(location(shared), location(namesShared));
+        }
+    }
+
+    /**
      * On a filesystem that ignores case, a classpath element named with a different case is the same file, so it is
      * one classpath element rather than two, and it is reported with the case it is stored with rather than the
      * case it was asked for.
@@ -467,6 +490,17 @@ public class ClasspathFinderTest {
         final var missing = tempDir.resolve("missing.jar").toFile();
         try (var classpath = new ClasspathFinder().enableClasspathEntries(present, missing).find()) {
             assertThat(classpath.getLocations()).containsExactly(location(present));
+        }
+    }
+
+    /** A classpath element that a manifest names, and that the filesystem says is not there, is skipped too. */
+    @Test
+    public void aClasspathElementThatAManifestNamesAndIsNotThereIsSkipped(@TempDir final Path tempDir)
+            throws IOException {
+        final var namesMissing = writeJarWithManifest(tempDir.resolve("names-missing.jar"), "Class-Path",
+                "missing.jar");
+        try (var classpath = new ClasspathFinder().enableClasspathEntries((Object) namesMissing).find()) {
+            assertThat(classpath.getLocations()).containsExactly(location(namesMissing));
         }
     }
 

@@ -37,8 +37,8 @@ import java.util.List;
 import java.util.Set;
 
 import io.github.classgraph.base.LogNode;
-import io.github.classgraph.base.internal.path.PathSyntax;
 import io.github.classgraph.classpath.internal.ClasspathExpander;
+import io.github.classgraph.classpath.internal.ClasspathOrderBuilder;
 import io.github.classgraph.vfs.Vfs;
 import io.github.classgraph.vfs.VfsSpec;
 import org.jspecify.annotations.Nullable;
@@ -158,13 +158,11 @@ final class TransitiveClasspath {
     private List<ClasspathEntry> children(final ClasspathEntry entry) {
         final var location = entry.getLocation();
         final List<ClasspathExpander.ChildEntry> childEntries;
-        final String canonicalPath;
         try {
             // The classpath element is opened in the form the classloader named it with, so that a child of it is
             // resolved in the filesystem that it lives in. The root is not closed here, because the virtual
             // filesystem owns it, and hands the same root back to whoever reads the classpath element next.
             final var root = entry.open(vfs);
-            canonicalPath = root.getPath();
             childEntries = ClasspathExpander.childEntries(root, entry.getLibDirPrefixes(),
                     vfsSpec.isNestedJarsEnabled(), log);
         } catch (final IOException | IllegalArgumentException e) {
@@ -179,90 +177,27 @@ final class TransitiveClasspath {
         }
         final List<ClasspathEntry> children = new ArrayList<>(childEntries.size());
         for (final var childEntry : childEntries) {
-            final var childLocation = spelledAsReached(childEntry.location(), canonicalPath, location);
             if (log != null) {
-                log.log(childEntry.origin().getLogMessage() + ": " + childLocation);
+                log.log(childEntry.origin().getLogMessage() + ": " + childEntry.location());
+            }
+            // A child classpath element is opened as a path of the filesystem that the element that declared it
+            // lives in, where it has one, so that a classpath element outside the default filesystem declares
+            // classpath elements that can be opened
+            final var childPath = childEntry.path();
+            final Object childObj = childPath == null ? childEntry.location() : childPath;
+            // A child classpath element is located the same way as one that a classloader declared, by the canonical
+            // path of its file, so that a jarfile that a manifest names through a symbolic link is the same classpath
+            // element as that jarfile reached directly. One the filesystem says is not there, or cannot be read, is
+            // skipped, with the reason logged
+            final var childLocation = ClasspathOrderBuilder.toLocation(childObj, childEntry.location(), log);
+            if (childLocation == null) {
+                continue;
             }
             // A child classpath element is loaded by the classloader of the element that declared it, and inherits
-            // its package roots and lib dirs. It is opened as a path of the filesystem that the element that
-            // declared it lives in, where it has one, so that a classpath element outside the default filesystem
-            // declares classpath elements that can be opened.
-            final var childPath = childEntry.path();
-            children.add(ClasspathEntry.of(childPath == null ? childLocation : childPath, childLocation,
-                    entry.getClassLoaderName(), entry.getPackageRootPrefixes(), entry.getLibDirPrefixes()));
+            // its package roots and lib dirs
+            children.add(ClasspathEntry.of(childObj, childLocation, entry.getClassLoaderName(),
+                    entry.getPackageRootPrefixes(), entry.getLibDirPrefixes()));
         }
         return children;
-    }
-
-    /**
-     * Spell the path of a child classpath element the way the classpath element that declared it was spelled.
-     *
-     * <p>
-     * A classpath element has to be opened for its manifest to be read, and opening it canonicalizes its path, so
-     * that the same jarfile reached by two different paths is only opened once. A classpath element is reported by
-     * the path it was reached at though, so without this, a jarfile reached through a symlink (or, on Windows,
-     * through an 8.3 short name) would declare classpath elements under a directory that no classpath element was
-     * reported under, and the same classpath element reached both ways would be reported twice.
-     *
-     * @param childPath
-     *            the path of the child classpath element, as resolved against the canonical path of the classpath
-     *            element that declared it.
-     * @param canonicalPath
-     *            the canonical path of the classpath element that declared it.
-     * @param reachedPath
-     *            the path the classpath element that declared it was reached at.
-     * @return the path of the child classpath element, spelled the way the classpath element that declared it was
-     *         spelled.
-     */
-    // Visible for testing
-    static String spelledAsReached(final String childPath, final String canonicalPath, final String reachedPath) {
-        // Only the outermost path component names a file on disk, so only it can be canonicalized. (The paths
-        // differ in more than that component if the classpath element is a package root within a jarfile, e.g.
-        // "/dir/spring-boot-app.jar!/BOOT-INF/classes", since that is not part of the path of the jarfile.)
-        final var canonicalPling = PathSyntax.indexOfNestedJarSeparator(canonicalPath);
-        final var reachedPling = PathSyntax.indexOfNestedJarSeparator(reachedPath);
-        final var canonicalJarPath = canonicalPling < 0 ? canonicalPath
-                : canonicalPath.substring(0, canonicalPling);
-        final var reachedJarPath = reachedPling < 0 ? reachedPath : reachedPath.substring(0, reachedPling);
-        if (canonicalJarPath.equals(reachedJarPath)) {
-            // The path was not changed by canonicalization, which is the usual case
-            return childPath;
-        }
-        // A Bundle-ClassPath entry or a lib dir jar is a path within the classpath element, so it starts with the
-        // path of the classpath element itself
-        if (isPathWithin(childPath, canonicalJarPath)) {
-            return reachedJarPath + childPath.substring(canonicalJarPath.length());
-        }
-        // A Class-Path entry is resolved against the directory the jarfile is in, so it starts with that directory
-        // instead. A Class-Path entry that is an absolute path elsewhere starts with neither, and is left alone.
-        final var canonicalDirPath = PathSyntax.getParentDirPath(canonicalJarPath);
-        return canonicalDirPath.isEmpty() || !isPathWithin(childPath, canonicalDirPath) ? childPath
-                : PathSyntax.getParentDirPath(reachedJarPath) + childPath.substring(canonicalDirPath.length());
-    }
-
-    /**
-     * Determine whether a path is a given path, or lies within it.
-     *
-     * <p>
-     * The prefix has to be followed by a path separator, so that {@code /dir/lib.jar} is not treated as a prefix of
-     * the path of the unrelated file {@code /dir/lib.jar.bak}. The separator is either the {@code '/'} that
-     * separates the components of a path, or the {@code '!'} of the {@code "!/"} that separates the path of a
-     * jarfile from a path within it.
-     *
-     * @param path
-     *            the path.
-     * @param prefix
-     *            the path it may lie within, with no trailing separator.
-     * @return true if the path is the prefix, or lies within it.
-     */
-    private static boolean isPathWithin(final String path, final String prefix) {
-        if (!path.startsWith(prefix)) {
-            return false;
-        }
-        if (path.length() == prefix.length()) {
-            return true;
-        }
-        final var nextChar = path.charAt(prefix.length());
-        return nextChar == '/' || nextChar == '!';
     }
 }
