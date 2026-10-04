@@ -513,8 +513,10 @@ public final class FastPathResolver {
             startIdx += "//localhost".length();
         }
 
-        // Handle Windows paths starting with a drive designation as an absolute path
-        if (VersionFinder.OS == OperatingSystem.Windows) {
+        // Handle Windows paths starting with a drive designation as an absolute path. A path that keeps its scheme
+        // prefix is still a URL, not a file path, so none of this applies to it: dropping the slash before the
+        // drive in "custom:///C:/a" would make "C:" the URL's authority
+        if (VersionFinder.OS == OperatingSystem.Windows && prefix.isEmpty()) {
             if (relativePath.startsWith("//", startIdx) || relativePath.startsWith("\\\\", startIdx)) {
                 // Windows UNC path
                 startIdx += 2;
