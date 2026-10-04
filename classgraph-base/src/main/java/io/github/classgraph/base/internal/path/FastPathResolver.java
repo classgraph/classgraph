@@ -506,8 +506,10 @@ public final class FastPathResolver {
      *            the prefix parsed so far, updated in place
      */
     private static void stripAbsolutePathPrefix(final String path, final ParsedPrefix parsed) {
-        // Handle Windows paths starting with a drive designation as an absolute path
-        if (VersionFinder.OS == OperatingSystem.Windows) {
+        // Handle Windows paths starting with a drive designation as an absolute path. A path that keeps its scheme
+        // prefix is still a URL, not a file path, so none of this applies to it: dropping the slash before the
+        // drive in "custom:///C:/a" would make "C:" the URL's authority
+        if (VersionFinder.OS == OperatingSystem.Windows && parsed.prefix.isEmpty()) {
             if (path.startsWith("//", parsed.startIdx) || path.startsWith("\\\\", parsed.startIdx)) {
                 // Windows UNC path
                 parsed.startIdx += 2;

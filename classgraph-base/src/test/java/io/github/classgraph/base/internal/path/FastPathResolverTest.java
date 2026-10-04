@@ -247,6 +247,19 @@ public class FastPathResolverTest {
     }
 
     /**
+     * On Windows, a URL with a custom scheme and an empty authority keeps the slash before a drive designation in
+     * its path. The rules for drive designations apply to file paths, and dropping the slash would turn the drive
+     * into the authority, so {@code "custom:///C:/a/b"} would name the path {@code "/a/b"} on the host
+     * {@code "C:"}.
+     */
+    @Test
+    public void aUrlWithAnEmptyAuthorityKeepsTheSlashBeforeADriveOnWindows() {
+        assertThat(resolveAsWindows(null, "custom:///C:/a/b")).isEqualTo("custom:///C:/a/b");
+        assertThat(resolveAsWindows("C:/base", "custom:///C:/a/b")).isEqualTo("custom:///C:/a/b");
+        assertThat(resolveAsWindows(null, "custom:/C:/a/b")).isEqualTo("custom:/C:/a/b");
+    }
+
+    /**
      * A URL scheme is case-insensitive, and its canonical form is lowercase (RFC 3986 section 3.1), so a scheme
      * that is kept must be lowercased whatever case it was written in -- otherwise the same resource named
      * {@code "s3://bucket/key"} and {@code "S3://bucket/key"} is two different resources.
