@@ -233,7 +233,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     private @Nullable List<ClassInfo> methodOverrideOrder;
 
     /** The annotations, once they are loaded */
-    private @Nullable ClassInfoList annotationsRef;
+    private @Nullable ClassInfoList directAnnotationsRef, annotationsRef;
 
     /** The annotation infos, once they are loaded */
     private @Nullable AnnotationInfoList directAnnotationInfoRef, annotationInfoRef;
@@ -2510,12 +2510,33 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * not the {@link Inherited} annotations of superclasses. (Call {@link #getDirectAnnotationInfo()} instead, if
      * you need the parameter values of annotations, rather than just the annotation classes.)
      *
+     * <p>
+     * Filters out meta-annotations in the {@code java.lang.annotation} package.
+     *
+     * <p>
+     * External annotations -- annotations that were read only in order to complete the class graph above this class
+     * -- are excluded.
+     *
      * @return the list of annotations directly present on this class.
      * @throws IllegalStateException
      *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
      */
     public ClassInfoList getDirectAnnotations() {
-        return getAllAnnotations().directOnly();
+        synchronized (this) {
+            if (directAnnotationsRef != null) {
+                return directAnnotationsRef;
+            }
+
+            scanResult().scanSpec.checkAnnotationInfoEnabled();
+
+            // Get all annotations on this class, except external ones
+            final var annotationClasses = this.filterClassInfo(RelType.CLASS_ANNOTATIONS,
+                    /* excludeExternalClasses = */ true);
+
+            directAnnotationsRef = new ClassInfoList(annotationClasses.directlyRelatedClasses(),
+                    /* sortByName = */ true);
+            return directAnnotationsRef;
+        }
     }
 
     /**
