@@ -194,8 +194,7 @@ public final class PackageInfo implements Comparable<PackageInfo>, HasName, HasA
                 annotations = AnnotationInfoList.EMPTY_LIST;
             } else {
                 // A package has no superclass, so there are no @Inherited annotations to add
-                annotations = new AnnotationInfoList(
-                        new AnnotationInfoList(CollectionUtils.sortCopy(annotationSet)), null);
+                annotations = new AnnotationInfoList(CollectionUtils.sortCopy(annotationSet));
             }
             directAnnotationInfo = annotations;
         }

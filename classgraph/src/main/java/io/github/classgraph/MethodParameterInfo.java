@@ -226,7 +226,7 @@ public final class MethodParameterInfo implements HasAnnotations {
         } else {
             List<AnnotationInfo> annotationInfoList = new ArrayList<>(Arrays.asList(annotationInfo));
             CollectionUtils.sortIfNotEmpty(annotationInfoList);
-            return new AnnotationInfoList(new AnnotationInfoList(annotationInfoList), null);
+            return new AnnotationInfoList(annotationInfoList);
         }
     }
 

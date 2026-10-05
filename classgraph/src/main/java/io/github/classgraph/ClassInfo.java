@@ -2705,8 +2705,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             scanResult().scanSpec.checkAnnotationInfoEnabled();
 
             directAnnotationInfoRef = annotationInfo == null ? AnnotationInfoList.EMPTY_LIST
-                    : new AnnotationInfoList(new AnnotationInfoList(CollectionUtils.sortCopy(annotationInfo)),
-                            null);
+                    : new AnnotationInfoList(CollectionUtils.sortCopy(annotationInfo));
             return directAnnotationInfoRef;
         }
     }

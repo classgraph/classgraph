@@ -329,8 +329,7 @@ public final class ModuleInfo implements Comparable<ModuleInfo>, HasName, HasAnn
                 annotations = AnnotationInfoList.EMPTY_LIST;
             } else {
                 // A module has no superclass, so there are no @Inherited annotations to add
-                annotations = new AnnotationInfoList(
-                        new AnnotationInfoList(CollectionUtils.sortCopy(annotationSet)), null);
+                annotations = new AnnotationInfoList(CollectionUtils.sortCopy(annotationSet));
             }
             directAnnotationInfo = annotations;
         }
