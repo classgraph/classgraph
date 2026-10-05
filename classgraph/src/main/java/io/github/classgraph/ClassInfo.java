@@ -236,7 +236,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     private @Nullable ClassInfoList annotationsRef;
 
     /** The annotation infos, once they are loaded */
-    private @Nullable AnnotationInfoList annotationInfoRef;
+    private @Nullable AnnotationInfoList directAnnotationInfoRef, annotationInfoRef;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -2663,6 +2663,30 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
 
             annotationInfoRef = AnnotationInfoList.getIndirectAnnotations(annotationInfo, this);
             return annotationInfoRef;
+        }
+    }
+
+    /**
+     * Get only the annotations written on this class, not the meta-annotations on those annotations, along with
+     * any annotation parameter values, wrapped in {@link AnnotationInfo} objects.
+     *
+     * @return The annotations written on this class, or the empty list if none.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
+     */
+    @Override
+    public AnnotationInfoList getDirectAnnotationInfo() {
+        synchronized (this) {
+            if (directAnnotationInfoRef != null) {
+                return directAnnotationInfoRef;
+            }
+
+            scanResult().scanSpec.checkAnnotationInfoEnabled();
+
+            directAnnotationInfoRef = annotationInfo == null ? AnnotationInfoList.EMPTY_LIST
+                    : new AnnotationInfoList(
+                    new AnnotationInfoList(CollectionUtils.sortCopy(annotationInfo)), null);
+            return directAnnotationInfoRef;
         }
     }
 

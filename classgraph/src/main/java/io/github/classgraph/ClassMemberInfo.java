@@ -31,6 +31,7 @@ package io.github.classgraph;
 import java.lang.reflect.Modifier;
 import java.util.List;
 
+import io.github.classgraph.base.internal.utils.CollectionUtils;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -65,7 +66,7 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
     List<AnnotationInfo> annotationInfo;
 
     /** The annotation infos, once they are loaded */
-    private @Nullable AnnotationInfoList annotationInfoRef;
+    private @Nullable AnnotationInfoList directAnnotationInfoRef, annotationInfoRef;
 
     /**
      * Constructor.
@@ -295,6 +296,30 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
             annotationInfoRef = annotationInfo == null ? AnnotationInfoList.EMPTY_LIST
                     : AnnotationInfoList.getIndirectAnnotations(annotationInfo, /* annotatedClass = */ null);
             return annotationInfoRef;
+        }
+    }
+
+    /**
+     * Get only the annotations written on this class member, not the meta-annotations on those annotations, along with
+     * any annotation parameter values, wrapped in {@link AnnotationInfo} objects.
+     *
+     * @return The annotations written on this class member, or the empty list if none.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
+     */
+    @Override
+    public AnnotationInfoList getDirectAnnotationInfo() {
+        synchronized (this) {
+            if (directAnnotationInfoRef != null) {
+                return directAnnotationInfoRef;
+            }
+
+            scanResult().scanSpec.checkAnnotationInfoEnabled();
+
+            directAnnotationInfoRef = annotationInfo == null ? AnnotationInfoList.EMPTY_LIST
+                    : new AnnotationInfoList(
+                            new AnnotationInfoList(CollectionUtils.sortCopy(annotationInfo)), null);
+            return directAnnotationInfoRef;
         }
     }
 

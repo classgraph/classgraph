@@ -38,6 +38,7 @@ import java.util.Objects;
 import java.util.Set;
 
 import io.github.classgraph.base.internal.utils.Assert;
+import io.github.classgraph.base.internal.utils.CollectionUtils;
 import org.jspecify.annotations.Nullable;
 
 /** Holds metadata about a package encountered during a scan. */
@@ -54,7 +55,7 @@ public final class PackageInfo implements Comparable<PackageInfo>, HasName, HasA
     /**
      * {@link AnnotationInfo} for any annotations on the package-info.class file, if present, else null.
      */
-    private @Nullable AnnotationInfoList annotationInfo;
+    private @Nullable AnnotationInfoList directAnnotationInfo, annotationInfo;
 
     /** The parent package of this package, or null if this is the root package or the parent is not accepted. */
     private @Nullable PackageInfo parent;
@@ -166,6 +167,35 @@ public final class PackageInfo implements Comparable<PackageInfo>, HasName, HasA
                         /* annotatedClass = */ null);
             }
             annotationInfo = annotations;
+        }
+        return annotations;
+    }
+
+    /**
+     * Get only the annotations written on the {@code package-info.class} file for this package,
+     * not the meta-annotations on those annotations, along with any annotation parameter values, wrapped in {@link AnnotationInfo} objects.
+     *
+     * @return The annotations written on this {@code package-info.class} file for this package, or the empty list if none.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
+     */
+    @Override
+    public AnnotationInfoList getDirectAnnotationInfo() {
+        // scanResult is only null if the scan has not completed, which callers cannot observe
+        if (scanResult != null) {
+            scanResult.scanSpec.checkAnnotationInfoEnabled();
+        }
+        var annotations = directAnnotationInfo;
+        if (annotations == null) {
+            final var annotationSet = annotationInfoSet;
+            if (annotationSet == null) {
+                annotations = AnnotationInfoList.EMPTY_LIST;
+            } else {
+                // A package has no superclass, so there are no @Inherited annotations to add
+                annotations = new AnnotationInfoList(
+                        new AnnotationInfoList(CollectionUtils.sortCopy(annotationSet)), null);
+            }
+            directAnnotationInfo = annotations;
         }
         return annotations;
     }

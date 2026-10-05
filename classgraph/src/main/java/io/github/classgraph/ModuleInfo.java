@@ -39,6 +39,7 @@ import java.util.Map;
 import java.util.Set;
 
 import io.github.classgraph.base.internal.utils.Assert;
+import io.github.classgraph.base.internal.utils.CollectionUtils;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -76,7 +77,7 @@ public final class ModuleInfo implements Comparable<ModuleInfo>, HasName, HasAnn
     /**
      * {@link AnnotationInfo} objects for any annotations on the module-info.class file, if present, else null.
      */
-    private @Nullable AnnotationInfoList annotationInfo;
+    private @Nullable AnnotationInfoList directAnnotationInfo, annotationInfo;
 
     /**
      * {@link PackageInfo} objects for packages found within the module, keyed by package name, if any, else null.
@@ -301,6 +302,35 @@ public final class ModuleInfo implements Comparable<ModuleInfo>, HasName, HasAnn
                         /* annotatedClass = */ null);
             }
             annotationInfo = annotations;
+        }
+        return annotations;
+    }
+
+    /**
+     * Get only the annotations written on the {@code module-info.class} file for this module,
+     * not the meta-annotations on those annotations, along with any annotation parameter values, wrapped in {@link AnnotationInfo} objects.
+     *
+     * @return The annotations written on this {@code module-info.class} file for this module, or the empty list if none.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
+     */
+    @Override
+    public AnnotationInfoList getDirectAnnotationInfo() {
+        // scanResult is only null if the scan has not completed, which callers cannot observe
+        if (scanResult != null) {
+            scanResult.scanSpec.checkAnnotationInfoEnabled();
+        }
+        var annotations = directAnnotationInfo;
+        if (annotations == null) {
+            final var annotationSet = annotationInfoSet;
+            if (annotationSet == null) {
+                annotations = AnnotationInfoList.EMPTY_LIST;
+            } else {
+                // A module has no superclass, so there are no @Inherited annotations to add
+                annotations = new AnnotationInfoList(
+                        new AnnotationInfoList(CollectionUtils.sortCopy(annotationSet)), null);
+            }
+            directAnnotationInfo = annotations;
         }
         return annotations;
     }

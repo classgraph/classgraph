@@ -29,10 +29,12 @@
 package io.github.classgraph;
 
 import java.lang.reflect.Modifier;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
+import io.github.classgraph.base.internal.utils.CollectionUtils;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -205,6 +207,26 @@ public final class MethodParameterInfo implements HasAnnotations {
         } else {
             return AnnotationInfoList.getIndirectAnnotations(Arrays.asList(annotationInfo),
                     /* annotatedClass = */ null);
+        }
+    }
+
+    /**
+     * Get only the annotations written on this method parameter, not the meta-annotations on those annotations, along with
+     * any annotation parameter values, wrapped in {@link AnnotationInfo} objects.
+     *
+     * @return The annotations written on this method parameter, or the empty list if none.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
+     */
+    @Override
+    public AnnotationInfoList getDirectAnnotationInfo() {
+        Objects.requireNonNull(scanResult).scanSpec.checkAnnotationInfoEnabled();
+        if (annotationInfo == null || annotationInfo.length == 0) {
+            return AnnotationInfoList.EMPTY_LIST;
+        } else {
+            List<AnnotationInfo> annotationInfoList = new ArrayList<>(Arrays.asList(annotationInfo));
+            CollectionUtils.sortIfNotEmpty(annotationInfoList);
+            return new AnnotationInfoList(new AnnotationInfoList(annotationInfoList), null);
         }
     }
 
