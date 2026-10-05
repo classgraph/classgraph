@@ -211,8 +211,8 @@ public final class MethodParameterInfo implements HasAnnotations {
     }
 
     /**
-     * Get only the annotations written on this method parameter, not the meta-annotations on those annotations, along with
-     * any annotation parameter values, wrapped in {@link AnnotationInfo} objects.
+     * Get only the annotations written on this method parameter, not the meta-annotations on those annotations,
+     * along with any annotation parameter values, wrapped in {@link AnnotationInfo} objects.
      *
      * @return The annotations written on this method parameter, or the empty list if none.
      * @throws IllegalStateException

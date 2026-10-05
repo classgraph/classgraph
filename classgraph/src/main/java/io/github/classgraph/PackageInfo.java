@@ -172,10 +172,12 @@ public final class PackageInfo implements Comparable<PackageInfo>, HasName, HasA
     }
 
     /**
-     * Get only the annotations written on the {@code package-info.class} file for this package,
-     * not the meta-annotations on those annotations, along with any annotation parameter values, wrapped in {@link AnnotationInfo} objects.
+     * Get only the annotations written on the {@code package-info.class} file for this package, not the
+     * meta-annotations on those annotations, along with any annotation parameter values, wrapped in
+     * {@link AnnotationInfo} objects.
      *
-     * @return The annotations written on this {@code package-info.class} file for this package, or the empty list if none.
+     * @return The annotations written on this {@code package-info.class} file for this package, or the empty list
+     *         if none.
      * @throws IllegalStateException
      *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
      */

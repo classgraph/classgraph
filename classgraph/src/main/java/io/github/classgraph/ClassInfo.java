@@ -2688,8 +2688,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Get only the annotations written on this class, not the meta-annotations on those annotations, along with
-     * any annotation parameter values, wrapped in {@link AnnotationInfo} objects.
+     * Get only the annotations written on this class, not the meta-annotations on those annotations, along with any
+     * annotation parameter values, wrapped in {@link AnnotationInfo} objects.
      *
      * @return The annotations written on this class, or the empty list if none.
      * @throws IllegalStateException
@@ -2705,8 +2705,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             scanResult().scanSpec.checkAnnotationInfoEnabled();
 
             directAnnotationInfoRef = annotationInfo == null ? AnnotationInfoList.EMPTY_LIST
-                    : new AnnotationInfoList(
-                    new AnnotationInfoList(CollectionUtils.sortCopy(annotationInfo)), null);
+                    : new AnnotationInfoList(new AnnotationInfoList(CollectionUtils.sortCopy(annotationInfo)),
+                            null);
             return directAnnotationInfoRef;
         }
     }
