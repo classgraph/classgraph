@@ -275,6 +275,8 @@ final class OffHeapMemory {
      * @throws IOException
      *             if mapping the file failed with an I/O error (mapping may succeed if retried after garbage
      *             collection, see {@link FileMapping}).
+     * @throws UnsupportedOperationException
+     *             if the file channel does not support mapping.
      */
     static @Nullable ByteBuffer mapFileUsingArena(final Object arena, final FileChannel fileChannel,
             final long position, final long size) throws IOException {
@@ -293,12 +295,15 @@ final class OffHeapMemory {
         } catch (final Exception e) {
             // Mapping the file can fail with IOException or OutOfMemoryError, which the reflective method
             // invocation wraps in other exceptions -- unwrap and rethrow, so that the caller can retry mapping
-            // after running garbage collection
+            // after running garbage collection. Also unwrap UnsupportedOperationException, which a FileChannel
+            // that does not support mapping throws, so that the caller can log why the file was not mapped
             for (Throwable t = e; t != null; t = t.getCause()) {
                 if (t instanceof final IOException ioException) {
                     throw ioException;
                 } else if (t instanceof final OutOfMemoryError outOfMemoryError) {
                     throw outOfMemoryError;
+                } else if (t instanceof final UnsupportedOperationException unsupportedOperationException) {
+                    throw unsupportedOperationException;
                 }
             }
             // The reflective invocation itself failed -- the caller will fall back to the FileChannel API
