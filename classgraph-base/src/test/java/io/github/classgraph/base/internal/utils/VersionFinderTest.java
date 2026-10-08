@@ -351,23 +351,6 @@ public class VersionFinderTest {
 
     // -----------------------------------------------------------------------------------------------------------
 
-    /** A system property that is set is returned, and one that is not set is reported as absent. */
-    @Test
-    public void aSystemPropertyThatIsNotSetIsReportedAsAbsent() {
-        assertThat(VersionFinder.getProperty("java.version")).isNotNull();
-        assertThat(VersionFinder.getProperty("io.github.classgraph.no.such.property")).isNull();
-    }
-
-    /** The default value is used for a system property that is not set, but not for one that is. */
-    @Test
-    public void theDefaultValueIsUsedOnlyForASystemPropertyThatIsNotSet() {
-        assertThat(VersionFinder.getProperty("io.github.classgraph.no.such.property", "the-default"))
-                .isEqualTo("the-default");
-        assertThat(VersionFinder.getProperty("java.version", "the-default")).isNotEqualTo("the-default");
-    }
-
-    // -----------------------------------------------------------------------------------------------------------
-
     /** The operating system is identified, and is identified as Windows exactly when paths are Windows paths. */
     @Test
     public void theOperatingSystemIsIdentified() {

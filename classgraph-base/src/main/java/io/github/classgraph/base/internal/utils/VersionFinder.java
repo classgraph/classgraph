@@ -85,15 +85,9 @@ public final class VersionFinder {
     }
 
     static {
-        // N.B. getProperty() returns null, not the default value, if a SecurityException is thrown, so the result
-        // has to be null-checked before it is lowercased -- otherwise this static initializer can throw
-        // ExceptionInInitializerError, rather than falling through to OperatingSystem.Unknown as intended.
-        final var osNameRaw = getProperty("os.name", "unknown");
-        final var osName = osNameRaw == null ? null : osNameRaw.toLowerCase(Locale.ENGLISH);
+        final var osName = System.getProperty("os.name", "unknown").toLowerCase(Locale.ENGLISH);
         if (File.separatorChar == '\\') {
             OS = OperatingSystem.Windows;
-        } else if (osName == null) {
-            OS = OperatingSystem.Unknown;
         } else if (osName.contains("win")) {
             OS = OperatingSystem.Windows;
         } else if (osName.contains("mac") || osName.contains("darwin")) {
@@ -116,40 +110,6 @@ public final class VersionFinder {
     /** Not instantiable. */
     private VersionFinder() {
         // Cannot be constructed
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Get a system property (returning null if a SecurityException was thrown).
-     *
-     * @param propName
-     *            the property name
-     * @return the property value
-     */
-    public static @Nullable String getProperty(final String propName) {
-        try {
-            return System.getProperty(propName);
-        } catch (final SecurityException _) {
-            return null;
-        }
-    }
-
-    /**
-     * Get a system property (returning null if a SecurityException was thrown).
-     *
-     * @param propName
-     *            the property name
-     * @param defaultVal
-     *            the default value for the property
-     * @return the property value, or the default if the property is not defined.
-     */
-    public static @Nullable String getProperty(final String propName, final String defaultVal) {
-        try {
-            return System.getProperty(propName, defaultVal);
-        } catch (final SecurityException _) {
-            return null;
-        }
     }
 
     // -------------------------------------------------------------------------------------------------------------

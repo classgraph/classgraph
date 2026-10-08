@@ -116,8 +116,6 @@ final class ModuleEntry extends VfsEntry {
             };
             handedOffToCaller = true;
             return proxyingInputStream;
-        } catch (final SecurityException e) {
-            throw new IOException("Could not open " + getPath(), e);
         } finally {
             if (!handedOffToCaller) {
                 // Only the stream that the caller never got recycles the reader, so close the stream and recycle
@@ -170,7 +168,7 @@ final class ModuleEntry extends VfsEntry {
                     reader.release(byteBuffer);
                 }
             }
-        } catch (final SecurityException | OutOfMemoryError e) {
+        } catch (final OutOfMemoryError e) {
             throw new IOException("Could not read " + getPath(), e);
         } finally {
             if (!handedOffToCaller) {
@@ -196,7 +194,7 @@ final class ModuleEntry extends VfsEntry {
             } finally {
                 reader.release(byteBuffer);
             }
-        } catch (final SecurityException | OutOfMemoryError e) {
+        } catch (final OutOfMemoryError e) {
             throw new IOException("Could not read " + getPath(), e);
         } finally {
             recycler.recycle(reader);

@@ -557,13 +557,7 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
                 // A jarfile in the local filesystem is opened under its canonical path, so that two paths that
                 // reach the same jarfile -- one of them through a symlink, or, on Windows, by an 8.3 short name --
                 // open it once
-                File canonicalFile;
-                try {
-                    canonicalFile = FileUtils.canonicalize(new File(resolvedPath));
-                } catch (final SecurityException e) {
-                    throw new IOException("Path component " + resolvedPath + " could not be canonicalized: " + e,
-                            e);
-                }
+                final var canonicalFile = FileUtils.canonicalize(new File(resolvedPath));
                 // This is the same spelling of the path that the opened jarfile reports itself at
                 final var canonicalKey = FastPathResolver.resolve(FileUtils.currDirPath(), canonicalFile.getPath());
                 if (!canonicalKey.equals(resolvedPath)) {

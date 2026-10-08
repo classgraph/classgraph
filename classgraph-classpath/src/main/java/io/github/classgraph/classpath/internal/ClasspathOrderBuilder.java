@@ -242,7 +242,7 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
             // A nested path "outer.jar!/inner" becomes the jar URL "jar:file:/outer.jar!/inner"
             return new URL("jar:" + new File(classpathElementPath.substring(0, nestedPathIdx)).toURI()
                     + classpathElementPath.substring(nestedPathIdx));
-        } catch (final MalformedURLException | IllegalArgumentException | IOError | SecurityException _) {
+        } catch (final MalformedURLException | IllegalArgumentException | IOError _) {
             return null;
         }
     }
@@ -505,7 +505,7 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
                 // path on a non-default filesystem is dropped. A local path comes back in the "file:///path"
                 // spelling (or "file:///C:/x/y" on Windows), which FastPathResolver turns back into a plain path
                 return pathElementPath.toUri().toString();
-            } catch (final IOError | SecurityException _) {
+            } catch (final IOError _) {
                 // Fall back to the string form of the Path
             }
         }
@@ -534,7 +534,7 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
                     : pathElement instanceof final URI uri ? uri.toURL()
                             : pathElement instanceof final Path path ? path.toUri().toURL()
                                     : pathElement instanceof final File file ? file.toURI().toURL() : null;
-        } catch (final MalformedURLException | IllegalArgumentException | IOError | SecurityException _) {
+        } catch (final MalformedURLException | IllegalArgumentException | IOError _) {
             // Fall through
         }
         if (pathElementURL == null) {
@@ -545,7 +545,7 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
             } catch (final MalformedURLException _) {
                 try {
                     pathElementURL = new File(urlStr).toURI().toURL();
-                } catch (final MalformedURLException | IllegalArgumentException | IOError | SecurityException _) {
+                } catch (final MalformedURLException | IllegalArgumentException | IOError _) {
                     // Final fallback -- try just using the raw string as a URL
                     try {
                         pathElementURL = new URL(pathElementStr);

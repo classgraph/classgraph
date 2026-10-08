@@ -119,7 +119,7 @@ final class DirEntry extends VfsEntry {
         if (lengthCurr < 0L) {
             try {
                 lengthCurr = Files.size(path);
-            } catch (final IOException | SecurityException _) {
+            } catch (final IOException _) {
                 return -1L;
             }
             length = lengthCurr;
@@ -140,7 +140,7 @@ final class DirEntry extends VfsEntry {
         }
         try {
             return Files.getLastModifiedTime(path).toMillis();
-        } catch (final IOException | SecurityException _) {
+        } catch (final IOException _) {
             return 0L;
         }
     }
@@ -161,7 +161,7 @@ final class DirEntry extends VfsEntry {
         }
         try {
             return unmodifiableEnumSet(Files.readAttributes(path, PosixFileAttributes.class).permissions());
-        } catch (final IOException | UnsupportedOperationException | SecurityException _) {
+        } catch (final IOException | UnsupportedOperationException _) {
             // The filesystem does not record POSIX permissions (e.g. on Windows)
             return null;
         }

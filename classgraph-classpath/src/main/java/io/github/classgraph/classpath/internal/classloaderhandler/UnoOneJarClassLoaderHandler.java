@@ -32,7 +32,6 @@ import java.util.List;
 
 import io.github.classgraph.base.ClassGraphLog;
 import io.github.classgraph.base.internal.reflection.ReflectionUtils;
-import io.github.classgraph.base.internal.utils.VersionFinder;
 import io.github.classgraph.classpath.ClassLoaderHandler;
 import io.github.classgraph.classpath.ClassLoaderOrder;
 import io.github.classgraph.classpath.ClasspathOrder;
@@ -83,12 +82,12 @@ class UnoOneJarClassLoaderHandler implements ClassLoaderHandler {
 
         // If this property is defined, Uno-Jar jar path was specified on commandline. Otherwise, jar path should be
         // contained in java.class.path, which is picked up separately if the classpath was enabled.
-        final var unoJarJarPath = VersionFinder.getProperty("uno-jar.jar.path");
+        final var unoJarJarPath = System.getProperty("uno-jar.jar.path");
         classpathOrder.addClasspathEntry(unoJarJarPath, classLoader, log);
 
         // If this property is defined, additional classpath entries were specified on the commandline, with '|' as
         // a separator
-        final var unoJarClassPath = VersionFinder.getProperty("uno-jar.class.path");
+        final var unoJarClassPath = System.getProperty("uno-jar.class.path");
         if (unoJarClassPath != null) {
             // Each element is added as it is, since passing a string to addClasspathEntryObject would split it
             // again at the platform's path separator
@@ -99,12 +98,12 @@ class UnoOneJarClassLoaderHandler implements ClassLoaderHandler {
 
         // If this property is defined, One-Jar jar path was specified on commandline. Otherwise, jar path should be
         // contained in java.class.path, which is picked up separately if the classpath was enabled.
-        final var oneJarJarPath = VersionFinder.getProperty("one-jar.jar.path");
+        final var oneJarJarPath = System.getProperty("one-jar.jar.path");
         classpathOrder.addClasspathEntry(oneJarJarPath, classLoader, log);
 
         // If this property is defined, additional classpath entries were specified in OneJar format on the
         // commandline, with '|' as a separator
-        final var oneJarClassPath = VersionFinder.getProperty("one-jar.class.path");
+        final var oneJarClassPath = System.getProperty("one-jar.class.path");
         if (oneJarClassPath != null) {
             classpathOrder.addClasspathEntries(List.of(oneJarClassPath.split("\\|")), classLoader, log);
         }

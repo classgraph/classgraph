@@ -74,7 +74,7 @@ public final class DirRoot extends VfsRoot {
         Path absoluteDir;
         try {
             absoluteDir = dir.toAbsolutePath().normalize();
-        } catch (final IOError | SecurityException e) {
+        } catch (final IOError e) {
             throw new IOException("Could not resolve directory " + dir + " : " + e, e);
         }
         if (!FileUtils.canReadAndIsDir(absoluteDir)) {
@@ -85,14 +85,14 @@ public final class DirRoot extends VfsRoot {
             // named by the canonical path of its jarfile, so that a directory reached through a symlink or -- on
             // Windows -- through an 8.3 short name is recognized as the directory it really is, and read once
             absoluteDir = FileUtils.canonicalize(absoluteDir);
-        } catch (final IOException | SecurityException _) {
+        } catch (final IOException _) {
             // A directory whose canonical path cannot be found is named by the path it was reached through, rather
             // than failing to open a directory that can be read perfectly well
         }
         this.dir = absoluteDir;
         try {
             this.pathStr = FileUtils.pathStr(this.dir);
-        } catch (final IOError | SecurityException e) {
+        } catch (final IOError e) {
             throw new IOException("Could not form URI for " + this.dir + " : " + e, e);
         }
     }
@@ -183,7 +183,7 @@ public final class DirRoot extends VfsRoot {
         final Path canonicalDir;
         try {
             canonicalDir = currDir.toRealPath();
-        } catch (final IOException | SecurityException e) {
+        } catch (final IOException e) {
             // A directory that cannot be resolved is skipped, rather than aborting the whole listing
             if (log != null) {
                 log.log("Could not canonicalize path: " + currDir + " : " + e);
@@ -201,7 +201,7 @@ public final class DirRoot extends VfsRoot {
             for (final Path child : dirStream) {
                 children.add(child);
             }
-        } catch (final IOException | SecurityException e) {
+        } catch (final IOException e) {
             // A directory that cannot be opened is skipped, rather than aborting the whole listing
             if (log != null) {
                 log.log("Could not read directory " + currDir + " : " + e.getMessage());

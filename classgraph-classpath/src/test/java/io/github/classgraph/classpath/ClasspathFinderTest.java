@@ -366,7 +366,7 @@ public class ClasspathFinderTest {
         final Path linkedDir;
         try {
             linkedDir = Files.createSymbolicLink(tempDir.resolve("link"), dir);
-        } catch (IOException | UnsupportedOperationException | SecurityException e) {
+        } catch (IOException | UnsupportedOperationException e) {
             // Creating a symlink needs a privilege that is not granted by default on Windows
             abort("Symlinks cannot be created: " + e);
             return;
@@ -393,7 +393,7 @@ public class ClasspathFinderTest {
                 "../link/shared.jar");
         try {
             Files.createSymbolicLink(tempDir.resolve("link"), dir);
-        } catch (IOException | UnsupportedOperationException | SecurityException e) {
+        } catch (IOException | UnsupportedOperationException e) {
             // Creating a symlink needs a privilege that is not granted by default on Windows
             abort("Symlinks cannot be created: " + e);
             return;
@@ -575,7 +575,7 @@ public class ClasspathFinderTest {
         final var unreadable = writeJarWithManifest(tempDir.resolve("unreadable.jar"));
         try {
             Files.setPosixFilePermissions(unreadable.toPath(), Set.of());
-        } catch (IOException | UnsupportedOperationException | SecurityException e) {
+        } catch (IOException | UnsupportedOperationException e) {
             // Windows filesystems have no POSIX permissions
             abort("Permissions cannot be cleared: " + e);
             return;

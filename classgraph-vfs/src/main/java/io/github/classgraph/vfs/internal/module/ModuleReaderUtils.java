@@ -51,12 +51,11 @@ import org.jspecify.annotations.Nullable;
  * <p>
  * A failure to open or read a module or resource is reported as an {@link IOException}: the {@link IOException}
  * thrown by the {@link ModuleReader} method itself, a resource that the module does not contain, and a
- * {@code ModuleReader} implementation that returns null where its contract does not permit it. There are three
+ * {@code ModuleReader} implementation that returns null where its contract does not permit it. There are two
  * exceptions. {@link #list(ModuleReader, String, LogNode)} treats a null listing as an empty module, since some
- * {@code ModuleReader} implementations return one, and failing would abort the whole scan.
+ * {@code ModuleReader} implementations return one, and failing would abort the whole scan. And
  * {@link #contains(ModuleReader, String)} treats a null result as an absent resource, since that is the question it
- * answers. And only {@link #openModule(ModuleReference)} wraps a {@link SecurityException}: the rest declare it, so
- * that a caller can tell a module it is not allowed to read from one that cannot be read.
+ * answers.
  */
 public final class ModuleReaderUtils {
     /** Not instantiable. */
@@ -103,12 +102,7 @@ public final class ModuleReaderUtils {
      *             if the module could not be opened.
      */
     public static ModuleReader openModule(final ModuleReference moduleReference) throws IOException {
-        final ModuleReader moduleReader;
-        try {
-            moduleReader = moduleReference.open();
-        } catch (final SecurityException e) {
-            throw new IOException("Could not open module " + moduleReference.descriptor().name(), e);
-        }
+        final var moduleReader = moduleReference.open();
         if (moduleReader == null) {
             // ModuleReference#open() is specified to return a ModuleReader, and is not allowed to return null, so a
             // null return means the ModuleReference implementation does not honor its contract
@@ -127,9 +121,7 @@ public final class ModuleReaderUtils {
      * From the documentation for ModuleReader#list(): "Whether the stream of elements includes names corresponding
      * to directories in the module is module reader specific. In lazy implementations then an IOException may be
      * thrown when using the stream to list the module contents. If this occurs then the IOException will be wrapped
-     * in an java.io.UncheckedIOException and thrown from the method that caused the access to be attempted.
-     * SecurityException may also be thrown when using the stream to list the module contents and access is denied
-     * by the security manager."
+     * in an java.io.UncheckedIOException and thrown from the method that caused the access to be attempted."
      *
      * @param moduleReader
      *            the module reader.
@@ -141,11 +133,9 @@ public final class ModuleReaderUtils {
      *         and it is empty rather than null if the module reader listed its contents as null.
      * @throws IOException
      *             If the contents of the module could not be listed.
-     * @throws SecurityException
-     *             If the module cannot be accessed.
      */
     public static List<String> list(final ModuleReader moduleReader, final String moduleName,
-            final @Nullable LogNode log) throws IOException, SecurityException {
+            final @Nullable LogNode log) throws IOException {
         final Stream<String> resourcesStream;
         try {
             resourcesStream = moduleReader.list();
@@ -190,11 +180,8 @@ public final class ModuleReaderUtils {
      * @return An {@link InputStream} for the content of the resource.
      * @throws IOException
      *             If the resource could not be opened.
-     * @throws SecurityException
-     *             If the module cannot be accessed.
      */
-    public static InputStream open(final ModuleReader moduleReader, final String path)
-            throws IOException, SecurityException {
+    public static InputStream open(final ModuleReader moduleReader, final String path) throws IOException {
         final Optional<InputStream> optionalInputStream;
         try {
             optionalInputStream = moduleReader.open(path);
@@ -215,13 +202,11 @@ public final class ModuleReaderUtils {
      * @return A {@link ByteBuffer} for the content of the resource.
      * @throws IOException
      *             If the resource could not be read.
-     * @throws SecurityException
-     *             If the module cannot be accessed.
      * @throws OutOfMemoryError
      *             if the resource is larger than 2GB, the maximum capacity of a byte buffer.
      */
     public static ByteBuffer read(final ModuleReader moduleReader, final String path)
-            throws IOException, SecurityException, OutOfMemoryError {
+            throws IOException, OutOfMemoryError {
         final Optional<ByteBuffer> optionalByteBuffer;
         try {
             optionalByteBuffer = moduleReader.read(path);
@@ -242,11 +227,8 @@ public final class ModuleReaderUtils {
      * @return true if the module contains the named resource.
      * @throws IOException
      *             If the module could not be searched for the resource.
-     * @throws SecurityException
-     *             If the module cannot be accessed.
      */
-    public static boolean contains(final ModuleReader moduleReader, final String path)
-            throws IOException, SecurityException {
+    public static boolean contains(final ModuleReader moduleReader, final String path) throws IOException {
         final Optional<URI> optionalURI;
         try {
             optionalURI = moduleReader.find(path);
@@ -266,11 +248,8 @@ public final class ModuleReaderUtils {
      * @return A {@link URI} for the resource.
      * @throws IOException
      *             If the resource could not be located.
-     * @throws SecurityException
-     *             If the module cannot be accessed.
      */
-    public static URI find(final ModuleReader moduleReader, final String path)
-            throws IOException, SecurityException {
+    public static URI find(final ModuleReader moduleReader, final String path) throws IOException {
         final Optional<URI> optionalURI;
         try {
             optionalURI = moduleReader.find(path);

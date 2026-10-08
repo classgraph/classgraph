@@ -62,12 +62,7 @@ public final class LogNode implements ClassGraphLog {
     // Mitigate log4j2 vulnerability (CVE-2021-44228), in case log4j is added to the classpath as the logger
     // https://blog.cloudflare.com/inside-the-log4j2-vulnerability-cve-2021-44228/
     static {
-        try {
-            System.getProperties().setProperty("log4j2.formatMsgNoLookups", "true");
-        } catch (final SecurityException _) {
-            // Ignore -- if the system properties cannot be read or written, the mitigation cannot be applied, but
-            // this must not throw ExceptionInInitializerError, which would make LogNode unusable
-        }
+        System.getProperties().setProperty("log4j2.formatMsgNoLookups", "true");
     }
 
     /**
@@ -181,12 +176,11 @@ public final class LogNode implements ClassGraphLog {
      * Log the Java version and the Java home directory.
      */
     private void logJavaInfo() {
-        log("Operating system: " + VersionFinder.getProperty("os.name") + " "
-                + VersionFinder.getProperty("os.version") + " " + VersionFinder.getProperty("os.arch"));
-        log("Java version: " + VersionFinder.getProperty("java.version") + " / "
-                + VersionFinder.getProperty("java.runtime.version") + " ("
-                + VersionFinder.getProperty("java.vendor") + ")");
-        log("Java home: " + VersionFinder.getProperty("java.home"));
+        log("Operating system: " + System.getProperty("os.name") + " " + System.getProperty("os.version") + " "
+                + System.getProperty("os.arch"));
+        log("Java version: " + System.getProperty("java.version") + " / "
+                + System.getProperty("java.runtime.version") + " (" + System.getProperty("java.vendor") + ")");
+        log("Java home: " + System.getProperty("java.home"));
     }
 
     /**

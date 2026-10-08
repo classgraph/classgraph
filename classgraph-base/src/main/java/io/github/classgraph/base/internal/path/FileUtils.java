@@ -38,7 +38,6 @@ import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileTime;
 
-import io.github.classgraph.base.internal.utils.VersionFinder;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -75,8 +74,6 @@ public final class FileUtils {
      * @return the path, as a string.
      * @throws java.io.IOError
      *             if the URI of a file of another filesystem could not be formed.
-     * @throws SecurityException
-     *             if the URI of a file of another filesystem could not be read.
      */
     public static String pathStr(final Path path) {
         return path.getFileSystem() == FileSystems.getDefault()
@@ -97,7 +94,7 @@ public final class FileUtils {
             // user.dir should be the current directory at the time the JVM is started, which is where classpath
             // elements should be resolved relative to
             Path path = null;
-            final var currDirPathStr = VersionFinder.getProperty("user.dir");
+            final var currDirPathStr = System.getProperty("user.dir");
             if (currDirPathStr != null) {
                 try {
                     path = Path.of(currDirPathStr);
@@ -106,9 +103,9 @@ public final class FileUtils {
                 }
             }
             if (path == null) {
-                // "user.dir" is one of the system properties that System#getProperties() guarantees, but reading it
-                // can still fail: a security manager can deny the read, and an application can replace the system
-                // properties wholesale with a set that omits it. Fall back on the directory the JVM is running in.
+                // "user.dir" is one of the system properties that System#getProperties() guarantees, but an
+                // application can replace the system properties wholesale with a set that omits it. Fall back on the
+                // directory the JVM is running in.
                 try {
                     path = Path.of("");
                 } catch (final InvalidPathException _) {
@@ -135,11 +132,7 @@ public final class FileUtils {
      * @return true if a file exists and can be read.
      */
     public static boolean canRead(final File file) {
-        try {
-            return file.canRead();
-        } catch (final SecurityException _) {
-            return false;
-        }
+        return file.canRead();
     }
 
     /**
@@ -156,11 +149,7 @@ public final class FileUtils {
             // Path#toFile() throws this for a path on a filesystem other than the default one, which has no
             // File equivalent -- fall through and ask the NIO API instead
         }
-        try {
-            return Files.isReadable(path);
-        } catch (final SecurityException _) {
-            return false;
-        }
+        return Files.isReadable(path);
     }
 
     /**
@@ -171,14 +160,7 @@ public final class FileUtils {
      * @return true if the file exists, is a regular file, and can be read.
      */
     public static boolean canReadAndIsFile(final File file) {
-        try {
-            if (!file.canRead()) {
-                return false;
-            }
-        } catch (final SecurityException _) {
-            return false;
-        }
-        return file.isFile();
+        return file.canRead() && file.isFile();
     }
 
     /**
@@ -195,14 +177,7 @@ public final class FileUtils {
             // Path#toFile() throws this for a path on a filesystem other than the default one, which has no
             // File equivalent -- fall through and ask the NIO API instead
         }
-        try {
-            if (!Files.isReadable(path)) {
-                return false;
-            }
-        } catch (final SecurityException _) {
-            return false;
-        }
-        return Files.isRegularFile(path);
+        return Files.isReadable(path) && Files.isRegularFile(path);
     }
 
     /**
@@ -217,8 +192,6 @@ public final class FileUtils {
             return path.toFile().isFile();
         } catch (final UnsupportedOperationException _) {
             return Files.isRegularFile(path);
-        } catch (final SecurityException _) {
-            return false;
         }
     }
 
@@ -231,12 +204,8 @@ public final class FileUtils {
      *             if the file does not exist, is not a regular file, or cannot be read.
      */
     public static void checkCanReadAndIsFile(final File file) throws IOException {
-        try {
-            if (!file.canRead()) {
-                throw new FileNotFoundException("File does not exist or cannot be read: " + file);
-            }
-        } catch (final SecurityException e) {
-            throw new FileNotFoundException("File " + file + " cannot be accessed: " + e);
+        if (!file.canRead()) {
+            throw new FileNotFoundException("File does not exist or cannot be read: " + file);
         }
         if (!file.isFile()) {
             throw new IOException("Not a regular file: " + file);
@@ -259,12 +228,8 @@ public final class FileUtils {
             // Path#toFile() throws this for a path on a filesystem other than the default one, which has no
             // File equivalent -- fall through and ask the NIO API instead
         }
-        try {
-            if (!Files.isReadable(path)) {
-                throw new FileNotFoundException("Path does not exist or cannot be read: " + path);
-            }
-        } catch (final SecurityException e) {
-            throw new FileNotFoundException("Path " + path + " cannot be accessed: " + e);
+        if (!Files.isReadable(path)) {
+            throw new FileNotFoundException("Path does not exist or cannot be read: " + path);
         }
         if (!Files.isRegularFile(path)) {
             throw new IOException("Not a regular file: " + path);
@@ -279,14 +244,7 @@ public final class FileUtils {
      * @return true if the file exists, is a directory, and can be read.
      */
     public static boolean canReadAndIsDir(final File file) {
-        try {
-            if (!file.canRead()) {
-                return false;
-            }
-        } catch (final SecurityException _) {
-            return false;
-        }
-        return file.isDirectory();
+        return file.canRead() && file.isDirectory();
     }
 
     /**
@@ -303,14 +261,7 @@ public final class FileUtils {
             // Path#toFile() throws this for a path on a filesystem other than the default one, which has no
             // File equivalent -- fall through and ask the NIO API instead
         }
-        try {
-            if (!Files.isReadable(path)) {
-                return false;
-            }
-        } catch (final SecurityException _) {
-            return false;
-        }
-        return Files.isDirectory(path);
+        return Files.isReadable(path) && Files.isDirectory(path);
     }
 
     /**
@@ -325,8 +276,6 @@ public final class FileUtils {
             return path.toFile().isDirectory();
         } catch (final UnsupportedOperationException _) {
             return Files.isDirectory(path);
-        } catch (final SecurityException _) {
-            return false;
         }
     }
 
@@ -418,19 +367,19 @@ public final class FileUtils {
     public static BasicFileAttributes readAttributes(final Path path) {
         try {
             return Files.readAttributes(path, BasicFileAttributes.class);
-        } catch (final IOException | SecurityException _) {
+        } catch (final IOException _) {
             return new BasicFileAttributes() {
                 @Override
                 public FileTime lastModifiedTime() {
                     try {
                         return FileTime.fromMillis(path.toFile().lastModified());
-                    } catch (final UnsupportedOperationException | SecurityException _) {
+                    } catch (final UnsupportedOperationException _) {
                         // Path#toFile() throws UnsupportedOperationException for a path on a filesystem other than
                         // the default one, which has no File equivalent -- fall through and ask the NIO API instead
                     }
                     try {
                         return Files.getLastModifiedTime(path);
-                    } catch (final IOException | SecurityException _) {
+                    } catch (final IOException _) {
                         // File#lastModified() returns zero when the time cannot be read, so match that rather
                         // than throwing from an accessor that the File-backed path never throws from
                         return FileTime.fromMillis(0);
@@ -471,13 +420,13 @@ public final class FileUtils {
                 public long size() {
                     try {
                         return path.toFile().length();
-                    } catch (final UnsupportedOperationException | SecurityException _) {
+                    } catch (final UnsupportedOperationException _) {
                         // Path#toFile() throws UnsupportedOperationException for a path on a filesystem other than
                         // the default one, which has no File equivalent -- fall through and ask the NIO API instead
                     }
                     try {
                         return Files.size(path);
-                    } catch (final IOException | SecurityException _) {
+                    } catch (final IOException _) {
                         // File#length() returns zero when the length cannot be read, so match that rather than
                         // throwing from an accessor that the File-backed path never throws from
                         return 0L;

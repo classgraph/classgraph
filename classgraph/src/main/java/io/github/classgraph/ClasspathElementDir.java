@@ -129,7 +129,7 @@ class ClasspathElementDir extends ClasspathElement {
                                 /* orderWithinParentClasspathElement = */ childClasspathEntryIdx++,
                                 /* packageRootPrefix = */ "", packageRootPrefixes, libDirPrefixes));
             }
-        } catch (final IOException | SecurityException _) {
+        } catch (final IOException _) {
             if (log != null) {
                 log(classpathElementIdx,
                         "Skipping classpath element, since dir cannot be accessed: " + classpathEltPath, log);
@@ -179,7 +179,7 @@ class ClasspathElementDir extends ClasspathElement {
         try {
             final var entry = vfs.open(classpathEltPath).getEntry(relativePath);
             return entry == null ? null : newResource(entry);
-        } catch (final IOException | SecurityException _) {
+        } catch (final IOException _) {
             return null;
         }
     }
@@ -246,7 +246,7 @@ class ClasspathElementDir extends ClasspathElement {
         try {
             final var file = dir.toFile();
             fileToLastModified.put(file, file.lastModified());
-        } catch (final UnsupportedOperationException | SecurityException _) {
+        } catch (final UnsupportedOperationException _) {
             // Ignore
         }
     }
@@ -265,7 +265,7 @@ class ClasspathElementDir extends ClasspathElement {
         }
         try {
             fileToLastModified.put(path.toFile(), entry.getLastModifiedMillis());
-        } catch (final UnsupportedOperationException | SecurityException _) {
+        } catch (final UnsupportedOperationException _) {
             // Ignore
         }
     }
@@ -372,7 +372,7 @@ class ClasspathElementDir extends ClasspathElement {
 
         try {
             vfs.open(classpathEltPath).walk(new DirScanVisitor(subLog), subLog);
-        } catch (final IOException | SecurityException e) {
+        } catch (final IOException e) {
             if (subLog != null) {
                 subLog.log("Could not scan directory " + classpathEltPath + " : " + e);
             }
@@ -432,7 +432,7 @@ class ClasspathElementDir extends ClasspathElement {
         }
         try {
             return vfs.open(containerPath);
-        } catch (final IOException | SecurityException _) {
+        } catch (final IOException _) {
             return null;
         }
     }

@@ -104,7 +104,7 @@ public class Issue128Test {
             } finally {
                 connection.disconnect();
             }
-        } catch (final IOException | SecurityException e) {
+        } catch (final IOException e) {
             abort("The remote jar could not be fetched, so the scan had nothing to find: " + e);
             return;
         }

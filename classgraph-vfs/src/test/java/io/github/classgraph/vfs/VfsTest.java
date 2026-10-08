@@ -251,7 +251,7 @@ public class VfsTest {
     private static Path createSymbolicLinkOrSkip(final Path link, final Path target) {
         try {
             return Files.createSymbolicLink(link, target);
-        } catch (IOException | UnsupportedOperationException | SecurityException e) {
+        } catch (IOException | UnsupportedOperationException e) {
             abort("Symlinks cannot be created: " + e);
             return link;
         }

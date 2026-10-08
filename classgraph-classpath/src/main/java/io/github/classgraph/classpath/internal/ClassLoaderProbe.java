@@ -33,7 +33,6 @@ import java.util.Map.Entry;
 
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.path.PathList;
-import io.github.classgraph.base.internal.utils.VersionFinder;
 import io.github.classgraph.classpath.ClassLoaderHandler;
 import io.github.classgraph.classpath.internal.ScanSourceSpec.ClasspathSource;
 import io.github.classgraph.classpath.internal.ScanSourceSpec.ClasspathString;
@@ -292,7 +291,7 @@ public class ClassLoaderProbe {
      *            the log node, or null to skip logging
      */
     private void addJavaClassPathEntries(final @Nullable LogNode log) {
-        final var javaClassPath = VersionFinder.getProperty("java.class.path");
+        final var javaClassPath = System.getProperty("java.class.path");
         if (javaClassPath != null && !javaClassPath.isEmpty()) {
             classpathOrder.addClasspathPathStr(javaClassPath, defaultClassLoader,
                     log == null ? null : log.log("Getting classpath entries from java.class.path"));

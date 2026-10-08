@@ -120,7 +120,7 @@ public final class TempFile {
         try {
             Files.delete(tempFile.toPath());
             return true;
-        } catch (IOException | SecurityException _) {
+        } catch (final IOException _) {
             return false;
         }
     }

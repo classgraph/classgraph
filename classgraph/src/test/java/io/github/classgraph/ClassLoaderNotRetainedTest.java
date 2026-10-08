@@ -37,10 +37,10 @@ import java.net.URLClassLoader;
 import org.junit.jupiter.api.Test;
 
 /**
- * Loading classes is the caller's responsibility in 5.x, and classpath elements are read directly rather than
- * through a classloader, so a scan keeps no classloader reference of its own past classpath finding: once the
- * caller drops their own reference to a classloader they supplied, it must become collectable, even while the
- * {@link ScanResult} and the {@link ClassInfo} objects it produced are still reachable.
+ * Loading classes is the caller's responsibility, and classpath elements are read directly rather than through a
+ * classloader, so a scan keeps no classloader reference of its own past classpath finding: once the caller drops
+ * their own reference to a classloader they supplied, it must become collectable, even while the {@link ScanResult}
+ * and the {@link ClassInfo} objects it produced are still reachable.
  */
 public class ClassLoaderNotRetainedTest {
 

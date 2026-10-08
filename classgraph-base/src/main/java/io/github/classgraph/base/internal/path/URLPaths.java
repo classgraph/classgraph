@@ -327,7 +327,7 @@ public final class URLPaths {
             // On Windows, Path#toUri() puts the server of a UNC path in the URI authority, where java.net.URL does
             // not find it again
             return moveUNCServerIntoPath(path.toUri());
-        } catch (final IOError | SecurityException e) {
+        } catch (final IOError e) {
             throw new IllegalStateException("Could not form URI for " + path + " : " + e, e);
         }
     }

@@ -429,7 +429,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
                 canonicalPathCache.put(filePath, canonicalPath);
             }
             return canonicalPath + nestedPath;
-        } catch (final IOException | IllegalArgumentException | SecurityException _) {
+        } catch (final IOException | IllegalArgumentException _) {
             // The file could not be canonicalized -- fall back to comparing the URI itself
             return uriStr;
         }

@@ -64,7 +64,7 @@ public final class FastPathResolver {
      * {@code org.apache.tomcat.util.buf.UriUtil#warToJar}.
      */
     // #925
-    private static final @Nullable String customWarSeparator = VersionFinder
+    private static final @Nullable String customWarSeparator = System
             .getProperty("org.apache.tomcat.util.buf.UriUtil.WAR_SEPARATOR");
 
     /** Not instantiable. */

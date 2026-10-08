@@ -151,7 +151,7 @@ final class JarURLDownloader {
                 }
                 // Wrap Path in PhysicalZipFile and return it
                 return new PhysicalZipFile(path, vfs, log);
-            } catch (final IllegalArgumentException | SecurityException | URISyntaxException e) {
+            } catch (final IllegalArgumentException | URISyntaxException e) {
                 throw new IOException("Could not convert URL to a path (" + e + "): " + url, e);
             } catch (final FileSystemNotFoundException _) {
                 // Not a custom filesystem

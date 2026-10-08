@@ -120,14 +120,8 @@ class AutoCloseableExecutorService extends ThreadPoolExecutor {
     /** Shut down thread pool on close(). */
     @Override
     public void close() {
-        try {
-            // Prevent new tasks being submitted
-            shutdown();
-        } catch (final SecurityException _) {
-            // A security manager denied shutdown(). Nothing needs reporting here: the executor cannot terminate
-            // without it, so awaitTermination() below times out, and shutdownNow() is then denied for the same
-            // reason -- that is where the failure is thrown.
-        }
+        // Prevent new tasks being submitted
+        shutdown();
         var terminated = false;
         try {
             // Await termination of any running tasks
@@ -136,14 +130,8 @@ class AutoCloseableExecutorService extends ThreadPoolExecutor {
             interruptionChecker.interrupt();
         }
         if (!terminated) {
-            try {
-                // Interrupt all the threads to terminate them, if awaitTermination() timed out
-                shutdownNow();
-            } catch (final SecurityException e) {
-                throw new RuntimeException("Could not shut down ExecutorService -- need "
-                        + "java.lang.RuntimePermission(\"modifyThread\"), "
-                        + "or the security manager's checkAccess method denies access", e);
-            }
+            // Interrupt all the threads to terminate them, if awaitTermination() timed out
+            shutdownNow();
         }
     }
 }

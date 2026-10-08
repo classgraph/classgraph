@@ -46,12 +46,7 @@ class StandardReflectionDriver extends ReflectionDriver {
 
     @Override
     boolean makeAccessible(final @Nullable Object instance, final AccessibleObject obj) {
-        try {
-            return isAccessible(instance, obj) || obj.trySetAccessible();
-        } catch (final SecurityException _) {
-            // A security manager refused access
-            return false;
-        }
+        return isAccessible(instance, obj) || obj.trySetAccessible();
     }
 
     @Override

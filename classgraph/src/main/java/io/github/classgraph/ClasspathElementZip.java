@@ -104,7 +104,7 @@ class ClasspathElementZip extends ClasspathElement {
             // Path.toString does not include URI scheme => turn into a URI so that toString works
             try {
                 rawPath = path.toUri().toString();
-            } catch (final IOError | SecurityException _) {
+            } catch (final IOError _) {
                 // Fall through
             }
         }
