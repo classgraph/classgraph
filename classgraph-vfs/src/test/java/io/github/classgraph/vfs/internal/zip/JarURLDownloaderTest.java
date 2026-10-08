@@ -125,7 +125,10 @@ public class JarURLDownloaderTest {
          */
         private CannedResponseHttpServer(final String statusLine, final @Nullable String contentLength,
                 final byte[] body, final @Nullable String location) throws IOException {
-            serverSocket = new ServerSocket(0, /* backlog = */ 1, InetAddress.getLoopbackAddress());
+            // Not a backlog of 1: a redirect loop makes 21 connections back to back, one of which can arrive while
+            // the server is still closing the last one, and Windows refuses a connection outright when the backlog
+            // is full (Linux drops the SYN, so the client retries)
+            serverSocket = new ServerSocket(0, /* backlog = */ 50, InetAddress.getLoopbackAddress());
             final var thread = new Thread(() -> serve(statusLine, contentLength, body, location));
             thread.setDaemon(true);
             thread.start();
