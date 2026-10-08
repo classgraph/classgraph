@@ -48,9 +48,6 @@ import org.jspecify.annotations.Nullable;
  * {@link Inherited} annotations on its superclasses. The {@code Direct} form includes only the annotations written
  * on the element itself. {@link #hasAnnotation(String)} checks the {@code All} form; to check only the annotations
  * written on the element, call {@code getDirectAnnotationInfo().containsName(annotationName)}.
- *
- * <p>
- * Implementations need only supply {@link #getAllAnnotationInfo()}; the rest of this interface is derived from it.
  */
 public interface HasAnnotations {
     /**
@@ -71,9 +68,7 @@ public interface HasAnnotations {
      * @throws IllegalStateException
      *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
      */
-    default AnnotationInfoList getDirectAnnotationInfo() {
-        return getAllAnnotationInfo().directOnly();
-    }
+    AnnotationInfoList getDirectAnnotationInfo();
 
     /**
      * Get the non-{@link Repeatable} annotation or meta-annotation on this element, or null if this element does
