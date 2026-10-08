@@ -161,7 +161,7 @@ public class JarURLDownloaderTest {
                     outputStream.write(headers.toString().getBytes(StandardCharsets.ISO_8859_1));
                     outputStream.write(body);
                     outputStream.flush();
-                } catch (final IOException e) {
+                } catch (final IOException _) {
                     // The server socket was closed at the end of the test, or the client hung up
                 }
             }
@@ -328,7 +328,7 @@ public class JarURLDownloaderTest {
             final var thread = new Thread(() -> {
                 try (var socket = tlsServerSocket.accept()) {
                     firstByteReceived.set(socket.getInputStream().read());
-                } catch (final IOException e) {
+                } catch (final IOException _) {
                     // The server socket was closed at the end of the test
                 }
             });
@@ -433,7 +433,7 @@ public class JarURLDownloaderTest {
             final var thread = new Thread(() -> {
                 try {
                     accepted.set(serverSocket.accept());
-                } catch (final IOException e) {
+                } catch (final IOException _) {
                     // The server socket was closed at the end of the test
                 }
             });

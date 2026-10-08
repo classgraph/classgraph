@@ -524,7 +524,7 @@ class Scanner implements Callable<ScanResult> {
         if (classpathEntryObjNormalized instanceof final Path normalizedPath) {
             try {
                 classpathEntryObjNormalized = FileUtils.canonicalize(normalizedPath);
-            } catch (final IOException | SecurityException e) {
+            } catch (final IOException | SecurityException _) {
                 // The path could not be canonicalized -- use it as given
             }
         }
@@ -583,7 +583,7 @@ class Scanner implements Callable<ScanResult> {
                         classpathEntryObjNormalized = Path.of(classpathEntryURI);
                     }
                 } catch (final URISyntaxException | IllegalArgumentException | SecurityException
-                        | FileSystemNotFoundException e) {
+                        | FileSystemNotFoundException _) {
                     // This is a custom URL scheme without a backing FileSystem
                 }
             } // else this is a remote jar URL
@@ -608,7 +608,7 @@ class Scanner implements Callable<ScanResult> {
                         "Malformed URI: " + classpathEntryObjNormalized + " : " + e1, e1);
                 uriException.addSuppressed(e);
                 throw uriException;
-            } catch (final IllegalArgumentException | SecurityException | FileSystemNotFoundException e1) {
+            } catch (final IllegalArgumentException | SecurityException | FileSystemNotFoundException _) {
                 // This is a custom URI scheme without a backing FileSystem
             }
         }

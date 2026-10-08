@@ -168,7 +168,7 @@ public class SingletonMapTest {
         final var creator = new Thread(() -> {
             try {
                 map.get("theKey");
-            } catch (final Exception expected) {
+            } catch (final Exception _) {
                 // The creator is expected to fail with InterruptedException
             }
         });

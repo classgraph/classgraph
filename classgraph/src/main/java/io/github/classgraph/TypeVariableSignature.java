@@ -159,7 +159,7 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
         ClassTypeSignature classSignature = null;
         try {
             classSignature = classInfo.getTypeSignature();
-        } catch (final Exception e) {
+        } catch (final Exception _) {
             // The class signature of a corrupt classfile may not parse. Treat the class as declaring no type
             // parameters.
         }
@@ -346,7 +346,7 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
             TypeParameter typeParameter;
             try {
                 typeParameter = resolve();
-            } catch (final IllegalStateException e) {
+            } catch (final IllegalStateException _) {
                 // If the corresponding type parameter cannot be resolved: unknown type variables can always be
                 // reconciled with a concrete class
                 return true;
@@ -395,21 +395,18 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
      */
     private static boolean boundIsReconcilableWith(final ReferenceTypeSignature bound,
             final ClassRefTypeSignature other, final Set<String> visitedTypeVariableNames) {
-        // TODO: once ClassGraph's minimum supported JDK version is 21 or later, make this a pattern switch over the
-        // sealed ReferenceTypeSignature hierarchy, with an explicit ArrayTypeSignature case
-        if (bound instanceof final ClassRefTypeSignature classRefBound) {
-            // A type variable with no bound of its own is written into the classfile with java.lang.Object as its
-            // bound, and java.lang.Object can be reconciled with any type. Otherwise the bound is compared with the
-            // class reference, ignoring type arguments, as for any other comparison made by this method.
-            return "java.lang.Object".equals(classRefBound.className)
-                    || classRefBound.equalsIgnoringTypeParams(other);
-        }
-        if (bound instanceof final TypeVariableSignature typeVariableBound) {
-            // "X" is reconcilable with "Y extends X", so compare the bound's own bounds with the class reference
-            return typeVariableBound.equalsIgnoringTypeParams(other, visitedTypeVariableNames);
-        }
+        return switch (bound) {
+        // A type variable with no bound of its own is written into the classfile with java.lang.Object as its
+        // bound, and java.lang.Object can be reconciled with any type. Otherwise the bound is compared with the
+        // class reference, ignoring type arguments, as for any other comparison made by this method.
+        case final ClassRefTypeSignature classRefBound ->
+            "java.lang.Object".equals(classRefBound.className) || classRefBound.equalsIgnoringTypeParams(other);
+        // "X" is reconcilable with "Y extends X", so compare the bound's own bounds with the class reference
+        case final TypeVariableSignature typeVariableBound ->
+            typeVariableBound.equalsIgnoringTypeParams(other, visitedTypeVariableNames);
         // An array bound is not reconcilable with a class reference
-        return false;
+        case ArrayTypeSignature _ -> false;
+        };
     }
 
     /**
@@ -422,7 +419,7 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
     public String toStringWithTypeBound() {
         try {
             return resolve().toString();
-        } catch (final IllegalStateException e) {
+        } catch (final IllegalStateException _) {
             // Type parameter could not be resolved
             return name;
         }

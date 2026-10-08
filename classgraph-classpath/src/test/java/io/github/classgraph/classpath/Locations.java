@@ -26,7 +26,7 @@ public final class Locations {
     public static String location(final Path path) {
         try {
             return path.toRealPath().toString().replace(File.separatorChar, '/');
-        } catch (final IOException e) {
+        } catch (final IOException _) {
             // The file is not there, so there is no canonical form of its path
             return path.toString().replace(File.separatorChar, '/');
         }

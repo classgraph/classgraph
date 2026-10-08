@@ -62,7 +62,7 @@ public final class ReflectionUtils {
     private static ReflectionDriver findReflectionDriver() {
         try {
             return new NarcissusReflectionDriver();
-        } catch (final ClassNotFoundException | NoClassDefFoundError e) {
+        } catch (final ClassNotFoundException | NoClassDefFoundError _) {
             // Narcissus is not on the classpath or module path -- this is the usual case, so don't log anything
         } catch (final Throwable t) {
             // Narcissus is present, but could not be used (most likely its native library has not been compiled
@@ -395,7 +395,7 @@ public final class ReflectionUtils {
     public static @Nullable Class<?> classForNameOrNull(final String className) {
         try {
             return REFLECTION_DRIVER.findClass(className);
-        } catch (final Throwable e) {
+        } catch (final Throwable _) {
             return null;
         }
     }
@@ -420,7 +420,7 @@ public final class ReflectionUtils {
             final @Nullable ClassLoader classLoader) {
         try {
             return REFLECTION_DRIVER.findClass(className, classLoader);
-        } catch (final Throwable e) {
+        } catch (final Throwable _) {
             return null;
         }
     }

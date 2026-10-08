@@ -111,7 +111,7 @@ final class AutomaticModuleName {
         // it starts with a digit or is a Java keyword, as for "x-1a.jar" or "foo-int.jar"
         try {
             ModuleDescriptor.newAutomaticModule(moduleName);
-        } catch (final IllegalArgumentException e) {
+        } catch (final IllegalArgumentException _) {
             return "";
         }
         return moduleName;

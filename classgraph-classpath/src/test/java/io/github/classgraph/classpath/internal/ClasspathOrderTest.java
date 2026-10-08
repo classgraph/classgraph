@@ -348,7 +348,7 @@ public class ClasspathOrderTest {
         final var wildcardedForms = new ArrayList<Object>(List.of(tempDir + "/*", new File(tempDir.toFile(), "*")));
         try {
             wildcardedForms.add(tempDir.resolve("*"));
-        } catch (final InvalidPathException e) {
+        } catch (final InvalidPathException _) {
             // A wildcard can only arrive as a Path on a filesystem whose path names may contain '*', which the
             // Windows filesystem's may not
         }

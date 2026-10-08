@@ -198,7 +198,7 @@ class ScanSpec {
         try {
             final var timeoutNanos = workerTimeout.toNanos();
             return timeoutNanos > 0L ? timeoutNanos : Long.MAX_VALUE;
-        } catch (final ArithmeticException e) {
+        } catch (final ArithmeticException _) {
             // The timeout is longer than Long.MAX_VALUE nanoseconds (about 292 years)
             return Long.MAX_VALUE;
         }

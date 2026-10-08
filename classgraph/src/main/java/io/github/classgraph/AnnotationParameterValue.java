@@ -283,14 +283,19 @@ public final class AnnotationParameterValue extends ScanResultObject
             if (arrayTypeSig.getNumDimensions() != 1) {
                 throw new IllegalArgumentException("Annotations only support 1-dimensional arrays");
             }
-            final var elementTypeSig = arrayTypeSig.getElementTypeSignature();
-            // TODO: once ClassGraph's minimum supported JDK version is 21 or later, make this a pattern switch
-            if (elementTypeSig instanceof final ClassRefTypeSignature classRefTypeSignature) {
+            switch (arrayTypeSig.getElementTypeSignature()) {
+            case final ClassRefTypeSignature classRefTypeSignature -> {
                 // Look up the name of the element type, for non-primitive arrays
                 return classRefTypeSignature.getClassName();
-            } else if (elementTypeSig instanceof final BaseTypeSignature baseTypeSignature) {
+            }
+            case final BaseTypeSignature baseTypeSignature -> {
                 // Look up the name of the primitive class, for primitive arrays
                 return baseTypeSignature.getTypeName();
+            }
+            case ArrayTypeSignature _,TypeVariableSignature _ -> {
+                // The innermost element type of an array is not an array, and an annotation parameter cannot have
+                // a type variable as its type -- fall through and use Object as the element type
+            }
             }
         } else {
             // Could not find a method with this name -- this is an external class. Find first non-null element in

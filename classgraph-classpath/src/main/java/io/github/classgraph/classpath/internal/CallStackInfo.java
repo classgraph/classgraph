@@ -190,7 +190,7 @@ public final class CallStackInfo {
             if (!callStackInfo.classLoaders.isEmpty() || !callStackInfo.moduleLayers.isEmpty()) {
                 return callStackInfo;
             }
-        } catch (Exception | LinkageError e) {
+        } catch (Exception | LinkageError _) {
             // Fall through
         }
         // The call stack could not be read -- fall back to naming only this class' own classloader and module

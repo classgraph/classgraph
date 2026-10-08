@@ -317,7 +317,7 @@ public final class ResourceList extends UnmodifiableList<Resource> implements Au
         for (final Resource resource : this) {
             try (resource) {
                 byteArrayConsumer.accept(resource, resource.load());
-            } catch (final IOException e) {
+            } catch (final IOException _) {
                 // Ignore
             }
         }
@@ -378,7 +378,7 @@ public final class ResourceList extends UnmodifiableList<Resource> implements Au
         for (final Resource resource : this) {
             try (resource) {
                 inputStreamConsumer.accept(resource, resource.open());
-            } catch (final IOException e) {
+            } catch (final IOException _) {
                 // Ignore
             }
         }
@@ -441,7 +441,7 @@ public final class ResourceList extends UnmodifiableList<Resource> implements Au
         for (final Resource resource : this) {
             try (resource) {
                 byteBufferConsumer.accept(resource, Objects.requireNonNull(resource.read().getByteBuffer()));
-            } catch (final IOException e) {
+            } catch (final IOException _) {
                 // Ignore
             }
         }

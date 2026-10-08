@@ -135,7 +135,7 @@ final class ZipEntryNameDecoder {
                         .onMalformedInput(CodingErrorAction.REPORT) //
                         .onUnmappableCharacter(CodingErrorAction.REPORT) //
                         .decode(ByteBuffer.wrap(nameBytes)).toString();
-            } catch (final CharacterCodingException e) {
+            } catch (final CharacterCodingException _) {
                 return decodeCp437(nameBytes);
             }
         }

@@ -890,7 +890,7 @@ public final class RandomAccessOrSequentialReader implements RandomAccessReader,
             if (ownsInputStream && inputStream != null) {
                 inputStream.close();
             }
-        } catch (final IOException e) {
+        } catch (final IOException _) {
             // Ignore
         } finally {
             this.inputStream = null;

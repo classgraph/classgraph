@@ -214,7 +214,7 @@ class FallbackClassLoaderHandler implements ClassLoaderHandler {
             for (final var e = classLoaderToQuery.getResources(resourcePath); e.hasMoreElements();) {
                 resourceURLs.add(e.nextElement().toString());
             }
-        } catch (final IOException | RuntimeException | LinkageError e) {
+        } catch (final IOException | RuntimeException | LinkageError _) {
             // Ignore -- the classloader could not enumerate this resource
         }
         return resourceURLs;

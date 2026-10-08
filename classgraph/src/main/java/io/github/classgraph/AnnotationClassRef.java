@@ -93,18 +93,14 @@ public final class AnnotationClassRef extends ScanResultObject {
         var name = className;
         if (name == null) {
             final var typeSig = getTypeSignature();
-            // TODO: once ClassGraph's minimum supported JDK version is 21 or later, make this a pattern switch over
-            // the sealed TypeSignature hierarchy, with an explicit TypeVariableSignature case in place of the else
-            if (typeSig instanceof final BaseTypeSignature baseTypeSignature) {
-                name = baseTypeSignature.getTypeName();
-            } else if (typeSig instanceof final ClassRefTypeSignature classRefTypeSignature) {
-                name = classRefTypeSignature.getFullyQualifiedClassName();
-            } else if (typeSig instanceof final ArrayTypeSignature arrayTypeSignature) {
-                name = arrayTypeSignature.getClassName();
-            } else {
-                throw new IllegalArgumentException("Got unexpected type " + typeSig.getClass().getName()
-                        + " for ref type signature: " + typeDescriptorStr);
-            }
+            name = switch (typeSig) {
+            case final BaseTypeSignature baseTypeSignature -> baseTypeSignature.getTypeName();
+            case final ClassRefTypeSignature classRefTypeSignature ->
+                classRefTypeSignature.getFullyQualifiedClassName();
+            case final ArrayTypeSignature arrayTypeSignature -> arrayTypeSignature.getClassName();
+            case TypeVariableSignature _ -> throw new IllegalArgumentException("Got unexpected type "
+                    + typeSig.getClass().getName() + " for ref type signature: " + typeDescriptorStr);
+            };
             className = name;
         }
         return name;

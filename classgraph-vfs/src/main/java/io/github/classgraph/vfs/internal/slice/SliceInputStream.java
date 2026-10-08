@@ -181,7 +181,7 @@ class SliceInputStream extends InputStream {
             if (resourceToClose != null) {
                 try {
                     resourceToClose.close();
-                } catch (final Exception e) {
+                } catch (final Exception _) {
                     // Ignore
                 }
             }

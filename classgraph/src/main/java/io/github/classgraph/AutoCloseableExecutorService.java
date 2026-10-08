@@ -105,7 +105,7 @@ class AutoCloseableExecutorService extends ThreadPoolExecutor {
                 // This call will not block, since execution has finished. The timeout is applied anyway, so that
                 // a task that has somehow not finished cannot hang the worker thread that ran it.
                 future.get(workerTimeoutNanos, TimeUnit.NANOSECONDS);
-            } catch (CancellationException | InterruptedException | TimeoutException e) {
+            } catch (CancellationException | InterruptedException | TimeoutException _) {
                 // If this thread was cancelled, interrupted or timed out, interrupt other threads
                 interruptionChecker.interrupt();
             } catch (final ExecutionException e) {
@@ -123,7 +123,7 @@ class AutoCloseableExecutorService extends ThreadPoolExecutor {
         try {
             // Prevent new tasks being submitted
             shutdown();
-        } catch (final SecurityException e) {
+        } catch (final SecurityException _) {
             // A security manager denied shutdown(). Nothing needs reporting here: the executor cannot terminate
             // without it, so awaitTermination() below times out, and shutdownNow() is then denied for the same
             // reason -- that is where the failure is thrown.
@@ -132,7 +132,7 @@ class AutoCloseableExecutorService extends ThreadPoolExecutor {
         try {
             // Await termination of any running tasks
             terminated = awaitTermination(TERMINATION_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
-        } catch (final InterruptedException e) {
+        } catch (final InterruptedException _) {
             interruptionChecker.interrupt();
         }
         if (!terminated) {

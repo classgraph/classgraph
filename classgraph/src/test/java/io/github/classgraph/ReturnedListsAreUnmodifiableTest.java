@@ -64,22 +64,28 @@ public class ReturnedListsAreUnmodifiableTest {
             return;
         }
         objects.add(typeSignature);
-        // TODO: once the tests compile at Java 21 or later, make this a pattern switch
-        if (typeSignature instanceof final ClassRefTypeSignature classRefTypeSignature) {
+        switch (typeSignature) {
+        case final ClassRefTypeSignature classRefTypeSignature -> {
             for (final TypeArgument typeArgument : classRefTypeSignature.getTypeArguments()) {
                 addTypeSignature(typeArgument.getTypeSignature(), objects);
             }
-        } else if (typeSignature instanceof final MethodTypeSignature methodTypeSignature) {
+        }
+        case final MethodTypeSignature methodTypeSignature -> {
             for (final TypeParameter typeParameter : methodTypeSignature.getTypeParameters()) {
                 objects.add(typeParameter);
             }
             for (final TypeSignature paramTypeSignature : methodTypeSignature.getParameterTypeSignatures()) {
                 addTypeSignature(paramTypeSignature, objects);
             }
-        } else if (typeSignature instanceof final ClassTypeSignature classTypeSignature) {
+        }
+        case final ClassTypeSignature classTypeSignature -> {
             for (final TypeParameter typeParameter : classTypeSignature.getTypeParameters()) {
                 objects.add(typeParameter);
             }
+        }
+        case BaseTypeSignature _,ArrayTypeSignature _,TypeVariableSignature _,TypeArgument _,TypeParameter _ -> {
+            // Nothing nested to sweep
+        }
         }
     }
 
@@ -89,7 +95,7 @@ public class ReturnedListsAreUnmodifiableTest {
         final List<Object> rawList = (List) list;
         try {
             rawList.add(null);
-        } catch (final UnsupportedOperationException e) {
+        } catch (final UnsupportedOperationException _) {
             return true;
         }
         // The add succeeded, so undo it, to avoid corrupting the ScanResult for the rest of the test
@@ -103,7 +109,7 @@ public class ReturnedListsAreUnmodifiableTest {
         final Map<Object, Object> rawMap = (Map) map;
         try {
             rawMap.put(new Object(), null);
-        } catch (final UnsupportedOperationException e) {
+        } catch (final UnsupportedOperationException _) {
             return true;
         }
         // The put succeeded, so undo it, to avoid corrupting the ScanResult for the rest of the test
@@ -131,7 +137,7 @@ public class ReturnedListsAreUnmodifiableTest {
                     final Object returned;
                     try {
                         returned = method.invoke(object);
-                    } catch (final IllegalAccessException | InvocationTargetException e) {
+                    } catch (final IllegalAccessException | InvocationTargetException _) {
                         // Skip accessors that are not valid for this object, e.g. because they throw
                         // IllegalStateException for a class that is not an annotation
                         continue;
@@ -321,13 +327,12 @@ public class ReturnedListsAreUnmodifiableTest {
         try {
             runnable.run();
             return false;
-        } catch (final UnsupportedOperationException e) {
+        } catch (final UnsupportedOperationException _) {
             return true;
         }
     }
 
     /** A class with members and annotations, so that the accessors above have something to return. */
-    @SuppressWarnings("unused")
     @Deprecated
     static class ClassWithMembers {
         /** A field. */

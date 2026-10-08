@@ -64,7 +64,7 @@ public final class LogNode implements ClassGraphLog {
     static {
         try {
             System.getProperties().setProperty("log4j2.formatMsgNoLookups", "true");
-        } catch (final SecurityException e) {
+        } catch (final SecurityException _) {
             // Ignore -- if the system properties cannot be read or written, the mitigation cannot be applied, but
             // this must not throw ExceptionInInitializerError, which would make LogNode unusable
         }

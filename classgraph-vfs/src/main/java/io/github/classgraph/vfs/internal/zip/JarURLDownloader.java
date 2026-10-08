@@ -95,7 +95,7 @@ final class JarURLDownloader {
                 // jar is actually read, so close the jar here in case it was not
                 try {
                     jarConn.getJarFile().close();
-                } catch (final IOException e) {
+                } catch (final IOException _) {
                     // The jar was never opened, or is already closed
                 }
             }
@@ -127,7 +127,7 @@ final class JarURLDownloader {
         URL url = null;
         try {
             url = new URL(jarURL);
-        } catch (final MalformedURLException e1) {
+        } catch (final MalformedURLException _) {
             try {
                 url = new URI(jarURL).toURL();
             } catch (final MalformedURLException | IllegalArgumentException | URISyntaxException e2) {
@@ -153,7 +153,7 @@ final class JarURLDownloader {
                 return new PhysicalZipFile(path, vfs, log);
             } catch (final IllegalArgumentException | SecurityException | URISyntaxException e) {
                 throw new IOException("Could not convert URL to a path (" + e + "): " + url, e);
-            } catch (final FileSystemNotFoundException e) {
+            } catch (final FileSystemNotFoundException _) {
                 // Not a custom filesystem
             }
         }

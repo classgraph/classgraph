@@ -45,10 +45,9 @@ import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
 import org.jspecify.annotations.Nullable;
 
-// TODO: once ClassGraph's minimum supported JDK version is 21 or later, revisit the way work is scheduled across
-// worker threads, both here and in AutoCloseableExecutorService. Virtual threads (JDK 21) are the obvious thing to
-// reach for, but measurement says they would not make a scan of local files any faster, and the reasons are worth
-// recording so that this is not tried twice:
+// Work is scheduled here, and in AutoCloseableExecutorService, on a fixed pool of platform threads. Virtual threads
+// are the obvious thing to reach for instead, but measurement says they would not make a scan of local files any
+// faster, and the reasons are worth recording so that this is not tried twice:
 //
 // A virtual thread is only an improvement over a pooled platform thread if it unmounts while it is blocked, and
 // almost nothing a scan blocks on unmounts. Reading a file through FileChannel or RandomAccessFile pins the carrier
@@ -66,9 +65,10 @@ import org.jspecify.annotations.Nullable;
 // The one place virtual threads would help is JarURLDownloader, which fetches a remote jar over HTTP: socket reads
 // do unmount, so many jars could be downloaded at once without holding a worker thread each.
 //
-// What is worth doing regardless is the simplification. The poison pills, the count of incomplete work units, and
-// the manual claiming of unstarted workers in close() all exist to manage a fixed pool of workers pulling from a
-// shared queue, and structured concurrency would remove the need to track submitted workers by hand -- but the
+// TODO: once StructuredTaskScope is no longer a preview API (it still is in JDK 25 and 26), make the simplification
+// that is worth making regardless. The poison pills, the count of incomplete work units, and the manual claiming
+// of unstarted workers in close() all exist to manage a fixed pool of workers pulling from a shared queue, and
+// structured concurrency would remove the need to track submitted workers by hand -- but the
 // pool also bounds parallelism deliberately (see ClassGraph#DEFAULT_NUM_WORKER_THREADS), so whatever replaces it
 // still has to bound the number of work units in flight.
 
@@ -377,7 +377,7 @@ final class WorkQueue<T> implements AutoCloseable {
             try {
                 // Block on completion using future.get(), which may throw one of the exceptions below
                 future.get(workerTimeoutNanos, TimeUnit.NANOSECONDS);
-            } catch (final TimeoutException e) {
+            } catch (final TimeoutException _) {
                 // The worker is still running, and there is no way to stop it, since a thread blocked on class
                 // loading or on a filesystem read cannot be interrupted. All that can be done is to report why the
                 // scan cannot finish. The message has to go in the innermost exception, since
@@ -391,11 +391,11 @@ final class WorkQueue<T> implements AutoCloseable {
                                 + "worker thread is blocked reading a classpath element from a filesystem or "
                                 + "network (call ClassGraph#setWorkerTimeout(Duration) to allow more time)")));
                 interruptionChecker.interrupt();
-            } catch (final CancellationException e) {
+            } catch (final CancellationException _) {
                 if (log != null) {
                     log.log("~", "Worker thread was cancelled");
                 }
-            } catch (final InterruptedException e) {
+            } catch (final InterruptedException _) {
                 if (log != null) {
                     log.log("~", "Worker thread was interrupted");
                 }

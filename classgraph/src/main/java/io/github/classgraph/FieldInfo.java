@@ -163,7 +163,7 @@ public final class FieldInfo extends ClassMemberInfo implements Comparable<Field
             for (final TypeAnnotationDecorator decorator : typeAnnotationDecorators) {
                 try {
                     decorator.decorate(fieldType);
-                } catch (final IllegalArgumentException e) {
+                } catch (final IllegalArgumentException _) {
                     // Skip a type annotation that cannot be matched to the field type, rather than failing to
                     // produce the whole field type (best effort). (#897)
                 }
@@ -223,7 +223,7 @@ public final class FieldInfo extends ClassMemberInfo implements Comparable<Field
             if (typeSig != null) {
                 return typeSig;
             }
-        } catch (final Exception e) {
+        } catch (final Exception _) {
             // Ignore
         }
         return getTypeDescriptor();
@@ -302,7 +302,7 @@ public final class FieldInfo extends ClassMemberInfo implements Comparable<Field
             if (fieldSig != null) {
                 fieldSig.findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
             }
-        } catch (final IllegalArgumentException e) {
+        } catch (final IllegalArgumentException _) {
             if (log != null) {
                 log.log("Illegal type signature for field " + getClassName() + "." + getName() + ": "
                         + getTypeSignatureString());
@@ -313,7 +313,7 @@ public final class FieldInfo extends ClassMemberInfo implements Comparable<Field
             if (fieldDesc != null) {
                 fieldDesc.findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
             }
-        } catch (final IllegalArgumentException e) {
+        } catch (final IllegalArgumentException _) {
             if (log != null) {
                 log.log("Illegal type descriptor for field " + getClassName() + "." + getName() + ": "
                         + getTypeDescriptorString());

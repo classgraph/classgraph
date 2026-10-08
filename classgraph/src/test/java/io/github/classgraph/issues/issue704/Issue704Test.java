@@ -155,7 +155,7 @@ public class Issue704Test {
         final var symlinkedDir = tempDir.toPath().resolve("symlink");
         try {
             Files.createSymbolicLink(symlinkedDir, realDir.toPath());
-        } catch (IOException | UnsupportedOperationException | SecurityException e) {
+        } catch (IOException | UnsupportedOperationException | SecurityException _) {
             // Symlinks are not supported (e.g. on Windows without developer mode enabled)
             assumeTrue(false, "Could not create a symlink");
         }
@@ -191,7 +191,7 @@ public class Issue704Test {
         final var symlinkedJarFile = tempDir.toPath().resolve("issue704f-link.jar");
         try {
             Files.createSymbolicLink(symlinkedJarFile, jarFile.toPath());
-        } catch (IOException | UnsupportedOperationException | SecurityException e) {
+        } catch (IOException | UnsupportedOperationException | SecurityException _) {
             // Symlinks are not supported (e.g. on Windows without developer mode enabled)
             assumeTrue(false, "Could not create a symlink");
         }

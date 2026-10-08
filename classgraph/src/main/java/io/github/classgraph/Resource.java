@@ -631,7 +631,7 @@ public final class Resource implements AutoCloseable, Comparable<Resource> {
                     inputStream = null;
                     try {
                         in.close();
-                    } catch (final IOException e) {
+                    } catch (final IOException _) {
                         // Ignore
                     }
                 }

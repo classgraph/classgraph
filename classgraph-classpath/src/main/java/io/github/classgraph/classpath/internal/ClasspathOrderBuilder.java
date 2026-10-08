@@ -242,7 +242,7 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
             // A nested path "outer.jar!/inner" becomes the jar URL "jar:file:/outer.jar!/inner"
             return new URL("jar:" + new File(classpathElementPath.substring(0, nestedPathIdx)).toURI()
                     + classpathElementPath.substring(nestedPathIdx));
-        } catch (final MalformedURLException | IllegalArgumentException | IOError | SecurityException e) {
+        } catch (final MalformedURLException | IllegalArgumentException | IOError | SecurityException _) {
             return null;
         }
     }
@@ -324,7 +324,7 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
             nestedSuffix = nestedIdx < 0 ? "" : pathElementStr.substring(nestedIdx);
             try {
                 path = Path.of(archivePathStr);
-            } catch (final InvalidPathException e) {
+            } catch (final InvalidPathException _) {
                 // The path is not valid for the default filesystem (on Windows, for example, it may contain a
                 // character that is not allowed in a filename), so there is no file to canonicalize or to test
                 return pathElementStr;
@@ -333,13 +333,13 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
         final Path canonicalPath;
         try {
             canonicalPath = path.toRealPath();
-        } catch (final NoSuchFileException e) {
+        } catch (final NoSuchFileException _) {
             // The filesystem says the classpath element is not there
             if (log != null) {
                 log.log("Classpath element does not exist, skipping: " + pathElementStr);
             }
             return null;
-        } catch (final IOException | RuntimeException e) {
+        } catch (final IOException | RuntimeException _) {
             // The filesystem cannot say whether the classpath element is there, which is a different answer from
             // saying that it is not there: an unreachable network share answers this way, and so does a path whose
             // parent directory cannot be listed. Keep the classpath element in the form it was found in, and let
@@ -447,13 +447,13 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
                                 : pathElement instanceof Path ? Path.of(pathElementStrWithoutSuffix)
                                         // For File, just use path string
                                         : pathElementStrWithoutSuffix;
-            } catch (MalformedURLException | URISyntaxException | InvalidPathException e) {
+            } catch (MalformedURLException | URISyntaxException | InvalidPathException _) {
                 try {
                     pathElementWithoutSuffix = pathElement instanceof URL
                             ? new URL("file:" + pathElementStrWithoutSuffix)
                             : pathElement instanceof URI ? new URI("file:" + pathElementStrWithoutSuffix)
                                     : pathElementStrWithoutSuffix;
-                } catch (MalformedURLException | URISyntaxException e2) {
+                } catch (MalformedURLException | URISyntaxException _) {
                     // (Path.of() is not retried, since prefixing an invalid path with "file:" cannot fix it --
                     // the Path degrades to a path string, as a File does)
                     //
@@ -505,7 +505,7 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
                 // path on a non-default filesystem is dropped. A local path comes back in the "file:///path"
                 // spelling (or "file:///C:/x/y" on Windows), which FastPathResolver turns back into a plain path
                 return pathElementPath.toUri().toString();
-            } catch (final IOError | SecurityException e) {
+            } catch (final IOError | SecurityException _) {
                 // Fall back to the string form of the Path
             }
         }
@@ -534,7 +534,7 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
                     : pathElement instanceof final URI uri ? uri.toURL()
                             : pathElement instanceof final Path path ? path.toUri().toURL()
                                     : pathElement instanceof final File file ? file.toURI().toURL() : null;
-        } catch (final MalformedURLException | IllegalArgumentException | IOError | SecurityException e) {
+        } catch (final MalformedURLException | IllegalArgumentException | IOError | SecurityException _) {
             // Fall through
         }
         if (pathElementURL == null) {
@@ -542,14 +542,14 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
             final var urlStr = pathElementStr.replace("%", "%25");
             try {
                 pathElementURL = new URL(urlStr);
-            } catch (final MalformedURLException e) {
+            } catch (final MalformedURLException _) {
                 try {
                     pathElementURL = new File(urlStr).toURI().toURL();
-                } catch (final MalformedURLException | IllegalArgumentException | IOError | SecurityException e1) {
+                } catch (final MalformedURLException | IllegalArgumentException | IOError | SecurityException _) {
                     // Final fallback -- try just using the raw string as a URL
                     try {
                         pathElementURL = new URL(pathElementStr);
-                    } catch (final MalformedURLException e2) {
+                    } catch (final MalformedURLException _) {
                         // Fall through
                     }
                 }

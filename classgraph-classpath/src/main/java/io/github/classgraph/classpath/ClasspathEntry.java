@@ -67,12 +67,15 @@ import org.jspecify.annotations.Nullable;
  * <p>
  * For the code that does need to know, this is a sealed type with one subclass per form -- {@link OfPathString},
  * {@link OfFile}, {@link OfPath}, {@link OfURL} and {@link OfURI} -- and each subclass hands the element back in
- * that form. Because the type is sealed, those five are the only possibilities, so a {@code switch} over them on
- * Java 21 or later is checked for exhaustiveness:
+ * that form. Because the type is sealed, those five are the only possibilities, so a pattern switch over them is
+ * checked for exhaustiveness and needs no default case:
  *
  * <pre>
- * if (entry instanceof ClasspathEntry.OfURL urlEntry) {
- *     System.out.println("Served over " + urlEntry.getURL().getProtocol());
+ * switch (entry) {
+ * case ClasspathEntry.OfURL urlEntry -&gt; System.out.println("Served over " + urlEntry.getURL().getProtocol());
+ * case ClasspathEntry.OfURI uriEntry -&gt; System.out.println("Served over " + uriEntry.getURI().getScheme());
+ * case ClasspathEntry.OfPathString _,ClasspathEntry.OfFile _,ClasspathEntry.OfPath _ -&gt;
+ *     System.out.println("Found at " + entry.getLocation());
  * }
  * </pre>
  */
@@ -166,7 +169,7 @@ public abstract sealed class ClasspathEntry {
         }
         try {
             return Path.of(location);
-        } catch (final InvalidPathException e) {
+        } catch (final InvalidPathException _) {
             // The location cannot be spelled as a path of the default filesystem, so it names nothing there, and
             // the path the classpath element was found as is the best that is left
             return path;

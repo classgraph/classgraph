@@ -43,7 +43,7 @@ class FakeRestartClassLoader extends ClassLoader {
         try {
             final var b = loadClassFileData(name.replace('.', File.separatorChar) + ".class");
             return defineClass(name, b, 0, b.length);
-        } catch (final IOException e) {
+        } catch (final IOException _) {
             throw new ClassNotFoundException(name);
         }
     }

@@ -199,9 +199,8 @@ org.eclipse.jdt.core.compiler.problem.nonExternalizedStringLiteral=ignore
 # already explained by a comment where it matters.
 org.eclipse.jdt.core.compiler.problem.undocumentedEmptyBlock=ignore
 
-# A catch block that does not need the exception cannot say so: unnamed variables arrived in Java 21, and
-# ClassGraph compiles against Java 17. Naming the parameter and ignoring it is the only option available.
-org.eclipse.jdt.core.compiler.problem.unusedExceptionParameter=ignore
+# A catch block that does not need the exception says so by naming the parameter _ (an unnamed variable).
+org.eclipse.jdt.core.compiler.problem.unusedExceptionParameter=warning
 
 # An override that does not call super is how you replace behaviour rather than extend it, which is the
 # normal case here, not a suspicious one.

@@ -373,7 +373,7 @@ public final class ClasspathExpander {
         }
         try {
             return dirPath.resolve(location.substring(dir.length() + 1));
-        } catch (final InvalidPathException e) {
+        } catch (final InvalidPathException _) {
             return null;
         }
     }
@@ -395,7 +395,7 @@ public final class ClasspathExpander {
         }
         try {
             return containerNioPath.resolve(nameWithin);
-        } catch (final InvalidPathException e) {
+        } catch (final InvalidPathException _) {
             return null;
         }
     }

@@ -108,7 +108,7 @@ final class DirEntry extends VfsEntry {
         if (attributesCurr != null) {
             try {
                 return attributesCurr.size();
-            } catch (final UnsupportedOperationException e) {
+            } catch (final UnsupportedOperationException _) {
                 // The fallback attributes of FileUtils#readAttributes do not throw this, but the attributes of a
                 // directory on another filesystem come from that filesystem's own provider, which may
                 return -1L;
@@ -119,7 +119,7 @@ final class DirEntry extends VfsEntry {
         if (lengthCurr < 0L) {
             try {
                 lengthCurr = Files.size(path);
-            } catch (final IOException | SecurityException e) {
+            } catch (final IOException | SecurityException _) {
                 return -1L;
             }
             length = lengthCurr;
@@ -133,14 +133,14 @@ final class DirEntry extends VfsEntry {
         if (attributesCurr != null) {
             try {
                 return attributesCurr.lastModifiedTime().toMillis();
-            } catch (final UnsupportedOperationException e) {
+            } catch (final UnsupportedOperationException _) {
                 // As in getLength(), another filesystem's provider may throw this
                 return 0L;
             }
         }
         try {
             return Files.getLastModifiedTime(path).toMillis();
-        } catch (final IOException | SecurityException e) {
+        } catch (final IOException | SecurityException _) {
             return 0L;
         }
     }
@@ -161,7 +161,7 @@ final class DirEntry extends VfsEntry {
         }
         try {
             return unmodifiableEnumSet(Files.readAttributes(path, PosixFileAttributes.class).permissions());
-        } catch (final IOException | UnsupportedOperationException | SecurityException e) {
+        } catch (final IOException | UnsupportedOperationException | SecurityException _) {
             // The filesystem does not record POSIX permissions (e.g. on Windows)
             return null;
         }

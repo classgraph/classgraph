@@ -100,7 +100,7 @@ public class AutoCloseableExecutorServiceTest {
                 taskStarted.countDown();
                 try {
                     releaseTask.await();
-                } catch (final InterruptedException e) {
+                } catch (final InterruptedException _) {
                     Thread.currentThread().interrupt();
                 }
             });

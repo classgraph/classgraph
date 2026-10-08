@@ -129,7 +129,7 @@ class ClasspathElementDir extends ClasspathElement {
                                 /* orderWithinParentClasspathElement = */ childClasspathEntryIdx++,
                                 /* packageRootPrefix = */ "", packageRootPrefixes, libDirPrefixes));
             }
-        } catch (final IOException | SecurityException e) {
+        } catch (final IOException | SecurityException _) {
             if (log != null) {
                 log(classpathElementIdx,
                         "Skipping classpath element, since dir cannot be accessed: " + classpathEltPath, log);
@@ -179,7 +179,7 @@ class ClasspathElementDir extends ClasspathElement {
         try {
             final var entry = vfs.open(classpathEltPath).getEntry(relativePath);
             return entry == null ? null : newResource(entry);
-        } catch (final IOException | SecurityException e) {
+        } catch (final IOException | SecurityException _) {
             return null;
         }
     }
@@ -246,7 +246,7 @@ class ClasspathElementDir extends ClasspathElement {
         try {
             final var file = dir.toFile();
             fileToLastModified.put(file, file.lastModified());
-        } catch (final UnsupportedOperationException | SecurityException e) {
+        } catch (final UnsupportedOperationException | SecurityException _) {
             // Ignore
         }
     }
@@ -265,7 +265,7 @@ class ClasspathElementDir extends ClasspathElement {
         }
         try {
             fileToLastModified.put(path.toFile(), entry.getLastModifiedMillis());
-        } catch (final UnsupportedOperationException | SecurityException e) {
+        } catch (final UnsupportedOperationException | SecurityException _) {
             // Ignore
         }
     }
@@ -432,7 +432,7 @@ class ClasspathElementDir extends ClasspathElement {
         }
         try {
             return vfs.open(containerPath);
-        } catch (final IOException | SecurityException e) {
+        } catch (final IOException | SecurityException _) {
             return null;
         }
     }
@@ -447,7 +447,7 @@ class ClasspathElementDir extends ClasspathElement {
     public @Nullable File getFile() {
         try {
             return classpathEltPath.toFile();
-        } catch (final UnsupportedOperationException e) {
+        } catch (final UnsupportedOperationException _) {
             return null;
         }
     }
@@ -472,7 +472,7 @@ class ClasspathElementDir extends ClasspathElement {
         try {
             // Path.toString() does not include the URI scheme for some reason
             return getURI().toString();
-        } catch (final IllegalStateException e) {
+        } catch (final IllegalStateException _) {
             return classpathEltPath.toString();
         }
     }

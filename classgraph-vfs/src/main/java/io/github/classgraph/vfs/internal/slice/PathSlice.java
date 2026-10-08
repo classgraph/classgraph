@@ -139,7 +139,7 @@ public final class PathSlice extends Slice {
         }
         try {
             return path == null ? null : path.toFile();
-        } catch (final UnsupportedOperationException e) {
+        } catch (final UnsupportedOperationException _) {
             // The filesystem supports the Path API but not the File API
             return null;
         }
@@ -371,7 +371,7 @@ public final class PathSlice extends Slice {
     private static @Nullable Path pathOrNull(final File file) {
         try {
             return file.toPath();
-        } catch (final InvalidPathException e) {
+        } catch (final InvalidPathException _) {
             return null;
         }
     }
@@ -571,7 +571,7 @@ public final class PathSlice extends Slice {
                         if (fileChannelToClose != null) {
                             fileChannelToClose.close();
                         }
-                    } catch (final IOException e) {
+                    } catch (final IOException _) {
                         // Ignore
                     }
                 } finally {

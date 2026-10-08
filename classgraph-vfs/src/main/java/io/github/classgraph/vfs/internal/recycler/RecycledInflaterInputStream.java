@@ -244,7 +244,7 @@ public class RecycledInflaterInputStream extends InputStream {
         if (!closed.getAndSet(true)) {
             try {
                 rawInputStream.close();
-            } catch (final Exception e) {
+            } catch (final Exception _) {
                 // Ignore
             }
             // Reset and recycle inflater instance

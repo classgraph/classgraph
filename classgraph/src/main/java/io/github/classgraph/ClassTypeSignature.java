@@ -114,7 +114,7 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
             superclassSignature = superclass == null ? null
                     : (ClassRefTypeSignature) TypeSignature
                             .parse("L" + superclass.getName().replace('.', '/') + ";", classInfo.getName());
-        } catch (final TypeSignatureParseException e) {
+        } catch (final TypeSignatureParseException _) {
             // Silently fail (should not happen)
         }
         this.superclassSignature = superclassSignature;
@@ -124,7 +124,7 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
                 final var ifaceSignature = (ClassRefTypeSignature) TypeSignature
                         .parse("L" + iface.getName().replace('.', '/') + ";", classInfo.getName());
                 this.superinterfaceSignatures.add(ifaceSignature);
-            } catch (final TypeSignatureParseException e) {
+            } catch (final TypeSignatureParseException _) {
                 // Silently fail (should not happen)
             }
         }

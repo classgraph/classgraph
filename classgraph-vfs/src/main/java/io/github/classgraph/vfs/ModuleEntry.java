@@ -127,7 +127,7 @@ final class ModuleEntry extends VfsEntry {
                     if (inputStream != null) {
                         inputStream.close();
                     }
-                } catch (final IOException e) {
+                } catch (final IOException _) {
                     // Nothing can be done about a stream that cannot be closed, and the caller never saw it
                 } finally {
                     recycler.recycle(reader);

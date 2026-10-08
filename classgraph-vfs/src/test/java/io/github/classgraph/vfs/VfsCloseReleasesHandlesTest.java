@@ -46,7 +46,7 @@ public class VfsCloseReleasesHandlesTest {
                     .getOperatingSystemMXBean() instanceof final UnixOperatingSystemMXBean unixOsBean
                             ? unixOsBean.getOpenFileDescriptorCount()
                             : -1L;
-        } catch (final RuntimeException e) {
+        } catch (final RuntimeException _) {
             // Some JVMs throw while starting up the management API, and one that cannot report the count is no
             // different here from one that does not implement the interface
             return -1L;

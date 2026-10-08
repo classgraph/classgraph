@@ -154,7 +154,7 @@ public final class CloseableByteBuffer implements AutoCloseable {
         if (onCloseRunnable != null) {
             try {
                 onCloseRunnable.run();
-            } catch (final Exception e) {
+            } catch (final Exception _) {
                 // There is nowhere to report this: close() cannot throw, since a caller closing a buffer in a
                 // try-with-resources block would then lose whatever exception the block itself threw. The close
                 // action is responsible for leaving nothing checked out when the part of it that can fail fails.

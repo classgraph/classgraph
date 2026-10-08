@@ -534,7 +534,7 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
                 Path dir;
                 try {
                     dir = Path.of(resolvedPath);
-                } catch (final InvalidPathException e) {
+                } catch (final InvalidPathException _) {
                     // A path that this filesystem cannot represent is not a directory, so try opening it as a
                     // jarfile, which reports the failure with the reason it could not be read
                     dir = null;

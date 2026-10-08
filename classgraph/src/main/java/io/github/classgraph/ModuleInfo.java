@@ -131,7 +131,7 @@ public final class ModuleInfo implements Comparable<ModuleInfo>, HasName, HasAnn
             if (location == null) {
                 try {
                     location = classpathElement.getURI();
-                } catch (final IllegalStateException e) {
+                } catch (final IllegalStateException _) {
                     // The classpath element has no known URI either, so the location is unknown
                     return null;
                 }

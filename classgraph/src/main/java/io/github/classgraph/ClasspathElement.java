@@ -429,7 +429,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
                 canonicalPathCache.put(filePath, canonicalPath);
             }
             return canonicalPath + nestedPath;
-        } catch (final IOException | IllegalArgumentException | SecurityException e) {
+        } catch (final IOException | IllegalArgumentException | SecurityException _) {
             // The file could not be canonicalized -- fall back to comparing the URI itself
             return uriStr;
         }
@@ -450,7 +450,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
         URI uri;
         try {
             uri = getURI();
-        } catch (final IllegalStateException e) {
+        } catch (final IllegalStateException _) {
             // A module can have a null location
             return null;
         }
@@ -496,7 +496,7 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
                 URI uri;
                 try {
                     uri = res.getURI();
-                } catch (final RuntimeException e) {
+                } catch (final RuntimeException _) {
                     // If the URI of a resource cannot be determined, it cannot be compared to any other resource's
                     // URI, so keep the resource rather than masking it
                     uri = null;

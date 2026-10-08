@@ -553,7 +553,7 @@ public final class ScanResult implements AutoCloseable {
         for (final ClasspathElement classpathElement : classpathOrder()) {
             try {
                 classpathElementOrderURIs.addAll(classpathElement.getAllURIs());
-            } catch (final IllegalStateException e) {
+            } catch (final IllegalStateException _) {
                 // Skip null location URIs
             }
         }
@@ -574,7 +574,7 @@ public final class ScanResult implements AutoCloseable {
         for (final URI uri : getClasspathURIs()) {
             try {
                 classpathElementOrderURLs.add(uri.toURL());
-            } catch (final IllegalArgumentException | MalformedURLException e) {
+            } catch (final IllegalArgumentException | MalformedURLException _) {
                 // Skip malformed and relative URIs
             }
         }

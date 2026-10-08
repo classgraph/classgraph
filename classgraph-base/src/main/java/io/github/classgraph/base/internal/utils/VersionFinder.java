@@ -130,7 +130,7 @@ public final class VersionFinder {
     public static @Nullable String getProperty(final String propName) {
         try {
             return System.getProperty(propName);
-        } catch (final SecurityException e) {
+        } catch (final SecurityException _) {
             return null;
         }
     }
@@ -147,7 +147,7 @@ public final class VersionFinder {
     public static @Nullable String getProperty(final String propName, final String defaultVal) {
         try {
             return System.getProperty(propName, defaultVal);
-        } catch (final SecurityException e) {
+        } catch (final SecurityException _) {
             return null;
         }
     }
@@ -223,7 +223,7 @@ public final class VersionFinder {
                     return version;
                 }
             }
-        } catch (final Exception e) {
+        } catch (final Exception _) {
             // Ignore -- the classfile is not in a directory, or its URI is not a valid path
         }
         return null;
@@ -254,7 +254,7 @@ public final class VersionFinder {
             return version != null ? version
                     : trimVersion(
                             (String) xPath.compile(POM_PARENT_VERSION_XPATH).evaluate(doc, XPathConstants.STRING));
-        } catch (final IOException e) {
+        } catch (final IOException _) {
             // There is no pom.xml in this directory
             return null;
         }
@@ -280,7 +280,7 @@ public final class VersionFinder {
                 properties.load(inputStream);
                 return trimVersion(properties.getProperty("version"));
             }
-        } catch (final IOException e) {
+        } catch (final IOException _) {
             // Ignore -- the properties file is absent or unreadable
         }
         return null;

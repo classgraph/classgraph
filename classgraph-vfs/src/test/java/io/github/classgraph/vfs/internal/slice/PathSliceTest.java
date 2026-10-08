@@ -316,7 +316,7 @@ public class PathSliceTest {
             System.gc();
             try {
                 Thread.sleep(10);
-            } catch (final InterruptedException e) {
+            } catch (final InterruptedException _) {
                 Thread.currentThread().interrupt();
                 break;
             }

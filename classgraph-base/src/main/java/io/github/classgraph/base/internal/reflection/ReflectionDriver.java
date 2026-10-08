@@ -125,14 +125,14 @@ abstract class ReflectionDriver {
                 for (final Method m : getDeclaredMethods(cls)) {
                     cacheMethod(m);
                 }
-            } catch (final Exception | LinkageError e) {
+            } catch (final Exception | LinkageError _) {
                 // Skip
             }
             try {
                 for (final Field f : getDeclaredFields(cls)) {
                     cacheField(f);
                 }
-            } catch (final Exception | LinkageError e) {
+            } catch (final Exception | LinkageError _) {
                 // Skip
             }
         }
@@ -492,7 +492,7 @@ abstract class ReflectionDriver {
     boolean isAccessible(final @Nullable Object instance, final AccessibleObject fieldOrMethod) {
         try {
             return fieldOrMethod.canAccess(instance);
-        } catch (final IllegalArgumentException e) {
+        } catch (final IllegalArgumentException _) {
             // canAccess throws IllegalArgumentException if the instance does not match the member
             return false;
         }

@@ -159,7 +159,7 @@ public class ZipFileSlice {
         if (path != null) {
             try {
                 return path.toFile();
-            } catch (final UnsupportedOperationException e) {
+            } catch (final UnsupportedOperationException _) {
                 // Filesystem supports the Path API but not the File API
                 return null;
             }

@@ -152,7 +152,7 @@ class ClasspathElementModule extends ClasspathElement {
         try {
             final var entry = moduleRoot().getEntry(relativePath);
             return entry == null ? null : newResource(entry);
-        } catch (final IOException e) {
+        } catch (final IOException _) {
             return null;
         }
     }
@@ -327,7 +327,7 @@ class ClasspathElementModule extends ClasspathElement {
                     return file;
                 }
             }
-        } catch (final Exception e) {
+        } catch (final Exception _) {
             // Invalid "file:" URI
         }
         return null;

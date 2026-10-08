@@ -39,16 +39,16 @@ import io.github.classgraph.Classfile.TypePathNode;
 import io.github.classgraph.base.internal.utils.Assert;
 import org.jspecify.annotations.Nullable;
 
-// TODO: once ClassGraph's minimum supported JDK version is 21 or later, this sealed hierarchy lets a pattern switch
-// over a TypeSignature list BaseTypeSignature, ArrayTypeSignature, ClassRefTypeSignature and TypeVariableSignature
-// with no default case. Mention this in the javadoc below. Each place that tests for more than one of these
-// subclasses in turn, and so could use such a switch, has a TODO of its own.
-
 /**
  * A type signature for a reference type or base type. Subclasses are {@link ReferenceTypeSignature} (whose own
  * subclasses are {@link ClassRefTypeSignature}, {@link TypeVariableSignature}, and {@link ArrayTypeSignature}), and
  * {@link BaseTypeSignature}. This corresponds to the {@code JavaTypeSignature} production of the signature grammar
  * in section 4.7.9.1 of the JVM Specification.
+ *
+ * <p>
+ * The hierarchy is sealed, so a pattern switch over a {@link TypeSignature} that has a case for each of
+ * {@link BaseTypeSignature}, {@link ArrayTypeSignature}, {@link ClassRefTypeSignature} and
+ * {@link TypeVariableSignature} needs no default case.
  */
 public abstract sealed class TypeSignature extends HierarchicalTypeSignature
         permits BaseTypeSignature, ReferenceTypeSignature {
@@ -240,7 +240,7 @@ public abstract sealed class TypeSignature extends HierarchicalTypeSignature
     /**
      * Render a type signature back into the type signature string format of JVMS section 4.7.9.1, so that a
      * substituted array type can be given a type signature string that matches its substituted element type. This
-     * is implemented in one place using {@code instanceof} rather than as an overridden method in each of the five
+     * is implemented in one place using a pattern switch rather than as an overridden method in each of the five
      * signature classes, since it is only needed for this one purpose.
      *
      * @param typeSignature
@@ -249,14 +249,12 @@ public abstract sealed class TypeSignature extends HierarchicalTypeSignature
      *            the buffer to append to
      */
     private static void toTypeSignatureStr(final HierarchicalTypeSignature typeSignature, final StringBuilder buf) {
-        // TODO: once ClassGraph's minimum supported JDK version is 21 or later, make this a pattern switch
-        if (typeSignature instanceof final BaseTypeSignature baseTypeSignature) {
-            buf.append(baseTypeSignature.getTypeSignatureChar());
-        } else if (typeSignature instanceof final ArrayTypeSignature arrayTypeSignature) {
-            buf.append(arrayTypeSignature.getTypeSignatureString());
-        } else if (typeSignature instanceof final TypeVariableSignature typeVariableSignature) {
+        switch (typeSignature) {
+        case final BaseTypeSignature baseTypeSignature -> buf.append(baseTypeSignature.getTypeSignatureChar());
+        case final ArrayTypeSignature arrayTypeSignature -> buf.append(arrayTypeSignature.getTypeSignatureString());
+        case final TypeVariableSignature typeVariableSignature ->
             buf.append('T').append(typeVariableSignature.getName()).append(';');
-        } else if (typeSignature instanceof final TypeArgument typeArgument) {
+        case final TypeArgument typeArgument -> {
             switch (typeArgument.getWildcard()) {
             case ANY -> {
                 buf.append('*');
@@ -269,7 +267,8 @@ public abstract sealed class TypeSignature extends HierarchicalTypeSignature
             }
             }
             toTypeSignatureStr(Objects.requireNonNull(typeArgument.getTypeSignature()), buf);
-        } else if (typeSignature instanceof final ClassRefTypeSignature classRefTypeSignature) {
+        }
+        case final ClassRefTypeSignature classRefTypeSignature -> {
             buf.append('L').append(classRefTypeSignature.getBaseClassName().replace('.', '/'));
             final var typeArguments = classRefTypeSignature.getTypeArguments();
             toTypeArgumentsStr(typeArguments, buf);
@@ -284,7 +283,8 @@ public abstract sealed class TypeSignature extends HierarchicalTypeSignature
                 enclosingHasTypeArguments |= !suffixTypeArguments.get(i).isEmpty();
             }
             buf.append(';');
-        } else {
+        }
+        case ClassTypeSignature _,MethodTypeSignature _,TypeParameter _ ->
             throw new IllegalArgumentException("Unexpected type signature type: " + typeSignature.getClass());
         }
     }

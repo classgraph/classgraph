@@ -295,7 +295,7 @@ public final class MethodInfo extends ClassMemberInfo implements Comparable<Meth
         for (final MethodTypeAnnotationDecorator decorator : decorators) {
             try {
                 decorator.decorate(methodType);
-            } catch (final IllegalArgumentException e) {
+            } catch (final IllegalArgumentException _) {
                 // Skip a type annotation that cannot be matched to a parameter type, rather than failing to produce
                 // the whole method type (best effort). (#897)
             }
@@ -360,7 +360,7 @@ public final class MethodInfo extends ClassMemberInfo implements Comparable<Meth
             if (typeSig != null) {
                 return typeSig;
             }
-        } catch (final Exception e) {
+        } catch (final Exception _) {
             // Ignore
         }
         return getTypeDescriptor();
@@ -561,7 +561,7 @@ public final class MethodInfo extends ClassMemberInfo implements Comparable<Meth
         List<TypeSignature> paramTypeDescriptors = null;
         try {
             paramTypeDescriptors = getTypeDescriptor().getParameterTypeSignatures();
-        } catch (final Exception e) {
+        } catch (final Exception _) {
             // Ignore any IllegalArgumentExceptions triggered when type annotations are not able to be aligned with
             // parameters, when there is a `synthetic`, `bridge` or `mandated` parameter added to the first
             // parameter position.
@@ -847,7 +847,7 @@ public final class MethodInfo extends ClassMemberInfo implements Comparable<Meth
             if (methodSig != null) {
                 methodSig.findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
             }
-        } catch (final IllegalArgumentException e) {
+        } catch (final IllegalArgumentException _) {
             if (log != null) {
                 log.log("Illegal type signature for method " + getClassName() + "." + getName() + ": "
                         + getTypeSignatureString());
@@ -855,7 +855,7 @@ public final class MethodInfo extends ClassMemberInfo implements Comparable<Meth
         }
         try {
             getTypeDescriptor().findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
-        } catch (final IllegalArgumentException e) {
+        } catch (final IllegalArgumentException _) {
             if (log != null) {
                 log.log("Illegal type descriptor for method " + getClassName() + "." + getName() + ": "
                         + getTypeDescriptorString());

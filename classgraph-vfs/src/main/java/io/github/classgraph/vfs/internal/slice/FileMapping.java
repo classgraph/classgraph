@@ -105,7 +105,7 @@ final class FileMapping {
             if (log != null) {
                 log.log("File " + file + " cannot be memory mapped: " + e + " (reading the file instead)");
             }
-        } catch (IOException | OutOfMemoryError e) {
+        } catch (IOException | OutOfMemoryError _) {
             // Try running garbage collection, then try mapping the file again. (Garbage collection is what can free
             // address space here: a mapping whose ByteBuffer is unreachable is unmapped by its Cleaner once the
             // reference is cleared, which is a phantom-reference mechanism, not finalization. The collection has to

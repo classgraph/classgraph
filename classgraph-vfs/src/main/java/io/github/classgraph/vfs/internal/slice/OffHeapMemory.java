@@ -141,7 +141,7 @@ final class OffHeapMemory {
         try {
             // Bounded, so that a JVM that ignores the request to collect cannot make this wait forever
             collected.remove(REFERENCE_PROCESSING_TIMEOUT_MILLIS);
-        } catch (final InterruptedException e) {
+        } catch (final InterruptedException _) {
             // Leave the files to be unmapped by a later collection, and let the caller see the interruption
             Thread.currentThread().interrupt();
         }

@@ -85,7 +85,7 @@ public final class DirRoot extends VfsRoot {
             // named by the canonical path of its jarfile, so that a directory reached through a symlink or -- on
             // Windows -- through an 8.3 short name is recognized as the directory it really is, and read once
             absoluteDir = FileUtils.canonicalize(absoluteDir);
-        } catch (final IOException | SecurityException e) {
+        } catch (final IOException | SecurityException _) {
             // A directory whose canonical path cannot be found is named by the path it was reached through, rather
             // than failing to open a directory that can be read perfectly well
         }
@@ -123,7 +123,7 @@ public final class DirRoot extends VfsRoot {
     public @Nullable File getFile() {
         try {
             return dir.toFile();
-        } catch (final UnsupportedOperationException e) {
+        } catch (final UnsupportedOperationException _) {
             // Filesystem supports the Path API but not the File API
             return null;
         }
@@ -265,7 +265,7 @@ public final class DirRoot extends VfsRoot {
         final Path resolved;
         try {
             resolved = dir.resolve(name).normalize();
-        } catch (final InvalidPathException e) {
+        } catch (final InvalidPathException _) {
             // A name that is not a legal path on this filesystem names nothing
             return null;
         }

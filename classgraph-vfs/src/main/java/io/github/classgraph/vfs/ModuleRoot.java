@@ -106,7 +106,7 @@ public final class ModuleRoot extends VfsRoot {
             final Recycler<ModuleReader, IOException> recycler;
             try {
                 recycler = moduleReaderRecycler();
-            } catch (final IOException e) {
+            } catch (final IOException _) {
                 // This root has been closed. A URI only names the path, as it does for a directory or a jarfile,
                 // whose roots can still name a path once closed, so the URI is asked of a reader that is opened for
                 // this one lookup, and so is not left open by the closed root
@@ -135,7 +135,7 @@ public final class ModuleRoot extends VfsRoot {
         }
         try {
             return Path.of(uri);
-        } catch (final IllegalArgumentException | FileSystemNotFoundException e) {
+        } catch (final IllegalArgumentException | FileSystemNotFoundException _) {
             return null;
         }
     }
@@ -148,7 +148,7 @@ public final class ModuleRoot extends VfsRoot {
         }
         try {
             return path.toFile();
-        } catch (final UnsupportedOperationException e) {
+        } catch (final UnsupportedOperationException _) {
             // Filesystem supports the Path API but not the File API
             return null;
         }
