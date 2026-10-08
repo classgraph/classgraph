@@ -11,7 +11,7 @@ unless you know you want something narrower.
 </dependency>
 ```
 
-Module name: `io.github.classgraph`. Requires JDK 17 or newer. Depends on
+Module name: `io.github.classgraph`. Requires JDK 25 or newer. Depends on
 [`classgraph-classpath`](../classgraph-classpath) and, through it,
 [`classgraph-vfs`](../classgraph-vfs) and [`classgraph-base`](../classgraph-base), all pulled in
 transitively.

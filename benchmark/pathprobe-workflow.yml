@@ -20,7 +20,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ ubuntu-latest, windows-latest, macos-latest ]
-        java: [ '17', '25' ]
+        java: [ '25', '26' ]
     steps:
     - uses: actions/checkout@v7
     - name: Set up JDK

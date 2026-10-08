@@ -9,7 +9,7 @@ accept/reject matching, reflection, interruption checking, and a few string and 
 with any of them. Depend on it directly only if you are writing something that implements a
 ClassGraph extension point and needs one of the two types it exports.
 
-Module name: `io.github.classgraph.base`. Requires JDK 17 or newer. It has no dependencies that
+Module name: `io.github.classgraph.base`. Requires JDK 25 or newer. It has no dependencies that
 reach a downstream project: `org.jspecify` supplies the nullness annotations and is `provided`
 scope, so it is never on the runtime classpath, and `io.github.toolfactory:narcissus` is optional,
 used as the reflection driver only if you put it on the classpath yourself -- it reads fields

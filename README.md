@@ -9,7 +9,7 @@ ClassGraph is an uber-fast parallelized classpath scanner and module scanner for
 
 [![Platforms: Windows, Mac OS X, Linux, Android (build-time)](https://img.shields.io/badge/platforms-Windows,_Mac_OS_X,_Linux,_Android_(build--time)-blue.svg)](#)
 [![Languages: Java, Scala, Kotlin, etc.](https://img.shields.io/badge/languages-Java,_Scala,_Kotlin,_etc.-blue.svg)](#)
-[![JDK compatibility: 17+ (JPMS)](https://img.shields.io/badge/JDK_compatibility-17+_(JPMS)-blue.svg)](#)
+[![JDK compatibility: 25+ (JPMS)](https://img.shields.io/badge/JDK_compatibility-25+_(JPMS)-blue.svg)](#)
 <br>
 [![Java CI](https://github.com/classgraph/classgraph/actions/workflows/ci.yml/badge.svg)](https://github.com/classgraph/classgraph/actions/workflows/ci.yml)
 [![GitHub issues](https://img.shields.io/github/issues/classgraph/classgraph.svg)](https://github.com/classgraph/classgraph/issues/)
@@ -104,7 +104,7 @@ ClassGraph provides a number of important capabilities to the JVM ecosystem:
 
 * ClassGraph has the ability to build a model in memory of the entire relatedness graph of all classes, annotations, interfaces, methods and fields that are visible to the JVM, and can even read [type annotations](https://docs.oracle.com/javase/tutorial/java/annotations/type_annotations.html). This graph of class metadata can be [queried in a wide range of ways](https://github.com/classgraph/classgraph/wiki/Code-examples), enabling some degree of *metaprogramming* in JVM languages -- the ability to write code that analyzes or responds to the properties of other code.
 * ClassGraph reads the classfile bytecode format directly, so it can read all information about classes without loading or initializing them.
-* ClassGraph is fully compatible with the JPMS module system (Project Jigsaw / JDK 9+), i.e. it can scan both the traditional classpath and the module path. ClassGraph requires JDK 17 or newer.
+* ClassGraph is fully compatible with the JPMS module system (Project Jigsaw / JDK 9+), i.e. it can scan both the traditional classpath and the module path. ClassGraph 6 requires JDK 25 or newer. ClassGraph 5 has the same API and behavior, and runs on JDK 17 or newer.
 * ClassGraph scans the classpath or module path using [carefully optimized multithreaded code](https://github.com/classgraph/classgraph/wiki/How-fast-is-ClassGraph) for the shortest possible scan times, and it runs as close as possible to I/O bandwidth limits, even on a fast SSD.
 * ClassGraph handles more [classpath specification mechanisms](https://github.com/classgraph/classgraph/wiki/Classpath-Specification-Mechanisms) found in the wild than any other classpath scanner, making code that depends upon ClassGraph maximally portable.
 * ClassGraph can scan the classpath and module path either at runtime or [at build time](https://github.com/classgraph/classgraph/wiki/Build-Time-Scanning) (e.g. to implement annotation processing for Android).
@@ -152,7 +152,7 @@ See instructions for [use as a module](https://github.com/classgraph/classgraph/
 
 ### Strong encapsulation
 
-The JDK has enforced strong encapsulation since JDK 16, so it is always in force for ClassGraph, which requires JDK 17. By default, ClassGraph will not be able to find the classpath of your project if both of the following are true:
+The JDK has enforced strong encapsulation since JDK 16, so it is always in force for ClassGraph, which requires JDK 25. By default, ClassGraph will not be able to find the classpath of your project if both of the following are true:
 
 * You are using a legacy classloader (rather than the module system)
 * Your classloader does not expose its classpath via a public field or method (i.e. the full classpath can only be determined by reflection of private fields or methods).
@@ -179,11 +179,11 @@ Strong encapsulation is just the first step of trying to lock down Java's intern
 
 ### Pre-built JARs
 
-You can get pre-built JARs (ClassGraph is usable on JRE 17 or newer) from [Maven Central](https://central.sonatype.com/search?q=io.github.classgraph).
+You can get pre-built JARs (ClassGraph 6 is usable on JRE 25 or newer, and ClassGraph 5 on JRE 17 or newer) from [Maven Central](https://central.sonatype.com/search?q=io.github.classgraph).
 
 ### Building from source
 
-ClassGraph must be built on JDK 17 or newer, and is compiled with `--release 17`, so the resulting JAR runs on JRE 17 or newer.
+ClassGraph must be built on JDK 25 or newer, and is compiled with `--release 25`, so the resulting JAR runs on JRE 25 or newer. ClassGraph 5, which runs on JRE 17 or newer, is built from the `v5` branch.
 
 The following commands will build the most recent version of ClassGraph from the git main branch. The compiled package will then be in the "classgraph/target" directory.
 

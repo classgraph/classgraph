@@ -11,7 +11,7 @@ Turns the class graph found by a [ClassGraph](../classgraph) scan into a
 </dependency>
 ```
 
-Module name: `io.github.classgraph.viz`. Requires JDK 17 or newer. Depends on
+Module name: `io.github.classgraph.viz`. Requires JDK 25 or newer. Depends on
 [`classgraph`](../classgraph), which is pulled in transitively. GraphViz itself is a separate
 program: this library writes the `.dot` file, and `dot` renders it.
 

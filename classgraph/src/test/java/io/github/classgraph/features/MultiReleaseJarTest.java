@@ -47,8 +47,7 @@ public class MultiReleaseJarTest {
 
             final var resources = scanResult.getResourcesWithPath("resource.txt");
             assertThat(resources.size()).isEqualTo(1);
-            resources.forEachByteArray(
-                    (resource, byteArray) -> assertThat(new String(byteArray).trim()).isEqualTo("9"));
+            resources.forEachByteArray((_, byteArray) -> assertThat(new String(byteArray).trim()).isEqualTo("9"));
         }
     }
 
@@ -87,12 +86,12 @@ public class MultiReleaseJarTest {
 
             final var java8Resource = scanResult.getResourcesWithPath("resource.txt");
             assertThat(java8Resource.size()).isEqualTo(1);
-            java8Resource.forEachByteArray(
-                    (resource, byteArray) -> assertThat(new String(byteArray).trim()).isEqualTo("8"));
+            java8Resource
+                    .forEachByteArray((_, byteArray) -> assertThat(new String(byteArray).trim()).isEqualTo("8"));
             final var java9Resource = scanResult.getResourcesWithPath("META-INF/versions/9/resource.txt");
             assertThat(java9Resource.size()).isEqualTo(1);
-            java9Resource.forEachByteArray(
-                    (resource, byteArray) -> assertThat(new String(byteArray).trim()).isEqualTo("9"));
+            java9Resource
+                    .forEachByteArray((_, byteArray) -> assertThat(new String(byteArray).trim()).isEqualTo("9"));
         }
     }
 

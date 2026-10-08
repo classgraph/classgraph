@@ -126,7 +126,7 @@ public final class MethodInfoList extends InfoList<MethodInfo> {
         // Map<String, MethodInfo>)
         final Map<String, List<MethodInfo>> methodNameToMethods = new TreeMap<>();
         for (final MethodInfo methodInfo : this) {
-            methodNameToMethods.computeIfAbsent(methodInfo.getName(), k -> new ArrayList<>(1)).add(methodInfo);
+            methodNameToMethods.computeIfAbsent(methodInfo.getName(), _ -> new ArrayList<>(1)).add(methodInfo);
         }
         final Map<String, MethodInfoList> methodNameToMethodInfoList = new TreeMap<>();
         for (final Map.Entry<String, List<MethodInfo>> ent : methodNameToMethods.entrySet()) {

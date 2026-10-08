@@ -31,7 +31,7 @@ package io.github.classgraph.issues.issue384;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.net.MalformedURLException;
-import java.net.URL;
+import java.net.URI;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -55,7 +55,7 @@ class Issue384Test {
     void issue384Test() throws MalformedURLException {
         final var filePath = Issue384Test.class.getClassLoader().getResource("nested-jars-level1.zip").getPath();
         final var customSchemeURL = CustomURLScheme.SCHEME + ":" + filePath;
-        final var url = new URL(customSchemeURL);
+        final var url = URI.create(customSchemeURL).toURL();
         try (var scanResult = new ClassGraph().enableClasspathEntries(url).scan()) {
             assertThat(scanResult.getAllResources().getPaths()).containsExactly("level2.jar");
             // remappedURLs is shared by every test that uses CustomURLScheme, so check for this test's entry

@@ -16,7 +16,7 @@ public class ClasspathSpecLocaleTest {
         try {
             // Turkish locale: "I".toLowerCase() -> dotless 'ı', so a naive toLowerCase() turns "FILE" into "fıle"
             // and scheme matching breaks.
-            Locale.setDefault(new Locale("tr", "TR"));
+            Locale.setDefault(Locale.of("tr", "TR"));
             final var classpathSpec = new ClasspathSpec();
             classpathSpec.allowURLScheme("FILE");
             assertTrue(classpathSpec.getAllowedURLSchemes().contains("file"),

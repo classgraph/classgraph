@@ -16,7 +16,7 @@ built on this library.
 </dependency>
 ```
 
-Module name: `io.github.classgraph.vfs`. Requires JDK 17 or newer. No dependencies other than
+Module name: `io.github.classgraph.vfs`. Requires JDK 25 or newer. No dependencies other than
 `classgraph-base`, which is pulled in transitively.
 
 Three classes carry the API: `Vfs` opens things, a `VfsRoot` is one opened directory, jarfile or

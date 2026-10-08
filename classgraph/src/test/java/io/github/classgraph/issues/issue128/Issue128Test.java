@@ -34,6 +34,7 @@ import static org.junit.jupiter.api.Assumptions.abort;
 
 import java.io.IOException;
 import java.net.HttpURLConnection;
+import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
 
@@ -67,7 +68,7 @@ public class Issue128Test {
     @Test
     public void issue128Test() throws Exception {
         // Test a nested jar inside a jar fetched over HTTP
-        final var jarURL = new URL(NESTED_JAR_URL);
+        final var jarURL = URI.create(NESTED_JAR_URL).toURL();
         // The server sometimes refuses or drops a request, which leaves the scan with nothing to find, so one
         // empty scan is not yet evidence of anything -- ask a second time before looking into why
         for (var attempt = 0; attempt < 2; attempt++) {
@@ -90,7 +91,7 @@ public class Issue128Test {
         int responseCode;
         var bytesFetched = 0;
         try {
-            final var connection = (HttpURLConnection) new URL(JAR_URL).openConnection();
+            final var connection = (HttpURLConnection) URI.create(JAR_URL).toURL().openConnection();
             connection.setConnectTimeout(TIMEOUT_MILLIS);
             connection.setReadTimeout(TIMEOUT_MILLIS);
             try {

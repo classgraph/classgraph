@@ -7,7 +7,7 @@
 
 	<groupId>io.github.classgraph</groupId>
 	<artifactId>classgraph-parent</artifactId>
-	<version>5.0.0-SNAPSHOT</version>
+	<version>6.0.0-SNAPSHOT</version>
 	<packaging>pom</packaging>
 	<name>ClassGraph (parent)</name>
 
@@ -60,14 +60,14 @@
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
 		<!-- The minimum Java version that ClassGraph supports. Keep this as "release", and never replace -->
-		<!-- it with "source" and "target": "release" compiles against the JDK 17 API, so calling a method -->
-		<!-- that a JDK 17 runtime does not have is a compile error, whereas "source" and "target" compile -->
+		<!-- it with "source" and "target": "release" compiles against the JDK 25 API, so calling a method -->
+		<!-- that a JDK 25 runtime does not have is a compile error, whereas "source" and "target" compile -->
 		<!-- against the API of whichever JDK is running the build, and such a call then builds cleanly and -->
-		<!-- throws NoSuchMethodError on JDK 17 alone. That is what broke ClassGraph in #284: JDK 9 changed -->
+		<!-- throws NoSuchMethodError on JDK 25 alone. That is what broke ClassGraph in #284: JDK 9 changed -->
 		<!-- ByteBuffer.position(int) and its neighbours to return ByteBuffer rather than Buffer, and a -->
 		<!-- build with "source"/"target" 7 emitted calls to methods that JDK 7 and 8 did not have. The -->
 		<!-- requireProperty rule below fails the build if this property is removed. -->
-		<maven.compiler.release>17</maven.compiler.release>
+		<maven.compiler.release>25</maven.compiler.release>
 
 		<!-- Suppress the warning logged when Narcissus loads its native library -->
 		<surefireArgLine>--enable-native-access=ALL-UNNAMED</surefireArgLine>
@@ -308,12 +308,12 @@
 									<requireMavenVersion>
 										<version>[3.6.3,)</version>
 									</requireMavenVersion>
-									<!-- ClassGraph targets JDK 17 via ${maven.compiler.release}, so it can be -->
-									<!-- built by any JDK 17 or later. Animal Sniffer is no longer needed to -->
-									<!-- check the API level: "release" checks it against the JDK 17 API. -->
+									<!-- ClassGraph targets JDK 25 via ${maven.compiler.release}, so it can be -->
+									<!-- built by any JDK 25 or later. Animal Sniffer is no longer needed to -->
+									<!-- check the API level: "release" checks it against the JDK 25 API. -->
 									<requireJavaVersion>
-										<version>[17,)</version>
-										<message>ClassGraph must be built with JDK 17 or later.</message>
+										<version>[25,)</version>
+										<message>ClassGraph must be built with JDK 25 or later.</message>
 									</requireJavaVersion>
 									<!-- Building against the API of the JDK that happens to be running the -->
 									<!-- build, rather than against the API of the oldest JDK that ClassGraph -->
@@ -646,11 +646,11 @@
 								<Bundle-Vendor>Luke Hutchison</Bundle-Vendor>
 								<Bundle-Description>${project.description}</Bundle-Description>
 								<Bundle-Version>${project.version}</Bundle-Version>
-								<!-- Must match ${maven.compiler.release}: the jar contains Java 17 (major -->
-								<!-- version 61) bytecode, so declaring an older version here would let an OSGi -->
+								<!-- Must match ${maven.compiler.release}: the jar contains Java 25 (major -->
+								<!-- version 69) bytecode, so declaring an older version here would let an OSGi -->
 								<!-- framework running on that version resolve this bundle, and then fail at -->
 								<!-- class load time. -->
-								<Require-Capability>osgi.ee;filter:="(&amp;(osgi.ee=JavaSE)(version=17))"</Require-Capability>
+								<Require-Capability>osgi.ee;filter:="(&amp;(osgi.ee=JavaSE)(version=25))"</Require-Capability>
 								<Export-Package>${osgiExportPackage}</Export-Package>
 								<!-- Make sure "requires" entries in the module descriptor match these imports: -->
 								<!-- src/main/java/module-info.java -->
@@ -689,7 +689,7 @@
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-javadoc-plugin</artifactId>
 					<configuration>
-						<source>17</source>
+						<source>25</source>
 						<doclint>all</doclint>
 						<excludePackageNames>*.internal:*.internal.*</excludePackageNames>
 						<show>public</show>
@@ -788,8 +788,8 @@
 					</executions>
 				</plugin>
 
-				<!-- Bump the version, commit, tag, and deploy the tag. Release with (under JDK 17): -->
-				<!--   export JAVA_HOME=/path/to/jdk17; export PATH="$JAVA_HOME/bin:$PATH" -->
+				<!-- Bump the version, commit, tag, and deploy the tag. Release with (under JDK 25): -->
+				<!--   export JAVA_HOME=/path/to/jdk25; export PATH="$JAVA_HOME/bin:$PATH" -->
 				<!--   ./mvnw -B -Prelease release:prepare -DdryRun=true   # dry run; then release:clean -->
 				<!--   ./mvnw -B -Prelease release:prepare                 # commits, tags, pushes -->
 				<!--   ./mvnw -B -Prelease release:perform                 # builds the tag, signs, publishes -->
@@ -797,7 +797,7 @@
 				<!-- JAVA_HOME and PATH must both be *exported*, not just set for the ./mvnw command: -->
 				<!-- release:prepare forks a second Maven process, which resolves "java" from PATH, so a -->
 				<!-- one-shot "JAVA_HOME=... ./mvnw" builds the fork under whatever JDK is first on PATH. -->
-				<!-- If that is older than JDK 17, the requireJavaVersion enforcer rule fails. -->
+				<!-- If that is older than JDK 25, the requireJavaVersion enforcer rule fails. -->
 				<!-- -->
 				<!-- -B (batch mode) accepts the default release/tag/next-development versions, instead of -->
 				<!-- prompting for all three interactively. -->
@@ -831,16 +831,14 @@
 	</build>
 
 	<profiles>
-		<!-- Static null analysis. Error Prone 2.50.0 is compiled for JDK 21, and on JDK 21
-		     itself it rejects the build unless -XDaddTypeAnnotationsToSymbol=true is passed, so
-		     it can only run on JDK 22 and above. The CI matrix builds on every JDK from 17 (the
-		     minimum ClassGraph supports) to the latest release, and the null analysis is the
-		     same on every one of them, so it is simply skipped below JDK 22 rather than being
-		     version-matched. Deactivate it with -P '!nullcheck'. -->
+		<!-- Static null analysis. It runs on every JDK that can build ClassGraph, so the activation -->
+		<!-- below always matches; it is a profile only so that it can be deactivated with -->
+		<!-- -P '!nullcheck'. (activeByDefault would not do: it switches off whenever another profile, -->
+		<!-- such as "release", is activated.) -->
 		<profile>
 			<id>nullcheck</id>
 			<activation>
-				<jdk>[22,)</jdk>
+				<jdk>[25,)</jdk>
 			</activation>
 			<build>
 				<plugins>

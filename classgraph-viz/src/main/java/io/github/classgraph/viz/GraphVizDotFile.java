@@ -833,7 +833,7 @@ public final class GraphVizDotFile {
         }
         for (final ClassInfo ci : allVisibleClasses) {
             for (final AnnotationInfo ai : ci.getAllAnnotationInfo().directOnly()) {
-                classAnnotations.computeIfAbsent(ai.getName(), name -> new ArrayList<>()).add(ci);
+                classAnnotations.computeIfAbsent(ai.getName(), _ -> new ArrayList<>()).add(ci);
             }
             if (scanResult.isMethodInfoEnabled()) {
                 final Set<String> methodAnnotationNames = new HashSet<>();
@@ -843,7 +843,7 @@ public final class GraphVizDotFile {
                     }
                 }
                 for (final String name : methodAnnotationNames) {
-                    methodAnnotations.computeIfAbsent(name, key -> new ArrayList<>()).add(ci);
+                    methodAnnotations.computeIfAbsent(name, _ -> new ArrayList<>()).add(ci);
                 }
             }
             if (scanResult.isFieldInfoEnabled()) {
@@ -854,7 +854,7 @@ public final class GraphVizDotFile {
                     }
                 }
                 for (final String name : fieldAnnotationNames) {
-                    fieldAnnotations.computeIfAbsent(name, key -> new ArrayList<>()).add(ci);
+                    fieldAnnotations.computeIfAbsent(name, _ -> new ArrayList<>()).add(ci);
                 }
             }
         }

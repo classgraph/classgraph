@@ -3,6 +3,7 @@ package io.github.classgraph;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.net.MalformedURLException;
+import java.net.URI;
 import java.net.URL;
 
 import org.junit.jupiter.api.BeforeAll;
@@ -31,7 +32,7 @@ class URLSchemeDenyTest {
     private static URL customSchemeJarURL() throws MalformedURLException {
         final var filePath = URLSchemeDenyTest.class.getClassLoader().getResource("nested-jars-level1.zip")
                 .getPath();
-        return new URL(CustomURLScheme.SCHEME + ":" + filePath);
+        return URI.create(CustomURLScheme.SCHEME + ":" + filePath).toURL();
     }
 
     /** The schemes that every JVM can fetch over a network are denied by the constructor. */

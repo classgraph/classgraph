@@ -252,7 +252,7 @@ public class EqualsAndHashCodeTest {
         assertThat(reachable).isNotEqualTo(direct);
 
         // Filtering reachable annotations must not silently reclassify meta-annotations as direct
-        assertThat(reachable.filter(ai -> true).directOnly().getNames()).containsExactly(Direct.class.getName());
+        assertThat(reachable.filter(_ -> true).directOnly().getNames()).containsExactly(Direct.class.getName());
         assertThat(reachable.filter(ai -> ai.getName().equals(Meta.class.getName())).directOnly()).isEmpty();
 
         // A plain copy of the reachable list holds the same entries, but treats every one of them as direct

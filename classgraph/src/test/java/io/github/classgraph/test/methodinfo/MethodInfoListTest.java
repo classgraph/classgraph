@@ -141,7 +141,7 @@ public class MethodInfoListTest {
         assertThat(methodInfo.filter(MethodInfo::isPublic)).hasSameSizeAs(methodInfo);
         assertThat(methodInfo.filter(mi -> !mi.getParameterInfo().isEmpty()).getNames())
                 .containsExactly("overloaded");
-        assertThat(methodInfo.filter(mi -> false)).isEmpty();
+        assertThat(methodInfo.filter(_ -> false)).isEmpty();
     }
 
     /** The shared empty list is empty, and holds no method of any name. */

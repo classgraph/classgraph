@@ -77,7 +77,7 @@ public class VfsWalkTest {
 
         /** Constructor for a walk that skips nothing and stops at nothing. */
         Recorder() {
-            this(dirName -> true, entryName -> true);
+            this(_ -> true, _ -> true);
         }
 
         @Override
@@ -165,7 +165,7 @@ public class VfsWalkTest {
     @Test
     public void skippingADirectoryOfATreeSkipsTheSubtree(@TempDir final File tempDir) throws IOException {
         try (var vfs = new Vfs()) {
-            final var recorder = new Recorder(dirName -> !dirName.equals("com/"), entryName -> true);
+            final var recorder = new Recorder(dirName -> !dirName.equals("com/"), _ -> true);
             vfs.open(writeDirTree(tempDir).getPath()).walk(recorder);
 
             // "com/xyz/" is never even offered, because "com/" was not listed
@@ -178,7 +178,7 @@ public class VfsWalkTest {
     @Test
     public void aDirectoryTreeWalkStopsWhenTheVisitorSaysSo(@TempDir final File tempDir) throws IOException {
         try (var vfs = new Vfs()) {
-            final var recorder = new Recorder(dirName -> true, entryName -> !entryName.equals("root.txt"));
+            final var recorder = new Recorder(_ -> true, entryName -> !entryName.equals("root.txt"));
             vfs.open(writeDirTree(tempDir).getPath()).walk(recorder);
 
             assertThat(recorder.dirNames).containsExactly("/");
@@ -215,7 +215,7 @@ public class VfsWalkTest {
         writeJar(jarFile, "BOOT-INF/x.txt", "BOOT-INF/classes/com/xyz/A.txt");
 
         try (var vfs = new Vfs()) {
-            final var recorder = new Recorder(dirName -> !dirName.equals("BOOT-INF/"), entryName -> true);
+            final var recorder = new Recorder(dirName -> !dirName.equals("BOOT-INF/"), _ -> true);
             vfs.open(jarFile.getPath()).walk(recorder);
 
             assertThat(recorder.dirNames).containsExactly("BOOT-INF/", "BOOT-INF/classes/com/xyz/");
@@ -263,7 +263,7 @@ public class VfsWalkTest {
         writeJar(jarFile, "a/1.txt", "a/2.txt", "b/1.txt");
 
         try (var vfs = new Vfs()) {
-            final var recorder = new Recorder(dirName -> true, entryName -> !entryName.equals("a/1.txt"));
+            final var recorder = new Recorder(_ -> true, entryName -> !entryName.equals("a/1.txt"));
             vfs.open(jarFile.getPath()).walk(recorder);
 
             assertThat(recorder.dirNames).containsExactly("a/");
@@ -292,7 +292,7 @@ public class VfsWalkTest {
     @Test
     public void skippingADirectoryOfAModuleSkipsItsEntries() throws IOException {
         try (var vfs = new Vfs()) {
-            final var recorder = new Recorder(dirName -> !dirName.equals("java/util/logging/"), entryName -> true);
+            final var recorder = new Recorder(dirName -> !dirName.equals("java/util/logging/"), _ -> true);
             vfs.open(ModuleFinder.ofSystem().find("java.logging").orElseThrow()).walk(recorder);
 
             assertThat(recorder.dirNames).contains("java/util/logging/");

@@ -78,7 +78,7 @@ public class WorkQueueTest {
         final Set<Integer> processed = ConcurrentHashMap.newKeySet();
         final var numTimesProcessed = new AtomicInteger();
 
-        runWorkQueue(workUnits, numParallelTasks, (workUnit, workQueue, log) -> {
+        runWorkQueue(workUnits, numParallelTasks, (workUnit, _, _) -> {
             processed.add(workUnit);
             numTimesProcessed.incrementAndGet();
         });
@@ -99,7 +99,7 @@ public class WorkQueueTest {
         final Set<Integer> processed = ConcurrentHashMap.newKeySet();
 
         // Each work unit under 8 adds its two children, so this walks a binary tree from its root
-        runWorkQueue(List.of(1), 4, (workUnit, workQueue, log) -> {
+        runWorkQueue(List.of(1), 4, (workUnit, workQueue, _) -> {
             processed.add(workUnit);
             if (workUnit < 8) {
                 workQueue.addWorkUnits(List.of(workUnit * 2, workUnit * 2 + 1));
@@ -128,7 +128,7 @@ public class WorkQueueTest {
             final Future<?> workQueueTask = executorService.submit(() -> {
                 WorkQueue.runWorkQueue(workUnits, executorService, executorService.interruptionChecker,
                         /* numParallelTasks = */ 4, WORKER_TIMEOUT_NANOS, /* log = */ null,
-                        (workUnit, workQueue, log) -> processed.add(workUnit));
+                        (workUnit, _, _) -> processed.add(workUnit));
                 return null;
             });
             assertThat(workQueueTask.get(30, TimeUnit.SECONDS)).isNull();
@@ -140,7 +140,7 @@ public class WorkQueueTest {
     /** A work queue with nothing in it completes without starting any workers. */
     @Test
     public void anEmptyWorkQueueDoesNothing() {
-        assertThatCode(() -> runWorkQueue(List.of(), 4, (workUnit, workQueue, log) -> {
+        assertThatCode(() -> runWorkQueue(List.of(), 4, (_, _, _) -> {
             throw new AssertionError("Should not be called");
         })).doesNotThrowAnyException();
     }
@@ -152,7 +152,7 @@ public class WorkQueueTest {
         try {
             for (final int parallelism : new int[] { 0, -1 }) {
                 assertThatThrownBy(() -> WorkQueue.runWorkQueue(List.of(), executor, new InterruptionChecker(),
-                        parallelism, WORKER_TIMEOUT_NANOS, /* log = */ null, (workUnit, workQueue, log) -> {
+                        parallelism, WORKER_TIMEOUT_NANOS, /* log = */ null, (_, _, _) -> {
                         })).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("at least 1");
             }
         } finally {
@@ -164,13 +164,13 @@ public class WorkQueueTest {
     @Test
     public void aNullWorkUnitIsRejected() {
         // A null among the work units the queue is started with is rejected before any of them are processed
-        assertThatThrownBy(() -> runWorkQueue(Arrays.asList(1, null), 1, (workUnit, workQueue, log) -> {
+        assertThatThrownBy(() -> runWorkQueue(Arrays.asList(1, null), 1, (_, _, _) -> {
             throw new AssertionError("Should not be called");
         })).isInstanceOf(NullPointerException.class).hasMessage("workUnit cannot be null");
 
         // A null added by a worker is rejected too, and reaches the caller the same way as any other unchecked
         // exception thrown while processing a work unit
-        assertThatThrownBy(() -> runWorkQueue(List.of(1), 1, (workUnit, workQueue, log) -> //
+        assertThatThrownBy(() -> runWorkQueue(List.of(1), 1, (_, workQueue, _) -> //
         workQueue.addWorkUnit(null))).isInstanceOf(ExecutionException.class).cause()
                 .isInstanceOf(NullPointerException.class).hasMessage("workUnit cannot be null");
     }
@@ -184,7 +184,7 @@ public class WorkQueueTest {
         final var cause = new IllegalStateException("the reason");
 
         // One task, so the work is all done on this thread, and the exception is thrown from here
-        assertThatThrownBy(() -> runWorkQueue(List.of(1), 1, (workUnit, workQueue, log) -> {
+        assertThatThrownBy(() -> runWorkQueue(List.of(1), 1, (_, _, _) -> {
             throw cause;
         })).isInstanceOf(ExecutionException.class).hasMessage("Worker thread threw unchecked exception")
                 .hasCause(cause);
@@ -203,8 +203,7 @@ public class WorkQueueTest {
         final Throwable thrown;
         try (var executorService = new AutoCloseableExecutorService(4)) {
             thrown = catchThrowable(() -> WorkQueue.runWorkQueue(IntStream.range(0, 1000).boxed().toList(),
-                    executorService, interruptionChecker, 4, WORKER_TIMEOUT_NANOS, /* log = */ null,
-                    (workUnit, workQueue, log) -> {
+                    executorService, interruptionChecker, 4, WORKER_TIMEOUT_NANOS, /* log = */ null, (_, _, _) -> {
                         numProcessed.incrementAndGet();
                         throw cause;
                     }));
@@ -228,8 +227,7 @@ public class WorkQueueTest {
         // One task, so the work is all done on this thread, and the interruption is thrown from here
         try (var executorService = new AutoCloseableExecutorService(1)) {
             assertThatThrownBy(() -> WorkQueue.runWorkQueue(IntStream.range(0, 1000).boxed().toList(),
-                    executorService, interruptionChecker, 1, WORKER_TIMEOUT_NANOS, /* log = */ null,
-                    (workUnit, workQueue, log) -> {
+                    executorService, interruptionChecker, 1, WORKER_TIMEOUT_NANOS, /* log = */ null, (_, _, _) -> {
                         numProcessed.incrementAndGet();
                         interruptionChecker.interrupt();
                     })).isInstanceOf(InterruptedException.class);
@@ -255,7 +253,7 @@ public class WorkQueueTest {
         try (var executorService = new AutoCloseableExecutorService(2)) {
             thrown = catchThrowable(() -> WorkQueue.runWorkQueue(List.of(1, 2), executorService,
                     interruptionChecker, /* numParallelTasks = */ 2, Duration.ofMillis(250).toNanos(),
-                    /* log = */ null, (workUnit, workQueue, log) -> {
+                    /* log = */ null, (_, _, _) -> {
                         if (Thread.currentThread() == callingThread) {
                             // Stop the work queue, so that the calling thread reaches the completion barrier in
                             // WorkQueue#close() while the worker thread is still stuck

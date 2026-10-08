@@ -230,6 +230,9 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
      *            the resolved classpath element path
      * @return the {@link URL} of the classpath element, or null if the path could not be converted to a {@link URL}
      */
+    // new URL(String) is deprecated from JDK 20, but it accepts URLs that new URI(String) rejects (such as one
+    // containing a space), and a path is not escaped before it is put into the jar: URL
+    @SuppressWarnings("deprecation")
     private static @Nullable URL toURL(final String classpathElementPath) {
         try {
             final var nestedPathIdx = classpathElementPath.indexOf("!/");
@@ -413,6 +416,9 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
      *            the log node, or null to skip logging
      * @return true if the classpath element was added, false if it was a duplicate or could not be found
      */
+    // new URL(String) is deprecated from JDK 20, but it accepts URLs that new URI(String) rejects (such as one
+    // containing a space), and a URL classpath element is rebuilt here with the same leniency it was given with
+    @SuppressWarnings("deprecation")
     private boolean addClasspathEntryAndLog(final Object pathElement, final String pathElementStr,
             final String pathElementStrResolved, final @Nullable ClassLoader classLoader,
             final @Nullable ClassGraphLog log) {
@@ -517,6 +523,9 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
      *            the log node, or null to skip logging
      * @return the {@link URL} of the classpath element, or null if it could not be converted to a {@link URL}.
      */
+    // new URL(String) is deprecated from JDK 20, but it accepts URLs that new URI(String) rejects (such as one
+    // containing a space), which is what the fallbacks below rely on
+    @SuppressWarnings("deprecation")
     private static @Nullable URL toClasspathElementURL(final Object pathElement, final String pathElementStr,
             final @Nullable ClassGraphLog log) {
         URL pathElementURL = null;

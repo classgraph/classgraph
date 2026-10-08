@@ -275,7 +275,7 @@ public class ModuleReaderUtilsTest {
 
             @Override
             public Stream<String> list() {
-                return Stream.of("some/Resource.class").map(path -> {
+                return Stream.of("some/Resource.class").map(_ -> {
                     throw new UncheckedIOException(new IOException("Simulated failure"));
                 });
             }

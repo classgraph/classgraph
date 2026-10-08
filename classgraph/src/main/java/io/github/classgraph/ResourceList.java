@@ -213,7 +213,7 @@ public final class ResourceList extends UnmodifiableList<Resource> implements Au
     public Map<String, ResourceList> asMap() {
         final Map<String, List<Resource>> pathToResources = new TreeMap<>();
         for (final Resource resource : this) {
-            pathToResources.computeIfAbsent(resource.getPath(), path -> new ArrayList<>(1)).add(resource);
+            pathToResources.computeIfAbsent(resource.getPath(), _ -> new ArrayList<>(1)).add(resource);
         }
         final Map<String, ResourceList> pathToResourceList = new TreeMap<>();
         for (final Map.Entry<String, List<Resource>> ent : pathToResources.entrySet()) {

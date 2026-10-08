@@ -548,6 +548,9 @@ class Scanner implements Callable<ScanResult> {
      * @throws IOException
      *             if the classpath entry string is neither a valid URL nor a valid URI.
      */
+    // new URL(String) is deprecated from JDK 20, but it accepts URLs that new URI(String) rejects (such as one
+    // containing a space), and the URI form is only the fallback here
+    @SuppressWarnings("deprecation")
     private static Object normalizeUrlFormattedClasspathEntry(final String classpathEntryStr, final boolean isURL,
             final boolean isMultiSection) throws IOException {
         Object classpathEntryObjNormalized = classpathEntryStr;
@@ -1267,7 +1270,7 @@ class Scanner implements Callable<ScanResult> {
         processWorkUnits(finalClasspathEltOrder,
                 topLevelLog == null ? null : topLevelLog.log("Scanning classpath elements"),
                 // Scan the paths within the classpath element
-                (classpathElement, workQueueIgnored, pathScanLog) -> classpathElement.scanPaths(pathScanLog));
+                (classpathElement, _, pathScanLog) -> classpathElement.scanPaths(pathScanLog));
 
         // Filter out classpath elements that contain a rejected resource path, or that do not contain a required
         // accepted resource path

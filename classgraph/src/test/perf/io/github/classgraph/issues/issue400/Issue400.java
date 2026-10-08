@@ -27,12 +27,10 @@ public class Issue400 {
      */
     private static long usedRam() {
         final var runtime = Runtime.getRuntime();
+        // ClassGraph has no finalizers, so System.runFinalization() (deprecated for removal) is not needed
         runtime.gc();
-        System.runFinalization();
         runtime.gc();
-        System.runFinalization();
         runtime.gc();
-        System.runFinalization();
         return runtime.totalMemory() - runtime.freeMemory();
     }
 

@@ -17,10 +17,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # JDK 17 maps through FileChannel#map and unmaps through the cleaner; JDK 22 and above
-        # map and unmap through a java.lang.foreign.Arena, so both paths need measuring
         os: [ ubuntu-latest, windows-latest, macos-latest ]
-        java: [ '17', '25' ]
+        java: [ '25' ]
     steps:
     - uses: actions/checkout@v7
     - name: Set up JDK

@@ -54,7 +54,7 @@ public class Module {
      * @return this, for chaining.
      */
     public Module loadingPackageFrom(final String packagePath, final Object localLoader) {
-        paths.computeIfAbsent(packagePath, key -> new ArrayList<>()).add(localLoader);
+        paths.computeIfAbsent(packagePath, _ -> new ArrayList<>()).add(localLoader);
         return this;
     }
 

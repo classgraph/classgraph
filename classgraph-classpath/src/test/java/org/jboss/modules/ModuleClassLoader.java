@@ -63,8 +63,9 @@ public final class ModuleClassLoader extends ClassLoader {
     }
 
     /**
-     * A local loader for this module, as a module's path map holds. It is an inner class so that it holds a
-     * reference back to this classloader, which is how the handler gets from a path map entry to the module.
+     * A local loader for this module, as a module's path map holds. It is an inner class that uses its enclosing
+     * instance, so that it holds a reference back to this classloader in its {@code this$0} field, which is how the
+     * handler gets from a path map entry to the module.
      *
      * @return the local loader.
      */
@@ -76,6 +77,17 @@ public final class ModuleClassLoader extends ClassLoader {
     public class LocalLoader {
         /** Constructor. */
         LocalLoader() {
+        }
+
+        /**
+         * The classloader this local loader belongs to. Since JDK 18, javac leaves out the {@code this$0} field of
+         * an inner class that never uses its enclosing instance, so this method is what keeps the field, as the
+         * methods of the real {@code LocalLoader} do.
+         *
+         * @return the enclosing classloader.
+         */
+        ModuleClassLoader moduleClassLoader() {
+            return ModuleClassLoader.this;
         }
     }
 }

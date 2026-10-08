@@ -40,7 +40,7 @@ import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
 import org.jspecify.annotations.Nullable;
 
 /** A ThreadPoolExecutor that can be used in a try-with-resources block. */
-class AutoCloseableExecutorService extends ThreadPoolExecutor implements AutoCloseable {
+class AutoCloseableExecutorService extends ThreadPoolExecutor {
     /** The {@link InterruptionChecker}. */
     public final InterruptionChecker interruptionChecker = new InterruptionChecker();
 

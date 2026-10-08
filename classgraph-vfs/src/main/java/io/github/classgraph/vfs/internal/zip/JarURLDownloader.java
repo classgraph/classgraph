@@ -119,6 +119,9 @@ final class JarURLDownloader {
      *             If the jar could not be read, the jar URL is malformed, a redirect could not be followed, or the
      *             temporary file could not be created or written.
      */
+    // new URL(String) is deprecated from JDK 20, but it accepts URLs that new URI(String) rejects (such as one
+    // containing a space), so it is still tried first
+    @SuppressWarnings("deprecation")
     static PhysicalZipFile downloadJarFromURL(final String jarURL, final Vfs vfs, final @Nullable LogNode log)
             throws IOException {
         URL url = null;

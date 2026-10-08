@@ -32,8 +32,10 @@ public class Issue329Test {
                 .ignoreClassVisibility().ignoreFieldVisibility().ignoreMethodVisibility()
                 .enableInterClassDependencies().enableExternalClasses().acceptClasses(Foo.class.getName()).scan()) {
             final var classInfo = scanResult.getClassInfo(Foo.class.getName());
+            // javac at --release 18 or later null-checks the enclosing instance in an inner class constructor
+            // by calling Objects.requireNonNull, so Foo depends on java.util.Objects too
             assertThat(classInfo.getClassDependencies().getNames()).containsOnly(Issue329Test.class.getName(),
-                    Bar.class.getName());
+                    Bar.class.getName(), "java.util.Objects");
         }
     }
 }

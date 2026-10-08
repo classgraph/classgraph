@@ -393,7 +393,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @return true if the class was not already related to this class by {@code relType}
      */
     boolean addRelatedClass(final RelType relType, final ClassInfo classInfo) {
-        return relatedClasses.computeIfAbsent(relType, k -> new LinkedHashSet<>(4)).add(classInfo);
+        return relatedClasses.computeIfAbsent(relType, _ -> new LinkedHashSet<>(4)).add(classInfo);
     }
 
     // -------------------------------------------------------------------------------------------------------------

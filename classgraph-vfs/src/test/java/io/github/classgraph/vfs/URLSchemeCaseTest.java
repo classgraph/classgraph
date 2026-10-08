@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.net.URI;
 import java.net.URL;
 import java.net.URLConnection;
 import java.net.URLStreamHandler;
@@ -31,7 +32,7 @@ public class URLSchemeCaseTest {
         URL.setURLStreamHandlerFactory(protocol -> SCHEME.equals(protocol) ? new URLStreamHandler() {
             @Override
             protected URLConnection openConnection(final URL url) throws IOException {
-                return new URL("file:" + url.getPath()).openConnection();
+                return URI.create("file:" + url.getPath()).toURL().openConnection();
             }
         } : null);
     }

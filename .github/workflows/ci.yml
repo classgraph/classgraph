@@ -17,7 +17,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ ubuntu-latest, windows-latest, macos-latest ]
-        java: [ '17', '18', '19', '20', '21', '22', '23', '24', '25', '26' ]
+        java: [ '25', '26' ]
     steps:
     - uses: actions/checkout@v7
     - name: Set up JDK
@@ -27,7 +27,7 @@ jobs:
         java-version: ${{ matrix.java }}
         # Cache ~/.m2/repository and (as a separate entry, keyed on
         # .mvn/wrapper/maven-wrapper.properties) ~/.m2/wrapper/dists, so that the Maven
-        # distribution and the dependencies are not re-downloaded by all 30 matrix jobs on
+        # distribution and the dependencies are not re-downloaded by all 6 matrix jobs on
         # every run. repo.maven.apache.org rate-limits (HTTP 429), which has failed builds.
         cache: 'maven'
     - name: print Java version
@@ -51,16 +51,16 @@ jobs:
       uses: actions/setup-java@v5
       with:
         distribution: 'zulu'
-        java-version: '17'
+        java-version: '25'
         cache: 'maven'
     - name: Check formatting
       run: ./mvnw --no-transfer-progress -B formatter:validate
 
-  # Javadoc is checked here rather than by all 30 matrix jobs, under the oldest and the newest JDK
+  # Javadoc is checked here rather than by all 6 matrix jobs, under the oldest and the newest JDK
   # the build supports. doclint is configured to fail the build on a warning, so this job goes red
   # for a missing @param or a broken {@link}, and it needs both ends of the range because doclint
   # gains checks as the JDK moves on: the same sources that draw no warning under one release can
-  # draw one under a later one, so a single JDK leaves the rest of the range unchecked. JDK 17 is
+  # draw one under a later one, so a single JDK leaves the rest of the range unchecked. JDK 25 is
   # also the JDK the release is built with. "package" is what builds the Javadoc jars that the
   # release publishes, so this checks the same Javadoc run that a release would; the modules have
   # to be compiled first in any case, since Javadoc reads the module descriptors. javadoc:aggregate
@@ -71,7 +71,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        java: [ '17', '26' ]
+        java: [ '25', '26' ]
     steps:
     - uses: actions/checkout@v7
     - name: Set up JDK
@@ -128,7 +128,7 @@ jobs:
       uses: actions/setup-java@v5
       with:
         distribution: 'zulu'
-        java-version: '17'
+        java-version: '25'
         cache: 'maven'
     - name: Build ClassGraph
       run: ./mvnw --no-transfer-progress -B -q clean compile
@@ -148,7 +148,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        java: [ '17', '26' ]
+        java: [ '25', '26' ]
     steps:
     - uses: actions/checkout@v7
     - name: Set up JDK

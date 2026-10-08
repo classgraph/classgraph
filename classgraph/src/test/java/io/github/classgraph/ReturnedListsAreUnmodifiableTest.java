@@ -208,7 +208,7 @@ public class ReturnedListsAreUnmodifiableTest {
             assertThat(classInfoList).hasSizeGreaterThan(1);
 
             assertThat(throwsUnsupported(() -> classInfoList.sort(null))).isTrue();
-            assertThat(throwsUnsupported(() -> classInfoList.removeIf(ci -> true))).isTrue();
+            assertThat(throwsUnsupported(() -> classInfoList.removeIf(_ -> true))).isTrue();
             assertThat(throwsUnsupported(() -> classInfoList.replaceAll(ci -> ci))).isTrue();
             assertThat(throwsUnsupported(() -> classInfoList.clear())).isTrue();
             assertThat(throwsUnsupported(() -> classInfoList.set(0, classInfoList.get(0)))).isTrue();
@@ -235,11 +235,11 @@ public class ReturnedListsAreUnmodifiableTest {
                 .enableMethodInfo().enableAnnotationInfo().enableStaticFinalFieldConstantInitializerValues()
                 .ignoreClassVisibility().ignoreFieldVisibility().ignoreMethodVisibility().scan()) {
             // An empty returned list: every mutator is a no-op on it, but must still be rejected
-            final ClassInfoList emptyList = scanResult.getAllClasses().filter(ci -> false);
+            final ClassInfoList emptyList = scanResult.getAllClasses().filter(_ -> false);
             assertThat(emptyList).isEmpty();
             assertThat(throwsUnsupported(emptyList::clear)).isTrue();
             assertThat(throwsUnsupported(() -> emptyList.sort(null))).isTrue();
-            assertThat(throwsUnsupported(() -> emptyList.removeIf(ci -> true))).isTrue();
+            assertThat(throwsUnsupported(() -> emptyList.removeIf(_ -> true))).isTrue();
             assertThat(throwsUnsupported(() -> emptyList.replaceAll(ci -> ci))).isTrue();
             assertThat(throwsUnsupported(() -> emptyList.addAll(List.of()))).isTrue();
             assertThat(throwsUnsupported(() -> emptyList.addAll(0, List.of()))).isTrue();
@@ -300,13 +300,13 @@ public class ReturnedListsAreUnmodifiableTest {
                     .isTrue();
 
             // filter()
-            assertThat(isUnmodifiable(scanResult.getAllClasses().filter(ci -> true))).isTrue();
-            assertThat(isUnmodifiable(scanResult.getAllResources().filter(res -> true))).isTrue();
-            assertThat(isUnmodifiable(scanResult.getPackageInfo().filter(pi -> true))).isTrue();
-            assertThat(isUnmodifiable(scanResult.getModuleInfo().filter(mi -> true))).isTrue();
-            assertThat(isUnmodifiable(classInfo.getDeclaredMethodInfo().filter(mi -> true))).isTrue();
-            assertThat(isUnmodifiable(classInfo.getDeclaredFieldInfo().filter(fi -> true))).isTrue();
-            assertThat(isUnmodifiable(classInfo.getAllAnnotationInfo().filter(ai -> true))).isTrue();
+            assertThat(isUnmodifiable(scanResult.getAllClasses().filter(_ -> true))).isTrue();
+            assertThat(isUnmodifiable(scanResult.getAllResources().filter(_ -> true))).isTrue();
+            assertThat(isUnmodifiable(scanResult.getPackageInfo().filter(_ -> true))).isTrue();
+            assertThat(isUnmodifiable(scanResult.getModuleInfo().filter(_ -> true))).isTrue();
+            assertThat(isUnmodifiable(classInfo.getDeclaredMethodInfo().filter(_ -> true))).isTrue();
+            assertThat(isUnmodifiable(classInfo.getDeclaredFieldInfo().filter(_ -> true))).isTrue();
+            assertThat(isUnmodifiable(classInfo.getAllAnnotationInfo().filter(_ -> true))).isTrue();
 
             // ClassInfoList set operations
             final ClassInfoList allClasses = scanResult.getAllClasses();

@@ -669,7 +669,7 @@ public final class ScanResult implements AutoCloseable {
             if (pathToAcceptedResources == null) {
                 final Map<String, List<Resource>> pathToResources = new TreeMap<>();
                 for (final Resource res : getAllResources()) {
-                    pathToResources.computeIfAbsent(res.getPath(), k -> new ArrayList<>(1)).add(res);
+                    pathToResources.computeIfAbsent(res.getPath(), _ -> new ArrayList<>(1)).add(res);
                 }
                 final Map<String, ResourceList> pathToAcceptedResourceListMap = new TreeMap<>();
                 for (final Entry<String, List<Resource>> ent : pathToResources.entrySet()) {
@@ -999,7 +999,7 @@ public final class ScanResult implements AutoCloseable {
         final Map<ClassInfo, Set<ClassInfo>> revMapSet = new HashMap<>();
         for (final ClassInfo ci : getAllClasses()) {
             for (final ClassInfo dep : ci.getClassDependencies()) {
-                revMapSet.computeIfAbsent(dep, k -> new HashSet<>()).add(ci);
+                revMapSet.computeIfAbsent(dep, _ -> new HashSet<>()).add(ci);
             }
         }
         final Map<ClassInfo, ClassInfoList> revMapList = new TreeMap<>();

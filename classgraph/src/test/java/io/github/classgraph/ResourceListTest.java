@@ -96,13 +96,13 @@ public class ResourceListTest {
             assertThat(content).containsOnlyKeys(FILE_NAMES).containsEntry("b.txt", contentOf("b.txt"));
 
             // Without the "IgnoringIOException" suffix, an IOException from the consumer propagates
-            assertThatIOException().isThrownBy(() -> resources.forEachByteArray((resource, byteArray) -> {
+            assertThatIOException().isThrownBy(() -> resources.forEachByteArray((resource, _) -> {
                 throw new IOException("consumer failed on " + resource.getPath());
             })).withMessageStartingWith("consumer failed on ");
 
             // With it, the failing resource is skipped and the iteration continues
             final var visited = new ArrayList<String>();
-            assertThat(resources.forEachByteArrayIgnoringIOException((resource, byteArray) -> {
+            assertThat(resources.forEachByteArrayIgnoringIOException((resource, _) -> {
                 if (resource.getPath().equals("b.txt")) {
                     throw new IOException("consumer failed on " + resource.getPath());
                 }
@@ -122,12 +122,12 @@ public class ResourceListTest {
                     new String(inputStream.readAllBytes(), StandardCharsets.UTF_8)))).isSameAs(resources);
             assertThat(content).containsOnlyKeys(FILE_NAMES).containsEntry("c.txt", contentOf("c.txt"));
 
-            assertThatIOException().isThrownBy(() -> resources.forEachInputStream((resource, inputStream) -> {
+            assertThatIOException().isThrownBy(() -> resources.forEachInputStream((resource, _) -> {
                 throw new IOException("consumer failed on " + resource.getPath());
             })).withMessageStartingWith("consumer failed on ");
 
             final var visited = new ArrayList<String>();
-            assertThat(resources.forEachInputStreamIgnoringIOException((resource, inputStream) -> {
+            assertThat(resources.forEachInputStreamIgnoringIOException((resource, _) -> {
                 if (resource.getPath().equals("b.txt")) {
                     throw new IOException("consumer failed on " + resource.getPath());
                 }
@@ -148,12 +148,12 @@ public class ResourceListTest {
                     .isSameAs(resources);
             assertThat(lengths).containsOnlyKeys(FILE_NAMES).containsEntry("c.txt", contentOf("c.txt").length());
 
-            assertThatIOException().isThrownBy(() -> resources.forEachByteBuffer((resource, byteBuffer) -> {
+            assertThatIOException().isThrownBy(() -> resources.forEachByteBuffer((resource, _) -> {
                 throw new IOException("consumer failed on " + resource.getPath());
             })).withMessageStartingWith("consumer failed on ");
 
             final var visited = new ArrayList<String>();
-            assertThat(resources.forEachByteBufferIgnoringIOException((resource, byteBuffer) -> {
+            assertThat(resources.forEachByteBufferIgnoringIOException((resource, _) -> {
                 if (resource.getPath().equals("b.txt")) {
                     throw new IOException("consumer failed on " + resource.getPath());
                 }

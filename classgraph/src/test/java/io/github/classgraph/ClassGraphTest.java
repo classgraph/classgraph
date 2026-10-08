@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
 import java.net.URL;
 import java.net.URLConnection;
 import java.net.URLStreamHandler;
@@ -305,7 +306,7 @@ public class ClassGraphTest {
                 throw new UnsupportedOperationException("The rejected URL must never be opened");
             }
         };
-        final var customURL = new URL("cgtest", "host", -1, "/lib.jar", handler);
+        final var customURL = URL.of(URI.create("cgtest://host/lib.jar"), handler);
         final var urls = new ArrayList<URL>();
         try (var scanResult = new ClassGraph().enableClasspathEntries(customURL, markerDir.toString())
                 .filterClasspathElementsByURL(url -> {

@@ -29,6 +29,7 @@
 package io.github.classgraph.features;
 
 import java.io.IOException;
+import java.net.URI;
 import java.net.URL;
 import java.net.URLConnection;
 import java.net.URLStreamHandler;
@@ -60,7 +61,7 @@ public class CustomURLScheme {
                         final var newURL = "file:" + url.getPath();
                         remappedURLs.put(url.toString(), newURL);
                         // Replace scheme with "file://"
-                        return new URL(newURL).openConnection();
+                        return URI.create(newURL).toURL().openConnection();
                     }
                 } : null);
     }

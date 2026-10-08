@@ -79,7 +79,7 @@ public class SingletonMapTest {
     /** A factory that returns null produces a {@link NullSingletonException} naming the key. */
     @Test
     public void nullInstanceThrowsNullSingletonException() {
-        final var map = new TestMap(key -> null);
+        final var map = new TestMap(_ -> null);
         assertThatThrownBy(() -> map.get("theKey")).isInstanceOf(NullSingletonException.class)
                 .hasMessage("No value could be created for key theKey");
     }
@@ -90,7 +90,7 @@ public class SingletonMapTest {
      */
     @Test
     public void nullInstanceIsRememberedForLaterCalls() {
-        final var map = new TestMap(key -> null);
+        final var map = new TestMap(_ -> null);
         assertThatThrownBy(() -> map.get("theKey")).isInstanceOf(NullSingletonException.class);
         assertThatThrownBy(() -> map.get("theKey")).isInstanceOf(NullSingletonException.class);
         assertThat(map.numNewInstanceCalls).hasValue(1);
@@ -102,7 +102,7 @@ public class SingletonMapTest {
     @Test
     public void thrownExceptionIsWrappedInNewInstanceException() {
         final var cause = new IllegalArgumentException("could not open");
-        final var map = new TestMap(key -> {
+        final var map = new TestMap(_ -> {
             throw cause;
         });
         assertThatThrownBy(() -> map.get("theKey")).isInstanceOf(NewInstanceException.class)
@@ -116,7 +116,7 @@ public class SingletonMapTest {
      */
     @Test
     public void interruptionIsPropagatedAndInterruptStatusIsRestored() {
-        final var map = new TestMap(key -> {
+        final var map = new TestMap(_ -> {
             throw new InterruptedException();
         });
         try {
@@ -135,7 +135,7 @@ public class SingletonMapTest {
      */
     @Test
     public void interruptionDoesNotPoisonTheKey() throws Exception {
-        final var map = new TestMap(key -> {
+        final var map = new TestMap(_ -> {
             throw new InterruptedException();
         });
         assertThatThrownBy(() -> map.get("theKey")).isInstanceOf(InterruptedException.class);
@@ -153,7 +153,7 @@ public class SingletonMapTest {
     public void aWaiterOnAnInterruptedCreationRetriesTheCreation() throws Exception {
         final var creatorInNewInstance = new CountDownLatch(1);
         final var letCreatorFail = new CountDownLatch(1);
-        final var map = new TestMap(key -> {
+        final var map = new TestMap(_ -> {
             if (creatorInNewInstance.getCount() > 0) {
                 // First call: the creator thread. Hold the creation open until the waiter is waiting on it,
                 // then abandon it by throwing InterruptedException
@@ -262,7 +262,7 @@ public class SingletonMapTest {
     /** A per-call factory can create a value for one key with whatever it needs, not only from the key. */
     @Test
     public void theFactoryIsCalledOnlyForAKeyWithNoValue() throws Exception {
-        final var map = new TestMap(key -> "fromTestMap");
+        final var map = new TestMap(_ -> "fromTestMap");
         assertThat(map.map.get("a", () -> "fromFactory")).isEqualTo("fromFactory");
         assertThat(map.get("a")).isEqualTo("fromFactory");
         assertThat(map.numNewInstanceCalls).hasValue(0);

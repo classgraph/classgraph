@@ -144,7 +144,7 @@ abstract class ReflectionDriver {
          *            the method to cache
          */
         private void cacheMethod(final Method method) {
-            methodNameToMethods.computeIfAbsent(method.getName(), name -> new ArrayList<>()).add(method);
+            methodNameToMethods.computeIfAbsent(method.getName(), _ -> new ArrayList<>()).add(method);
         }
 
         /**

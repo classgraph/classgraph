@@ -371,8 +371,8 @@ public class ClassGraphTest {
         final var readFileContents = new AtomicBoolean(false);
         try (var scanResult = new ClassGraph().enableClasspath().acceptPathsNonRecursive("").scan()) {
             try {
-                scanResult.getResourcesWithLeafName("file-content-test.txt").forEachByteArray((resource,
-                        byteArray) -> readFileContents.set("File contents".equals(new String(byteArray))));
+                scanResult.getResourcesWithLeafName("file-content-test.txt").forEachByteArray(
+                        (_, byteArray) -> readFileContents.set("File contents".equals(new String(byteArray))));
             } catch (final IOException e) {
                 throw new RuntimeException(e);
             }

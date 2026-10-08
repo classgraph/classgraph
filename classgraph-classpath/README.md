@@ -12,7 +12,7 @@ classes, use [`classgraph`](../classgraph) instead, which is built on this libra
 </dependency>
 ```
 
-Module name: `io.github.classgraph.classpath`. Requires JDK 17 or newer. Depends on
+Module name: `io.github.classgraph.classpath`. Requires JDK 25 or newer. Depends on
 [`classgraph-vfs`](../classgraph-vfs), which is pulled in transitively.
 
 See the [Classpath API](https://github.com/classgraph/classgraph/wiki/Classpath-API) for the full

@@ -31,6 +31,7 @@ package io.github.classgraph.issues.issue387;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.net.MalformedURLException;
+import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
 
@@ -56,7 +57,7 @@ class Issue387Test {
     void issue387Test() throws MalformedURLException {
         final var filePath = Issue387Test.class.getClassLoader().getResource("nested-jars-level1.zip").getPath();
         final var customSchemeURL = CustomURLScheme.SCHEME + ":" + filePath;
-        final var url = new URL(customSchemeURL);
+        final var url = URI.create(customSchemeURL).toURL();
         final var classLoader = new URLClassLoader(new URL[] { url }, null);
         try (var scanResult = new ClassGraph().enableClassLoaders(classLoader).scan()) {
             assertThat(scanResult.getAllResources().getPaths()).containsExactly("level2.jar");

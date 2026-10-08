@@ -192,7 +192,7 @@ final class VfsFileSystem extends FileSystem {
                     }
                     final var slashIdx = currName.lastIndexOf('/');
                     final var dirName = slashIdx < 0 ? "" : currName.substring(0, slashIdx);
-                    final var children = childNames.computeIfAbsent(dirName, k -> new TreeSet<>());
+                    final var children = childNames.computeIfAbsent(dirName, _ -> new TreeSet<>());
                     if (!children.add(simpleName) || dirName.isEmpty()) {
                         break;
                     }
