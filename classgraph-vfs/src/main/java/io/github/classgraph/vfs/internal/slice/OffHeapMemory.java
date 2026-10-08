@@ -28,38 +28,23 @@
  */
 package io.github.classgraph.vfs.internal.slice;
 
-import java.io.IOException;
+import java.lang.foreign.Arena;
 import java.lang.ref.PhantomReference;
 import java.lang.ref.ReferenceQueue;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.nio.ByteBuffer;
-import java.nio.channels.FileChannel.MapMode;
-import java.nio.channels.FileChannel;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.github.classgraph.base.LogNode;
-import io.github.classgraph.base.internal.reflection.ReflectionUtils;
-import io.github.classgraph.base.internal.utils.VersionFinder;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Allocation, memory-mapping and freeing of off-heap memory.
+ * Freeing of off-heap memory.
  *
  * <p>
- * On JDK 22 and later this is done through the {@code java.lang.foreign.Arena} API: buffers are allocated from a
- * shared arena, and closing the arena frees or unmaps all of them at once, and makes a thread that is still reading
- * one throw {@link IllegalStateException} rather than reading memory that is no longer there. On JDK 17 to 21 that
- * API is unavailable (or not final), so {@link #openArena()} returns null, a file is memory mapped through
- * {@link FileChannel#map(MapMode, long, long)} instead, and the mapping is unmapped by
- * {@link #closeDirectByteBuffer(ByteBuffer, LogNode)}. Both APIs are reached by reflection, since ClassGraph
- * compiles against JDK 17.
- *
- * <p>
- * A mapping made without an arena that {@link #closeDirectByteBuffer(ByteBuffer, LogNode)} could not unmap is left
- * to the garbage collector, which unmaps the file once every view of the mapping has become unreachable.
- * {@link #freeUnreachableBuffers()} asks for that to happen. The garbage collector cannot release a mapping made in
- * a shared arena: only closing the arena does.
+ * Off-heap memory is allocated, and files are memory mapped, through a shared {@link Arena}, and closing the arena
+ * frees or unmaps all of it at once, and makes a thread that is still reading it throw
+ * {@link IllegalStateException} rather than read memory that is no longer there. The garbage collector cannot
+ * release memory in a shared arena: only closing the arena does. {@link #freeUnreachableBuffers()} is for the
+ * memory that the garbage collector does release, which is any mapping that something other than an arena made.
  */
 final class OffHeapMemory {
     /** Not instantiable. */
@@ -67,248 +52,9 @@ final class OffHeapMemory {
         // Cannot be constructed
     }
 
-    // -------------------------------------------------------------------------------------------------------------
-
-    // TODO: once ClassGraph's minimum supported JDK version is 22 or later, the reflective lookup of
-    // Unsafe::invokeCleaner below can be deleted, since a mapping is then always made in an arena and unmapped by
-    // closing it.
-
-    /** The {@code Unsafe#invokeCleaner(ByteBuffer)} method, or null if it could not be looked up. */
-    private static @Nullable Method invokeCleanerMethod;
-
-    /** The {@code sun.misc.Unsafe} singleton, or null if it could not be looked up. */
-    private static @Nullable Object theUnsafe;
-
     /**
-     * True if the two handles above have been looked up. Volatile, and only ever assigned while holding the lock on
-     * {@link OffHeapMemory}, so that the double-checked locking in {@link #ensureInvokeCleanerMethodLookedUp()} is
-     * correctly synchronized: a thread that reads true here is guaranteed to see the fully-initialized handles.
-     */
-    private static volatile boolean initialized;
-
-    /** Look up {@code Unsafe#invokeCleaner(ByteBuffer)} and the {@code theUnsafe} singleton it is called on. */
-    private static void lookupInvokeCleanerMethod() {
-        try {
-            // A JVM with no sun.misc.Unsafe leaves the fields null -- closeDirectByteBufferImpl() then logs and
-            // returns false
-            final var unsafeClass = ReflectionUtils.classForNameOrNull("sun.misc.Unsafe");
-            if (unsafeClass == null) {
-                return;
-            }
-            final var theUnsafeField = unsafeClass.getDeclaredField("theUnsafe");
-            theUnsafeField.setAccessible(true);
-            theUnsafe = theUnsafeField.get(null);
-            invokeCleanerMethod = unsafeClass.getMethod("invokeCleaner", ByteBuffer.class);
-            invokeCleanerMethod.setAccessible(true);
-        } catch (final ReflectiveOperationException | LinkageError | SecurityException e) {
-            // Ignore -- closeDirectByteBuffer() returns false, and the mapping is left to the garbage collector. (A
-            // SecurityManager that denies RuntimePermission("accessClassInPackage.sun.misc") or
-            // ReflectPermission("suppressAccessChecks") ends up here too.)
-            theUnsafe = null;
-            invokeCleanerMethod = null;
-        }
-    }
-
-    /**
-     * Unmap a memory-mapped {@link ByteBuffer}, by calling {@code Unsafe#invokeCleaner} on it.
-     *
-     * @param byteBuffer
-     *            the buffer to unmap
-     * @param log
-     *            the log node, or null to skip logging
-     * @return true if the buffer was unmapped
-     */
-    private static boolean closeDirectByteBufferImpl(final ByteBuffer byteBuffer, final @Nullable LogNode log) {
-        final var unsafe = theUnsafe;
-        final var invokeCleaner = invokeCleanerMethod;
-        if (unsafe == null || invokeCleaner == null) {
-            if (log != null) {
-                log.log("Could not unmap ByteBuffer: sun.misc.Unsafe is not available");
-            }
-            return false;
-        }
-        try {
-            invokeCleaner.invoke(unsafe, byteBuffer);
-            return true;
-        } catch (final InvocationTargetException e) {
-            // invokeCleaner throws IllegalArgumentException if the buffer is a duplicate or a slice of the mapping,
-            // not the mapping itself. Method.invoke wraps whatever it throws.
-            if (log != null && !(e.getCause() instanceof IllegalArgumentException)) {
-                log.log("Could not unmap ByteBuffer: " + e.getCause());
-            }
-            return false;
-        } catch (final ReflectiveOperationException | SecurityException e) {
-            if (log != null) {
-                log.log("Could not unmap ByteBuffer: " + e);
-            }
-            return false;
-        }
-    }
-
-    /**
-     * Unmap a memory mapping that was made without an arena, which is how a file is mapped below JDK 22. The only
-     * method that can do this is {@code Unsafe#invokeCleaner}, which is not deprecated on any JDK below 22 (it is
-     * deprecated for removal from JDK 23), and which is never needed from JDK 22, where the file is mapped in an
-     * arena and unmapped by closing it.
-     *
-     * <p>
-     * This frees the address range immediately and unconditionally, unlike closing an arena: a thread that reads
-     * one byte of the buffer, or of any view of it, afterwards reads memory that is no longer mapped, and takes a
-     * SIGSEGV that kills the JVM rather than throwing. So it must only be called once the last view of the mapping
-     * that anything could still read has been released -- see {@code FileMapping#unmap()}.
-     *
-     * @param byteBuffer
-     *            the mapped {@link ByteBuffer} to unmap, which has to be the buffer the mapping produced rather
-     *            than a view of it, since only that buffer has the cleaner that unmaps the file attached to it.
-     * @param log
-     *            the log node, or null to skip logging
-     * @return true if the file was unmapped.
-     */
-    // #939
-    static boolean closeDirectByteBuffer(final ByteBuffer byteBuffer, final @Nullable LogNode log) {
-        if (!byteBuffer.isDirect()) {
-            // A heap ByteBuffer has nothing to unmap
-            return false;
-        }
-        ensureInvokeCleanerMethodLookedUp();
-        return closeDirectByteBufferImpl(byteBuffer, log);
-    }
-
-    /**
-     * Check whether {@link #closeDirectByteBuffer(ByteBuffer, LogNode)} can unmap a file, which it cannot if
-     * {@code Unsafe#invokeCleaner} is missing from this JVM, or a SecurityManager will not let ClassGraph call it.
-     * Below JDK 22 a file that could not be unmapped would stay mapped until the garbage collector found it
-     * unreachable, and on Windows a mapped file cannot be deleted or overwritten, so such a file is not mapped at
-     * all.
-     *
-     * @return true if {@code Unsafe#invokeCleaner} can be called.
-     */
-    static boolean canInvokeCleaner() {
-        ensureInvokeCleanerMethodLookedUp();
-        return theUnsafe != null && invokeCleanerMethod != null;
-    }
-
-    /** Look up {@code Unsafe#invokeCleaner(ByteBuffer)}, if it has not been looked up already. */
-    private static void ensureInvokeCleanerMethodLookedUp() {
-        // Double-checked locking, so that two threads calling this for the first time concurrently cannot both run
-        // the lookup and race on the static fields it assigns
-        if (!initialized) {
-            synchronized (OffHeapMemory.class) {
-                if (!initialized) {
-                    lookupInvokeCleanerMethod();
-                    initialized = true;
-                }
-            }
-        }
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    // TODO: once ClassGraph's minimum supported JDK version is 22 or later, the arena methods below can open
-    // and close arenas, and allocate and memory-map ByteBuffers, by calling the java.lang.foreign API directly
-    // rather than through reflection.
-
-    /**
-     * The fully-qualified name of the JDK 22+ {@code java.lang.foreign.Arena} interface.
-     */
-    private static final String ARENA_CLASS_NAME = "java.lang.foreign.Arena";
-
-    /**
-     * Open a new shared {@code java.lang.foreign.Arena} (JDK 22+), which can be used to allocate direct
-     * {@link ByteBuffer}s ({@link #allocateDirectByteBufferUsingArena(Object, long)}) and to memory-map files to
-     * {@link ByteBuffer}s ({@link #mapFileUsingArena(Object, FileChannel, long, long)}). Closing the arena
-     * ({@link #closeArena(Object, LogNode)}) frees or unmaps all {@link ByteBuffer}s obtained from it, in place of
-     * {@code Unsafe::invokeCleaner}, which is deprecated for removal from JDK 23.
-     *
-     * @return a new shared {@code Arena} instance, or null if the arena API is not available (JDK older than 22).
-     */
-    // #939
-    static @Nullable Object openArena() {
-        if (VersionFinder.JAVA_MAJOR_VERSION < 22) {
-            // The java.lang.foreign API was only finalized in JDK 22 (the preview versions of the API in JDK 19-21
-            // cannot be invoked reflectively without --enable-preview)
-            return null;
-        }
-        final Class<?> arenaClass = ReflectionUtils.classForNameOrNull(ARENA_CLASS_NAME);
-        if (arenaClass == null) {
-            return null;
-        }
-        // Invoke Arena.ofShared() -- a shared arena is needed rather than a confined arena, since the ByteBuffers
-        // obtained from the arena may be read and closed by multiple threads
-        return ReflectionUtils.invokeStaticMethod(/* throwException = */ false, arenaClass, "ofShared");
-    }
-
-    /**
-     * Allocate a direct {@link ByteBuffer} using a shared arena (JDK 22+). The buffer is freed by closing the
-     * arena.
-     *
-     * @param arena
-     *            an arena obtained from {@link #openArena()}.
-     * @param size
-     *            the number of bytes to allocate.
-     * @return the allocated {@link ByteBuffer}, or null if the buffer could not be allocated.
-     */
-    static @Nullable ByteBuffer allocateDirectByteBufferUsingArena(final Object arena, final long size) {
-        // Invoke arena.allocate(size).asByteBuffer()
-        final var memorySegment = ReflectionUtils.invokeMethod(/* throwException = */ false, arena, "allocate",
-                long.class, size);
-        return memorySegment == null ? null
-                : (ByteBuffer) ReflectionUtils.invokeMethod(/* throwException = */ false, memorySegment,
-                        "asByteBuffer");
-    }
-
-    /**
-     * Memory-map a region of a {@link FileChannel} to a read-only {@link ByteBuffer} using a shared arena (JDK
-     * 22+). The buffer is unmapped by closing the arena.
-     *
-     * @param arena
-     *            an arena obtained from {@link #openArena()}.
-     * @param fileChannel
-     *            the file channel to map.
-     * @param position
-     *            the position within the file at which the mapped region is to start.
-     * @param size
-     *            the size of the region to map (must not be larger than {@link Slice#MAX_BUFFER_SIZE}, since the
-     *            mapped memory segment has to be projected to a single {@link ByteBuffer}).
-     * @return the mapped {@link ByteBuffer}, or null if the arena-based mapping API could not be invoked
-     *         reflectively.
-     * @throws IOException
-     *             if mapping the file failed with an I/O error (mapping may succeed if retried after garbage
-     *             collection, see {@link FileMapping}).
-     */
-    static @Nullable ByteBuffer mapFileUsingArena(final Object arena, final FileChannel fileChannel,
-            final long position, final long size) throws IOException {
-        final Class<?> arenaClass = ReflectionUtils.classForNameOrNull(ARENA_CLASS_NAME);
-        if (arenaClass == null) {
-            return null;
-        }
-        try {
-            // Invoke fileChannel.map(MapMode.READ_ONLY, position, size, arena).asByteBuffer()
-            final var memorySegment = ReflectionUtils.invokeMethod(/* throwException = */ true, fileChannel, "map",
-                    new Class<?>[] { MapMode.class, long.class, long.class, arenaClass },
-                    new Object[] { MapMode.READ_ONLY, position, size, arena });
-            return memorySegment == null ? null
-                    : (ByteBuffer) ReflectionUtils.invokeMethod(/* throwException = */ true, memorySegment,
-                            "asByteBuffer");
-        } catch (final Exception e) {
-            // Mapping the file can fail with IOException or OutOfMemoryError, which the reflective method
-            // invocation wraps in other exceptions -- unwrap and rethrow, so that the caller can retry mapping
-            // after running garbage collection
-            for (Throwable t = e; t != null; t = t.getCause()) {
-                if (t instanceof final IOException ioException) {
-                    throw ioException;
-                } else if (t instanceof final OutOfMemoryError outOfMemoryError) {
-                    throw outOfMemoryError;
-                }
-            }
-            // The reflective invocation itself failed -- the caller will fall back to the FileChannel API
-            return null;
-        }
-    }
-
-    /**
-     * Close an arena obtained from {@link #openArena()}, freeing any direct {@link ByteBuffer}s allocated from it
-     * and unmapping any files mapped with it. The buffers must no longer be in use by any thread.
+     * Close an arena, freeing any memory allocated from it and unmapping any files mapped with it. The memory must
+     * no longer be in use by any thread.
      *
      * @param arena
      *            the arena to close.
@@ -316,11 +62,14 @@ final class OffHeapMemory {
      *            the log node, or null to skip logging
      * @return true if the arena was successfully closed.
      */
-    static boolean closeArena(final Object arena, final @Nullable LogNode log) {
+    // #939
+    static boolean closeArena(final Arena arena, final @Nullable LogNode log) {
         try {
-            ReflectionUtils.invokeMethod(/* throwException = */ true, arena, "close");
+            arena.close();
             return true;
-        } catch (final Exception e) {
+        } catch (final RuntimeException e) {
+            // IllegalStateException, if the arena has already been closed, or if another thread is accessing
+            // memory in it at this moment
             if (log != null) {
                 log.log("Could not close arena: " + e);
             }
@@ -332,30 +81,24 @@ final class OffHeapMemory {
     private static final AtomicBoolean warmedUp = new AtomicBoolean(false);
 
     /**
-     * Load the classes needed to free or unmap a direct {@link ByteBuffer}, by allocating a small direct
-     * {@link ByteBuffer} and immediately freeing it again.
+     * Load the classes needed to free or unmap a direct {@link java.nio.ByteBuffer}, by allocating a small direct
+     * {@link java.nio.ByteBuffer} and immediately freeing it again.
      *
      * <p>
-     * Freeing a direct {@link ByteBuffer} happens when the root that mapped the file is closed, which may be long
-     * after the file was read, and possibly from a shutdown hook or a container's teardown code, by which time the
-     * classloader that loaded ClassGraph may no longer be able to load anything -- one report had a Maven plugin's
-     * Plexus {@code ClassRealm} already closed, so the lambda class implementing the buffer-freeing code could not
-     * be defined, and closing threw {@link NoClassDefFoundError}. Loading those classes up front, while the
-     * classloader is certainly still alive, means closing needs no classes that are not already loaded.
+     * Freeing a direct {@link java.nio.ByteBuffer} happens when the root that mapped the file is closed, which may
+     * be long after the file was read, and possibly from a shutdown hook or a container's teardown code, by which
+     * time the classloader that loaded ClassGraph may no longer be able to load anything -- one report had a Maven
+     * plugin's Plexus {@code ClassRealm} already closed, so the lambda class implementing the buffer-freeing code
+     * could not be defined, and closing threw {@link NoClassDefFoundError}. Loading those classes up front, while
+     * the classloader is certainly still alive, means closing needs no classes that are not already loaded.
      */
     // #331
     static void warmUpDirectByteBufferClosing() {
         if (!warmedUp.getAndSet(true)) {
-            final var arena = openArena();
-            if (arena != null) {
-                // Direct ByteBuffers are freed by closing the arena that allocated them
-                allocateDirectByteBufferUsingArena(arena, 32);
-                closeArena(arena, /* log = */ null);
-            } else {
-                // Below JDK 22 a file is unmapped by Unsafe::invokeCleaner, which closeDirectByteBuffer looks up
-                // reflectively -- sun.misc.Unsafe and that lookup are what has to be resolved ahead of time
-                closeDirectByteBuffer(ByteBuffer.allocateDirect(32), /* log = */ null);
-            }
+            // Direct ByteBuffers are freed by closing the arena that allocated them
+            final var arena = Arena.ofShared();
+            arena.allocate(32).asByteBuffer();
+            closeArena(arena, /* log = */ null);
         }
     }
 
@@ -373,12 +116,12 @@ final class OffHeapMemory {
      *
      * <p>
      * This is best effort, and cannot be made reliable: a file is unmapped while the reference to its mapped buffer
-     * is processed, and nothing can observe that a particular reference has been processed. That is why a file is
-     * unmapped explicitly rather than left to this -- this is only for what an explicit unmapping cannot reach: an
-     * address range that has to be freed before a mapping can be retried, a buffer that could not be unmapped
-     * explicitly, and a temporary file that Windows would not let ClassGraph delete. A JVM started with
-     * {@code -XX:+DisableExplicitGC} ignores the request to collect altogether, in which case this returns once the
-     * wait times out, having done nothing.
+     * is processed, and nothing can observe that a particular reference has been processed. That is why ClassGraph
+     * maps a file in an arena and unmaps it explicitly rather than leaving it to this -- this is only for what an
+     * explicit unmapping cannot reach: an address range that has to be freed before a mapping can be retried, a
+     * mapping whose arena would not close, and a temporary file that Windows would not let ClassGraph delete. A JVM
+     * started with {@code -XX:+DisableExplicitGC} ignores the request to collect altogether, in which case this
+     * returns once the wait times out, having done nothing.
      */
     // #939
     static void freeUnreachableBuffers() {
@@ -386,13 +129,12 @@ final class OffHeapMemory {
         // collection found have been processed. A phantom reference to an object that the same collection finds
         // unreachable is enqueued while those references are processed, so waiting for it to be enqueued waits for
         // most of that processing -- but the order within one batch of references is arbitrary, so this is a wait
-        // that sometimes helps rather than a guarantee. (Measured by benchmark/MapProbe.java, over 300 rounds of
-        // mapping eight files and dropping every reference to them, on JDK 8, 17, 21 and 26: a file was still
-        // mapped when System.gc() returned in between 5 and all 300 of the rounds, depending on the JDK and the
-        // machine, and waiting for reference processing first moved that in both directions. Two more collections
-        // and 100ms cleared every straggler in every run but one, so the collector does get there -- just not by
-        // the time the request to collect returns, which is when a caller waiting to delete or overwrite the file
-        // needs it gone.)
+        // that sometimes helps rather than a guarantee. (Measured over 300 rounds of mapping eight files and
+        // dropping every reference to them, on JDK 8, 17, 21 and 26: a file was still mapped when System.gc()
+        // returned in between 5 and all 300 of the rounds, depending on the JDK and the machine, and waiting for
+        // reference processing first moved that in both directions. Two more collections and 100ms cleared every
+        // straggler in every run but one, so the collector does get there -- just not by the time the request to
+        // collect returns, which is when a caller waiting to delete or overwrite the file needs it gone.)
         final var collected = new ReferenceQueue<>();
         final var canary = new PhantomReference<>(new Object(), collected);
         System.gc();

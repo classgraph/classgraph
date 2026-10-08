@@ -93,8 +93,7 @@ Nothing outlasts that close. A `CloseableByteBuffer` you have not closed is clos
 root that handed it out closes, before the root releases the storage the buffer was a view of, so a
 memory mapping is unmapped and a temporary file deleted as the root closes rather than whenever the
 caller gets round to it. Reading a `ByteBuffer` you took out of such a wrapper after that point is a
-bug in the calling code, and on Windows below JDK 22 it can kill the JVM -- see
-[Read one entry](#read-one-entry).
+bug in the calling code -- see [Read one entry](#read-one-entry).
 
 A `VfsRoot` is `AutoCloseable` too, but rarely needs closing by hand, since closing the `Vfs` closes
 it. Closing one early is for a long-lived `Vfs` that is done reading one root and wants what it
@@ -365,16 +364,12 @@ faster on Windows and is not on Linux or macOS, where it can be slower, so it is
 only. See the
 [memory mapping benchmark](https://github.com/classgraph/classgraph/wiki/Memory-Mapping-Benchmark).
 A mapped file is unmapped when the root that mapped it is closed, which closing the `Vfs` does to
-every root, on every JDK version: on JDK 22 or later by closing the `java.lang.foreign.Arena` that
-mapped it, and below that by `Unsafe::invokeCleaner`, the only method there is that can unmap a file
-on demand. The root closes every `CloseableByteBuffer` it handed out first, so that no wrapper is
-left holding a view of a mapping the root is about to release, and the unmap is the last thing the
-close does. Unmapping has to happen as the root closes because Windows refuses to delete, rename or
-overwrite a file while it is mapped: a close that returned with the files it had mapped still mapped
-would leave them locked, and a temporary file that a nested jarfile had been extracted to could not
-be deleted. The cost is that `Unsafe::invokeCleaner` frees the address range whether or not another
-thread is still reading it, so a caller that keeps a raw `ByteBuffer` past the close of its root, and
-reads it, takes a SIGSEGV that kills the JVM below JDK 22.)
+every root, by closing the `java.lang.foreign.Arena` that mapped it. The root closes every
+`CloseableByteBuffer` it handed out first, so that no wrapper is left holding a view of a mapping the
+root is about to release, and the unmap is the last thing the close does. Unmapping has to happen as
+the root closes because Windows refuses to delete, rename or overwrite a file while it is mapped: a
+close that returned with the files it had mapped still mapped would leave them locked, and a
+temporary file that a nested jarfile had been extracted to could not be deleted.)
 
 A `Vfs` and everything it hands out is safe to use from many threads at once. This is what lets
 ClassGraph scan a jarfile in parallel. What that is worth is measured in
@@ -662,13 +657,11 @@ long as the root stays open. Closing the root, or the `Vfs`, closes the wrapper 
 not the caller has, and `getByteBuffer()` returns null from then on -- but a `ByteBuffer` reference
 taken before the close is not revoked by it. Reading through one is the one place in this API where
 reading after a close is not reported as an `IOException`, because nothing sits between a raw
-`ByteBuffer` and the caller to translate the failure. What it does instead depends on how the JDK
-releases the mapping: on JDK 22 or later the read throws `IllegalStateException`, since the arena
-that mapped the file knows it has been closed, but below JDK 22 the address range has simply been
-freed and the read takes a SIGSEGV that kills the JVM. That only arises where the file was memory-
-mapped, which is on Windows; elsewhere the buffer is a copy, and a late read is merely wrong rather
-than fatal. Do not rely on that -- read the buffer inside the try-with-resources block, and while
-its root is open.
+`ByteBuffer` and the caller to translate the failure. The read throws `IllegalStateException`
+instead, since the arena that mapped the file knows it has been closed. That only arises where the
+file was memory-mapped, which is on Windows; elsewhere the buffer is a copy, and a late read does not
+throw. Do not rely on either -- read the buffer inside the try-with-resources block, and while its
+root is open.
 
 `entry.load()` and `entry.loadAsString()` copy the content into a `byte[]` and a UTF-8 `String`
 respectively. There is nothing to close, and the result stays valid after the root and the `Vfs`

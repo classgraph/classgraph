@@ -47,9 +47,7 @@ class SliceInputStream extends InputStream {
     /**
      * The reader that the bytes are read through, or null once this stream has been closed. A reader of a
      * memory-mapped file holds a duplicate of the mapped buffer, so this reference is dropped as the stream closes
-     * rather than being kept for as long as anything still refers to the stream -- below JDK 22 the file is
-     * unmapped by freeing its address range, so a duplicate that outlived the unmapping would be a view of memory
-     * that is no longer there.
+     * rather than being kept for as long as anything still refers to the stream.
      */
     // #939
     private volatile @Nullable RandomAccessReader randomAccessReader;

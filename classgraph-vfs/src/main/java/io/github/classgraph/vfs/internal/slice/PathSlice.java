@@ -81,8 +81,9 @@ public final class PathSlice extends Slice {
     private final PathSlice topLevelPathSlice;
 
     /**
-     * The memory mapping of the file, if it was memory-mapped. Only set on the toplevel file slice, which owns the
-     * mapping. Volatile, since every slice of the file reads it, but only the toplevel slice writes it.
+     * The memory mapping of the file, if it was memory-mapped, or null once closed. Only set on the toplevel file
+     * slice, which owns the mapping and releases it as it closes. The slices of the file read the mapping through
+     * {@link #backingByteBuffer}.
      */
     private volatile @Nullable FileMapping fileMapping;
 
@@ -177,9 +178,7 @@ public final class PathSlice extends Slice {
 
         // A sub slice reads through the toplevel slice's file channel and memory mapping rather than keeping
         // copies of its own, so that closing the toplevel slice releases both of them for every slice of the file
-        // at once. A copy of the mapped buffer would matter most: below JDK 22 the toplevel slice unmaps the file
-        // by freeing its address range, so a sub slice that kept reading through a copy of the mapping would be
-        // reading memory that is no longer there. The mapping always covers the whole file, and is addressed in
+        // at once. The mapping always covers the whole file, and is addressed in
         // whole-file coordinates by way of sliceStartPos, in a sub slice as much as in the toplevel slice. A sub
         // slice is therefore not registered with the vfs as open: it holds nothing of its own to release.
     }
@@ -317,9 +316,7 @@ public final class PathSlice extends Slice {
                 // Memory-map the whole file, if it can be mapped -- otherwise fall through and read through the
                 // FileChannel API instead. Mapping is measurably faster on Windows and is not on Linux or macOS,
                 // where it can even be slower, so it is done on Windows only. (The measurements are at
-                // https://github.com/classgraph/classgraph/wiki/Memory-Mapping-Benchmark .) Being read on Windows
-                // only is also what makes it safe for a root to unmap a file as it closes: unmapping below JDK 22
-                // frees the address range whether or not another thread is still reading it
+                // https://github.com/classgraph/classgraph/wiki/Memory-Mapping-Benchmark .)
                 final var mapping = FileMapping.map(fileChannelOpened, fileLength, pathStr, log);
                 fileMapping = mapping;
                 backingByteBuffer = mapping == null ? null : mapping.byteBuffer;
@@ -477,8 +474,8 @@ public final class PathSlice extends Slice {
         } else {
             // If file was mmap'd, return a RandomAccessReader that uses the ByteBuffer. The reader keeps a view
             // of the mapping for as long as it is alive, and readers are not closed, so it is given the toplevel
-            // slice's closed flag to check before each read: reading a file that has been unmapped is not merely
-            // wrong, it reads memory that is no longer there
+            // slice's closed flag to check before each read, so that a read after the close is reported as an
+            // IOException
             return new RandomAccessByteBufferReader(mappedByteBuffer, sliceStartPos, sliceLength,
                     topLevelPathSlice.isClosed::get);
         }
@@ -514,21 +511,6 @@ public final class PathSlice extends Slice {
             }
             return content;
         }
-    }
-
-    @Override
-    public Runnable acquireMappingView() throws IOException {
-        // Read the field into a local, so that a close running concurrently cannot null it between the check and
-        // the use
-        final var mapping = topLevelPathSlice.fileMapping;
-        if (mapping == null) {
-            // The file is not memory-mapped, so there is no mapping that a view could hold open
-            return super.acquireMappingView();
-        }
-        if (!mapping.acquireView()) {
-            throw new IOException("Cannot read " + pathStr + " after it has been closed");
-        }
-        return mapping::releaseView;
     }
 
     /**
@@ -576,14 +558,10 @@ public final class PathSlice extends Slice {
             fileMapping = null;
             backingByteBuffer = null;
             fileChannel = null;
-            FileMapping mappingStillHeldOpen = null;
             try {
-                if (mapping != null && !mapping.unmap()) {
-                    // The file is still mapped, because a view of the mapping that the caller can still read is
-                    // open. Releasing that view is what unmaps the file, so a delete that the mapping is in the
-                    // way of has to wait for it -- see deleteTempFile below
-                    // #939
-                    mappingStillHeldOpen = mapping;
+                if (mapping != null) {
+                    // An arena that would not close leaves the file mapped, which deleteTempFile below deals with
+                    mapping.unmap();
                 }
             } finally {
                 try {
@@ -600,7 +578,7 @@ public final class PathSlice extends Slice {
                     // The temporary file can only be deleted once the mapping and the file channel over it have
                     // been released, so it goes last
                     if (tempFile != null) {
-                        deleteTempFile(tempFile, mappingStillHeldOpen);
+                        deleteTempFile(tempFile);
                     }
                 }
             }
@@ -613,29 +591,17 @@ public final class PathSlice extends Slice {
      *
      * @param fileToDelete
      *            the temporary file.
-     * @param mappingStillHeldOpen
-     *            the memory mapping of the file, if it could not be released when this slice closed because a view
-     *            of it that the caller can still read is open, or null if the file is not mapped any more.
      */
-    private void deleteTempFile(final File fileToDelete, final @Nullable FileMapping mappingStillHeldOpen) {
+    private void deleteTempFile(final File fileToDelete) {
         if (TempFile.delete(fileToDelete)) {
             return;
         }
-        if (mappingStillHeldOpen != null) {
-            // Windows refuses to delete a file that is still memory-mapped, and this one is, because a view of the
-            // mapping that the caller can still read is open. No garbage collection can unmap a file whose buffer
-            // the caller is still holding, so rather than asking for one, the delete is retried when the last view
-            // is released, which is what unmaps the file.
-            // #939
-            mappingStillHeldOpen
-                    .runWhenUnmapped(() -> deleteTempFile(fileToDelete, /* mappingStillHeldOpen = */ null));
-            return;
-        }
         // Windows refuses to delete a file that is still memory-mapped, so a delete that failed may be waiting on
-        // a mapping that could not be unmapped explicitly -- one whose arena would not close, say. Those are left
-        // to the garbage collector, which only runs when it chooses to, so ask for a collection and try again. If
-        // the JVM was started with -XX:+DisableExplicitGC then this is a no-op, and the file is left behind, and
-        // logged.
+        // a mapping that only the garbage collector can release -- one that something other than this slice made
+        // through FileChannel#map, from the File that getFile() hands out. (The garbage collector cannot release
+        // this slice's own mapping if its arena would not close: only closing the arena can.) The collector only
+        // runs when it chooses to, so ask for a collection and try again. If the JVM was started with
+        // -XX:+DisableExplicitGC then this is a no-op, and the file is left behind, and logged.
         // #939
         OffHeapMemory.freeUnreachableBuffers();
         if (!TempFile.delete(fileToDelete) && tempFileLog != null) {

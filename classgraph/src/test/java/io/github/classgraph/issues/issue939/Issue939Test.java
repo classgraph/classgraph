@@ -19,11 +19,10 @@ import io.github.classgraph.ClassGraph;
 
 /**
  * A memory-mapped file has to be unmapped when the scan that mapped it is closed, since Windows refuses to delete,
- * rename or overwrite a file while it is mapped. From JDK 22 the file is mapped in a
- * {@code java.lang.foreign.Arena} and unmapped by closing it; below JDK 22 there are no arenas, and the only way to
- * unmap a file is {@code Unsafe::invokeCleaner}. Either way the scan closes every buffer it handed out first, so
- * that nothing is left holding a view of the mapping when it goes. The mechanics of both are tested by
- * {@code OffHeapMemoryTest} and {@code PathSliceTest}, in the vfs library; this checks the behavior a caller sees.
+ * rename or overwrite a file while it is mapped. The file is mapped in a {@code java.lang.foreign.Arena} and
+ * unmapped by closing it. The scan closes every buffer it handed out first, so that nothing is left holding a view
+ * of the mapping when it goes. The mechanics are tested by {@code FileMappingTest} and {@code PathSliceTest}, in
+ * the vfs library; this checks the behavior a caller sees.
  *
  * <p>
  * Files are memory-mapped on Windows only, so these tests run there only.

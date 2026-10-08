@@ -203,8 +203,8 @@ class RecycledInflaterInputStreamTest {
      * Closing the {@link io.github.classgraph.vfs.Vfs} ends the inflaters it handed out, including one that a
      * stream is still reading through. The read that was in flight then fails with an {@link IOException}, the way
      * every other read of a closed {@code Vfs} does, rather than with the unchecked exception an ended
-     * {@link java.util.zip.Inflater} throws -- which is a {@link NullPointerException} on JDK 17 and an
-     * {@link IllegalStateException} on JDK 25, so a caller could not usefully catch it either way.
+     * {@link java.util.zip.Inflater} throws, an {@link IllegalStateException}, which a caller would not think to
+     * catch.
      */
     @Test
     void aReadAfterTheInflaterWasEndedThrowsIOException() throws IOException {

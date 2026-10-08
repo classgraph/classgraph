@@ -2,7 +2,6 @@ package io.github.classgraph.vfs.internal.slice;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.io.File;
 import java.io.IOException;
@@ -20,7 +19,6 @@ import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
 
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
-import io.github.classgraph.base.internal.utils.VersionFinder;
 import io.github.classgraph.vfs.VfsSpec;
 import io.github.classgraph.vfs.Vfs;
 
@@ -143,9 +141,8 @@ public class PathSliceTest {
     /**
      * A reader that was taken before the slice was closed holds a view of the memory mapping that closing the slice
      * releases, and every other reader of the {@link io.github.classgraph.vfs.Vfs} reports a read of released
-     * storage as an {@link IOException}, so this one does too -- rather than letting the arena's
-     * {@link IllegalStateException} out on JDK 22 and later, or quietly reading on through a mapping the garbage
-     * collector has not caught up with below JDK 22.
+     * storage as an {@link IOException}, so this one does too, rather than letting the arena's
+     * {@link IllegalStateException} out.
      */
     @Test
     @EnabledOnOs(OS.WINDOWS)
@@ -231,10 +228,9 @@ public class PathSliceTest {
 
     /**
      * Closing a slice leaves nothing at all holding its memory mapping, even while a sub-slice of it is still
-     * alive. Below JDK 22 the close unmaps the file by freeing its address range, so anything left holding the
-     * mapped buffer would be holding a view of memory that is no longer there, and reading through it would take a
-     * SIGSEGV that kills the JVM. The mapping is deliberately reachable from nothing the API hands out, so the only
-     * way to watch it is by reflection.
+     * alive, since the close unmaps the file, and a mapped buffer that outlives the mapping can no longer be read.
+     * The mapping is deliberately reachable from nothing the API hands out, so the only way to watch it is by
+     * reflection.
      *
      * @param tempDir
      *            a temporary directory
@@ -412,51 +408,5 @@ public class PathSliceTest {
         } finally {
             slice.close();
         }
-    }
-
-    /**
-     * The temporary file that a slice owns is deleted even when the delete has to wait for the file to be unmapped.
-     * Below JDK 22 a mapping that the caller can still read a view of cannot be unmapped when the slice that owns
-     * it closes, so a delete that the mapping is in the way of has to be retried once the last view of the mapping
-     * is released. The delete is made to fail here by taking the write permission off the directory holding the
-     * file. Whichever way the delete went at close, the file has to be gone once the last view of the mapping has
-     * been released, and that is what is asserted.
-     *
-     * @param tempDir
-     *            a temporary directory
-     * @throws IOException
-     *             if the file could not be written or opened
-     */
-    // #939
-    @Test
-    @EnabledOnOs(OS.WINDOWS)
-    public void aTempFileIsDeletedOnceTheLastViewOfItsMappingIsReleased(@TempDir final Path tempDir)
-            throws IOException {
-        assumeTrue(VersionFinder.JAVA_MAJOR_VERSION < 22, "from JDK 22 the mapping is released with the slice");
-        final var directory = Files.createDirectory(tempDir.resolve("extracted"));
-        final var tempFile = Files.write(directory.resolve("extracted.jar"), CONTENT).toFile();
-        final var vfs = vfs();
-        final var slice = PathSlice.forTempFile(tempFile, vfs, /* log = */ null);
-        assertThat(slice.read().isDirect()).isTrue();
-        // A view of the mapping that the caller can still read, which stops the slice from unmapping the file
-        final var releaseView = slice.acquireMappingView();
-
-        // Take the write permission off the directory, so that the delete at close is refused and has to wait for
-        // the file to be unmapped. (setWritable returns false on a Windows directory, where the permission is not
-        // what a delete needs, so it is called for its effect rather than its result.)
-        directory.toFile().setWritable(false);
-        try {
-            slice.close();
-        } finally {
-            directory.toFile().setWritable(true);
-        }
-
-        // Releasing the last view unmaps the file, which is the moment a delete that the mapping was in the way of
-        // can be retried
-        releaseView.run();
-
-        // The temporary file is gone once the last view has been released, whether the delete had to wait for the
-        // file to be unmapped or succeeded as the slice closed
-        assertThat(tempFile).doesNotExist();
     }
 }

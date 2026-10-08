@@ -60,8 +60,7 @@ class SimpleThreadFactory implements ThreadFactory {
     }
 
     /**
-     * Create a thread in the security manager's thread group, if a security manager is installed, or else in the
-     * current thread's group.
+     * Create a thread in the current thread's group.
      *
      * @param runnable
      *            the runnable
@@ -69,30 +68,13 @@ class SimpleThreadFactory implements ThreadFactory {
      */
     @Override
     public Thread newThread(final Runnable runnable) {
-        // Call System.getSecurityManager().getThreadGroup() via reflection, since it is deprecated in JDK 17
-        ThreadGroup securityManagerThreadGroup = null;
-        try {
-            final var getSecurityManager = System.class.getDeclaredMethod("getSecurityManager");
-            final var securityManager = getSecurityManager.invoke(null);
-            if (securityManager != null) {
-                // (Use getMethod() rather than getDeclaredMethod(), since getThreadGroup() is a public method
-                // inherited from SecurityManager -- an installed security manager is almost always a subclass that
-                // does not redeclare it, and getDeclaredMethod() would not find it in that case)
-                final var getThreadGroup = securityManager.getClass().getMethod("getThreadGroup");
-                securityManagerThreadGroup = (ThreadGroup) getThreadGroup.invoke(securityManager);
-            }
-        } catch (final Throwable t) {
-            // Fall through
-        }
-        // Use the current thread's ThreadGroup as the fallback, as java.util.concurrent.Executors'
-        // defaultThreadFactory does. Allocating a new ThreadGroup per thread leaks: a ThreadGroup registers itself
-        // with its parent on construction, and a non-daemon ThreadGroup is unregistered only when it is explicitly
-        // destroyed, so one ThreadGroup (plus its Thread[] array) accumulated per created thread and stayed
-        // reachable from the parent group forever. (#931)
-        final Thread thread = new Thread(
-                securityManagerThreadGroup != null ? securityManagerThreadGroup
-                        : Thread.currentThread().getThreadGroup(),
-                runnable, threadNamePrefix + threadIdx.getAndIncrement());
+        // Use the current thread's ThreadGroup, as java.util.concurrent.Executors' defaultThreadFactory does.
+        // Allocating a new ThreadGroup per thread leaks: a ThreadGroup registers itself with its parent on
+        // construction, and a non-daemon ThreadGroup is unregistered only when it is explicitly destroyed, so one
+        // ThreadGroup (plus its Thread[] array) accumulated per created thread and stayed reachable from the parent
+        // group forever. (#931)
+        final Thread thread = new Thread(Thread.currentThread().getThreadGroup(), runnable,
+                threadNamePrefix + threadIdx.getAndIncrement());
         thread.setDaemon(daemon);
         return thread;
     }

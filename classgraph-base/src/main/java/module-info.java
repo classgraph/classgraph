@@ -58,7 +58,7 @@ module io.github.classgraph.base {
     exports io.github.classgraph.base.internal.filter to io.github.classgraph, io.github.classgraph.classpath;
     exports io.github.classgraph.base.internal.path to io.github.classgraph, io.github.classgraph.classpath,
             io.github.classgraph.vfs;
-    exports io.github.classgraph.base.internal.reflection to io.github.classgraph.classpath, io.github.classgraph.vfs;
+    exports io.github.classgraph.base.internal.reflection to io.github.classgraph.classpath;
     exports io.github.classgraph.base.internal.utils to io.github.classgraph, io.github.classgraph.classpath,
             io.github.classgraph.vfs;
 

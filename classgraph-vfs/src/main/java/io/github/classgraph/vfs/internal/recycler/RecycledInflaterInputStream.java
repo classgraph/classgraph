@@ -126,8 +126,7 @@ public class RecycledInflaterInputStream extends InputStream {
             throw new IllegalArgumentException("len cannot be negative");
         }
         // Check the destination range before anything is read, as InputStream#read(byte[], int, int) requires.
-        // (This also means a null outBuf is rejected here, so that the only thing that can throw
-        // NullPointerException below is the Inflater.)
+        // (This also means a null outBuf is rejected here.)
         Objects.checkFromIndexSize(off, len, outBuf.length);
         if (len == 0) {
             return 0;
@@ -139,11 +138,10 @@ public class RecycledInflaterInputStream extends InputStream {
                 final int numInflatedBytes;
                 try {
                     numInflatedBytes = inflater.inflate(outBuf, off + totInflatedBytes, len - totInflatedBytes);
-                } catch (NullPointerException | IllegalStateException e) {
-                    // Closing the Vfs ends the Inflater, which can happen while this stream is being read. Which
-                    // exception an ended Inflater throws depends on the JDK version (JDK 17 throws
-                    // NullPointerException, JDK 25 throws IllegalStateException), so both are translated into the
-                    // IOException that reading a closed Vfs throws everywhere else
+                } catch (final IllegalStateException e) {
+                    // Closing the Vfs ends the Inflater, which can happen while this stream is being read. The
+                    // IllegalStateException that an ended Inflater throws is translated into the IOException that
+                    // reading a closed Vfs throws everywhere else
                     throw new IOException("Cannot read a file after the Vfs has been closed", e);
                 }
                 if (numInflatedBytes == 0) {

@@ -49,11 +49,9 @@ import org.jspecify.annotations.Nullable;
  * <p>
  * The buffer may be a memory mapping of a file that the {@code Vfs} releases when it is closed, which can happen
  * while this reader is being read from. Reading a released file fails with an {@link IOException}, the same
- * documented way as reading from a closed {@link java.nio.channels.FileChannel}, whichever way the JDK unmaps the
- * file: on JDK 22 and later the arena that mapped it is closed, and reading the buffer afterwards throws
- * {@link IllegalStateException}, which is translated here; below JDK 22 the address range is simply freed, and
- * reading the buffer afterwards would read memory that is no longer mapped, so this reader is given a check to ask
- * whether the file is still there before it reads.
+ * documented way as reading from a closed {@link java.nio.channels.FileChannel}: this reader is given a check to
+ * ask whether the file is still there before it reads, and a read that races with the release, after the arena that
+ * mapped the file has been closed, throws {@link IllegalStateException}, which is translated here.
  */
 public final class RandomAccessByteBufferReader implements RandomAccessReader {
     /** The byte buffer. */
@@ -188,7 +186,7 @@ public final class RandomAccessByteBufferReader implements RandomAccessReader {
      */
     private void checkReadable(final long offset, final int numBytes) throws IOException {
         // A reader is not closed by anything, so this check is what stops a reader that outlived the close of its
-        // slice from reading a file that has been unmapped -- which below JDK 22 is memory that is no longer there
+        // slice from reading a file that has been unmapped
         if (isReleased != null && isReleased.getAsBoolean()) {
             throw new IOException("Cannot read a file that has been unmapped by closing what it was read through");
         }

@@ -132,24 +132,14 @@ final class ArchiveEntry extends VfsEntry {
     @Override
     public CloseableByteBuffer read() throws IOException {
         getRoot().checkNotClosed(getPath());
-        // The slice of a zip entry is a sub-slice of the zipfile, and owns no resources of its own -- the zipfile
-        // is released when the root that owns it is closed. But if the zipfile is memory-mapped, the buffer
-        // returned here is a view of that mapping, so the mapping has to be held open until the caller closes the
-        // wrapper
+        // The slice of a zip entry is a sub-slice of the zipfile, and owns no resources of its own -- the zipfile,
+        // and its memory mapping if it is mapped, is released when the root that owns it is closed. The root
+        // tracks the wrapper, so that closing the root closes the wrapper too
         // #939
         final var root = getRoot();
-        final var slice = zipEntry.getSlice();
-        final var releaseMappingView = slice.acquireMappingView();
-        final CloseableByteBuffer buffer;
-        try {
-            buffer = new CloseableByteBuffer(slice.read(), releaseMappingView, root);
-        } catch (final IOException | RuntimeException | Error e) {
-            // The caller never sees the buffer if this throws, so nothing else would release the view
-            releaseMappingView.run();
-            throw e;
-        }
-        // From here the wrapper owns the view, so a failure to track it is reported by closing the wrapper rather
-        // than by releasing the view directly, which would release it twice
+        final var buffer = new CloseableByteBuffer(zipEntry.getSlice().read(), () -> {
+            // Nothing to release
+        }, root);
         if (!root.trackOpenHandle(buffer)) {
             buffer.close();
             throw new IOException("Cannot read " + getPath() + " after the root has been closed");
@@ -167,17 +157,11 @@ final class ArchiveEntry extends VfsEntry {
             final var reader = new RandomAccessOrSequentialReader(this);
             return new RandomAccessContent(reader, reader::close);
         }
-        // The slice of a zip entry owns no resources of its own, but if the zipfile is memory-mapped, the reader
-        // reads that mapping, so the mapping has to be held open until the caller has finished with the reader
-        // #939
-        final var releaseMappingView = slice.acquireMappingView();
-        try {
-            return new RandomAccessContent(slice.randomAccessReader(), releaseMappingView);
-        } catch (final IOException | RuntimeException | Error e) {
-            // The caller never sees the reader if this throws, so nothing else would release the view
-            releaseMappingView.run();
-            throw e;
-        }
+        // The slice of a zip entry owns no resources of its own, so there is nothing to release when the caller has
+        // finished with the reader
+        return new RandomAccessContent(slice.randomAccessReader(), () -> {
+            // Nothing to release
+        });
     }
 
     @Override

@@ -59,19 +59,11 @@ import org.jspecify.annotations.Nullable;
  * This is the one place in the {@link Vfs} API where reading after a close is not reported as an
  * {@link java.io.IOException}: this is a raw {@link ByteBuffer} handed to the caller, so nothing sits between it
  * and the caller to check whether the file is still there, and a reference to it taken before the close is not
- * revoked by the close. Reading through such a reference is a bug in the calling code, and what it does depends on
- * the JDK: on JDK 22 and later the read throws {@link IllegalStateException}, since the file is unmapped by closing
- * an arena that knows it has been closed, but below JDK 22 the only way to unmap a file frees the address range
- * without marking the buffer, and the read takes a SIGSEGV that kills the JVM. Read the buffer only inside the
- * try-with-resources block that holds this wrapper, and only while the root it came from is open.
+ * revoked by the close. Reading through such a reference is a bug in the calling code: if the buffer is a view of a
+ * memory mapping, the read throws {@link IllegalStateException}, since the file is unmapped by closing an arena
+ * that knows it has been closed. Read the buffer only inside the try-with-resources block that holds this wrapper,
+ * and only while the root it came from is open.
  */
-// TODO: drop the warning on getByteBuffer(), and the JDK-dependent half of the class javadoc, once the minimum
-// supported JDK is 22 or later. The warning exists because below 22 a mapped file is unmapped by freeing its
-// address range, so reading a ByteBuffer reference that was taken from this wrapper and kept past the close can
-// kill the JVM -- on Windows, the only platform where a file is mapped. From 22 the file is mapped in an arena
-// whose close makes such a read throw IllegalStateException instead, leaving nothing to warn about. This class is
-// still wanted then: it releases the buffer as soon as the caller is finished with it, and no later than the close
-// of the root that produced it, so that a mapping is dropped promptly and the file behind it can be deleted.
 public final class CloseableByteBuffer implements AutoCloseable {
     /**
      * The wrapped {@link ByteBuffer}, or null once this wrapper has been closed.
@@ -130,14 +122,13 @@ public final class CloseableByteBuffer implements AutoCloseable {
      * {@link VfsRoot} it was read from or the {@link Vfs} that opened that root is closed</b> -- any of those
      * closes releases the buffer, and the buffer may be a memory mapping of a file rather than a copy of its
      * content. This method returns null once any of them has happened, but a reference taken before that is not
-     * revoked, and reading through one is undefined.
+     * revoked.
      *
      * <p>
-     * On JDK 22 and later such a read throws {@link IllegalStateException}. Below JDK 22 there is no way to unmap a
-     * file that marks the buffers that read it, so the read takes a SIGSEGV that kills the JVM instead. That only
-     * arises where the file was memory-mapped, which is on Windows: files are read through the file channel API on
-     * every other platform, so the buffer is a copy there and reading it late is merely wrong rather than fatal. Do
-     * not rely on that -- read the buffer inside the try-with-resources block that holds this wrapper.
+     * Reading such a reference throws {@link IllegalStateException} where the file was memory-mapped, which is on
+     * Windows: files are read through the file channel API on every other platform, so the buffer is a copy there
+     * and reading it late does not throw. Do not rely on that -- read the buffer inside the try-with-resources
+     * block that holds this wrapper.
      *
      * @return The wrapped {@link ByteBuffer}, or null if this wrapper, the root it was read from, or the
      *         {@link Vfs} that opened that root has been closed.
