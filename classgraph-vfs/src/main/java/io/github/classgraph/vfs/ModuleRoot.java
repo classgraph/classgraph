@@ -120,7 +120,7 @@ public final class ModuleRoot extends VfsRoot {
             } finally {
                 recycler.recycle(reader);
             }
-        } catch (final IOException | SecurityException e) {
+        } catch (final IOException e) {
             throw new IllegalStateException(
                     "Could not form URI for " + getPath() + "/" + pathWithinRoot + " : " + e, e);
         }
@@ -253,8 +253,6 @@ public final class ModuleRoot extends VfsRoot {
         final List<String> resourcePaths;
         try (var moduleReader = recycler.acquireRecycleOnClose()) {
             resourcePaths = ModuleReaderUtils.list(moduleReader.get(), getPath(), log);
-        } catch (final SecurityException e) {
-            throw new IOException("Could not list the contents of module " + getPath() + " : " + e, e);
         }
         // List the entries of a module in a deterministic order, since ModuleReader#list() does not specify one
         Collections.sort(resourcePaths);
@@ -290,8 +288,6 @@ public final class ModuleRoot extends VfsRoot {
             if (!ModuleReaderUtils.contains(moduleReader.get(), name)) {
                 return null;
             }
-        } catch (final SecurityException e) {
-            throw new IOException("Could not search module " + getPath() + " : " + e, e);
         }
         // An exploded module is a directory, and a module reader reads one through the filesystem, so on Windows and
         // macOS it answers a lookup for a name whose case does not match the name the file is stored under. This

@@ -28,6 +28,7 @@
  */
 package io.github.classgraph.vfs.internal.module;
 
+import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
@@ -50,13 +51,16 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>
  * A failure to open or read a module or resource is reported as an {@link IOException}: the {@link IOException}
- * thrown by the {@link ModuleReader} method itself, a resource that the module does not contain, and a
- * {@code ModuleReader} implementation that returns null where its contract does not permit it. There are three
- * exceptions. {@link #list(ModuleReader, String, LogNode)} treats a null listing as an empty module, since some
- * {@code ModuleReader} implementations return one, and failing would abort the whole scan.
+ * thrown by the {@link ModuleReader} method itself, a resource that the module does not contain, a
+ * {@code ModuleReader} implementation that returns null where its contract does not permit it, and a
+ * {@link SecurityException}. The reader of a module in a signed jarfile throws a {@link SecurityException} for an
+ * entry whose content does not match the digest it was signed with, from {@link ModuleReader#read(String)}, and
+ * from the stream returned by {@link ModuleReader#open(String)} once the stream reaches its end. A third-party
+ * {@code ModuleReader} may also throw one from any method. Two cases are not reported as failures.
+ * {@link #list(ModuleReader, String, LogNode)} treats a null listing as an empty module, since some
+ * {@code ModuleReader} implementations return one, and failing would abort the whole scan. And
  * {@link #contains(ModuleReader, String)} treats a null result as an absent resource, since that is the question it
- * answers. And only {@link #openModule(ModuleReference)} wraps a {@link SecurityException}: the rest declare it, so
- * that a caller can tell a module it is not allowed to read from one that cannot be read.
+ * answers.
  */
 public final class ModuleReaderUtils {
     /** Not instantiable. */
@@ -127,9 +131,7 @@ public final class ModuleReaderUtils {
      * From the documentation for ModuleReader#list(): "Whether the stream of elements includes names corresponding
      * to directories in the module is module reader specific. In lazy implementations then an IOException may be
      * thrown when using the stream to list the module contents. If this occurs then the IOException will be wrapped
-     * in an java.io.UncheckedIOException and thrown from the method that caused the access to be attempted.
-     * SecurityException may also be thrown when using the stream to list the module contents and access is denied
-     * by the security manager."
+     * in an java.io.UncheckedIOException and thrown from the method that caused the access to be attempted."
      *
      * @param moduleReader
      *            the module reader.
@@ -141,15 +143,13 @@ public final class ModuleReaderUtils {
      *         and it is empty rather than null if the module reader listed its contents as null.
      * @throws IOException
      *             If the contents of the module could not be listed.
-     * @throws SecurityException
-     *             If the module cannot be accessed.
      */
     public static List<String> list(final ModuleReader moduleReader, final String moduleName,
-            final @Nullable LogNode log) throws IOException, SecurityException {
+            final @Nullable LogNode log) throws IOException {
         final Stream<String> resourcesStream;
         try {
             resourcesStream = moduleReader.list();
-        } catch (final IOException e) {
+        } catch (final IOException | SecurityException e) {
             throw new IOException("Could not call ModuleReader#list() for module " + moduleName, e);
         }
         if (resourcesStream == null) {
@@ -177,6 +177,8 @@ public final class ModuleReaderUtils {
             // A lazy ModuleReader reports a failure to read the module as an UncheckedIOException thrown from the
             // stream operation that caused the read, rather than from ModuleReader#list() itself, so unwrap it
             throw new IOException("Could not list the contents of module " + moduleName, e.getCause());
+        } catch (final SecurityException e) {
+            throw new IOException("Could not list the contents of module " + moduleName, e);
         }
     }
 
@@ -187,21 +189,72 @@ public final class ModuleReaderUtils {
      *            the module reader.
      * @param path
      *            The path to the resource to open.
-     * @return An {@link InputStream} for the content of the resource.
+     * @return An {@link InputStream} for the content of the resource, which reports a {@link SecurityException}
+     *         thrown while reading it as an {@link IOException}.
      * @throws IOException
      *             If the resource could not be opened.
-     * @throws SecurityException
-     *             If the module cannot be accessed.
      */
-    public static InputStream open(final ModuleReader moduleReader, final String path)
-            throws IOException, SecurityException {
+    public static InputStream open(final ModuleReader moduleReader, final String path) throws IOException {
         final Optional<InputStream> optionalInputStream;
         try {
             optionalInputStream = moduleReader.open(path);
-        } catch (final IOException e) {
+        } catch (final IOException | SecurityException e) {
             throw new IOException("Could not call ModuleReader#open(String) for path " + path, e);
         }
-        return getValue(optionalInputStream, moduleReader, "open", path);
+        return new SecurityExceptionWrappingInputStream(getValue(optionalInputStream, moduleReader, "open", path),
+                path);
+    }
+
+    /**
+     * An {@link InputStream} that reports a {@link SecurityException} thrown while reading the stream it wraps as
+     * an {@link IOException}. {@link FilterInputStream} reads the stream it wraps only through the three methods
+     * overridden here, and the methods that {@link InputStream} implements on top of them, such as
+     * {@link InputStream#readAllBytes()} and {@link InputStream#transferTo(java.io.OutputStream)}, read through
+     * them too.
+     */
+    private static final class SecurityExceptionWrappingInputStream extends FilterInputStream {
+        /** The path of the resource, for error messages. */
+        private final String path;
+
+        /**
+         * Wrap a stream.
+         *
+         * @param inputStream
+         *            the stream to wrap.
+         * @param path
+         *            the path of the resource, for error messages.
+         */
+        SecurityExceptionWrappingInputStream(final InputStream inputStream, final String path) {
+            super(inputStream);
+            this.path = path;
+        }
+
+        @Override
+        public int read() throws IOException {
+            try {
+                return super.read();
+            } catch (final SecurityException e) {
+                throw new IOException("Could not read " + path, e);
+            }
+        }
+
+        @Override
+        public int read(final byte[] b, final int off, final int len) throws IOException {
+            try {
+                return super.read(b, off, len);
+            } catch (final SecurityException e) {
+                throw new IOException("Could not read " + path, e);
+            }
+        }
+
+        @Override
+        public long skip(final long n) throws IOException {
+            try {
+                return super.skip(n);
+            } catch (final SecurityException e) {
+                throw new IOException("Could not read " + path, e);
+            }
+        }
     }
 
     /**
@@ -215,17 +268,15 @@ public final class ModuleReaderUtils {
      * @return A {@link ByteBuffer} for the content of the resource.
      * @throws IOException
      *             If the resource could not be read.
-     * @throws SecurityException
-     *             If the module cannot be accessed.
      * @throws OutOfMemoryError
      *             if the resource is larger than 2GB, the maximum capacity of a byte buffer.
      */
     public static ByteBuffer read(final ModuleReader moduleReader, final String path)
-            throws IOException, SecurityException, OutOfMemoryError {
+            throws IOException, OutOfMemoryError {
         final Optional<ByteBuffer> optionalByteBuffer;
         try {
             optionalByteBuffer = moduleReader.read(path);
-        } catch (final IOException e) {
+        } catch (final IOException | SecurityException e) {
             throw new IOException("Could not call ModuleReader#read(String) for path " + path, e);
         }
         return getValue(optionalByteBuffer, moduleReader, "read", path);
@@ -242,15 +293,12 @@ public final class ModuleReaderUtils {
      * @return true if the module contains the named resource.
      * @throws IOException
      *             If the module could not be searched for the resource.
-     * @throws SecurityException
-     *             If the module cannot be accessed.
      */
-    public static boolean contains(final ModuleReader moduleReader, final String path)
-            throws IOException, SecurityException {
+    public static boolean contains(final ModuleReader moduleReader, final String path) throws IOException {
         final Optional<URI> optionalURI;
         try {
             optionalURI = moduleReader.find(path);
-        } catch (final IOException e) {
+        } catch (final IOException | SecurityException e) {
             throw new IOException("Could not call ModuleReader#find(String) for path " + path, e);
         }
         return optionalURI != null && optionalURI.isPresent();
@@ -266,15 +314,12 @@ public final class ModuleReaderUtils {
      * @return A {@link URI} for the resource.
      * @throws IOException
      *             If the resource could not be located.
-     * @throws SecurityException
-     *             If the module cannot be accessed.
      */
-    public static URI find(final ModuleReader moduleReader, final String path)
-            throws IOException, SecurityException {
+    public static URI find(final ModuleReader moduleReader, final String path) throws IOException {
         final Optional<URI> optionalURI;
         try {
             optionalURI = moduleReader.find(path);
-        } catch (final IOException e) {
+        } catch (final IOException | SecurityException e) {
             throw new IOException("Could not call ModuleReader#find(String) for path " + path, e);
         }
         return getValue(optionalURI, moduleReader, "find", path);

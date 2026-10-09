@@ -11,6 +11,7 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.URI;
 import java.lang.module.ModuleDescriptor;
 import java.lang.module.ModuleFinder;
@@ -1161,6 +1162,50 @@ public class VfsTest {
 
             assertThat(root.getEntry("java/util/logging/Nonexistent.class")).isNull();
             assertThat(root.getEntry("")).isNull();
+        }
+    }
+
+    /**
+     * The module reader of a signed jarfile checks each entry against the digest it was signed with, and throws a
+     * {@link SecurityException} for an entry that does not match. Every way of reading such an entry reports it as
+     * an {@link IOException}, as for any other entry that cannot be read, and the entries that do match can still
+     * be read.
+     */
+    @Test
+    public void aSignedModuleEntryThatDoesNotMatchItsDigestCannotBeRead() throws Exception {
+        // This jarfile was signed, and then the content of tampered.txt was replaced
+        final var jarPath = Path
+                .of(Objects.requireNonNull(VfsTest.class.getResource("tampered-signed-module.jar")).toURI());
+        final var moduleReference = ModuleFinder.of(jarPath).find("com.xyz.signed").orElseThrow();
+
+        try (var vfs = new Vfs()) {
+            final var root = vfs.open(moduleReference);
+            assertThat(root.getEntries()).extracting(VfsEntry::getPathFromRoot)
+                    .contains("com/xyz/signed/intact.txt", "com/xyz/signed/tampered.txt");
+            assertThat(entryContent(root, "com/xyz/signed/intact.txt")).isEqualTo("intact");
+
+            final var entry = Objects.requireNonNull(root.getEntry("com/xyz/signed/tampered.txt"));
+            assertThatThrownBy(entry::load).isInstanceOf(IOException.class)
+                    .hasCauseInstanceOf(SecurityException.class);
+            assertThatThrownBy(() -> entry.read().close()).isInstanceOf(IOException.class)
+                    .hasCauseInstanceOf(SecurityException.class);
+            assertThatThrownBy(() -> {
+                try (var inputStream = entry.open()) {
+                    inputStream.readAllBytes();
+                }
+            }).isInstanceOf(IOException.class).hasCauseInstanceOf(SecurityException.class);
+            assertThatThrownBy(() -> {
+                try (var inputStream = entry.open()) {
+                    inputStream.transferTo(OutputStream.nullOutputStream());
+                }
+            }).isInstanceOf(IOException.class).hasCauseInstanceOf(SecurityException.class);
+            assertThatThrownBy(() -> {
+                try (var inputStream = entry.open()) {
+                    inputStream.skip(Long.MAX_VALUE);
+                }
+            }).isInstanceOf(IOException.class).hasCauseInstanceOf(SecurityException.class);
+            assertThatThrownBy(() -> Files.readAllBytes(entry.asPath())).isInstanceOf(IOException.class)
+                    .hasCauseInstanceOf(SecurityException.class);
         }
     }
 
