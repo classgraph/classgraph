@@ -29,12 +29,12 @@ import org.junit.jupiter.params.provider.ValueSource;
 /** Tests for {@link WorkQueue}. */
 public class WorkQueueTest {
     /**
-     * Clear the interrupt status of the test thread, since a work queue interrupts the thread that started it when
-     * a worker fails, and the test threads are reused.
+     * Check that the work queue left the interrupt status of the test thread clear, since a failure is not an
+     * interruption, and clear it either way, since the test threads are reused.
      */
     @AfterEach
-    public void clearInterruptStatus() {
-        Thread.interrupted();
+    public void checkInterruptStatusIsClear() {
+        assertThat(Thread.interrupted()).as("the interrupt status of the test thread").isFalse();
     }
 
     /** The worker timeout to use in tests that are not testing the timeout itself. */
@@ -234,6 +234,8 @@ public class WorkQueueTest {
         }
 
         assertThat(numProcessed).hasValue(1);
+        // The interruption is not swallowed
+        assertThat(Thread.interrupted()).isTrue();
     }
 
     /**

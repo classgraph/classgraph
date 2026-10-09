@@ -15,8 +15,8 @@ import org.junit.jupiter.api.Test;
 /** Tests for {@link AutoCloseableExecutorService}. */
 public class AutoCloseableExecutorServiceTest {
     /**
-     * Clear the interrupt status of the test thread, since the executor service interrupts the thread that a
-     * failure is noticed on, and the test threads are reused.
+     * Clear the interrupt status of the test thread, since checking the interruption checker after a task was
+     * interrupted interrupts the thread that checks it, and the test threads are reused.
      */
     @AfterEach
     public void clearInterruptStatus() {
@@ -67,6 +67,9 @@ public class AutoCloseableExecutorServiceTest {
         assertThat(executorService.interruptionChecker.getExecutionException()).isNotNull();
         assertThat(InterruptionChecker.getCause(executorService.interruptionChecker.getExecutionException()))
                 .isSameAs(cause);
+        // A failure is not an interruption: the recorded exception is enough to stop the other threads, since
+        // check() throws it
+        assertThat(executorService.interruptionChecker.checkAndReturn()).isFalse();
     }
 
     /**
@@ -86,6 +89,7 @@ public class AutoCloseableExecutorServiceTest {
         final var executionException = executorService.interruptionChecker.getExecutionException();
         assertThat(executionException).isNotNull().hasMessage("Uncaught exception");
         assertThat(InterruptionChecker.getCause(executionException)).isSameAs(cause);
+        assertThat(executorService.interruptionChecker.checkAndReturn()).isFalse();
     }
 
     /** A cancelled task interrupts the other threads, so that the whole scan stops rather than hanging. */
