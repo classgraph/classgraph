@@ -158,9 +158,11 @@ public final class Classpath implements AutoCloseable, Iterable<ClasspathEntry> 
     }
 
     /**
-     * Returns the modules supplied by the running JVM, in module layer order, and by module name within each layer.
-     * A module is a system module if {@link java.lang.module.ModuleFinder#ofSystem()} finds it, whatever its name.
-     * The list is empty unless {@link ClasspathFinder#enableSystemModules()} was called.
+     * Returns the JDK's own modules, in module layer order, and by module name within each layer. A module is a
+     * system module if its name starts with {@code java.}, {@code jdk.}, {@code javafx.} or {@code oracle.}, and
+     * {@link java.lang.module.ModuleFinder#ofSystem()} finds it at the same location. The application's own modules
+     * are non-system modules, even when jlink or jpackage has linked them into the runtime image. The list is empty
+     * unless {@link ClasspathFinder#enableSystemModules()} was called.
      *
      * @return the system modules, as an unmodifiable list.
      */

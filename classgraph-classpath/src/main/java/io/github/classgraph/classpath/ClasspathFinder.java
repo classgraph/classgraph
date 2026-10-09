@@ -367,10 +367,12 @@ public final class ClasspathFinder {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Search for the modules supplied by the running JVM, as identified by
-     * {@link java.lang.module.ModuleFinder#ofSystem()}, in the module layers that are visible from the caller: the
-     * layers of the classes on the call stack, and the boot layer. If {@link #enableModuleLayers(ModuleLayer...)}
-     * named the layers to search, the system modules of those layers are searched instead.
+     * Search for the JDK's own modules in the module layers that are visible from the caller: the layers of the
+     * classes on the call stack, and the boot layer. If {@link #enableModuleLayers(ModuleLayer...)} named the
+     * layers to search, the system modules of those layers are searched instead. A system module is a module whose
+     * name starts with {@code java.}, {@code jdk.}, {@code javafx.} or {@code oracle.}, and which
+     * {@link java.lang.module.ModuleFinder#ofSystem()} finds at the same location. The application's own modules
+     * are non-system modules, even when jlink or jpackage has linked them into the runtime image.
      *
      * @return this (for method chaining).
      */

@@ -4,10 +4,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.module.ModuleDescriptor;
 import java.lang.module.ModuleFinder;
+import java.lang.module.ModuleReader;
+import java.lang.module.ModuleReference;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -150,5 +155,51 @@ public class ModuleFinderLayerOrderTest {
         final var jar = buildAutomaticModuleJar(tempDir, PREFIXED_APPLICATION_MODULE);
         final var layer = defineModuleLayer(jar, PREFIXED_APPLICATION_MODULE, ModuleLayer.boot());
         assertThat(nonSystemModuleNames(layer)).containsExactly(PREFIXED_APPLICATION_MODULE);
+    }
+
+    /**
+     * Create a reference to a module of the given name, at the {@code jrt:} location that jlink gives every module
+     * it links into a runtime image.
+     *
+     * @param moduleName
+     *            the module name.
+     * @return the module reference.
+     */
+    private static ModuleReference linkedModuleReference(final String moduleName) {
+        return new ModuleReference(ModuleDescriptor.newModule(moduleName).build(),
+                URI.create("jrt:/" + moduleName)) {
+            @Override
+            public ModuleReader open() {
+                throw new UnsupportedOperationException();
+            }
+        };
+    }
+
+    /**
+     * The system modules of a runtime image built by jlink or jpackage include the application's own modules, at
+     * the same {@code jrt:} location as their references in the boot layer. Only the JDK's own modules in such an
+     * image are system modules.
+     */
+    @Test
+    public void anApplicationModuleLinkedIntoARuntimeImageIsNotASystemModule() {
+        final var applicationModule = linkedModuleReference("com.example.app");
+        final var jdkModule = linkedModuleReference("jdk.example");
+        final var imageModuleFinder = new ModuleFinder() {
+            @Override
+            public Optional<ModuleReference> find(final String name) {
+                return findAll().stream().filter(reference -> reference.descriptor().name().equals(name))
+                        .findFirst();
+            }
+
+            @Override
+            public Set<ModuleReference> findAll() {
+                return Set.of(applicationModule, jdkModule);
+            }
+        };
+        assertThat(io.github.classgraph.classpath.internal.ModuleFinder.isSystemModule(applicationModule,
+                imageModuleFinder)).isFalse();
+        assertThat(
+                io.github.classgraph.classpath.internal.ModuleFinder.isSystemModule(jdkModule, imageModuleFinder))
+                .isTrue();
     }
 }
