@@ -90,6 +90,9 @@ public final class ClasspathFinder {
     /** If true, log what is found to the {@code io.github.classgraph.ClassGraph} logger, at {@code INFO} level. */
     private boolean verbose;
 
+    /** If true, write out each log entry as soon as it is made. */
+    private boolean realtimeLoggingEnabled;
+
     /**
      * Constructor.
      *
@@ -115,6 +118,21 @@ public final class ClasspathFinder {
      */
     public ClasspathFinder verbose() {
         this.verbose = true;
+        return this;
+    }
+
+    /**
+     * Write each log entry to the logger as soon as it is made, rather than only once the classpath has been found.
+     * Can help to identify where finding the classpath gets stuck.
+     *
+     * <p>
+     * This says when the log is written, not whether there is a log, so {@link #verbose()} has to be called too, or
+     * {@link #find()} throws {@link IllegalArgumentException}.
+     *
+     * @return this (for method chaining).
+     */
+    public ClasspathFinder enableRealtimeLogging() {
+        this.realtimeLoggingEnabled = true;
         return this;
     }
 
@@ -481,7 +499,7 @@ public final class ClasspathFinder {
      */
     public Classpath find() {
         checkConfigIsExplicit();
-        final var log = verbose ? new LogNode() : null;
+        final var log = verbose ? new LogNode(realtimeLoggingEnabled) : null;
         try {
             final var classLoaderProbe = new ClassLoaderProbe(classpathSpec, scanSourceSpec, log);
 
@@ -524,6 +542,10 @@ public final class ClasspathFinder {
      *             if a config option was enabled without the option that reads it.
      */
     private void checkConfigIsExplicit() {
+        if (realtimeLoggingEnabled && !verbose) {
+            throw new IllegalArgumentException("ClasspathFinder#enableRealtimeLogging() has no effect unless "
+                    + "ClasspathFinder#verbose() is also called");
+        }
         if (!scanSourceSpec.moduleScanningEnabled) {
             if (scanSourceSpec.namedModuleLayers != null) {
                 throw new IllegalArgumentException("ClasspathFinder#enableModuleLayers() has no effect unless "

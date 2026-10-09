@@ -14,11 +14,15 @@ import java.net.URLClassLoader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.jar.Attributes;
 import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
+import java.util.logging.Handler;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -159,6 +163,55 @@ public class ClasspathFinderTest {
         try (var classpath = new ClasspathFinder().enableClassLoaders(ClasspathFinderTest.class.getClassLoader())
                 .ignoreParentClassLoaders().find()) {
             assertThat(classpath.getLocations()).isNotEmpty();
+        }
+    }
+
+    /** Realtime logging says when the log is written, so it is refused when there is no log. */
+    @Test
+    public void realtimeLoggingNeedsVerbose() {
+        assertThatThrownBy(
+                () -> new ClasspathFinder().enableRealtimeLogging().enableClasspathEntries("a.jar").find())
+                .isInstanceOf(IllegalArgumentException.class).hasMessage(
+                        "ClasspathFinder#enableRealtimeLogging() has no effect unless ClasspathFinder#verbose() "
+                                + "is also called");
+    }
+
+    /**
+     * With realtime logging, each log entry is written as soon as it is made, as well as in the log written once
+     * the classpath has been found. Without it, only that last log is written.
+     */
+    @Test
+    public void realtimeLoggingWritesEachEntryAsItIsMade(@TempDir final Path dir) {
+        final var messages = new ArrayList<String>();
+        final var handler = new Handler() {
+            @Override
+            public void publish(final LogRecord logRecord) {
+                messages.add(logRecord.getMessage());
+            }
+
+            @Override
+            public void flush() {
+            }
+
+            @Override
+            public void close() {
+            }
+        };
+        final var logger = Logger.getLogger("io.github.classgraph.ClassGraph");
+        final var useParentHandlers = logger.getUseParentHandlers();
+        logger.addHandler(handler);
+        logger.setUseParentHandlers(false);
+        try {
+            new ClasspathFinder().verbose().enableClasspathEntries(dir.toString()).find().close();
+            assertThat(messages).singleElement().asString().contains("ClassGraph version");
+            messages.clear();
+            new ClasspathFinder().verbose().enableRealtimeLogging().enableClasspathEntries(dir.toString()).find()
+                    .close();
+            assertThat(messages).hasSizeGreaterThan(1);
+            assertThat(messages.getFirst()).contains("ClassGraph version");
+        } finally {
+            logger.setUseParentHandlers(useParentHandlers);
+            logger.removeHandler(handler);
         }
     }
 

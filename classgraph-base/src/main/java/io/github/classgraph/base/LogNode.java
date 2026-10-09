@@ -117,25 +117,10 @@ public final class LogNode implements ClassGraphLog {
             .ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSZ", Locale.US).withZone(ZoneId.systemDefault());
 
     /**
-     * If true, log entries are output in realtime, as well as added to the LogNode tree.
-     *
-     * <p>
-     * Volatile, since {@link #logInRealtime(boolean)} is called from the caller's thread, whereas this field is
-     * read when a log entry is added, which happens on the scan threads.
+     * If true, each log entry is written out as soon as it is added, as well as being added to the tree. Every node
+     * of a tree has the same value, since a child is created with the value of its parent.
      */
-    private static volatile boolean logInRealtime;
-
-    /**
-     * If logInRealtime is true, log entries are output in realtime, as well as added to the LogNode tree. This can
-     * help debug situations where log info is never shown, e.g. deadlocks, or where you need to show the log info
-     * right up to the point where you hit a breakpoint.
-     *
-     * @param logInRealtime
-     *            whether to log in realtime
-     */
-    public static void logInRealtime(final boolean logInRealtime) {
-        LogNode.logInRealtime = logInRealtime;
-    }
+    private final boolean logInRealtime;
 
     /**
      * Create a non-toplevel log node. The order may also be made deterministic by specifying a sort key for log
@@ -149,12 +134,15 @@ public final class LogNode implements ClassGraphLog {
      *            the elapsed time in nanos
      * @param exception
      *            the exception that was thrown
+     * @param logInRealtime
+     *            if true, write out each log entry as soon as it is added
      */
     private LogNode(final String sortKey, final @Nullable String msg, final long elapsedTimeNanos,
-            final @Nullable Throwable exception) {
+            final @Nullable Throwable exception, final boolean logInRealtime) {
         this.sortKeyPrefix = sortKey;
         this.msg = msg;
         this.elapsedTimeNanos = elapsedTimeNanos;
+        this.logInRealtime = logInRealtime;
         if (exception != null) {
             final StringWriter writer = new StringWriter();
             exception.printStackTrace(new PrintWriter(writer));
@@ -164,9 +152,21 @@ public final class LogNode implements ClassGraphLog {
         }
     }
 
-    /** Create a toplevel log node. */
+    /** Create a toplevel log node, whose entries are written out when it is flushed. */
     public LogNode() {
-        this("", "", /* elapsedTimeNanos = */ -1L, /* exception = */ null);
+        this(false);
+    }
+
+    /**
+     * Create a toplevel log node.
+     *
+     * @param logInRealtime
+     *            if true, each log entry of the tree is also written out as soon as it is added, rather than only
+     *            when the tree is flushed. This can help debug situations where the log is never written out, e.g.
+     *            deadlocks, or where you need to see the log right up to the point where you hit a breakpoint.
+     */
+    public LogNode(final boolean logInRealtime) {
+        this("", "", /* elapsedTimeNanos = */ -1L, /* exception = */ null, logInRealtime);
         this.log("ClassGraph version "
                 + VersionFinder.getVersion(LogNode.class, "io.github.classgraph", "classgraph-base"));
         logJavaInfo();
@@ -281,7 +281,7 @@ public final class LogNode implements ClassGraphLog {
             final @Nullable Throwable exception) {
         final var newSortKey = sortKeyPrefix + "\t" + sortKey + "\t"
                 + String.format(Locale.US, "%09d", sortKeyUniqueSuffix.getAndIncrement());
-        final LogNode newChild = new LogNode(newSortKey, msg, elapsedTimeNanos, exception);
+        final LogNode newChild = new LogNode(newSortKey, msg, elapsedTimeNanos, exception, logInRealtime);
         newChild.parent = this;
         // Make the sort key unique, so that log entries are not clobbered if keys are reused; increment unique
         // suffix with each new log entry, so that ties are broken in chronological order.

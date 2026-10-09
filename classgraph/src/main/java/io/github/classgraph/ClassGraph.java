@@ -153,16 +153,10 @@ public final class ClassGraph {
     /** The Maven {@code artifactId} of the artifact this class is packaged in. */
     private static final String MAVEN_ARTIFACT_ID = "classgraph";
 
-    /**
-     * If non-null, log while scanning.
-     */
-    private @Nullable LogNode topLevelLog;
+    /** If true, log while scanning. Each scan writes a log of its own. */
+    private boolean verbose;
 
-    /**
-     * True if {@link #enableRealtimeLogging()} was called on this instance. {@link LogNode#logInRealtime(boolean)}
-     * sets a static flag, which cannot say whether it was this instance that asked for realtime logging, so record
-     * that here, in order to check at scan time that {@link #verbose()} was called too.
-     */
+    /** If true, write out each log entry of a scan as soon as it is made. */
     private boolean realtimeLoggingEnabled;
 
     // -------------------------------------------------------------------------------------------------------------
@@ -203,9 +197,7 @@ public final class ClassGraph {
      * @return this (for method chaining).
      */
     public ClassGraph verbose() {
-        if (topLevelLog == null) {
-            topLevelLog = new LogNode();
-        }
+        this.verbose = true;
         return this;
     }
 
@@ -217,8 +209,8 @@ public final class ClassGraph {
      * @return this (for method chaining).
      */
     public ClassGraph verbose(final boolean verbose) {
-        if (verbose && topLevelLog == null) {
-            topLevelLog = new LogNode();
+        if (verbose) {
+            this.verbose = true;
         }
         return this;
     }
@@ -1448,11 +1440,6 @@ public final class ClassGraph {
      * a loop, or where one scanning step is taking much longer than it should, etc.
      *
      * <p>
-     * This is a setting of the whole JVM, not of this {@link ClassGraph} instance, since the log is written by code
-     * that every scan shares: once it is called, the log of every later scan that calls {@link #verbose()} is
-     * written in realtime.
-     *
-     * <p>
      * This says when the log is written, not whether there is a log, so {@link #verbose()} has to be called too, or
      * the scan throws {@link IllegalArgumentException}.
      *
@@ -1460,7 +1447,6 @@ public final class ClassGraph {
      */
     public ClassGraph enableRealtimeLogging() {
         realtimeLoggingEnabled = true;
-        LogNode.logInRealtime(true);
         return this;
     }
 
@@ -1540,7 +1526,7 @@ public final class ClassGraph {
                 "enableMethodInfo");
         checkRequires(scanSpec.disableRuntimeInvisibleAnnotations, "disableRuntimeInvisibleAnnotations",
                 scanSpec.enableAnnotationInfo, "enableAnnotationInfo");
-        checkRequires(realtimeLoggingEnabled, "enableRealtimeLogging", topLevelLog != null, "verbose");
+        checkRequires(realtimeLoggingEnabled, "enableRealtimeLogging", verbose, "verbose");
         // The module layer methods say which layers to look in, so they need a kind of module to look for
         checkRequires(scanSourceSpec.namedModuleLayers != null, "enableModuleLayers",
                 scanSourceSpec.moduleScanningEnabled, moduleKindMethods);
@@ -1602,12 +1588,14 @@ public final class ClassGraph {
     private ScanResult scanOnThisThread(final boolean performScan, final ExecutorService executorService,
             final int numParallelTasks) {
         checkConfigIsExplicit();
+        final var topLevelLog = verbose ? new LogNode(realtimeLoggingEnabled) : null;
         // Read the call stack once, on the calling thread: the scan needs it both to decide whether loading a class
         // on a worker thread could deadlock (#933) and to find the caller's classloaders and module layers
         final var callStackInfo = CallStackInfo.read();
         try {
             return new Scanner(performScan, callStackInfo, scanSpec, scanSourceSpec, executorService,
-                    numTasksWithoutDeadlockHazard(callStackInfo, numParallelTasks), topLevelLog).call();
+                    numTasksWithoutDeadlockHazard(callStackInfo, numParallelTasks, topLevelLog), topLevelLog)
+                    .call();
 
         } catch (final InterruptedException e) {
             // Throwing InterruptedException cleared the interrupt status, and this method reports the interruption
@@ -1638,9 +1626,12 @@ public final class ClassGraph {
      *            The call stack of the calling thread.
      * @param numParallelTasks
      *            The requested number of parallel tasks.
+     * @param topLevelLog
+     *            The log of the scan, or null if not logging.
      * @return the number of parallel tasks to use.
      */
-    private int numTasksWithoutDeadlockHazard(final CallStackInfo callStackInfo, final int numParallelTasks) {
+    private static int numTasksWithoutDeadlockHazard(final CallStackInfo callStackInfo, final int numParallelTasks,
+            final @Nullable LogNode topLevelLog) {
         if (numParallelTasks <= 1) {
             // The scan already runs entirely on the calling thread
             return numParallelTasks;
