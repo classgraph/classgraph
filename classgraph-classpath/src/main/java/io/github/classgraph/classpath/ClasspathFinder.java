@@ -403,7 +403,9 @@ public final class ClasspathFinder {
     /**
      * Search for the non-system modules of the module layers that are visible from the caller: the layers of the
      * classes on the call stack, and the boot layer. If {@link #enableModuleLayers(ModuleLayer...)} named the
-     * layers to search, the non-system modules of those layers are searched instead.
+     * layers to search, the non-system modules of those layers are searched instead. A class on the classpath is in
+     * an unnamed module, which belongs to no layer, so the classpath is searched only if {@link #enableClasspath()}
+     * is also called.
      *
      * @return this (for method chaining).
      */

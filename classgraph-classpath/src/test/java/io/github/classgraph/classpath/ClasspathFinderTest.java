@@ -244,6 +244,31 @@ public class ClasspathFinderTest {
         assertThat(classpath.getModules()).containsExactlyElementsOf(classpath.getNonSystemModules());
     }
 
+    /**
+     * The classes on the traditional classpath are in the unnamed module, which is not in any module layer, so
+     * asking for the non-system modules does not find the classpath, even though the caller is on the classpath.
+     */
+    @Test
+    public void theNonSystemModulesDoNotIncludeTheClasspath() {
+        try (var classpath = new ClasspathFinder().enableNonSystemModules().find()) {
+            assertThat(classpath.getEntries()).isEmpty();
+        }
+    }
+
+    /**
+     * Asking for the non-system modules adds no classpath entries, so it does not bring back the entries of a
+     * parent classloader that {@link ClasspathFinder#ignoreParentClassLoaders()} left out.
+     */
+    @Test
+    public void theNonSystemModulesDoNotAddTheEntriesOfAnIgnoredParentClassLoader(@TempDir final Path dir)
+            throws IOException {
+        try (var child = new URLClassLoader(new URL[] { dir.toUri().toURL() }, ClassLoader.getSystemClassLoader());
+                var classpath = new ClasspathFinder().enableClassLoaders(child).ignoreParentClassLoaders()
+                        .enableNonSystemModules().find()) {
+            assertThat(classpath.getLocations()).containsExactly(location(dir));
+        }
+    }
+
     /** Modules are not looked for unless a module source is enabled. */
     @Test
     public void modulesAreNotFoundUnlessEnabled() {

@@ -261,6 +261,15 @@ public class ClassGraphTest {
     }
 
     /**
+     * The classes on the traditional classpath are in the unnamed module, which is not in any module layer, so they
+     * are not scanned when only the non-system modules are enabled, even though the caller is on the classpath.
+     */
+    @Test
+    public void theClasspathIsNotScannedWhenOnlyTheNonSystemModulesAreEnabled() {
+        assertThat(new ClassGraph().enableNonSystemModules().getClasspathURIs()).isEmpty();
+    }
+
+    /**
      * A {@link Path} is an {@link Iterable} of its own name elements, so a single {@link Path} is passed to the
      * {@code Iterable<?>} overload of {@code enableClasspathEntries()}, rather than to the {@code Object...}
      * overload. It must still be treated as one classpath entry.

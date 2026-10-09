@@ -58,12 +58,6 @@ public class ModuleFinder {
     /** The non-system modules. */
     private final List<ModuleReference> nonSystemModuleReferences;
 
-    /**
-     * True if {@code java.class.path} has to be scanned even though it was not asked for, since a class on the call
-     * stack is in an unnamed module, whose classes are found on {@code java.class.path}.
-     */
-    private boolean forceScanJavaClassPath;
-
     // -------------------------------------------------------------------------------------------------------------
 
     /**
@@ -108,16 +102,6 @@ public class ModuleFinder {
         }
         final var systemReference = systemModuleFinder.find(name).orElse(null);
         return systemReference != null && systemReference.location().equals(moduleReference.location());
-    }
-
-    /**
-     * Whether {@code java.class.path} has to be scanned even though it was not asked for.
-     *
-     * @return true if a class on the call stack is in an unnamed module, whose classes are found on
-     *         {@code java.class.path}.
-     */
-    public boolean forceScanJavaClassPath() {
-        return forceScanJavaClassPath;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -225,23 +209,18 @@ public class ModuleFinder {
     }
 
     /**
-     * Find the module layers of the classes on the callstack, and the boot layer.
+     * Find the module layers of the classes on the callstack, and the boot layer. A class in an unnamed module is
+     * in no layer: it was loaded from the classpath of its classloader, which is searched as a classpath source,
+     * not as a module source.
      *
      * @param callStackInfo
      *            the call stack info
-     * @param scanNonSystemModules
-     *            whether the non-system modules are going to be scanned
      * @param layersOut
      *            the set to add the layers to
      */
-    private void findDetectedModuleLayers(final CallStackInfo callStackInfo, final boolean scanNonSystemModules,
+    private static void findDetectedModuleLayers(final CallStackInfo callStackInfo,
             final LinkedHashSet<ModuleLayer> layersOut) {
         layersOut.addAll(callStackInfo.getModuleLayers());
-        if (scanNonSystemModules && callStackInfo.anyClassIsInAnUnnamedModule()) {
-            // A class in an unnamed module has no module layer -- in that case the classes are on
-            // java.class.path, so java.class.path has to be scanned to find them
-            forceScanJavaClassPath = true;
-        }
         // Add the boot layer, unless a class on the call stack was already in it
         layersOut.add(ModuleLayer.boot());
     }
@@ -269,7 +248,7 @@ public class ModuleFinder {
         // the environment
         final LinkedHashSet<ModuleLayer> layers = new LinkedHashSet<>();
         if (scanSourceSpec.searchesDetectedModuleLayers()) {
-            findDetectedModuleLayers(callStackInfo, scanNonSystemModules, layers);
+            findDetectedModuleLayers(callStackInfo, layers);
         }
         final var namedModuleLayers = scanSourceSpec.namedModuleLayers;
         if (namedModuleLayers != null) {

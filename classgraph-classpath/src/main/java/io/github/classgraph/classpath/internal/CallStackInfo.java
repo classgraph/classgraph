@@ -81,9 +81,6 @@ public final class CallStackInfo {
     /** The module layers of the classes in the call stack, innermost frame first. */
     private final LinkedHashSet<ModuleLayer> moduleLayers;
 
-    /** Whether any class in the call stack is in an unnamed module, i.e. was loaded from the classpath. */
-    private final boolean anyClassIsInAnUnnamedModule;
-
     /** The innermost frame that is holding a class loading lock, or null if there is no such frame. */
     private final @Nullable String frameHoldingClassLoadingLock;
 
@@ -114,22 +111,11 @@ public final class CallStackInfo {
      * Get the module layers of the classes in the call stack.
      *
      * @return the module layers, in innermost-frame-first order, as an unmodifiable set. A class in an unnamed
-     *         module contributes no layer, since {@link Module#getLayer()} returns null for one -- see
-     *         {@link #anyClassIsInAnUnnamedModule()}.
+     *         module contributes no layer, since {@link Module#getLayer()} returns null for one: it was loaded from
+     *         the classpath of its classloader, which {@link #getClassLoaders()} covers.
      */
     public Set<ModuleLayer> getModuleLayers() {
         return Collections.unmodifiableSet(moduleLayers);
-    }
-
-    /**
-     * Determine whether any class in the call stack is in an unnamed module.
-     *
-     * @return true if any class in the call stack is in an unnamed module, which means that the class was loaded
-     *         from the classpath rather than from a module, so the classpath has to be searched in order to find
-     *         classes like it.
-     */
-    public boolean anyClassIsInAnUnnamedModule() {
-        return anyClassIsInAnUnnamedModule;
     }
 
     /**
@@ -162,18 +148,15 @@ public final class CallStackInfo {
      *            the classloaders of the classes in the call stack, innermost frame first
      * @param moduleLayers
      *            the module layers of the classes in the call stack, innermost frame first
-     * @param anyClassIsInAnUnnamedModule
-     *            whether any class in the call stack is in an unnamed module
      * @param frameHoldingClassLoadingLock
      *            the innermost frame that is holding a class loading lock, or null if there is no such frame
      */
     private CallStackInfo(final @Nullable ClassLoader contextClassLoader,
             final LinkedIdentitySet<ClassLoader> classLoaders, final LinkedHashSet<ModuleLayer> moduleLayers,
-            final boolean anyClassIsInAnUnnamedModule, final @Nullable String frameHoldingClassLoadingLock) {
+            final @Nullable String frameHoldingClassLoadingLock) {
         this.contextClassLoader = contextClassLoader;
         this.classLoaders = classLoaders;
         this.moduleLayers = moduleLayers;
-        this.anyClassIsInAnUnnamedModule = anyClassIsInAnUnnamedModule;
         this.frameHoldingClassLoadingLock = frameHoldingClassLoadingLock;
     }
 
@@ -207,7 +190,7 @@ public final class CallStackInfo {
             moduleLayers.add(moduleLayer);
         }
         return new CallStackInfo(contextClassLoader, classLoaders, moduleLayers,
-                /* anyClassIsInAnUnnamedModule = */ moduleLayer == null, /* frameHoldingClassLoadingLock = */ null);
+                /* frameHoldingClassLoadingLock = */ null);
     }
 
     /**
@@ -223,7 +206,6 @@ public final class CallStackInfo {
             final Stream<StackWalker.StackFrame> stackFrames) {
         final LinkedIdentitySet<ClassLoader> classLoaders = new LinkedIdentitySet<>();
         final LinkedHashSet<ModuleLayer> moduleLayers = new LinkedHashSet<>();
-        var anyClassIsInAnUnnamedModule = false;
         String frameHoldingClassLoadingLock = null;
         // The frames are consumed in one pass, rather than with two stream operations, because a StackFrame is
         // valid only while the walk is running, so nothing that a later pass would need can be kept
@@ -236,16 +218,13 @@ public final class CallStackInfo {
             final var moduleLayer = stackFrameClass.getModule().getLayer();
             if (moduleLayer != null) {
                 moduleLayers.add(moduleLayer);
-            } else {
-                anyClassIsInAnUnnamedModule = true;
             }
             if (frameHoldingClassLoadingLock == null && holdsClassLoadingLock(stackFrame)) {
                 // The innermost such frame is the one that is reported
                 frameHoldingClassLoadingLock = stackFrame.toString();
             }
         }
-        return new CallStackInfo(contextClassLoader, classLoaders, moduleLayers, anyClassIsInAnUnnamedModule,
-                frameHoldingClassLoadingLock);
+        return new CallStackInfo(contextClassLoader, classLoaders, moduleLayers, frameHoldingClassLoadingLock);
     }
 
     /**

@@ -714,7 +714,9 @@ public final class ClassGraph {
     /**
      * Scan the non-system modules of the ModuleLayers that are visible from the caller: the layers of the classes
      * on the call stack, and the boot layer. If {@link #enableModuleLayers(ModuleLayer...)} named the layers to
-     * scan, the non-system modules of those layers are scanned instead.
+     * scan, the non-system modules of those layers are scanned instead. A class on the classpath is in an unnamed
+     * module, which belongs to no layer, so the classpath is scanned only if {@link #enableClasspath()} is also
+     * called.
      *
      * @return this (for method chaining).
      */
