@@ -97,6 +97,13 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
      */
     private static final int BUF_CHUNK_SIZE = 8192 - 8;
 
+    /**
+     * The largest buffer that is allocated in one go from the length hint, rather than by doubling. A zip entry can
+     * declare any uncompressed size it likes, so believing a declared length far enough to allocate it would let a
+     * small jar ask for gigabytes.
+     */
+    private static final int MAX_DECLARED_LENGTH_TO_ALLOCATE = 16 * 1024 * 1024;
+
     /** The message of the {@link IOException} thrown when a read runs past the end of the classfile. */
     private static final String END_OF_CLASSFILE = "Tried to read past the end of the classfile";
 
@@ -206,40 +213,40 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
             throw new IOException(END_OF_CLASSFILE);
         }
 
-        // Need to read at least BUF_CHUNK_SIZE (but don't overshoot past 2GB limit)
-        final int maxNewArrUsed = (int) Math.min(Math.max(targetArrUsed, (long) (arrUsed + BUF_CHUNK_SIZE)),
-                maxArrLen);
-
-        // Double the size of the array if it's too small to contain the new chunk of bytes
-        long newArrLength = arr.length;
-        while (newArrLength < maxNewArrUsed) {
-            newArrLength = Math.min(maxNewArrUsed, newArrLength * 2L);
-        }
-        if (newArrLength > FileUtils.MAX_BUFFER_SIZE) {
-            throw new IOException("Hit 2GB limit while trying to grow buffer array");
-        }
-        arr = Arrays.copyOf(arr, (int) Math.min(newArrLength, maxArrLen));
-
-        // Figure out the maximum number of bytes that can be read into the array
-        final int maxBytesToRead = arr.length - arrUsed;
-
-        // Read a new chunk into the buffer, starting at position arrUsed
-        if (inflaterInputStream != null) {
-            // Read from the input stream. InputStream#read is not required to transfer the whole of the requested
-            // range in a single call, and the channel-backed streams that a module or a directory is read through
-            // really can transfer less, so keep reading until the target has been reached or the stream is
-            // exhausted. (Each call may still transfer more than the target, filling the rest of the buffer.)
-            while (arrUsed < targetArrUsed) {
-                final int numRead = inflaterInputStream.read(arr, arrUsed, arr.length - arrUsed);
+        // Read into the buffer, starting at position arrUsed, growing it whenever it fills up, until the target has
+        // been reached or the classfile has run out
+        while (arrUsed < targetArrUsed) {
+            if (arrUsed == arr.length && arr.length < maxArrLen) {
+                // Grow the buffer towards the target by at least a chunk, so that a caller reading one value at a
+                // time does not pay one copy per value, but to no more than twice its size, unless the target lies
+                // within the length hint, which is believed as far as one bounded allocation. The target says
+                // nothing about how long the classfile is: it is often read out of the classfile itself, such as
+                // the length of an attribute that is skipped, so growing straight to it would let one corrupt
+                // length make a 20kb classfile allocate 2GB. This loop grows the buffer again for as long as the
+                // classfile keeps arriving, so the buffer stays within about twice what has been read.
+                final long maxStep = Math.max(Math.max((long) arrUsed + BUF_CHUNK_SIZE, 2L * arr.length),
+                        Math.min(classfileLengthHint, MAX_DECLARED_LENGTH_TO_ALLOCATE));
+                arr = Arrays.copyOf(arr, (int) Math.min(
+                        Math.min(Math.max(targetArrUsed, (long) arrUsed + BUF_CHUNK_SIZE), maxStep), maxArrLen));
+            }
+            // Don't read past the length hint
+            final int maxBytesToRead = Math.min(arr.length, maxArrLen) - arrUsed;
+            if (maxBytesToRead <= 0) {
+                // The buffer holds the whole of the classfile, as far as the length hint
+                break;
+            }
+            if (inflaterInputStream != null) {
+                // Read from the input stream. InputStream#read is not required to transfer the whole of the
+                // requested range in a single call, and the channel-backed streams that a module or a directory is
+                // read through really can transfer less, so keep reading until the target has been reached or the
+                // stream is exhausted. (Each call may still transfer more than the target, filling the rest of the
+                // buffer.)
+                final int numRead = inflaterInputStream.read(arr, arrUsed, maxBytesToRead);
                 if (numRead < 0) {
                     // End of stream
                     break;
                 }
                 if (numRead == 0) {
-                    if (arrUsed == arr.length) {
-                        // The buffer has no space left, since the length hint is shorter than the target
-                        break;
-                    }
                     // The stream transferred nothing into a buffer that has room, which InputStream#read should
                     // never do, but some streams do, at their end or before it. Taking zero for the end would
                     // truncate the classfile, and reading again could loop forever, so ask for a single byte, which
@@ -252,14 +259,12 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
                     continue;
                 }
                 arrUsed += numRead;
-            }
-        } else /* randomAccessReader == null, so this is a (non-deflated) FileSlice */ {
-            // Don't read past end of slice
-            final int bytesToRead = Math.min(maxBytesToRead, maxArrLen - arrUsed);
-            // Read bytes from FileSlice into arr
-            final int numBytesRead = randomAccessReader.read(/* srcOffset = */ arrUsed, /* dstArr = */ arr,
-                    /* dstArrStart = */ arrUsed, /* numBytes = */ bytesToRead);
-            if (numBytesRead > 0) {
+            } else /* randomAccessReader != null, so this is a (non-deflated) FileSlice */ {
+                final int numBytesRead = randomAccessReader.read(/* srcOffset = */ arrUsed, /* dstArr = */ arr,
+                        /* dstArrStart = */ arrUsed, /* numBytes = */ maxBytesToRead);
+                if (numBytesRead <= 0) {
+                    break;
+                }
                 arrUsed += numBytesRead;
             }
         }
@@ -292,12 +297,14 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
             return 0;
         }
         final int idx = (int) srcOffset;
-        if (idx + numBytes > arrUsed) {
-            readTo(idx + numBytes);
-        }
+        // Buffer only as much as the destination can take: numBytes is only the most that may be read, and the
+        // content past the room in the destination could not be returned anyway
         final int numBytesToRead = Math.max(Math.min(numBytes, dstArr.length - dstArrStart), 0);
         if (numBytesToRead == 0) {
             return -1;
+        }
+        if (idx + numBytesToRead > arrUsed) {
+            readTo(idx + numBytesToRead);
         }
         try {
             System.arraycopy(arr, idx, dstArr, dstArrStart, numBytesToRead);
@@ -314,12 +321,13 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
             return 0;
         }
         final int idx = (int) srcOffset;
-        if (idx + numBytes > arrUsed) {
-            readTo(idx + numBytes);
-        }
+        // Buffer only as much as the destination can take, as in the byte array overload
         final int numBytesToRead = Math.max(Math.min(numBytes, dstBuf.capacity() - dstBufStart), 0);
         if (numBytesToRead == 0) {
             return -1;
+        }
+        if (idx + numBytesToRead > arrUsed) {
+            readTo(idx + numBytesToRead);
         }
         try {
             final Buffer db = FileSlice.toBuffer(dstBuf);
