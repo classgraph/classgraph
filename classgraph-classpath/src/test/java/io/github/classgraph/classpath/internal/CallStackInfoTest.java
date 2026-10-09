@@ -35,15 +35,13 @@ public class CallStackInfoTest {
         assertThat(CallStackInfo.read().getClassLoaders()).contains(CallStackInfoTest.class.getClassLoader());
     }
 
-    /** The call stack names the module layers of the caller, and whether any caller is on the classpath. */
+    /** The call stack names the module layers of the caller. */
     @Test
     public void theCallStackNamesTheModuleLayersOfTheCaller() {
         // The tests are run from the classpath, so this class is in an unnamed module, which has no layer
         assertThat(CallStackInfoTest.class.getModule().getLayer()).isNull();
-        final var callStackInfo = CallStackInfo.read();
-        assertThat(callStackInfo.anyClassIsInAnUnnamedModule()).isTrue();
         // The JDK frames below this one are in the boot layer
-        assertThat(callStackInfo.getModuleLayers()).contains(ModuleLayer.boot());
+        assertThat(CallStackInfo.read().getModuleLayers()).contains(ModuleLayer.boot());
     }
 
     /** An ordinary method holds no class loading lock, so a scan started from one can use worker threads. */

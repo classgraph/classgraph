@@ -33,7 +33,6 @@ import java.util.Map.Entry;
 
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.path.PathList;
-import io.github.classgraph.base.internal.utils.VersionFinder;
 import io.github.classgraph.classpath.ClassLoaderHandler;
 import io.github.classgraph.classpath.internal.ScanSourceSpec.ClasspathSource;
 import io.github.classgraph.classpath.internal.ScanSourceSpec.ClasspathString;
@@ -184,15 +183,6 @@ public class ClassLoaderProbe {
                         classLoaderOrder, numClassLoadersSearched, classLoaderProbeLog);
             }
         }
-
-        // The application classloader's own classpath entries are added by its ClassLoaderHandler, at the position
-        // the application classloader takes in the delegation order. The only case that handler cannot cover is an
-        // unnamed module layer: the ModuleLayer API does not allow an unnamed module to be opened, so the classes
-        // in it can only be reached through java.class.path, whether or not the application classloader is being
-        // scanned. Anything added here that the handler already added is dropped as a duplicate.
-        if (moduleFinder != null && moduleFinder.forceScanJavaClassPath()) {
-            addJavaClassPathEntries(classLoaderProbeLog);
-        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -283,19 +273,5 @@ public class ClassLoaderProbe {
             }
         }
         return classLoaderOrderEntries.size();
-    }
-
-    /**
-     * Add the classpath entries listed in the {@code java.class.path} system property.
-     *
-     * @param log
-     *            the log node, or null to skip logging
-     */
-    private void addJavaClassPathEntries(final @Nullable LogNode log) {
-        final var javaClassPath = VersionFinder.getProperty("java.class.path");
-        if (javaClassPath != null && !javaClassPath.isEmpty()) {
-            classpathOrder.addClasspathPathStr(javaClassPath, defaultClassLoader,
-                    log == null ? null : log.log("Getting classpath entries from java.class.path"));
-        }
     }
 }
