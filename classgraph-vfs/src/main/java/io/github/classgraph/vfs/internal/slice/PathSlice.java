@@ -30,6 +30,7 @@ package io.github.classgraph.vfs.internal.slice;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InterruptedIOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
@@ -70,9 +71,16 @@ public final class PathSlice extends Slice {
 
     /**
      * The {@link FileChannel} opened on the {@link Path}, or null once closed. Only set on the toplevel file slice,
-     * which owns the file channel.
+     * which owns the file channel. Volatile, since every slice of the file reads it, and it is replaced when a
+     * thread that was interrupted while reading it closes it.
      */
-    private @Nullable FileChannel fileChannel;
+    private volatile @Nullable FileChannel fileChannel;
+
+    /**
+     * The lock that the toplevel slice's {@link #fileChannel} is replaced and set to null under, which every slice
+     * of the file shares.
+     */
+    private final Object fileChannelLock;
 
     /**
      * The toplevel file slice, which owns the file channel and the memory mapping, or {@code this} if this is the
@@ -110,20 +118,55 @@ public final class PathSlice extends Slice {
     private final @Nullable LogNode tempFileLog;
 
     /**
-     * Get the {@link FileChannel} opened on the {@link Path}.
+     * Get the {@link FileChannel} opened on the {@link Path}, to read it. Called on the toplevel slice before every
+     * read.
+     *
+     * <p>
+     * A file channel is closed by a read on a thread that has been interrupted, or that is interrupted during the
+     * read, and every slice of the file reads through the same channel. So that one interrupted thread cannot stop
+     * every other thread from reading the file, a thread that has been interrupted is not allowed to read the
+     * channel, and a channel that was closed by an interruption during a read is reopened.
      *
      * @return the {@link FileChannel}
+     * @throws InterruptedIOException
+     *             if this thread has been interrupted
      * @throws IOException
-     *             if {@link #close()} has been called
+     *             if {@link #close()} has been called, or if the channel had to be reopened and could not be
      */
     private FileChannel fileChannel() throws IOException {
+        if (Thread.currentThread().isInterrupted()) {
+            throw new InterruptedIOException("Interrupted while reading " + pathStr);
+        }
         // Read the field into a local, so that a close running concurrently cannot null it between the check and
         // the use
-        final var channel = topLevelPathSlice.fileChannel;
-        if (channel == null) {
-            throw new IOException("Cannot read " + pathStr + " after it has been closed");
+        final var channel = fileChannel;
+        if (channel != null && channel.isOpen()) {
+            return channel;
         }
-        return channel;
+        synchronized (fileChannelLock) {
+            final var currentChannel = fileChannel;
+            if (currentChannel == null) {
+                throw new IOException("Cannot read " + pathStr + " after it has been closed");
+            }
+            if (currentChannel.isOpen()) {
+                // Another thread reopened the channel first
+                return currentChannel;
+            }
+            final var reopened = openChannel(path, file, /* checkAccess = */ false);
+            if (reopened.fileLength() != fileLength) {
+                // The offsets that were read from the file when it was first opened would not be valid for the
+                // file that is there now
+                final var e = new IOException(pathStr + " changed after it was opened");
+                try {
+                    reopened.channel().close();
+                } catch (final IOException e2) {
+                    e.addSuppressed(e2);
+                }
+                throw e;
+            }
+            fileChannel = reopened.channel();
+            return reopened.channel();
+        }
     }
 
     /**
@@ -170,6 +213,7 @@ public final class PathSlice extends Slice {
         this.pathStr = parentSlice.pathStr;
         this.fileLength = parentSlice.fileLength;
         this.topLevelPathSlice = parentSlice.topLevelPathSlice;
+        this.fileChannelLock = parentSlice.fileChannelLock;
         // Only the toplevel slice owns the temporary file, if the file it reads is one, so a sub slice has nothing
         // to delete
         this.tempFile = null;
@@ -307,6 +351,7 @@ public final class PathSlice extends Slice {
         this.tempFileLog = isTempFile ? log : null;
         // Set before anything below can fail, since it is what tells close() that this slice owns the file channel
         this.topLevelPathSlice = this;
+        this.fileChannelLock = new Object();
         final var fileChannelOpened = openedChannel.channel();
         this.fileChannel = fileChannelOpened;
         // Nothing but this constructor knows about the file channel yet, so if anything below throws, this is the
@@ -472,8 +517,13 @@ public final class PathSlice extends Slice {
         // the use
         final var mappedByteBuffer = topLevelPathSlice.backingByteBuffer;
         if (mappedByteBuffer == null) {
-            // If file was not mmap'd, return a RandomAccessReader that uses the FileChannel
-            return new RandomAccessFileChannelReader(fileChannel(), sliceStartPos, sliceLength);
+            // If file was not mmap'd, return a RandomAccessReader that uses the FileChannel. The reader gets the
+            // channel from the toplevel slice before every read, rather than keeping the channel it was made with,
+            // since the toplevel slice replaces a channel that was closed by an interrupted thread
+            if (topLevelPathSlice.isClosed.get()) {
+                throw new IOException("Cannot read " + pathStr + " after it has been closed");
+            }
+            return new RandomAccessFileChannelReader(topLevelPathSlice::fileChannel, sliceStartPos, sliceLength);
         } else {
             // If file was mmap'd, return a RandomAccessReader that uses the ByteBuffer. The reader keeps a view
             // of the mapping for as long as it is alive, and readers are not closed, so it is given the toplevel
@@ -570,12 +620,17 @@ public final class PathSlice extends Slice {
                 return;
             }
             // Take what has to be released, and drop the references to it, before releasing any of it: this slice
-            // is already marked as closed, so a second call must not release the same resource twice
+            // is already marked as closed, so a second call must not release the same resource twice. The file
+            // channel is taken under the lock that a reopen of it holds, so that a reopen cannot replace it after
+            // it has been taken
             final var mapping = fileMapping;
-            final var fileChannelToClose = fileChannel;
             fileMapping = null;
             backingByteBuffer = null;
-            fileChannel = null;
+            final FileChannel fileChannelToClose;
+            synchronized (fileChannelLock) {
+                fileChannelToClose = fileChannel;
+                fileChannel = null;
+            }
             FileMapping mappingStillHeldOpen = null;
             try {
                 if (mapping != null && !mapping.unmap()) {
