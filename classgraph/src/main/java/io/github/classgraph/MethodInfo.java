@@ -199,7 +199,8 @@ public final class MethodInfo extends ClassMemberInfo implements Comparable<Meth
                         // (#897)
                         final var descNumParam = typeDescriptor.getParameterTypeSignatures().size();
                         int numImplicitPrefixParams;
-                        final var sig = getTypeSignature();
+                        // A type signature that does not parse is treated as absent
+                        final var sig = getTypeSignatureIfParseable();
                         if (sig != null) {
                             // The generic type signature omits implicit prefix parameters, so the difference in
                             // parameter count reveals how many there are (the spec-sanctioned relationship).
@@ -345,25 +346,33 @@ public final class MethodInfo extends ClassMemberInfo implements Comparable<Meth
     }
 
     /**
+     * Get the parsed type signature for the method, or null if the method has no {@code Signature} attribute or if
+     * its type signature cannot be parsed. The JVM does not check the {@code Signature} attribute when it loads a
+     * class, so a method whose type signature does not parse can still be called, and its type descriptor stands in
+     * for the type signature.
+     *
+     * @return The parsed type signature for the method, or null.
+     */
+    private @Nullable MethodTypeSignature getTypeSignatureIfParseable() {
+        try {
+            return getTypeSignature();
+        } catch (final Exception _) {
+            return null;
+        }
+    }
+
+    /**
      * Returns the parsed type signature for the method, possibly including type parameters. If the type signature
-     * string is null, indicating that no type signature information is available for this method, returns the
-     * parsed type descriptor instead.
+     * string is null, indicating that no type signature information is available for this method, or if the type
+     * signature cannot be parsed, returns the parsed type descriptor instead.
      *
      * @return The parsed type signature for the method, or if not available, the parsed type descriptor for the
      *         method.
      */
     @Override
     public MethodTypeSignature getTypeSignatureOrTypeDescriptor() {
-        MethodTypeSignature typeSig = null;
-        try {
-            typeSig = getTypeSignature();
-            if (typeSig != null) {
-                return typeSig;
-            }
-        } catch (final Exception _) {
-            // Ignore
-        }
-        return getTypeDescriptor();
+        final var typeSig = getTypeSignatureIfParseable();
+        return typeSig != null ? typeSig : getTypeDescriptor();
     }
 
     /**
@@ -547,9 +556,10 @@ public final class MethodInfo extends ClassMemberInfo implements Comparable<Meth
         // modifier bits cannot be used to locate those parameters instead, because the MethodParameters attribute
         // that carries them is optional, and Kotlin does not always set them consistently with the alignment.
 
-        // Get param type signatures from the type signature of the method
+        // Get param type signatures from the type signature of the method, treating a type signature that does not
+        // parse as absent
         List<TypeSignature> paramTypeSignatures = null;
-        final var typeSig = getTypeSignature();
+        final var typeSig = getTypeSignatureIfParseable();
         if (typeSig != null) {
             paramTypeSignatures = typeSig.getParameterTypeSignatures();
         }
@@ -562,9 +572,9 @@ public final class MethodInfo extends ClassMemberInfo implements Comparable<Meth
         try {
             paramTypeDescriptors = getTypeDescriptor().getParameterTypeSignatures();
         } catch (final Exception _) {
-            // Ignore any IllegalArgumentExceptions triggered when type annotations are not able to be aligned with
-            // parameters, when there is a `synthetic`, `bridge` or `mandated` parameter added to the first
-            // parameter position.
+            // Only a corrupt classfile has a method descriptor that does not parse. Leave the parameter types to
+            // the other sources rather than failing. (A type annotation that cannot be aligned with a parameter does
+            // not get here: it is skipped while the descriptor is decorated.)
         }
 
         // Find the max length of all the parameter information sources
