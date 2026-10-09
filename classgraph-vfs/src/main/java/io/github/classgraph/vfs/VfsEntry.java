@@ -404,17 +404,22 @@ public abstract class VfsEntry {
     }
 
     /**
-     * Returns a hash code based on the full path of this entry.
+     * Returns a hash code based on the root this entry belongs to and its path within that root.
      *
      * @return the hash code.
      */
     @Override
     public int hashCode() {
-        return getPath().hashCode();
+        return root.hashCode() * 31 + getPathFromRoot().hashCode();
     }
 
     /**
-     * Two entries are equal if they have the same full path and came from the same {@link Vfs}.
+     * Two entries are equal if they belong to the same {@link VfsRoot} and have the same path within it, which is
+     * also the rule by which their {@link #asPath()} views are compared. The entries of two different roots are not
+     * equal even when their full paths are spelled the same, since the two roots can hold different content under
+     * the same path: two jarfiles opened from memory under the same name, two modules of the same name, a package
+     * root view and the jarfile it views, or a root that was closed and the root opened at the same path afterward.
+     * Compare {@link #getPath()} or {@link #getURI()} to find entries of different roots that have the same path.
      *
      * @param obj
      *            the object to compare with.
@@ -422,10 +427,7 @@ public abstract class VfsEntry {
      */
     @Override
     public boolean equals(final @Nullable Object obj) {
-        if (obj == this) {
-            return true;
-        }
-        return obj instanceof final VfsEntry other && root.getVfs() == other.root.getVfs()
-                && getPath().equals(other.getPath());
+        return obj == this || obj instanceof final VfsEntry other && root == other.root
+                && getPathFromRoot().equals(other.getPathFromRoot());
     }
 }

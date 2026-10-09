@@ -316,8 +316,43 @@ public class VfsTest {
             }
 
             // Two lookups of the same entry produce equal entries
-            assertThat(root.getEntry("com/xyz/widget.txt")).isEqualTo(entry)
-                    .hasSameHashCodeAs(entry.getPath().hashCode());
+            assertThat(root.getEntry("com/xyz/widget.txt")).isEqualTo(entry).hasSameHashCodeAs(entry);
+        }
+    }
+
+    /**
+     * Two entries are equal only if they belong to the same root and have the same path within it, which is also
+     * the rule by which their {@link VfsEntry#asPath()} views are compared. The entries of two different roots are
+     * not equal even when their full paths are spelled the same, since the two roots can hold different content
+     * under the same path.
+     */
+    @Test
+    public void entriesOfDifferentRootsAreNotEqual(@TempDir final File tempDir) throws IOException {
+        final var entryName = "BOOT-INF/classes/com/xyz/widget.txt";
+        final var jarFile = new File(tempDir, "app.jar");
+        writeJar(jarFile, entryName);
+        final var otherJarFile = new File(tempDir, "other.jar");
+        writeJarWithEntries(otherJarFile, entryName, "other.txt");
+
+        try (var vfs = new Vfs()) {
+            // Two jarfiles held in RAM under the same name
+            final var entry = Objects.requireNonNull(vfs.open(readFile(jarFile), "plugin.jar").getEntry(entryName));
+            final var otherEntry = Objects
+                    .requireNonNull(vfs.open(readFile(otherJarFile), "plugin.jar").getEntry(entryName));
+            assertThat(otherEntry.getPath()).isEqualTo(entry.getPath());
+            assertThat(otherEntry).isNotEqualTo(entry);
+
+            // A package root view and the jarfile it views
+            final var wholeJarEntry = Objects.requireNonNull(vfs.open(jarFile).getEntry(entryName));
+            final var viewEntry = Objects.requireNonNull(
+                    vfs.open(jarFile.getPath() + "!/BOOT-INF/classes").getEntry("com/xyz/widget.txt"));
+            assertThat(viewEntry.getPath()).isEqualTo(wholeJarEntry.getPath());
+            assertThat(viewEntry).isNotEqualTo(wholeJarEntry);
+            assertThat(viewEntry.asPath()).isNotEqualTo(wholeJarEntry.asPath());
+
+            // The same jarfile reached by two spellings is the same root, so its entries are still equal
+            final var sameEntry = Objects.requireNonNull(vfs.open(jarFile.getPath()).getEntry(entryName));
+            assertThat(sameEntry).isEqualTo(wholeJarEntry).hasSameHashCodeAs(wholeJarEntry);
         }
     }
 
