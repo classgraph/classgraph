@@ -8,7 +8,6 @@ import java.util.function.UnaryOperator;
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.base.LogNode;
 
 /**
  * No config method turns on another config method, so an option that is only read by another option has to be asked
@@ -70,13 +69,8 @@ public class ExplicitConfigTest {
     /** Realtime logging says when the log is written, so there has to be a log. */
     @Test
     public void realtimeLoggingNeedsVerbose() {
-        try {
-            assertRefused(ClassGraph::enableRealtimeLogging, "ClassGraph#enableRealtimeLogging() has no effect "
-                    + "unless ClassGraph#verbose() is also called");
-        } finally {
-            // Realtime logging is a global setting, so switch it off again
-            LogNode.logInRealtime(false);
-        }
+        assertRefused(ClassGraph::enableRealtimeLogging,
+                "ClassGraph#enableRealtimeLogging() has no effect " + "unless ClassGraph#verbose() is also called");
     }
 
     /** The module layer options say where to look for modules, so a kind of module has to be enabled. */

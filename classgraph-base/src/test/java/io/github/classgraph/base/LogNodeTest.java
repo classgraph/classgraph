@@ -214,44 +214,45 @@ public class LogNodeTest {
 
     /**
      * When realtime logging is turned on, each entry is written out as it is added, as well as being added to the
-     * tree, so that entries are not lost if the scan never reaches the point where the log is flushed.
+     * tree, so that entries are not lost if the scan never reaches the point where the log is flushed. That
+     * includes the entries that a toplevel log node starts with.
      */
     @Test
     public void realtimeLoggingWritesEachEntryAsItIsAdded() {
-        final var logNode = new LogNode();
-        final var logged = recordLogOutput(() -> {
-            LogNode.logInRealtime(true);
-            try {
-                logNode.log("logged in realtime");
-            } finally {
-                LogNode.logInRealtime(false);
-            }
-        });
-        assertThat(logged).singleElement().asString().contains("logged in realtime");
+        final var logged = recordLogOutput(() -> new LogNode(true).log("logged in realtime"));
+        assertThat(logged).hasSize(5);
+        assertThat(logged.get(0)).contains("ClassGraph version");
+        assertThat(logged.get(4)).contains("logged in realtime");
     }
 
     /** An entry written in realtime is indented by its depth in the tree, as it is when the tree is written out. */
     @Test
     public void realtimeLoggingIndentsNestedEntries() {
-        final var logNode = new LogNode();
+        final var tree = new StringBuilder();
         final var logged = recordLogOutput(() -> {
-            LogNode.logInRealtime(true);
-            try {
-                logNode.log("outer").log("inner");
-            } finally {
-                LogNode.logInRealtime(false);
-            }
+            final var logNode = new LogNode(true);
+            logNode.log("outer").log("inner");
+            tree.append(logNode);
         });
-        assertThat(logged).hasSize(2);
-        assertThat(logged.get(0)).contains("\touter\n");
-        assertThat(logged.get(1)).contains("\t-- inner\n");
-        assertThat(logNode.toString()).contains("\t-- inner\n");
+        assertThat(logged).hasSize(6);
+        assertThat(logged.get(4)).contains("\touter\n");
+        assertThat(logged.get(5)).contains("\t-- inner\n");
+        assertThat(tree).contains("\t-- inner\n");
     }
 
-    /** Once realtime logging is turned off again, entries are only added to the tree. */
+    /**
+     * A log node created without realtime logging only adds entries to its tree, even while another tree is written
+     * out in realtime.
+     */
     @Test
     public void entriesAreNotWrittenOutWhenRealtimeLoggingIsOff() {
-        assertThat(recordLogOutput(() -> new LogNode().log("not logged in realtime"))).isEmpty();
+        final var logged = recordLogOutput(() -> {
+            final var realtimeLog = new LogNode(true);
+            new LogNode().log("not logged in realtime");
+            realtimeLog.log("logged in realtime");
+        });
+        assertThat(logged).hasSize(5).noneMatch(message -> message.contains("not logged in realtime"));
+        assertThat(logged.get(4)).contains("logged in realtime");
     }
 
     /** The log is safe to add to from many threads at once, and no entry is lost or overwritten. */

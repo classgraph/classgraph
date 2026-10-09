@@ -27,8 +27,6 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import io.github.classgraph.base.LogNode;
-
 /**
  * {@link ClassGraph} is the entry point of the API: it builds up the scan specification, and then either runs a
  * scan or just reports the classpath.
@@ -181,16 +179,42 @@ public class ClassGraphTest {
     /** Realtime logging writes each log entry as it is created, rather than only when the scan completes. */
     @Test
     public void realtimeLoggingWritesEntriesAsTheyAreCreated() {
-        try {
-            final var messages = captureLog(() -> new ClassGraph().verbose().enableRealtimeLogging()
-                    .enableClasspathEntries(markerDir.toString()).scan().close());
-            // Every log entry is written twice: once in realtime, and once in the tree flushed at the end of the
-            // scan
-            assertThat(messages).hasSizeGreaterThan(1);
-            assertThat(messages).anyMatch(message -> message.contains("ClassGraph version"));
-        } finally {
-            // Realtime logging is a global setting, so switch it off again
-            LogNode.logInRealtime(false);
+        final var messages = captureLog(() -> new ClassGraph().verbose().enableRealtimeLogging()
+                .enableClasspathEntries(markerDir.toString()).scan().close());
+        // Every log entry is written twice: once in realtime, and once in the tree flushed at the end of the scan.
+        // The first entry of the log is written in realtime too, although verbose() was called first.
+        assertThat(messages).hasSizeGreaterThan(1);
+        assertThat(messages.get(0)).contains("ClassGraph version");
+    }
+
+    /** Realtime logging applies only to the scans of the instance that asked for it. */
+    @Test
+    public void realtimeLoggingAppliesOnlyToTheInstanceThatAskedForIt() {
+        captureLog(() -> new ClassGraph().verbose().enableRealtimeLogging()
+                .enableClasspathEntries(markerDir.toString()).scan().close());
+        final var messages = captureLog(
+                () -> new ClassGraph().verbose().enableClasspathEntries(markerDir.toString()).scan().close());
+        // Only the tree flushed at the end of the scan
+        assertThat(messages).hasSize(1);
+    }
+
+    /** A scan that is refused for asking for realtime logging without a log changes nothing for a later scan. */
+    @Test
+    public void aRefusedRealtimeLoggingScanDoesNotChangeALaterScan() {
+        assertThatIllegalArgumentException().isThrownBy(
+                () -> new ClassGraph().enableRealtimeLogging().enableClasspathEntries(markerDir.toString()).scan());
+        final var messages = captureLog(
+                () -> new ClassGraph().verbose().enableClasspathEntries(markerDir.toString()).scan().close());
+        assertThat(messages).hasSize(1);
+    }
+
+    /** Each scan writes a whole log of its own, even when one {@link ClassGraph} instance scans more than once. */
+    @Test
+    public void eachScanOfOneInstanceWritesAWholeLog() {
+        final var classGraph = new ClassGraph().verbose().enableClasspathEntries(markerDir.toString());
+        for (var i = 0; i < 2; i++) {
+            assertThat(captureLog(() -> classGraph.scan().close())).as("scan " + (i + 1)).singleElement().asString()
+                    .contains("ClassGraph version").contains("marker.txt");
         }
     }
 
