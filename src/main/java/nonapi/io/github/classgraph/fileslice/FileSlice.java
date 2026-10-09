@@ -31,6 +31,7 @@ package nonapi.io.github.classgraph.fileslice;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InterruptedIOException;
 import java.io.RandomAccessFile;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
@@ -59,8 +60,18 @@ public class FileSlice extends Slice {
     /** The file length. */
     private final long fileLength;
 
-    /** The file channel. */
-    private FileChannel fileChannel;
+    /**
+     * The file channel of {@link #raf}, or null once closed. Only set on the toplevel file slice, which owns the
+     * file channel. Volatile, since every slice of the file reads it, and it is replaced when a thread that was
+     * interrupted while reading it closes it.
+     */
+    private volatile FileChannel fileChannel;
+
+    /**
+     * The lock that the toplevel slice's {@link #raf} and {@link #fileChannel} are replaced and set to null under,
+     * which every slice of the file shares.
+     */
+    private final Object fileChannelLock;
 
     /**
      * The mapped byte buffer, if the file was memory-mapped, or null once closed. Only set on the toplevel file
@@ -148,9 +159,9 @@ public class FileSlice extends Slice {
         super(parentSlice, offset, length, isDeflatedZipEntry, inflatedLengthHint, nestedJarHandler);
         this.file = parentSlice.file;
         this.raf = parentSlice.raf;
-        this.fileChannel = parentSlice.fileChannel;
         this.fileLength = parentSlice.fileLength;
         this.topLevelFileSlice = parentSlice.topLevelFileSlice;
+        this.fileChannelLock = parentSlice.fileChannelLock;
 
         // A sub slice reads the memory mapping through the toplevel slice rather than keeping a duplicate of
         // its own: below JDK 22 the toplevel slice unmaps the file by freeing its address range, so a sub slice
@@ -189,6 +200,7 @@ public class FileSlice extends Slice {
         this.fileChannel = raf.getChannel();
         this.fileLength = file.length();
         this.topLevelFileSlice = this;
+        this.fileChannelLock = new Object();
 
         // (Files larger than MAX_BUFFER_SIZE cannot be memory-mapped to a single ByteBuffer -- for those,
         // fall through and use the RandomAccessFile API instead)
@@ -308,6 +320,61 @@ public class FileSlice extends Slice {
     }
 
     /**
+     * Get the {@link FileChannel} to read the file through. Called on the toplevel slice before every read.
+     *
+     * <p>
+     * A file channel is closed by a read on a thread that has been interrupted, or that is interrupted during the
+     * read, and every slice of the file reads through the same channel. So that one interrupted thread cannot stop
+     * every other thread from reading the file, a thread that has been interrupted is not allowed to read the
+     * channel, and a channel that was closed by an interruption during a read is reopened.
+     *
+     * @return the {@link FileChannel}
+     * @throws InterruptedIOException
+     *             if this thread has been interrupted
+     * @throws IOException
+     *             if {@link #close()} has been called, or if the channel had to be reopened and could not be
+     */
+    private FileChannel fileChannel() throws IOException {
+        if (Thread.currentThread().isInterrupted()) {
+            throw new InterruptedIOException("Interrupted while reading " + file);
+        }
+        // Read the field into a local, so that a close running concurrently cannot null it between the check and
+        // the use
+        final FileChannel channel = fileChannel;
+        if (channel != null && channel.isOpen()) {
+            return channel;
+        }
+        synchronized (fileChannelLock) {
+            final FileChannel currentChannel = fileChannel;
+            if (currentChannel == null) {
+                throw new IOException("Cannot read " + file + " after it has been closed");
+            }
+            if (currentChannel.isOpen()) {
+                // Another thread reopened the channel first
+                return currentChannel;
+            }
+            final RandomAccessFile reopenedRaf = new RandomAccessFile(file, "r");
+            try {
+                if (reopenedRaf.length() != fileLength) {
+                    // The offsets that were read from the file when it was first opened would not be valid for
+                    // the file that is there now
+                    throw new IOException(file + " changed after it was opened");
+                }
+            } catch (final IOException e) {
+                try {
+                    reopenedRaf.close();
+                } catch (final IOException e2) {
+                    e.addSuppressed(e2);
+                }
+                throw e;
+            }
+            raf = reopenedRaf;
+            fileChannel = reopenedRaf.getChannel();
+            return fileChannel;
+        }
+    }
+
+    /**
      * Read directly from FileChannel (slow path, but handles &gt;2GB).
      *
      * @return the random access reader
@@ -318,8 +385,16 @@ public class FileSlice extends Slice {
         // and the use
         final ByteBuffer mappedByteBuffer = topLevelFileSlice.backingByteBuffer;
         if (mappedByteBuffer == null) {
-            // If file was not mmap'd, return a RandomAccessReader that uses the FileChannel
-            return new RandomAccessFileChannelReader(fileChannel, sliceStartPos, sliceLength);
+            // If file was not mmap'd, return a RandomAccessReader that uses the FileChannel. The reader gets the
+            // channel from the toplevel slice before every read, rather than keeping the channel it was made with,
+            // since the toplevel slice replaces a channel that was closed by an interrupted thread
+            final FileSlice topLevelSlice = topLevelFileSlice;
+            return new RandomAccessFileChannelReader(new RandomAccessFileChannelReader.FileChannelSource() {
+                @Override
+                public FileChannel fileChannel() throws IOException {
+                    return topLevelSlice.fileChannel();
+                }
+            }, sliceStartPos, sliceLength);
         } else {
             // If file was mmap'd, return a RandomAccessReader that uses the ByteBuffer. The reader keeps a
             // duplicate of the mapping for as long as it is alive, and readers are not closed, so it is given
@@ -583,16 +658,23 @@ public class FileSlice extends Slice {
                     // #939
                     nestedJarHandler.markFileAsAwaitingUnmapping(this);
                 }
-                if (raf != null) {
+                // Take the file handle under the lock that a reopen of it holds, so that a reopen cannot replace it
+                // after it has been taken
+                final RandomAccessFile rafToClose;
+                synchronized (fileChannelLock) {
+                    rafToClose = raf;
+                    raf = null;
+                    fileChannel = null;
+                }
+                if (rafToClose != null) {
                     try {
                         // Closing raf will also close the associated FileChannel
-                        raf.close();
+                        rafToClose.close();
                     } catch (final IOException e) {
                         // Ignore
                     }
                 }
             }
-            fileChannel = null;
             raf = null;
             nestedJarHandler.markSliceAsClosed(this);
         }

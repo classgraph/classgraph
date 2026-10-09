@@ -30,6 +30,7 @@ package nonapi.io.github.classgraph.fileslice;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InterruptedIOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Path;
@@ -49,11 +50,21 @@ public class PathSlice extends Slice {
     /** The file length. */
     private final long fileLength;
 
-    /** The {@link FileChannel} opened on the {@link Path}. */
-    private FileChannel fileChannel;
+    /**
+     * The {@link FileChannel} opened on the {@link Path}, or null once closed. Only set on the toplevel file slice,
+     * which owns the file channel. Volatile, since every slice of the file reads it, and it is replaced when a
+     * thread that was interrupted while reading it closes it.
+     */
+    private volatile FileChannel fileChannel;
 
-    /** True if this is a top level file slice. */
-    private final boolean isTopLevelFileSlice;
+    /**
+     * The lock that the toplevel slice's {@link #fileChannel} is replaced and set to null under, which every slice
+     * of the file shares.
+     */
+    private final Object fileChannelLock;
+
+    /** The toplevel file slice, which owns the file channel, or {@code this} if this is the toplevel slice. */
+    private final PathSlice topLevelPathSlice;
 
     /** True if {@link #close} has been called. */
     private final AtomicBoolean isClosed = new AtomicBoolean();
@@ -81,9 +92,9 @@ public class PathSlice extends Slice {
         super(parentSlice, offset, length, isDeflatedZipEntry, inflatedLengthHint, nestedJarHandler);
 
         this.path = parentSlice.path;
-        this.fileChannel = parentSlice.fileChannel;
         this.fileLength = parentSlice.fileLength;
-        this.isTopLevelFileSlice = false;
+        this.fileChannelLock = parentSlice.fileChannelLock;
+        this.topLevelPathSlice = parentSlice.topLevelPathSlice;
 
         // Only mark toplevel file slices as open (sub slices don't need to be marked as open since
         // they don't need to be closed, they just copy the resource references of the toplevel slice)
@@ -138,7 +149,8 @@ public class PathSlice extends Slice {
         this.path = path;
         this.fileChannel = FileChannel.open(path, StandardOpenOption.READ);
         this.fileLength = fileChannel.size();
-        this.isTopLevelFileSlice = true;
+        this.fileChannelLock = new Object();
+        this.topLevelPathSlice = this;
 
         // Had to use 0L for sliceLength in call to super, since FileChannel wasn't open yet
         // => update sliceLength
@@ -186,14 +198,76 @@ public class PathSlice extends Slice {
     }
 
     /**
+     * Get the {@link FileChannel} to read the file through. Called on the toplevel slice before every read.
+     *
+     * <p>
+     * A file channel is closed by a read on a thread that has been interrupted, or that is interrupted during the
+     * read, and every slice of the file reads through the same channel. So that one interrupted thread cannot stop
+     * every other thread from reading the file, a thread that has been interrupted is not allowed to read the
+     * channel, and a channel that was closed by an interruption during a read is reopened.
+     *
+     * @return the {@link FileChannel}
+     * @throws InterruptedIOException
+     *             if this thread has been interrupted
+     * @throws IOException
+     *             if {@link #close()} has been called, or if the channel had to be reopened and could not be
+     */
+    private FileChannel fileChannel() throws IOException {
+        if (Thread.currentThread().isInterrupted()) {
+            throw new InterruptedIOException("Interrupted while reading " + path);
+        }
+        // Read the field into a local, so that a close running concurrently cannot null it between the check and
+        // the use
+        final FileChannel channel = fileChannel;
+        if (channel != null && channel.isOpen()) {
+            return channel;
+        }
+        synchronized (fileChannelLock) {
+            final FileChannel currentChannel = fileChannel;
+            if (currentChannel == null) {
+                throw new IOException("Cannot read " + path + " after it has been closed");
+            }
+            if (currentChannel.isOpen()) {
+                // Another thread reopened the channel first
+                return currentChannel;
+            }
+            final FileChannel reopenedChannel = FileChannel.open(path, StandardOpenOption.READ);
+            try {
+                if (reopenedChannel.size() != fileLength) {
+                    // The offsets that were read from the file when it was first opened would not be valid for
+                    // the file that is there now
+                    throw new IOException(path + " changed after it was opened");
+                }
+            } catch (final IOException e) {
+                try {
+                    reopenedChannel.close();
+                } catch (final IOException e2) {
+                    e.addSuppressed(e2);
+                }
+                throw e;
+            }
+            fileChannel = reopenedChannel;
+            return reopenedChannel;
+        }
+    }
+
+    /**
      * Read directly from FileChannel (slow path, but handles &gt;2GB).
      *
      * @return the random access reader
      */
     @Override
     public RandomAccessReader randomAccessReader() {
-        // Return a RandomAccessReader that uses the FileChannel
-        return new RandomAccessFileChannelReader(fileChannel, sliceStartPos, sliceLength);
+        // Return a RandomAccessReader that uses the FileChannel. The reader gets the channel from the toplevel
+        // slice before every read, rather than keeping the channel it was made with, since the toplevel slice
+        // replaces a channel that was closed by an interrupted thread
+        final PathSlice topLevelSlice = topLevelPathSlice;
+        return new RandomAccessFileChannelReader(new RandomAccessFileChannelReader.FileChannelSource() {
+            @Override
+            public FileChannel fileChannel() throws IOException {
+                return topLevelSlice.fileChannel();
+            }
+        }, sliceStartPos, sliceLength);
     }
 
     /**
@@ -267,16 +341,23 @@ public class PathSlice extends Slice {
     @Override
     public void close() {
         if (!isClosed.getAndSet(true)) {
-            if (isTopLevelFileSlice && fileChannel != null) {
-                // Only close the FileChannel in the toplevel file slice, so that it is only closed once
-                // (sub slices just copy the reference to the toplevel slice's FileChannel)
-                try {
-                    fileChannel.close();
-                } catch (final IOException e) {
-                    // Ignore
+            if (topLevelPathSlice == this) {
+                // Only close the FileChannel in the toplevel file slice, which owns it, so that it is only closed
+                // once. The channel is taken under the lock that a reopen of it holds, so that a reopen cannot
+                // replace it after it has been taken.
+                final FileChannel fileChannelToClose;
+                synchronized (fileChannelLock) {
+                    fileChannelToClose = fileChannel;
+                    fileChannel = null;
+                }
+                if (fileChannelToClose != null) {
+                    try {
+                        fileChannelToClose.close();
+                    } catch (final IOException e) {
+                        // Ignore
+                    }
                 }
             }
-            fileChannel = null;
             nestedJarHandler.markSliceAsClosed(this);
         }
     }

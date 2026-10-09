@@ -21,6 +21,7 @@ import java.security.Permission;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.Timeout.ThreadMode;
@@ -726,8 +727,8 @@ public class SliceTest {
         nestedJarHandler.close(/* log = */ null);
 
         // A closed slice has released the file it was reading, so it can no longer be read
-        assertThatThrownBy(first::load).isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(second::load).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(first::load).isInstanceOf(IOException.class).hasMessageContaining("has been closed");
+        assertThatThrownBy(second::load).isInstanceOf(IOException.class).hasMessageContaining("has been closed");
     }
 
     /**
@@ -887,5 +888,45 @@ public class SliceTest {
         final LogNode log = new LogNode();
         assertThat(FileUtils.closeDirectByteBuffer(view, new ReflectionUtils(), log)).isFalse();
         assertThat(log.toString()).doesNotContain("Could not unmap");
+    }
+
+    /**
+     * A thread that is interrupted while it reads a slice of a {@link PathSlice} fails to read it, but the other
+     * slices of the same file can still be read once the interrupt status is cleared. Every slice of the file reads
+     * through one file channel, and a file channel is closed by a read on a thread that has been interrupted.
+     *
+     * @param tempDir
+     *            a temporary directory
+     * @throws IOException
+     *             if the file could not be written or read
+     */
+    @Test
+    public void anInterruptedReadDoesNotStopOtherReadsOfAPathSlice(@TempDir final File tempDir) throws IOException {
+        final NestedJarHandler nestedJarHandler = nestedJarHandler();
+        try {
+            final PathSlice pathSlice = new PathSlice(writeFile(tempDir, "path.bin").toPath(), nestedJarHandler);
+            final Slice first = pathSlice.slice(0, 4, /* isDeflatedZipEntry = */ false,
+                    /* inflatedLengthHint = */ 0L);
+            final Slice second = pathSlice.slice(4, 4, /* isDeflatedZipEntry = */ false,
+                    /* inflatedLengthHint = */ 0L);
+
+            Thread.currentThread().interrupt();
+            try {
+                assertThatThrownBy(new ThrowingCallable() {
+                    @Override
+                    public void call() throws Throwable {
+                        first.load();
+                    }
+                }).isInstanceOf(IOException.class);
+            } finally {
+                // The interruption is not swallowed
+                assertThat(Thread.interrupted()).isTrue();
+            }
+
+            assertThat(second.load()).containsExactly("4567".getBytes(StandardCharsets.UTF_8));
+            assertThat(first.load()).containsExactly("0123".getBytes(StandardCharsets.UTF_8));
+        } finally {
+            nestedJarHandler.close(/* log = */ null);
+        }
     }
 }
