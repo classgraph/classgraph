@@ -55,8 +55,9 @@ import org.jspecify.annotations.Nullable;
  */
 public class ClasspathSpec {
     /**
-     * If true, scan the modules supplied by the running JVM, as identified by
-     * {@link java.lang.module.ModuleFinder#ofSystem()}, found in the module layers that are searched.
+     * If true, scan the JDK's own modules found in the module layers that are searched: the modules whose name
+     * starts with {@code java.}, {@code jdk.}, {@code javafx.} or {@code oracle.}, and which
+     * {@link java.lang.module.ModuleFinder#ofSystem()} finds at the same location.
      *
      * <p>
      * {@link ModuleFinder} lists the system modules of the module layers it searches whether or not this is true,
@@ -197,13 +198,13 @@ public class ClasspathSpec {
         return Collections.unmodifiableSet(allowedURLSchemes);
     }
 
-    /** Scan the modules supplied by the running JVM. */
+    /** Scan the JDK's own modules. */
     public void enableSystemModules() {
         scanSystemModules = true;
     }
 
     /**
-     * Check whether the modules supplied by the running JVM are scanned.
+     * Check whether the JDK's own modules are scanned.
      *
      * @return true if {@link #enableSystemModules()} was called.
      */
