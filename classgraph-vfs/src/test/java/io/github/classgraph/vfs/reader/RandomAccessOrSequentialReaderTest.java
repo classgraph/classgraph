@@ -998,6 +998,61 @@ public class RandomAccessOrSequentialReaderTest {
     }
 
     /**
+     * A skip far past the end of short content does not grow the buffer to the position the skip was aimed at. The
+     * number of bytes to skip is usually read out of the content itself, such as the length of a classfile
+     * attribute, so before the fix one corrupt length made a 20kb classfile allocate 2GB, and the
+     * {@link OutOfMemoryError} ended the whole scan.
+     *
+     * @throws IOException
+     *             if the content could not be read.
+     */
+    @Test
+    public void aSkipPastTheEndOfShortContentDoesNotGrowTheBufferToTheSkipTarget() throws IOException {
+        final var contentLength = 20_000;
+        // A skip as the first read, when nothing has been buffered yet
+        try (var reader = limitedReader(contentLength)) {
+            assertThatThrownBy(() -> reader.skip(TEST_BUFFER_LIMIT - 1000)).isInstanceOf(IOException.class)
+                    .hasMessage("Tried to read past the end of the content");
+            assertThat(reader.bufferLength()).isLessThanOrEqualTo(2 * contentLength);
+        }
+        // A skip after a header has been read, which is how a classfile skips an attribute it does not need
+        try (var reader = limitedReader(contentLength)) {
+            reader.skip(1000);
+            reader.readInt();
+            assertThatThrownBy(() -> reader.skip(TEST_BUFFER_LIMIT - 2000)).isInstanceOf(IOException.class)
+                    .hasMessage("Tried to read past the end of the content");
+            assertThat(reader.bufferLength()).isLessThanOrEqualTo(2 * contentLength);
+        }
+    }
+
+    /**
+     * A bulk read whose maximum number of bytes is larger than the room in its destination buffers only as much as
+     * the destination can take. Before the fix, a read of 10 bytes with {@link Integer#MAX_VALUE} as the maximum
+     * read the whole of the content into the buffer, and a channel read of a short entry into a 64MB
+     * {@link ByteBuffer} allocated a second 64MB array.
+     *
+     * @throws IOException
+     *             if the content could not be read.
+     */
+    @Test
+    public void aBulkReadBuffersNoMoreThanTheDestinationCanTake() throws IOException {
+        try (var reader = limitedReader(TEST_BUFFER_LIMIT)) {
+            assertThat(reader.read(0, new byte[10], 0, Integer.MAX_VALUE)).isEqualTo(10);
+            assertThat(reader.bufferLength()).isEqualTo(16384);
+        }
+        try (var reader = limitedReader(TEST_BUFFER_LIMIT)) {
+            assertThat(reader.read(0, ByteBuffer.allocate(10), 0, Integer.MAX_VALUE)).isEqualTo(10);
+            assertThat(reader.bufferLength()).isEqualTo(16384);
+        }
+        // A destination larger than short content does not size the buffer either
+        try (var reader = limitedReader(1000)) {
+            assertThat(reader.read(0, ByteBuffer.allocate(TEST_BUFFER_LIMIT), 0, TEST_BUFFER_LIMIT))
+                    .isEqualTo(1000);
+            assertThat(reader.bufferLength()).isEqualTo(16384);
+        }
+    }
+
+    /**
      * A destination with no room left in it is not the end of the content. A caller copying content out in blocks
      * fills its destination and then hands the reader the offset just past the last byte it wrote, so a reader that
      * answered -1 there would tell that caller its content had ended, and the copy would be silently truncated.
