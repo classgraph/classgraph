@@ -410,13 +410,23 @@ public final class RandomAccessOrSequentialReader implements RandomAccessReader,
      * Grow the buffer array so that at least one more byte can be read into it, by at least a whole chunk, so that
      * a caller reading one value at a time does not pay one allocation per value.
      *
+     * <p>
+     * The buffer is grown towards the target, but to no more than twice its size, unless the target lies within the
+     * length the content declares for itself, which is believed as far as one bounded allocation. The target says
+     * nothing about how long the content is: it is often read out of the content itself, such as the length of a
+     * classfile attribute that is skipped, so growing straight to it would let one corrupt length make a 20kb
+     * classfile allocate 2GB. {@link #readTo(long)} grows the buffer again for as long as the content keeps
+     * arriving, so the buffer stays within about twice the content that has been read.
+     *
      * @param targetArrUsed
      *            the number of bytes the current read is trying to reach.
      */
     private void grow(final long targetArrUsed) {
-        // The chunk end is computed in long arithmetic, because arrUsed can be within a chunk of the 2GB limit,
-        // and an int sum would wrap negative there rather than being clamped by the Math.min below
-        ensureCapacity((int) Math.min(Math.max(targetArrUsed, (long) arrUsed + (long) chunkSize), maxBufferSize));
+        // Computed in long arithmetic, because arrUsed can be within a chunk of the 2GB limit, and an int sum would
+        // wrap negative there rather than being clamped by the Math.min below
+        final var maxStep = Math.max(Math.max((long) arrUsed + (long) chunkSize, 2L * arr.length),
+                Math.min(lengthHint, MAX_DECLARED_LENGTH_TO_ALLOCATE));
+        ensureCapacity((int) Math.min(Math.min(targetArrUsed, maxStep), maxBufferSize));
         // The next growth is twice as large, up to the maximum chunk size, so that a caller reading a long way
         // into the content pays a decreasing number of allocations for it, while a caller that stops after a
         // header has allocated only one small buffer
@@ -646,11 +656,12 @@ public final class RandomAccessOrSequentialReader implements RandomAccessReader,
             return 0;
         }
         final var idx = (int) srcOffset;
-        final var numBytesInContent = bufferForBulkRead(srcOffset, numBytes);
-        if (numBytesInContent == 0) {
+        // Buffer only as much as the destination can take: numBytes is only the most that may be read, and the
+        // content past the room in the destination could not be returned anyway
+        final var numBytesToRead = bufferForBulkRead(srcOffset, Math.min(numBytes, dstRoom));
+        if (numBytesToRead == 0) {
             return -1;
         }
-        final var numBytesToRead = Math.min(numBytesInContent, dstRoom);
         try {
             System.arraycopy(arr, idx, dstArr, dstArrStart, numBytesToRead);
             return numBytesToRead;
@@ -675,11 +686,11 @@ public final class RandomAccessOrSequentialReader implements RandomAccessReader,
             throw new IOException("The destination buffer is read-only");
         }
         final var idx = (int) srcOffset;
-        final var numBytesInContent = bufferForBulkRead(srcOffset, numBytes);
-        if (numBytesInContent == 0) {
+        // Buffer only as much as the destination can take, as in the byte array overload
+        final var numBytesToRead = bufferForBulkRead(srcOffset, Math.min(numBytes, dstRoom));
+        if (numBytesToRead == 0) {
             return -1;
         }
-        final var numBytesToRead = Math.min(numBytesInContent, dstRoom);
         try {
             // An absolute put, so the destination's position and limit are neither read nor changed
             dstBuf.put(dstBufStart, arr, idx, numBytesToRead);
