@@ -83,8 +83,9 @@ class AutoCloseableExecutorService extends ThreadPoolExecutor implements AutoClo
     }
 
     /**
-     * Catch exceptions from both submit() and execute(), and call {@link InterruptionChecker#interrupt()} to
-     * interrupt all threads.
+     * Catch exceptions from both submit() and execute(), and record them in the {@link InterruptionChecker}, so
+     * that the other threads stop at their next {@link InterruptionChecker#check()}, which throws the recorded
+     * exception.
      *
      * @param runnable
      *            the Runnable
@@ -95,10 +96,9 @@ class AutoCloseableExecutorService extends ThreadPoolExecutor implements AutoClo
     protected void afterExecute(final Runnable runnable, final @Nullable Throwable throwable) {
         super.afterExecute(runnable, throwable);
         if (throwable != null) {
-            // Wrap the throwable in an ExecutionException (execute() does not do this)
+            // execute() was called and an uncaught exception or error was thrown. Wrap the throwable in an
+            // ExecutionException (execute() does not do this)
             interruptionChecker.setExecutionException(new ExecutionException("Uncaught exception", throwable));
-            // execute() was called and an uncaught exception or error was thrown
-            interruptionChecker.interrupt();
         } else if (/* throwable == null && */ runnable instanceof final Future<?> future) {
             // submit() was called, so throwable is not set
             try {
@@ -109,10 +109,9 @@ class AutoCloseableExecutorService extends ThreadPoolExecutor implements AutoClo
                 // If this thread was cancelled, interrupted or timed out, interrupt other threads
                 interruptionChecker.interrupt();
             } catch (final ExecutionException e) {
-                // Record the exception that was thrown by the thread
+                // Record the exception that was thrown by the thread. A failure is not an interruption, so the
+                // other threads are not interrupted: the thread that reads the result would be left interrupted
                 interruptionChecker.setExecutionException(e);
-                // Interrupt other threads
-                interruptionChecker.interrupt();
             }
         }
     }
