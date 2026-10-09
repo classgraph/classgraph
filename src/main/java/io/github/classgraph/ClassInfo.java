@@ -3434,11 +3434,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                 try {
                     typeSignature = ClassTypeSignature.parse(typeSignatureStr, this);
                     typeSignature.setScanResult(scanResult);
-                    if (typeAnnotationDecorators != null) {
-                        for (final ClassTypeAnnotationDecorator decorator : typeAnnotationDecorators) {
-                            decorator.decorate(typeSignature);
-                        }
-                    }
+                    decorateType(typeSignature);
                 } catch (final ParseException e) {
                     throw new IllegalArgumentException("Invalid type signature for class " + getName()
                             + " in classpath element " + getClasspathElementURI() + " : " + typeSignatureStr, e);
@@ -3446,6 +3442,43 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             }
         }
         return typeSignature;
+    }
+
+    /**
+     * Get the parsed type signature for the class, or null if the class has no {@code Signature} attribute or if
+     * its type signature cannot be parsed. The JVM does not check the {@code Signature} attribute when it loads a
+     * class, so a class whose type signature does not parse can still be used, and is treated as non-generic.
+     *
+     * @return The parsed type signature for the class, or null.
+     */
+    ClassTypeSignature getTypeSignatureIfParseable() {
+        try {
+            return getTypeSignature();
+        } catch (final Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * Run the type annotation decorators on the given class type signature or synthetic type descriptor. A type
+     * annotation that cannot be matched to the type it names (from a corrupt classfile, or a compiler bug) is
+     * skipped, rather than making the whole class type unreadable.
+     *
+     * @param classType
+     *            the class type signature or synthetic type descriptor to decorate.
+     */
+    // #897
+    private void decorateType(final ClassTypeSignature classType) {
+        if (typeAnnotationDecorators != null) {
+            for (final ClassTypeAnnotationDecorator decorator : typeAnnotationDecorators) {
+                try {
+                    decorator.decorate(classType);
+                } catch (final IllegalArgumentException e) {
+                    // Skip a type annotation that cannot be matched to the class type, rather than failing to
+                    // produce the whole class type (best effort). (#897)
+                }
+            }
+        }
     }
 
     /**
@@ -3460,24 +3493,19 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
 
     /**
      * Returns the parsed type signature for this class, possibly including type parameters. If the type signature
-     * is not present for this class, indicating that this is not a generic class, then a type descriptor will be
-     * synthesized and returned, as if there were a type descriptor (classfiles may have a type signature but do not
-     * contain a type descriptor). May include type annotations on the superclass or interface(s).
+     * is not present for this class, indicating that this is not a generic class, or if the type signature cannot
+     * be parsed, then a type descriptor will be synthesized and returned, as if there were a type descriptor
+     * (classfiles may have a type signature but do not contain a type descriptor). May include type annotations on
+     * the superclass or interface(s).
      *
      * @return The parsed generic type signature for the class, or if not available, the synthetic type descriptor
      *         for the class.
      */
     public ClassTypeSignature getTypeSignatureOrTypeDescriptor() {
-        ClassTypeSignature typeSig = null;
-        try {
-            typeSig = getTypeSignature();
-            if (typeSig != null) {
-                return typeSig;
-            }
-        } catch (final Exception e) {
-            // Ignore
-        }
-        return getTypeDescriptor();
+        // The synthetic type descriptor can stand in for a type signature that does not parse, since it is built
+        // from the class, superclass and interface names, which were read from a different part of the classfile
+        final ClassTypeSignature typeSig = getTypeSignatureIfParseable();
+        return typeSig != null ? typeSig : getTypeDescriptor();
     }
 
     /**
@@ -3494,11 +3522,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                 // type annotation targets index into
                 typeDescriptor = new ClassTypeSignature(this, getSuperclass(), getInterfaces().directOnly());
                 typeDescriptor.setScanResult(scanResult);
-                if (typeAnnotationDecorators != null) {
-                    for (final ClassTypeAnnotationDecorator decorator : typeAnnotationDecorators) {
-                        decorator.decorate(typeDescriptor);
-                    }
-                }
+                decorateType(typeDescriptor);
             }
         }
         return typeDescriptor;
@@ -3955,12 +3979,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             buf.append(useSimpleNames ? ClassInfo.getSimpleName(name) : name);
             return;
         }
-        ClassTypeSignature typeSig = null;
-        try {
-            typeSig = getTypeSignature();
-        } catch (final Exception e) {
-            // Ignore
-        }
+        // A corrupt classfile can make the type signature unparseable -- render the class as if it were non-generic,
+        // rather than throwing from toString()
+        final ClassTypeSignature typeSig = getTypeSignatureIfParseable();
         if (typeSig != null) {
             // Generic classes
             // N.B. pass useSimpleNames through, so that the type parameter bounds, the superclass and the

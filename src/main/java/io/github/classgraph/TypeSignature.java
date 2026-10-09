@@ -134,10 +134,10 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
         if (classInfo == null || !visited.add(classInfo.getName())) {
             return;
         }
-        final ClassTypeSignature classSignature = classInfo.getTypeSignature();
+        final ClassTypeSignature classSignature = classInfo.getTypeSignatureIfParseable();
         if (classSignature == null) {
-            // The class has no generic signature, so it supplies no type arguments -- but a class further up the
-            // hierarchy may still be generic, so keep walking
+            // The class has no generic signature, or one that does not parse, so it supplies no type arguments --
+            // but a class further up the hierarchy may still be generic, so keep walking
             addSubstitutions(classInfo.getSuperclass(), substitutions, visited);
             for (final ClassInfo interfaceInfo : classInfo.getInterfaces()) {
                 addSubstitutions(interfaceInfo, substitutions, visited);
@@ -207,7 +207,8 @@ public abstract class TypeSignature extends HierarchicalTypeSignature {
             // The class was not encountered during scanning, so its type parameters are unknown
             return;
         }
-        final ClassTypeSignature classSignature = classInfo.getTypeSignature();
+        // A class signature that does not parse names no type parameters to substitute
+        final ClassTypeSignature classSignature = classInfo.getTypeSignatureIfParseable();
         final List<TypeParameter> typeParameters = classSignature == null ? null
                 : classSignature.getTypeParameters();
         if (typeParameters == null || typeParameters.size() != typeArguments.size()) {
