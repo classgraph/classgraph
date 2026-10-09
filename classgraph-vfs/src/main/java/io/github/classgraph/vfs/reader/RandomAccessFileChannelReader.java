@@ -31,6 +31,8 @@ package io.github.classgraph.vfs.reader;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.channels.ClosedByInterruptException;
+import java.nio.channels.ClosedChannelException;
 import java.nio.channels.FileChannel;
 import java.nio.charset.Charset;
 import java.util.Objects;
@@ -43,10 +45,32 @@ import org.jspecify.annotations.Nullable;
  * by the zipfile format, which is what this reader was written for; pass a {@link ByteOrder} to read content
  * written in the other order. See {@link RandomAccessReader} for why the byte order is a property of the content
  * and not of the machine.
+ *
+ * <p>
+ * A {@link FileChannel} is closed by a read on a thread that has been interrupted, or that is interrupted during
+ * the read, for every thread that reads it. A channel that several threads read can therefore be given to this
+ * reader as a {@link FileChannelSource}, which this reader asks for the channel before every read, so that the
+ * owner of the channel can reopen it. A read that fails because another thread closed the channel during the read
+ * asks the source for the channel again, and carries on from where it stopped.
  */
 public final class RandomAccessFileChannelReader implements RandomAccessReader {
-    /** The file channel. */
-    private final FileChannel fileChannel;
+    /**
+     * Where a {@link RandomAccessFileChannelReader} gets the channel that it reads.
+     */
+    @FunctionalInterface
+    public interface FileChannelSource {
+        /**
+         * Get the channel to read. This is called before every read, so it should be fast.
+         *
+         * @return the channel to read.
+         * @throws IOException
+         *             if there is no channel to read, because the file has been closed, say.
+         */
+        FileChannel fileChannel() throws IOException;
+    }
+
+    /** Where the file channel comes from. */
+    private final FileChannelSource fileChannelSource;
 
     /** The offset within the file at which the content starts. */
     private final long sliceStartPos;
@@ -108,10 +132,49 @@ public final class RandomAccessFileChannelReader implements RandomAccessReader {
      */
     public RandomAccessFileChannelReader(final FileChannel fileChannel, final long sliceStartPos,
             final long sliceLength, final ByteOrder byteOrder) {
+        this(() -> fileChannel, sliceStartPos, sliceLength, byteOrder);
+    }
+
+    /**
+     * Constructor for slicing a file channel that is got from a {@link FileChannelSource} before every read,
+     * reading in little endian order, as the zipfile format requires.
+     *
+     * @param fileChannelSource
+     *            where to get the channel to read. The channel's position is ignored and not changed.
+     * @param sliceStartPos
+     *            the offset within the file at which the content starts.
+     * @param sliceLength
+     *            the number of bytes of content.
+     * @throws IndexOutOfBoundsException
+     *             if the start or the length is negative.
+     */
+    public RandomAccessFileChannelReader(final FileChannelSource fileChannelSource, final long sliceStartPos,
+            final long sliceLength) {
+        this(fileChannelSource, sliceStartPos, sliceLength, ByteOrder.LITTLE_ENDIAN);
+    }
+
+    /**
+     * Constructor for slicing a file channel that is got from a {@link FileChannelSource} before every read,
+     * reading in a given byte order.
+     *
+     * @param fileChannelSource
+     *            where to get the channel to read. The channel's position is ignored and not changed.
+     * @param sliceStartPos
+     *            the offset within the file at which the content starts.
+     * @param sliceLength
+     *            the number of bytes of content.
+     * @param byteOrder
+     *            the byte order to read multi-byte values in. Pass {@link ByteOrder#nativeOrder()} for content
+     *            written in the byte order of the machine this is running on.
+     * @throws IndexOutOfBoundsException
+     *             if the start or the length is negative.
+     */
+    public RandomAccessFileChannelReader(final FileChannelSource fileChannelSource, final long sliceStartPos,
+            final long sliceLength, final ByteOrder byteOrder) {
         // Not checked against the size of the file, which can change after this, and which a read past the end of
         // reports anyway
         Objects.checkFromIndexSize(sliceStartPos, sliceLength, Long.MAX_VALUE);
-        this.fileChannel = fileChannel;
+        this.fileChannelSource = fileChannelSource;
         this.sliceStartPos = sliceStartPos;
         this.sliceLength = sliceLength;
         this.byteOrder = byteOrder;
@@ -163,12 +226,29 @@ public final class RandomAccessFileChannelReader implements RandomAccessReader {
             try {
                 dstBuf.position(dstBufStart);
                 dstBuf.limit(dstBufStart + numBytesToRead);
+                var fileChannel = fileChannelSource.fileChannel();
                 // FileChannel#read is not required to transfer the whole of the requested range in a single call,
                 // and a read from a network filesystem can be short, so keep reading until the requested number of
                 // bytes has been read or the end of the file is reached. (Every caller treats a short read as a
                 // truncated file, so a short read that is not at the end of the file has to be completed here.)
                 while (numBytesRead < numBytesToRead) {
-                    final var numBytesReadThisCall = fileChannel.read(dstBuf, srcStart + numBytesRead);
+                    final int numBytesReadThisCall;
+                    try {
+                        numBytesReadThisCall = fileChannel.read(dstBuf, srcStart + numBytesRead);
+                    } catch (final ClosedByInterruptException e) {
+                        // This thread was interrupted, which is a reason to stop reading
+                        throw e;
+                    } catch (final ClosedChannelException e) {
+                        // Another thread closed the channel. Carry on from where the read stopped if the source has
+                        // another channel to read, which it does not if the file has been closed, or if the channel
+                        // was given to this reader rather than got from a source that can reopen it
+                        final var nextFileChannel = fileChannelSource.fileChannel();
+                        if (nextFileChannel == fileChannel) {
+                            throw e;
+                        }
+                        fileChannel = nextFileChannel;
+                        continue;
+                    }
                     if (numBytesReadThisCall <= 0) {
                         // -1 => end of file; 0 => the destination buffer has no space left
                         break;

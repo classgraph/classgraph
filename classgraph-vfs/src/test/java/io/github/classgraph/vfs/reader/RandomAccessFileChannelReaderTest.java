@@ -29,9 +29,12 @@
 package io.github.classgraph.vfs.reader;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.AsynchronousCloseException;
+import java.nio.channels.ClosedByInterruptException;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.nio.channels.ReadableByteChannel;
@@ -50,7 +53,7 @@ class RandomAccessFileChannelReaderTest {
      * also permitted to do (a read from a network filesystem can be short). Every method other than the positional
      * read delegates to the wrapped channel, or is unsupported if the reader never calls it.
      */
-    private static final class ShortReadFileChannel extends FileChannel {
+    private static class ShortReadFileChannel extends FileChannel {
         private final FileChannel wrapped;
 
         ShortReadFileChannel(final FileChannel wrapped) {
@@ -153,6 +156,32 @@ class RandomAccessFileChannelReaderTest {
         }
     }
 
+    /**
+     * A {@link ShortReadFileChannel} that is closed during its second read, by another thread, or by the
+     * interruption of the thread that reads it.
+     */
+    private static final class ClosedDuringSecondReadFileChannel extends ShortReadFileChannel {
+        /** True if the thread that reads the channel is interrupted, false if another thread closes it. */
+        private final boolean byInterruption;
+
+        /** The number of reads so far. */
+        private int numReads;
+
+        ClosedDuringSecondReadFileChannel(final FileChannel wrapped, final boolean byInterruption) {
+            super(wrapped);
+            this.byInterruption = byInterruption;
+        }
+
+        @Override
+        public int read(final ByteBuffer dst, final long position) throws IOException {
+            if (++numReads == 2) {
+                close();
+                throw byInterruption ? new ClosedByInterruptException() : new AsynchronousCloseException();
+            }
+            return super.read(dst, position);
+        }
+    }
+
     /** Write a file of the given length, where the byte at index i is i. */
     private static Path writeTestFile(final Path dir, final int numBytes) throws IOException {
         final var content = new byte[numBytes];
@@ -234,6 +263,60 @@ class RandomAccessFileChannelReaderTest {
             assertThat(arr[11]).isEqualTo((byte) 11);
             // The bytes in the gap were not written
             assertThat(arr[4]).isEqualTo((byte) 0);
+        }
+    }
+
+    /**
+     * A read that another thread closes the channel during asks the source for the channel again, and carries on
+     * from where it stopped, rather than failing because of something that happened to another thread.
+     */
+    @Test
+    void aReadCarriesOnWithTheNextChannelWhenAnotherThreadClosesTheChannel(@TempDir final Path tmpDir)
+            throws IOException {
+        final var file = writeTestFile(tmpDir, 64);
+        try (var fileChannel = FileChannel.open(file, StandardOpenOption.READ);
+                var closingChannel = new ClosedDuringSecondReadFileChannel(fileChannel, false);
+                var nextChannel = FileChannel.open(file, StandardOpenOption.READ)) {
+            final var reader = new RandomAccessFileChannelReader(
+                    () -> closingChannel.isOpen() ? closingChannel : nextChannel, 0L, 64L);
+            final var arr = new byte[64];
+            assertThat(reader.read(0, arr, 0, 64)).isEqualTo(64);
+            for (var i = 0; i < 64; i++) {
+                assertThat(arr[i]).isEqualTo((byte) i);
+            }
+            assertThat(closingChannel.isOpen()).isFalse();
+        }
+    }
+
+    /**
+     * A read that is stopped by the interruption of the thread doing the read stops, rather than carrying on with
+     * the next channel, since the interruption is a reason to stop.
+     */
+    @Test
+    void aReadStopsWhenTheThreadReadingIsInterrupted(@TempDir final Path tmpDir) throws IOException {
+        final var file = writeTestFile(tmpDir, 64);
+        try (var fileChannel = FileChannel.open(file, StandardOpenOption.READ);
+                var closingChannel = new ClosedDuringSecondReadFileChannel(fileChannel, true);
+                var nextChannel = FileChannel.open(file, StandardOpenOption.READ)) {
+            final var reader = new RandomAccessFileChannelReader(
+                    () -> closingChannel.isOpen() ? closingChannel : nextChannel, 0L, 64L);
+            assertThatThrownBy(() -> reader.read(0, new byte[64], 0, 64))
+                    .isInstanceOf(ClosedByInterruptException.class);
+        }
+    }
+
+    /**
+     * A read from a channel that was given to the reader, rather than got from a source, fails when another thread
+     * closes the channel, since there is no other channel to carry on with.
+     */
+    @Test
+    void aReadOfAGivenChannelFailsWhenAnotherThreadClosesTheChannel(@TempDir final Path tmpDir) throws IOException {
+        final var file = writeTestFile(tmpDir, 64);
+        try (var fileChannel = FileChannel.open(file, StandardOpenOption.READ);
+                var closingChannel = new ClosedDuringSecondReadFileChannel(fileChannel, false)) {
+            final var reader = new RandomAccessFileChannelReader(closingChannel, 0L, 64L);
+            assertThatThrownBy(() -> reader.read(0, new byte[64], 0, 64))
+                    .isInstanceOf(AsynchronousCloseException.class);
         }
     }
 
