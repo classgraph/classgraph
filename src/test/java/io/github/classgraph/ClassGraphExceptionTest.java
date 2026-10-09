@@ -4,18 +4,23 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 /**
  * Tests that an interrupted scan throws {@link ClassGraphException}, as {@link ClassGraph#scan()} documents, rather
- * than letting the {@link InterruptedException} escape, and that the interruption is not swallowed in the process.
+ * than letting the {@link InterruptedException} escape, and that the interruption is not swallowed in the process,
+ * nor invented when the scan fails for some other reason.
  */
 public class ClassGraphExceptionTest {
     /**
@@ -50,6 +55,62 @@ public class ClassGraphExceptionTest {
             // Thread.interrupted() both reports and clears the status, so this also stops the interruption leaking
             // into the next test that runs on this thread
             assertThat(Thread.interrupted()).isTrue();
+        } finally {
+            Thread.interrupted();
+            executorService.shutdown();
+        }
+    }
+
+    /** How the {@link ExecutorService} that a scan is given makes the scan fail. */
+    enum ExecutorFailure {
+        /** The worker is rejected, as it is by an {@link ExecutorService} that has been shut down. */
+        REJECTED,
+        /** The worker runs, but never reports that it finished, so the scan times out waiting for it. */
+        TIMED_OUT,
+        /** The worker runs, but reports that it threw an exception. */
+        FAILED
+    }
+
+    /**
+     * A scan that fails without being interrupted leaves the interrupt status of the calling thread clear, so that
+     * the calling thread can carry on, and in particular can retry the scan, as the timeout message suggests.
+     *
+     * @param failure
+     *            how the scan is made to fail.
+     */
+    @ParameterizedTest
+    @EnumSource(ExecutorFailure.class)
+    public void aFailedScanDoesNotInterruptTheCallingThread(final ExecutorFailure failure) {
+        final ExecutorService executorService = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS,
+                new LinkedBlockingQueue<Runnable>()) {
+            @Override
+            public <T> Future<T> submit(final Callable<T> task) {
+                if (failure == ExecutorFailure.REJECTED) {
+                    throw new RejectedExecutionException("the reason");
+                }
+                // Run the worker here, so that it has finished before the scan waits for it, and only the result
+                // that it reports is wrong
+                try {
+                    task.call();
+                } catch (final Exception e) {
+                    throw new IllegalStateException(e);
+                }
+                final CompletableFuture<T> result = new CompletableFuture<>();
+                if (failure == ExecutorFailure.FAILED) {
+                    result.completeExceptionally(new IllegalStateException("the reason"));
+                }
+                return result;
+            }
+        };
+        try {
+            assertThatThrownBy(
+                    () -> new ClassGraph().setWorkerTimeout(10, TimeUnit.MILLISECONDS).scan(executorService, 2))
+                            .isInstanceOf(ClassGraphException.class)
+                            .hasMessage("Uncaught exception during scan");
+            assertThat(Thread.currentThread().isInterrupted()).isFalse();
+            try (ScanResult scanResult = new ClassGraph().scan(1)) {
+                assertThat(scanResult.getClasspathURIs()).isNotEmpty();
+            }
         } finally {
             Thread.interrupted();
             executorService.shutdown();

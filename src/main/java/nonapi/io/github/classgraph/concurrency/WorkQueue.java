@@ -354,6 +354,9 @@ public class WorkQueue<T> implements AutoCloseable {
      */
     @Override
     public void close() throws ExecutionException {
+        // Once a worker has failed or timed out, the remaining workers are only polled rather than each waited on
+        // for the full timeout, since the failure is reported however long they take to finish
+        long timeoutNanos = workerTimeoutNanos;
         for (Worker worker; (worker = workerTasks.poll()) != null;) {
             // If the ExecutorService did not have a free thread to start a worker on, claiming the worker here
             // stops it running the work loop if it is started later, so there is nothing to wait for. Waiting for
@@ -367,7 +370,7 @@ public class WorkQueue<T> implements AutoCloseable {
             final Future<?> future = worker.future;
             try {
                 // Block on completion using future.get(), which may throw one of the exceptions below
-                future.get(workerTimeoutNanos, TimeUnit.NANOSECONDS);
+                future.get(timeoutNanos, TimeUnit.NANOSECONDS);
             } catch (final TimeoutException e) {
                 // The worker is still running, and there is no way to stop it, since a thread blocked on class
                 // loading or on a filesystem read cannot be interrupted. All that can be done is to report why the
@@ -381,7 +384,7 @@ public class WorkQueue<T> implements AutoCloseable {
                                 + "on the calling thread, so that no class is loaded on a worker thread), or a "
                                 + "worker thread is blocked reading a classpath element from a filesystem or "
                                 + "network (call ClassGraph#setWorkerTimeout() to allow more time)")));
-                interruptionChecker.interrupt();
+                timeoutNanos = 0L;
             } catch (final CancellationException e) {
                 if (log != null) {
                     log.log("~", "Worker thread was cancelled");
@@ -393,8 +396,11 @@ public class WorkQueue<T> implements AutoCloseable {
                 // Interrupt other threads
                 interruptionChecker.interrupt();
             } catch (final ExecutionException e) {
+                // A failure is recorded rather than turned into an interruption, which would leave the interrupt
+                // status of this thread set. Recording it is enough to stop the other workers, since check()
+                // throws the recorded exception
                 interruptionChecker.setExecutionException(e);
-                interruptionChecker.interrupt();
+                timeoutNanos = 0L;
             }
         }
     }

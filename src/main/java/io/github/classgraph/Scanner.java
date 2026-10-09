@@ -1344,8 +1344,14 @@ class Scanner implements Callable<ScanResult> {
                 topLevelLog.flush();
             }
 
-            // Stop any running threads (should not be needed, threads should already be quiescent)
-            interruptionChecker.interrupt();
+            // Throwing InterruptedException may have cleared the interrupt status of this thread, so restore it, and
+            // stop any worker thread that is still running. A failure that is not an interruption must not
+            // interrupt this thread, which is the thread that called scan(). A worker thread that is still running
+            // was left running because another worker failed or timed out, and it stops at its next check(), which
+            // throws the recorded failure
+            if (e instanceof InterruptedException) {
+                interruptionChecker.interrupt();
+            }
 
             // A failed scan produces no ScanResult for the caller to close, so remove the temporary files and
             // close the resources, zipfiles and modules here, whatever the failure handler goes on to do
