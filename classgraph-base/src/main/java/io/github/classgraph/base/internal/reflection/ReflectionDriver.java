@@ -53,19 +53,20 @@ import org.jspecify.annotations.Nullable;
  */
 abstract class ReflectionDriver {
     /**
-     * Caches the methods and fields of each class that has been reflected on. No driver's
-     * {@link #getDeclaredMethods(Class)} or {@link #getDeclaredFields(Class)} reflects on a class through this
-     * cache, so building an entry can never recursively update the map.
+     * Caches the methods and fields of each class that has been reflected on and can never be unloaded, as decided
+     * by {@link #classMembers(Class)}. No driver's {@link #getDeclaredMethods(Class)} or
+     * {@link #getDeclaredFields(Class)} reflects on a class through this cache, so building an entry can never
+     * recursively update the map.
      */
-    private final Map<Class<?>, ClassMemberCache> classToClassMemberCache = new ConcurrentHashMap<>();
+    private final Map<Class<?>, ClassMembers> classToClassMembers = new ConcurrentHashMap<>();
 
     /** Only the drivers in this package can extend this class. */
     ReflectionDriver() {
         // Empty
     }
 
-    /** Caches class members. */
-    private final class ClassMemberCache {
+    /** The methods and fields of a class, its superclasses and its interfaces, indexed by name. */
+    private final class ClassMembers {
         /** The methods of the class, its superclasses and its interfaces, indexed by method name. */
         private final Map<String, List<Method>> methodNameToMethods = new HashMap<>();
 
@@ -76,9 +77,9 @@ abstract class ReflectionDriver {
          * Constructor.
          *
          * @param cls
-         *            the class to cache the members of
+         *            the class to index the members of
          */
-        private ClassMemberCache(final Class<?> cls) {
+        private ClassMembers(final Class<?> cls) {
             // Iterate from class to its superclasses, and find initial interfaces to start traversing from
             final Set<Class<?>> visited = new HashSet<>();
             final Deque<Class<?>> interfaceQueue = new ArrayDeque<>();
@@ -161,15 +162,27 @@ abstract class ReflectionDriver {
     }
 
     /**
-     * Get the cached methods and fields of a class, building the cache entry if this is the first time the class
-     * has been reflected on.
+     * Get the methods and fields of a class, which are cached if the class can never be unloaded, and read again on
+     * each call otherwise.
+     *
+     * <p>
+     * A class can never be unloaded if it belongs to a named module of the boot layer -- one of the JDK's own
+     * modules, or a module on the application's module path -- and is not a hidden class. No other class may be
+     * cached: there is one driver for the whole JVM, so a cached class would stay reachable from a static field for
+     * as long as ClassGraph is loaded, and so would the classloader that defined it, with every class that
+     * classloader defined. A webapp's or a plugin's own classloader, which ClassGraph reads by reflection, would
+     * then never be unloaded when ClassGraph is loaded by one of its parents, as it is in an application server's
+     * shared lib directory. Reading the members of such a class again costs tens of microseconds per lookup, and
+     * only happens while a classloader is being read.
      *
      * @param cls
      *            the class
-     * @return the class' cached members
+     * @return the class' methods and fields
      */
-    private ClassMemberCache classMemberCache(final Class<?> cls) {
-        return classToClassMemberCache.computeIfAbsent(cls, ClassMemberCache::new);
+    private ClassMembers classMembers(final Class<?> cls) {
+        return cls.getModule().getLayer() == ModuleLayer.boot() && !cls.isHidden()
+                ? classToClassMembers.computeIfAbsent(cls, ClassMembers::new)
+                : new ClassMembers(cls);
     }
 
     /**
@@ -513,7 +526,7 @@ abstract class ReflectionDriver {
      *             if the field could not be found, or could not be made accessible
      */
     Field findField(final Class<?> cls, final @Nullable Object obj, final String fieldName) throws Exception {
-        final var field = classMemberCache(cls).fieldNameToField.get(fieldName);
+        final var field = classMembers(cls).fieldNameToField.get(fieldName);
         if (field != null) {
             final var accessInstance = accessInstance(field, obj);
             // If the field was found but is not accessible, try making it accessible
@@ -562,7 +575,7 @@ abstract class ReflectionDriver {
      */
     Method findMethod(final Class<?> cls, final @Nullable Object obj, final String methodName,
             final Class<?>... paramTypes) throws Exception {
-        final var methodsForName = classMemberCache(cls).methodNameToMethods.get(methodName);
+        final var methodsForName = classMembers(cls).methodNameToMethods.get(methodName);
         if (methodsForName != null) {
             // Return the first method that matches the signature that is already accessible
             var found = false;

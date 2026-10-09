@@ -30,11 +30,13 @@ package io.github.classgraph;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.io.File;
 import java.lang.ref.WeakReference;
 import java.net.URL;
 import java.net.URLClassLoader;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 /**
  * Loading classes is the caller's responsibility in 5.x, and classpath elements are read directly rather than
@@ -102,6 +104,71 @@ public class ClassLoaderNotRetainedTest {
                     .isEqualTo(classLoaderStr);
         } finally {
             scanResult.close();
+        }
+    }
+
+    /**
+     * A classloader of a kind that ClassGraph does not know, which is read by reflection. It is defined by a
+     * throwaway classloader in {@link #theClassLoaderThatDefinedAScannedClassLoaderIsCollectable(File)}, as a
+     * plugin's or a webapp's own classloader class would be.
+     */
+    public static class PluginClassLoader extends ClassLoader {
+        /** The classpath, which ClassGraph finds by reflection. */
+        public final String classpath;
+
+        /**
+         * Constructor.
+         *
+         * @param classpath
+         *            the classpath.
+         */
+        public PluginClassLoader(final String classpath) {
+            super(null);
+            this.classpath = classpath;
+        }
+    }
+
+    /**
+     * Reading a classloader by reflection must not keep the classloader that defined its class alive -- that is, a
+     * webapp's or a plugin's classloader, when ClassGraph is loaded by a parent of it, as it is in an application
+     * server's shared lib directory.
+     */
+    @Test
+    public void theClassLoaderThatDefinedAScannedClassLoaderIsCollectable(@TempDir final File classpathDir)
+            throws Exception {
+        assertThat(awaitCollection(scanPluginClassLoader(classpathDir)))
+                .as("reading a classloader by reflection must not keep the classloader that defined it alive")
+                .isTrue();
+    }
+
+    /**
+     * Scan a {@link PluginClassLoader} whose class is defined by a throwaway classloader. This is a method of its
+     * own so that no local variable of the test still refers to either classloader once it returns.
+     *
+     * @param classpathDir
+     *            the classpath of the {@link PluginClassLoader}.
+     * @return a weak reference to the classloader that defined the {@link PluginClassLoader} class.
+     * @throws Exception
+     *             if the {@link PluginClassLoader} could not be created.
+     */
+    private static WeakReference<ClassLoader> scanPluginClassLoader(final File classpathDir) throws Exception {
+        final var codeSourceUrl = new URL[] {
+                ClassLoaderNotRetainedTest.class.getProtectionDomain().getCodeSource().getLocation() };
+
+        // The parent is the platform classloader, so that this classloader defines PluginClassLoader itself
+        try (var definingClassLoader = new URLClassLoader(codeSourceUrl, ClassLoader.getPlatformClassLoader())) {
+            final var pluginClassLoader = (ClassLoader) definingClassLoader
+                    .loadClass(PluginClassLoader.class.getName()).getConstructor(String.class)
+                    .newInstance(classpathDir.getPath());
+            assertThat(pluginClassLoader.getClass().getClassLoader()).isSameAs(definingClassLoader);
+
+            try (var scanResult = new ClassGraph().enableClassLoaders(pluginClassLoader).ignoreParentClassLoaders()
+                    .scan()) {
+                assertThat(scanResult.getClasspathFiles())
+                        .as("the classpath should have been read from the classloader's field by reflection")
+                        .containsExactly(classpathDir);
+            }
+            return new WeakReference<>(definingClassLoader);
         }
     }
 }
