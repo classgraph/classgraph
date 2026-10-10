@@ -223,6 +223,13 @@ final class ClasspathElementDir extends ClasspathElement {
         }
 
         final var matchStatus = scanSpec.dirAcceptMatchStatus(dirRelativePathStr);
+        if (!scanSpec.classpathElementResourcePathAcceptReject.acceptAndRejectAreEmpty()) {
+            // Every file has to be offered to checkResourcePathAcceptReject, as it is in a jarfile or a module, so
+            // that a marker file outside the accepted paths still selects or rejects the classpath element. The
+            // files of a rejected or non-accepted directory are not accepted, since isAcceptedResourcePath is false
+            // for its match status.
+            return matchStatus;
+        }
         if (matchStatus == ScanSpecPathMatch.HAS_REJECTED_PATH_PREFIX) {
             // Reached a rejected path -- stop the recursive scan
             if (log != null) {
@@ -319,6 +326,11 @@ final class ClasspathElementDir extends ClasspathElement {
         @Override
         public boolean visitEntry(final VfsEntry entry) {
             final var entryName = entry.getPathFromRoot();
+            // Accept/reject classpath elements based on file resource paths, including the paths of files that are
+            // not themselves accepted
+            if (!checkResourcePathAcceptReject(entryName, subLog)) {
+                return false;
+            }
             if (parentMatchStatus == ScanSpecPathMatch.ANCESTOR_OF_ACCEPTED_PATH) {
                 // The directory is only an ancestor of an accepted path, so none of its files are accepted -- but
                 // the module descriptor of the package root is always read, so that the module name is known even
@@ -329,10 +341,6 @@ final class ClasspathElementDir extends ClasspathElement {
                     recordLastModified(entry);
                 }
                 return true;
-            }
-            // Accept/reject classpath elements based on file resource paths
-            if (!checkResourcePathAcceptReject(entryName, subLog)) {
-                return false;
             }
             if (isAcceptedResourcePath(entryName, parentMatchStatus)) {
                 addAcceptedResource(newResource(entry), parentMatchStatus, /* isClassfileOnly = */ false, subLog);
