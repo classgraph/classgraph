@@ -84,12 +84,15 @@ public class FileUtilsReadAttributesTest {
         }
     }
 
-    /** The fallback refuses the two accessors that the {@link java.io.File} API cannot answer. */
+    /**
+     * For the two accessors that the {@link java.io.File} API cannot answer, the fallback returns the defaults that
+     * {@link java.nio.file.attribute.BasicFileAttributes} specifies, rather than throwing.
+     */
     @Test
-    public void fallbackRefusesWhatTheFileApiCannotAnswer() {
+    public void fallbackReturnsTheDocumentedDefaults() {
         final var attributes = FileUtils.readAttributes(NONEXISTENT_PATH);
-        assertThatThrownBy(attributes::lastAccessTime).isInstanceOf(UnsupportedOperationException.class);
-        assertThatThrownBy(attributes::fileKey).isInstanceOf(UnsupportedOperationException.class);
+        assertThat(attributes.lastAccessTime()).isEqualTo(attributes.lastModifiedTime());
+        assertThat(attributes.fileKey()).isNull();
     }
 
     /**
