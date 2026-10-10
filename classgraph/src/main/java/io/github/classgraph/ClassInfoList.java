@@ -197,6 +197,11 @@ public final class ClassInfoList extends MappableInfoList<ClassInfo> {
     /**
      * Find the union of this {@link ClassInfoList} with one or more others.
      *
+     * <p>
+     * If the first nonempty list (this list, then the others in order) is sorted by name, the union is sorted by
+     * name. Otherwise the union holds the classes of this list, then the classes of each other list that are not
+     * already in it, in list order.
+     *
      * @param others
      *            The other {@link ClassInfoList}s to union with this one.
      * @return The union of this {@link ClassInfoList} with the others.
@@ -205,15 +210,28 @@ public final class ClassInfoList extends MappableInfoList<ClassInfo> {
         Assert.notNullElements(others, "others");
         final Set<ClassInfo> reachableClassesUnion = new LinkedHashSet<>(this);
         final Set<ClassInfo> directlyRelatedClassesUnion = new LinkedHashSet<>(directlyRelatedClasses);
+        // An empty list, such as emptyList() or the result of a query that found nothing, contributes no classes,
+        // so it does not decide the order either: the first nonempty list does
+        var resultSortByName = sortByName;
+        var foundNonEmpty = !isEmpty();
         for (final ClassInfoList other : others) {
             reachableClassesUnion.addAll(other);
             directlyRelatedClassesUnion.addAll(other.directlyRelatedClasses);
+            if (!foundNonEmpty && !other.isEmpty()) {
+                foundNonEmpty = true;
+                resultSortByName = other.sortByName;
+            }
         }
-        return new ClassInfoList(reachableClassesUnion, directlyRelatedClassesUnion, sortByName);
+        return new ClassInfoList(reachableClassesUnion, directlyRelatedClassesUnion, resultSortByName);
     }
 
     /**
      * Find the intersection of this {@link ClassInfoList} with one or more others.
+     *
+     * <p>
+     * The intersection keeps the order of the first list (this list, then the others in order) that is not sorted
+     * by name, such as the list returned by {@link ClassInfo#getAllSuperclasses()}. If every list is sorted by
+     * name, the intersection is sorted by name.
      *
      * @param others
      *            The other {@link ClassInfoList}s to intersect with this one.
@@ -225,7 +243,7 @@ public final class ClassInfoList extends MappableInfoList<ClassInfo> {
         // is preserved in the intersection (#238)
         final ArrayDeque<ClassInfoList> intersectionOrder = new ArrayDeque<>();
         intersectionOrder.add(this);
-        var foundFirst = false;
+        var foundFirst = !sortByName;
         for (final ClassInfoList other : others) {
             if (other.sortByName) {
                 intersectionOrder.add(other);
@@ -238,11 +256,11 @@ public final class ClassInfoList extends MappableInfoList<ClassInfo> {
         }
         final var first = intersectionOrder.remove();
         final Set<ClassInfo> reachableClassesIntersection = new LinkedHashSet<>(first);
-        while (!intersectionOrder.isEmpty()) {
-            reachableClassesIntersection.retainAll(intersectionOrder.remove());
-        }
-        final Set<ClassInfo> directlyRelatedClassesIntersection = new LinkedHashSet<>(directlyRelatedClasses);
-        for (final ClassInfoList other : others) {
+        // The directly related classes keep the same list's order
+        final Set<ClassInfo> directlyRelatedClassesIntersection = new LinkedHashSet<>(first.directlyRelatedClasses);
+        for (final ClassInfoList other : intersectionOrder) {
+            // A list's contains() is a linear search, so test membership in a hash set instead
+            reachableClassesIntersection.retainAll(new HashSet<>(other));
             directlyRelatedClassesIntersection.retainAll(other.directlyRelatedClasses);
         }
         return new ClassInfoList(reachableClassesIntersection, directlyRelatedClassesIntersection,
@@ -251,7 +269,7 @@ public final class ClassInfoList extends MappableInfoList<ClassInfo> {
 
     /**
      * Find the set difference between this {@link ClassInfoList} and another {@link ClassInfoList}, i.e. (this \
-     * other).
+     * other). The classes that remain keep this list's order.
      *
      * @param other
      *            The other {@link ClassInfoList} to subtract from this one.
@@ -261,7 +279,8 @@ public final class ClassInfoList extends MappableInfoList<ClassInfo> {
         Assert.notNull(other, "other");
         final Set<ClassInfo> reachableClassesDifference = new LinkedHashSet<>(this);
         final Set<ClassInfo> directlyRelatedClassesDifference = new LinkedHashSet<>(directlyRelatedClasses);
-        reachableClassesDifference.removeAll(other);
+        // A list's contains() is a linear search, so test membership in a hash set instead
+        reachableClassesDifference.removeAll(new HashSet<>(other));
         directlyRelatedClassesDifference.removeAll(other.directlyRelatedClasses);
         return new ClassInfoList(reachableClassesDifference, directlyRelatedClassesDifference, sortByName);
     }
