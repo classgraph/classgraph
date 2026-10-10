@@ -169,17 +169,19 @@ public final class CallStackInfo {
     public static CallStackInfo read() {
         final var contextClassLoader = Thread.currentThread().getContextClassLoader();
         try {
-            final var callStackInfo = StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE)
+            // The walk includes the frames of this class, so this class' own classloader and module layer are
+            // always in the result. When they are both absent, because ClassGraph was loaded by the bootstrap
+            // classloader from the boot classpath, the walk still finds any frame that is holding a class loading
+            // lock, so the result of a walk that succeeds is always returned.
+            return StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE)
                     .walk(stackFrames -> read(contextClassLoader, stackFrames));
-            if (!callStackInfo.classLoaders.isEmpty() || !callStackInfo.moduleLayers.isEmpty()) {
-                return callStackInfo;
-            }
         } catch (Exception | LinkageError e) {
             // Fall through
         }
-        // The call stack could not be read -- fall back to naming only this class' own classloader and module
-        // layer, and to reporting no class loading lock, since the check for one exists to avoid a deadlock that
-        // only some classloaders cause, so failing to run it must not stop a scan that would have worked
+        // The walk threw, e.g. because a SecurityManager denied it, so the call stack could not be read -- fall
+        // back to naming only this class' own classloader and module layer, and to reporting no class loading lock,
+        // since the check for one exists to avoid a deadlock that only some classloaders cause, so failing to run it
+        // must not stop a scan that would have worked
         final LinkedIdentitySet<ClassLoader> classLoaders = new LinkedIdentitySet<>();
         final var classLoader = CallStackInfo.class.getClassLoader();
         if (classLoader != null) {
