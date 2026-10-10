@@ -33,6 +33,32 @@ public class RecordTest {
             assertThat(classInfoList.getNames()).containsExactly("pkg.Record");
             final var fieldInfo = classInfoList.get(0).getFieldInfo("x");
             assertThat(fieldInfo).isNotNull();
+            // A record's classfile has an InnerClasses entry for MethodHandles$Lookup, because its bootstrap
+            // methods take a Lookup; that entry does not link the record, or MethodHandles, to Lookup
+            assertThat(classInfoList.get(0).hasNestedClasses()).isFalse();
+            assertThat(classInfoList.get(0).isNestedClass()).isFalse();
+            assertThat(scanResult.getClassInfo("java.lang.invoke.MethodHandles$Lookup")).isNull();
+            assertThat(scanResult.getClassInfo("java.lang.invoke.MethodHandles")).isNull();
+        }
+    }
+
+    /**
+     * The InnerClasses entry for {@code MethodHandles$Lookup} is dropped from the classfiles of the classes that
+     * use it, but not from the classfiles of MethodHandles and the classes nested in it, where it describes the
+     * real nesting.
+     */
+    @Test
+    public void methodHandlesLookupIsNestedInMethodHandles() {
+        try (var scanResult = new ClassGraph().enableSystemModules().enableClassInfo()
+                .acceptClasses("java.lang.invoke.MethodHandles", "java.lang.invoke.MethodHandles$Lookup")
+                .ignoreClassVisibility().scan()) {
+            final var lookup = scanResult.getClassInfo("java.lang.invoke.MethodHandles$Lookup");
+            assertThat(lookup).isNotNull();
+            assertThat(lookup.isStatic()).isTrue();
+            assertThat(lookup.isMemberClass()).isTrue();
+            assertThat(lookup.getEnclosingClasses().getNames()).containsExactly("java.lang.invoke.MethodHandles");
+            assertThat(scanResult.getClassInfo("java.lang.invoke.MethodHandles").getNestedClasses().getNames())
+                    .contains("java.lang.invoke.MethodHandles$Lookup");
         }
     }
 }

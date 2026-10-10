@@ -2509,9 +2509,13 @@ class Classfile {
                 if (innerClassName.startsWith("[")) {
                     continue;
                 }
-                // Record types have a Lookup inner class for bootstrap methods in JDK 14 -- drop this
+                // A class that uses invokedynamic (a record, or a lambda) has an InnerClasses entry for
+                // MethodHandles$Lookup, because its bootstrap methods take a Lookup -- drop that entry, except in
+                // the classfiles of MethodHandles and the classes nested in it, where it describes their own nesting
                 if (!("java.lang.invoke.MethodHandles$Lookup".equals(innerClassName)
-                        && "java.lang.invoke.MethodHandles".equals(outerClassName))) {
+                        && "java.lang.invoke.MethodHandles".equals(outerClassName)
+                        && !className.equals("java.lang.invoke.MethodHandles")
+                        && !className.startsWith("java.lang.invoke.MethodHandles$"))) {
                     // Store relationship between inner class and outer class
                     if (classContainmentEntries == null) {
                         classContainmentEntries = new ArrayList<>();
