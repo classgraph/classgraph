@@ -821,13 +821,10 @@ class Scanner implements Callable<ScanResult> {
          *            the work queue
          * @param log
          *            the log node, or null to skip logging
-         * @throws InterruptedException
-         *             the interrupted exception
          */
         @Override
         public void processWorkUnit(final ClassfileScanWorkUnit workUnit,
-                final WorkQueue<ClassfileScanWorkUnit> workQueue, final @Nullable LogNode log)
-                throws InterruptedException {
+                final WorkQueue<ClassfileScanWorkUnit> workQueue, final @Nullable LogNode log) {
             // Classfile scan log entries are listed inline below the entry that was added to the log when the path
             // of the corresponding resource was found, by using the LogNode stored in Resource#scanLog. This allows
             // the path scanning and classfile scanning logs to be merged into a single tree, rather than having
@@ -849,9 +846,6 @@ class Scanner implements Callable<ScanResult> {
                 if (subLog != null) {
                     subLog.addElapsedTime();
                 }
-            } catch (final InterruptedException e) {
-                // Don't swallow interruption in the catch-all handler below
-                throw e;
             } catch (final SkipClassException e) {
                 if (subLog != null) {
                     subLog.log(classfileResource.getPath(), "Skipping classfile: " + e.getMessage());

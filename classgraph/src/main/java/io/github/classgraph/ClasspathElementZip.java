@@ -147,10 +147,8 @@ class ClasspathElementZip extends ClasspathElement {
          *
          * @param childClasspathEltPath
          *            the path of the child classpath element
-         * @throws InterruptedException
-         *             if the thread was interrupted
          */
-        void schedule(final String childClasspathEltPath) throws InterruptedException {
+        void schedule(final String childClasspathEltPath) {
             if (alreadyScheduled.add(childClasspathEltPath)) {
                 workQueue.addWorkUnit(new ClasspathEntryWorkUnit(childClasspathEltPath, getClassLoaderString(),
                         /* parentClasspathElement = */ ClasspathElementZip.this,
@@ -161,8 +159,7 @@ class ClasspathElementZip extends ClasspathElement {
     }
 
     @Override
-    void open(final WorkQueue<ClasspathEntryWorkUnit> workQueue, final @Nullable LogNode log)
-            throws InterruptedException {
+    void open(final WorkQueue<ClasspathEntryWorkUnit> workQueue, final @Nullable LogNode log) {
         if (!scanSpec.scanJars) {
             if (log != null) {
                 log(classpathElementIdx, "Skipping classpath element, since jar scanning is disabled: " + rawPath,
