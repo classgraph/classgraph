@@ -1856,21 +1856,12 @@ class Classfile {
         final var methodModifierFlags = reader().readUnsignedShort();
         final var isPublicMethod = (methodModifierFlags & 0x0001) == 0x0001;
         final var methodIsVisible = isPublicMethod || scanSpec.ignoreMethodVisibility;
-        String methodName = null;
-        String methodTypeDescriptor = null;
         // Always enable MethodInfo for annotations (this is how annotation constants are defined)
         final var enableMethodInfo = scanSpec.enableMethodInfo || isAnnotation;
-        if (enableMethodInfo) {
-            final var methodNameCpIdx = reader().readUnsignedShort();
-            methodName = getConstantPoolString(methodNameCpIdx);
-            final var methodTypeDescriptorCpIdx = reader().readUnsignedShort();
-            methodTypeDescriptor = getConstantPoolString(methodTypeDescriptorCpIdx);
-        } else {
-            reader().skip(4); // name_index, descriptor_index
-        }
-        final var attributesCount = reader().readUnsignedShort();
         if (!methodIsVisible || !enableMethodInfo) {
-            // Skip method attributes
+            // Skip method
+            reader().skip(4); // name_index, descriptor_index
+            final var attributesCount = reader().readUnsignedShort();
             for (var i = 0; i < attributesCount; i++) {
                 reader().skip(2); // attribute_name_index
                 final var attributeLength = reader().readInt();
@@ -1878,11 +1869,13 @@ class Classfile {
             }
             return;
         }
-        if (methodName == null || methodTypeDescriptor == null) {
-            // Should not happen for a valid classfile (enableMethodInfo is true here, so the method name and type
-            // descriptor were read from the constant pool)
-            throw new ClassfileFormatException("Method name and/or type descriptor is null");
-        }
+
+        final var methodNameCpIdx = reader().readUnsignedShort();
+        final var methodName = requireConstantPoolString(getConstantPoolString(methodNameCpIdx), "method name");
+        final var methodTypeDescriptorCpIdx = reader().readUnsignedShort();
+        final var methodTypeDescriptor = requireConstantPoolString(getConstantPoolString(methodTypeDescriptorCpIdx),
+                "method type descriptor");
+        final var attributesCount = reader().readUnsignedShort();
 
         List<TypeAnnotation<MethodTypeSignature>> methodTypeAnnotationDecorators = null;
         String methodTypeSignatureStr = null;
@@ -2189,9 +2182,11 @@ class Classfile {
      * The range of source code line numbers spanned by a method's body.
      *
      * @param minLineNum
-     *            the lowest line number, or 0 if the method's {@code Code} attribute has no line number table
+     *            the lowest nonzero line number, or 0 if the method's {@code Code} attribute has no line number
+     *            table or the table holds no nonzero line number
      * @param maxLineNum
-     *            the highest line number, or 0 if the method's {@code Code} attribute has no line number table
+     *            the highest line number, or 0 if the method's {@code Code} attribute has no line number table or
+     *            the table holds no nonzero line number
      */
     private record LineNumberRange(int minLineNum, int maxLineNum) {
     }
@@ -2220,8 +2215,12 @@ class Classfile {
                 for (var j = 0; j < lineNumTableLen; j++) {
                     reader().skip(2); // start_pc
                     final var lineNum = reader().readUnsignedShort();
-                    minLineNum = minLineNum == 0 ? lineNum : Math.min(minLineNum, lineNum);
-                    maxLineNum = maxLineNum == 0 ? lineNum : Math.max(maxLineNum, lineNum);
+                    // Ignore line 0, since 0 is the "unknown" value of minLineNum and maxLineNum, and a 0 entry
+                    // would otherwise reset the running minimum
+                    if (lineNum != 0) {
+                        minLineNum = minLineNum == 0 ? lineNum : Math.min(minLineNum, lineNum);
+                        maxLineNum = Math.max(maxLineNum, lineNum);
+                    }
                 }
             } else {
                 reader().skip(codeAttrLen);
