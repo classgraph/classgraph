@@ -57,11 +57,11 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
     private final List<ClassRefTypeSignature> superinterfaceSignatures;
 
     /**
-     * The throws signatures (usually null). These are only present in Scala classes, if the class is marked up with
-     * {@code @throws}, and they violate the classfile spec, but we parse them anyway.
+     * The throws signatures (usually empty). These are only present in Scala classes, if the class is marked up
+     * with {@code @throws}, and they violate the classfile spec, but we parse them anyway.
      */
     // #495
-    private final @Nullable List<ClassRefOrTypeVariableSignature> throwsSignatures;
+    private final List<ClassRefOrTypeVariableSignature> throwsSignatures;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -77,13 +77,13 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
      * @param superinterfaceSignatures
      *            The superinterface signature(s).
      * @param throwsSignatures
-     *            the throws signatures (these are actually invalid, but can be added by Scala). Usually null.
+     *            the throws signatures (these are actually invalid, but can be added by Scala). Usually empty.
      */
     // #495
     private ClassTypeSignature(final ClassInfo classInfo, final List<TypeParameter> typeParameters,
             final @Nullable ClassRefTypeSignature superclassSignature,
             final List<ClassRefTypeSignature> superinterfaceSignatures,
-            final @Nullable List<ClassRefOrTypeVariableSignature> throwsSignatures) {
+            final List<ClassRefOrTypeVariableSignature> throwsSignatures) {
         super();
         this.classInfo = classInfo;
         this.typeParameters = typeParameters;
@@ -127,7 +127,7 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
                 // Silently fail (should not happen)
             }
         }
-        this.throwsSignatures = null;
+        this.throwsSignatures = List.of();
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -164,10 +164,9 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
      * Gets the throws signatures. These are invalid according to the classfile spec (so this method is currently
      * non-public), but may be added by the Scala compiler.
      *
-     * @return the throws signatures
+     * @return the throws signatures, or the empty list if the class type signature has no throws suffix
      */
     // #495
-    @Nullable
     List<ClassRefOrTypeVariableSignature> getThrowsSignatures() {
         return throwsSignatures;
     }
@@ -197,11 +196,8 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
         for (final ClassRefTypeSignature classRefTypeSignature : superinterfaceSignatures) {
             classRefTypeSignature.setScanResult(scanResult);
         }
-        final var throwsSigs = throwsSignatures;
-        if (throwsSigs != null) {
-            for (final ClassRefOrTypeVariableSignature throwsSignature : throwsSigs) {
-                throwsSignature.setScanResult(scanResult);
-            }
+        for (final ClassRefOrTypeVariableSignature throwsSignature : throwsSignatures) {
+            throwsSignature.setScanResult(scanResult);
         }
     }
 
@@ -223,11 +219,8 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
         for (final ClassRefTypeSignature typeSignature : superinterfaceSignatures) {
             typeSignature.findReferencedClassNames(refdClassNames);
         }
-        final var throwsSigs = throwsSignatures;
-        if (throwsSigs != null) {
-            for (final ClassRefOrTypeVariableSignature typeSignature : throwsSigs) {
-                typeSignature.findReferencedClassNames(refdClassNames);
-            }
+        for (final ClassRefOrTypeVariableSignature typeSignature : throwsSignatures) {
+            typeSignature.findReferencedClassNames(refdClassNames);
         }
     }
 
@@ -266,14 +259,11 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
      *            the buffer to append to
      */
     void appendClassDeclaration(final boolean useSimpleNames, final StringBuilder buf) {
-        final var throwsSigs = throwsSignatures;
-        if (throwsSigs != null) {
-            for (final ClassRefOrTypeVariableSignature throwsSignature : throwsSigs) {
-                if (!buf.isEmpty()) {
-                    buf.append(' ');
-                }
-                buf.append("@throws(").append(throwsSignature).append(")");
+        for (final ClassRefOrTypeVariableSignature throwsSignature : throwsSignatures) {
+            if (!buf.isEmpty()) {
+                buf.append(' ');
             }
+            buf.append("@throws(").append(throwsSignature).append(")");
         }
         final var modifiers = classInfo.getModifiers();
         if (modifiers != 0) {
@@ -378,33 +368,15 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
         } else {
             superinterfaceSignatures = List.of();
         }
-        final List<ClassRefOrTypeVariableSignature> throwsSignatures;
-        if (parser.peek() == '^') {
-            // There is an illegal "throws" suffix at the end of this class type signature. The JVMS ClassSignature
-            // production has no ThrowsSignature, but the Scala compiler emits one when a class is tagged with
-            // "@throws" (#495). javac and javap reject such a signature, and getClass().getGenericSuperclass() on a
-            // subclass throws GenericSignatureFormatError -- but the JVM itself never reads type signatures, so the
-            // classes run fine, and Scala has kept emitting them. ClassGraph therefore parses the suffix, records
-            // the classes it names as referenced, and renders it as "@throws(...)", rather than refusing to parse a
-            // signature that a real compiler produces.
-            throwsSignatures = new ArrayList<>();
-            while (parser.peek() == '^') {
-                parser.expect('^');
-                final var classTypeSignature = ClassRefTypeSignature.parse(parser, definingClassName);
-                if (classTypeSignature != null) {
-                    throwsSignatures.add(classTypeSignature);
-                } else {
-                    final var typeVariableSignature = TypeVariableSignature.parse(parser, definingClassName);
-                    if (typeVariableSignature != null) {
-                        throwsSignatures.add(typeVariableSignature);
-                    } else {
-                        throw new TypeSignatureParseException(parser, "Missing type variable signature");
-                    }
-                }
-            }
-        } else {
-            throwsSignatures = null;
-        }
+        // There may be an illegal "throws" suffix at the end of this class type signature. The JVMS ClassSignature
+        // production has no ThrowsSignature, but the Scala compiler emits one when a class is tagged with "@throws"
+        // (#495). javac and javap reject such a signature, and getClass().getGenericSuperclass() on a subclass
+        // throws GenericSignatureFormatError -- but the JVM itself never reads type signatures, so the classes run
+        // fine, and Scala has kept emitting them. ClassGraph therefore parses the suffix, records the classes it
+        // names as referenced, and renders it as "@throws(...)", rather than refusing to parse a signature that a
+        // real compiler produces.
+        final var throwsSignatures = ClassRefOrTypeVariableSignature.parseThrowsSignatures(parser,
+                definingClassName);
         if (parser.hasMore()) {
             throw new TypeSignatureParseException(parser, "Extra characters at end of type descriptor");
         }

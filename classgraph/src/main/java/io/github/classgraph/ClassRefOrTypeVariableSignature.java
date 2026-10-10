@@ -28,6 +28,11 @@
  */
 package io.github.classgraph;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import org.jspecify.annotations.Nullable;
+
 /**
  * A class type or type variable, i.e. a reference type that is not an array type. Subclasses are
  * {@link ClassRefTypeSignature} and {@link TypeVariableSignature}.
@@ -37,5 +42,43 @@ public abstract sealed class ClassRefOrTypeVariableSignature extends ReferenceTy
     /** Constructor. */
     ClassRefOrTypeVariableSignature() {
         super();
+    }
+
+    /**
+     * Parse the throws suffix at the end of a method type signature, or at the end of a class type signature
+     * emitted by the Scala compiler: zero or more {@code '^'} characters, each followed by a class reference type
+     * signature or a type variable signature.
+     *
+     * @param parser
+     *            the parser
+     * @param definingClassName
+     *            the name of the defining class (for resolving type variables), or null if the defining class is
+     *            not known
+     * @return the thrown types, in the order they appear in, or the empty list if there is no throws suffix
+     * @throws TypeSignatureParseException
+     *             if a {@code '^'} is followed by neither a class reference type signature nor a type variable
+     *             signature
+     */
+    static List<ClassRefOrTypeVariableSignature> parseThrowsSignatures(final TypeSignatureParser parser,
+            final @Nullable String definingClassName) throws TypeSignatureParseException {
+        if (parser.peek() != '^') {
+            return List.of();
+        }
+        final List<ClassRefOrTypeVariableSignature> throwsSignatures = new ArrayList<>();
+        while (parser.peek() == '^') {
+            parser.expect('^');
+            final var classTypeSignature = ClassRefTypeSignature.parse(parser, definingClassName);
+            if (classTypeSignature != null) {
+                throwsSignatures.add(classTypeSignature);
+            } else {
+                final var typeVariableSignature = TypeVariableSignature.parse(parser, definingClassName);
+                if (typeVariableSignature != null) {
+                    throwsSignatures.add(typeVariableSignature);
+                } else {
+                    throw new TypeSignatureParseException(parser, "Missing type variable signature");
+                }
+            }
+        }
+        return throwsSignatures;
     }
 }
