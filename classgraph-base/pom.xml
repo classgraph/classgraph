@@ -29,8 +29,8 @@
 		<osgiExportPackage>io.github.classgraph.base;version="${project.version}",io.github.classgraph.base.internal.concurrency;x-internal:=true,io.github.classgraph.base.internal.path;x-internal:=true,io.github.classgraph.base.internal.reflection;x-internal:=true,io.github.classgraph.base.internal.utils;x-internal:=true</osgiExportPackage>
 		<!-- Narcissus is imported optionally because ReflectionUtils looks it up by name, and an OSGi bundle can
 		     only load a class from a package it imports. -->
-		<osgiImportPackage>javax.xml,javax.xml.namespace,javax.xml.parsers,javax.xml.xpath,org.w3c.dom,io.github.toolfactory.narcissus;resolution:="optional",org.jspecify.annotations;resolution:="optional"</osgiImportPackage>
-		<osgiDependencies>java.xml,java.logging</osgiDependencies>
+		<osgiImportPackage>io.github.toolfactory.narcissus;resolution:="optional",org.jspecify.annotations;resolution:="optional"</osgiImportPackage>
+		<osgiDependencies>java.logging</osgiDependencies>
 
 		<!-- This module has sources and produces a jar, so it needs the ecj checks and the license copies -->
 		<maven.antrun.skip>false</maven.antrun.skip>
@@ -46,4 +46,15 @@
 			<optional>true</optional>
 		</dependency>
 	</dependencies>
+
+	<build>
+		<resources>
+			<!-- META-INF/maven/.../version.properties, which VersionFinder reads the version of this module from.
+			     Only this directory is filtered, so that no other resource can have a ${...} replaced. -->
+			<resource>
+				<directory>src/main/resources-filtered</directory>
+				<filtering>true</filtering>
+			</resource>
+		</resources>
+	</build>
 </project>

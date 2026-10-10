@@ -91,6 +91,14 @@
 	</dependencies>
 
 	<build>
+		<resources>
+			<!-- META-INF/maven/.../version.properties, which ClassGraph.getVersion() reads the version from. Only
+			     this directory is filtered, so that no other resource can have a ${...} replaced. -->
+			<resource>
+				<directory>src/main/resources-filtered</directory>
+				<filtering>true</filtering>
+			</resource>
+		</resources>
 		<plugins>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>

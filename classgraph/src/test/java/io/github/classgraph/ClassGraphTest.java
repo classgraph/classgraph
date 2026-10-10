@@ -161,8 +161,8 @@ public class ClassGraphTest {
     /** ClassGraph reports its own version. */
     @Test
     public void theVersionIsReported() {
-        // Running from target/classes there is no jar manifest and no Maven metadata, so the version has to come
-        // from the pom.xml -- which, in the multi-module build, inherits its version from the parent pom
+        // Running from target/classes there is no jar manifest and no pom.properties, so the version has to come
+        // from the version.properties that the build generates by resource filtering
         assertThat(ClassGraph.getVersion()).matches("\\d+\\.\\d+\\.\\d+.*");
     }
 

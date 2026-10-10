@@ -30,29 +30,13 @@ package io.github.classgraph.base.internal.utils;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.Locale;
 import java.util.Properties;
-
-import javax.xml.XMLConstants;
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.xpath.XPathConstants;
-import javax.xml.xpath.XPathFactory;
-import javax.xml.xpath.XPathFactoryConfigurationException;
 
 import org.jspecify.annotations.Nullable;
 
 /** Finds the version number of a Maven artifact, and the version of the JDK. */
 public final class VersionFinder {
-
-    /** XPath for the version element of a {@code pom.xml}. */
-    private static final String POM_VERSION_XPATH = "/*[local-name()='project']/*[local-name()='version']";
-
-    /** XPath for the version of the parent of a {@code pom.xml}. */
-    private static final String POM_PARENT_VERSION_XPATH = "/*[local-name()='project']/*[local-name()='parent']"
-            + "/*[local-name()='version']";
 
     /** The operating system type. */
     public static final OperatingSystem OS;
@@ -116,11 +100,26 @@ public final class VersionFinder {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get the version number of the Maven artifact that a given class is packaged in.
+     * Get the version number of the Maven artifact that a given class is packaged in. The version is read from the
+     * first of these that records one:
+     *
+     * <ol>
+     * <li>{@code META-INF/maven/<groupId>/<artifactId>/version.properties}, which the build of each ClassGraph
+     * module generates by resource filtering, so it is present both in the jar and in a build directory such as
+     * {@code target/classes};</li>
+     * <li>{@code META-INF/maven/<groupId>/<artifactId>/pom.properties}, which Maven writes into every jar it
+     * builds;</li>
+     * <li>the implementation or specification version of the class's {@link Package}, which the JDK reads from the
+     * jar manifest.</li>
+     * </ol>
+     *
+     * <p>
+     * The two properties files are under {@code META-INF/}, not in a package directory, because a resource in a
+     * package of a named module can only be read by that module, and this method is called from another module.
      *
      * @param classInArtifact
-     *            a class that is packaged in the artifact, used to find the artifact's {@code pom.xml},
-     *            {@code pom.properties} or manifest.
+     *            a class that is packaged in the artifact, used to find the artifact's properties files or
+     *            manifest.
      * @param mavenGroupId
      *            the {@code groupId} of the artifact.
      * @param mavenArtifactId
@@ -130,9 +129,10 @@ public final class VersionFinder {
     public static String getVersion(final Class<?> classInArtifact, final String mavenGroupId,
             final String mavenArtifactId) {
         // Each source is tried in turn, from the most specific to the most general
-        var version = versionFromPomXml(classInArtifact);
+        var version = versionFromMavenProperties(classInArtifact, mavenGroupId, mavenArtifactId,
+                "version.properties");
         if (version == null) {
-            version = versionFromMavenProperties(classInArtifact, mavenGroupId, mavenArtifactId);
+            version = versionFromMavenProperties(classInArtifact, mavenGroupId, mavenArtifactId, "pom.properties");
         }
         if (version == null) {
             version = versionFromPackage(classInArtifact);
@@ -157,72 +157,8 @@ public final class VersionFinder {
     }
 
     /**
-     * Get the version number from the {@code pom.xml} of the project that the artifact was built from. This is only
-     * available when running from a build directory rather than a jar, e.g. in Eclipse.
-     *
-     * @param cls
-     *            a class packaged in the artifact.
-     * @return the version number, or null if it could not be read.
-     */
-    private static @Nullable String versionFromPomXml(final Class<?> cls) {
-        try {
-            final var className = cls.getName();
-            final var classpathResource = cls.getResource("/" + className.replace('.', '/') + ".class");
-            if (classpathResource == null) {
-                return null;
-            }
-            // Remove the package segments from the path of the package directory, to get the package root
-            var path = Path.of(classpathResource.toURI()).getParent();
-            final var packagePathSegments = className.length() - className.replace(".", "").length();
-            for (var i = 0; i < packagePathSegments && path != null; i++) {
-                path = path.getParent();
-            }
-            // Look for the pom.xml in the package root, and up to two levels above it ("bin" or "target/classes")
-            for (var i = 0; i < 3 && path != null; i++, path = path.getParent()) {
-                final var version = versionFromPomXml(path.resolve("pom.xml"));
-                if (version != null) {
-                    return version;
-                }
-            }
-        } catch (final Exception _) {
-            // Ignore -- the classfile is not in a directory, or its URI is not a valid path
-        }
-        return null;
-    }
-
-    /**
-     * Read the {@code /project/version} element of a {@code pom.xml} file, falling back to
-     * {@code /project/parent/version} if there is no version element -- a module of a multi-module build usually
-     * omits its own version, and inherits the parent's.
-     *
-     * @param pom
-     *            the path of the {@code pom.xml} file.
-     * @return the version number, or null if the file does not exist or has no non-blank version element.
-     * @throws Exception
-     *             if the file exists but could not be parsed, or the XML parser or XPath factory could not be
-     *             configured. The caller abandons the {@code pom.xml} search in that case, rather than trying the
-     *             enclosing directories.
-     */
-    private static @Nullable String versionFromPomXml(final Path pom) throws Exception {
-        try (var inputStream = Files.newInputStream(pom)) {
-            final var doc = getSecureDocumentBuilderFactory().newDocumentBuilder().parse(inputStream);
-            doc.getDocumentElement().normalize();
-            final var xPath = getSecureXPathFactory().newXPath();
-            // The document is parsed namespace-aware, and a pom.xml is in the Maven POM namespace, so the element
-            // names have to be matched with local-name() -- an unprefixed "/project/version" matches nothing
-            final var version = trimVersion(
-                    (String) xPath.compile(POM_VERSION_XPATH).evaluate(doc, XPathConstants.STRING));
-            return version != null ? version
-                    : trimVersion(
-                            (String) xPath.compile(POM_PARENT_VERSION_XPATH).evaluate(doc, XPathConstants.STRING));
-        } catch (final IOException _) {
-            // There is no pom.xml in this directory
-            return null;
-        }
-    }
-
-    /**
-     * Get the version number from the Maven {@code pom.properties} in the jar's {@code META-INF} directory.
+     * Get the version number from a properties file in the artifact's {@code META-INF/maven/<groupId>/<artifactId>}
+     * directory.
      *
      * @param cls
      *            a class packaged in the artifact.
@@ -230,16 +166,21 @@ public final class VersionFinder {
      *            the {@code groupId} of the artifact.
      * @param mavenArtifactId
      *            the {@code artifactId} of the artifact.
-     * @return the version number, or null if it could not be read.
+     * @param fileName
+     *            the name of the properties file.
+     * @return the value of the {@code version} property, or null if the file could not be read, or has no non-blank
+     *         version, or has a version that is an unexpanded Maven property reference such as
+     *         {@code ${project.version}} (because the file was copied by a build that does not filter resources).
      */
     private static @Nullable String versionFromMavenProperties(final Class<?> cls, final String mavenGroupId,
-            final String mavenArtifactId) {
-        try (var inputStream = cls.getResourceAsStream(
-                "/META-INF/maven/" + mavenGroupId + "/" + mavenArtifactId + "/pom.properties")) {
+            final String mavenArtifactId, final String fileName) {
+        try (var inputStream = cls
+                .getResourceAsStream("/META-INF/maven/" + mavenGroupId + "/" + mavenArtifactId + "/" + fileName)) {
             if (inputStream != null) {
                 final var properties = new Properties();
                 properties.load(inputStream);
-                return trimVersion(properties.getProperty("version"));
+                final var version = trimVersion(properties.getProperty("version"));
+                return version == null || version.startsWith("${") ? null : version;
             }
         } catch (final IOException _) {
             // Ignore -- the properties file is absent or unreadable
@@ -262,46 +203,5 @@ public final class VersionFinder {
         }
         final var implementationVersion = trimVersion(pkg.getImplementationVersion());
         return implementationVersion != null ? implementationVersion : trimVersion(pkg.getSpecificationVersion());
-    }
-
-    /**
-     * Helper method to provide a XXE secured DocumentBuilder Factory.
-     *
-     * reference - https://gist.github.com/AlainODea/1779a7c6a26a5c135280bc9b3b71868f
-     *
-     * reference - https://rules.sonarsource.com/java/tag/owasp/RSPEC-2755
-     *
-     * @return DocumentBuilderFactory
-     * @throws ParserConfigurationException
-     *             if a requested feature is not supported by the XML parser
-     */
-    private static DocumentBuilderFactory getSecureDocumentBuilderFactory() throws ParserConfigurationException {
-        final var dbf = DocumentBuilderFactory.newInstance();
-        dbf.setXIncludeAware(false);
-        dbf.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
-        dbf.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
-        dbf.setAttribute(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
-        dbf.setExpandEntityReferences(false);
-        dbf.setNamespaceAware(true);
-        dbf.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
-        dbf.setFeature("http://xml.org/sax/features/external-general-entities", false);
-        dbf.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
-        dbf.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
-        return dbf;
-    }
-
-    /**
-     * Helper method to provide a XXE secured XPathFactory Factory.
-     *
-     * reference - https://rules.sonarsource.com/java/tag/owasp/RSPEC-2755
-     *
-     * @return XPathFactory
-     * @throws XPathFactoryConfigurationException
-     *             if secure processing could not be enabled
-     */
-    private static XPathFactory getSecureXPathFactory() throws XPathFactoryConfigurationException {
-        final var xPathFactory = XPathFactory.newInstance();
-        xPathFactory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
-        return xPathFactory;
     }
 }
