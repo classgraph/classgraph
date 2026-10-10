@@ -418,24 +418,6 @@ abstract sealed class ClasspathElement implements Comparable<ClasspathElement>
     }
 
     /**
-     * Check whether a path is that of a classfile in the default (unnamed) package of a module.
-     *
-     * <p>
-     * A module cannot contain classes in the default package, and {@code module-info.class} is the only classfile
-     * allowed in the root of a module, so any other classfile found there cannot be loaded, and is ignored.
-     *
-     * @param isModule
-     *            true if this classpath element declares a module name.
-     * @param relativePath
-     *            the path of an entry, relative to the package root.
-     * @return true if the entry is a classfile in the default package of a module, and should be ignored.
-     */
-    protected static boolean isIgnoredDefaultPackageClassfile(final boolean isModule, final String relativePath) {
-        return isModule && relativePath.indexOf('/') < 0 && ClassNames.isClassfilePath(relativePath)
-                && !"module-info.class".equals(relativePath);
-    }
-
-    /**
      * Check whether a resource is accepted, given the accept/reject match status of its parent directory.
      *
      * @param relativePath

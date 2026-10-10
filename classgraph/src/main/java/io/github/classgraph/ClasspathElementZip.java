@@ -378,9 +378,6 @@ final class ClasspathElementZip extends ClasspathElement {
      * the accepted ones.
      */
     private final class ZipScanVisitor implements VfsVisitor {
-        /** True if the jarfile declares a module name. */
-        private final boolean isModularJar;
-
         /** The log node, or null to skip logging. */
         private final @Nullable LogNode subLog;
 
@@ -393,13 +390,10 @@ final class ClasspathElementZip extends ClasspathElement {
         /**
          * Constructor.
          *
-         * @param isModularJar
-         *            true if the jarfile declares a module name
          * @param subLog
          *            the log node, or null to skip logging
          */
-        ZipScanVisitor(final boolean isModularJar, final @Nullable LogNode subLog) {
-            this.isModularJar = isModularJar;
+        ZipScanVisitor(final @Nullable LogNode subLog) {
             this.subLog = subLog;
         }
 
@@ -418,10 +412,6 @@ final class ClasspathElementZip extends ClasspathElement {
                     subLog.log("Found unexpected versioned entry in jar (the jar's manifest file may be missing "
                             + "the \"Multi-Release\" key) -- skipping: " + entryName);
                 }
-                return true;
-            }
-
-            if (isIgnoredDefaultPackageClassfile(isModularJar, entryName)) {
                 return true;
             }
 
@@ -472,12 +462,8 @@ final class ClasspathElementZip extends ClasspathElement {
         final var subLog = log == null ? null
                 : log(classpathElementIdx, "Scanning jarfile classpath element " + getZipFilePath(), log);
 
-        // A jar is modular only if it declares a module name -- an automatic module name derived from the jar name
-        // does not make the jar modular
-        final var isModularJar = getDeclaredModuleName() != null;
-
         try {
-            root.walk(new ZipScanVisitor(isModularJar, subLog), subLog);
+            root.walk(new ZipScanVisitor(subLog), subLog);
         } catch (final IOException e) {
             if (subLog != null) {
                 subLog.log("Could not read jarfile " + getZipFilePath() + " : " + e);
