@@ -203,7 +203,16 @@ public final class AnnotationParameterValue extends ScanResultObject
             final Map<String, ClassInfo> classNameToClassInfo, final Set<ClassInfo> refdClassInfo,
             final @Nullable LogNode log) {
         if (value instanceof final AnnotationClassRef annotationClassRef) {
-            final var classInfo = annotationClassRef.getClassInfo();
+            final @Nullable ClassInfo classInfo;
+            try {
+                classInfo = annotationClassRef.getClassInfo();
+            } catch (final IllegalArgumentException e) {
+                // The type descriptor of the class reference is malformed, so it does not refer to any class
+                if (log != null) {
+                    log.log("Ignoring malformed class reference in annotation: " + annotationClassRef, e);
+                }
+                return;
+            }
             if (classInfo != null) {
                 refdClassInfo.add(classInfo);
             }
