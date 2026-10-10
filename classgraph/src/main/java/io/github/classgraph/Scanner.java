@@ -154,9 +154,7 @@ class Scanner implements Callable<ScanResult> {
         }
 
         this.executorService = executorService;
-        this.interruptionChecker = executorService instanceof final AutoCloseableExecutorService autoCloseableExecSvc
-                ? autoCloseableExecSvc.interruptionChecker
-                : new InterruptionChecker();
+        this.interruptionChecker = new InterruptionChecker();
         // The virtual filesystem owns the file handles, memory mappings and temporary files that everything read
         // during the scan is backed by. It is given no log node of its own, since each part of the scan passes the
         // log node that what it reads should be logged under.

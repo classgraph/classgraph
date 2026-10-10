@@ -57,8 +57,8 @@ public class WorkQueueTest {
     private static void runWorkQueue(final List<Integer> workUnits, final int numParallelTasks,
             final WorkUnitProcessor<Integer> workUnitProcessor) throws InterruptedException, ExecutionException {
         try (var executorService = new AutoCloseableExecutorService(numParallelTasks)) {
-            WorkQueue.runWorkQueue(workUnits, executorService, executorService.interruptionChecker,
-                    numParallelTasks, WORKER_TIMEOUT_NANOS, /* log = */ null, workUnitProcessor);
+            WorkQueue.runWorkQueue(workUnits, executorService, new InterruptionChecker(), numParallelTasks,
+                    WORKER_TIMEOUT_NANOS, /* log = */ null, workUnitProcessor);
         }
     }
 
@@ -126,7 +126,7 @@ public class WorkQueueTest {
         try (var executorService = new AutoCloseableExecutorService(1)) {
             // Run the work queue on the executor's only thread, asking for more tasks than it has threads
             final Future<?> workQueueTask = executorService.submit(() -> {
-                WorkQueue.runWorkQueue(workUnits, executorService, executorService.interruptionChecker,
+                WorkQueue.runWorkQueue(workUnits, executorService, new InterruptionChecker(),
                         /* numParallelTasks = */ 4, WORKER_TIMEOUT_NANOS, /* log = */ null,
                         (workUnit, workQueue, log) -> processed.add(workUnit));
                 return null;
@@ -217,6 +217,42 @@ public class WorkQueueTest {
         assertThat(InterruptionChecker.getCause(reported)).isSameAs(cause);
         // The remaining work units are dropped rather than processed, so the queue stops promptly
         assertThat(numProcessed).hasValueLessThan(1000);
+    }
+
+    /**
+     * An exception thrown on a worker thread is recorded by the work queue itself, in the interruption checker it
+     * was given, so that the failure is reported whatever {@link java.util.concurrent.ExecutorService} ran the
+     * worker. The calling thread does not fail here, so the recorded exception is the only report of the failure.
+     *
+     * @throws Exception
+     *             if the work queue threw, which it should not, since the calling thread did not fail.
+     */
+    @Test
+    public void anExceptionOnAWorkerThreadIsRecordedByTheWorkQueue() throws Exception {
+        final var cause = new IllegalStateException("the reason");
+        final var interruptionChecker = new InterruptionChecker();
+        final var callingThread = Thread.currentThread();
+        final var workerFailed = new CountDownLatch(1);
+
+        final var executorService = Executors.newFixedThreadPool(1);
+        try {
+            WorkQueue.runWorkQueue(List.of(1, 2), executorService, interruptionChecker, /* numParallelTasks = */ 2,
+                    WORKER_TIMEOUT_NANOS, /* log = */ null, (workUnit, workQueue, log) -> {
+                        if (Thread.currentThread() == callingThread) {
+                            // Wait for the worker thread to fail, so that the calling thread cannot fail first
+                            assertThat(workerFailed.await(10, TimeUnit.SECONDS)).isTrue();
+                        } else {
+                            workerFailed.countDown();
+                            throw cause;
+                        }
+                    });
+        } finally {
+            executorService.shutdown();
+        }
+
+        final var recorded = interruptionChecker.getExecutionException();
+        assertThat(recorded).isNotNull();
+        assertThat(InterruptionChecker.getCause(recorded)).isSameAs(cause);
     }
 
     /** Interruption stops the whole work queue, leaving the work units that were still queued unprocessed. */
