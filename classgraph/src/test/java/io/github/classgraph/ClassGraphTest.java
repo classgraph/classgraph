@@ -565,6 +565,28 @@ public class ClassGraphTest {
         }
     }
 
+    /**
+     * A scan on a caller-supplied {@link java.util.concurrent.ExecutorService} that rejects the scan's worker
+     * tasks, here because it has been shut down, still completes, with the calling thread doing all the work, and
+     * the rejection is logged.
+     */
+    @Test
+    public void aScanCompletesWhenTheExecutorServiceRejectsItsWorkers() {
+        final var executorService = Executors.newFixedThreadPool(1);
+        executorService.shutdown();
+        final var classNames = new ArrayList<String>();
+        final var messages = captureLog(() -> {
+            try (var scanResult = new ClassGraph().verbose().enableClassInfo()
+                    .enableClasspathEntries(classesDir.toString()).acceptPackages(PACKAGE_NAME)
+                    .scan(executorService, 3)) {
+                classNames.addAll(scanResult.getAllClasses().getNames());
+            }
+        });
+        assertThat(classNames).contains(PACKAGE_NAME + ".InDir");
+        assertThat(messages).singleElement().asString()
+                .contains("The ExecutorService rejected a worker task, so 0 of 2 worker tasks were started");
+    }
+
     /** Every scan entry point rejects non-positive parallelism before scheduling work. */
     @Test
     public void scansRejectNonPositiveParallelism() {

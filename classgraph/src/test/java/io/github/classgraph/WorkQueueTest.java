@@ -10,11 +10,15 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
@@ -136,6 +140,51 @@ public class WorkQueueTest {
         }
 
         assertThat(processed).containsExactlyInAnyOrderElementsOf(workUnits);
+    }
+
+    /**
+     * A worker that the {@link ExecutorService} rejects is not an error, since the calling thread processes every
+     * work unit that no worker takes. A pool with a bounded queue rejects the workers that it has neither a free
+     * thread nor room in its queue for, and a pool that has been shut down rejects them all.
+     *
+     * @param pool
+     *            the kind of pool to run the workers on.
+     * @throws Exception
+     *             if the work queue failed.
+     */
+    @ParameterizedTest
+    @ValueSource(strings = { "no queue", "a full queue", "shut down" })
+    public void workIsCompletedWhenTheExecutorServiceRejectsWorkers(final String pool) throws Exception {
+        final ExecutorService executorService = switch (pool) {
+        // The first worker is started on the only thread, and the second is rejected
+        case "no queue" -> new ThreadPoolExecutor(1, 1, 0, TimeUnit.SECONDS, new SynchronousQueue<>());
+        // The first worker is started on the only thread, the second is queued, and the third is rejected
+        case "a full queue" -> new ThreadPoolExecutor(1, 1, 0, TimeUnit.SECONDS, new ArrayBlockingQueue<>(1));
+        // The first worker is rejected
+        default -> {
+            final var shutDownPool = Executors.newFixedThreadPool(1);
+            shutDownPool.shutdown();
+            yield shutDownPool;
+        }
+        };
+        final var workUnits = IntStream.range(0, 1000).boxed().toList();
+        final Set<Integer> processed = ConcurrentHashMap.newKeySet();
+        final var numTimesProcessed = new AtomicInteger();
+        final var interruptionChecker = new InterruptionChecker();
+
+        try {
+            WorkQueue.runWorkQueue(workUnits, executorService, interruptionChecker, /* numParallelTasks = */ 4,
+                    WORKER_TIMEOUT_NANOS, /* log = */ null, (workUnit, workQueue, log) -> {
+                        processed.add(workUnit);
+                        numTimesProcessed.incrementAndGet();
+                    });
+        } finally {
+            executorService.shutdown();
+        }
+
+        assertThat(processed).containsExactlyInAnyOrderElementsOf(workUnits);
+        assertThat(numTimesProcessed).hasValue(workUnits.size());
+        assertThat(interruptionChecker.getExecutionException()).isNull();
     }
 
     /** A work queue with nothing in it completes without starting any workers. */
