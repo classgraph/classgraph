@@ -252,6 +252,43 @@ public class ScanSourceSpecTest {
     }
 
     /**
+     * The module layers detected in the environment are searched when a kind of module is enabled and the caller
+     * named no layers, or when the caller asks for them. Which kinds of module are enabled is read from the
+     * {@link ClasspathSpec}, which is the only place it is held.
+     */
+    @Test
+    public void theDetectedModuleLayersAreSearchedWhenAKindOfModuleIsEnabledAndNoLayerIsNamed() {
+        final var classpathSpec = new ClasspathSpec();
+        final var scanSourceSpec = new ScanSourceSpec();
+        assertThat(scanSourceSpec.searchesDetectedModuleLayers(classpathSpec)).as("no kind of module is enabled")
+                .isFalse();
+        classpathSpec.enableNonSystemModules();
+        assertThat(scanSourceSpec.searchesDetectedModuleLayers(classpathSpec)).isTrue();
+        scanSourceSpec.enableModuleLayers(ModuleLayer.boot());
+        assertThat(scanSourceSpec.searchesDetectedModuleLayers(classpathSpec))
+                .as("the named layers replace the detected ones").isFalse();
+        scanSourceSpec.enableDetectedModuleLayers();
+        assertThat(scanSourceSpec.searchesDetectedModuleLayers(classpathSpec))
+                .as("the caller asked for the detected layers as well").isTrue();
+
+        final var systemModulesOnly = new ClasspathSpec();
+        systemModulesOnly.enableSystemModules();
+        assertThat(new ScanSourceSpec().searchesDetectedModuleLayers(systemModulesOnly)).isTrue();
+    }
+
+    /** The sources can only be added through the enable methods, which check what they are given. */
+    @Test
+    public void theSourcesCannotBeChangedThroughTheirGetters() {
+        final var scanSourceSpec = new ScanSourceSpec();
+        scanSourceSpec.enableClasspath();
+        scanSourceSpec.enableModuleLayers(ModuleLayer.boot());
+        assertThat(scanSourceSpec.getClasspathSources()).containsExactly(new ScanSourceSpec.DetectedClassLoaders())
+                .isUnmodifiable();
+        assertThat(scanSourceSpec.getNamedModuleLayers()).containsExactly(ModuleLayer.boot()).isUnmodifiable();
+        assertThat(new ScanSourceSpec().getNamedModuleLayers()).as("no layer was named").isNull();
+    }
+
+    /**
      * Naming nothing at all is rejected, since it would otherwise silently mean "scan nothing", which is never what
      * the caller meant.
      */

@@ -247,10 +247,10 @@ public class ModuleFinder {
         // Find the layers to search: the ones the caller named, or, if the caller named none, the ones detected in
         // the environment
         final LinkedHashSet<ModuleLayer> layers = new LinkedHashSet<>();
-        if (scanSourceSpec.searchesDetectedModuleLayers()) {
+        if (scanSourceSpec.searchesDetectedModuleLayers(classpathSpec)) {
             findDetectedModuleLayers(callStackInfo, layers);
         }
-        final var namedModuleLayers = scanSourceSpec.namedModuleLayers;
+        final var namedModuleLayers = scanSourceSpec.getNamedModuleLayers();
         if (namedModuleLayers != null) {
             if (log != null) {
                 final var subLog = log.log("Module layers given by the caller:");

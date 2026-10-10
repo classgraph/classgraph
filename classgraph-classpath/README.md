@@ -268,7 +268,9 @@ There is no need to check any of that before calling: hand it everything the cla
 the order the classloader would search it. A handler must be stateless,
 since one instance handles every classloader in every scan, and scans can run concurrently; state
 belonging to a single scan goes in the `ClasspathOrder` that is passed in. The same handler can be
-registered with the scanner via `new ClassGraph().registerClassLoaderHandler(...)`.
+registered with the scanner via `new ClassGraph().registerClassLoaderHandler(...)`. A handler is only
+offered the classloaders that are searched, so `find()` and `scan()` refuse a handler that is
+registered without `enableClasspath()` or `enableClassLoaders(...)`.
 
 When more than one handler can handle the same classloader, only the handlers that name the most
 specific classloader class are used, so a handler written for a subclass never has a handler for one

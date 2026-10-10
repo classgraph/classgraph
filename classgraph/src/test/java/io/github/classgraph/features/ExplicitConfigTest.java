@@ -3,11 +3,21 @@ package io.github.classgraph.features;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
+import java.io.IOException;
+import java.net.URL;
+import java.net.URLClassLoader;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.UnaryOperator;
 
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
+import io.github.classgraph.base.ClassGraphLog;
+import io.github.classgraph.classpath.ClassLoaderHandler;
+import io.github.classgraph.classpath.ClassLoaderOrder;
+import io.github.classgraph.classpath.ClasspathOrder;
+import org.jspecify.annotations.Nullable;
 
 /**
  * No config method turns on another config method, so an option that is only read by another option has to be asked
@@ -93,6 +103,62 @@ public class ExplicitConfigTest {
                 + "or ClassGraph#enableClassLoaders() is also called";
         assertRefused(ClassGraph::ignoreParentClassLoaders, message);
         assertRefused(classGraph -> classGraph.enableClasspathEntries("a.jar").ignoreParentClassLoaders(), message);
+    }
+
+    /**
+     * A registered classloader handler is only offered the classloaders that are searched, so a classloader has to
+     * be searched. Searching only the modules, or only named classpath entries, searches no classloader.
+     *
+     * @throws IOException
+     *             if the classloader could not be closed.
+     */
+    @Test
+    public void registeringAClassLoaderHandlerNeedsAClassLoaderToBeSearched() throws IOException {
+        final var message = "ClassGraph#registerClassLoaderHandler() has no effect unless "
+                + "ClassGraph#enableClasspath() or ClassGraph#enableClassLoaders() is also called";
+        final var handler = new RecordingClassLoaderHandler();
+        assertRefused(classGraph -> classGraph.registerClassLoaderHandler(handler), message);
+        assertRefused(classGraph -> classGraph.enableSystemModules().registerClassLoaderHandler(handler), message);
+        assertRefused(classGraph -> classGraph.enableClasspathEntries("a.jar").registerClassLoaderHandler(handler),
+                message);
+
+        // Searching a classloader offers it to the handler
+        try (var classLoader = new URLClassLoader(new URL[0], /* parent = */ null);
+                var scanResult = new ClassGraph().enableClassLoaders(classLoader)
+                        .registerClassLoaderHandler(handler).scan()) {
+            assertThat(handler.offered).contains(URLClassLoader.class);
+            assertThat(scanResult.getAllResources()).isEmpty();
+        }
+    }
+
+    /**
+     * A {@link ClassLoaderHandler} that handles no classloader, and records each classloader class it is offered.
+     */
+    private static final class RecordingClassLoaderHandler implements ClassLoaderHandler {
+        /** The classloader classes this handler was offered. */
+        final List<Class<?>> offered = new ArrayList<>();
+
+        /** Constructor. */
+        RecordingClassLoaderHandler() {
+        }
+
+        @Override
+        public boolean canHandle(final Class<?> classLoaderClass, final @Nullable ClassGraphLog log) {
+            offered.add(classLoaderClass);
+            return false;
+        }
+
+        @Override
+        public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
+                final @Nullable ClassGraphLog log) {
+            // Never called, since this handler handles no classloader
+        }
+
+        @Override
+        public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
+                final @Nullable ClassGraphLog log) {
+            // Never called, since this handler handles no classloader
+        }
     }
 
     /**

@@ -134,9 +134,10 @@ public class ClassLoaderProbe {
         // The modules are searched before the classpath, whatever order the sources were enabled in, because that is
         // the order in which the JVM resolves a class: a builtin classloader looks the class's package up among the
         // modules before it delegates to its parent or falls back to its classpath
-        moduleFinder = scanSourceSpec.searchesDetectedModuleLayers() || scanSourceSpec.namedModuleLayers != null
-                ? new ModuleFinder(callStackInfo, classpathSpec, scanSourceSpec, classLoaderProbeLog)
-                : null;
+        moduleFinder = scanSourceSpec.searchesDetectedModuleLayers(classpathSpec)
+                || scanSourceSpec.getNamedModuleLayers() != null
+                        ? new ModuleFinder(callStackInfo, classpathSpec, scanSourceSpec, classLoaderProbeLog)
+                        : null;
 
         classpathOrder = new ClasspathOrderBuilder(classpathSpec);
 
@@ -166,7 +167,7 @@ public class ClassLoaderProbe {
         var numClassLoadersSearched = 0;
 
         // Search the classpath sources in the order the caller enabled them in
-        for (final ClasspathSource classpathSource : scanSourceSpec.classpathSources) {
+        for (final ClasspathSource classpathSource : scanSourceSpec.getClasspathSources()) {
             if (classpathSource instanceof final NamedClasspathEntries namedClasspathEntries) {
                 addNamedClasspathEntries(namedClasspathEntries.classpathEntries(), classLoaderProbeLog);
             } else if (classpathSource instanceof final ClasspathString classpathString) {

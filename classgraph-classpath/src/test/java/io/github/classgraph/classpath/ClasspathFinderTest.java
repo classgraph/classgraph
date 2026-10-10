@@ -166,6 +166,37 @@ public class ClasspathFinderTest {
         }
     }
 
+    /**
+     * A registered classloader handler is only offered the classloaders that are searched, so registering one is
+     * refused when no classloader is searched, rather than being silently ignored. Searching only the modules, or
+     * only named classpath entries, searches no classloader.
+     *
+     * @param tempDir
+     *            a temporary directory, which is the classpath element of the classloader that is searched.
+     * @throws IOException
+     *             if the classloader could not be closed.
+     */
+    @Test
+    public void registeringAClassLoaderHandlerNeedsAClassLoaderToBeSearched(@TempDir final Path tempDir)
+            throws IOException {
+        final var message = "ClasspathFinder#registerClassLoaderHandler() has no effect unless "
+                + "ClasspathFinder#enableClasspath() or ClasspathFinder#enableClassLoaders() is also called";
+        final var handler = libDirHandler("BOOT-INF/lib/");
+        assertThatThrownBy(() -> new ClasspathFinder().registerClassLoaderHandler(handler).find())
+                .isInstanceOf(IllegalArgumentException.class).hasMessage(message);
+        assertThatThrownBy(
+                () -> new ClasspathFinder().enableSystemModules().registerClassLoaderHandler(handler).find())
+                .isInstanceOf(IllegalArgumentException.class).hasMessage(message);
+        assertThatThrownBy(() -> new ClasspathFinder().enableClasspathEntries((Object) tempDir.toFile())
+                .registerClassLoaderHandler(handler).find()).isInstanceOf(IllegalArgumentException.class)
+                .hasMessage(message);
+        try (var classLoader = new URLClassLoader(new URL[] { tempDir.toUri().toURL() }, /* parent = */ null);
+                var classpath = new ClasspathFinder().enableClassLoaders(classLoader)
+                        .registerClassLoaderHandler(handler).find()) {
+            assertThat(classpath.getLocations()).containsExactly(location(tempDir.toFile()));
+        }
+    }
+
     /** Realtime logging says when the log is written, so it is refused when there is no log. */
     @Test
     public void realtimeLoggingNeedsVerbose() {
@@ -312,6 +343,23 @@ public class ClasspathFinderTest {
                 .enableNonSystemModules().ignoreParentModuleLayers().find()) {
             assertThat(classpath.getModules()).isEmpty();
         }
+    }
+
+    /**
+     * Naming the module layers, or asking for the detected ones, says which layers are searched, so each is refused
+     * when no modules are searched, rather than being silently ignored.
+     */
+    @Test
+    public void theModuleLayerOptionsNeedAKindOfModule() {
+        final var message = " has no effect unless ClasspathFinder#enableSystemModules() or "
+                + "ClasspathFinder#enableNonSystemModules() is also called";
+        assertThatThrownBy(
+                () -> new ClasspathFinder().enableClasspath().enableModuleLayers(ModuleLayer.boot()).find())
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("ClasspathFinder#enableModuleLayers()" + message);
+        assertThatThrownBy(() -> new ClasspathFinder().enableClasspath().enableDetectedModuleLayers().find())
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("ClasspathFinder#enableDetectedModuleLayers()" + message);
     }
 
     /**

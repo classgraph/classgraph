@@ -226,6 +226,15 @@ public class ClasspathSpec {
         return scanNonSystemModules;
     }
 
+    /**
+     * Check whether any kind of module is scanned.
+     *
+     * @return true if {@link #enableSystemModules()} or {@link #enableNonSystemModules()} was called.
+     */
+    public boolean isModuleScanningEnabled() {
+        return scanSystemModules || scanNonSystemModules;
+    }
+
     /** Do not fetch paths from parent classloaders. */
     public void ignoreParentClassLoaders() {
         ignoreParentClassLoaders = true;

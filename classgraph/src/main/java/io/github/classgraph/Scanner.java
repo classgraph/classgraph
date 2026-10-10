@@ -144,7 +144,7 @@ class Scanner implements Callable<ScanResult> {
         this.scanSpec = scanSpec;
         this.performScan = performScan;
         scanSpec.log(topLevelLog);
-        scanSourceSpec.log(topLevelLog);
+        scanSourceSpec.log(scanSpec.classpathSpec, topLevelLog);
         if (topLevelLog != null) {
             if (scanSpec.packagePrefixAcceptReject.isSpecificallyAccepted("")) {
                 topLevelLog.log("Note: There is no need to accept the root package (\"\") -- not accepting "

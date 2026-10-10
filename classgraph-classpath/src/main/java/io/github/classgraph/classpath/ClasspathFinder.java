@@ -374,6 +374,11 @@ public final class ClasspathFinder {
      * running alongside it, and has to add the classloader's own URLs itself. A classloader or classpath entry that
      * has already been placed keeps the position the first handler to place it gave it.
      *
+     * <p>
+     * A handler is only offered the classloaders that are searched, so {@link #enableClasspath()} or
+     * {@link #enableClassLoaders(ClassLoader...)} has to be called too, or {@link #find()} throws
+     * {@link IllegalArgumentException}.
+     *
      * @param classLoaderHandler
      *            the {@link ClassLoaderHandler} to register.
      * @return this (for method chaining).
@@ -396,7 +401,6 @@ public final class ClasspathFinder {
      * @return this (for method chaining).
      */
     public ClasspathFinder enableSystemModules() {
-        scanSourceSpec.enableModuleScanning();
         classpathSpec.enableSystemModules();
         return this;
     }
@@ -411,7 +415,6 @@ public final class ClasspathFinder {
      * @return this (for method chaining).
      */
     public ClasspathFinder enableNonSystemModules() {
-        scanSourceSpec.enableModuleScanning();
         classpathSpec.enableNonSystemModules();
         return this;
     }
@@ -545,32 +548,8 @@ public final class ClasspathFinder {
      *             if a config option was enabled without the option that reads it.
      */
     private void checkConfigIsExplicit() {
-        if (realtimeLoggingEnabled && !verbose) {
-            throw new IllegalArgumentException("ClasspathFinder#enableRealtimeLogging() has no effect unless "
-                    + "ClasspathFinder#verbose() is also called");
-        }
-        if (!scanSourceSpec.moduleScanningEnabled) {
-            if (scanSourceSpec.namedModuleLayers != null) {
-                throw new IllegalArgumentException("ClasspathFinder#enableModuleLayers() has no effect unless "
-                        + "ClasspathFinder#enableSystemModules() or ClasspathFinder#enableNonSystemModules() "
-                        + "is also called");
-            }
-            if (scanSourceSpec.searchDetectedModuleLayers) {
-                throw new IllegalArgumentException(
-                        "ClasspathFinder#enableDetectedModuleLayers() has no effect unless "
-                                + "ClasspathFinder#enableSystemModules() or "
-                                + "ClasspathFinder#enableNonSystemModules() is also called");
-            }
-            if (classpathSpec.isParentModuleLayersIgnored()) {
-                throw new IllegalArgumentException(
-                        "ClasspathFinder#ignoreParentModuleLayers() has no effect unless "
-                                + "ClasspathFinder#enableSystemModules() or ClasspathFinder#enableNonSystemModules() "
-                                + "is also called");
-            }
-        }
-        if (classpathSpec.isParentClassLoadersIgnored() && !scanSourceSpec.searchesClassLoaders()) {
-            throw new IllegalArgumentException("ClasspathFinder#ignoreParentClassLoaders() has no effect unless "
-                    + "ClasspathFinder#enableClasspath() or ClasspathFinder#enableClassLoaders() is also called");
-        }
+        Assert.companionIsCalled(realtimeLoggingEnabled, "ClasspathFinder", "enableRealtimeLogging", verbose,
+                "verbose");
+        scanSourceSpec.checkSourcesAreExplicit(classpathSpec, "ClasspathFinder");
     }
 }
