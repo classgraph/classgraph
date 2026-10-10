@@ -30,23 +30,31 @@ package io.github.classgraph.classpath.internal.classloaderhandler;
 
 import java.lang.reflect.Array;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import io.github.classgraph.base.ClassGraphLog;
 import io.github.classgraph.base.internal.reflection.ReflectionUtils;
-import io.github.classgraph.classpath.ClassLoaderHandler;
 import io.github.classgraph.classpath.ClasspathOrder;
 import org.jspecify.annotations.Nullable;
 
-/** A {@link ClassLoaderHandler} for the classloader of an OSGi bundle. */
-interface OSGiClassLoaderHandler extends ClassLoaderHandler {
+/**
+ * Reads the classpath entries of an Equinox {@code ClasspathManager} and of the fragments attached to its bundle.
+ * Used by {@link EquinoxClassLoaderHandler} and {@link OSGiDefaultClassLoaderHandler}.
+ */
+final class EquinoxClasspathManagerReader {
     /** The fields of a {@code BundleFile} that hold a sub-path within the bundle's base file. */
-    String[] BUNDLE_FILE_SUBPATH_FIELD_NAMES = { "cp", "nestedDirName" };
+    private static final List<String> BUNDLE_FILE_SUBPATH_FIELD_NAMES = List.of("cp", "nestedDirName");
+
+    /** Not instantiable. */
+    private EquinoxClasspathManagerReader() {
+        // Cannot be constructed
+    }
 
     /**
      * Return true if a {@code BundleFile} is an instance of the named Equinox {@code bundlefile} class. Equinox
      * moved these classes from {@code org.eclipse.osgi.baseadaptor.bundlefile} to
-     * {@code org.eclipse.osgi.storage.bundlefile} in 3.9, so only the part of the name from the package that both
+     * {@code org.eclipse.osgi.storage.bundlefile} in 3.10, so only the part of the name from the package that both
      * versions share is compared.
      *
      * @param bundlefile
@@ -73,7 +81,7 @@ interface OSGiClassLoaderHandler extends ClassLoaderHandler {
      * @param log
      *            the log node, or null to skip logging
      */
-    static void addBundleFile(final @Nullable Object bundlefile, final Set<Object> visited,
+    private static void addBundleFile(final @Nullable Object bundlefile, final Set<Object> visited,
             final ClassLoader classLoader, final ClasspathOrder classpathOrderOut,
             final @Nullable ClassGraphLog log) {
         // Don't get stuck in infinite loop

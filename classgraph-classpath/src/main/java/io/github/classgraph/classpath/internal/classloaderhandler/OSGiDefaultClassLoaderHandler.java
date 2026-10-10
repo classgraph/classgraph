@@ -30,16 +30,19 @@ package io.github.classgraph.classpath.internal.classloaderhandler;
 
 import io.github.classgraph.base.ClassGraphLog;
 import io.github.classgraph.base.internal.reflection.ReflectionUtils;
+import io.github.classgraph.classpath.ClassLoaderHandler;
 import io.github.classgraph.classpath.ClassLoaderOrder;
 import io.github.classgraph.classpath.ClasspathOrder;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Handle the OSGi DefaultClassLoader.
+ * Extract classpath entries from {@code org.eclipse.osgi.internal.baseadaptor.DefaultClassLoader}, the bundle
+ * classloader of Eclipse Equinox up to version 3.9. Equinox 3.10 replaced it with the classloader that
+ * {@link EquinoxClassLoaderHandler} handles.
  *
  * @author Luke Hutchison
  */
-class OSGiDefaultClassLoaderHandler implements OSGiClassLoaderHandler {
+class OSGiDefaultClassLoaderHandler implements ClassLoaderHandler {
     /** Constructor. */
     OSGiDefaultClassLoaderHandler() {
     }
@@ -68,7 +71,8 @@ class OSGiDefaultClassLoaderHandler implements OSGiClassLoaderHandler {
         // The bundle file of a classpath entry can be a nested dir or a wrapper chain, exactly as in newer versions
         // of Equinox, so the same traversal is needed here -- reading only the base file of each entry would lose
         // the sub-path within the bundle, and the entries of the bundle's fragments entirely
-        OSGiClassLoaderHandler.addClasspathManagerEntries(classpathManager, classLoader, classpathOrder, log);
+        EquinoxClasspathManagerReader.addClasspathManagerEntries(classpathManager, classLoader, classpathOrder,
+                log);
     }
 
 }
