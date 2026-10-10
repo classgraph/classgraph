@@ -75,4 +75,40 @@ public class SymlinkedClasspathEntryTest {
             assertThat(scanResult.getClasspathFiles()).containsExactly(expectedDir.toFile());
         }
     }
+
+    /**
+     * A symlink inside a classpath directory that points to a sibling directory, and sorts before it, must not hide
+     * the sibling: the classes in the sibling are found whether or not the scan is narrowed to their package, as
+     * the JVM's own classloader finds them.
+     *
+     * @param tempDir
+     *            a temporary directory
+     * @throws IOException
+     *             if the directory tree could not be created
+     */
+    @Test
+    public void aSymlinkToASiblingDirectoryDoesNotHideIt(@TempDir final Path tempDir) throws IOException {
+        // classes/io/github/classgraph/SymlinkedClasspathEntryTest.class, and classes/a -> io, which sorts first
+        final var classesDir = Files.createDirectory(tempDir.resolve("classes"));
+        final var classRelativePath = SymlinkedClasspathEntryTest.class.getName().replace('.', '/') + ".class";
+        final var classFile = classesDir.resolve(classRelativePath);
+        Files.createDirectories(classFile.getParent());
+        try (var classIn = SymlinkedClasspathEntryTest.class
+                .getResourceAsStream(SymlinkedClasspathEntryTest.class.getSimpleName() + ".class")) {
+            assertThat(classIn).isNotNull();
+            Files.copy(classIn, classFile);
+        }
+        createSymbolicLinkOrSkip(classesDir.resolve("a"), Path.of("io"));
+
+        final var className = SymlinkedClasspathEntryTest.class.getName();
+        try (var scanResult = new ClassGraph().enableClasspathEntries(classesDir.toString()).enableClassInfo()
+                .scan()) {
+            assertThat(scanResult.getClassInfo(className)).isNotNull();
+            assertThat(scanResult.getAllResources().getPaths()).contains(classRelativePath);
+        }
+        try (var scanResult = new ClassGraph().enableClasspathEntries(classesDir.toString()).enableClassInfo()
+                .acceptPackages(SymlinkedClasspathEntryTest.class.getPackageName()).scan()) {
+            assertThat(scanResult.getClassInfo(className)).isNotNull();
+        }
+    }
 }

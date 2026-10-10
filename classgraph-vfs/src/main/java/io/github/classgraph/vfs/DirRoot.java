@@ -136,9 +136,11 @@ public final class DirRoot extends VfsRoot {
 
     @Override
     void walkImpl(final VfsVisitor visitor, final @Nullable LogNode log) throws IOException {
-        // Symlinks can make a directory tree cyclic, so record which directories have already been walked, by their
-        // canonical path -- otherwise a directory that contains a symlink to one of its own ancestors makes this
-        // recursion run until it runs out of stack
+        // Symlinks can make a directory tree cyclic, so record the canonical paths of the directories on the way down
+        // to the one being walked -- otherwise a directory that contains a symlink to one of its own ancestors makes
+        // this recursion run until it runs out of stack. Only those ancestors are recorded, not every directory
+        // walked so far, so that a directory reached a second time by another path that is not a cycle, such as a
+        // symlink to a sibling directory, is walked again under that path, as Files.walk does with FOLLOW_LINKS.
         walkRecursively(dir, "", visitor, new HashSet<>(), log);
     }
 
@@ -167,15 +169,14 @@ public final class DirRoot extends VfsRoot {
      * @param visitor
      *            the visitor to hand the entries to.
      * @param visitedDirs
-     *            the canonical paths of the directories that have already been walked.
+     *            the canonical paths of the directories that enclose {@code currDir} on the path the walk took to
+     *            reach it. On return, the set holds the same paths it held on entry.
      * @param log
      *            the log node, or null to not log.
      * @return true to go on walking, or false if the visitor asked for the walk to stop.
-     * @throws IOException
-     *             if the directory could not be listed.
      */
     private boolean walkRecursively(final Path currDir, final String namePrefix, final VfsVisitor visitor,
-            final Set<Path> visitedDirs, final @Nullable LogNode log) throws IOException {
+            final Set<Path> visitedDirs, final @Nullable LogNode log) {
         // Ask before listing, since not listing an unwanted directory is the whole point of asking
         if (!visitor.enterDirectory(namePrefix.isEmpty() ? "/" : namePrefix)) {
             return true;
@@ -196,6 +197,32 @@ public final class DirRoot extends VfsRoot {
             }
             return true;
         }
+        try {
+            return walkChildren(currDir, namePrefix, visitor, visitedDirs, log);
+        } finally {
+            visitedDirs.remove(canonicalDir);
+        }
+    }
+
+    /**
+     * Walk the files directly in a directory, then recurse into its subdirectories.
+     *
+     * @param currDir
+     *            the directory to walk.
+     * @param namePrefix
+     *            the name of {@code currDir} relative to the root, with a trailing {@code '/'}, or the empty string
+     *            for the root itself.
+     * @param visitor
+     *            the visitor to hand the entries to.
+     * @param visitedDirs
+     *            the canonical paths of {@code currDir} and of the directories that enclose it on the path the walk
+     *            took to reach it.
+     * @param log
+     *            the log node, or null to not log.
+     * @return true to go on walking, or false if the visitor asked for the walk to stop.
+     */
+    private boolean walkChildren(final Path currDir, final String namePrefix, final VfsVisitor visitor,
+            final Set<Path> visitedDirs, final @Nullable LogNode log) {
         final List<Path> children = new ArrayList<>();
         try (var dirStream = Files.newDirectoryStream(currDir)) {
             for (final Path child : dirStream) {

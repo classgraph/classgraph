@@ -30,6 +30,7 @@ package io.github.classgraph.vfs;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assumptions.abort;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -37,6 +38,7 @@ import java.io.IOException;
 import java.lang.module.ModuleFinder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Predicate;
@@ -114,6 +116,23 @@ public class VfsWalkTest {
     }
 
     /**
+     * Create a symlink, or skip the test if the filesystem does not allow it (creating a symlink needs a privilege
+     * that is not granted by default on Windows).
+     *
+     * @param link
+     *            the symlink to create.
+     * @param target
+     *            the target of the symlink.
+     */
+    private static void createSymbolicLinkOrSkip(final Path link, final Path target) {
+        try {
+            Files.createSymbolicLink(link, target);
+        } catch (IOException | UnsupportedOperationException e) {
+            abort("Symlinks cannot be created: " + e);
+        }
+    }
+
+    /**
      * Create a directory tree with a file at the root, a file two levels down, and a directory that contains only
      * another directory.
      *
@@ -183,6 +202,62 @@ public class VfsWalkTest {
 
             assertThat(recorder.dirNames).containsExactly("/");
             assertThat(recorder.entryNames).containsExactly("root.txt");
+        }
+    }
+
+    /**
+     * A directory reached through a symlink is walked under the symlink's name as well as under its own, even when
+     * the symlink sorts first, and a walk narrowed to the real directory reports the same entries for it as a full
+     * walk does.
+     */
+    @Test
+    public void aSymlinkedDirectoryIsWalkedUnderBothNames(@TempDir final File tempDir) throws IOException {
+        final var dir = new File(tempDir, "classes");
+        assertThat(new File(dir, "pkg").mkdirs()).isTrue();
+        Files.writeString(new File(dir, "pkg/A.txt").toPath(), "A");
+        createSymbolicLinkOrSkip(new File(dir, "alias").toPath(), Path.of("pkg"));
+
+        try (var vfs = new Vfs()) {
+            final var root = vfs.open(dir.getPath());
+            final var entryNames = root.getEntries().stream().map(VfsEntry::getPathFromRoot).toList();
+            assertThat(entryNames).containsExactly("alias/A.txt", "pkg/A.txt");
+            assertThat(root.getEntries("pkg/").stream().map(VfsEntry::getPathFromRoot).toList())
+                    .containsExactly("pkg/A.txt");
+        }
+    }
+
+    /** Two symlinks to one directory are both walked, as is the directory itself. */
+    @Test
+    public void twoSymlinksToOneDirectoryAreBothWalked(@TempDir final File tempDir) throws IOException {
+        final var dir = new File(tempDir, "classes");
+        assertThat(new File(dir, "real/sub").mkdirs()).isTrue();
+        Files.writeString(new File(dir, "real/sub/r.txt").toPath(), "r");
+        createSymbolicLinkOrSkip(new File(dir, "l1").toPath(), Path.of("real"));
+        createSymbolicLinkOrSkip(new File(dir, "l2").toPath(), Path.of("real"));
+
+        try (var vfs = new Vfs()) {
+            final var recorder = new Recorder();
+            vfs.open(dir.getPath()).walk(recorder);
+
+            assertThat(recorder.entryNames).containsExactly("l1/sub/r.txt", "l2/sub/r.txt", "real/sub/r.txt");
+        }
+    }
+
+    /** A symlink to an ancestor directory is not followed, so the walk ends and reports each file once. */
+    @Test
+    public void aSymlinkToAnAncestorIsNotFollowed(@TempDir final File tempDir) throws IOException {
+        final var dir = new File(tempDir, "classes");
+        assertThat(new File(dir, "pkg").mkdirs()).isTrue();
+        Files.writeString(new File(dir, "pkg/A.txt").toPath(), "A");
+        createSymbolicLinkOrSkip(new File(dir, "pkg/up").toPath(), Path.of(".."));
+
+        try (var vfs = new Vfs()) {
+            final var recorder = new Recorder();
+            vfs.open(dir.getPath()).walk(recorder);
+
+            // "pkg/up/" is offered, since the visitor is asked before the directory is resolved, but not walked
+            assertThat(recorder.dirNames).containsExactly("/", "pkg/", "pkg/up/");
+            assertThat(recorder.entryNames).containsExactly("pkg/A.txt");
         }
     }
 
