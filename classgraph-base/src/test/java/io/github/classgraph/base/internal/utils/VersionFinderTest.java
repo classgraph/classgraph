@@ -21,8 +21,8 @@ import org.junit.jupiter.api.io.TempDir;
 
 /**
  * Tests that the version of a Maven artifact is found from whichever of the three places it is recorded in: the
- * {@code pom.xml} of the project the artifact was built from, the {@code pom.properties} Maven writes into the jar,
- * or the jar manifest.
+ * {@code version.properties} that the artifact's build generates, the {@code pom.properties} Maven writes into the
+ * jar, or the jar manifest.
  */
 public class VersionFinderTest {
     /** The group ID used for the artifacts built by these tests. */
@@ -67,6 +67,26 @@ public class VersionFinderTest {
     }
 
     /**
+     * Write a file into the {@code META-INF/maven/<groupId>/<artifactId>} directory of an artifact's classes, where
+     * Maven writes {@code pom.properties} and the build of a ClassGraph module writes {@code version.properties}.
+     *
+     * @param classesDir
+     *            the directory the artifact's classes were compiled into.
+     * @param fileName
+     *            the name of the file.
+     * @param content
+     *            the content of the file.
+     * @throws IOException
+     *             if the file could not be written.
+     */
+    private static void writeMavenMetadata(final Path classesDir, final String fileName, final String content)
+            throws IOException {
+        final var mavenDir = classesDir.resolve("META-INF").resolve("maven").resolve(GROUP_ID).resolve(ARTIFACT_ID);
+        Files.createDirectories(mavenDir);
+        Files.writeString(mavenDir.resolve(fileName), content);
+    }
+
+    /**
      * The version that is found for the class in an artifact, loaded from the given classpath element.
      *
      * @param classpathElement
@@ -84,26 +104,28 @@ public class VersionFinderTest {
     }
 
     /**
-     * A {@code pom.xml} with the given body inside its {@code <project>} element, in the Maven POM namespace that a
-     * real {@code pom.xml} declares.
+     * A {@code pom.xml} with the given version, in the Maven POM namespace that a real {@code pom.xml} declares.
      *
-     * @param projectBody
-     *            the content of the {@code <project>} element.
+     * @param version
+     *            the version of the project.
      * @return the {@code pom.xml} content.
      */
-    private static String pomXml(final String projectBody) {
+    private static String pomXml(final String version) {
         return """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0">
                     <modelVersion>4.0.0</modelVersion>
-                """ + projectBody + "\n</project>\n";
+                    <groupId>com.other</groupId>
+                    <artifactId>other-project</artifactId>
+                    <version>""" + version + "</version>\n</project>\n";
     }
 
     // -----------------------------------------------------------------------------------------------------------
 
     /**
-     * The version of an artifact that is being run from a build directory is read from the {@code pom.xml} of the
-     * project it was built from.
+     * The version is read from the {@code version.properties} that the artifact's build generated, even when the
+     * classes sit in the build directory of another project, whose {@code pom.xml} has a different version -- as
+     * happens when the artifact's classes are unpacked into another project's {@code target/classes}.
      *
      * @param tempDir
      *            a temporary directory to build the artifact in.
@@ -111,18 +133,16 @@ public class VersionFinderTest {
      *             if the artifact could not be built or read.
      */
     @Test
-    public void theVersionOfAnArtifactRunFromABuildDirectoryIsReadFromItsPomXml(@TempDir final Path tempDir)
+    public void theVersionIsReadFromVersionPropertiesAndNotFromAnEnclosingPomXml(@TempDir final Path tempDir)
             throws Exception {
-        final var classesDir = buildArtifact(tempDir, pomXml("""
-                <groupId>com.xyz</groupId>
-                <artifactId>test-artifact</artifactId>
-                <version>1.2.3</version>"""));
+        final var classesDir = buildArtifact(tempDir, pomXml("9.9.9"));
+        writeMavenMetadata(classesDir, "version.properties", "version=1.2.3\n");
         assertThat(versionOfArtifactIn(classesDir)).isEqualTo("1.2.3");
     }
 
     /**
-     * A module of a multi-module build usually omits its own version and inherits the parent's, so the parent's
-     * version is used when the module declares none.
+     * A {@code pom.xml} above the build directory is not a record of the artifact's version, since it may belong to
+     * a different project, so it is not read.
      *
      * @param tempDir
      *            a temporary directory to build the artifact in.
@@ -130,78 +150,65 @@ public class VersionFinderTest {
      *             if the artifact could not be built or read.
      */
     @Test
-    public void aModuleThatInheritsItsVersionFromItsParentReportsTheParentsVersion(@TempDir final Path tempDir)
-            throws Exception {
-        final var classesDir = buildArtifact(tempDir, pomXml("""
-                <parent>
-                    <groupId>com.xyz</groupId>
-                    <artifactId>test-parent</artifactId>
-                    <version>4.5.6</version>
-                </parent>
-                <artifactId>test-artifact</artifactId>"""));
-        assertThat(versionOfArtifactIn(classesDir)).isEqualTo("4.5.6");
-    }
-
-    /**
-     * A module's own version wins over the version it would otherwise inherit from its parent.
-     *
-     * @param tempDir
-     *            a temporary directory to build the artifact in.
-     * @throws Exception
-     *             if the artifact could not be built or read.
-     */
-    @Test
-    public void aModulesOwnVersionWinsOverItsParentsVersion(@TempDir final Path tempDir) throws Exception {
-        final var classesDir = buildArtifact(tempDir, pomXml("""
-                <parent>
-                    <groupId>com.xyz</groupId>
-                    <artifactId>test-parent</artifactId>
-                    <version>4.5.6</version>
-                </parent>
-                <artifactId>test-artifact</artifactId>
-                <version>1.2.3</version>"""));
-        assertThat(versionOfArtifactIn(classesDir)).isEqualTo("1.2.3");
-    }
-
-    /**
-     * A {@code pom.xml} that declares no namespace is read the same way as one that declares the Maven POM
-     * namespace.
-     *
-     * @param tempDir
-     *            a temporary directory to build the artifact in.
-     * @throws Exception
-     *             if the artifact could not be built or read.
-     */
-    @Test
-    public void aPomXmlThatDeclaresNoNamespaceIsReadTheSameWay(@TempDir final Path tempDir) throws Exception {
-        final var classesDir = buildArtifact(tempDir, """
-                <?xml version="1.0" encoding="UTF-8"?>
-                <project>
-                    <modelVersion>4.0.0</modelVersion>
-                    <version>7.8.9</version>
-                </project>
-                """);
-        assertThat(versionOfArtifactIn(classesDir)).isEqualTo("7.8.9");
-    }
-
-    /**
-     * A blank version element is treated as no version at all, rather than as a blank version number.
-     *
-     * @param tempDir
-     *            a temporary directory to build the artifact in.
-     * @throws Exception
-     *             if the artifact could not be built or read.
-     */
-    @Test
-    public void aBlankVersionIsTreatedAsNoVersion(@TempDir final Path tempDir) throws Exception {
-        final var classesDir = buildArtifact(tempDir, pomXml("""
-                <artifactId>test-artifact</artifactId>
-                <version>   </version>"""));
+    public void aPomXmlAboveTheBuildDirectoryIsNotRead(@TempDir final Path tempDir) throws Exception {
+        final var classesDir = buildArtifact(tempDir, pomXml("9.9.9"));
         assertThat(versionOfArtifactIn(classesDir)).isEqualTo("unknown");
     }
 
     /**
-     * Whitespace around the version number is trimmed, since a {@code pom.xml} is usually indented.
+     * {@code version.properties} wins over {@code pom.properties}, since it is generated by every build of the
+     * artifact, including an IDE build that does not write {@code pom.properties}.
+     *
+     * @param tempDir
+     *            a temporary directory to build the artifact in.
+     * @throws Exception
+     *             if the artifact could not be built or read.
+     */
+    @Test
+    public void versionPropertiesWinsOverPomProperties(@TempDir final Path tempDir) throws Exception {
+        final var classesDir = buildArtifact(tempDir, /* pomXmlContent = */ null);
+        writeMavenMetadata(classesDir, "version.properties", "version=1.2.3\n");
+        writeMavenMetadata(classesDir, "pom.properties", "version=2.3.4\n");
+        assertThat(versionOfArtifactIn(classesDir)).isEqualTo("1.2.3");
+    }
+
+    /**
+     * A blank version in {@code version.properties} is treated as no version at all, so {@code pom.properties} is
+     * read instead.
+     *
+     * @param tempDir
+     *            a temporary directory to build the artifact in.
+     * @throws Exception
+     *             if the artifact could not be built or read.
+     */
+    @Test
+    public void aBlankVersionInVersionPropertiesIsTreatedAsNoVersion(@TempDir final Path tempDir) throws Exception {
+        final var classesDir = buildArtifact(tempDir, /* pomXmlContent = */ null);
+        writeMavenMetadata(classesDir, "version.properties", "version=   \n");
+        writeMavenMetadata(classesDir, "pom.properties", "version=2.3.4\n");
+        assertThat(versionOfArtifactIn(classesDir)).isEqualTo("2.3.4");
+    }
+
+    /**
+     * A {@code version.properties} that was copied without Maven's resource filtering, e.g. by an IDE build that
+     * does not filter resources, still holds the unexpanded {@code ${project.version}}, which is not a version, so
+     * {@code pom.properties} is read instead.
+     *
+     * @param tempDir
+     *            a temporary directory to build the artifact in.
+     * @throws Exception
+     *             if the artifact could not be built or read.
+     */
+    @Test
+    public void anUnfilteredVersionPropertiesIsTreatedAsNoVersion(@TempDir final Path tempDir) throws Exception {
+        final var classesDir = buildArtifact(tempDir, /* pomXmlContent = */ null);
+        writeMavenMetadata(classesDir, "version.properties", "version=${project.version}\n");
+        writeMavenMetadata(classesDir, "pom.properties", "version=2.3.4\n");
+        assertThat(versionOfArtifactIn(classesDir)).isEqualTo("2.3.4");
+    }
+
+    /**
+     * Whitespace around the version number is trimmed.
      *
      * @param tempDir
      *            a temporary directory to build the artifact in.
@@ -210,17 +217,14 @@ public class VersionFinderTest {
      */
     @Test
     public void whitespaceAroundTheVersionNumberIsTrimmed(@TempDir final Path tempDir) throws Exception {
-        final var classesDir = buildArtifact(tempDir, pomXml("""
-                <artifactId>test-artifact</artifactId>
-                <version>
-                    1.2.3
-                </version>"""));
+        final var classesDir = buildArtifact(tempDir, /* pomXmlContent = */ null);
+        writeMavenMetadata(classesDir, "version.properties", "version = 1.2.3  \n");
         assertThat(versionOfArtifactIn(classesDir)).isEqualTo("1.2.3");
     }
 
     /**
-     * An artifact with no {@code pom.xml}, no {@code pom.properties} and no manifest has no version to report, and
-     * says so rather than failing.
+     * An artifact with no {@code version.properties}, no {@code pom.properties} and no manifest has no version to
+     * report, and says so rather than failing.
      *
      * @param tempDir
      *            a temporary directory to build the artifact in.
@@ -235,8 +239,8 @@ public class VersionFinderTest {
     }
 
     /**
-     * An artifact that is not being run from a build directory has no {@code pom.xml}, so its version is read from
-     * the {@code pom.properties} that Maven writes into the jar.
+     * An artifact that has no {@code version.properties} -- one not built by ClassGraph's own build -- reports the
+     * version in the {@code pom.properties} that Maven writes into the jar.
      *
      * @param tempDir
      *            a temporary directory to build the artifact in.
@@ -247,9 +251,7 @@ public class VersionFinderTest {
     public void theVersionOfAPackagedArtifactIsReadFromItsMavenProperties(@TempDir final Path tempDir)
             throws Exception {
         final var classesDir = buildArtifact(tempDir, /* pomXmlContent = */ null);
-        final var mavenDir = classesDir.resolve("META-INF").resolve("maven").resolve(GROUP_ID).resolve(ARTIFACT_ID);
-        Files.createDirectories(mavenDir);
-        Files.writeString(mavenDir.resolve("pom.properties"), """
+        writeMavenMetadata(classesDir, "pom.properties", """
                 groupId=com.xyz
                 artifactId=test-artifact
                 version=2.3.4
@@ -258,8 +260,8 @@ public class VersionFinderTest {
     }
 
     /**
-     * The {@code pom.properties} of a different artifact is not read -- the properties file is looked for under the
-     * group and artifact ID of the artifact whose version was asked for.
+     * The Maven metadata of a different artifact is not read -- the properties files are looked for under the group
+     * and artifact ID of the artifact whose version was asked for.
      *
      * @param tempDir
      *            a temporary directory to build the artifact in.
@@ -267,11 +269,12 @@ public class VersionFinderTest {
      *             if the artifact could not be built or read.
      */
     @Test
-    public void theMavenPropertiesOfADifferentArtifactAreNotRead(@TempDir final Path tempDir) throws Exception {
+    public void theMavenMetadataOfADifferentArtifactIsNotRead(@TempDir final Path tempDir) throws Exception {
         final var classesDir = buildArtifact(tempDir, /* pomXmlContent = */ null);
         final var mavenDir = classesDir.resolve("META-INF").resolve("maven").resolve("com.other")
                 .resolve("other-artifact");
         Files.createDirectories(mavenDir);
+        Files.writeString(mavenDir.resolve("version.properties"), "version=8.8.8\n");
         Files.writeString(mavenDir.resolve("pom.properties"), "version=9.9.9\n");
         assertThat(versionOfArtifactIn(classesDir)).isEqualTo("unknown");
     }
@@ -340,8 +343,8 @@ public class VersionFinderTest {
     }
 
     /**
-     * The version of the classloading code itself is found, since it is built by Maven and run from a build
-     * directory during the build.
+     * The version of the classloading code itself is found when it is run from its build directory, where the build
+     * has generated its {@code version.properties}.
      */
     @Test
     public void theVersionOfClassGraphsOwnArtifactIsFound() {

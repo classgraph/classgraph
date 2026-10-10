@@ -63,8 +63,6 @@ module io.github.classgraph.base {
 
     // N.B. make sure the "Import-Package" entries in the manifest (in pom.xml) match these "requires" statements.
 
-    // VersionFinder requires java.xml
-    requires java.xml;
     // LogNode requires java.logging
     requires java.logging;
 
