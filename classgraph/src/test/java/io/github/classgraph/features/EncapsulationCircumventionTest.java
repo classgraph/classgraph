@@ -12,11 +12,18 @@ import io.github.classgraph.base.internal.reflection.ReflectionUtils;
  * classpath, and ClassGraph should pick it up as its reflection driver without being asked to.
  */
 class EncapsulationCircumventionTest {
-    /** Narcissus is used as the reflection driver when it is on the classpath. */
+    /**
+     * Narcissus is used as the reflection driver when it is on the classpath.
+     *
+     * @throws ReflectiveOperationException
+     *             if the reflection driver field could not be read.
+     */
     @Test
-    void narcissusIsUsedWhenItIsAvailable() {
-        assertThat(ReflectionUtils.getStaticFieldVal(true, ReflectionUtils.class, "REFLECTION_DRIVER").getClass()
-                .getSimpleName()).isEqualTo("NarcissusReflectionDriver");
+    void narcissusIsUsedWhenItIsAvailable() throws ReflectiveOperationException {
+        // The tests run on the classpath, so plain reflection can read the private field
+        final var driverField = ReflectionUtils.class.getDeclaredField("REFLECTION_DRIVER");
+        driverField.setAccessible(true);
+        assertThat(driverField.get(null).getClass().getSimpleName()).isEqualTo("NarcissusReflectionDriver");
         try (var scanResult = new ClassGraph().enableClasspath()
                 .acceptPackages(EncapsulationCircumventionTest.class.getPackage().getName()).enableClassInfo()
                 .enableFieldInfo().enableMethodInfo().enableAnnotationInfo()

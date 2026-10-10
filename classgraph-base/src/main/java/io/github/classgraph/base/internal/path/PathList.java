@@ -297,22 +297,6 @@ public final class PathList {
      *            The path elements.
      * @return The path.
      */
-    public static String join(final Object... pathElts) {
-        final StringBuilder buf = new StringBuilder();
-        for (final Object pathElt : pathElts) {
-            appendPathElt(pathElt, buf);
-        }
-        return buf.toString();
-    }
-
-    /**
-     * Join path elements into a single path, separated by {@link File#pathSeparatorChar}, as
-     * {@link #join(Object...)} does.
-     *
-     * @param pathElts
-     *            The path elements.
-     * @return The path.
-     */
     public static String join(final Iterable<?> pathElts) {
         final StringBuilder buf = new StringBuilder();
         for (final Object pathElt : pathElts) {

@@ -119,12 +119,6 @@ public class ReflectionUtilsTest {
         assertThat(ReflectionUtils.getFieldVal(false, "not a Sub", field)).isNull();
     }
 
-    /** A private static field is read by name. */
-    @Test
-    public void staticFieldValuesAreReadByName() {
-        assertThat(ReflectionUtils.getStaticFieldVal(true, Sub.class, "STATIC_FIELD")).isEqualTo("static field");
-    }
-
     /**
      * A static member is reached through the entry points that take an object, since a caller probing an unknown
      * class by name cannot know which of its members that class happens to have made static.
@@ -151,11 +145,6 @@ public class ReflectionUtilsTest {
      */
     @Test
     public void theStaticEntryPointsDoNotReachANonStaticMember() {
-        assertThat(ReflectionUtils.getStaticFieldVal(false, Sub.class, "instanceField")).isNull();
-        assertThatThrownBy(() -> ReflectionUtils.getStaticFieldVal(true, Sub.class, "instanceField"))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Can't read field " + Sub.class.getName() + ".instanceField");
-
         assertThat(ReflectionUtils.invokeStaticMethod(false, Sub.class, "noArgs")).isNull();
         assertThatThrownBy(() -> ReflectionUtils.invokeStaticMethod(true, Sub.class, "noArgs"))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -172,11 +161,6 @@ public class ReflectionUtilsTest {
         final var obj = new Sub();
         assertThat(ReflectionUtils.getFieldVal(false, obj, "noSuchField")).isNull();
         assertThatThrownBy(() -> ReflectionUtils.getFieldVal(true, obj, "noSuchField"))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Can't read field " + Sub.class.getName() + ".noSuchField");
-
-        assertThat(ReflectionUtils.getStaticFieldVal(false, Sub.class, "noSuchField")).isNull();
-        assertThatThrownBy(() -> ReflectionUtils.getStaticFieldVal(true, Sub.class, "noSuchField"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Can't read field " + Sub.class.getName() + ".noSuchField");
     }
@@ -245,8 +229,6 @@ public class ReflectionUtilsTest {
         assertThat(ReflectionUtils.getFieldVal(false, obj, (Field) null)).isNull();
         assertThat(ReflectionUtils.getFieldVal(false, null, "instanceField")).isNull();
         assertThat(ReflectionUtils.getFieldVal(false, obj, (String) null)).isNull();
-        assertThat(ReflectionUtils.getStaticFieldVal(false, null, "STATIC_FIELD")).isNull();
-        assertThat(ReflectionUtils.getStaticFieldVal(false, Sub.class, null)).isNull();
         assertThat(ReflectionUtils.invokeMethod(false, null, "noArgs")).isNull();
         assertThat(ReflectionUtils.invokeMethod(false, obj, null)).isNull();
         assertThat(ReflectionUtils.invokeMethod(false, obj, "oneArg", null, "x")).isNull();
@@ -265,8 +247,6 @@ public class ReflectionUtilsTest {
         assertThatThrownBy(() -> ReflectionUtils.getFieldVal(true, null, field))
                 .isInstanceOf(IllegalArgumentException.class).hasMessage("Unexpected null argument");
         assertThatThrownBy(() -> ReflectionUtils.getFieldVal(true, null, "instanceField"))
-                .isInstanceOf(IllegalArgumentException.class).hasMessage("Unexpected null argument");
-        assertThatThrownBy(() -> ReflectionUtils.getStaticFieldVal(true, null, "STATIC_FIELD"))
                 .isInstanceOf(IllegalArgumentException.class).hasMessage("Unexpected null argument");
         assertThatThrownBy(() -> ReflectionUtils.invokeMethod(true, null, "noArgs"))
                 .isInstanceOf(IllegalArgumentException.class).hasMessage("Unexpected null argument");
