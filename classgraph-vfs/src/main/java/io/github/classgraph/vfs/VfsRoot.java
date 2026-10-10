@@ -940,8 +940,9 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
      *
      * <p>
      * A filesystem created by {@link java.nio.file.FileSystems#newFileSystem(java.net.URI, java.util.Map)} for a
-     * {@code "cgvfs:"} URI is the exception: it created the {@link Vfs} behind it, and is the only reference the
-     * caller has to it, so closing that filesystem closes that {@link Vfs} too.
+     * {@code "cgvfs:"} URI, or by {@link java.nio.file.FileSystems#newFileSystem(Path, java.util.Map)} for a
+     * directory, is the exception: it created the {@link Vfs} behind it, and is the only reference the caller has
+     * to it, so closing that filesystem closes that {@link Vfs} too.
      *
      * @return a {@link FileSystem} view of this root. The same instance is returned every time, until it is closed.
      * @throws ClosedFileSystemException
@@ -960,9 +961,28 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
             synchronized (this) {
                 fs = fileSystem;
                 if (fs == null) {
-                    fileSystem = fs = new VfsFileSystem(this);
+                    fileSystem = fs = new VfsFileSystem(this, /* ownership = */ null);
                 }
             }
+        }
+        return fs;
+    }
+
+    /**
+     * Create the filesystem that {@link VfsFileSystemProvider} hands out for this root, which owns the {@link Vfs}
+     * that was created to open this root, and make it the view that {@link #asFileSystem()} returns, so that code
+     * that reaches this root from that filesystem is given the same filesystem back rather than a second view.
+     *
+     * @param registeredPath
+     *            the path the provider registers the filesystem under, or null if it is not registered.
+     * @return the filesystem.
+     */
+    VfsFileSystem asOwningFileSystem(final @Nullable String registeredPath) {
+        final var fs = new VfsFileSystem(this, new VfsFileSystem.Ownership(getVfs(), registeredPath));
+        synchronized (this) {
+            // The Vfs was created only to open this root, and nothing has been handed this root yet, so there is
+            // no earlier view to replace
+            fileSystem = fs;
         }
         return fs;
     }

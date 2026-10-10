@@ -338,8 +338,9 @@ public final class VfsPath implements Path {
      *
      * <p>
      * Resolving the returned URI needs the filesystem to still be open, and to have been created by
-     * {@link java.nio.file.FileSystems#newFileSystem(URI, Map)} rather than by {@link VfsRoot#asFileSystem()},
-     * since only those are registered under their path -- the same rule zipfs follows for {@code "jar:"} URIs.
+     * {@link java.nio.file.FileSystems#newFileSystem(URI, Map)} rather than by {@link VfsRoot#asFileSystem()} or
+     * {@link java.nio.file.FileSystems#newFileSystem(Path, Map)}, since only a filesystem created from a URI is
+     * registered under its path -- the same rule zipfs follows for {@code "jar:"} URIs.
      *
      * <p>
      * See {@link #toUri()} for the URI of the underlying storage, which is what an unrelated library can read.

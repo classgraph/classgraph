@@ -130,9 +130,12 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
 
     /**
      * The filesystems created from a URI by {@link #newFileSystem(URI, Map)}, keyed by every path they can be named
-     * by. This is static rather than per-instance because {@link java.util.ServiceLoader} constructs an instance of
-     * its own, so the instance a caller reaches through {@link FileSystemProvider#installedProviders()} need not be
-     * the one {@link VfsFileSystem#provider()} returns.
+     * by. No other filesystem is held here: not one created from a {@link Path} by
+     * {@link #newFileSystem(Path, Map)}, and not one created by {@link VfsRoot#asFileSystem()}. Each is removed
+     * when it is closed, or when its root or the {@link Vfs} behind it is closed. This is static rather than
+     * per-instance because {@link java.util.ServiceLoader} constructs an instance of its own, so the instance a
+     * caller reaches through {@link FileSystemProvider#installedProviders()} need not be the one
+     * {@link VfsFileSystem#provider()} returns.
      */
     private static final Map<String, VfsFileSystem> FILESYSTEMS_BY_PATH = new ConcurrentHashMap<>();
 
@@ -353,7 +356,8 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
 
     /**
      * Turn an opened root into a registered filesystem, closing the {@link Vfs} behind it if it could not be
-     * registered.
+     * registered. The filesystem is taken back out of the registry when it is closed, or when its root or that
+     * {@link Vfs} is closed.
      *
      * @param root
      *            the opened root.
@@ -364,14 +368,18 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
      *             if a filesystem is already open at that path.
      */
     private static FileSystem registeredFileSystemOf(final VfsRoot root, final String requestedPath) {
-        final var fileSystem = (VfsFileSystem) root.asFileSystem();
+        // The Vfs was created by openRoot, and this filesystem is the only reference the caller is given to it, so
+        // the filesystem owns it, and closing the filesystem closes it
+        final var fileSystem = root.asOwningFileSystem(requestedPath);
         var registered = false;
         try {
-            // The Vfs was created by openRoot, and this filesystem is the only reference the caller is given to
-            // it, so closing this filesystem has to close it
-            fileSystem.setOwnedVfs(root.getVfs());
-            fileSystem.setRegisteredPath(requestedPath);
             register(fileSystem, requestedPath);
+            // The root can be closed without closing this filesystem, since BasicFileAttributes#fileKey returns a
+            // VfsEntry, whose root and Vfs are public. That must not leave a dead filesystem registered, which
+            // getFileSystem would return, and which would make every newFileSystem at this path throw until the
+            // dead filesystem was closed. This removes only the registration: the filesystem's own close still
+            // closes the Vfs it owns
+            root.addUnregistration(() -> unregister(fileSystem, requestedPath));
             registered = true;
             return fileSystem;
         } finally {
@@ -509,6 +517,16 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
     @Override
     public FileSystem newFileSystem(final URI uri, final Map<String, ?> env) throws IOException {
         final var path = pathOf(uri);
+        // Turn away a path that already has a filesystem open before opening anything, as zipfs does: code written
+        // for zipfs calls this and falls back to getFileSystem when it throws, and opening the root first would
+        // download a remote jarfile, or extract a nested one, again on every such call only to discard it.
+        // register() checks again, which catches a second open that races this one, and a filesystem already open
+        // under another name of the same root
+        final var key = FastPathResolver.resolve(path);
+        if (FILESYSTEMS_BY_PATH.containsKey(key)) {
+            throw new FileSystemAlreadyExistsException(
+                    "A filesystem is already open at " + key + "; close it before opening another");
+        }
         final var moduleName = moduleNameOf(path);
         final var root = openRoot(env, vfs -> {
             if (moduleName == null) {
@@ -547,8 +565,12 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
      * releases what reading through it took. The env map is read the same way {@link #newFileSystem(URI, Map)}
      * reads it.
      *
-     * @throws FileSystemAlreadyExistsException
-     *             if a filesystem created from a URI is already open at that path.
+     * <p>
+     * Each call returns a new filesystem, independent of any other open at the same directory, and
+     * {@link #getFileSystem(URI)} and {@link #getPath(URI)} do not find it. This is what the javadoc of
+     * {@link FileSystemProvider#newFileSystem(Path, Map)} and {@link FileSystemProvider#getFileSystem(URI)}
+     * specifies, and what zipfs does for a zipfile.
+     *
      * @throws UnsupportedOperationException
      *             if the path does not name a directory.
      * @throws IOException
@@ -561,19 +583,20 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
             throw new UnsupportedOperationException("Not a directory: " + path);
         }
         final var root = openRoot(env, vfs -> vfs.open(path));
-        // Registered under the path the root reports itself at, rather than under the given Path's own spelling,
-        // because a Path of another provider's filesystem -- a directory inside a zipfs filesystem, say -- has no
-        // spelling that this provider could resolve back to it
-        return registeredFileSystemOf(root, root.reportedPath());
+        // Not registered: FileSystemProvider#getFileSystem must not return a filesystem created from a Path, and
+        // zipfs does not register one either. The filesystem still owns the Vfs that openRoot created
+        return root.asOwningFileSystem(/* registeredPath = */ null);
     }
 
     /**
      * {@inheritDoc}
      *
      * <p>
-     * Only a filesystem created by {@link #newFileSystem(URI, Map)} can be looked up by URI. A filesystem reached
-     * through {@link VfsRoot#asFileSystem()} is not registered under its path, since the {@link Vfs} that opened
-     * the root belongs to the caller, and two of them can have the same path open at once.
+     * Only a filesystem created by {@link #newFileSystem(URI, Map)} can be looked up by URI. A filesystem created
+     * by {@link VfsRoot#asFileSystem()} is not registered under its path, since the {@link Vfs} that opened the
+     * root belongs to the caller, and two of them can have the same path open at once. Nor is a filesystem created
+     * by {@link #newFileSystem(Path, Map)}, which {@link FileSystemProvider#getFileSystem(URI)} must not return,
+     * and of which any number can be open at one directory.
      *
      * @throws FileSystemNotFoundException
      *             if no filesystem created from a URI is open at that path.

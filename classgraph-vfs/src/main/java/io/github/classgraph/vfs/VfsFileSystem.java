@@ -86,19 +86,12 @@ final class VfsFileSystem extends FileSystem {
     private final AtomicBoolean closed = new AtomicBoolean();
 
     /**
-     * The path {@link VfsFileSystemProvider} registered this filesystem under, or null if it was not created from a
-     * URI and so is not registered.
+     * What this filesystem owns and must release when it is closed, or null if it owns nothing. Only a filesystem
+     * that {@link VfsFileSystemProvider} created owns anything. A filesystem created by
+     * {@link VfsRoot#asFileSystem()} owns nothing -- the caller already holds the {@link Vfs}, and closes it
+     * themselves.
      */
-    private volatile @Nullable String registeredPath;
-
-    /**
-     * The {@link Vfs} this filesystem owns and must close, or null if it does not own one. Only a filesystem that
-     * {@link VfsFileSystemProvider} created holds one: the {@link Vfs} was created to open the root the caller
-     * named, and this filesystem is the only reference the caller is given to it, so nothing else could release
-     * what it opened. A filesystem reached through {@link VfsRoot#asFileSystem()} owns nothing -- the caller
-     * already holds the {@link Vfs}, and closes it themselves.
-     */
-    private volatile @Nullable Vfs ownedVfs;
+    private final @Nullable Ownership ownership;
 
     /** The regex metacharacters that have to be escaped when a glob is compiled into a {@link Pattern}. */
     private static final String REGEX_METACHARACTERS = "\\*?[]{}()+|^$.";
@@ -119,13 +112,31 @@ final class VfsFileSystem extends FileSystem {
     }
 
     /**
+     * What a filesystem that {@link VfsFileSystemProvider} created owns. The {@link Vfs} was created to open the
+     * root the caller named, and the filesystem is the only reference the caller is given to it, so nothing else
+     * could release what it opened.
+     *
+     * @param vfs
+     *            the {@link Vfs} that was created to open the root, which closing the filesystem closes.
+     * @param registeredPath
+     *            the path {@link VfsFileSystemProvider} registered the filesystem under, which closing the
+     *            filesystem takes back out of the registry, or null if the filesystem was created from a
+     *            {@link Path} and so is not registered.
+     */
+    record Ownership(Vfs vfs, @Nullable String registeredPath) {
+    }
+
+    /**
      * Constructor.
      *
      * @param root
      *            the root to view as a filesystem.
+     * @param ownership
+     *            what the filesystem owns and must release when it is closed, or null if it owns nothing.
      */
-    VfsFileSystem(final VfsRoot root) {
+    VfsFileSystem(final VfsRoot root, final @Nullable Ownership ownership) {
         this.root = root;
+        this.ownership = ownership;
     }
 
     /**
@@ -351,41 +362,19 @@ final class VfsFileSystem extends FileSystem {
         // can no longer be read through. An index that is being built concurrently is dropped by index() itself,
         // which re-checks after publishing it
         index = null;
+        // A view of a root the caller opened themselves owns nothing, and leaves the root and its Vfs open
+        final var owned = ownership;
+        if (owned == null) {
+            return;
+        }
         // Free the name for the next FileSystems#newFileSystem, before the close can be observed as finished
-        final var path = registeredPath;
-        if (path != null) {
-            VfsFileSystemProvider.unregister(this, path);
+        final var registeredPath = owned.registeredPath();
+        if (registeredPath != null) {
+            VfsFileSystemProvider.unregister(this, registeredPath);
         }
         // A filesystem created from a URI or a Path owns the Vfs that was created to open its root, and is the
-        // only reference the caller has to it. A view of a root the caller opened themselves owns nothing, and
-        // leaves the root and its Vfs open. (Vfs#close is idempotent, so closing this filesystem twice is safe)
-        final var vfsToClose = ownedVfs;
-        if (vfsToClose != null) {
-            vfsToClose.close();
-        }
-    }
-
-    /**
-     * Record the path this filesystem was registered under by {@link VfsFileSystemProvider}, so that closing it can
-     * take it back out of the registry.
-     *
-     * @param path
-     *            the path the caller named this filesystem by.
-     */
-    void setRegisteredPath(final String path) {
-        registeredPath = path;
-    }
-
-    /**
-     * Record that this filesystem owns the {@link Vfs} that was created to open its root, so that closing it closes
-     * that {@link Vfs}. Called by {@link VfsFileSystemProvider} for the filesystems it creates, which are the only
-     * reference the caller is given to the {@link Vfs} behind them.
-     *
-     * @param vfs
-     *            the {@link Vfs} this filesystem owns.
-     */
-    void setOwnedVfs(final Vfs vfs) {
-        ownedVfs = vfs;
+        // only reference the caller has to it. (Vfs#close is idempotent, so closing this filesystem twice is safe)
+        owned.vfs().close();
     }
 
     @Override
