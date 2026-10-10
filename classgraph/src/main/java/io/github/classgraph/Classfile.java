@@ -538,12 +538,13 @@ class Classfile {
      *            map from class name to class info
      * @param packageNameToPackageInfo
      *            map from package name to package info
-     * @param moduleNameToModuleInfo
-     *            map from module name to module info
+     * @param classpathEltToModuleInfo
+     *            map from classpath element to the module info for the module the classpath element holds, keyed by
+     *            identity
      */
     void link(final Map<String, ClassInfo> classNameToClassInfo,
             final Map<String, PackageInfo> packageNameToPackageInfo,
-            final Map<String, ModuleInfo> moduleNameToModuleInfo) {
+            final Map<ClasspathElement, ModuleInfo> classpathEltToModuleInfo) {
         var isModuleDescriptor = false;
         var isPackageDescriptor = false;
         ClassInfo classInfo = null;
@@ -585,8 +586,11 @@ class Classfile {
         // is null above exactly when this is an external class that is not being listed as a member)
         final var moduleName = classpathElement.getModuleName();
         if (moduleName != null && (isModuleDescriptor || packageInfo != null)) {
-            // Get or create a ModuleInfo object for this module
-            final var moduleInfo = moduleNameToModuleInfo.computeIfAbsent(moduleName,
+            // Get or create the ModuleInfo object for this classpath element. It is keyed by classpath element, not
+            // by module name, since two classpath elements can have the same module name (foo-1.0.jar and
+            // foo-2.0.jar both derive the name "foo", and a classpath jar can have the name of a system module),
+            // and each needs its own ModuleInfo, with its own location and ModuleReference
+            final var moduleInfo = classpathEltToModuleInfo.computeIfAbsent(classpathElement,
                     k -> new ModuleInfo(classfileResource.getModuleReference(), classpathElement, moduleName));
             if (isModuleDescriptor) {
                 // Add any class annotations on the module-info.class file to the ModuleInfo

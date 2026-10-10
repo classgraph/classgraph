@@ -47,6 +47,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -1035,17 +1036,17 @@ class Scanner {
         // thread, while the classfiles are linked and the ScanResult is built, and is only read after that)
         final Map<String, ClassInfo> classNameToClassInfo = new HashMap<>();
         final Map<String, PackageInfo> packageNameToPackageInfo = new HashMap<>();
-        final Map<String, ModuleInfo> moduleNameToModuleInfo = new HashMap<>();
+        final List<ModuleInfo> moduleInfoInScanOrder = new ArrayList<>();
         if (scanSpec.enableClassInfo) {
             scanClassfiles(finalClasspathEltOrder, classNameToClassInfo, packageNameToPackageInfo,
-                    moduleNameToModuleInfo);
+                    moduleInfoInScanOrder);
         } else if (topLevelLog != null) {
             topLevelLog.log("Classfile scanning is disabled");
         }
 
         // Return a new ScanResult
         final var scanResult = new ScanResult(scanSpec, finalClasspathEltOrder, classNameToClassInfo,
-                packageNameToPackageInfo, moduleNameToModuleInfo, fileToLastModified, vfs, topLevelLog);
+                packageNameToPackageInfo, moduleInfoInScanOrder, fileToLastModified, vfs, topLevelLog);
 
         // Set the ScanResult in each classpath element, so that a resource can determine when the ScanResult is
         // closed. This also keeps the ScanResult reachable from each resource it hands out, so that
@@ -1073,8 +1074,10 @@ class Scanner {
      *            the map from class name to {@link ClassInfo}, to add scanned classes to
      * @param packageNameToPackageInfo
      *            the map from package name to {@link PackageInfo}, to add scanned packages to
-     * @param moduleNameToModuleInfo
-     *            the map from module name to {@link ModuleInfo}, to add scanned modules to
+     * @param moduleInfoInScanOrder
+     *            the list to add the {@link ModuleInfo} of each classpath element that holds a module to, in the
+     *            order of the classpath elements, followed by those of the modules that were only looked in for
+     *            external classes
      * @throws InterruptedException
      *             if the scan was interrupted
      * @throws ExecutionException
@@ -1082,8 +1085,8 @@ class Scanner {
      */
     private void scanClassfiles(final List<ClasspathElement> finalClasspathEltOrder,
             final Map<String, ClassInfo> classNameToClassInfo,
-            final Map<String, PackageInfo> packageNameToPackageInfo,
-            final Map<String, ModuleInfo> moduleNameToModuleInfo) throws InterruptedException, ExecutionException {
+            final Map<String, PackageInfo> packageNameToPackageInfo, final List<ModuleInfo> moduleInfoInScanOrder)
+            throws InterruptedException, ExecutionException {
         // Get accepted classfile order
         final List<ClassfileScanWorkUnit> classfileScanWorkItems = new ArrayList<>();
         final Set<String> acceptedClassNamesFound = new HashSet<>();
@@ -1118,10 +1121,23 @@ class Scanner {
 
         // Link the Classfile objects to produce ClassInfo objects. This needs to be done from a single thread.
         final var linkLog = topLevelLog == null ? null : topLevelLog.log("Linking related classfiles");
+        // Keyed by identity, since ClasspathElementModule#equals compares module names only
+        final Map<ClasspathElement, ModuleInfo> classpathEltToModuleInfo = new IdentityHashMap<>();
         while (!scannedClassfiles.isEmpty()) {
             final var c = scannedClassfiles.remove();
-            c.link(classNameToClassInfo, packageNameToPackageInfo, moduleNameToModuleInfo);
+            c.link(classNameToClassInfo, packageNameToPackageInfo, classpathEltToModuleInfo);
         }
+
+        // List the modules in classpath order, not in the order the classfiles were linked in, which depends on
+        // thread timing, so that the first module of a given name is the same in every scan. The modules left over
+        // were only looked in for external classes, and are not in the classpath order.
+        for (final ClasspathElement classpathElement : finalClasspathEltOrder) {
+            final var moduleInfo = classpathEltToModuleInfo.remove(classpathElement);
+            if (moduleInfo != null) {
+                moduleInfoInScanOrder.add(moduleInfo);
+            }
+        }
+        moduleInfoInScanOrder.addAll(classpathEltToModuleInfo.values());
 
         // A ClassInfo object is created for every class named as a superclass, interface or annotation of a scanned
         // class, and scanning is extended upwards to those classes, so the class graph above a scanned class is
@@ -1243,8 +1259,7 @@ class Scanner {
             }
             return new ScanResult(scanSpec, finalClasspathEltOrderFiltered,
                     /* classNameToClassInfo = */ new HashMap<>(), /* packageNameToPackageInfo = */ new HashMap<>(),
-                    /* moduleNameToModuleInfo = */ new HashMap<>(), /* fileToLastModified = */ null, vfs,
-                    topLevelLog);
+                    /* moduleInfoInScanOrder = */ List.of(), /* fileToLastModified = */ null, vfs, topLevelLog);
         }
     }
 
