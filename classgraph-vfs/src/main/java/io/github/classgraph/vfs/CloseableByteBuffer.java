@@ -84,6 +84,12 @@ public final class CloseableByteBuffer implements AutoCloseable {
     private final @Nullable VfsRoot owner;
 
     /**
+     * The wrapper whose buffer this wrapper wraps, so that {@link #getByteBuffer()} returns null once that wrapper
+     * is closed, or null if this wrapper was not built on another one.
+     */
+    private final @Nullable CloseableByteBuffer inner;
+
+    /**
      * A wrapper for {@link ByteBuffer} that implements the {@link AutoCloseable} interface, releasing the
      * {@link ByteBuffer} when it is no longer needed.
      *
@@ -115,6 +121,33 @@ public final class CloseableByteBuffer implements AutoCloseable {
         this.byteBuffer = byteBuffer;
         this.onClose = new AtomicReference<>(onClose);
         this.owner = owner;
+        this.inner = null;
+    }
+
+    /**
+     * A wrapper for the buffer of another {@link CloseableByteBuffer}, which runs its own close action when it is
+     * closed. Closing the other wrapper, including by closing the {@link VfsRoot} or {@link Vfs} that it was read
+     * from, makes {@link #getByteBuffer()} on this wrapper return null too, since the buffer has been released.
+     * Closing this wrapper does not close the other one unless the given close action does.
+     *
+     * @param inner
+     *            The open wrapper whose buffer to wrap.
+     * @param onClose
+     *            The method to run when {@link #close()} is called.
+     * @throws IllegalArgumentException
+     *             if {@code inner} has already been closed.
+     */
+    public CloseableByteBuffer(final CloseableByteBuffer inner, final Runnable onClose) {
+        Assert.notNull(inner, "inner");
+        Assert.notNull(onClose, "onClose");
+        final var innerByteBuffer = inner.getByteBuffer();
+        if (innerByteBuffer == null) {
+            throw new IllegalArgumentException("The wrapper to wrap has already been closed");
+        }
+        this.byteBuffer = innerByteBuffer;
+        this.onClose = new AtomicReference<>(onClose);
+        this.owner = null;
+        this.inner = inner;
     }
 
     /**
@@ -133,11 +166,12 @@ public final class CloseableByteBuffer implements AutoCloseable {
      * and reading it late does not throw. Do not rely on that -- read the buffer inside the try-with-resources
      * block that holds this wrapper.
      *
-     * @return The wrapped {@link ByteBuffer}, or null if this wrapper, the root it was read from, or the
-     *         {@link Vfs} that opened that root has been closed.
+     * @return The wrapped {@link ByteBuffer}, or null if this wrapper, the wrapper it was built on, the root it was
+     *         read from, or the {@link Vfs} that opened that root has been closed.
      */
     public @Nullable ByteBuffer getByteBuffer() {
-        return byteBuffer;
+        final var innerWrapper = inner;
+        return innerWrapper != null && innerWrapper.getByteBuffer() == null ? null : byteBuffer;
     }
 
     /** Release the wrapped {@link ByteBuffer}. */
