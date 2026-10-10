@@ -120,10 +120,14 @@ public final class AnnotationInfo extends ScanResultObject implements Comparable
      *
      * @param includeDefaultValues
      *            if true, include default values for any annotation parameter value that is missing.
+     * @param classInfo
+     *            the annotation class, or null if it was not encountered during scanning. Not used if the
+     *            {@link ScanResult} has not been set.
      * @return The parameter values of this annotation, including any default parameter values inherited from the
      *         annotation class definition (if requested), or the empty list if none.
      */
-    private AnnotationParameterValueList getParameterValues(final boolean includeDefaultValues) {
+    private AnnotationParameterValueList getParameterValues(final boolean includeDefaultValues,
+            final @Nullable ClassInfo classInfo) {
         final var paramValues = annotationParamValues;
         if (scanResult == null) {
             // Scanning has not finished, so the annotation class may not have been read yet -- return the values
@@ -133,7 +137,6 @@ public final class AnnotationInfo extends ScanResultObject implements Comparable
         }
         // Lazily convert any Object[] arrays of boxed types to primitive arrays. If the annotation class was not
         // scanned, the element type of each array is worked out from its elements.
-        final var classInfo = getClassInfo();
         if (paramValues != null && !annotationParamValuesHasBeenConvertedToPrimitive) {
             AnnotationParameterValueList.convertWrapperArraysToPrimitiveArrays(paramValues, classInfo);
             annotationParamValuesHasBeenConvertedToPrimitive = true;
@@ -191,7 +194,7 @@ public final class AnnotationInfo extends ScanResultObject implements Comparable
      *         annotation class definition, or the empty list if none.
      */
     public AnnotationParameterValueList getParameterValues() {
-        return getParameterValues(/* includeDefaultValues = */ true);
+        return getParameterValues(/* includeDefaultValues = */ true, getClassInfo());
     }
 
     /**
@@ -202,7 +205,7 @@ public final class AnnotationInfo extends ScanResultObject implements Comparable
      * @return The parameter values given explicitly at the annotation use site, or the empty list if none.
      */
     public AnnotationParameterValueList getDeclaredParameterValues() {
-        return getParameterValues(/* includeDefaultValues = */ false);
+        return getParameterValues(/* includeDefaultValues = */ false, getClassInfo());
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -263,48 +266,77 @@ public final class AnnotationInfo extends ScanResultObject implements Comparable
     }
 
     /**
-     * Convert wrapper arrays to primitive arrays.
+     * Get the {@link ClassInfo} object for the annotation class, as {@link #getClassInfo()} does, but without
+     * throwing if the {@link ScanResult} has been closed, so that {@link #equals(Object)} and
+     * {@link #compareTo(AnnotationInfo)} keep working after it is closed. The map of class names is not cleared
+     * when the {@link ScanResult} is closed.
+     *
+     * @return the annotation class, or null if the {@link ScanResult} has not been set or the annotation class was
+     *         not encountered during scanning.
+     */
+    private @Nullable ClassInfo getClassInfoEvenIfClosed() {
+        final var sr = scanResult;
+        return sr == null ? null : sr.classNameToClassInfo.get(name);
+    }
+
+    /**
+     * Convert wrapper arrays to primitive arrays. Called for a nested annotation, which may be compared after the
+     * {@link ScanResult} has been closed.
      */
     void convertWrapperArraysToPrimitiveArrays() {
         final var paramValues = annotationParamValues;
         if (paramValues != null) {
-            AnnotationParameterValueList.convertWrapperArraysToPrimitiveArrays(paramValues, getClassInfo());
+            AnnotationParameterValueList.convertWrapperArraysToPrimitiveArrays(paramValues,
+                    getClassInfoEvenIfClosed());
         }
     }
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /**
+     * Compare annotations by name, then by parameter values, counting default values, so that the order is
+     * consistent with {@link #equals(Object)}.
+     *
+     * @param o
+     *            the annotation to compare with
+     * @return a negative number, zero or a positive number if this annotation sorts before, the same as or after
+     *         the other annotation
+     */
     @Override
     public int compareTo(final AnnotationInfo o) {
         final var diff = this.name.compareTo(o.name);
         if (diff != 0) {
             return diff;
         }
-        final var paramValues = annotationParamValues;
-        final var oParamValues = o.annotationParamValues;
-        if (paramValues == null && oParamValues == null) {
-            return 0;
-        } else if (paramValues == null) {
-            return -1;
-        } else if (oParamValues == null) {
-            return 1;
-        } else {
-            for (int i = 0, max = Math.max(paramValues.size(), oParamValues.size()); i < max; i++) {
-                if (i >= paramValues.size()) {
-                    return -1;
-                } else if (i >= oParamValues.size()) {
-                    return 1;
-                } else {
-                    final var diff2 = paramValues.get(i).compareTo(oParamValues.get(i));
-                    if (diff2 != 0) {
-                        return diff2;
-                    }
+        // Both lists are sorted by parameter name
+        final var paramValues = getParameterValues(/* includeDefaultValues = */ true, getClassInfoEvenIfClosed());
+        final var oParamValues = o.getParameterValues(/* includeDefaultValues = */ true,
+                o.getClassInfoEvenIfClosed());
+        for (int i = 0, max = Math.max(paramValues.size(), oParamValues.size()); i < max; i++) {
+            if (i >= paramValues.size()) {
+                return -1;
+            } else if (i >= oParamValues.size()) {
+                return 1;
+            } else {
+                final var diff2 = paramValues.get(i).compareTo(oParamValues.get(i));
+                if (diff2 != 0) {
+                    return diff2;
                 }
             }
         }
         return 0;
     }
 
+    /**
+     * Two annotations are equal when they have the same name and the same parameter values, counting default
+     * values, as in {@link java.lang.annotation.Annotation#equals(Object)}: {@code @A} equals {@code @A(x = 5)} if
+     * 5 is the default value of {@code x}. The default values are declared by the annotation class, so they are
+     * counted only if the annotation class was scanned.
+     *
+     * @param obj
+     *            the object to compare with
+     * @return true if the other object is an equal annotation
+     */
     @Override
     public boolean equals(final @Nullable Object obj) {
         if (obj == this) {
@@ -316,16 +348,21 @@ public final class AnnotationInfo extends ScanResultObject implements Comparable
         return this.compareTo(other) == 0;
     }
 
+    /**
+     * Get the hash code, which counts default values, as {@link #equals(Object)} does.
+     *
+     * @return the hash code
+     */
     @Override
     public int hashCode() {
+        // The default values are known only once the ScanResult has been set, which changes the hash code, so an
+        // AnnotationInfo must not be put in a hash set or map during the scan
         var h = name.hashCode();
-        final var paramValues = annotationParamValues;
-        if (paramValues != null) {
-            for (final AnnotationParameterValue e : paramValues) {
-                // AnnotationParameterValue#hashCode() hashes an array-valued parameter by its elements, matching
-                // equals(Object)
-                h = h * 7 + e.hashCode();
-            }
+        for (final AnnotationParameterValue e : getParameterValues(/* includeDefaultValues = */ true,
+                getClassInfoEvenIfClosed())) {
+            // AnnotationParameterValue#hashCode() hashes an array-valued parameter by its elements, matching
+            // equals(Object)
+            h = h * 7 + e.hashCode();
         }
         return h;
     }
