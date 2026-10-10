@@ -60,7 +60,10 @@ public abstract class SingletonMap<K, V, E extends Exception> {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Thrown when {@link SingletonMap#newInstance(Object, LogNode)} returns null. */
+    /**
+     * Thrown when {@link SingletonMap#newInstance(Object, LogNode)} returns null, or when an earlier call failed to
+     * create the value.
+     */
     public static class NullSingletonException extends Exception {
         /** serialVersionUID. */
         static final long serialVersionUID = 1L;
@@ -78,7 +81,10 @@ public abstract class SingletonMap<K, V, E extends Exception> {
         }
     }
 
-    /** Thrown when {@link SingletonMap#newInstance(Object, LogNode)} throws an exception. */
+    /**
+     * Thrown when {@link SingletonMap#newInstance(Object, LogNode)} throws anything other than an
+     * {@link InterruptedException} or a {@link VirtualMachineError}, which are rethrown as themselves.
+     */
     public static class NewInstanceException extends Exception {
         /** serialVersionUID. */
         static final long serialVersionUID = 1L;
@@ -202,6 +208,13 @@ public abstract class SingletonMap<K, V, E extends Exception> {
      * {@link #newInstance(Object, LogNode)} for the key, store the result in the placeholder (which unblocks any
      * other threads waiting for the value), and then return the new instance.
      *
+     * <p>
+     * A failure to create the value is remembered, so that a later call for the same key throws
+     * {@link NullSingletonException} rather than trying again. An interruption is not remembered, since it means
+     * the creating thread was cancelled, not that the key is bad, so a later call tries again. Nor is a
+     * {@link VirtualMachineError} such as {@link OutOfMemoryError}, since it means the JVM is in trouble, not that
+     * the key is bad; it is rethrown as itself, not wrapped in a {@link NewInstanceException}.
+     *
      * @param key
      *            The key for the singleton.
      * @param newInstanceFactory
@@ -235,9 +248,9 @@ public abstract class SingletonMap<K, V, E extends Exception> {
                 }
                 // A null value means one of two things. Either newInstance() failed for this key, and the
                 // holder was left in the map so that the failure is remembered rather than uselessly retried;
-                // or the thread creating the value was interrupted and took the holder out of the map, since
-                // interruption says that thread was cancelled, not that the key is bad. Tell the two apart by
-                // whether the holder is still in the map, and retry the abandoned creation.
+                // or the thread creating the value was interrupted or hit a VirtualMachineError, and took the
+                // holder out of the map, since neither means that the key is bad. Tell the two apart by whether
+                // the holder is still in the map, and retry the abandoned creation.
                 if (map.get(key) == singletonHolder) {
                     throw new NullSingletonException(key);
                 }
@@ -275,6 +288,16 @@ public abstract class SingletonMap<K, V, E extends Exception> {
                         // a cancelled scan is still seen as cancelled rather than as a failed instantiation
                         Thread.currentThread().interrupt();
                         throw (InterruptedException) t;
+                    }
+                    if (t instanceof VirtualMachineError) {
+                        // An error such as OutOfMemoryError or StackOverflowError says the JVM is in trouble, not
+                        // that the key is bad, so as for interruption, take the holder back out of the map before
+                        // releasing the waiters, so that a later call (or a waiter, which sees the holder gone)
+                        // tries again. Rethrow it as itself rather than wrapping it in a checked exception that
+                        // callers would treat as an ordinary failure to open one key
+                        map.remove(key, newSingletonHolder);
+                        newSingletonHolder.set(null);
+                        throw (VirtualMachineError) t;
                     }
                     // Any other failure is remembered: the holder stays in the map holding null, so that later
                     // calls for the same key throw NullSingletonException instead of retrying a creation that

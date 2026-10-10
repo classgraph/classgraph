@@ -2,6 +2,7 @@ package nonapi.io.github.classgraph.concurrency;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowable;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -172,6 +173,84 @@ public class SingletonMapTest {
         });
         waiter.start();
         // Give the waiter time to block on the creator's unfinished value, then abandon the creation
+        Thread.sleep(100);
+        letCreatorFail.countDown();
+
+        creator.join(5000);
+        waiter.join(5000);
+        assertThat(waiterResult.get()).isEqualTo("value");
+        assertThat(map.numNewInstanceCalls).hasValue(2);
+    }
+
+    /**
+     * A {@link VirtualMachineError} thrown by {@code newInstance}, such as {@link OutOfMemoryError}, is rethrown as
+     * itself rather than wrapped in a {@link NewInstanceException}, so that a JVM in trouble is not mistaken for a
+     * key that could not be opened, and is not skipped as an ordinary failure.
+     */
+    @Test
+    public void aVirtualMachineErrorIsRethrownAsItself() {
+        final OutOfMemoryError oom = new OutOfMemoryError("test");
+        final TestMap map = new TestMap(key -> {
+            throw oom;
+        });
+        assertThatThrownBy(() -> map.get("theKey", null)).isSameAs(oom);
+    }
+
+    /**
+     * A {@link VirtualMachineError} says the JVM is in trouble, not that the key is bad, so it is not remembered
+     * against the key: a later call for the same key retries the creation.
+     */
+    @Test
+    public void aVirtualMachineErrorDoesNotPoisonTheKey() throws Exception {
+        final TestMap map = new TestMap(key -> {
+            throw new OutOfMemoryError("test");
+        });
+        // How the failed call fails is checked by aVirtualMachineErrorIsRethrownAsItself; this test checks the retry
+        assertThat(catchThrowable(() -> map.get("theKey", null))).isNotNull();
+        assertThat(map.get("theKey", null, () -> "value")).isEqualTo("value");
+    }
+
+    /**
+     * A thread waiting for a value whose creation failed with a {@link VirtualMachineError} in another thread
+     * retries the creation itself, rather than being turned away as if the key were bad.
+     */
+    @Test
+    public void aWaiterOnACreationThatHitAVirtualMachineErrorRetries() throws Exception {
+        final CountDownLatch creatorInNewInstance = new CountDownLatch(1);
+        final CountDownLatch letCreatorFail = new CountDownLatch(1);
+        final TestMap map = new TestMap(key -> {
+            if (creatorInNewInstance.getCount() > 0) {
+                // First call: the creator thread. Hold the creation open until the waiter is waiting on it,
+                // then fail it with a VirtualMachineError
+                creatorInNewInstance.countDown();
+                letCreatorFail.await();
+                throw new StackOverflowError();
+            }
+            // Second call: the retry
+            return "value";
+        });
+
+        final Thread creator = new Thread(() -> {
+            try {
+                map.get("theKey", null);
+            } catch (final Throwable expected) {
+                // The creator is expected to fail with StackOverflowError. Catch Throwable, not Exception, so the
+                // error does not reach the thread's uncaught exception handler
+            }
+        });
+        creator.start();
+        assertThat(creatorInNewInstance.await(5, TimeUnit.SECONDS)).isTrue();
+
+        final AtomicReference<Object> waiterResult = new AtomicReference<>();
+        final Thread waiter = new Thread(() -> {
+            try {
+                waiterResult.set(map.get("theKey", null));
+            } catch (final Throwable t) {
+                waiterResult.set(t);
+            }
+        });
+        waiter.start();
+        // Give the waiter time to block on the creator's unfinished value, then fail the creation
         Thread.sleep(100);
         letCreatorFail.countDown();
 
