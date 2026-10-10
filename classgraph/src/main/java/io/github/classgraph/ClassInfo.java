@@ -230,13 +230,15 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     private Map<RelType, Set<ClassInfo>> relatedClasses;
 
     /**
-     * The override order for a class' fields or methods (base class, followed by interfaces, followed by
-     * superclasses).
+     * The order that fields are searched in: this class, then its direct superinterfaces, then its superclass,
+     * recursively (JVMS 5.4.3.2). Computed on first use, under the lock on this object.
      */
-    private @Nullable List<ClassInfo> overrideOrder;
+    private @Nullable List<ClassInfo> fieldOverrideOrder;
 
     /**
-     * The override order for a class' methods (base class, followed by superclasses, followed by interfaces).
+     * The order that methods are overridden in: this class, then its superclasses, then its superinterfaces, with
+     * each interface placed before the interfaces it extends (JLS 8.4.8). Computed on first use, under the lock on
+     * this object.
      */
     private @Nullable List<ClassInfo> methodOverrideOrder;
 
@@ -2080,10 +2082,14 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      * @return the override order
      */
     private List<ClassInfo> getFieldOverrideOrder() {
-        if (overrideOrder == null) {
-            overrideOrder = getFieldOverrideOrder(new HashSet<>(), new ArrayList<>());
+        // Synchronized so that the list is safely published to other threads that query this class. Computing it
+        // takes no other lock, so this cannot deadlock.
+        synchronized (this) {
+            if (fieldOverrideOrder == null) {
+                fieldOverrideOrder = getFieldOverrideOrder(new HashSet<>(), new ArrayList<>());
+            }
+            return fieldOverrideOrder;
         }
-        return overrideOrder;
     }
 
     /**
@@ -2151,10 +2157,14 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      * @return the override order
      */
     private List<ClassInfo> getMethodOverrideOrder() {
-        if (methodOverrideOrder == null) {
-            methodOverrideOrder = getMethodOverrideOrder(new HashSet<>(), new ArrayList<>());
+        // Synchronized so that the list is safely published to other threads that query this class. Computing it
+        // takes no other lock, so this cannot deadlock.
+        synchronized (this) {
+            if (methodOverrideOrder == null) {
+                methodOverrideOrder = getMethodOverrideOrder(new HashSet<>(), new ArrayList<>());
+            }
+            return methodOverrideOrder;
         }
-        return methodOverrideOrder;
     }
 
     // -------------------------------------------------------------------------------------------------------------

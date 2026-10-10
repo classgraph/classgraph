@@ -125,20 +125,23 @@ public final class ModuleInfo implements Comparable<ModuleInfo>, HasName, HasAnn
      * @return the module location as a {@link URI}, or null for modules whose location is unknown.
      */
     public @Nullable URI getLocationURI() {
-        var location = locationURI;
-        if (location == null) {
-            location = moduleReference == null ? null : moduleReference.location().orElse(null);
+        // Synchronized so that the URI is safely published to other threads that query this module
+        synchronized (this) {
+            var location = locationURI;
             if (location == null) {
-                try {
-                    location = classpathElement.getURI();
-                } catch (final IllegalStateException e) {
-                    // The classpath element has no known URI either, so the location is unknown
-                    return null;
+                location = moduleReference == null ? null : moduleReference.location().orElse(null);
+                if (location == null) {
+                    try {
+                        location = classpathElement.getURI();
+                    } catch (final IllegalStateException e) {
+                        // The classpath element has no known URI either, so the location is unknown
+                        return null;
+                    }
                 }
+                locationURI = location;
             }
-            locationURI = location;
+            return location;
         }
-        return location;
     }
 
     /**
