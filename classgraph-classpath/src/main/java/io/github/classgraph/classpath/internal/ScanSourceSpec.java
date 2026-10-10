@@ -219,8 +219,10 @@ public class ScanSourceSpec {
      * @return true if the classloaders detected in the environment, or classloaders the caller named, are searched.
      */
     public boolean searchesClassLoaders() {
-        return classpathSources.stream()
-                .anyMatch(source -> source instanceof DetectedClassLoaders || source instanceof NamedClassLoaders);
+        return classpathSources.stream().anyMatch(source -> switch (source) {
+        case DetectedClassLoaders _,NamedClassLoaders _ -> true;
+        case NamedClasspathEntries _,ClasspathString _ -> false;
+        });
     }
 
     /**
