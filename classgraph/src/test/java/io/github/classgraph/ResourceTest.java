@@ -21,6 +21,8 @@ import java.util.zip.ZipOutputStream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import io.github.classgraph.vfs.CloseableByteBuffer;
+
 /**
  * {@link Resource} is the common base of the classpath element-specific resource implementations, and provides the
  * URI, URL and content accessors that they all share.
@@ -340,6 +342,110 @@ public class ResourceTest {
                 assertThat(reopened.readAllBytes()).isEqualTo(expected);
             }
             resource.close();
+        }
+    }
+
+    /**
+     * Write {@link #TEXT_FILE} into a directory and into a jarfile, so that a test can be run against both kinds of
+     * classpath element.
+     *
+     * @param tempDir
+     *            a temporary directory to write the directory and the jarfile into
+     * @return the directory and the jarfile.
+     * @throws IOException
+     *             if the files cannot be written
+     */
+    private static Path[] dirAndJarHoldingTextFile(final Path tempDir) throws IOException {
+        final var dir = Files.createDirectory(tempDir.resolve("dir"));
+        Files.writeString(dir.resolve(TEXT_FILE), TEXT_FILE_CONTENT);
+        final var jarPath = tempDir.resolve("text-file.jar");
+        try (var zipOut = new ZipOutputStream(Files.newOutputStream(jarPath))) {
+            zipOut.putNextEntry(new ZipEntry(TEXT_FILE));
+            zipOut.write(TEXT_FILE_CONTENT.getBytes(StandardCharsets.UTF_8));
+            zipOut.closeEntry();
+        }
+        return new Path[] { dir, jarPath };
+    }
+
+    /**
+     * The buffer returned by {@link Resource#read()} reports that it is closed once the resource is closed, and
+     * once the {@link ScanResult} is closed, as {@link CloseableByteBuffer#getByteBuffer()} documents -- including
+     * for a resource that the {@link ScanResult} does not close itself, whose buffer is closed when the files of
+     * the scan are closed.
+     *
+     * @param tempDir
+     *            a temporary directory to write the test files to
+     * @throws IOException
+     *             if the test files cannot be written or read
+     */
+    @Test
+    public void theBufferFromReadIsClosedWhenTheResourceOrScanResultIsClosed(@TempDir final Path tempDir)
+            throws IOException {
+        for (final Path classpathEntry : dirAndJarHoldingTextFile(tempDir)) {
+            final CloseableByteBuffer acceptedBuffer;
+            try (var scanResult = new ClassGraph().acceptPathsNonRecursive("")
+                    .enableClasspathEntries(classpathEntry).scan()) {
+                final var resource = resource(scanResult, TEXT_FILE);
+                final var closedByResource = resource.read();
+                resource.close();
+                assertThat(closedByResource.getByteBuffer()).as(classpathEntry + " after Resource.close()")
+                        .isNull();
+
+                acceptedBuffer = resource.read();
+                assertThat(acceptedBuffer.getByteBuffer()).isNotNull();
+            }
+            assertThat(acceptedBuffer.getByteBuffer()).as(classpathEntry + " after ScanResult.close()").isNull();
+
+            // A resource outside the accepted paths is not one that the ScanResult keeps, so the ScanResult does
+            // not close it itself
+            final CloseableByteBuffer notAcceptedBuffer;
+            try (var scanResult = new ClassGraph().acceptPaths("not/accepted")
+                    .enableClasspathEntries(classpathEntry).scan()) {
+                final var resources = scanResult.getResourcesWithPathIgnoringAccept(TEXT_FILE);
+                assertThat(resources).as("resources with path " + TEXT_FILE).hasSize(1);
+                notAcceptedBuffer = resources.get(0).read();
+                assertThat(notAcceptedBuffer.getByteBuffer()).isNotNull();
+            }
+            assertThat(notAcceptedBuffer.getByteBuffer())
+                    .as(classpathEntry + " not accepted, after ScanResult.close()").isNull();
+        }
+    }
+
+    /**
+     * Closing the buffer returned by {@link Resource#read()} after the resource has been closed and opened again
+     * does not close the resource a second time, which would close the buffer or stream that the resource had since
+     * been opened as.
+     *
+     * @param tempDir
+     *            a temporary directory to write the test files to
+     * @throws IOException
+     *             if the test files cannot be written or read
+     */
+    @Test
+    public void closingAStaleBufferFromReadDoesNotCloseALaterOpen(@TempDir final Path tempDir) throws IOException {
+        final var expected = TEXT_FILE_CONTENT.getBytes(StandardCharsets.UTF_8);
+        for (final Path classpathEntry : dirAndJarHoldingTextFile(tempDir)) {
+            try (var scanResult = new ClassGraph().acceptPathsNonRecursive("")
+                    .enableClasspathEntries(classpathEntry).scan()) {
+                final var resource = resource(scanResult, TEXT_FILE);
+
+                final var staleBuffer = resource.read();
+                resource.close();
+                final var laterBuffer = resource.read();
+                staleBuffer.close();
+                assertThat(laterBuffer.getByteBuffer()).as(classpathEntry + " later buffer").isNotNull();
+                // The later read still holds the resource open
+                assertThatThrownBy(resource::read).as(classpathEntry.toString())
+                        .isInstanceOf(IllegalStateException.class).hasMessageContaining("already open");
+                laterBuffer.close();
+
+                final var staleBufferBeforeStream = resource.read();
+                resource.close();
+                try (var laterStream = resource.open()) {
+                    staleBufferBeforeStream.close();
+                    assertThat(laterStream.readAllBytes()).as(classpathEntry + " later stream").isEqualTo(expected);
+                }
+            }
         }
     }
 

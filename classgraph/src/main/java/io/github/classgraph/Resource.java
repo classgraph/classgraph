@@ -472,12 +472,25 @@ public final class Resource implements AutoCloseable, Comparable<Resource> {
         checkCanOpen();
         try {
             final var entryBuffer = entry.read();
+            // Point the field at the entry's buffer before wrapping it, so that close() releases the buffer even if
+            // the wrapper cannot be allocated
             closeableByteBuffer = entryBuffer;
             // The buffer may belong to whatever produced it, and is only valid until this resource is closed
-            final var buffer = Objects.requireNonNull(entryBuffer.getByteBuffer());
-            length = buffer.remaining();
-            // Closing the returned wrapper closes this resource, which releases the buffer the entry produced
-            return new CloseableByteBuffer(buffer, this::close);
+            length = Objects.requireNonNull(entryBuffer.getByteBuffer()).remaining();
+            // Closing the returned wrapper releases the entry's buffer and closes this resource. Closing this
+            // resource closes the returned wrapper, so the wrapper's close action has already run if the caller
+            // closes it afterward, and closing it then cannot close a later open() or read() of this resource. The
+            // wrapper is built on the entry's buffer, so it reports that it is closed when the root the entry was
+            // read from closes the entry's buffer, as closing the ScanResult does.
+            final var callerBuffer = new CloseableByteBuffer(entryBuffer, () -> {
+                try {
+                    entryBuffer.close();
+                } finally {
+                    close();
+                }
+            });
+            closeableByteBuffer = callerBuffer;
+            return callerBuffer;
 
         } catch (final IOException | RuntimeException | Error e) {
             // Leave the resource closed if it could not be read, so that reading it can be tried again, and so that
