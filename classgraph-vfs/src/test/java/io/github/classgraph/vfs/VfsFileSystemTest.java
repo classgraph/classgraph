@@ -9,6 +9,7 @@ import java.io.FileOutputStream;
 import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.lang.module.ModuleDescriptor;
 import java.lang.module.ModuleFinder;
 import java.lang.module.ModuleReader;
@@ -517,6 +518,42 @@ public class VfsFileSystemTest {
             assertThat(list(Files.newDirectoryStream(fileSystem.getPath("/java/util/logging"), "Logger.class")))
                     .containsExactly("/java/util/logging/Logger.class");
         }
+    }
+
+    /**
+     * The size of a module entry is read from the entry when it is asked for, so a read that fails is reported as
+     * an {@link IOException}, wrapped in an {@link UncheckedIOException} where the method cannot throw one, and
+     * never as an {@link java.io.IOError}, which a handler for exceptions does not catch.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the module could not be read.
+     */
+    @Test
+    public void aSizeThatCannotBeReadThrowsAnException(@TempDir final Path tempDir) throws IOException {
+        writeDir(tempDir);
+        final BasicFileAttributes attrs;
+        try (var vfs = new Vfs()) {
+            final var fileSystem = vfs.open(explodedModule(tempDir)).asFileSystem();
+            final var path = fileSystem.getPath("/root.txt");
+            attrs = Files.readAttributes(path, BasicFileAttributes.class);
+            assertThat(attrs.size()).isEqualTo(contentOf("root.txt").length);
+
+            // The filesystem still lists the entry, but it can no longer be read
+            Files.delete(tempDir.resolve("root.txt"));
+            assertThatThrownBy(attrs::size).isInstanceOf(UncheckedIOException.class)
+                    .hasCauseInstanceOf(IOException.class);
+            assertThatThrownBy(() -> Files.size(path)).isInstanceOf(UncheckedIOException.class)
+                    .hasCauseInstanceOf(IOException.class);
+            // The methods that read attributes by name declare IOException, so they throw it as it is
+            for (final var attributes : List.of("size", "*", "basic:size,isDirectory")) {
+                assertThatThrownBy(() -> Files.readAttributes(path, attributes)).isInstanceOf(IOException.class);
+            }
+        }
+        // Attributes kept past the close of the Vfs cannot read the size either
+        assertThatThrownBy(attrs::size).isInstanceOf(UncheckedIOException.class)
+                .hasCauseInstanceOf(IOException.class);
     }
 
     /**

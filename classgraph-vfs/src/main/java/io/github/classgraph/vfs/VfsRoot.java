@@ -972,6 +972,14 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
      * call is as expensive as {@link #getEntries()}.
      *
      * <p>
+     * The size of a module entry is not known without reading it, so it is found by reading the whole entry, each
+     * time {@link java.nio.file.attribute.BasicFileAttributes#size()} is called, which needs this root to be open.
+     * If the entry cannot be read, {@code size()} and {@link java.nio.file.Files#size(Path)} throw an
+     * {@link UncheckedIOException}, and
+     * {@link java.nio.file.Files#readAttributes(Path, String, java.nio.file.LinkOption...)} throws the
+     * {@link java.io.IOException} it wraps.
+     *
+     * <p>
      * The filesystem is read-only: every operation that would write throws
      * {@link java.nio.file.ReadOnlyFileSystemException}.
      *
