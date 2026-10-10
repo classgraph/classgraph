@@ -540,15 +540,27 @@ public class JarURLDownloaderTest {
     }
 
     /**
-     * A URL that cannot be turned into a URI, because it contains a character that has to be escaped, is reported
-     * rather than being silently skipped. (The jar is never opened, since the URL cannot be resolved to a path, so
-     * the URL does not have to name a jar that exists.)
+     * A URL that cannot be turned into a URI, because it contains a character that has to be escaped (here a
+     * space), cannot be looked up as a {@link Path} in a filesystem, so it is read through its URL handler, which
+     * accepts it. (Vfs.open strips a "file:" prefix before it gets here, so in use this is a URL with a custom
+     * scheme; "file:" is used here because its URL handler is always installed.)
+     *
+     * @param tempDir
+     *            a temporary directory to build the jar in
+     * @throws IOException
+     *             if the jar could not be built, or the jar could not be read
      */
     @Test
-    public void aUrlThatIsNotAValidUriIsReported() {
-        final var jarURL = "file:/jars/a jar with spaces.jar";
-        assertThatThrownBy(() -> JarURLDownloader.downloadJarFromURL(jarURL, vfs, /* log = */ null))
-                .isInstanceOf(IOException.class).hasMessageStartingWith("Could not convert URL to a path (")
-                .hasMessageEndingWith(jarURL).hasCauseInstanceOf(URISyntaxException.class);
+    public void aUrlThatIsNotAValidUriIsReadThroughItsUrlHandler(@TempDir final Path tempDir) throws IOException {
+        final var jar = Files.createDirectory(tempDir.resolve("dir with spaces")).resolve("a jar.jar");
+        final var jarBytes = buildJar(jar, "Read through the URL handler");
+        // The absolute path with its spaces left as they are, with '/' separators and a leading '/' on Windows
+        final var absolutePath = jar.toAbsolutePath().toString().replace('\\', '/');
+        final var jarURL = "file:" + (absolutePath.startsWith("/") ? "" : "/") + absolutePath;
+
+        final var physicalZipFile = JarURLDownloader.downloadJarFromURL(jarURL, vfs, /* log = */ null);
+
+        assertThat(physicalZipFile.slice.load()).isEqualTo(jarBytes);
+        assertThat(physicalZipFile.getPathString()).isEqualTo(jarURL);
     }
 }

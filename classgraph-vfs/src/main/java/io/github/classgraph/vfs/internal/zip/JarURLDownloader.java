@@ -158,10 +158,17 @@ final class JarURLDownloader {
                 }
                 // Wrap Path in PhysicalZipFile and return it
                 return new PhysicalZipFile(path, vfs, log);
-            } catch (final IllegalArgumentException | URISyntaxException e) {
+            } catch (final IllegalArgumentException e) {
+                // A filesystem is installed for the URL's scheme, but it rejected the URI
                 throw new IOException("Could not convert URL to a path (" + e + "): " + url, e);
+            } catch (final URISyntaxException e) {
+                // The URL cannot be written as a URI (it may contain a space), so no filesystem can be looked up
+                // for it, but new URL(String) accepted it, so its URL handler may still be able to read it
+                if (log != null) {
+                    log.log("URL " + jarURL + " is not a valid URI, so reading it through its URL handler: " + e);
+                }
             } catch (final FileSystemNotFoundException _) {
-                // Not a custom filesystem
+                // No filesystem is installed for the URL's scheme, so read it through its URL handler
             }
         }
         for (var numRedirects = 0;; numRedirects++) {
