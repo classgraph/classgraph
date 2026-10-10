@@ -1505,7 +1505,9 @@ public final class ClassGraph {
      *            ExecutorService will have at least {@code numParallelTasks - 1} threads available.
      * @return a {@link ScanResult} object representing the result of the scan.
      * @throws ClassGraphException
-     *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
+     *             if any thread of the scan throws an uncaught exception, or the scan was interrupted. An
+     *             {@link Error}, such as {@link OutOfMemoryError}, is not wrapped, but is rethrown unchanged
+     *             whichever thread threw it.
      * @throws IllegalArgumentException
      *             if {@code numParallelTasks} is less than 1, or if a config option was enabled without the config
      *             option that reads it.
@@ -1599,7 +1601,9 @@ public final class ClassGraph {
      *            classpath scanning.
      * @return a {@link ScanResult} object representing the result of the scan.
      * @throws ClassGraphException
-     *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
+     *             if any thread of the scan throws an uncaught exception, or the scan was interrupted. An
+     *             {@link Error}, such as {@link OutOfMemoryError}, is not wrapped, but is rethrown unchanged
+     *             whichever thread threw it.
      */
     private ScanResult scanOnThisThread(final boolean performScan, final ExecutorService executorService,
             final int numParallelTasks) {
@@ -1622,7 +1626,13 @@ public final class ClassGraph {
         } catch (final CancellationException e) {
             throw new ClassGraphException("Scan interrupted", e);
         } catch (final ExecutionException e) {
-            throw new ClassGraphException("Uncaught exception during scan", InterruptionChecker.getCause(e));
+            final var cause = InterruptionChecker.getCause(e);
+            if (cause instanceof final Error error) {
+                // An Error thrown on the calling thread propagates unwrapped, so do the same for one thrown on a
+                // worker thread, rather than letting the thread that hit it decide the type the caller sees
+                throw error;
+            }
+            throw new ClassGraphException("Uncaught exception during scan", cause);
         } catch (final RuntimeException e) {
             // An unchecked exception thrown by the scanner used to reach the caller wrapped in an
             // ExecutionException by the Future, and was rewrapped as the cause of a ClassGraphException, so wrap it
@@ -1683,7 +1693,9 @@ public final class ClassGraph {
      *            scan is run entirely on the calling thread.
      * @return a {@link ScanResult} object representing the result of the scan.
      * @throws ClassGraphException
-     *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
+     *             if any thread of the scan throws an uncaught exception, or the scan was interrupted. An
+     *             {@link Error}, such as {@link OutOfMemoryError}, is not wrapped, but is rethrown unchanged
+     *             whichever thread threw it.
      * @throws IllegalArgumentException
      *             if {@code numThreads} is less than 1, or if a config option was enabled without the config option
      *             that reads it.
@@ -1703,7 +1715,9 @@ public final class ClassGraph {
      *
      * @return a {@link ScanResult} object representing the result of the scan.
      * @throws ClassGraphException
-     *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
+     *             if any thread of the scan throws an uncaught exception, or the scan was interrupted. An
+     *             {@link Error}, such as {@link OutOfMemoryError}, is not wrapped, but is rethrown unchanged
+     *             whichever thread threw it.
      * @throws IllegalArgumentException
      *             if a config option was enabled without the config option that reads it.
      */
@@ -1721,7 +1735,9 @@ public final class ClassGraph {
      * @return a {@link ScanResult} object representing the result of the scan (can only be used for determining
      *         classpath).
      * @throws ClassGraphException
-     *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
+     *             if any thread of the scan throws an uncaught exception, or the scan was interrupted. An
+     *             {@link Error}, such as {@link OutOfMemoryError}, is not wrapped, but is rethrown unchanged
+     *             whichever thread threw it.
      */
     ScanResult getClasspathScanResult(final AutoCloseableExecutorService executorService) {
         return scanOnThisThread(/* performScan = */ false, executorService, DEFAULT_NUM_WORKER_THREADS);
@@ -1738,7 +1754,9 @@ public final class ClassGraph {
      * @return a {@code List<File>} consisting of the unique enabled directories and jarfiles, in classpath
      *         resolution order.
      * @throws ClassGraphException
-     *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
+     *             if any thread of the scan throws an uncaught exception, or the scan was interrupted. An
+     *             {@link Error}, such as {@link OutOfMemoryError}, is not wrapped, but is rethrown unchanged
+     *             whichever thread threw it.
      * @throws IllegalArgumentException
      *             if a config option was enabled without the config option that reads it.
      */
@@ -1762,7 +1780,9 @@ public final class ClassGraph {
      * @return a classpath path string consisting of the unique enabled directories and jarfiles, in classpath
      *         resolution order.
      * @throws ClassGraphException
-     *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
+     *             if any thread of the scan throws an uncaught exception, or the scan was interrupted. An
+     *             {@link Error}, such as {@link OutOfMemoryError}, is not wrapped, but is rethrown unchanged
+     *             whichever thread threw it.
      * @throws IllegalArgumentException
      *             if a config option was enabled without the config option that reads it.
      */
@@ -1778,7 +1798,9 @@ public final class ClassGraph {
      *
      * @return the unique enabled classpath elements and modules, as a list of {@link URI} objects.
      * @throws ClassGraphException
-     *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
+     *             if any thread of the scan throws an uncaught exception, or the scan was interrupted. An
+     *             {@link Error}, such as {@link OutOfMemoryError}, is not wrapped, but is rethrown unchanged
+     *             whichever thread threw it.
      * @throws IllegalArgumentException
      *             if a config option was enabled without the config option that reads it.
      */
@@ -1797,7 +1819,9 @@ public final class ClassGraph {
      *
      * @return the unique enabled classpath elements and modules, as a list of {@link URL} objects.
      * @throws ClassGraphException
-     *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
+     *             if any thread of the scan throws an uncaught exception, or the scan was interrupted. An
+     *             {@link Error}, such as {@link OutOfMemoryError}, is not wrapped, but is rethrown unchanged
+     *             whichever thread threw it.
      * @throws IllegalArgumentException
      *             if a config option was enabled without the config option that reads it.
      */
@@ -1816,7 +1840,9 @@ public final class ClassGraph {
      *
      * @return a list of the {@link ModuleReference} for each enabled module.
      * @throws ClassGraphException
-     *             if any of the worker threads throws an uncaught exception, or the scan was interrupted.
+     *             if any thread of the scan throws an uncaught exception, or the scan was interrupted. An
+     *             {@link Error}, such as {@link OutOfMemoryError}, is not wrapped, but is rethrown unchanged
+     *             whichever thread threw it.
      * @throws IllegalArgumentException
      *             if a config option was enabled without the config option that reads it.
      */
