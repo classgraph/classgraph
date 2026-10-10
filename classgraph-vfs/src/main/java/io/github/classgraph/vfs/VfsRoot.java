@@ -690,26 +690,7 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
      */
     public final List<VfsEntry> getEntries(final String pathPrefix) throws IOException {
         Assert.notNull(pathPrefix, "pathPrefix");
-        // Only the directories on the way to the prefix, and the directories below it, can hold a matching entry
-        final var dirPrefix = pathPrefix.substring(0, pathPrefix.lastIndexOf('/') + 1);
-        final List<VfsEntry> matchingEntries = new ArrayList<>();
-        walk(new VfsVisitor() {
-            @Override
-            public boolean enterDirectory(final String dirName) {
-                // The root directory is reported as "/", which is the empty prefix
-                final var dir = dirName.equals("/") ? "" : dirName;
-                return dir.startsWith(dirPrefix) || dirPrefix.startsWith(dir);
-            }
-
-            @Override
-            public boolean visitEntry(final VfsEntry entry) {
-                if (entry.getPathFromRoot().startsWith(pathPrefix)) {
-                    matchingEntries.add(entry);
-                }
-                return true;
-            }
-        });
-        return Collections.unmodifiableList(matchingEntries);
+        return Collections.unmodifiableList(findEntriesWithPrefix(pathPrefix, /* firstMatchOnly = */ false));
     }
 
     /**
@@ -732,9 +713,28 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
      */
     public final boolean hasEntries(final String pathPrefix) throws IOException {
         Assert.notNull(pathPrefix, "pathPrefix");
+        // One matching entry is the whole answer
+        return !findEntriesWithPrefix(pathPrefix, /* firstMatchOnly = */ true).isEmpty();
+    }
+
+    /**
+     * Find the entries under the package root whose name starts with the given prefix, not including directories.
+     *
+     * @param pathPrefix
+     *            the prefix to match, relative to the package root, with {@code '/'} as the separator and no
+     *            leading {@code '/'}.
+     * @param firstMatchOnly
+     *            true to stop the search at the first match.
+     * @return the matching entries.
+     * @throws IOException
+     *             if the entries could not be listed, or if the root, or the {@link Vfs} that opened it, has been
+     *             closed.
+     */
+    private List<VfsEntry> findEntriesWithPrefix(final String pathPrefix, final boolean firstMatchOnly)
+            throws IOException {
         // Only the directories on the way to the prefix, and the directories below it, can hold a matching entry
         final var dirPrefix = pathPrefix.substring(0, pathPrefix.lastIndexOf('/') + 1);
-        final var found = new AtomicBoolean();
+        final List<VfsEntry> matchingEntries = new ArrayList<>();
         walk(new VfsVisitor() {
             @Override
             public boolean enterDirectory(final String dirName) {
@@ -746,14 +746,13 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
             @Override
             public boolean visitEntry(final VfsEntry entry) {
                 if (entry.getPathFromRoot().startsWith(pathPrefix)) {
-                    found.set(true);
-                    // Stop the walk -- one matching entry is the whole answer
-                    return false;
+                    matchingEntries.add(entry);
+                    return !firstMatchOnly;
                 }
                 return true;
             }
         });
-        return found.get();
+        return matchingEntries;
     }
 
     // -------------------------------------------------------------------------------------------------------------

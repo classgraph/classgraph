@@ -610,6 +610,10 @@ public class VfsTest {
                 assertThat(root.hasEntries("nothing/")).isFalse();
                 // A directory is not itself an entry, so a prefix that reaches no file is not found
                 assertThat(root.hasEntries("BOOT-INF/classes/com/xyz/App.class/")).isFalse();
+                for (final var prefix : List.of("BOOT-INF/classes/", "BOOT-INF/", "BOOT-INF/lib", "root", "",
+                        "nothing/", "BOOT-INF/classes/com/xyz/App.class/", "BOOT-INF/classes/com/xyz/Ap")) {
+                    assertThat(root.hasEntries(prefix)).as(prefix).isEqualTo(!root.getEntries(prefix).isEmpty());
+                }
             }
         }
     }
