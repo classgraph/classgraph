@@ -159,6 +159,11 @@ public interface ClassLoaderHandler {
     /**
      * Find the classpath entries for the associated {@link ClassLoader}.
      *
+     * <p>
+     * The {@link ClasspathOrder} is valid only during this call. Do not keep a reference to it: an entry added
+     * after this call returns is not recorded with this handler's {@link #getPackageRootPrefixes()} and
+     * {@link #getLibDirPrefixes()}, and may not be seen by the scan.
+     *
      * @param classLoader
      *            the {@link ClassLoader} to find the classpath entries order for.
      * @param classpathOrder
@@ -183,7 +188,14 @@ public interface ClassLoaderHandler {
      * that has a dir of that name, so declaring one that the classloader does not really look in makes a real
      * package of that name be read as a package root.
      *
-     * @return the package root prefixes, each ending in a slash.
+     * <p>
+     * This is called just before each call to
+     * {@link #findClasspathOrder(ClassLoader, ClasspathOrder, ClassGraphLog)}, and the list is copied then, so a
+     * change made to it afterward has no effect.
+     *
+     * @return the package root prefixes, each a relative path ending in a slash, such as
+     *         {@code "WEB-INF/classes/"}. ClassGraph normalizes each prefix to that form, reading a backslash as a
+     *         slash and removing leading slashes, and drops a prefix that names no dir, such as {@code ""}.
      */
     default List<String> getPackageRootPrefixes() {
         return NO_PACKAGE_ROOT_PREFIXES;
@@ -202,7 +214,14 @@ public interface ClassLoaderHandler {
      * that code looks in: a lib dir prefix that is also a legal package name (e.g. {@code "lib/"}) otherwise causes
      * the jarfiles of a package of that name to be added to the classpath of every application that has one.
      *
-     * @return the lib dir prefixes, each ending in a slash.
+     * <p>
+     * This is called just before each call to
+     * {@link #findClasspathOrder(ClassLoader, ClasspathOrder, ClassGraphLog)}, and the list is copied then, so a
+     * change made to it afterward has no effect.
+     *
+     * @return the lib dir prefixes, each a relative path ending in a slash, such as {@code "WEB-INF/lib/"}.
+     *         ClassGraph normalizes each prefix to that form, reading a backslash as a slash and removing leading
+     *         slashes, and drops a prefix that names no dir, such as {@code ""}.
      */
     default List<String> getLibDirPrefixes() {
         return NO_LIB_DIR_PREFIXES;

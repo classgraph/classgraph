@@ -53,6 +53,11 @@ import org.jspecify.annotations.Nullable;
  * logged and skipped rather than added, since it cannot contribute any class to the scan.
  *
  * <p>
+ * A {@code ClasspathOrder} is valid only during the {@code findClasspathOrder} call it is passed to. Do not keep a
+ * reference to it: an entry added after that call returns is not recorded with the package root prefixes and lib
+ * dir prefixes of the handler it was passed to, and may not be seen by the scan.
+ *
+ * <p>
  * This is not implemented outside ClassGraph.
  */
 public interface ClasspathOrder {

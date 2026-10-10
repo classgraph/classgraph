@@ -108,9 +108,10 @@ public abstract sealed class ClasspathEntry {
             final List<String> packageRootPrefixes, final List<String> libDirPrefixes) {
         this.location = location;
         this.classLoaderName = classLoaderName;
-        // Copied, since these come from a ClassLoaderHandler, which is public API, and are handed straight back out
-        // as unmodifiable lists and read by equals and hashCode. (Copying an immutable list returns it unchanged,
-        // so a handler that hands over a List#of costs nothing here.)
+        // These come from a ClassLoaderHandler, which is public API, and are handed straight back out as
+        // unmodifiable lists and read by equals and hashCode. The classpath order already copies and normalizes
+        // them when the handler hands them over, so the copy here only guards against a caller that passes a list
+        // that can change. (Copying an immutable list returns it unchanged, so it costs nothing in the usual case.)
         this.packageRootPrefixes = List.copyOf(packageRootPrefixes);
         this.libDirPrefixes = List.copyOf(libDirPrefixes);
     }
