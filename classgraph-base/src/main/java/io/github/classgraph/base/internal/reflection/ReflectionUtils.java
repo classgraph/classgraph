@@ -38,7 +38,8 @@ import org.jspecify.annotations.Nullable;
 public final class ReflectionUtils {
     /**
      * The reflection driver, chosen once per JVM: the Narcissus driver if the Narcissus library is on the classpath
-     * or module path and its native library loaded, otherwise the standard reflection driver.
+     * or is a module that was resolved at startup, and its native library loaded, otherwise the standard reflection
+     * driver.
      */
     private static final ReflectionDriver REFLECTION_DRIVER = findReflectionDriver();
 
@@ -63,7 +64,9 @@ public final class ReflectionUtils {
         try {
             return new NarcissusReflectionDriver();
         } catch (final ClassNotFoundException | NoClassDefFoundError e) {
-            // Narcissus is not on the classpath or module path -- this is the usual case, so don't log anything
+            // Narcissus is not on the classpath, and is not a resolved module -- this is the usual case, so don't
+            // log anything. (The "requires static" in module-info.java does not resolve Narcissus: a Narcissus jar
+            // on the module path is only resolved if the application requires it, or by --add-modules.)
         } catch (final Throwable t) {
             // Narcissus is present, but could not be used (most likely its native library has not been compiled
             // for this platform or architecture). This is worth reporting, since it was added deliberately.

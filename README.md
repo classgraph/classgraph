@@ -169,7 +169,11 @@ The fix is to add [Narcissus](https://github.com/toolfactory/narcissus) to your 
 </dependency>
 ```
 
-There is nothing else to configure. ClassGraph looks for Narcissus on the classpath and module path when it starts up, and uses it as its reflection driver if it is there, so that it can read the classpath from private fields and methods of classloaders. Narcissus reads fields and invokes methods through JNI, which is not subject to Java's visibility and access checks or to strong encapsulation.
+If Narcissus is on the classpath, there is nothing else to configure. ClassGraph looks for Narcissus when it starts up, and uses it as its reflection driver if it can load it, so that it can read the classpath from private fields and methods of classloaders. Narcissus reads fields and invokes methods through JNI, which is not subject to Java's visibility and access checks or to strong encapsulation.
+
+If Narcissus is on the module path instead, it is used only if the module system resolves it, which it does not do just because the jar is there (ClassGraph declares Narcissus as an optional dependency, which does not cause it to be resolved). Either add `requires io.github.toolfactory.narcissus;` to your application's `module-info.java`, or launch the JVM with `--add-modules io.github.toolfactory.narcissus`. Otherwise ClassGraph silently falls back to standard reflection.
+
+On JDK 24 and newer, to avoid the JDK's warning when Narcissus loads its native library, launch the JVM with `--enable-native-access=ALL-UNNAMED` if Narcissus is on the classpath, or with `--enable-native-access=io.github.toolfactory.narcissus` if it is on the module path.
 
 Narcissus includes a native library, and currently only Linux x64, Linux arm64, Windows x64, macOS x64 and macOS arm64 are supported -- feel free to contribute native code builds for other platforms or architectures. If Narcissus is present but its native library will not load, ClassGraph prints a message to `System.err` and falls back to standard reflection.
 
