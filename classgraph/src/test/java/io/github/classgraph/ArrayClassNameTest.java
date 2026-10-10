@@ -95,9 +95,12 @@ public class ArrayClassNameTest {
             // A primitive element type has no classfile, so there is no ClassInfo for it
             assertThat(primitive.getElementClassInfo()).isNull();
 
-            // The type signature of a generic array keeps the type argument that its class name drops
-            final var generic = arrayType(scanResult, "genericArray").getArrayClassInfo();
-            assertThat(generic.getTypeSignatureString()).isEqualTo("[Ljava/util/List<Ljava/lang/String;>;");
+            // An array class is erased, so its type signature has no type argument. The type argument stays on the
+            // array type signature that the array class was obtained from.
+            final var genericType = arrayType(scanResult, "genericArray");
+            final var generic = genericType.getArrayClassInfo();
+            assertThat(generic.getTypeSignatureString()).isEqualTo("[Ljava/util/List;");
+            assertThat(genericType.getTypeSignatureString()).isEqualTo("[Ljava/util/List<Ljava/lang/String;>;");
 
             // An array class is an array of its element type, and is not itself described by a class signature
             assertThat(primitive.isArrayClass()).isTrue();

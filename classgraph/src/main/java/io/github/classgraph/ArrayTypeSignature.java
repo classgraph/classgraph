@@ -175,18 +175,37 @@ public final class ArrayTypeSignature extends ReferenceTypeSignature {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /**
+     * Get the class name of the array, e.g. "java.lang.String[]". This is the name of the erased array class: type
+     * annotations and type arguments are not part of it, and an array of a type variable is named after the erasure
+     * of the type variable, e.g. "java.lang.Number[]" for {@code T[]} where {@code T extends Number}.
+     *
+     * @return the class name of the array.
+     */
     @Override
     protected String getClassName() {
         var name = className;
         if (name == null) {
             // N.B. build the class name from the element type's class name rather than from toString(), since
             // toString() also renders type annotations and type arguments, which are not part of the class name
-            // (and the class name is used both as the ArrayClassInfo cache key and as the name to classload by)
-            final StringBuilder buf = new StringBuilder(getElementTypeSignature().getClassName());
+            // (and the class name is used as the ArrayClassInfo cache key)
+            final var elementTypeSignature = getElementTypeSignature();
+            // The class name of a type variable is the name of the class that it is used in, not a class that the
+            // type variable can stand for, so name the array after the erasure of the type variable (JLS 4.6)
+            final var isTypeVariable = elementTypeSignature instanceof TypeVariableSignature;
+            final StringBuilder buf = new StringBuilder(
+                    elementTypeSignature instanceof final TypeVariableSignature typeVariableSignature
+                            ? typeVariableSignature.getErasedClassName()
+                            : elementTypeSignature.getClassName());
             for (int i = 0, numDims = getNumDimensions(); i < numDims; i++) {
                 buf.append("[]");
             }
-            className = name = buf.toString();
+            name = buf.toString();
+            // The erasure of a type variable can only be found once the scan result is set, so do not keep the name
+            // found before that
+            if (!isTypeVariable || scanResult != null) {
+                className = name;
+            }
         }
         return name;
     }
@@ -197,7 +216,68 @@ public final class ArrayTypeSignature extends ReferenceTypeSignature {
     }
 
     /**
-     * Return an {@link ArrayClassInfo} instance for the array class.
+     * Make the type signature of an erased array class, which has no type arguments, type annotations or type
+     * variables, e.g. "[Ljava/util/List;" for the element class name "java.util.List" and one dimension.
+     *
+     * @param elementClassName
+     *            the class name of the array elements, e.g. "java.util.List", or the name of a primitive type, e.g.
+     *            "int".
+     * @param numDims
+     *            the number of array dimensions.
+     * @return the type signature of the erased array class.
+     */
+    static ArrayTypeSignature erased(final String elementClassName, final int numDims) {
+        final StringBuilder arrayTypeSigStrBuf = new StringBuilder();
+        for (var i = 0; i < numDims; i++) {
+            arrayTypeSigStrBuf.append('[');
+        }
+        TypeSignature elementTypeSignature;
+        final var baseTypeChar = BaseTypeSignature.getTypeChar(elementClassName);
+        if (baseTypeChar != '\0') {
+            // Element type is a base (primitive) type
+            arrayTypeSigStrBuf.append(baseTypeChar);
+            elementTypeSignature = new BaseTypeSignature(baseTypeChar);
+        } else {
+            // Element type is not a base (primitive) type -- create a type signature for element type
+            final var eltTypeSigStr = "L" + elementClassName.replace('.', '/') + ";";
+            arrayTypeSigStrBuf.append(eltTypeSigStr);
+            // The element type is parsed, so that a nested class name is split into the same parts as in a type
+            // signature read from a classfile. A class name that the signature grammar cannot express is referred
+            // to by its whole name instead: JVMS 4.2.1 allows '<', '>' and ':' in a class name, but they end an
+            // identifier in a type signature.
+            ClassRefTypeSignature classRefTypeSignature;
+            try {
+                final var parser = new TypeSignatureParser(eltTypeSigStr);
+                classRefTypeSignature = ClassRefTypeSignature.parse(parser,
+                        // No type variables to resolve for generic types
+                        /* definingClassName = */ null);
+                if (parser.hasMore()) {
+                    classRefTypeSignature = null;
+                }
+            } catch (final TypeSignatureParseException e) {
+                classRefTypeSignature = null;
+            }
+            elementTypeSignature = classRefTypeSignature != null ? classRefTypeSignature
+                    : new ClassRefTypeSignature(elementClassName);
+        }
+        return new ArrayTypeSignature(elementTypeSignature, numDims, arrayTypeSigStrBuf.toString());
+    }
+
+    /**
+     * Make the type signature of the erased array class of this array type.
+     *
+     * @return the type signature of the erased array class.
+     */
+    private ArrayTypeSignature erased() {
+        final var numDims = getNumDimensions();
+        final var clsName = getClassName();
+        return erased(clsName.substring(0, clsName.length() - 2 * numDims), numDims);
+    }
+
+    /**
+     * Return the {@link ArrayClassInfo} instance for the array class. Every array type with the same class name
+     * gets the same {@link ArrayClassInfo} instance, which describes the erased array class, so its type signature
+     * has no type arguments or type annotations. Those are only found on this array type signature.
      *
      * @return the {@link ArrayClassInfo} instance.
      */
@@ -212,7 +292,9 @@ public final class ArrayTypeSignature extends ReferenceTypeSignature {
                 // added to, so that looking up an array type does not add a class to the scan result.
                 classInfo = (ArrayClassInfo) scanRes.classNameToClassInfo.get(clsName);
                 if (classInfo == null) {
-                    final var newClassInfo = new ArrayClassInfo(this);
+                    // The shared instance is made from the erased array type, not from this array type, so that it
+                    // does not depend on which array type asked for it first
+                    final var newClassInfo = new ArrayClassInfo(erased());
                     newClassInfo.setScanResult(scanRes);
                     classInfo = (ArrayClassInfo) scanRes.classNameToClassInfoMadeAfterScan.putIfAbsent(clsName,
                             newClassInfo);
@@ -222,7 +304,7 @@ public final class ArrayTypeSignature extends ReferenceTypeSignature {
                 }
             } else {
                 // scanResult is not yet available, create an uncached instance of an ArrayClassInfo for this type
-                classInfo = new ArrayClassInfo(this);
+                classInfo = new ArrayClassInfo(erased());
             }
             arrayClassInfo = classInfo;
         }
@@ -234,7 +316,9 @@ public final class ArrayTypeSignature extends ReferenceTypeSignature {
         super.setScanResult(scanResult);
         nestedType.setScanResult(scanResult);
         final var classInfo = arrayClassInfo;
-        if (classInfo != null) {
+        // ArrayClassInfo#setScanResult sets the scan result of its own type signature, which may be this one, so
+        // stop once the scan result is set
+        if (classInfo != null && classInfo.scanResult != scanResult) {
             classInfo.setScanResult(scanResult);
         }
     }

@@ -262,6 +262,41 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
     }
 
     /**
+     * Get the class name of the erasure of this type variable, which is the erasure of its leftmost bound (JLS
+     * 4.6), e.g. "java.lang.Number" for {@code T extends Number}, and "java.lang.Comparable" for
+     * {@code U extends Comparable<U>}.
+     *
+     * @return the class name of the erasure of this type variable, or "java.lang.Object" if the type variable has
+     *         no bound, or cannot be resolved.
+     */
+    String getErasedClassName() {
+        var typeVariableSignature = this;
+        // A bound that is a type variable is followed to its own bound. The depth limit stops a cycle of bounds in
+        // a corrupt classfile, which javac would reject in source code.
+        for (var depth = 0; depth < 100; depth++) {
+            final TypeParameter typeParameter;
+            try {
+                typeParameter = typeVariableSignature.resolve();
+            } catch (final IllegalStateException e) {
+                // The class that the type variable is used in was not found, or the scan result is not set yet
+                break;
+            }
+            var bound = typeParameter.getClassBound();
+            if (bound == null && !typeParameter.getInterfaceBounds().isEmpty()) {
+                bound = typeParameter.getInterfaceBounds().get(0);
+            }
+            if (bound instanceof final ClassRefTypeSignature classRefTypeSignature) {
+                return classRefTypeSignature.getFullyQualifiedClassName();
+            } else if (bound instanceof final TypeVariableSignature boundTypeVariableSignature) {
+                typeVariableSignature = boundTypeVariableSignature;
+            } else {
+                break;
+            }
+        }
+        return "java.lang.Object";
+    }
+
+    /**
      * Get the names of any classes referenced in the type signature.
      *
      * @param refdClassNames
