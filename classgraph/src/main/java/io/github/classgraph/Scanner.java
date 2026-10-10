@@ -903,37 +903,20 @@ class Scanner implements Callable<ScanResult> {
     }
 
     /**
-     * Read the automatic module name that each classpath element's manifest declares, then find the directories
-     * whose path is a prefix of another directory's path, and the jarfiles whose path is a prefix of another
-     * jarfile's path, and record the nesting.
+     * Group the classpath elements into directories and jarfiles, then find the directories whose path is a prefix
+     * of another directory's path, and the jarfiles whose path is a prefix of another jarfile's path, and record
+     * the nesting.
      *
      * @param finalTraditionalClasspathEltOrder
      *            the classpath elements, in classpath order
-     * @param classLoaderProbeLog
+     * @param log
      *            the log, or null to skip logging
      */
-    private static void preprocessClasspathElementsByType(
-            final List<ClasspathElement> finalTraditionalClasspathEltOrder,
-            final @Nullable LogNode classLoaderProbeLog) {
+    private static void groupAndFindNestedClasspathElements(
+            final List<ClasspathElement> finalTraditionalClasspathEltOrder, final @Nullable LogNode log) {
         final List<SimpleEntry<String, ClasspathElement>> classpathEltDirs = new ArrayList<>();
         final List<SimpleEntry<String, ClasspathElement>> classpathEltZips = new ArrayList<>();
         for (final ClasspathElement classpathElt : finalTraditionalClasspathEltOrder) {
-            // Retrieve the explicitly declared automatic module name, if present. This is read for a directory as
-            // well as for a jarfile, so that a jarfile exploded into a directory declares the same module name that
-            // the jarfile it was exploded from declares
-            final var root = classpathElt.getManifestRoot();
-            if (root != null) {
-                try {
-                    final var moduleName = root.getModuleName();
-                    if (moduleName != null) {
-                        classpathElt.moduleNameFromManifestFile = moduleName;
-                    }
-                } catch (final IOException e) {
-                    if (classLoaderProbeLog != null) {
-                        classLoaderProbeLog.log("Could not read the manifest of " + classpathElt + " : " + e);
-                    }
-                }
-            }
             if (classpathElt instanceof ClasspathElementDir) {
                 // Separate out ClasspathElementDir elements from other types
                 final var file = classpathElt.getFile();
@@ -950,8 +933,8 @@ class Scanner implements Callable<ScanResult> {
             // (Ignore ClasspathElementModule, no preprocessing to perform)
         }
         // Find nested classpath elements (writes to ClasspathElement#nestedClasspathRootPrefixes)
-        findNestedClasspathElements(classpathEltDirs, classLoaderProbeLog);
-        findNestedClasspathElements(classpathEltZips, classLoaderProbeLog);
+        findNestedClasspathElements(classpathEltDirs, log);
+        findNestedClasspathElements(classpathEltZips, log);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -1179,9 +1162,8 @@ class Scanner implements Callable<ScanResult> {
         // in-place into the ordering, if they haven't been listed earlier in the classpath already.
         final var classpathEltOrder = findClasspathOrder(toplevelClasspathElts);
 
-        // Find classpath elements that are path prefixes of other classpath elements, and for ClasspathElementZip,
-        // get module-related manifest entry values
-        preprocessClasspathElementsByType(classpathEltOrder,
+        // Find classpath elements that are path prefixes of other classpath elements
+        groupAndFindNestedClasspathElements(classpathEltOrder,
                 topLevelLog == null ? null : topLevelLog.log("Finding nested classpath elements"));
 
         // Order modules before classpath elements from traditional classpath. The same jar or directory can be
