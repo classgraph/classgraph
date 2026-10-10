@@ -1449,6 +1449,193 @@ public class GraphVizDotFileTest {
     }
 
     /**
+     * Make a string from code points. A surrogate code point becomes a lone surrogate. The characters these tests
+     * need are written as numbers, since most of them are invisible in the source.
+     *
+     * @param codePoints
+     *            the code points.
+     * @return the string.
+     */
+    private static String str(final int... codePoints) {
+        return new String(codePoints, 0, codePoints.length);
+    }
+
+    /**
+     * HTML-encode a string for a label.
+     *
+     * @param str
+     *            the string.
+     * @return the encoded string.
+     */
+    private static String htmlEncode(final String str) {
+        final var buf = new StringBuilder();
+        GraphVizDotFile.htmlEncode(str, buf);
+        return buf.toString();
+    }
+
+    /**
+     * Quote a string as a node identifier.
+     *
+     * @param str
+     *            the string.
+     * @return the quoted identifier.
+     */
+    private static String quotedIdentifier(final String str) {
+        final var buf = new StringBuilder();
+        GraphVizDotFile.appendQuotedIdentifier(str, buf);
+        return buf.toString();
+    }
+
+    /**
+     * Check that a string holds no character that XML 1.0 does not allow above U+001F, i.e. no lone surrogate, and
+     * neither U+FFFE nor U+FFFF. GraphViz parses HTML labels as XML, and a lone surrogate cannot be written as
+     * UTF-8.
+     *
+     * @param str
+     *            the string.
+     * @return true if the string holds no such character.
+     */
+    private static boolean isXmlSafe(final String str) {
+        // codePoints() returns a lone surrogate as its own value
+        return str.codePoints().noneMatch(cp -> cp >= 0xD800 && cp <= 0xDFFF || cp == 0xFFFE || cp == 0xFFFF);
+    }
+
+    /**
+     * A lone surrogate, U+FFFE and U+FFFF, which XML 1.0 does not allow, are written in labels as the text
+     * {@code \}{@code uXXXX}, while a valid surrogate pair is kept.
+     */
+    @Test
+    public void labelsEscapeCharactersThatXmlDoesNotAllow() {
+        assertThat(htmlEncode(str('a', 0xD800, 'b'))).isEqualTo("a&#x5C;ud800b");
+        assertThat(htmlEncode(str('a', 0xDC00, 'b'))).isEqualTo("a&#x5C;udc00b");
+        assertThat(htmlEncode(str('a', 0xD800))).isEqualTo("a&#x5C;ud800");
+        assertThat(htmlEncode(str('a', 0xDC00, 0xD800, 'b'))).isEqualTo("a&#x5C;udc00&#x5C;ud800b");
+        assertThat(htmlEncode(str('a', 0xFFFE, 'b'))).isEqualTo("a&#x5C;ufffeb");
+        assertThat(htmlEncode(str('a', 0xFFFF, 'b'))).isEqualTo("a&#x5C;uffffb");
+        // A valid surrogate pair
+        assertThat(htmlEncode(str('a', 0x1F600, 'b'))).isEqualTo(str('a', 0x1F600, 'b'));
+    }
+
+    /** Control characters and Unicode whitespace become a plain space in labels, except U+00A0. */
+    @Test
+    public void labelsTurnWhitespaceIntoSpaces() {
+        assertThat(htmlEncode(str('a', 0x2003, 0x85, 0x180E, '\t', 0x3000, 'b'))).isEqualTo("a     b");
+        assertThat(htmlEncode(str('a', 0xA0, 'b'))).isEqualTo("a&nbsp;b");
+        // ZERO WIDTH SPACE is not a space separator
+        assertThat(htmlEncode(str('a', 0x200B, 'b'))).isEqualTo(str('a', 0x200B, 'b'));
+    }
+
+    /**
+     * A lone surrogate is written in a node identifier as the text {@code \}{@code uXXXX}, while a valid surrogate
+     * pair is kept.
+     */
+    @Test
+    public void dotIdentifiersEscapeLoneSurrogates() {
+        assertThat(quotedIdentifier(str('a', 0xD800, 'b'))).isEqualTo("\"a\\ud800b\"");
+        assertThat(quotedIdentifier(str('a', 0xDC00))).isEqualTo("\"a\\udc00\"");
+        assertThat(quotedIdentifier(str('a', 0x1F600, 'b'))).isEqualTo("\"" + str('a', 0x1F600, 'b') + "\"");
+    }
+
+    /**
+     * Write a class {@code Hostile} with the public int fields {@code f\}{@code uD800x} and
+     * {@code g\}{@code uFFFEz}, and a public field {@code h} of type {@code p.Dep\}{@code uDC00}. A modified UTF-8
+     * name in a classfile can hold a lone surrogate, and javac cannot write any of these names.
+     *
+     * @param dir
+     *            the directory to write the classfile to.
+     * @throws IOException
+     *             if the classfile could not be written.
+     */
+    private static void writeHostileClassfile(final Path dir) throws IOException {
+        final var hostile = new ByteArrayOutputStream();
+        try (var out = new DataOutputStream(hostile)) {
+            out.writeInt(0xCAFEBABE);
+            out.writeShort(0); // Minor version
+            out.writeShort(52); // Major version (Java 8)
+            out.writeShort(10); // Constant pool count (one greater than the number of entries)
+            // #1
+            out.writeByte(1);
+            out.writeUTF("Hostile");
+            // #2
+            out.writeByte(7); // class ref to #1 (this_class)
+            out.writeShort(1);
+            // #3
+            out.writeByte(1);
+            out.writeUTF("java/lang/Object");
+            // #4
+            out.writeByte(7); // class ref to #3 (super_class)
+            out.writeShort(3);
+            // #5 (writeUTF writes modified UTF-8, which encodes a lone surrogate on its own)
+            out.writeByte(1);
+            out.writeUTF(str('f', 0xD800, 'x'));
+            // #6
+            out.writeByte(1);
+            out.writeUTF("I");
+            // #7
+            out.writeByte(1);
+            out.writeUTF(str('g', 0xFFFE, 'z'));
+            // #8
+            out.writeByte(1);
+            out.writeUTF("h");
+            // #9
+            out.writeByte(1);
+            out.writeUTF("Lp/Dep" + str(0xDC00) + ";");
+
+            out.writeShort(0x0021); // ACC_PUBLIC | ACC_SUPER
+            out.writeShort(2); // this_class
+            out.writeShort(4); // super_class
+            out.writeShort(0); // Number of interfaces
+
+            out.writeShort(3); // Number of fields
+            for (final int[] field : new int[][] { { 5, 6 }, { 7, 6 }, { 8, 9 } }) {
+                out.writeShort(0x0001); // ACC_PUBLIC
+                out.writeShort(field[0]); // name
+                out.writeShort(field[1]); // descriptor
+                out.writeShort(0); // attributes_count
+            }
+
+            out.writeShort(0); // Number of methods
+            out.writeShort(0); // Number of attributes
+        }
+        Files.write(dir.resolve("Hostile.class"), hostile.toByteArray());
+    }
+
+    /**
+     * A class or member name that holds a lone surrogate, U+FFFE or U+FFFF does not stop a graph from being written
+     * as UTF-8, and does not put a character that XML does not allow into a label.
+     *
+     * @param tempDir
+     *            the directory to write the classfile and the graphs to.
+     * @throws IOException
+     *             if a file could not be written or read.
+     */
+    @Test
+    public void namesWithCharactersThatXmlDoesNotAllowCanBeGraphed(@TempDir final Path tempDir) throws IOException {
+        final var classesDir = Files.createDirectory(tempDir.resolve("classes"));
+        writeHostileClassfile(classesDir);
+        try (var hostileScanResult = new ClassGraph().enableClasspathEntries(classesDir).enableClassInfo()
+                .enableFieldInfo().enableInterClassDependencies().enableExternalClasses().scan()) {
+            final var classes = hostileScanResult.getAllClasses().filter(ci -> "Hostile".equals(ci.getName()));
+            assertThat(hostileScanResult.getClassInfo("Hostile").getFieldInfo().getNames())
+                    .containsExactlyInAnyOrder(str('f', 0xD800, 'x'), str('g', 0xFFFE, 'z'), "h");
+
+            final var classGraphFile = GraphVizDotFile.write(hostileScanResult, classes,
+                    tempDir.resolve("classes.dot"));
+            final var classGraph = Files.readString(classGraphFile);
+            assertThat(isXmlSafe(classGraph)).as(classGraph).isTrue();
+            assertThat(classGraph).contains("<b>f&#x5C;ud800x</b>", "<b>g&#x5C;ufffez</b>",
+                    "<td align='right' valign='top'>Dep&#x5C;udc00</td>");
+
+            final var dependencyGraphFile = GraphVizDotFile.writeFromInterClassDependencies(hostileScanResult,
+                    classes, tempDir.resolve("dependencies.dot"),
+                    new GraphVizDotFileOptions().showUnlistedDependencies());
+            final var dependencyGraph = Files.readString(dependencyGraphFile);
+            assertThat(isXmlSafe(dependencyGraph)).as(dependencyGraph).isTrue();
+            assertThat(dependencyGraph).contains("\"p.Dep\\udc00\"[", "\"Hostile\" -> \"p.Dep\\udc00\"");
+        }
+    }
+
+    /**
      * A graph can be written to a file.
      *
      * @param tempDir
