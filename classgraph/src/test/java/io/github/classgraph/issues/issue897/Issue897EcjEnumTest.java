@@ -18,9 +18,9 @@ import io.github.classgraph.MethodParameterInfo;
  * <p>
  * This is tested against a constructor compiled by <b>ecj</b>, which (unlike javac) does <b>not</b> emit a
  * {@code Signature} attribute for enum constructors. With no signature to diff against, the implicit prefix count
- * must be determined structurally (via {@code isEnum()}). The fixture {@code ecjenum/EnumWithAnnoCtor.class} is
- * checked in (see the {@code .java} alongside it for how to recompile). Before the fix the annotation was silently
- * misattached to the synthetic {@code String} parameter.
+ * must be determined structurally (from the class's {@code ACC_ENUM} flag). The fixture
+ * {@code ecjenum/EnumWithAnnoCtor.class} is checked in (see the {@code .java} alongside it for how to recompile).
+ * Before the fix the annotation was silently misattached to the synthetic {@code String} parameter.
  */
 public class Issue897EcjEnumTest {
     private static final String FIXTURE_PKG = Issue897EcjEnumTest.class.getPackage().getName() + ".ecjenum";
