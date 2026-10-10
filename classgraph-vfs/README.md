@@ -92,9 +92,10 @@ at that moment, so a `Vfs` belongs in a try-with-resources block, as it is in ev
 Nothing outlasts that close. A `CloseableByteBuffer` you have not closed is closed for you as the
 root that handed it out closes, before the root releases the storage the buffer was a view of, so a
 memory mapping is unmapped and a temporary file deleted as the root closes rather than whenever the
-caller gets round to it. Reading a `ByteBuffer` you took out of such a wrapper after that point is a
-bug in the calling code, and on Windows below JDK 22 it can kill the JVM -- see
-[Read one entry](#read-one-entry).
+caller gets round to it. A stream from `entry.open()` that you have not closed is closed for you at
+the same point, releasing the file handle it holds. Reading a `ByteBuffer` you took out of such a
+wrapper after that point is a bug in the calling code, and on Windows below JDK 22 it can kill the
+JVM -- see [Read one entry](#read-one-entry).
 
 A `VfsRoot` is `AutoCloseable` too, but rarely needs closing by hand, since closing the `Vfs` closes
 it. Closing one early is for a long-lived `Vfs` that is done reading one root and wants what it
@@ -635,7 +636,8 @@ VfsEntry entry = root.getEntryCaseInsensitive("com/xyz/widget.txt");
 There are four ways to read an entry, differing only in what you get back and who has to release it.
 
 `entry.open()` streams the content, so a large entry never has to be held in memory. The stream is
-yours to close:
+yours to close. Closing the root it came from, or the `Vfs`, closes it too if you have not, and every
+read of it after that throws `IOException`:
 
 ```java
 try (InputStream inputStream = entry.open()) {
