@@ -539,8 +539,8 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
      */
     private boolean addWildcardedDirEntries(final String baseDirPath, final @Nullable ClassLoader classLoader,
             final @Nullable ClassGraphLog log) {
-        // A wildcarded classpath entry is only ever reached as a path string, never as a URL, so the user's URL
-        // filters are given the URL of the path
+        // A wildcarded classpath entry of any type (a String, File, URL, URI or Path) has been reduced to the path of
+        // its directory by now, so the user's URL filters are given a URL built from that path
         if (!passesFilters(/* pathElementURL = */ null, baseDirPath, baseDirPath, log)) {
             return false;
         }
@@ -646,14 +646,8 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
             return addWildcardedDirEntries(pathElementStr, classLoader, log);
         }
 
-        // Non-wildcarded (standard) classpath element
-        if (pathElementStr.indexOf('*') >= 0) {
-            if (log != null) {
-                log.log("Wildcard classpath elements can only end with a suffix of \"/*\", "
-                        + "can't use globs elsewhere in the path: " + pathElementStr);
-            }
-            return false;
-        }
+        // Non-wildcarded (standard) classpath element. As in the java launcher, a '*' anywhere but in a "/*" suffix
+        // is not a wildcard: it is part of a file name, which Linux and macOS allow
         // (pathElementStr was already resolved above, so there is nothing left to resolve here)
         if (!passesFilters(pathElementURL, pathElementStr, pathElementStr, log)) {
             return false;
