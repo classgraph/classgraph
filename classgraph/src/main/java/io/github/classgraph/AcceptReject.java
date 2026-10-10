@@ -45,7 +45,7 @@ import io.github.classgraph.base.internal.utils.CollectionUtils;
  * compiled to a regexp; any other criterion is matched literally. A string is accepted if the accept criteria are
  * empty, or if it matches one of them, and is rejected if it matches one of the reject criteria.
  */
-abstract class AcceptReject {
+abstract sealed class AcceptReject {
     /** The package or path separator character. */
     protected final char separatorChar;
 
@@ -295,7 +295,7 @@ abstract class AcceptReject {
     // -------------------------------------------------------------------------------------------------------------
 
     /** Accept and reject criteria that match any string starting with one of them. */
-    public static class AcceptRejectPrefix extends AcceptReject {
+    public static final class AcceptRejectPrefix extends AcceptReject {
         /** The accept criteria that contain no wildcard. */
         private final Set<String> acceptPrefixes = new TreeSet<>();
 
@@ -357,20 +357,6 @@ abstract class AcceptReject {
             return acceptIsEmpty() || startsWithAny(str, acceptPrefixes) || matchesAcceptGlob(str);
         }
 
-        /**
-         * Not supported for prefix criteria, since every string that starts with a prefix is accepted.
-         *
-         * @param str
-         *            The string to test.
-         * @return (does not return)
-         * @throws UnsupportedOperationException
-         *             always.
-         */
-        @Override
-        public boolean acceptHasPrefix(final String str) {
-            throw new UnsupportedOperationException("Can only find prefixes of whole strings");
-        }
-
         @Override
         public boolean isRejected(final String str) {
             return startsWithAny(str, rejectPrefixes) || matchesRejectGlob(str);
@@ -393,7 +379,7 @@ abstract class AcceptReject {
     }
 
     /** Accept and reject criteria that match a whole string. */
-    public static class AcceptRejectWholeString extends AcceptReject {
+    public static sealed class AcceptRejectWholeString extends AcceptReject {
         /** If true, criteria are matched ignoring case. */
         private final boolean ignoreCase;
 
@@ -436,7 +422,7 @@ abstract class AcceptReject {
          * @param ignoreCase
          *            If true, criteria are matched ignoring case.
          */
-        protected AcceptRejectWholeString(final char separatorChar, final boolean ignoreCase) {
+        private AcceptRejectWholeString(final char separatorChar, final boolean ignoreCase) {
             super(separatorChar);
             this.ignoreCase = ignoreCase;
             this.accept = newLiteralSet();
@@ -514,7 +500,15 @@ abstract class AcceptReject {
             return acceptIsEmpty() || accept.contains(str) || matchesAcceptGlob(str);
         }
 
-        @Override
+        /**
+         * Check whether a string is an ancestor of an accepted string, i.e. whether a directory scan that has
+         * reached the string may still lead to an accepted string. Unlike {@link #isAccepted(String)}, this returns
+         * false if there are no accept criteria.
+         *
+         * @param str
+         *            The string to test, ending in the separator character, or the empty string for the root.
+         * @return true if the string is an ancestor of a string that matches one of the accept criteria.
+         */
         public boolean acceptHasPrefix(final String str) {
             return acceptAncestors.contains(str) || matchesPatternList(str, acceptAncestorPatterns);
         }
@@ -546,7 +540,7 @@ abstract class AcceptReject {
      * criterion should not mean something different depending on the filesystem the classpath happens to be stored
      * on.
      */
-    public static class AcceptRejectLeafname extends AcceptRejectWholeString {
+    public static final class AcceptRejectLeafname extends AcceptRejectWholeString {
         /**
          * Create an empty set of leafname accept and reject criteria.
          *
@@ -573,17 +567,17 @@ abstract class AcceptReject {
         }
 
         /**
-         * Not supported for leafname criteria, since a leafname has no ancestors.
+         * Check whether a directory may still lead to an accepted file. A leafname criterion matches a file in any
+         * directory, so any directory may hold an accepted file when there is at least one accept criterion, and
+         * none does when there is none.
          *
          * @param str
-         *            The string to test.
-         * @return (does not return)
-         * @throws UnsupportedOperationException
-         *             always.
+         *            The string to test, ending in the separator character, or the empty string for the root.
+         * @return true if there is at least one accept criterion.
          */
         @Override
         public boolean acceptHasPrefix(final String str) {
-            throw new UnsupportedOperationException("Can only find prefixes of whole strings");
+            return !acceptIsEmpty();
         }
 
         @Override
@@ -619,16 +613,6 @@ abstract class AcceptReject {
      * @return true if the string is accepted.
      */
     public abstract boolean isAccepted(final String str);
-
-    /**
-     * Check whether a string is an ancestor of an accepted string, i.e. whether a directory scan that has reached
-     * the string may still lead to an accepted string.
-     *
-     * @param str
-     *            The string to test, ending in the separator character.
-     * @return true if the string is an ancestor of an accepted string.
-     */
-    public abstract boolean acceptHasPrefix(final String str);
 
     /**
      * Check whether a string matches one of the reject criteria.

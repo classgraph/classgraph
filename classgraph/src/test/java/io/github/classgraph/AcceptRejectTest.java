@@ -292,14 +292,6 @@ public class AcceptRejectTest {
             assertThat(acceptReject.isRejected("javax.sound.midi")).isFalse();
         }
 
-        /** Asking whether a string is a prefix of an accepted string is meaningless for a prefix criterion. */
-        @Test
-        public void prefixOfAPrefixIsRejectedAsMeaningless() {
-            assertThatThrownBy(() -> new AcceptRejectPrefix('.').acceptHasPrefix("com"))
-                    .isInstanceOf(UnsupportedOperationException.class)
-                    .hasMessage("Can only find prefixes of whole strings");
-        }
-
         /** A criterion knows whether anything was accepted or rejected. */
         @Test
         public void emptinessIsReported() {
@@ -474,12 +466,28 @@ public class AcceptRejectTest {
             assertThat(acceptReject).hasToString("accept: [\"MyLib.jar\"]; rejectGlobs: [\"BadLib-*.jar\"]");
         }
 
-        /** Asking whether a string is a prefix of an accepted leafname is meaningless. */
+        /**
+         * A leafname criterion matches a file in any directory, so once something is accepted, any directory may
+         * lead to an accepted file. With nothing accepted, no directory does, as for a whole-string criterion.
+         */
         @Test
-        public void prefixOfALeafnameIsRejectedAsMeaningless() {
-            assertThatThrownBy(() -> new AcceptRejectLeafname('/').acceptHasPrefix("some"))
-                    .isInstanceOf(UnsupportedOperationException.class)
-                    .hasMessage("Can only find prefixes of whole strings");
+        public void aLeafnameCriterionMayMatchInAnyDirectory() {
+            final var acceptReject = new AcceptRejectLeafname('/');
+            assertThat(acceptReject.acceptHasPrefix("some/dir/")).isFalse();
+            acceptReject.addToAccept("x.jar");
+            assertThat(acceptReject.acceptHasPrefix("some/dir/")).isTrue();
+            assertThat(acceptReject.acceptHasPrefix("")).isTrue();
+        }
+
+        /**
+         * A leafname glob counts as an accept criterion too, so any directory may lead to a file that it matches.
+         */
+        @Test
+        public void aLeafnameGlobMayMatchInAnyDirectory() {
+            final var acceptReject = new AcceptRejectLeafname('/');
+            acceptReject.addToAccept("*.jar");
+            assertThat(acceptReject.acceptHasPrefix("lib/")).isTrue();
+            assertThat(acceptReject.isAccepted("lib/x.jar")).isTrue();
         }
     }
 
