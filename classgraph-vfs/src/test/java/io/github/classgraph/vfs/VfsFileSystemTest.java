@@ -690,6 +690,78 @@ public class VfsFileSystemTest {
     }
 
     /**
+     * A module whose entry names include a {@code "."} or {@code ".."} section, a repeated separator or a leading
+     * {@code '/'} walks to a tree that holds only its other entries, rather than to a directory named {@code "."}
+     * that a walk descends into without end.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the module could not be read.
+     */
+    @Test
+    public void aModuleWithNonCanonicalEntryNamesCanBeWalked(@TempDir final Path tempDir) throws IOException {
+        final var moduleReference = moduleWithNonCanonicalEntryNames(tempDir);
+
+        try (var vfs = new Vfs()) {
+            // The walk is limited, so that it ends even if it descends into a directory named "." without end
+            try (Stream<Path> paths = Files.walk(vfs.open(moduleReference).asFileSystem().getPath("/"))) {
+                assertThat(paths.limit(100).map(Path::toString).toList()).containsExactly("/", "/ok.txt");
+            }
+        }
+    }
+
+    /**
+     * A module reader reports the names of a modular jarfile's entries exactly as they are stored, and finds an
+     * entry by the name it is stored under, but a module root reports and finds only the entries whose names are
+     * written the way the entries of a root are named.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the module could not be read.
+     */
+    @Test
+    public void aModuleLeavesOutEntriesWithNonCanonicalNames(@TempDir final Path tempDir) throws IOException {
+        final var moduleReference = moduleWithNonCanonicalEntryNames(tempDir);
+
+        try (var vfs = new Vfs()) {
+            final var root = vfs.open(moduleReference);
+            assertThat(root.getEntries()).extracting(VfsEntry::getPathFromRoot).containsExactly("ok.txt");
+            assertThat(root.getEntry("a/../b.txt")).isNull();
+            assertThat(root.getEntry("./c.txt")).isNull();
+            assertThat(root.getEntry("x//y.txt")).isNull();
+            assertThat(root.getEntry("ok.txt")).isNotNull();
+        }
+    }
+
+    /**
+     * Write a jarfile whose entry names include a {@code "."} or {@code ".."} section, a repeated separator or a
+     * leading {@code '/'}, plus one entry named {@code "ok.txt"}, and find it as a module the way
+     * {@link ModuleFinder#of(Path...)} does, so that it is read by the JDK's own module reader.
+     *
+     * @param tempDir
+     *            the directory to write the jarfile to.
+     * @return the module.
+     * @throws IOException
+     *             if the jarfile could not be written.
+     */
+    private static ModuleReference moduleWithNonCanonicalEntryNames(final Path tempDir) throws IOException {
+        // A jarfile with no module-info.class and no classfiles is an automatic module with no packages, which
+        // ModuleFinder accepts whatever its resources are named
+        final var jarFile = tempDir.resolve("dots.jar");
+        try (var fileOut = Files.newOutputStream(jarFile); var zipOut = new ZipOutputStream(fileOut)) {
+            for (final var entryName : List.of("./c.txt", "a/../b.txt", "x//y.txt", "../evil.txt", "/abs.txt",
+                    "ok.txt")) {
+                zipOut.putNextEntry(new ZipEntry(entryName));
+                zipOut.write(entryName.getBytes(StandardCharsets.UTF_8));
+                zipOut.closeEntry();
+            }
+        }
+        return ModuleFinder.of(jarFile).find("dots").orElseThrow();
+    }
+
+    /**
      * Write a Spring Boot style jarfile, with one class at the top level and one under the package root
      * {@code BOOT-INF/classes}.
      *

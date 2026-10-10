@@ -394,7 +394,9 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
      * and the children of a directory sorted by name. For a jarfile, encrypted entries and entries stored with an
      * unsupported compression method are left out, only the last of two entries with the same name is reported, and
      * only the newest version of each entry that this JVM can run is reported, unless multi-release versioning was
-     * turned off with {@link VfsSpec#disableMultiReleaseVersions()}.
+     * turned off with {@link VfsSpec#disableMultiReleaseVersions()}. For a module, an entry whose stored name has a
+     * leading {@code '/'}, a repeated separator, or a {@code "."} or {@code ".."} section in it is left out, since
+     * {@link #getEntry(String)} could not find it by that name.
      *
      * <p>
      * For a directory, an entry may name a file that the process has no permission to read: the walk tells the
@@ -643,6 +645,33 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
             // A directory that can be searched but not read, or that a SecurityManager will not let be listed.
             // Without a listing, a name that differs from its real name only in case is taken to be a folded one
             return false;
+        }
+    }
+
+    /**
+     * Returns whether a name is written the way the entries of a root are named: not empty, with no leading or
+     * trailing {@code '/'}, and with no section that is empty (a repeated separator), {@code "."} or {@code ".."}.
+     * Such a name is its own normal form, so it is the only spelling under which {@link #getEntry(String)} and a
+     * path of {@link #asFileSystem()} can find the entry.
+     *
+     * @param name
+     *            the name.
+     * @return true if the name is written the way the entries of a root are named.
+     */
+    static boolean isCanonicalEntryName(final String name) {
+        var sectionStart = 0;
+        while (true) {
+            final var slashIdx = name.indexOf('/', sectionStart);
+            final var sectionEnd = slashIdx < 0 ? name.length() : slashIdx;
+            final var sectionLen = sectionEnd - sectionStart;
+            if (sectionLen == 0 || (name.charAt(sectionStart) == '.'
+                    && (sectionLen == 1 || (sectionLen == 2 && name.charAt(sectionStart + 1) == '.')))) {
+                return false;
+            }
+            if (slashIdx < 0) {
+                return true;
+            }
+            sectionStart = slashIdx + 1;
         }
     }
 
