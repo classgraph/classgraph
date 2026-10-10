@@ -48,6 +48,7 @@ import java.nio.channels.FileChannel;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystemNotFoundException;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.AbstractMap.SimpleEntry;
@@ -515,36 +516,57 @@ public class NestedJarHandler {
      */
     private static final Pattern UNSAFE_FILENAME_CHARS = Pattern.compile("[\\x00-\\x1f\"*/:<>?\\\\|&= ]");
 
+    /** Characters outside ASCII, replaced only when the platform cannot encode them in a filename. */
+    private static final Pattern NON_ASCII_CHARS = Pattern.compile("\\P{ASCII}");
+
     /**
      * Sanitize filename, by replacing any character that is not valid in a filename on every supported platform
      * with an underscore. Zip entry names may contain almost any byte, whereas filenames may not, so the temporary
      * file that a nested jar is extracted to cannot simply be named after the zip entry it came from.
+     *
+     * <p>
+     * A surrogate that is not part of a pair is not a character at all, and cannot be encoded in a filename on any
+     * platform, so it is replaced too, whereas a surrogate pair is kept. This is done by code point rather than with
+     * {@code \p{Cs}} in {@link #UNSAFE_FILENAME_CHARS}, because the JDK 8 regex matcher also tries a match at the
+     * second half of a surrogate pair, where {@code \p{Cs}} matches and splits the pair.
      *
      * @param filename
      *            the filename
      * @return the sanitized filename
      */
     private static String sanitizeFilename(final String filename) {
-        return UNSAFE_FILENAME_CHARS.matcher(filename).replaceAll("_");
+        final String sanitized = UNSAFE_FILENAME_CHARS.matcher(filename).replaceAll("_");
+        final StringBuilder buf = new StringBuilder(sanitized.length());
+        for (int i = 0; i < sanitized.length();) {
+            final int codePoint = sanitized.codePointAt(i);
+            // codePointAt returns a surrogate only when it is not part of a pair
+            final boolean isUnpairedSurrogate = Character.isBmpCodePoint(codePoint)
+                    && Character.isSurrogate((char) codePoint);
+            buf.appendCodePoint(isUnpairedSurrogate ? '_' : codePoint);
+            i += Character.charCount(codePoint);
+        }
+        return buf.toString();
     }
 
     /**
      * The most characters of a path that are kept in the name of its temporary file. A filename is limited to 255
      * bytes on Linux and macOS, and to 255 UTF-16 characters on Windows. A UTF-16 character takes at most 3 bytes
      * in UTF-8, so this leaves room for the prefix and the random number that
-     * {@link File#createTempFile(String, String)} adds.
+     * {@link Files#createTempFile(String, String, java.nio.file.attribute.FileAttribute...)} adds.
      */
     private static final int MAX_TEMP_FILENAME_BASE_LENGTH = 64;
 
     /**
-     * Create a temporary file, which {@link #close(LogNode)} deletes. {@link File#deleteOnExit()} is not used: the
-     * JDK keeps every path passed to it until the JVM exits, even after the file has been deleted, so a
-     * long-running JVM that scans repeatedly would accumulate them without limit.
+     * Create a temporary file that only its owner can read, which {@link #close(LogNode)} deletes.
+     * {@link File#deleteOnExit()} is not used: the JDK keeps every path passed to it until the JVM exits, even
+     * after the file has been deleted, so a long-running JVM that scans repeatedly would accumulate them without
+     * limit.
      *
      * <p>
      * The file is named after {@code filePathBase}, or its leafname, with any character that is not valid in a
      * filename replaced, and with all but the last {@value #MAX_TEMP_FILENAME_BASE_LENGTH} characters removed if
-     * it is longer than that.
+     * it is longer than that. If the encoding that filenames are stored in cannot represent some character of what
+     * remains, every non-ASCII character is replaced too.
      *
      * @param filePathBase
      *            The path to derive the temporary filename from.
@@ -564,9 +586,33 @@ public class NestedJarHandler {
             }
             filenameBase = filenameBase.substring(startIdx);
         }
-        final File tempFile = File.createTempFile(TEMP_FILENAME_PREFIX, TEMP_FILENAME_LEAF_SEPARATOR + filenameBase);
+        File tempFile;
+        try {
+            tempFile = createTempFileReadableOnlyByOwner(filenameBase);
+        } catch (final InvalidPathException e) {
+            // The encoding that filenames are stored in cannot represent some character of the filename, as
+            // happens to every non-ASCII character when the JVM is started under the C or POSIX locale on Linux
+            tempFile = createTempFileReadableOnlyByOwner(NON_ASCII_CHARS.matcher(filenameBase).replaceAll("_"));
+        }
         tempFiles.add(tempFile);
         return tempFile;
+    }
+
+    /**
+     * Create a temporary file that only its owner can read, unlike {@link File#createTempFile(String, String)},
+     * whose file can be read by every local user under the usual umask of 022. On Windows the file takes the access
+     * control list of the temporary directory.
+     *
+     * @param filenameBase
+     *            The sanitized name to end the temporary filename with.
+     * @return The temporary {@link File}.
+     * @throws IOException
+     *             If the temporary file could not be created.
+     * @throws InvalidPathException
+     *             If the temporary filename cannot be represented in the encoding that filenames are stored in.
+     */
+    private static File createTempFileReadableOnlyByOwner(final String filenameBase) throws IOException {
+        return Files.createTempFile(TEMP_FILENAME_PREFIX, TEMP_FILENAME_LEAF_SEPARATOR + filenameBase).toFile();
     }
 
     /**
