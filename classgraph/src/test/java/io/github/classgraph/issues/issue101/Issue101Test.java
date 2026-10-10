@@ -33,6 +33,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
+import io.github.classgraph.ClassInfo;
 
 public class Issue101Test {
     /**
@@ -50,7 +51,8 @@ public class Issue101Test {
     }
 
     /**
-     * Inherited meta annotation.
+     * Inherited meta annotation. {@link NonAnnotatedSubclass} does not inherit {@link InheritedMetaAnnotation},
+     * since the annotation that carries it, {@link NonInheritedAnnotation}, is not inherited.
      */
     @Test
     public void inheritedMetaAnnotation() {
@@ -59,7 +61,38 @@ public class Issue101Test {
                 .enableMethodInfo().enableAnnotationInfo().enableStaticFinalFieldConstantInitializerValues()
                 .ignoreClassVisibility().ignoreFieldVisibility().ignoreMethodVisibility().scan()) {
             assertThat(scanResult.getClassesWithAnnotation(InheritedMetaAnnotation.class).getStandardClasses()
-                    .getNames()).containsOnly(AnnotatedClass.class.getName(), NonAnnotatedSubclass.class.getName());
+                    .getNames()).containsOnly(AnnotatedClass.class.getName());
+            assertThat(NonAnnotatedSubclass.class.isAnnotationPresent(NonInheritedAnnotation.class)).isFalse();
+        }
+    }
+
+    /**
+     * For every class, {@link ClassInfo#getAllAnnotations()} and {@link ClassInfo#getAllAnnotationInfo()} list the
+     * same annotations, apart from those in {@code java.lang.annotation}, which only
+     * {@link ClassInfo#getAllAnnotationInfo()} lists, and {@link ClassInfo#hasAnnotation(String)} and
+     * {@link ClassInfo#getClassesWithAnnotation()} agree with them.
+     */
+    @Test
+    public void annotationQueriesAgree() {
+        try (var scanResult = new ClassGraph().enableClasspath()
+                .acceptPackages(Issue101Test.class.getPackage().getName()).enableClassInfo().enableAnnotationInfo()
+                .ignoreClassVisibility().scan()) {
+            final var allClasses = scanResult.getAllClasses();
+            assertThat(allClasses).isNotEmpty();
+            for (final ClassInfo classInfo : allClasses) {
+                final var annotationInfoNames = classInfo.getAllAnnotationInfo()
+                        .filter(annotationInfo -> !annotationInfo.getName().startsWith("java.lang.annotation."))
+                        .getNames();
+                assertThat(classInfo.getAllAnnotations().getNames()).as(classInfo.getName())
+                        .containsExactlyInAnyOrderElementsOf(annotationInfoNames);
+                for (final ClassInfo annotation : scanResult.getAllAnnotations()) {
+                    final var hasAnnotationInfo = annotationInfoNames.contains(annotation.getName());
+                    assertThat(classInfo.hasAnnotation(annotation.getName()))
+                            .as(classInfo.getName() + " " + annotation.getName()).isEqualTo(hasAnnotationInfo);
+                    assertThat(annotation.getClassesWithAnnotation().containsName(classInfo.getName()))
+                            .as(classInfo.getName() + " " + annotation.getName()).isEqualTo(hasAnnotationInfo);
+                }
+            }
         }
     }
 
