@@ -78,8 +78,8 @@ class NarcissusReflectionDriver extends ReflectionDriver {
      * accepted here and fail later, where the result of {@link Method#invoke} is cast.
      *
      * @throws Exception
-     *             if Narcissus is not on the classpath, or its native library could not be loaded, or its API is
-     *             not the expected shape
+     *             if Narcissus is not on the classpath and is not a resolved module, or its native library could
+     *             not be loaded, or its API is not the expected shape
      */
     NarcissusReflectionDriver() throws Exception {
         // Load Narcissus class via reflection, so that there is no runtime dependency
