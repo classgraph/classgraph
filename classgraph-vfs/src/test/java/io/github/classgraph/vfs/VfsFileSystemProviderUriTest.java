@@ -166,6 +166,34 @@ public class VfsFileSystemProviderUriTest {
     }
 
     /**
+     * Every filesystem reports the installed provider as its provider, whether it was created by that provider from
+     * a URI or by {@link VfsRoot#asFileSystem()}, so that code which compares providers by identity accepts its
+     * paths.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the jarfile could not be read.
+     */
+    @Test
+    public void aFilesystemReportsTheInstalledProvider(@TempDir final Path tempDir) throws IOException {
+        assumeTrue(VfsFileSystemProvider.isInstalled(), "The \"cgvfs:\" scheme is not installed");
+        final var installed = FileSystemProvider.installedProviders().stream()
+                .filter(p -> "cgvfs".equals(p.getScheme())).findFirst().orElseThrow();
+        final var jarFile = tempDir.resolve("library.jar").toFile();
+        writeJar(jarFile);
+        final var jarPath = jarFile.getPath();
+
+        try (var fileSystem = FileSystems.newFileSystem(cgvfsUri(jarPath), Map.of())) {
+            assertThat(fileSystem.provider()).isSameAs(installed);
+            assertThat(Paths.get(cgvfsUri(jarPath + "!/root.txt")).getFileSystem().provider()).isSameAs(installed);
+        }
+        try (var vfs = new Vfs()) {
+            assertThat(vfs.open(jarPath).asFileSystem().provider()).isSameAs(installed);
+        }
+    }
+
+    /**
      * A jarfile can be opened by URI, with or without a {@code "file:"} scheme in front of the path, and the paths
      * of the resulting filesystem read the jarfile's entries.
      *

@@ -125,22 +125,52 @@ import org.jspecify.annotations.Nullable;
  * working, since they need nothing from the filesystem's content.
  */
 public final class VfsFileSystemProvider extends FileSystemProvider {
-    /** The instance used by {@link VfsRoot#asFileSystem()}, which is the installed one where there is one. */
-    static final VfsFileSystemProvider INSTANCE = new VfsFileSystemProvider();
+    /**
+     * The provider that {@link VfsFileSystem#provider()} returns when the {@code "cgvfs:"} scheme is not installed.
+     * When it is installed, the installed instance is returned instead; see {@link #instance()}.
+     */
+    private static final VfsFileSystemProvider INSTANCE = new VfsFileSystemProvider();
 
     /**
      * The filesystems created from a URI by {@link #newFileSystem(URI, Map)}, keyed by every path they can be named
      * by. No other filesystem is held here: not one created from a {@link Path} by
      * {@link #newFileSystem(Path, Map)}, and not one created by {@link VfsRoot#asFileSystem()}. Each is removed
      * when it is closed, or when its root or the {@link Vfs} behind it is closed. This is static rather than
-     * per-instance because {@link java.util.ServiceLoader} constructs an instance of its own, so the instance a
-     * caller reaches through {@link FileSystemProvider#installedProviders()} need not be the one
-     * {@link VfsFileSystem#provider()} returns.
+     * per-instance because more than one instance can exist: the one {@link java.util.ServiceLoader} constructs,
+     * {@link #INSTANCE}, and any a caller constructs directly.
      */
     private static final Map<String, VfsFileSystem> FILESYSTEMS_BY_PATH = new ConcurrentHashMap<>();
 
-    /** Whether {@link #isInstalled()} has looked the provider up yet, and what it found. */
-    private static volatile @Nullable Boolean installed;
+    /**
+     * Holds the installed instance of this class, looked up on first use. This is a separate class so that the
+     * lookup is not run by the initialization of {@link VfsFileSystemProvider}, or by its constructor: both can run
+     * while {@link FileSystemProvider#installedProviders()} is still loading the providers, and that method fails
+     * if it is called again before the loading finishes.
+     */
+    private static final class Installed {
+        /** The installed instance, or null if the {@code "cgvfs:"} scheme is not installed. */
+        static final @Nullable VfsFileSystemProvider PROVIDER = find();
+
+        /**
+         * Constructor.
+         */
+        private Installed() {
+        }
+
+        /**
+         * Find the installed instance.
+         *
+         * @return the installed instance, or null if there is none.
+         */
+        private static @Nullable VfsFileSystemProvider find() {
+            for (final var provider : FileSystemProvider.installedProviders()) {
+                if (provider instanceof final VfsFileSystemProvider vfsProvider) {
+                    return vfsProvider;
+                }
+            }
+            return null;
+        }
+    }
 
     /**
      * Constructor.
@@ -149,10 +179,23 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
      * This is public only because {@link java.util.ServiceLoader} has to be able to call it. Use
      * {@link java.nio.file.FileSystems} to reach the provider, or {@link Vfs} and {@link VfsRoot#asFileSystem()} to
      * bypass it. Constructing one directly gives a provider that shares the filesystem registry with the installed
-     * one, so it behaves the same, but a {@link Path} of a filesystem it created will not be recognized by code
-     * that compares providers by identity.
+     * one, so it behaves the same, but a filesystem it creates reports the installed provider (or a private
+     * instance, if the scheme is not installed) from {@link FileSystem#provider()}, not the provider that was
+     * constructed.
      */
     public VfsFileSystemProvider() {
+    }
+
+    /**
+     * Returns the provider that every {@link VfsFileSystem} reports as its own: the installed instance if the
+     * {@code "cgvfs:"} scheme is installed, so that code which compares a path's provider with the installed one by
+     * identity accepts it, or else {@link #INSTANCE}.
+     *
+     * @return the provider.
+     */
+    static VfsFileSystemProvider instance() {
+        final var installed = Installed.PROVIDER;
+        return installed != null ? installed : INSTANCE;
     }
 
     /**
@@ -168,20 +211,7 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
      * @return true if the {@code "cgvfs:"} scheme is installed.
      */
     public static boolean isInstalled() {
-        var isInstalled = installed;
-        if (isInstalled == null) {
-            // Not synchronized: two threads that race here look the answer up twice and reach the same answer,
-            // which is cheaper than locking around a call that itself takes a lock inside the JDK
-            isInstalled = false;
-            for (final var provider : FileSystemProvider.installedProviders()) {
-                if (provider instanceof VfsFileSystemProvider) {
-                    isInstalled = true;
-                    break;
-                }
-            }
-            installed = isInstalled;
-        }
-        return isInstalled;
+        return Installed.PROVIDER != null;
     }
 
     /**
