@@ -38,7 +38,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 
 import io.github.classgraph.ScanSpec.ScanSpecPathMatch;
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
@@ -67,11 +66,6 @@ final class ClasspathElementZip extends ClasspathElement {
      * The normalized path of the jarfile, "!/"-separated if nested, excluding any package root.
      */
     private String zipFilePath;
-    /**
-     * A map from relative path to {@link Resource} for every zip entry, accepted or not, so that a resource can be
-     * found by name whether or not the scan accepted it.
-     */
-    private final ConcurrentHashMap<String, Resource> relativePathToResource = new ConcurrentHashMap<>();
     /** The virtual filesystem that the jarfile is enumerated and read through. */
     private final Vfs vfs;
     /**
@@ -374,13 +368,22 @@ final class ClasspathElementZip extends ClasspathElement {
      *
      * @param relativePath
      *            The relative path of the {@link Resource} to return.
-     * @return The {@link Resource} for the given relative path, or null if relativePath does not exist in this
-     *         classpath element.
+     * @return A new {@link Resource} for the given relative path, or null if relativePath does not exist in this
+     *         classpath element, or is a path that the scan skips.
      */
     @Override
     @Nullable
     Resource getResource(final String relativePath) {
-        return relativePathToResource.get(relativePath);
+        final var root = vfsRoot;
+        if (root == null || skipClasspathElement || isSkippedPath(relativePath)) {
+            return null;
+        }
+        try {
+            final var entry = root.getEntry(relativePath);
+            return entry == null ? null : new Resource(this, entry, relativePath);
+        } catch (final IOException e) {
+            return null;
+        }
     }
 
     /**
@@ -436,10 +439,9 @@ final class ClasspathElementZip extends ClasspathElement {
             }
 
             if (parentMatchStatus == ScanSpecPathMatch.HAS_REJECTED_PATH_PREFIX && subLog != null) {
-                // The parent dir or one of its ancestral dirs is rejected, so the entry is not accepted. It is
-                // still indexed below, so that it can be found by getResource(String), which is how the class graph
-                // is extended upwards through classes that the scan did not accept -- exactly as it is for a
-                // directory classpath element, whose lookup reads the filesystem and so reaches rejected paths too
+                // The parent dir or one of its ancestral dirs is rejected, so the entry is not accepted. It can
+                // still be found by getResource(String), which looks the entry up in the jarfile, and which is how
+                // the class graph is extended upwards through classes that the scan did not accept
                 subLog.log("Not accepting rejected path: " + entryName);
             }
 
@@ -503,24 +505,20 @@ final class ClasspathElementZip extends ClasspathElement {
      */
     private boolean isWithinNestedClasspathRoot(final String entryName,
             final Set<String> loggedNestedClasspathRootPrefixes, final @Nullable LogNode log) {
-        if (nestedClasspathRootPrefixes == null) {
+        final var nestedClasspathRoot = nestedClasspathRootOf(entryName);
+        if (nestedClasspathRoot == null) {
             return false;
         }
-        // This is O(mn), which is inefficient, but the number of nested classpath roots should be small
-        for (final String nestedClasspathRoot : nestedClasspathRootPrefixes) {
-            if (entryName.startsWith(nestedClasspathRoot)) {
-                if (log != null && loggedNestedClasspathRootPrefixes.add(nestedClasspathRoot)) {
-                    log.log("Reached nested classpath root, stopping recursion to avoid duplicate scanning: "
-                            + nestedClasspathRoot);
-                }
-                return true;
-            }
+        if (log != null && loggedNestedClasspathRootPrefixes.add(nestedClasspathRoot)) {
+            log.log("Reached nested classpath root, stopping recursion to avoid duplicate scanning: "
+                    + nestedClasspathRoot);
         }
-        return false;
+        return true;
     }
 
     /**
-     * Add a zip entry as a {@link Resource}, and, if the resource is accepted, schedule it for scanning.
+     * If a zip entry is accepted, or is the module descriptor, add it as a {@link Resource} and schedule it for
+     * scanning. No two entries of a jarfile have the same path, so each path is added at most once.
      *
      * @param entry
      *            the zip entry, as an entry in the virtual filesystem
@@ -533,16 +531,15 @@ final class ClasspathElementZip extends ClasspathElement {
      */
     private void addZipEntryResource(final VfsEntry entry, final String relativePath,
             final ScanSpecPathMatch parentMatchStatus, final @Nullable LogNode log) {
-        final var resource = new Resource(this, entry, relativePath);
-        if (relativePathToResource.putIfAbsent(relativePath, resource) == null) {
-            if (isAcceptedResourcePath(relativePath, parentMatchStatus)) {
-                // Resource is accepted
-                addAcceptedResource(resource, parentMatchStatus, /* isClassfileOnly = */ false, log);
-            } else if (scanSpec.enableClassInfo && "module-info.class".equals(relativePath)) {
-                // Add module descriptor as an accepted classfile resource, so that it is scanned, but don't add it
-                // to the list of resources in the ScanResult, since it is not in an accepted package (#352)
-                addAcceptedResource(resource, parentMatchStatus, /* isClassfileOnly = */ true, log);
-            }
+        if (isAcceptedResourcePath(relativePath, parentMatchStatus)) {
+            // Resource is accepted
+            addAcceptedResource(new Resource(this, entry, relativePath), parentMatchStatus,
+                    /* isClassfileOnly = */ false, log);
+        } else if (scanSpec.enableClassInfo && "module-info.class".equals(relativePath)) {
+            // Add module descriptor as an accepted classfile resource, so that it is scanned, but don't add it to
+            // the list of resources in the ScanResult, since it is not in an accepted package (#352)
+            addAcceptedResource(new Resource(this, entry, relativePath), parentMatchStatus,
+                    /* isClassfileOnly = */ true, log);
         }
     }
 

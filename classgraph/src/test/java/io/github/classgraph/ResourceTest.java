@@ -12,6 +12,7 @@ import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
+import java.util.List;
 import java.util.Map;
 import java.util.zip.CRC32;
 import java.util.zip.ZipEntry;
@@ -520,6 +521,125 @@ public class ResourceTest {
             try (var inputStream = resource.getURL().openStream()) {
                 assertThat(inputStream.readNBytes(4)).startsWith((byte) 0xCA, (byte) 0xFE, (byte) 0xBA,
                         (byte) 0xBE);
+            }
+        }
+    }
+
+    /**
+     * Write the same files into a directory and into a jarfile with no manifest, so that a test can check that the
+     * two kinds of classpath element answer the same lookup the same way.
+     *
+     * @param tempDir
+     *            the directory to write the directory and the jarfile into.
+     * @param paths
+     *            the paths of the files, each of which gets its own path as its content.
+     * @return the directory and the jarfile, in that order.
+     * @throws IOException
+     *             if the files could not be written.
+     */
+    private static List<Path> writeDirAndJar(final Path tempDir, final String... paths) throws IOException {
+        final var dir = tempDir.resolve("root");
+        final var jar = tempDir.resolve("root.jar");
+        try (var zipOut = new ZipOutputStream(Files.newOutputStream(jar))) {
+            for (final String path : paths) {
+                final var file = dir.resolve(path);
+                Files.createDirectories(file.getParent());
+                Files.writeString(file, path);
+                zipOut.putNextEntry(new ZipEntry(path));
+                zipOut.write(path.getBytes(StandardCharsets.UTF_8));
+                zipOut.closeEntry();
+            }
+        }
+        return List.of(dir, jar);
+    }
+
+    /**
+     * A resource found by {@link ScanResult#getResourcesWithPathIgnoringAccept(String)} is a new {@link Resource}
+     * object, not the one that {@link ScanResult#getResourcesWithPath(String)} returns, so it can be opened while
+     * that one is open, in a jarfile as well as in a directory.
+     *
+     * @param tempDir
+     *            a temporary directory to build the classpath elements in.
+     * @throws IOException
+     *             if the classpath elements could not be written or read.
+     */
+    @Test
+    public void aResourceFoundIgnoringAcceptCanBeOpenedWhileTheAcceptedOneIsOpen(@TempDir final Path tempDir)
+            throws IOException {
+        final var path = "p/a.txt";
+        for (final Path classpathElement : writeDirAndJar(tempDir, path)) {
+            try (var scanResult = new ClassGraph().acceptPaths("p").enableClasspathEntries(classpathElement)
+                    .scan()) {
+                final var accepted = resource(scanResult, path);
+                final var foundIgnoringAccept = scanResult.getResourcesWithPathIgnoringAccept(path);
+                assertThat(foundIgnoringAccept).as(classpathElement.toString()).hasSize(1);
+                assertThat(foundIgnoringAccept.get(0)).as(classpathElement.toString()).isNotSameAs(accepted);
+                try (var acceptedIn = accepted.open(); var foundIn = foundIgnoringAccept.get(0).open()) {
+                    assertThat(acceptedIn.readAllBytes()).isEqualTo(path.getBytes(StandardCharsets.UTF_8));
+                    assertThat(foundIn.readAllBytes()).isEqualTo(path.getBytes(StandardCharsets.UTF_8));
+                } finally {
+                    accepted.close();
+                    foundIgnoringAccept.get(0).close();
+                }
+            }
+        }
+    }
+
+    /**
+     * A file in a versioned section of a multi-release layout is hidden from
+     * {@link ScanResult#getResourcesWithPathIgnoringAccept(String)} when the scan hides it, in a directory as well
+     * as in a jarfile, and is found in both when {@link ClassGraph#disableMultiReleaseVersions()} makes the scan
+     * report it.
+     *
+     * @param tempDir
+     *            a temporary directory to build the classpath elements in.
+     * @throws IOException
+     *             if the classpath elements could not be written.
+     */
+    @Test
+    public void aVersionedPathIsFoundIgnoringAcceptOnlyWhenTheScanReportsIt(@TempDir final Path tempDir)
+            throws IOException {
+        final var versionedPath = "META-INF/versions/9/p/a.txt";
+        for (final Path classpathElement : writeDirAndJar(tempDir, "p/a.txt", versionedPath)) {
+            try (var scanResult = new ClassGraph().enableClasspathEntries(classpathElement).scan()) {
+                assertThat(scanResult.getAllResources().getPaths()).as(classpathElement.toString())
+                        .containsExactly("p/a.txt");
+                assertThat(scanResult.getResourcesWithPathIgnoringAccept(versionedPath))
+                        .as(classpathElement.toString()).isEmpty();
+            }
+            try (var scanResult = new ClassGraph().disableMultiReleaseVersions()
+                    .enableClasspathEntries(classpathElement).scan()) {
+                assertThat(scanResult.getResourcesWithPathIgnoringAccept(versionedPath).getPaths())
+                        .as(classpathElement.toString()).containsExactly(versionedPath);
+            }
+        }
+    }
+
+    /**
+     * When a directory within a classpath element is also on the classpath as a classpath element of its own, a
+     * file in it is found by {@link ScanResult#getResourcesWithPathIgnoringAccept(String)} by its path relative to
+     * the inner classpath element only, as the scan reports it, in a directory as well as in a jarfile.
+     *
+     * @param tempDir
+     *            a temporary directory to build the classpath elements in.
+     * @throws IOException
+     *             if the classpath elements could not be written.
+     */
+    @Test
+    public void aFileUnderANestedClasspathRootIsFoundOnlyRelativeToIt(@TempDir final Path tempDir)
+            throws IOException {
+        final var classpathElements = writeDirAndJar(tempDir, "top.txt", "nested/x/r.txt");
+        final var dir = classpathElements.get(0);
+        final var jar = classpathElements.get(1);
+        for (final List<Object> classpath : List.<List<Object>> of(List.of(dir, dir.resolve("nested")),
+                List.of(jar, jar.toUri() + "!/nested"))) {
+            try (var scanResult = new ClassGraph().enableClasspathEntries(classpath).scan()) {
+                assertThat(scanResult.getAllResources().getPaths()).as(classpath.toString())
+                        .containsExactlyInAnyOrder("top.txt", "x/r.txt");
+                assertThat(scanResult.getResourcesWithPathIgnoringAccept("nested/x/r.txt")).as(classpath.toString())
+                        .isEmpty();
+                assertThat(scanResult.getResourcesWithPathIgnoringAccept("x/r.txt").getPaths())
+                        .as(classpath.toString()).containsExactly("x/r.txt");
             }
         }
     }

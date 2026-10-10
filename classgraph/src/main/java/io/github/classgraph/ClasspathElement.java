@@ -418,6 +418,42 @@ abstract sealed class ClasspathElement implements Comparable<ClasspathElement>
     }
 
     /**
+     * Find the nested classpath root that a path lies within, if any: a directory of this classpath element that is
+     * also on the classpath as a classpath element of its own, and whose files are therefore scanned only as part
+     * of that classpath element.
+     *
+     * @param relativePath
+     *            the path of an entry, relative to the root of this classpath element.
+     * @return the nested classpath root, with a trailing {@code '/'}, or null if the path is not within one.
+     */
+    @Nullable
+    String nestedClasspathRootOf(final String relativePath) {
+        if (nestedClasspathRootPrefixes != null) {
+            // This is O(mn), which is inefficient, but the number of nested classpath roots should be small
+            for (final String nestedClasspathRoot : nestedClasspathRootPrefixes) {
+                if (relativePath.startsWith(nestedClasspathRoot)) {
+                    return nestedClasspathRoot;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Check whether the scan skips a path whatever the accept and reject criteria are, because the path is in a
+     * multi-release versioned section that is ignored, or within a nested classpath root.
+     * {@link #getResource(String)} does not find a resource at such a path, so that a lookup by path finds only
+     * what the scan could report.
+     *
+     * @param relativePath
+     *            the path of an entry, relative to the root of this classpath element.
+     * @return true if the scan skips the path.
+     */
+    boolean isSkippedPath(final String relativePath) {
+        return isIgnoredVersionedPath(relativePath) || nestedClasspathRootOf(relativePath) != null;
+    }
+
+    /**
      * Check whether a resource is accepted, given the accept/reject match status of its parent directory.
      *
      * @param relativePath
@@ -785,12 +821,14 @@ abstract sealed class ClasspathElement implements Comparable<ClasspathElement>
      *            The relative path of the {@link Resource} to return. Path should have already been sanitized by
      *            calling {@link PathSyntax#sanitizeRelativePath(String, boolean)}, or by providing a path that is
      *            already sanitized (i.e. doesn't start or end with "/", doesn't contain "/../" or "/./", etc.).
-     * @return The {@link Resource} for the given relative path, or null if relativePath does not exist in this
-     *         classpath element.
+     * @return A new {@link Resource} for the given relative path, or null if relativePath does not exist in this
+     *         classpath element, or is a path that the scan skips (see {@link #isSkippedPath(String)}).
      */
     // N.B. this deliberately ignores the accept and reject criteria, because it is how the class graph is extended
     // upwards through classes that the scan did not accept (Classfile#findClassfile). Callers that must not report
-    // a rejected resource filter the result with ScanSpec#resourcePathIsRejected(String).
+    // a rejected resource filter the result with ScanSpec#resourcePathIsRejected(String). It returns a new Resource
+    // on every call, rather than one of the acceptedResources, so that a caller can open what it returns while the
+    // accepted Resource for the same path is open.
     abstract @Nullable Resource getResource(final String relativePath);
 
     /**
