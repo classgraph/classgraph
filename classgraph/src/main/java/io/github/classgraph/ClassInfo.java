@@ -954,25 +954,27 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     }
 
     /**
-     * Drop the external classes from the result of an "upwards" query, unless
+     * Drop the rejected classes from the result of an "upwards" query, and the external classes too, unless
      * {@link ClassGraph#enableExternalClasses()} was called.
      *
      * <p>
      * An external class -- one that was read only because an accepted class referred to it -- is part of an answer
      * only if {@link ClassGraph#enableExternalClasses()} was called, as for any other class that was not explicitly
-     * enabled. The class graph is still completed above an accepted class, so a query still traverses external
-     * classes to reach the accepted classes beyond them, but the external classes themselves are left out of the
-     * answer. The queries that need the class graph as the JVM sees it -- the predicates such as
-     * {@link #extendsSuperclass(String)}, and the machinery that resolves type signatures and method overrides --
-     * call the {@code ...IncludingExternal()} methods instead, which skip this filtering.
+     * enabled. A class that was rejected, by name or by package, is never part of an answer. The class graph is
+     * still completed above an accepted class, so a query still traverses external and rejected classes to reach
+     * the classes beyond them, but those classes themselves are left out of the answer. The queries that need the
+     * class graph as the JVM sees it -- the predicates such as {@link #extendsSuperclass(String)}, and the
+     * machinery that resolves type signatures and method overrides -- call the {@code ...IncludingExternal()}
+     * methods instead, which skip this filtering.
      *
      * @param classInfoList
-     *            the classes reached by the query, including the external classes
+     *            the classes reached by the query, including the external and rejected classes
      * @return the classes to report to the caller
      */
     private ClassInfoList excludeExternalClasses(final ClassInfoList classInfoList) {
-        return scanResult().scanSpec.enableExternalClasses ? classInfoList
-                : classInfoList.filter(classInfo -> !classInfo.isExternalClass);
+        final var scanSpec = scanResult().scanSpec;
+        return classInfoList.filter(classInfo -> (!classInfo.isExternalClass || scanSpec.enableExternalClasses)
+                && !scanSpec.classOrPackageIsRejected(classInfo.name));
     }
 
     /**
@@ -981,16 +983,17 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      * <p>
      * The rule for {@code excludeExternalClasses}: pass true whenever the filtered set is returned to the caller.
      * Pass false for a set that is used as the starting point of a further traversal, since an accepted class can
-     * be reachable only through an external class -- filter the union of such traversals at the end instead. (The
-     * transitive closure of a relationship is always computed over the unfiltered relationships, so filtering the
-     * result of a single call never cuts a traversal short.)
+     * be reachable only through an external or rejected class -- filter the union of such traversals at the end
+     * instead. (The transitive closure of a relationship is always computed over the unfiltered relationships, so
+     * filtering the result of a single call never cuts a traversal short.)
      *
      * @param classes
      *            the classes
      * @param scanSpec
      *            the scan spec
      * @param excludeExternalClasses
-     *            if true, exclude a class that is external, unless external classes were enabled
+     *            if true, exclude a class that is rejected, and a class that is external, unless external classes
+     *            were enabled; if false, filter only by class type
      * @param classTypes
      *            the class types
      * @return the filtered classes.
@@ -1027,12 +1030,13 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
                     || includeAnnotations && classInfo.isAnnotation() //
                     || includeEnums && classInfo.isEnum() //
                     || includeRecords && classInfo.isRecord();
-            // External (non-accepted) classes are returned only by "upwards" queries, or if external classes were
-            // enabled
-            final var acceptClass = !classInfo.isExternalClass || scanSpec.enableExternalClasses
-                    || !excludeExternalClasses;
-            // If class is of correct type, and class is accepted, and class/package are not explicitly rejected
-            if (includeType && acceptClass && !scanSpec.classOrPackageIsRejected(classInfo.name)) {
+            // A set that is traversed further keeps the external and rejected classes. A set that is returned to the
+            // caller keeps an external (non-accepted) class only if external classes were enabled, and never keeps
+            // a class that is rejected, or that is in a rejected package.
+            final var acceptClass = !excludeExternalClasses
+                    || ((!classInfo.isExternalClass || scanSpec.enableExternalClasses)
+                            && !scanSpec.classOrPackageIsRejected(classInfo.name));
+            if (includeType && acceptClass) {
                 // Class passed accept criteria
                 classInfoSetFiltered.add(classInfo);
             }
@@ -1060,7 +1064,8 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      * @param relType
      *            the relationship type
      * @param excludeExternalClasses
-     *            If true, exclude class if it is external, if external classes are not enabled
+     *            if true, exclude a class that is rejected, and a class that is external, unless external classes
+     *            were enabled; if false, filter only by class type
      * @param classTypes
      *            the class types to accept
      * @return the reachable and directly related classes
@@ -2221,8 +2226,8 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
 
     /**
      * Get all superclasses of this class, including the external superclasses, i.e. the superclasses that were read
-     * only in order to complete the class graph above this class. Used by the queries that need the class graph as
-     * the JVM sees it, rather than as it is reported to the user.
+     * only in order to complete the class graph above this class, and the rejected superclasses. Used by the
+     * queries that need the class graph as the JVM sees it, rather than as it is reported to the user.
      *
      * @return the list of all superclasses of this class, or the empty list if none.
      */
@@ -2285,7 +2290,7 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
 
     /**
      * Get the classes that this class is nested in, including the external ones, i.e. the ones that were read only
-     * in order to complete the class graph above this class.
+     * in order to complete the class graph above this class, and the rejected ones.
      *
      * @return The classes that this class is nested in, or the empty list if this is not a nested class.
      */
@@ -2308,7 +2313,7 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
 
     /**
      * Get the classes nested in this class, including the external ones, i.e. the ones that were read only in order
-     * to complete the class graph.
+     * to complete the class graph, and the rejected ones.
      *
      * @return The classes nested in this class, or the empty list if there are none.
      */
@@ -2351,8 +2356,9 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
 
     /**
      * Get all superinterfaces of this class or interface, including the external superinterfaces, i.e. the
-     * superinterfaces that were read only in order to complete the class graph above this class or interface. Used
-     * by the queries that need the class graph as the JVM sees it, rather than as it is reported to the user.
+     * superinterfaces that were read only in order to complete the class graph above this class or interface, and
+     * the rejected superinterfaces. Used by the queries that need the class graph as the JVM sees it, rather than
+     * as it is reported to the user.
      *
      * @return The list of all superinterfaces of this class or interface, or the empty list if none.
      */
@@ -2400,8 +2406,8 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      */
     public ClassInfoList getAllClassesImplementing() {
         // Subclasses of implementing classes also implement the interface. Don't filter the two traversals, since
-        // an accepted class can be reachable only through an external class (e.g. an accepted subclass of an
-        // external class that implements this interface) -- filter the union at the end instead.
+        // an accepted class can be reachable only through an external or rejected class (e.g. an accepted subclass
+        // of an external class that implements this interface) -- filter the union at the end instead.
         final var implementingClasses = this.filterClassInfo(RelType.CLASSES_IMPLEMENTING,
                 /* excludeExternalClasses = */ false);
         final Set<ClassInfo> allImplementingClasses = new LinkedHashSet<>(implementingClasses.reachableClasses());
@@ -2491,8 +2497,9 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
 
     /**
      * Get the annotations and meta-annotations on this class, including the external annotations, i.e. the
-     * annotations that were read only in order to complete the class graph above this class. Used by the queries
-     * that need the class graph as the JVM sees it, rather than as it is reported to the user.
+     * annotations that were read only in order to complete the class graph above this class, and the rejected
+     * annotations. Used by the queries that need the class graph as the JVM sees it, rather than as it is reported
+     * to the user.
      *
      * @return the list of annotations and meta-annotations on this class.
      * @throws IllegalStateException
@@ -2628,12 +2635,17 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
         // Get all classes that have a field or method annotated or meta-annotated with this annotation
         final Set<ClassInfo> classesWithAnnotation = new HashSet<>(getClassesWithFieldOrMethodAnnotation(relType));
         // Add subclasses of all classes with a field or method that is non-privately annotated or meta-annotated
-        // with this annotation, since non-private fields and methods are inherited
+        // with this annotation, since non-private fields and methods are inherited. Don't filter the two
+        // traversals, since an accepted class can inherit the field or method from an external or rejected
+        // superclass -- filter the union at the end instead.
         for (final ClassInfo classWithNonprivateAnnotation : getClassesWithFieldOrMethodAnnotation(
                 nonprivateRelType)) {
-            classesWithAnnotation.addAll(classWithNonprivateAnnotation.getAllSubclasses());
+            classesWithAnnotation.addAll(classWithNonprivateAnnotation
+                    .filterClassInfo(RelType.SUBCLASSES, /* excludeExternalClasses = */ false).reachableClasses());
         }
-        return new ClassInfoList(classesWithAnnotation,
+        return new ClassInfoList(
+                ClassInfo.filterClassInfo(classesWithAnnotation, scanResult().scanSpec,
+                        /* excludeExternalClasses = */ true),
                 new HashSet<>(getClassesWithFieldOrMethodAnnotationDirectOnly(relType)), /* sortByName = */ true);
     }
 
@@ -2647,15 +2659,16 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      *            {@link RelType#CLASSES_WITH_NONPRIVATE_METHOD_ANNOTATION},
      *            {@link RelType#CLASSES_WITH_METHOD_PARAMETER_ANNOTATION}, or
      *            {@link RelType#CLASSES_WITH_NONPRIVATE_METHOD_PARAMETER_ANNOTATION}.
-     * @return A list of classes that have a declared method with this annotation or meta-annotation, or the empty
-     *         list if none.
+     * @return A list of classes that have a declared field, method or method parameter with this annotation or
+     *         meta-annotation, including the external and rejected classes, which the caller filters out of its
+     *         result, or the empty list if none.
      */
     private ClassInfoList getClassesWithFieldOrMethodAnnotation(final RelType relType) {
         final var isField = relType == RelType.CLASSES_WITH_FIELD_ANNOTATION
                 || relType == RelType.CLASSES_WITH_NONPRIVATE_FIELD_ANNOTATION;
         checkFieldOrMethodAnnotationInfoEnabled(isField);
         final var classesWithDirectlyAnnotatedFieldsOrMethods = this.filterClassInfo(relType,
-                /* excludeExternalClasses = */ true);
+                /* excludeExternalClasses = */ false);
         // Don't filter the meta-annotated annotations -- they are only traversed through, and an accepted class can
         // have a field or method annotated by an external annotation that is meta-annotated by this one
         final var annotationsWithThisMetaAnnotation = this.filterClassInfo(RelType.CLASSES_WITH_ANNOTATION,
@@ -2670,7 +2683,7 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
                     classesWithDirectlyAnnotatedFieldsOrMethods.reachableClasses());
             for (final ClassInfo metaAnnotatedAnnotation : annotationsWithThisMetaAnnotation.reachableClasses()) {
                 allClassesWithAnnotatedOrMetaAnnotatedFieldsOrMethods.addAll(metaAnnotatedAnnotation
-                        .filterClassInfo(relType, /* excludeExternalClasses = */ true).reachableClasses());
+                        .filterClassInfo(relType, /* excludeExternalClasses = */ false).reachableClasses());
             }
             return new ClassInfoList(allClassesWithAnnotatedOrMetaAnnotatedFieldsOrMethods,
                     classesWithDirectlyAnnotatedFieldsOrMethods.directlyRelatedClasses(), /* sortByName = */ true);
@@ -2745,7 +2758,7 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
         if (isInherited) {
             // If this is an inherited annotation, add into the result all subclasses of the annotated classes.
             // Don't filter the two traversals, since an accepted class can inherit the annotation from an external
-            // superclass -- filter the union at the end instead.
+            // or rejected superclass -- filter the union at the end instead.
             final var classesWithAnnotation = this.filterClassInfo(RelType.CLASSES_WITH_ANNOTATION,
                     /* excludeExternalClasses = */ false);
             final Set<ClassInfo> classesWithAnnotationAndTheirSubclasses = new LinkedHashSet<>(
