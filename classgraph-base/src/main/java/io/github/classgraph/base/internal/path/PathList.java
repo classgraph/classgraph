@@ -143,8 +143,8 @@ public final class PathList {
     }
 
     /**
-     * Split a path on ':', skipping the colons that end a URL scheme, so that HTTP(S) jars can be given in
-     * {@code java.class.path}. (The JRE may not even support them, but we may as well do so.)
+     * Split a path on ':', skipping the colons that end a URL scheme or are in a URL's authority, so that HTTP(S)
+     * jars can be given in {@code java.class.path}. (The JRE may not even support them, but we may as well do so.)
      *
      * @param pathStr
      *            The path to split.
@@ -157,8 +157,23 @@ public final class PathList {
         // the position after its end are both split points, so that the first and last parts are included. The
         // split points are found in increasing order.
         final List<Integer> splitPoints = new ArrayList<>();
+        // The index of the last '/' or whitespace character before the current ':', or -1 if there is none. It is
+        // updated by scanning each character once, rather than by searching back from each ':', which would take
+        // time quadratic in the length of a path made of many short names with no '/' in them.
+        var slashOrSpaceIdx = -1;
+        var scanIdx = 0;
         for (var i = -1;;) {
-            if (!isSchemeOrEscapedColon(pathStr, i, allowedURLSchemes)) {
+            for (; scanIdx < i; scanIdx++) {
+                final var c = pathStr.charAt(scanIdx);
+                if (c == '/' || c <= ' ') {
+                    slashOrSpaceIdx = scanIdx;
+                }
+            }
+            // A ':' in the authority of a URL (before a port, in "user:password@", or in an IPv6 address) is part
+            // of the URL, whatever its scheme. The authority runs from the "://" to the next '/', and contains no
+            // whitespace, so the ':' is in an authority if the last '/' or whitespace before it ends a "://".
+            if (!isSchemeOrEscapedColon(pathStr, i, allowedURLSchemes)
+                    && !endsURLSchemeSeparator(pathStr, slashOrSpaceIdx)) {
                 splitPoints.add(i);
             }
             // Search for next ':' character
@@ -234,6 +249,59 @@ public final class PathList {
             }
         }
         return false;
+    }
+
+    /**
+     * Test whether a {@code '/'} ends the {@code "://"} that follows a URL's scheme. A ':' after it and before the
+     * next {@code '/'} or whitespace character is then in the URL's authority, as in
+     * {@code "http://host:8080/x.jar"}. The scheme must start a path element, possibly after an enclosing URL's
+     * scheme, as in {@code "jar:http://host:8080/x.jar!/"}. Any scheme is accepted, registered or not, since the
+     * colon is not a separator either way. As a result, a URL with no path that is followed directly by a
+     * separator, as in {@code "s3://bucket:/b.jar"}, is not split at that separator, so a URL must have a path, or
+     * be followed by a separator after its path.
+     *
+     * @param pathStr
+     *            The path being split.
+     * @param slashIdx
+     *            The index of the {@code '/'}, or of some other character (in which case the result is false), or
+     *            -1.
+     * @return true if a {@code "://"} that follows a URL scheme ends at the given index.
+     */
+    private static boolean endsURLSchemeSeparator(final String pathStr, final int slashIdx) {
+        if (slashIdx < 2 || pathStr.charAt(slashIdx) != '/' || pathStr.charAt(slashIdx - 1) != '/'
+                || pathStr.charAt(slashIdx - 2) != ':') {
+            return false;
+        }
+        // The scheme is a letter followed by letters, digits, '+', '-' and '.' (RFC 3986, section 3.1)
+        final var schemeEnd = slashIdx - 2;
+        var schemeStart = schemeEnd;
+        while (schemeStart > 0 && isSchemeChar(pathStr.charAt(schemeStart - 1))) {
+            schemeStart--;
+        }
+        return schemeStart < schemeEnd && isAsciiLetter(pathStr.charAt(schemeStart))
+                && startsAPathElement(pathStr, schemeStart);
+    }
+
+    /**
+     * Test whether a character may appear in a URL scheme.
+     *
+     * @param c
+     *            The character.
+     * @return true if the character is an ASCII letter or digit, '+', '-' or '.'.
+     */
+    private static boolean isSchemeChar(final char c) {
+        return isAsciiLetter(c) || c >= '0' && c <= '9' || c == '+' || c == '-' || c == '.';
+    }
+
+    /**
+     * Test whether a character is an ASCII letter.
+     *
+     * @param c
+     *            The character.
+     * @return true if the character is an ASCII letter.
+     */
+    private static boolean isAsciiLetter(final char c) {
+        return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z';
     }
 
     /**
