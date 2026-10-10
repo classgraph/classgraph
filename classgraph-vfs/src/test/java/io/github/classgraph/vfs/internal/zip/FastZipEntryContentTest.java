@@ -1,6 +1,7 @@
 package io.github.classgraph.vfs.internal.zip;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -208,5 +209,27 @@ public class FastZipEntryContentTest {
             assertThat(readThroughReader(zipEntry.getRawSlice())).isEqualTo(CONTENT);
             assertContentIsReadEveryWay(zipEntry);
         });
+    }
+
+    /**
+     * Reading a negative number of bytes from the stream of an entry throws IndexOutOfBoundsException, as
+     * {@link java.io.InputStream#read(byte[], int, int)} specifies, whether the entry is deflated or stored.
+     *
+     * @param tempDir
+     *            a temporary directory
+     * @throws Exception
+     *             if the jarfile could not be written or read
+     */
+    @Test
+    public void aNegativeReadLengthThrowsIndexOutOfBoundsForEveryEntry(@TempDir final File tempDir)
+            throws Exception {
+        for (final var entryName : new String[] { DEFLATED_ENTRY_NAME, STORED_ENTRY_NAME }) {
+            withEntry(tempDir, entryName, zipEntry -> {
+                try (var inputStream = zipEntry.open()) {
+                    assertThatThrownBy(() -> inputStream.read(new byte[4], 0, -1))
+                            .isInstanceOf(IndexOutOfBoundsException.class);
+                }
+            });
+        }
     }
 }
