@@ -87,7 +87,7 @@ public final class ScanResult implements AutoCloseable {
     private @Nullable Map<String, ResourceList> pathToAcceptedResourcesCached;
 
     /** The map from class name to {@link ClassInfo}. */
-    Map<String, ClassInfo> classNameToClassInfo;
+    final Map<String, ClassInfo> classNameToClassInfo;
 
     /**
      * The map from class name to {@link ClassInfo}, for the {@link ClassInfo} objects made after the scan for
@@ -121,7 +121,7 @@ public final class ScanResult implements AutoCloseable {
     private @Nullable Vfs vfs;
 
     /** The scan spec. */
-    ScanSpec scanSpec;
+    final ScanSpec scanSpec;
 
     /** If true, this ScanResult has already been closed. */
     private final AtomicBoolean closed = new AtomicBoolean(false);
@@ -216,7 +216,7 @@ public final class ScanResult implements AutoCloseable {
     // Constructor
 
     /**
-     * The result of a scan. Make sure you call complete() after calling the constructor.
+     * Construct the result of a scan.
      *
      * @param scanSpec
      *            the scan spec
@@ -2034,9 +2034,12 @@ public final class ScanResult implements AutoCloseable {
                     allAcceptedResourcesCached = null;
                 }
                 pathToAcceptedResourcesCached = null;
-                // Don't clear classNameToClassInfo, since ClassInfo objects and the objects reachable from them keep
-                // working after the ScanResult they came from is closed. Just rely on the garbage collector to
-                // collect these once the ScanResult goes out of scope.
+                // Don't clear classNameToClassInfo: just rely on the garbage collector to collect it once neither
+                // this ScanResult nor any ClassInfo (which refers back to this ScanResult) is reachable. This does
+                // not keep the class graph usable after close: a ClassInfo, or an object reachable from it, still
+                // reports what it holds itself (such as its name), but any of its methods that has to look up a
+                // class through this ScanResult throws IllegalStateException, unless an earlier call already made
+                // and cached that lookup before the close.
                 if (packageNameToPackageInfo != null) {
                     packageNameToPackageInfo.clear();
                     packageNameToPackageInfo = null;

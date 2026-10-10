@@ -10,8 +10,8 @@ import org.junit.jupiter.api.Test;
 
 /**
  * A {@link ScanResult} holds open jarfiles and memory-mapped buffers until it is closed, so closing it is part of
- * the contract of the API: the accessors stop working, but the {@link ClassInfo} objects that were already read
- * from it keep working. {@link ScanResult#closeAll()} closes every {@link ScanResult} that is still open.
+ * the contract of the API: the accessors stop working, and so does any method of an object read from it that has to
+ * look up a class through it. {@link ScanResult#closeAll()} closes every {@link ScanResult} that is still open.
  */
 public class ScanResultCloseTest {
     /**
@@ -59,11 +59,12 @@ public class ScanResultCloseTest {
     }
 
     /**
-     * The {@link ClassInfo} objects read from a {@link ScanResult} keep working after it is closed, so a program
-     * can close the scan result as soon as the scan is over and go on using the class graph it read.
+     * A {@link ClassInfo} read from a {@link ScanResult} still reports what it holds itself after the
+     * {@link ScanResult} is closed, but a method that has to look up a class through the closed {@link ScanResult}
+     * throws {@link IllegalStateException}. The class graph is not supported after close.
      */
     @Test
-    public void theClassInfoOfAClosedScanResultStillWorks() {
+    public void aClassInfoReportsOnlyWhatItHoldsAfterClose() {
         final ClassInfo classInfo;
         try (var scanResult = scan()) {
             classInfo = scanResult.getClassInfo(ScanResultCloseTest.class.getName());
@@ -73,6 +74,12 @@ public class ScanResultCloseTest {
         assertThat(classInfo.getPackageName()).isEqualTo(ScanResultCloseTest.class.getPackageName());
         assertThat(classInfo.getMethodInfo()).isNotEmpty();
         assertThat(classInfo.getMethodInfo("closeAllClosesEveryOpenScanResult")).isNotEmpty();
+        // getThrownExceptions() looks up the exception classes through the ScanResult the first time it is called
+        final var methodInfo = classInfo.getMethodInfo("closingAResourceStreamAfterTheScanResultDoesNotThrow")
+                .get(0);
+        assertThat(methodInfo.getThrownExceptionNames()).containsExactly(Exception.class.getName());
+        assertThatIllegalStateException().isThrownBy(methodInfo::getThrownExceptions)
+                .withMessageContaining("after it has been closed");
     }
 
     /**
