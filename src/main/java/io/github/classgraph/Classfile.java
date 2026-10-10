@@ -971,13 +971,49 @@ class Classfile {
     }
 
     /**
+     * The deepest that annotation element values may be nested, counting each array element value and each nested
+     * annotation element value as one level. The reader recurses once per level, so without a limit, a crafted or
+     * corrupt classfile that nests them a few thousand deep would overflow the stack, and the
+     * {@link StackOverflowError} would make the whole scan fail rather than only this class being skipped. javac
+     * cannot nest arrays in an annotation, and annotation types cannot contain themselves, so real annotations nest
+     * only a few levels deep.
+     */
+    private static final int MAX_ANNOTATION_NESTING_DEPTH = 255;
+
+    /** How deeply the annotation element value that is being read is nested. */
+    private int annotationNestingDepth;
+
+    /**
      * Read annotation element value from classfile.
      *
      * @return the annotation element value
      * @throws IOException
      *             If an IO exception occurs.
+     * @throws ClassfileFormatException
+     *             If element values are nested more than {@link #MAX_ANNOTATION_NESTING_DEPTH} deep.
      */
-    private Object readAnnotationElementValue() throws IOException {
+    private Object readAnnotationElementValue() throws IOException, ClassfileFormatException {
+        if (annotationNestingDepth >= MAX_ANNOTATION_NESTING_DEPTH) {
+            throw new ClassfileFormatException("Class " + className + " has annotation element values nested more "
+                    + "than " + MAX_ANNOTATION_NESTING_DEPTH + " deep");
+        }
+        annotationNestingDepth++;
+        try {
+            return readAnnotationElementValueContents();
+        } finally {
+            annotationNestingDepth--;
+        }
+    }
+
+    /**
+     * Read the contents of an annotation element value from classfile, at the nesting depth set by
+     * {@link #readAnnotationElementValue()}.
+     *
+     * @return the annotation element value
+     * @throws IOException
+     *             If an IO exception occurs.
+     */
+    private Object readAnnotationElementValueContents() throws IOException {
         final int tag = reader.readUnsignedByte();
         // This list of element_value tags is complete and up to date as of JDK 26 (JVMS 26 table 4.7.16.1-A).
         // No tag has been added since annotations were introduced in Java SE 5.
