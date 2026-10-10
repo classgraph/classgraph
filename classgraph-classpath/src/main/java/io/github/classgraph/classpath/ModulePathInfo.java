@@ -129,6 +129,11 @@ public final class ModulePathInfo {
         /** The module path switches this JVM was launched with. */
         static final ModulePathInfo INSTANCE = new ModulePathInfo(readInputArguments());
 
+        /** Constructor. */
+        private Current() {
+            // Empty
+        }
+
         /**
          * Read the arguments this JVM was launched with.
          *
