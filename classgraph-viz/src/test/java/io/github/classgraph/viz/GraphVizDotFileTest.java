@@ -943,6 +943,36 @@ public class GraphVizDotFileTest {
         }
     }
 
+    /** A class whose name ends in '$', as the name of every Scala {@code object} does. */
+    public static class Reg$ extends Base {
+        /** A field of the class's own type. */
+        public Reg$ self;
+
+        /** A constructor, which is listed under the simple name of the class. */
+        public Reg$() {
+            self = this;
+        }
+    }
+
+    /**
+     * A class whose name ends in '$' is labeled with its name, including the '$'. An empty name would be written as
+     * {@code <b></b>}, which GraphViz rejects as a syntax error.
+     */
+    @Test
+    public void aClassNameEndingInADollarSignIsNotDroppedFromTheGraph() {
+        try (var regScanResult = new ClassGraph().enableClasspath()
+                .acceptClasses(Reg$.class.getName(), Base.class.getName()).enableClassInfo().enableFieldInfo()
+                .enableMethodInfo().enableInterClassDependencies().scan()) {
+            final var classGraph = graph(regScanResult, new GraphVizDotFileOptions());
+            assertThat(classGraph).doesNotContain("<b></b>");
+            // The constructor row, and the type of the field
+            assertThat(classGraph).contains("valign='top'><b>Reg$</b>", "valign='top'>Reg$</td>");
+            final var dependencyGraph = GraphVizDotFile.generateFromInterClassDependencies(regScanResult,
+                    regScanResult.getAllClasses());
+            assertThat(dependencyGraph).doesNotContain("<b></b>").contains("Reg$</b>");
+        }
+    }
+
     /**
      * A class that a graphed class depends upon, but that is not itself in the list of classes to graph, is only
      * given a node of its own if the graph is asked to include external classes.

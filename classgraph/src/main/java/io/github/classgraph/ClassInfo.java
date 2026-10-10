@@ -1270,35 +1270,37 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     }
 
     /**
-     * Get simple name from fully-qualified class name. Returns everything after the last '.' or the last '$' in the
-     * class name, or the whole string if the class is in the root package. A '$' at the start of the name after the
-     * last '.' (or at the start of the class name) has no enclosing class name before it, so it is kept as part of
-     * the simple name, as in "$Foo". (Note that this is not the same as the result of
-     * {@link Class#getSimpleName()}, which returns "" for anonymous classes.)
+     * Get simple name from fully-qualified class name. Returns everything after the last '.' or the last '$' that
+     * separates two names in the class name, or the whole string if the class is in the root package and is not
+     * nested. A '$' is not taken to separate two names when it is the last character of the class name, as in the
+     * name {@code Foo$} of a Scala object, or when it is at the start of the name after the last '.', or follows
+     * only other '$' characters there, as in {@code $AutoValue_Foo}. A '$' anywhere else is taken to separate an
+     * enclosing class name from a nested class name, although it may be part of a class name. (Note that this is
+     * not the same as the result of {@link Class#getSimpleName()}, which returns "" for anonymous classes.)
      *
      * @param className
      *            the class name
      * @return The simple name of the class.
      */
     static String getSimpleName(final String className) {
-        final var lastDotIdx = className.lastIndexOf('.');
-        final var lastDollarIdx = className.lastIndexOf('$');
-        for (var i = lastDotIdx + 1; i < lastDollarIdx; i++) {
-            if (className.charAt(i) != '$') {
-                // A name comes before the last '$', so the last '$' separates a nested class name
-                return className.substring(lastDollarIdx + 1);
-            }
+        final int nameStart = className.lastIndexOf('.') + 1;
+        // Skip the '$' characters at the start of the name, which are part of the name
+        int earliestSeparatorIdx = nameStart;
+        while (earliestSeparatorIdx < className.length() && className.charAt(earliestSeparatorIdx) == '$') {
+            earliestSeparatorIdx++;
         }
-        // The last '$' (if any) is in the run of '$' at the start of the name, so it is part of the simple name
-        return className.substring(lastDotIdx + 1);
+        // A '$' at the end of the class name is part of the name
+        final int lastSeparatorIdx = className.lastIndexOf('$', className.length() - 2);
+        return className.substring(lastSeparatorIdx >= earliestSeparatorIdx ? lastSeparatorIdx + 1 : nameStart);
     }
 
     /**
-     * Get the simple name of the class. Returns everything after the last '.' or the last '$' in the class name, so
-     * that the package name and any enclosing class names are stripped, or the whole string if the class is in the
-     * root package and is not nested. A '$' at the start of the name after the last '.' is kept, as in "$Foo".
-     * (Note that this is not the same as the result of {@link Class#getSimpleName()}, which returns "" for
-     * anonymous classes.)
+     * Get the simple name of the class. Returns everything after the last '.' or the last '$' that separates two
+     * names in the class name, so that the package name and any enclosing class names are stripped, or the whole
+     * string if the class is in the root package and is not nested. A '$' at the end of the class name, as in the
+     * name {@code Foo$} of a Scala object, or at the start of the name after the package name, as in
+     * {@code $AutoValue_Foo}, is part of the simple name. (Note that this is not the same as the result of
+     * {@link Class#getSimpleName()}, which returns "" for anonymous classes.)
      *
      * @return The simple name of the class.
      */
