@@ -504,6 +504,35 @@ public class RandomAccessOrSequentialReaderTest {
     }
 
     /**
+     * Setting the read position moves it back to content that has already been read, or forward as a skip does. A
+     * position past the end of the content is rejected, and leaves the read position where it was.
+     *
+     * @param source
+     *            the kind of classpath element to read from
+     * @throws IOException
+     *             if the content could not be read
+     */
+    @ParameterizedTest
+    @EnumSource(Source.class)
+    public void theReadPositionCanBeMovedBackAndForward(final Source source) throws IOException {
+        try (var reader = reader(source, PATTERN)) {
+            assertThat(reader.readLong()).isEqualTo(0x0123456789ABCDEFL);
+            reader.position(2);
+            assertThat(reader.readUnsignedShort()).isEqualTo(0x4567);
+            reader.position(6);
+            assertThat(reader.readUnsignedShort()).isEqualTo(0xCDEF);
+            reader.position(0);
+            assertThat(reader.readInt()).isEqualTo(0x01234567);
+
+            assertThatThrownBy(() -> reader.position(PATTERN.length + 1)).isInstanceOf(IOException.class);
+            assertThatThrownBy(() -> reader.position(-1)).isInstanceOf(IllegalArgumentException.class);
+            assertThat(reader.position()).isEqualTo(4);
+            reader.position(PATTERN.length);
+            assertThat(reader.position()).isEqualTo(PATTERN.length);
+        }
+    }
+
+    /**
      * A classfile longer than the initial buffer is read in full, whichever kind of classpath element it came from,
      * so that a large classfile is not silently truncated at the buffer boundary.
      *

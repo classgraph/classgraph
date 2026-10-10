@@ -161,6 +161,9 @@ class Classfile {
      */
     private @Nullable List<TypeAnnotation<ClassTypeSignature>> classTypeAnnotationDecorators;
 
+    /** Why each malformed annotation attribute that was skipped could not be read, or null if none was skipped. */
+    private @Nullable List<String> skippedAttributeMessages;
+
     /**
      * The names of accepted classes found in the classpath while scanning paths within classpath elements.
      */
@@ -1039,7 +1042,7 @@ class Classfile {
         }
         default ->
             throw new ClassfileFormatException("Class " + className + " has unknown annotation element type tag '"
-                    + ((char) tag) + "': element size unknown, cannot continue reading class. "
+                    + ((char) tag) + "': element size unknown, cannot continue reading the attribute. "
                     + "Please report this at https://github.com/classgraph/classgraph/issues");
         };
     }
@@ -1248,13 +1251,14 @@ class Classfile {
     /**
      * Read the annotations of a {@code RuntimeVisibleAnnotations} or {@code RuntimeInvisibleAnnotations} attribute
      * into an annotation list. The two attributes are read into the same list, so the list of the other attribute,
-     * if it was read first, is passed in.
+     * if it was read first, is passed in. That list is not modified, so that it is still intact if this attribute
+     * turns out to be malformed.
      *
      * @param annotationInfoList
      *            the annotations read from the other attribute, or null if this is the first of the two attributes
      *            to be encountered
-     * @return the annotation list, which is created if it was null and this attribute holds any annotations, or
-     *         null if the attribute holds no annotations and the list had not been created yet
+     * @return a new list holding the annotations of {@code annotationInfoList} followed by those of this attribute,
+     *         or {@code annotationInfoList} itself if this attribute holds no annotations
      * @throws IOException
      *             if an I/O exception occurs.
      */
@@ -1264,12 +1268,125 @@ class Classfile {
         if (annotationCount == 0) {
             return annotationInfoList;
         }
-        final var annotations = annotationInfoList == null ? new ArrayList<AnnotationInfo>(annotationCount)
-                : annotationInfoList;
+        final var annotations = newListWithCapacity(annotationInfoList, annotationCount);
         for (var i = 0; i < annotationCount; i++) {
             annotations.add(readAnnotation());
         }
         return annotations;
+    }
+
+    /**
+     * Create a list holding the elements of a list read from an earlier attribute, with room for the elements of
+     * the attribute being read. A new list is created, rather than the earlier list being added to, so that the
+     * earlier list is still intact if the attribute being read turns out to be malformed.
+     *
+     * @param <E>
+     *            the element type
+     * @param earlierElements
+     *            the elements read from an earlier attribute, or null if there are none
+     * @param numNewElements
+     *            the number of elements in the attribute being read
+     * @return a new list holding the elements of {@code earlierElements}
+     */
+    private static <E> List<E> newListWithCapacity(final @Nullable List<E> earlierElements,
+            final int numNewElements) {
+        if (earlierElements == null) {
+            return new ArrayList<>(numNewElements);
+        }
+        final List<E> list = new ArrayList<>(earlierElements.size() + numNewElements);
+        list.addAll(earlierElements);
+        return list;
+    }
+
+    /**
+     * Reads the contents of an annotation attribute, given what was read from the attributes of the same kind
+     * before it.
+     *
+     * @param <T>
+     *            the type of what is read from the attribute
+     */
+    @FunctionalInterface
+    private interface AnnotationAttributeReader<T extends @Nullable Object> {
+        /**
+         * Read the contents of the attribute. The reader is positioned at the start of the attribute's contents.
+         *
+         * @param earlier
+         *            what was read from the attributes of the same kind before this one. This must not be modified,
+         *            since it is kept if this attribute turns out to be malformed.
+         * @return {@code earlier} combined with what was read from this attribute
+         * @throws IOException
+         *             if the classfile could not be read, or the attribute is malformed.
+         */
+        T read(T earlier) throws IOException;
+    }
+
+    /**
+     * Read an attribute that holds annotations or an annotation default value: a
+     * {@code Runtime(In)VisibleAnnotations}, {@code Runtime(In)VisibleParameterAnnotations},
+     * {@code Runtime(In)VisibleTypeAnnotations} or {@code AnnotationDefault} attribute.
+     *
+     * <p>
+     * The JVM does not parse the contents of these attributes when it loads a class. It steps over each one using
+     * its {@code attribute_length}, and never reads the runtime invisible ones, so a class whose annotation
+     * attribute is malformed loads and runs normally. Such an attribute is therefore skipped, and the rest of the
+     * class is still read from where the attribute's length says the next attribute starts, rather than the whole
+     * class being dropped from the scan. An attribute is malformed if its contents cannot be read, or if they run
+     * past its {@code attribute_length}, such as when the number of annotations is larger than the attribute holds.
+     * The class is rejected only if the attribute's {@code attribute_length} runs past the end of the classfile,
+     * since the JVM rejects it too.
+     *
+     * @param <T>
+     *            the type of what is read from the attribute
+     * @param attributeNameCpIdx
+     *            the constant pool index of the attribute name, for the log
+     * @param attributeLength
+     *            the attribute's {@code attribute_length}. The reader is positioned just after it.
+     * @param location
+     *            where the attribute is, such as "method foo", for the log
+     * @param earlier
+     *            what was read from the attributes of the same kind before this one, which is returned unchanged if
+     *            this attribute is malformed
+     * @param attributeReader
+     *            reads the contents of the attribute
+     * @return what {@code attributeReader} returned, or {@code earlier} if the attribute is malformed.
+     * @throws IOException
+     *             if the classfile could not be read
+     * @throws ClassfileFormatException
+     *             if the attribute's {@code attribute_length} runs past the end of the classfile.
+     */
+    private <T extends @Nullable Object> T readAnnotationAttribute(final int attributeNameCpIdx,
+            final int attributeLength, final String location, final T earlier,
+            final AnnotationAttributeReader<T> attributeReader) throws IOException, ClassfileFormatException {
+        // Reading the length of the classfile reads the whole classfile into the reader's buffer, which reading the
+        // rest of the class would do anyway. An attribute_length of 2GB or more reads back as negative.
+        final var attributeEnd = reader().position() + (long) attributeLength;
+        if (attributeLength < 0 || attributeEnd > reader().length()) {
+            throw new ClassfileFormatException("Class " + className + " has a "
+                    + getConstantPoolString(attributeNameCpIdx) + " attribute in " + location + " whose length of "
+                    + Integer.toUnsignedString(attributeLength) + " bytes runs past the end of the classfile");
+        }
+        T result;
+        try {
+            result = attributeReader.read(earlier);
+            if (reader().position() > attributeEnd) {
+                throw new ClassfileFormatException(
+                        "its contents run past its length of " + attributeLength + " bytes");
+            }
+        } catch (final IOException | IllegalArgumentException e) {
+            // Since the whole classfile has been read into the buffer, an IOException here is a read past the end
+            // of the classfile, not a failure to read it
+            if (skippedAttributeMessages == null) {
+                skippedAttributeMessages = new ArrayList<>();
+            }
+            skippedAttributeMessages.add("Skipped the malformed " + getConstantPoolString(attributeNameCpIdx)
+                    + " attribute of " + location + ": " + e.getMessage());
+            result = earlier;
+        }
+        // Move to the start of the next attribute, which is where the attribute's length says it is, as the JVM
+        // does. This steps over any bytes after the contents, or moves back if the contents ran past the end of the
+        // attribute.
+        reader().position((int) attributeEnd);
+        return result;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -1645,9 +1762,12 @@ class Classfile {
             } else if (constantPoolStringEquals(attributeNameCpIdx, "Signature")) {
                 fieldTypeSignatureStr = getConstantPoolString(reader().readUnsignedShort());
             } else if (isAnnotationsAttribute(attributeNameCpIdx)) {
-                fieldAnnotationInfo = readAnnotations(fieldAnnotationInfo);
+                fieldAnnotationInfo = readAnnotationAttribute(attributeNameCpIdx, attributeLength,
+                        "field " + fieldName, fieldAnnotationInfo, this::readAnnotations);
             } else if (isTypeAnnotationsAttribute(attributeNameCpIdx)) {
-                fieldTypeAnnotationDecorators = readFieldTypeAnnotationDecorators(fieldTypeAnnotationDecorators);
+                fieldTypeAnnotationDecorators = readAnnotationAttribute(attributeNameCpIdx, attributeLength,
+                        "field " + fieldName, fieldTypeAnnotationDecorators,
+                        this::readFieldTypeAnnotationDecorators);
             } else {
                 // No match, just skip attribute
                 reader().skip(attributeLength);
@@ -1666,13 +1786,14 @@ class Classfile {
     /**
      * Read a field's {@code RuntimeVisibleTypeAnnotations} or {@code RuntimeInvisibleTypeAnnotations} attribute
      * into a list of type annotations. The two attributes are read into the same list, so the list of the other
-     * attribute, if it was read first, is passed in.
+     * attribute, if it was read first, is passed in. That list is not modified, so that it is still intact if this
+     * attribute turns out to be malformed.
      *
      * @param typeAnnotationList
      *            the type annotations read from the other attribute, or null if this is the first of the two
      *            attributes to be encountered
-     * @return the type annotation list, which is created if it was null and this attribute holds any annotations,
-     *         or null if the attribute holds no annotations and the list had not been created yet
+     * @return a new list holding the type annotations of {@code typeAnnotationList} followed by those of this
+     *         attribute, or {@code typeAnnotationList} itself if this attribute holds no annotations
      * @throws IOException
      *             if an I/O exception occurs.
      * @throws ClassfileFormatException
@@ -1685,9 +1806,7 @@ class Classfile {
         if (annotationCount == 0) {
             return typeAnnotationList;
         }
-        final var typeAnnotations = typeAnnotationList == null
-                ? new ArrayList<TypeAnnotation<TypeSignature>>(annotationCount)
-                : typeAnnotationList;
+        final var typeAnnotations = newListWithCapacity(typeAnnotationList, annotationCount);
         for (var i = 0; i < annotationCount; i++) {
             final var targetType = reader().readUnsignedByte();
             // 0x13 is the only target_type that JVMS 26 table 4.7.20-A permits in field_info. Its target_info is
@@ -1695,7 +1814,7 @@ class Classfile {
             if (targetType != 0x13) {
                 throw new ClassfileFormatException("Class " + className
                         + " has unknown field type annotation target 0x" + Integer.toHexString(targetType)
-                        + ": element size unknown, cannot continue reading class. "
+                        + ": element size unknown, cannot continue reading the attribute. "
                         + "Please report this at https://github.com/classgraph/classgraph/issues");
             }
             final var typePath = readTypePath();
@@ -1780,11 +1899,15 @@ class Classfile {
             final var attributeNameCpIdx = reader().readUnsignedShort();
             final var attributeLength = reader().readInt();
             if (isAnnotationsAttribute(attributeNameCpIdx)) {
-                methodAnnotationInfo = readAnnotations(methodAnnotationInfo);
+                methodAnnotationInfo = readAnnotationAttribute(attributeNameCpIdx, attributeLength,
+                        "method " + methodName, methodAnnotationInfo, this::readAnnotations);
             } else if (isParameterAnnotationsAttribute(attributeNameCpIdx)) {
-                methodParameterAnnotations = readMethodParameterAnnotations(methodParameterAnnotations);
+                methodParameterAnnotations = readAnnotationAttribute(attributeNameCpIdx, attributeLength,
+                        "method " + methodName, methodParameterAnnotations, this::readMethodParameterAnnotations);
             } else if (isTypeAnnotationsAttribute(attributeNameCpIdx)) {
-                methodTypeAnnotationDecorators = readMethodTypeAnnotationDecorators(methodTypeAnnotationDecorators);
+                methodTypeAnnotationDecorators = readAnnotationAttribute(attributeNameCpIdx, attributeLength,
+                        "method " + methodName, methodTypeAnnotationDecorators,
+                        this::readMethodTypeAnnotationDecorators);
             } else if (constantPoolStringEquals(attributeNameCpIdx, "MethodParameters")) {
                 // Read method parameters. For Java, these are only produced in JDK8+, and only if the commandline
                 // switch `-parameters` is provided at compiletime.
@@ -1801,12 +1924,15 @@ class Classfile {
                 // Add type params to method type signature
                 methodTypeSignatureStr = getConstantPoolString(reader().readUnsignedShort());
             } else if (constantPoolStringEquals(attributeNameCpIdx, "AnnotationDefault")) {
-                if (annotationParamDefaultValues == null) {
-                    annotationParamDefaultValues = new ArrayList<>();
+                // Get annotation parameter default value, or null if the attribute is malformed
+                final var defaultValue = this.<@Nullable Object> readAnnotationAttribute(attributeNameCpIdx,
+                        attributeLength, "method " + methodName, null, _ -> readAnnotationElementValue());
+                if (defaultValue != null) {
+                    if (annotationParamDefaultValues == null) {
+                        annotationParamDefaultValues = new ArrayList<>();
+                    }
+                    this.annotationParamDefaultValues.add(new AnnotationParameterValue(methodName, defaultValue));
                 }
-                this.annotationParamDefaultValues.add(new AnnotationParameterValue(methodName,
-                        // Get annotation parameter default value
-                        readAnnotationElementValue()));
             } else if (constantPoolStringEquals(attributeNameCpIdx, "Exceptions")) {
                 final var exceptionCount = reader().readUnsignedShort();
                 thrownExceptionNames = new String[exceptionCount];
@@ -1850,8 +1976,8 @@ class Classfile {
      *
      * @param parameterAnnotations
      *            the parameter annotations read from the other attribute, or null if this is the first of the two
-     *            attributes to be encountered
-     * @return the merged parameter annotations, with an array (possibly {@link #NO_ANNOTATIONS}) for every
+     *            attributes to be encountered. They are not modified.
+     * @return new merged parameter annotations, with an array (possibly {@link #NO_ANNOTATIONS}) for every
      *         parameter
      * @throws IOException
      *             if an I/O exception occurs.
@@ -1861,16 +1987,14 @@ class Classfile {
         final var numParams = reader().readUnsignedByte();
         final var prevNumParams = parameterAnnotations == null ? 0 : parameterAnnotations.length;
         final var mergedNumParams = Math.max(numParams, prevNumParams);
-        final AnnotationInfo[][] mergedParameterAnnotations;
-        if (parameterAnnotations != null && prevNumParams == mergedNumParams) {
-            mergedParameterAnnotations = parameterAnnotations;
-        } else {
-            mergedParameterAnnotations = new AnnotationInfo[mergedNumParams][];
-            if (parameterAnnotations != null) {
-                // Shift the earlier attribute's entries right, so that both attributes end at the last parameter
-                System.arraycopy(parameterAnnotations, 0, mergedParameterAnnotations,
-                        mergedNumParams - prevNumParams, prevNumParams);
-            }
+        // The merged array is always a new array, and the per-parameter arrays that receive annotations from this
+        // attribute are replaced by copies below, so that parameterAnnotations is still intact if this attribute
+        // turns out to be malformed
+        final var mergedParameterAnnotations = new AnnotationInfo[mergedNumParams][];
+        if (parameterAnnotations != null) {
+            // Shift the earlier attribute's entries right, so that both attributes end at the last parameter
+            System.arraycopy(parameterAnnotations, 0, mergedParameterAnnotations, mergedNumParams - prevNumParams,
+                    prevNumParams);
         }
         final var offset = mergedNumParams - numParams;
         for (var paramIdx = offset; paramIdx < mergedNumParams; paramIdx++) {
@@ -1900,13 +2024,14 @@ class Classfile {
     /**
      * Read a method's {@code RuntimeVisibleTypeAnnotations} or {@code RuntimeInvisibleTypeAnnotations} attribute
      * into a list of type annotations. The two attributes are read into the same list, so the list of the other
-     * attribute, if it was read first, is passed in.
+     * attribute, if it was read first, is passed in. That list is not modified, so that it is still intact if this
+     * attribute turns out to be malformed.
      *
      * @param typeAnnotationList
      *            the type annotations read from the other attribute, or null if this is the first of the two
      *            attributes to be encountered
-     * @return the type annotation list, which is created if it was null and this attribute holds any annotations,
-     *         or null if the attribute holds no annotations and the list had not been created yet
+     * @return a new list holding the type annotations of {@code typeAnnotationList} followed by those of this
+     *         attribute, or {@code typeAnnotationList} itself if this attribute holds no annotations
      * @throws IOException
      *             if an I/O exception occurs.
      * @throws ClassfileFormatException
@@ -1919,9 +2044,7 @@ class Classfile {
         if (annotationCount == 0) {
             return typeAnnotationList;
         }
-        final var typeAnnotations = typeAnnotationList == null
-                ? new ArrayList<TypeAnnotation<MethodTypeSignature>>(annotationCount)
-                : typeAnnotationList;
+        final var typeAnnotations = newListWithCapacity(typeAnnotationList, annotationCount);
         for (var i = 0; i < annotationCount; i++) {
             final var targetType = reader().readUnsignedByte();
             // JVMS 26 table 4.7.20-A permits target_types 0x01, 0x12, 0x14, 0x15, 0x16 and 0x17 in method_info; all
@@ -1992,7 +2115,7 @@ class Classfile {
             }
             default -> throw new ClassfileFormatException("Class " + className
                     + " has unknown method type annotation target 0x" + Integer.toHexString(targetType)
-                    + ": element size unknown, cannot continue reading class. " + "Please report this at "
+                    + ": element size unknown, cannot continue reading the attribute. " + "Please report this at "
                     + "https://github.com/classgraph/classgraph/issues");
             };
             final var typePath = readTypePath();
@@ -2124,9 +2247,11 @@ class Classfile {
             final var attributeNameCpIdx = reader().readUnsignedShort();
             final var attributeLength = reader().readInt();
             if (isAnnotationsAttribute(attributeNameCpIdx)) {
-                classAnnotations = readAnnotations(classAnnotations);
+                classAnnotations = readAnnotationAttribute(attributeNameCpIdx, attributeLength, "the class",
+                        classAnnotations, this::readAnnotations);
             } else if (isTypeAnnotationsAttribute(attributeNameCpIdx)) {
-                classTypeAnnotationDecorators = readClassTypeAnnotationDecorators(classTypeAnnotationDecorators);
+                classTypeAnnotationDecorators = readAnnotationAttribute(attributeNameCpIdx, attributeLength,
+                        "the class", classTypeAnnotationDecorators, this::readClassTypeAnnotationDecorators);
             } else if (constantPoolStringEquals(attributeNameCpIdx, "Record")) {
                 isRecord = true;
                 // No need to read record_components_info entries -- there is a 1:1 correspondence between record
@@ -2157,13 +2282,14 @@ class Classfile {
     /**
      * Read the class' {@code RuntimeVisibleTypeAnnotations} or {@code RuntimeInvisibleTypeAnnotations} attribute
      * into a list of type annotations. The two attributes are read into the same list, so the list of the other
-     * attribute, if it was read first, is passed in.
+     * attribute, if it was read first, is passed in. That list is not modified, so that it is still intact if this
+     * attribute turns out to be malformed.
      *
      * @param typeAnnotationList
      *            the type annotations read from the other attribute, or null if this is the first of the two
      *            attributes to be encountered
-     * @return the type annotation list, which is created if it was null and this attribute holds any annotations,
-     *         or null if the attribute holds no annotations and the list had not been created yet
+     * @return a new list holding the type annotations of {@code typeAnnotationList} followed by those of this
+     *         attribute, or {@code typeAnnotationList} itself if this attribute holds no annotations
      * @throws IOException
      *             if an I/O exception occurs.
      * @throws ClassfileFormatException
@@ -2176,9 +2302,7 @@ class Classfile {
         if (annotationCount == 0) {
             return typeAnnotationList;
         }
-        final var typeAnnotations = typeAnnotationList == null
-                ? new ArrayList<TypeAnnotation<ClassTypeSignature>>(annotationCount)
-                : typeAnnotationList;
+        final var typeAnnotations = newListWithCapacity(typeAnnotationList, annotationCount);
         for (var i = 0; i < annotationCount; i++) {
             final var targetType = reader().readUnsignedByte();
             // 0x00, 0x10 and 0x11 are the only target_types that JVMS 26 table 4.7.20-A permits in ClassFile.
@@ -2221,7 +2345,7 @@ class Classfile {
             }
             default -> throw new ClassfileFormatException("Class " + className
                     + " has unknown class type annotation target 0x" + Integer.toHexString(targetType)
-                    + ": element size unknown, cannot continue reading class. "
+                    + ": element size unknown, cannot continue reading the attribute. "
                     + "Please report this at https://github.com/classgraph/classgraph/issues");
             };
             final var typePath = readTypePath();
@@ -2480,6 +2604,11 @@ class Classfile {
             final List<String> refdClassNamesSorted = new ArrayList<>(refdClassNames);
             CollectionUtils.sortIfNotEmpty(refdClassNamesSorted);
             subLog.log("Additional referenced class names: " + StringUtils.join(", ", refdClassNamesSorted));
+        }
+        if (skippedAttributeMessages != null) {
+            for (final var skippedAttributeMessage : skippedAttributeMessages) {
+                subLog.log(skippedAttributeMessage);
+            }
         }
         return subLog;
     }
