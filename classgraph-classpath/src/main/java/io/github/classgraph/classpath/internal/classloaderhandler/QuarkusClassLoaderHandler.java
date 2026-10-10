@@ -232,11 +232,11 @@ class QuarkusClassLoaderHandler implements ClassLoaderHandler {
             return;
         }
         // Each value lists the jars that serve one resource directory, in classpath order, and the classloader
-        // loads a class from the first jar listed for its package that contains it. The map is a HashMap in Quarkus, and the full
-        // jar order is not kept, so iterating the map does not give the classpath order. Instead, merge the
-        // per-directory orders with a topological sort: a jar comes after every jar listed before it for some
-        // directory, and ties go to the jar seen first. This puts any two jars that serve the same directory, and
-        // so can hold the same class, in the order the classloader uses.
+        // loads a class from the first jar listed for its package that contains it. The map is a HashMap in
+        // Quarkus, and the full jar order is not kept, so iterating the map does not give the classpath order.
+        // Instead, merge the per-directory orders with a topological sort: a jar comes after every jar listed
+        // before it for some directory, and ties go to the jar seen first. This puts any two jars that serve the
+        // same directory, and so can hold the same class, in the order the classloader uses.
         final Map<Object, Integer> jarIndex = new IdentityHashMap<>();
         final List<Object> jars = new ArrayList<>();
         final List<Set<Integer>> successors = new ArrayList<>();
