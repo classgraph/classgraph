@@ -190,6 +190,34 @@ public class SliceTest {
     }
 
     /**
+     * A stream that is longer than {@link Slice#MAX_BUFFER_SIZE}, the largest array that a slice is read into, is
+     * spilled to a temporary file, even when the maximum RAM buffer size is set higher than that, e.g. to
+     * {@link Integer#MAX_VALUE} to mean "never spill to disk". Before the fix, the buffer was allowed to grow to
+     * the maximum RAM buffer size, so once a stream outgrew a buffer of 2^30 bytes, doubling the buffer asked for
+     * an array of {@link Integer#MAX_VALUE} bytes. HotSpot refuses that with {@link OutOfMemoryError} ("Requested
+     * array size exceeds VM limit") however large the heap is, and the jar was not read, rather than the rest of
+     * the stream being spilled to disk.
+     *
+     * <p>
+     * Reading a stream of over a gigabyte needs several gigabytes of heap, so this test instead gives a short
+     * stream a declared length one byte longer than {@link Slice#MAX_BUFFER_SIZE}. A stream that declares that
+     * length cannot fit in the buffer, so it has to go straight to disk; before the fix it was read into RAM, which
+     * is the start of the path that ends in the {@link OutOfMemoryError} for a stream that really is that long.
+     *
+     * @throws IOException
+     *             if the stream could not be read
+     */
+    @Test
+    public void aStreamTooLongForAnyArrayIsSpilledToDiskWhateverTheMaximumRamBufferSize() throws IOException {
+        final var vfs = vfs(/* maxBufferedJarRAMSize = */ Integer.MAX_VALUE);
+        try (var slice = sliceOfContent(vfs, /* inputStreamLengthHint = */ Slice.MAX_BUFFER_SIZE + 1L)) {
+            assertThat(slice).isInstanceOf(PathSlice.class);
+        } finally {
+            vfs.close(/* log = */ null);
+        }
+    }
+
+    /**
      * A stream that turns out to be longer than its length hint, but still short enough to buffer in RAM, is read
      * into a larger buffer rather than being spilled to a temporary file. The hint is only a hint -- a zip entry
      * can understate the length of the entry it describes -- and spilling a jar of a few bytes to disk when
