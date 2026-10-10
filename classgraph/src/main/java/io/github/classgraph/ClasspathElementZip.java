@@ -228,6 +228,16 @@ class ClasspathElementZip extends ClasspathElement {
             if (subLog != null) {
                 subLog.log(childEntry.origin().getLogMessage() + ": " + childEntry.location());
             }
+            // A classpath element that this one declares has to pass the user's classpath element filters, the
+            // same as one that was named directly
+            if (!scanSpec.classpathSpec.acceptsClasspathElement(/* classpathElementURL = */ null,
+                    childEntry.location())) {
+                if (subLog != null) {
+                    subLog.log(
+                            "Classpath element did not match filter criterion, skipping: " + childEntry.location());
+                }
+                continue;
+            }
             childScheduler.schedule(childEntry.location());
         }
     }

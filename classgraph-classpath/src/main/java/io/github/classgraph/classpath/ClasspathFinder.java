@@ -31,6 +31,7 @@ package io.github.classgraph.classpath;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Predicate;
 
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
@@ -92,6 +93,9 @@ public final class ClasspathFinder {
 
     /** If true, write out each log entry as soon as it is made. */
     private boolean realtimeLoggingEnabled;
+
+    /** The filters added by {@link #filterClasspathEntries(Predicate)}, in the order they were added. */
+    private final List<Predicate<? super ClasspathEntry>> entryFilters = new ArrayList<>();
 
     /**
      * Constructor.
@@ -388,6 +392,34 @@ public final class ClasspathFinder {
         return this;
     }
 
+    /**
+     * Keep only the classpath elements that a filter accepts. The filter is given every classpath element that is
+     * found: those that the classloaders or the classpath entries name, the jarfiles that a wildcarded directory is
+     * expanded into, and those that another classpath element declares through its manifest's {@code Class-Path} or
+     * {@code Bundle-ClassPath} attribute or its lib dirs.
+     *
+     * <p>
+     * A classpath element that the filter rejects is left out of the result and is not opened, so the classpath
+     * elements that it declares are found only if an accepted classpath element declares them too. The filter may
+     * be called more than once for a classpath element that is reached by more than one route. If this is called
+     * more than once, a classpath element is kept only if every filter accepts it. An exception thrown by a filter
+     * is thrown out of {@link #find()}.
+     *
+     * <p>
+     * The filter is applied to the classpath elements, so {@link #enableClasspath()},
+     * {@link #enableClassLoaders(ClassLoader...)} or {@link #enableClasspathEntries(Object...)} has to be called
+     * too, or {@link #find()} throws {@link IllegalArgumentException}.
+     *
+     * @param filter
+     *            returns true for a classpath element that should be kept.
+     * @return this (for method chaining).
+     */
+    public ClasspathFinder filterClasspathEntries(final Predicate<? super ClasspathEntry> filter) {
+        Assert.notNull(filter, "filter");
+        entryFilters.add(filter);
+        return this;
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**
@@ -523,7 +555,8 @@ public final class ClasspathFinder {
             final var vfs = new Vfs(vfsSpec, new InterruptionChecker());
             Classpath classpath = null;
             try {
-                final var expandedEntries = TransitiveClasspath.expand(classLoaderEntries, vfs, log);
+                final var expandedEntries = TransitiveClasspath.expand(classLoaderEntries,
+                        entry -> entryFilters.stream().allMatch(filter -> filter.test(entry)), vfs, log);
                 classpath = new Classpath(expandedEntries, classLoaderProbe, classpathSpec, vfs);
                 return classpath;
             } finally {
@@ -550,6 +583,9 @@ public final class ClasspathFinder {
     private void checkConfigIsExplicit() {
         Assert.companionIsCalled(realtimeLoggingEnabled, "ClasspathFinder", "enableRealtimeLogging", verbose,
                 "verbose");
+        Assert.companionIsCalled(!entryFilters.isEmpty(), "ClasspathFinder", "filterClasspathEntries",
+                !scanSourceSpec.getClasspathSources().isEmpty(), "enableClasspath", "enableClassLoaders",
+                "enableClasspathEntries");
         scanSourceSpec.checkSourcesAreExplicit(classpathSpec, "ClasspathFinder");
     }
 }

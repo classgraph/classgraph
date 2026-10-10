@@ -28,8 +28,11 @@
  */
 package io.github.classgraph.classpath.internal;
 
+import java.io.File;
+import java.io.IOError;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -132,7 +135,8 @@ public class ClasspathSpec {
 
     /**
      * Add a classpath element path filter. The provided filter should return true if the path string passed to it
-     * is a path that should be scanned.
+     * is a path that should be scanned. The filter is applied to every classpath element: those named directly,
+     * each jarfile that a wildcarded directory is expanded into, and those that another classpath element declares.
      *
      * @param filter
      *            The filter to apply to the path string of all discovered classpath elements, to decide which
@@ -154,7 +158,8 @@ public class ClasspathSpec {
 
     /**
      * Add a classpath element {@link URL} filter. The provided filter should return true if the {@link URL} passed
-     * to it is a classpath element that should be scanned.
+     * to it is a classpath element that should be scanned. The filter is applied to the same classpath elements as
+     * the filters added by {@link #filterClasspathElements(Predicate)}.
      *
      * @param filter
      *            The filter to apply to the {@link URL} of all discovered classpath elements, to decide which
@@ -172,6 +177,68 @@ public class ClasspathSpec {
      */
     public List<Predicate<URL>> getClasspathElementURLFilters() {
         return Collections.unmodifiableList(classpathElementURLFilters);
+    }
+
+    /**
+     * Convert a resolved classpath element path back into a {@link URL}, so that it can be tested against the
+     * user's {@link URL} filters.
+     *
+     * @param classpathElementPath
+     *            the resolved classpath element path
+     * @return the {@link URL} of the classpath element, or null if the path could not be converted to a {@link URL}
+     */
+    private static @Nullable URL toURL(final String classpathElementPath) {
+        try {
+            if (URLPaths.startsWithURLScheme(classpathElementPath)) {
+                // The path is already a URL, such as a manifest Class-Path entry that names a remote jarfile
+                return new URL(classpathElementPath);
+            }
+            final var nestedPathIdx = classpathElementPath.indexOf("!/");
+            if (nestedPathIdx < 0) {
+                return new File(classpathElementPath).toURI().toURL();
+            }
+            // A nested path "outer.jar!/inner" becomes the jar URL "jar:file:/outer.jar!/inner"
+            return new URL("jar:" + new File(classpathElementPath.substring(0, nestedPathIdx)).toURI()
+                    + classpathElementPath.substring(nestedPathIdx));
+        } catch (final MalformedURLException | IllegalArgumentException | IOError | SecurityException e) {
+            return null;
+        }
+    }
+
+    /**
+     * Test a classpath element against the filters added by {@link #filterClasspathElements(Predicate)} and
+     * {@link #filterClasspathElementsByURL(Predicate)}.
+     *
+     * @param classpathElementURL
+     *            the {@link URL} of the classpath element, or null if it was not given as a {@link URL}, in which
+     *            case the {@link URL} filters are given the {@link URL} of the classpath element path
+     * @param classpathElementPath
+     *            the resolved path of the classpath element, or null if it has none
+     * @return true if the classpath element passes every filter
+     */
+    public boolean acceptsClasspathElement(final @Nullable URL classpathElementURL,
+            final @Nullable String classpathElementPath) {
+        if (!classpathElementURLFilters.isEmpty()) {
+            // FastPathResolver strips the scheme from "file:" and "jar:file:" classpath elements, so for those the
+            // URL has to be reconstituted from the resolved path before the URL filters can be applied to it
+            final var url = classpathElementURL != null ? classpathElementURL
+                    : classpathElementPath == null ? null : toURL(classpathElementPath);
+            if (url != null) {
+                for (final Predicate<URL> urlFilter : classpathElementURLFilters) {
+                    if (!urlFilter.test(url)) {
+                        return false;
+                    }
+                }
+            }
+        }
+        if (classpathElementPath != null) {
+            for (final Predicate<String> pathFilter : classpathElementPathFilters) {
+                if (!pathFilter.test(classpathElementPath)) {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
     /**

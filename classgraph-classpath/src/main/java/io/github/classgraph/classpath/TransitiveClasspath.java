@@ -35,6 +35,7 @@ import java.util.Deque;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Predicate;
 
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.classpath.internal.ClasspathExpander;
@@ -59,6 +60,9 @@ final class TransitiveClasspath {
     /** The log node, or null to skip logging. */
     private final @Nullable LogNode log;
 
+    /** Decides which classpath elements are kept. A rejected classpath element is not opened. */
+    private final Predicate<? super ClasspathEntry> filter;
+
     /** The locations that have already been added, so that no classpath element is listed twice. */
     private final Set<String> alreadyAdded = new HashSet<>();
 
@@ -72,10 +76,14 @@ final class TransitiveClasspath {
      *            opens the classpath elements, so that their manifests and their lib dirs can be read.
      * @param log
      *            the log node, or null to skip logging.
+     * @param filter
+     *            decides which classpath elements are kept.
      */
-    private TransitiveClasspath(final Vfs vfs, final @Nullable LogNode log) {
+    private TransitiveClasspath(final Vfs vfs, final @Nullable LogNode log,
+            final Predicate<? super ClasspathEntry> filter) {
         this.vfs = vfs;
         this.log = log;
+        this.filter = filter;
     }
 
     /**
@@ -84,6 +92,11 @@ final class TransitiveClasspath {
      *
      * @param entries
      *            the classpath elements that the classloaders declared.
+     * @param filter
+     *            decides which classpath elements are kept, whether the classloaders declared them or another
+     *            classpath element did. A rejected classpath element is not opened, so the classpath elements it
+     *            declares are reached only if something else declares them. The filter may be called more than once
+     *            for a classpath element that is reached by more than one route.
      * @param vfs
      *            opens the classpath elements, so that their manifests and their lib dirs can be read, with the
      *            settings that govern how the jarfiles are read.
@@ -93,9 +106,9 @@ final class TransitiveClasspath {
      * @throws IllegalStateException
      *             if the thread was interrupted.
      */
-    static List<ClasspathEntry> expand(final List<ClasspathEntry> entries, final Vfs vfs,
-            final @Nullable LogNode log) {
-        final var classpath = new TransitiveClasspath(vfs, log);
+    static List<ClasspathEntry> expand(final List<ClasspathEntry> entries,
+            final Predicate<? super ClasspathEntry> filter, final Vfs vfs, final @Nullable LogNode log) {
+        final var classpath = new TransitiveClasspath(vfs, log, filter);
         classpath.addAll(entries);
         return classpath.expanded;
     }
@@ -114,10 +127,20 @@ final class TransitiveClasspath {
         pushInReverse(toAdd, entries);
         while (!toAdd.isEmpty()) {
             final var entry = toAdd.pop();
-            if (!alreadyAdded.add(entry.getLocation())) {
+            final var location = entry.getLocation();
+            if (alreadyAdded.contains(location)) {
                 // The classpath element was already reached by a shorter route, so it keeps its earlier position
                 continue;
             }
+            if (!filter.test(entry)) {
+                // A rejected location is not recorded as added, so the filter is asked again if another route
+                // reaches it
+                if (log != null) {
+                    log.log("Classpath element did not match filter criterion, skipping: " + location);
+                }
+                continue;
+            }
+            alreadyAdded.add(location);
             expanded.add(entry);
             // The children are added before anything that is still on the stack, so that a classpath element is
             // immediately followed by the classpath elements it declares

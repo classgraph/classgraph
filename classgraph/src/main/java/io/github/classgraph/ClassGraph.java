@@ -620,6 +620,13 @@ public final class ClassGraph {
      * path you want to scan. If several filters are added, a classpath element is only scanned if every filter
      * accepts it.
      *
+     * <p>
+     * The filter is applied to every classpath element: those named directly, each jarfile that a wildcarded
+     * directory is expanded into, and those that another classpath element declares through its manifest's
+     * {@code Class-Path} or {@code Bundle-ClassPath} attribute or its lib dirs. A classpath element that a filter
+     * rejects is not opened, so the classpath elements that it declares are scanned only if an accepted classpath
+     * element declares them too.
+     *
      * @param classpathElementFilter
      *            The filter to apply to the path string of each discovered classpath element. The path string is
      *            normalized so that the path separator is '/'. It will usually be a file path, but could be a URL,
@@ -638,6 +645,11 @@ public final class ClassGraph {
      * Add a classpath element {@link URL} filter. The provided filter should return true if the {@link URL} passed
      * to it is a URL you want to scan. If several filters are added, a classpath element is only scanned if every
      * filter accepts it.
+     *
+     * <p>
+     * The filter is applied to every classpath element, in the same way as
+     * {@link #filterClasspathElements(Predicate)}. A classpath element that was not given as a {@link URL} is
+     * passed as the {@code file:} URL of its path, or as a {@code jar:file:} URL if it is nested in a jarfile.
      *
      * @param classpathElementURLFilter
      *            The filter to apply to the {@link URL} of each discovered classpath element.

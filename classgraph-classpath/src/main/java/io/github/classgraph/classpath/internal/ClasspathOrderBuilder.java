@@ -46,7 +46,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
-import java.util.function.Predicate;
 
 import io.github.classgraph.base.ClassGraphLog;
 import io.github.classgraph.base.internal.path.FastPathResolver;
@@ -227,28 +226,6 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
     }
 
     /**
-     * Convert a resolved classpath element path back into a {@link URL}, so that it can be tested against the
-     * user's {@link URL} filters.
-     *
-     * @param classpathElementPath
-     *            the resolved classpath element path
-     * @return the {@link URL} of the classpath element, or null if the path could not be converted to a {@link URL}
-     */
-    private static @Nullable URL toURL(final String classpathElementPath) {
-        try {
-            final var nestedPathIdx = classpathElementPath.indexOf("!/");
-            if (nestedPathIdx < 0) {
-                return new File(classpathElementPath).toURI().toURL();
-            }
-            // A nested path "outer.jar!/inner" becomes the jar URL "jar:file:/outer.jar!/inner"
-            return new URL("jar:" + new File(classpathElementPath.substring(0, nestedPathIdx)).toURI()
-                    + classpathElementPath.substring(nestedPathIdx));
-        } catch (final MalformedURLException | IllegalArgumentException | IOError | SecurityException e) {
-            return null;
-        }
-    }
-
-    /**
      * Test to see if a classpath element has been filtered out by the user.
      *
      * @param classpathElementURL
@@ -258,28 +235,7 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
      * @return true if the classpath element passes every filter
      */
     private boolean filter(final @Nullable URL classpathElementURL, final @Nullable String classpathElementPath) {
-        final var urlFilters = classpathSpec.getClasspathElementURLFilters();
-        if (!urlFilters.isEmpty()) {
-            // FastPathResolver strips the scheme from "file:" and "jar:file:" classpath elements, so for those the
-            // URL has to be reconstituted from the resolved path before the URL filters can be applied to it
-            final var url = classpathElementURL != null ? classpathElementURL
-                    : classpathElementPath == null ? null : toURL(classpathElementPath);
-            if (url != null) {
-                for (final Predicate<URL> urlFilter : urlFilters) {
-                    if (!urlFilter.test(url)) {
-                        return false;
-                    }
-                }
-            }
-        }
-        if (classpathElementPath != null) {
-            for (final Predicate<String> pathFilter : classpathSpec.getClasspathElementPathFilters()) {
-                if (!pathFilter.test(classpathElementPath)) {
-                    return false;
-                }
-            }
-        }
-        return true;
+        return classpathSpec.acceptsClasspathElement(classpathElementURL, classpathElementPath);
     }
 
     /**
@@ -583,8 +539,8 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
      */
     private boolean addWildcardedDirEntries(final String baseDirPath, final @Nullable ClassLoader classLoader,
             final @Nullable ClassGraphLog log) {
-        // A wildcarded classpath entry is only ever reached as a path string, never as a URL, so there is no URL to
-        // apply the user's URL filters to
+        // A wildcarded classpath entry is only ever reached as a path string, never as a URL, so the user's URL
+        // filters are given the URL of the path
         if (!passesFilters(/* pathElementURL = */ null, baseDirPath, baseDirPath, log)) {
             return false;
         }
@@ -629,6 +585,10 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
                 final var fileInDirPath = fileInDir.getPath();
                 final var fileInDirPathResolved = FastPathResolver.resolveFilePath(FileUtils.currDirPath(),
                         fileInDirPath);
+                // Each jarfile is a classpath element in its own right, so it has to pass the filters too
+                if (!passesFilters(/* pathElementURL = */ null, fileInDirPath, fileInDirPathResolved, dirLog)) {
+                    continue;
+                }
                 addClasspathEntryAndLog(fileInDirPathResolved, fileInDirPath, fileInDirPathResolved, classLoader,
                         dirLog);
             }

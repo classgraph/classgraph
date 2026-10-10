@@ -417,6 +417,32 @@ public class ClasspathOrderTest {
         assertThat(entryObjects().get(0)).isInstanceOf(URL.class).hasToString("http://example.org/b.jar");
     }
 
+    /**
+     * A jarfile found by expanding a wildcarded directory is a classpath element in its own right, so a path filter
+     * that rejects it keeps it out of the classpath, as it would if the jarfile had been listed explicitly.
+     */
+    @Test
+    public void pathFiltersRejectJarfilesInAWildcardedDirectory(@TempDir final Path tempDir) throws IOException {
+        final var jarA = createFile(tempDir.resolve("a.jar"));
+        createFile(tempDir.resolve("b.jar"));
+        classpathSpec.filterClasspathElements(path -> !path.endsWith("b.jar"));
+        assertThat(classpathOrder.addClasspathEntry(tempDir + "/*", null, null)).isTrue();
+        assertThat(locations()).containsExactly(jarA);
+    }
+
+    /**
+     * A jarfile found by expanding a wildcarded directory is tested against the URL filters too, as the
+     * {@code file:} URL of the jarfile.
+     */
+    @Test
+    public void urlFiltersRejectJarfilesInAWildcardedDirectory(@TempDir final Path tempDir) throws IOException {
+        final var jarA = createFile(tempDir.resolve("a.jar"));
+        createFile(tempDir.resolve("b.jar"));
+        classpathSpec.filterClasspathElementsByURL(url -> !url.getPath().endsWith("b.jar"));
+        assertThat(classpathOrder.addClasspathEntry(tempDir + "/*", null, null)).isTrue();
+        assertThat(locations()).containsExactly(jarA);
+    }
+
     /** A URL classpath entry is kept as a {@link URL}, so that its scheme can be handled during scanning. */
     @Test
     public void urlClasspathEntriesAreKeptAsURLs() throws Exception {
