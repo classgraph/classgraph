@@ -53,7 +53,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Queue;
 import java.util.Set;
-import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -77,7 +76,7 @@ import io.github.classgraph.vfs.Vfs;
 import org.jspecify.annotations.Nullable;
 
 /** The classpath scanner. */
-class Scanner implements Callable<ScanResult> {
+class Scanner {
 
     /** The scan spec. */
     private final ScanSpec scanSpec;
@@ -1000,7 +999,7 @@ class Scanner implements Callable<ScanResult> {
      * @throws ExecutionException
      *             if the scan threw an uncaught exception
      */
-    private ScanResult performScan(final List<ClasspathElement> finalClasspathEltOrder)
+    private ScanResult scanClasspathElements(final List<ClasspathElement> finalClasspathEltOrder)
             throws InterruptedException, ExecutionException {
         // Mask duplicate resources (remove any resource that is the same file as a resource that was already found
         // in an earlier classpath element)
@@ -1129,7 +1128,7 @@ class Scanner implements Callable<ScanResult> {
     /**
      * Open each of the classpath elements, looking for additional child classpath elements that need scanning (e.g.
      * {@code Class-Path} entries in jar manifest files), then perform the scan if {@link #performScan} is true, or
-     * just get the classpath if {@link #performScan} is false.
+     * just get the classpath and modules if {@link #performScan} is false.
      *
      * @return the scan result
      * @throws InterruptedException
@@ -1195,11 +1194,16 @@ class Scanner implements Callable<ScanResult> {
             }
         }
 
-        // In parallel, scan paths within each classpath element, comparing them against accept/reject
-        processWorkUnits(finalClasspathEltOrder,
-                topLevelLog == null ? null : topLevelLog.log("Scanning classpath elements"),
-                // Scan the paths within the classpath element
-                (classpathElement, _, pathScanLog) -> classpathElement.scanPaths(pathScanLog));
+        // In parallel, scan paths within each classpath element, comparing them against accept/reject. When only
+        // the classpath is being fetched, the paths are needed only by the classpath element filter below, which
+        // checks whether each element contains a given resource path, so do not walk a possibly large directory or
+        // jarfile when that filter is not set
+        if (performScan || !scanSpec.classpathElementResourcePathAcceptReject.acceptAndRejectAreEmpty()) {
+            processWorkUnits(finalClasspathEltOrder,
+                    topLevelLog == null ? null : topLevelLog.log("Scanning classpath elements"),
+                    // Scan the paths within the classpath element
+                    (classpathElement, _, pathScanLog) -> classpathElement.scanPaths(pathScanLog));
+        }
 
         // Filter out classpath elements that contain a rejected resource path, or that do not contain a required
         // accepted resource path
@@ -1217,7 +1221,7 @@ class Scanner implements Callable<ScanResult> {
 
         if (performScan) {
             // Scan classpath / modules, producing a ScanResult.
-            return performScan(finalClasspathEltOrderFiltered);
+            return scanClasspathElements(finalClasspathEltOrderFiltered);
         } else {
             // Only getting classpath -- return a placeholder ScanResult to hold classpath elements
             if (topLevelLog != null) {
@@ -1234,7 +1238,7 @@ class Scanner implements Callable<ScanResult> {
 
     /**
      * Determine the unique ordered classpath elements, and run a scan looking for file or classfile matches if
-     * necessary.
+     * necessary. {@link ClassGraph} calls this on the thread that asked for the scan or for the classpath.
      *
      * @return the scan result.
      * @throws InterruptedException
@@ -1244,8 +1248,7 @@ class Scanner implements Callable<ScanResult> {
      * @throws ExecutionException
      *             if a worker threw an uncaught exception
      */
-    @Override
-    public ScanResult call() throws InterruptedException, CancellationException, ExecutionException {
+    ScanResult call() throws InterruptedException, CancellationException, ExecutionException {
         final var scanStart = System.nanoTime();
         try {
             // Perform the scan

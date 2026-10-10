@@ -44,6 +44,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.function.Function;
 import java.util.function.Predicate;
 
 import io.github.classgraph.base.LogNode;
@@ -1747,6 +1748,28 @@ public final class ClassGraph {
     }
 
     /**
+     * Find the classpath elements and modules without scanning them, then read the result with the given getter.
+     *
+     * @param <T>
+     *            the type of the value read from the {@link ScanResult}.
+     * @param getter
+     *            reads the value from the {@link ScanResult}, which is closed after the getter returns.
+     * @return the value returned by the getter.
+     * @throws ClassGraphException
+     *             if any thread of the scan throws an uncaught exception, or the scan was interrupted. An
+     *             {@link Error}, such as {@link OutOfMemoryError}, is not wrapped, but is rethrown unchanged
+     *             whichever thread threw it.
+     * @throws IllegalArgumentException
+     *             if a config option was enabled without the config option that reads it.
+     */
+    private <T> T withClasspathScanResult(final Function<ScanResult, T> getter) {
+        try (var executorService = new AutoCloseableExecutorService(DEFAULT_NUM_WORKER_THREADS);
+                var scanResult = getClasspathScanResult(executorService)) {
+            return getter.apply(scanResult);
+        }
+    }
+
+    /**
      * Returns the list of unique File objects representing the enabled directory and zip/jarfile classpath
      * elements, in classloader resolution order. Only the classpath elements that would have been scanned are
      * returned: a classpath element is found only if it was enabled with {@link #enableClasspath()},
@@ -1764,10 +1787,7 @@ public final class ClassGraph {
      *             if a config option was enabled without the config option that reads it.
      */
     public List<File> getClasspathFiles() {
-        try (var executorService = new AutoCloseableExecutorService(DEFAULT_NUM_WORKER_THREADS);
-                var scanResult = getClasspathScanResult(executorService)) {
-            return scanResult.getClasspathFiles();
-        }
+        return withClasspathScanResult(ScanResult::getClasspathFiles);
     }
 
     /**
@@ -1808,10 +1828,7 @@ public final class ClassGraph {
      *             if a config option was enabled without the config option that reads it.
      */
     public List<URI> getClasspathURIs() {
-        try (var executorService = new AutoCloseableExecutorService(DEFAULT_NUM_WORKER_THREADS);
-                var scanResult = getClasspathScanResult(executorService)) {
-            return scanResult.getClasspathURIs();
-        }
+        return withClasspathScanResult(ScanResult::getClasspathURIs);
     }
 
     /**
@@ -1829,10 +1846,7 @@ public final class ClassGraph {
      *             if a config option was enabled without the config option that reads it.
      */
     public List<URL> getClasspathURLs() {
-        try (var executorService = new AutoCloseableExecutorService(DEFAULT_NUM_WORKER_THREADS);
-                var scanResult = getClasspathScanResult(executorService)) {
-            return scanResult.getClasspathURLs();
-        }
+        return withClasspathScanResult(ScanResult::getClasspathURLs);
     }
 
     /**
@@ -1850,10 +1864,7 @@ public final class ClassGraph {
      *             if a config option was enabled without the config option that reads it.
      */
     public List<ModuleReference> getModuleReferences() {
-        try (var executorService = new AutoCloseableExecutorService(DEFAULT_NUM_WORKER_THREADS);
-                var scanResult = getClasspathScanResult(executorService)) {
-            return scanResult.getModuleReferences();
-        }
+        return withClasspathScanResult(ScanResult::getModuleReferences);
     }
 
     /**
