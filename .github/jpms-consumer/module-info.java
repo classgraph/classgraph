@@ -29,9 +29,10 @@
 
 /**
  * A consumer of ClassGraph that is compiled and run on the module path, to check that the published modules
- * work as modules. It requires only {@code io.github.classgraph}, so it also checks that the
- * {@code requires transitive} chain reaches the other four modules without them being named here.
+ * work as modules. It requires only the top module, {@code io.github.classgraph.viz}, and its {@code Main} names a
+ * public type from each of the five modules, so it compiles only if every {@code requires transitive} in the chain
+ * viz, classgraph, classpath, vfs, base is in place.
  */
 module jpmsconsumer {
-    requires io.github.classgraph;
+    requires io.github.classgraph.viz;
 }
