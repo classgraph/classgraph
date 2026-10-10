@@ -269,9 +269,10 @@ public final class AnnotationParameterValue extends ScanResultObject
                         Array.set(typedArray, i, arrayValue[i]);
                     }
                 } catch (final IllegalArgumentException _) {
-                    // An element cannot be stored in an array of the element type, for example because the annotation class was
-                    // recompiled with another element type after the annotated class was compiled. Like the
-                    // JDK, which reports a type mismatch only when this value is read, keep the Object[] array
+                    // An element cannot be stored in an array of the element type, for example because the
+                    // annotation class was recompiled with another element type after the annotated class was
+                    // compiled. Like the JDK, which reports a type mismatch only when this value is read, keep the
+                    // Object[] array
                     return;
                 }
                 value = typedArray;
