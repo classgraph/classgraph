@@ -1414,6 +1414,10 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      * a legal class modifier. {@link Class#getModifiers()} masks it out for the same reason.
      *
      * <p>
+     * For an {@link ArrayClassInfo}, this returns 0, not the modifiers that {@link Class#getModifiers()} returns
+     * for an array class: see {@link ArrayClassInfo}.
+     *
+     * <p>
      * <b>Note:</b> comparing the returned value against a hardcoded integer is fragile. Prefer the named accessors
      * ({@link #isPublic()}, {@link #isProtected()}, {@link #isPrivate()}, {@link #isStatic()}, {@link #isFinal()},
      * {@link #isAbstract()}, {@link #isInterface()}, {@link #isAnnotation()}, {@link #isEnum()},

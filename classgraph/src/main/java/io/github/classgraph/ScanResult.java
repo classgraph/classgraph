@@ -1693,8 +1693,10 @@ public final class ScanResult implements AutoCloseable {
      *
      * @param annotation
      *            The class annotation or meta-annotation.
-     * @return A list of all non-annotation classes that were found with the class annotation during the scan, or
-     *         the empty list if none.
+     * @return A list of all classes, interfaces and annotations that were found during the scan with the class
+     *         annotation or meta-annotation, or the empty list if none. This includes the annotations that it
+     *         meta-annotates, and the subclasses that inherit it: see {@link ClassInfo#getClassesWithAnnotation()}.
+     *         To keep only standard classes, call {@link ClassInfoList#getStandardClasses()} on the result.
      * @throws IllegalArgumentException
      *             if {@code annotation} is not an annotation type.
      * @throws IllegalStateException
@@ -1712,8 +1714,11 @@ public final class ScanResult implements AutoCloseable {
      *
      * @param annotations
      *            The class annotations or meta-annotations.
-     * @return A list of all non-annotation classes that were found with all of the class annotations during the
-     *         scan, or the empty list if none.
+     * @return A list of all classes, interfaces and annotations that were found during the scan with all of the
+     *         class annotations or meta-annotations, or the empty list if none. This includes the annotations that
+     *         they meta-annotate, and the subclasses that inherit them: see
+     *         {@link ClassInfo#getClassesWithAnnotation()}. To keep only standard classes, call
+     *         {@link ClassInfoList#getStandardClasses()} on the result.
      * @throws IllegalArgumentException
      *             if any of {@code annotations} is not an annotation type.
      * @throws IllegalStateException
@@ -1745,8 +1750,11 @@ public final class ScanResult implements AutoCloseable {
      *
      * @param annotations
      *            The class annotations or meta-annotations.
-     * @return A list of all non-annotation classes that were found with any of the class annotations during the
-     *         scan, or the empty list if none.
+     * @return A list of all classes, interfaces and annotations that were found during the scan with any of the
+     *         class annotations or meta-annotations, or the empty list if none. This includes the annotations that
+     *         they meta-annotate, and the subclasses that inherit them: see
+     *         {@link ClassInfo#getClassesWithAnnotation()}. To keep only standard classes, call
+     *         {@link ClassInfoList#getStandardClasses()} on the result.
      * @throws IllegalArgumentException
      *             if any of {@code annotations} is not an annotation type.
      * @throws IllegalStateException
@@ -1778,8 +1786,10 @@ public final class ScanResult implements AutoCloseable {
      *
      * @param annotationName
      *            The name of the class annotation or meta-annotation.
-     * @return A list of all non-annotation classes that were found with the named class annotation during the scan,
-     *         or the empty list if none.
+     * @return A list of all classes, interfaces and annotations that were found during the scan with the named
+     *         class annotation or meta-annotation, or the empty list if none. This includes the annotations that it
+     *         meta-annotates, and the subclasses that inherit it: see {@link ClassInfo#getClassesWithAnnotation()}.
+     *         To keep only standard classes, call {@link ClassInfoList#getStandardClasses()} on the result.
      * @throws IllegalStateException
      *             if this {@link ScanResult} has been closed, or if {@link ClassGraph#enableClassInfo()} and
      *             {@link ClassGraph#enableAnnotationInfo()} were not both called before scanning.
@@ -1796,8 +1806,11 @@ public final class ScanResult implements AutoCloseable {
      *
      * @param annotationNames
      *            The name of the class annotations or meta-annotations.
-     * @return A list of all non-annotation classes that were found with all of the named class annotations during
-     *         the scan, or the empty list if none.
+     * @return A list of all classes, interfaces and annotations that were found during the scan with all of the
+     *         named class annotations or meta-annotations, or the empty list if none. This includes the annotations
+     *         that they meta-annotate, and the subclasses that inherit them: see
+     *         {@link ClassInfo#getClassesWithAnnotation()}. To keep only standard classes, call
+     *         {@link ClassInfoList#getStandardClasses()} on the result.
      * @throws IllegalStateException
      *             if this {@link ScanResult} has been closed, or if {@link ClassGraph#enableClassInfo()} and
      *             {@link ClassGraph#enableAnnotationInfo()} were not both called before scanning.
@@ -1827,8 +1840,11 @@ public final class ScanResult implements AutoCloseable {
      *
      * @param annotationNames
      *            The name of the class annotations or meta-annotations.
-     * @return A list of all non-annotation classes that were found with any of the named class annotations during
-     *         the scan, or the empty list if none.
+     * @return A list of all classes, interfaces and annotations that were found during the scan with any of the
+     *         named class annotations or meta-annotations, or the empty list if none. This includes the annotations
+     *         that they meta-annotate, and the subclasses that inherit them: see
+     *         {@link ClassInfo#getClassesWithAnnotation()}. To keep only standard classes, call
+     *         {@link ClassInfoList#getStandardClasses()} on the result.
      * @throws IllegalStateException
      *             if this {@link ScanResult} has been closed, or if {@link ClassGraph#enableClassInfo()} and
      *             {@link ClassGraph#enableAnnotationInfo()} were not both called before scanning.

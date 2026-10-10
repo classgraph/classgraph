@@ -38,6 +38,27 @@ import org.jspecify.annotations.Nullable;
  * <p>
  * An {@link ArrayClassInfo} object will not have any methods, fields or annotations.
  * {@link ClassInfo#isArrayClass()} will return true for this subclass of {@link ClassInfo}.
+ *
+ * <p>
+ * An {@link ArrayClassInfo} is made after the scan, from an array type signature, and is not part of the class
+ * graph, so some of the methods it inherits from {@link ClassInfo} do not return what reflection returns for the
+ * array's {@link Class}:
+ *
+ * <ul>
+ * <li>{@link #getModifiers()} returns 0, so {@link #isPublic()}, {@link #isAbstract()} and {@link #isFinal()}
+ * return false and {@link #getModifiersString()} returns the empty string. For an array class,
+ * {@link Class#getModifiers()} returns the access modifiers of the element type with {@code abstract} and
+ * {@code final} added.
+ * <li>{@link #getSuperclass()} returns null and {@link #getAllSuperinterfaces()} returns the empty list, where
+ * reflection gives {@link Object} as the superclass and {@link Cloneable} and {@link java.io.Serializable} as the
+ * interfaces.
+ * <li>If {@link #getElementClassInfo()} is not null, the classpath element, {@link #getResource()},
+ * {@link #isExternalClass()}, {@link #getModuleInfo()} and {@link #getPackageInfo()} are those of the element
+ * class, so {@link #getResource()} returns the classfile of the element class. Otherwise {@link #getResource()},
+ * {@link #getModuleInfo()} and {@link #getPackageInfo()} return null, and {@link #isExternalClass()} returns true.
+ * <li>For an array with a primitive element type, {@link #getPackageName()} returns the empty string, where
+ * {@link Class#getPackageName()} returns {@code "java.lang"}.
+ * </ul>
  */
 public final class ArrayClassInfo extends ClassInfo {
     /** The array type signature. */
