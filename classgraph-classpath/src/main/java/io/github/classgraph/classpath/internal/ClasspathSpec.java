@@ -149,15 +149,6 @@ public class ClasspathSpec {
     }
 
     /**
-     * Get the classpath element path filters.
-     *
-     * @return the filters added by {@link #filterClasspathElements(Predicate)}, in the order they were added.
-     */
-    public List<Predicate<String>> getClasspathElementPathFilters() {
-        return Collections.unmodifiableList(classpathElementPathFilters);
-    }
-
-    /**
      * Add a classpath element {@link URL} filter. The provided filter should return true if the {@link URL} passed
      * to it is a classpath element that should be scanned. The filter is applied to the same classpath elements as
      * the filters added by {@link #filterClasspathElements(Predicate)}.
@@ -169,15 +160,6 @@ public class ClasspathSpec {
     public void filterClasspathElementsByURL(final Predicate<URL> filter) {
         Assert.notNull(filter, "filter");
         classpathElementURLFilters.add(filter);
-    }
-
-    /**
-     * Get the classpath element {@link URL} filters.
-     *
-     * @return the filters added by {@link #filterClasspathElementsByURL(Predicate)}, in the order they were added.
-     */
-    public List<Predicate<URL>> getClasspathElementURLFilters() {
-        return Collections.unmodifiableList(classpathElementURLFilters);
     }
 
     /**
