@@ -46,6 +46,16 @@ public class Parser {
     /** Extra parsing state. */
     private Object state;
 
+    /**
+     * The deepest that type argument lists may be nested, as in {@code List<List<String>>}, which nests them two
+     * deep. javac never comes close to this, but the type signature parser is recursive, so a corrupt or crafted
+     * signature nested a few hundred deep could otherwise overflow the stack of a thread with a small stack.
+     */
+    public static final int MAX_TYPE_ARGUMENT_NESTING_DEPTH = 100;
+
+    /** How many type argument lists enclose the current position. */
+    private int typeArgumentNestingDepth;
+
     /** How much context to show before the current position. */
     private static final int SHOW_BEFORE = 80;
 
@@ -100,6 +110,26 @@ public class Parser {
      */
     public Object getState() {
         return state;
+    }
+
+    /**
+     * Record that parsing has entered a type argument list. Every recursive step of the type signature grammar
+     * passes through a type argument list, so limiting how deeply they nest also limits how deeply the parser
+     * recurses.
+     *
+     * @throws ParseException
+     *             If type argument lists are nested more than {@link #MAX_TYPE_ARGUMENT_NESTING_DEPTH} deep.
+     */
+    public void enterTypeArguments() throws ParseException {
+        if (++typeArgumentNestingDepth > MAX_TYPE_ARGUMENT_NESTING_DEPTH) {
+            throw new ParseException(this,
+                    "Type arguments are nested more than " + MAX_TYPE_ARGUMENT_NESTING_DEPTH + " deep");
+        }
+    }
+
+    /** Record that parsing has left a type argument list. */
+    public void exitTypeArguments() {
+        typeArgumentNestingDepth--;
     }
 
     /**

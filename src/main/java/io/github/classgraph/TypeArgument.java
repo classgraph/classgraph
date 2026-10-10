@@ -230,6 +230,7 @@ public final class TypeArgument extends HierarchicalTypeSignature {
     static List<TypeArgument> parseList(final Parser parser, final String definingClassName) throws ParseException {
         if (parser.peek() == '<') {
             parser.expect('<');
+            parser.enterTypeArguments();
             final List<TypeArgument> typeArguments = new ArrayList<>(2);
             while (parser.peek() != '>') {
                 if (!parser.hasMore()) {
@@ -238,6 +239,7 @@ public final class TypeArgument extends HierarchicalTypeSignature {
                 typeArguments.add(parse(parser, definingClassName));
             }
             parser.expect('>');
+            parser.exitTypeArguments();
             return typeArguments;
         } else {
             return Collections.emptyList();
