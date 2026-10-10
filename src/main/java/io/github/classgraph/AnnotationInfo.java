@@ -138,13 +138,8 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
             // scanning)
             return annotationParamValues == null ? AnnotationParameterValueList.EMPTY_LIST : annotationParamValues;
         }
-        // Lazily convert any Object[] arrays of boxed types to primitive arrays. If the annotation class was not
-        // scanned, the element type of each array is worked out from its elements.
         final ClassInfo classInfo = getClassInfo();
-        if (annotationParamValues != null && !annotationParamValuesHasBeenConvertedToPrimitive) {
-            annotationParamValues.convertWrapperArraysToPrimitiveArrays(classInfo);
-            annotationParamValuesHasBeenConvertedToPrimitive = true;
-        }
+        convertDeclaredParamValues(classInfo);
         if (!includeDefaultValues || classInfo == null) {
             // Don't include defaults, or there are no defaults to include, since they are declared by the
             // annotation class, which was not scanned
@@ -486,11 +481,48 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
     }
 
     /**
-     * Convert wrapper arrays to primitive arrays.
+     * Get the {@link ClassInfo} object for the annotation class, as {@link #getClassInfo()} does, but without
+     * throwing if the {@link ScanResult} has been closed, so that {@link #equals(Object)}, {@link #hashCode()} and
+     * {@link #compareTo(AnnotationInfo)} keep working after it is closed. The map of class names is not cleared
+     * when the {@link ScanResult} is closed.
+     *
+     * @return the annotation class, or null if the {@link ScanResult} has not been set or the annotation class was
+     *         not encountered during scanning.
+     */
+    private ClassInfo getClassInfoEvenIfClosed() {
+        final ScanResult sr = scanResult;
+        return sr == null ? null : sr.classNameToClassInfo.get(name);
+    }
+
+    /**
+     * Lazily convert any Object[] arrays of boxed values or strings in the parameter values given at the
+     * annotation use site to arrays of their element type, if the {@link ScanResult} has been set. If the
+     * annotation class was not scanned, the element type of each array is worked out from its elements.
+     *
+     * <p>
+     * Each value is converted under its own lock, so once this method returns, this thread sees every value fully
+     * converted. {@link #equals(Object)}, {@link #hashCode()} and {@link #compareTo(AnnotationInfo)} call this
+     * before they read the values, since a value that another thread is converting can be read as a partly
+     * filled array or as null.
+     *
+     * @param classInfo
+     *            the annotation class, or null if it was not encountered during scanning.
+     */
+    private void convertDeclaredParamValues(final ClassInfo classInfo) {
+        if (scanResult != null && annotationParamValues != null
+                && !annotationParamValuesHasBeenConvertedToPrimitive) {
+            annotationParamValues.convertWrapperArraysToPrimitiveArrays(classInfo);
+            annotationParamValuesHasBeenConvertedToPrimitive = true;
+        }
+    }
+
+    /**
+     * Convert wrapper arrays to primitive arrays. Called for a nested annotation, which may be compared after the
+     * {@link ScanResult} has been closed.
      */
     void convertWrapperArraysToPrimitiveArrays() {
         if (annotationParamValues != null) {
-            annotationParamValues.convertWrapperArraysToPrimitiveArrays(getClassInfo());
+            annotationParamValues.convertWrapperArraysToPrimitiveArrays(getClassInfoEvenIfClosed());
         }
     }
 
@@ -505,6 +537,8 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
         if (diff != 0) {
             return diff;
         }
+        convertDeclaredParamValues(getClassInfoEvenIfClosed());
+        o.convertDeclaredParamValues(o.getClassInfoEvenIfClosed());
         if (annotationParamValues == null && o.annotationParamValues == null) {
             return 0;
         } else if (annotationParamValues == null) {
@@ -548,6 +582,7 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
      */
     @Override
     public int hashCode() {
+        convertDeclaredParamValues(getClassInfoEvenIfClosed());
         int h = name.hashCode();
         if (annotationParamValues != null) {
             for (final AnnotationParameterValue e : annotationParamValues) {

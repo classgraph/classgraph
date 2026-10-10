@@ -2,6 +2,10 @@ package io.github.classgraph;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.util.ArrayList;
@@ -11,6 +15,8 @@ import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 
 import org.junit.jupiter.api.Test;
 
@@ -20,8 +26,9 @@ import org.junit.jupiter.api.Test;
  * type, so the first reads of a value change it.
  *
  * <p>
- * The two threads read the same values in the same order, so they keep meeting on the value that one of them is
- * converting.
+ * In the first two tests, the two threads read the same values in the same order, so they keep meeting on the value
+ * that one of them is converting. In the others, one thread hashes or compares an annotation while the other
+ * converts its values.
  */
 public class AnnotationConversionRaceTest {
     /** An annotation with an array-typed parameter that has a default value. */
@@ -43,6 +50,15 @@ public class AnnotationConversionRaceTest {
 
     /** The values held, as boxed values, by every array-typed value the tests create. */
     private static final int[] VALUES = { 1, 2, 3 };
+
+    /**
+     * The length of the array-typed value that one thread converts while another thread hashes or compares it.
+     * The array is long, so that the conversion takes long enough for the other thread to meet it.
+     */
+    private static final int LONG_ARRAY_LENGTH = 20_000;
+
+    /** The number of times the race between a conversion and a hash or a comparison is run. */
+    private static final int NUM_TRIALS = 50;
 
     /**
      * Scan the annotation and the annotated class.
@@ -199,5 +215,214 @@ public class AnnotationConversionRaceTest {
                 checkConverted(defaultValue.getValue());
             }
         }
+    }
+
+    /**
+     * Create an annotation with one array-typed parameter value that has not yet been converted, holding
+     * {@link #LONG_ARRAY_LENGTH} ones as an Object[] array of boxed values.
+     *
+     * @param scanResult
+     *            the scan result.
+     * @return the annotation.
+     */
+    private static AnnotationInfo unconvertedLongArrayAnnotation(final ScanResult scanResult) {
+        final Object[] boxed = new Object[LONG_ARRAY_LENGTH];
+        Arrays.fill(boxed, 1);
+        final AnnotationInfo annotationInfo = new AnnotationInfo(WithDefault.class.getName(),
+                new AnnotationParameterValueList(
+                        Collections.singletonList(new AnnotationParameterValue("values", boxed))));
+        annotationInfo.setScanResult(scanResult);
+        return annotationInfo;
+    }
+
+    /**
+     * Run a check on an annotation over and over in one thread, while another thread converts the annotation's
+     * array-typed value by reading its parameter values for the first time. Repeat with a new annotation
+     * {@link #NUM_TRIALS} times.
+     *
+     * @param scanResult
+     *            the scan result.
+     * @param check
+     *            the check, which throws {@link AssertionError} if it fails.
+     * @throws InterruptedException
+     *             if interrupted while joining the threads.
+     */
+    private static void checkWhileConverting(final ScanResult scanResult, final Consumer<AnnotationInfo> check)
+            throws InterruptedException {
+        // Time one check, and start the conversion a little later in each trial, spread over two checks, so that
+        // the conversion meets the check at a different point in each trial
+        final long checkStartTime = System.nanoTime();
+        check.accept(unconvertedLongArrayAnnotation(scanResult));
+        final long checkNanos = System.nanoTime() - checkStartTime;
+        for (int trial = 0; trial < NUM_TRIALS; trial++) {
+            final AnnotationInfo annotationInfo = unconvertedLongArrayAnnotation(scanResult);
+            final AtomicBoolean converted = new AtomicBoolean();
+            final long delayNanos = 2 * checkNanos * trial / NUM_TRIALS;
+            final List<Throwable> failures = runConcurrently(new Runnable() {
+                @Override
+                public void run() {
+                    final long startTime = System.nanoTime();
+                    while (System.nanoTime() - startTime < delayNanos) {
+                        // Wait
+                    }
+                    annotationInfo.getParameterValues();
+                    converted.set(true);
+                }
+            }, new Runnable() {
+                @Override
+                public void run() {
+                    do {
+                        check.accept(annotationInfo);
+                    } while (!converted.get());
+                }
+            });
+            assertThat(failures).as("trial " + trial).isEmpty();
+        }
+    }
+
+    /**
+     * Check that {@link AnnotationInfo#hashCode()} gives the same hash code while another thread converts the
+     * annotation's values. A different hash code would leave an annotation that is in a hash set in the wrong
+     * bucket.
+     *
+     * @param scanResult
+     *            the scan result.
+     * @throws InterruptedException
+     *             if interrupted while joining the threads.
+     */
+    private static void checkHashCodeWhileConverting(final ScanResult scanResult) throws InterruptedException {
+        // The hash code that hashCode() gave before any thread converted the values, worked out by hand
+        final int[] ones = new int[LONG_ARRAY_LENGTH];
+        Arrays.fill(ones, 1);
+        final int expectedHashCode = WithDefault.class.getName().hashCode() * 7 + "values".hashCode() * 3
+                + Arrays.deepHashCode(new Object[] { ones });
+        assertThat(unconvertedLongArrayAnnotation(scanResult).hashCode()).isEqualTo(expectedHashCode);
+        checkWhileConverting(scanResult, new Consumer<AnnotationInfo>() {
+            @Override
+            public void accept(final AnnotationInfo annotationInfo) {
+                final int hashCode = annotationInfo.hashCode();
+                if (hashCode != expectedHashCode) {
+                    throw new AssertionError("Expected hash code " + expectedHashCode + ", got " + hashCode);
+                }
+            }
+        });
+    }
+
+    /**
+     * Check that {@link AnnotationInfo#equals(Object)} and {@link AnnotationInfo#compareTo(AnnotationInfo)} find
+     * two equal annotations equal while another thread converts the values of one of them.
+     *
+     * @param scanResult
+     *            the scan result.
+     * @throws InterruptedException
+     *             if interrupted while joining the threads.
+     */
+    private static void checkEqualsWhileConverting(final ScanResult scanResult) throws InterruptedException {
+        final AnnotationInfo convertedAnnotationInfo = unconvertedLongArrayAnnotation(scanResult);
+        convertedAnnotationInfo.getParameterValues();
+        checkWhileConverting(scanResult, new Consumer<AnnotationInfo>() {
+            @Override
+            public void accept(final AnnotationInfo annotationInfo) {
+                if (!annotationInfo.equals(convertedAnnotationInfo)
+                        || convertedAnnotationInfo.compareTo(annotationInfo) != 0) {
+                    throw new AssertionError("Expected the annotations to be equal");
+                }
+            }
+        });
+    }
+
+    /**
+     * Run one of the checks of a hash code or a comparison during a conversion, in this JVM. Called by
+     * {@link #runInInterpretedJvm(String)}.
+     *
+     * @param args
+     *            the name of the check: "hashCode" or "equals".
+     * @throws InterruptedException
+     *             if interrupted while joining the threads.
+     */
+    public static void main(final String[] args) throws InterruptedException {
+        try (ScanResult scanResult = scan()) {
+            if ("hashCode".equals(args[0])) {
+                checkHashCodeWhileConverting(scanResult);
+            } else {
+                checkEqualsWhileConverting(scanResult);
+            }
+        }
+    }
+
+    /**
+     * Run one of the checks of a hash code or a comparison during a conversion in a new JVM, with the JIT compiler
+     * turned off. Once compiled, the methods that are raced run so fast that the race is rarely met.
+     *
+     * @param check
+     *            the name of the check: "hashCode" or "equals".
+     * @throws IOException
+     *             if the JVM could not be started.
+     * @throws InterruptedException
+     *             if interrupted while waiting for the JVM.
+     */
+    private static void runInInterpretedJvm(final String check) throws IOException, InterruptedException {
+        final String java = System.getProperty("java.home") + File.separator + "bin" + File.separator + "java";
+        final Process process = new ProcessBuilder(java, "-Xint", "-cp", System.getProperty("java.class.path"),
+                AnnotationConversionRaceTest.class.getName(), check).redirectErrorStream(true).start();
+        final ByteArrayOutputStream output = new ByteArrayOutputStream();
+        try (InputStream inputStream = process.getInputStream()) {
+            final byte[] buf = new byte[8192];
+            for (int n; (n = inputStream.read(buf)) > 0;) {
+                output.write(buf, 0, n);
+            }
+        }
+        assertThat(process.waitFor()).as(output.toString("UTF-8")).isZero();
+    }
+
+    /**
+     * {@link AnnotationInfo#hashCode()} gives the same hash code while another thread converts the annotation's
+     * values.
+     *
+     * @throws IOException
+     *             if the JVM could not be started.
+     * @throws InterruptedException
+     *             if interrupted while waiting for the JVM.
+     */
+    @Test
+    public void hashCodeDoesNotChangeWhileAnotherThreadConvertsTheValues() throws IOException, InterruptedException {
+        runInInterpretedJvm("hashCode");
+    }
+
+    /**
+     * {@link AnnotationInfo#equals(Object)} and {@link AnnotationInfo#compareTo(AnnotationInfo)} find two equal
+     * annotations equal while another thread converts the values of one of them.
+     *
+     * @throws IOException
+     *             if the JVM could not be started.
+     * @throws InterruptedException
+     *             if interrupted while waiting for the JVM.
+     */
+    @Test
+    public void equalsDoesNotChangeWhileAnotherThreadConvertsTheValues() throws IOException, InterruptedException {
+        runInInterpretedJvm("equals");
+    }
+
+    /**
+     * {@link AnnotationInfo#hashCode()}, {@link AnnotationInfo#equals(Object)} and
+     * {@link AnnotationInfo#compareTo(AnnotationInfo)} convert the values first, and still work after the
+     * {@link ScanResult} is closed, including for a nested annotation value.
+     */
+    @Test
+    public void hashCodeAndEqualsWorkAfterClose() {
+        final AnnotationInfo[] annotationInfos = new AnnotationInfo[2];
+        try (ScanResult scanResult = scan()) {
+            for (int i = 0; i < annotationInfos.length; i++) {
+                final AnnotationInfo nested = new AnnotationInfo(WithDefault.class.getName(),
+                        new AnnotationParameterValueList(Collections.singletonList(unconvertedValue("values"))));
+                annotationInfos[i] = new AnnotationInfo(WithDefault.class.getName(),
+                        new AnnotationParameterValueList(Arrays.asList(new AnnotationParameterValue("nested", nested),
+                                unconvertedValue("values"))));
+                annotationInfos[i].setScanResult(scanResult);
+            }
+        }
+        assertThat(annotationInfos[0].hashCode()).isEqualTo(annotationInfos[1].hashCode());
+        assertThat(annotationInfos[0]).isEqualTo(annotationInfos[1]);
+        assertThat(annotationInfos[0].compareTo(annotationInfos[1])).isZero();
     }
 }
