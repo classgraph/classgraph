@@ -100,7 +100,17 @@ public final class TypeParameter extends HierarchicalTypeSignature {
         return Collections.unmodifiableList(interfaceBounds);
     }
 
-    @Override
+    /**
+     * Add a type annotation to this type parameter. (A type annotation on one of its bounds is added to that bound
+     * instead.)
+     *
+     * @param typePath
+     *            The type path, which must be empty.
+     * @param annotationInfo
+     *            The annotation to add.
+     * @throws IllegalArgumentException
+     *             if the type path is not empty.
+     */
     void addTypeAnnotation(final List<TypePathNode> typePath, final AnnotationInfo annotationInfo) {
         if (typePath.isEmpty()) {
             addTypeAnnotation(annotationInfo);

@@ -34,7 +34,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import io.github.classgraph.Classfile.TypePathNode;
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.utils.CollectionUtils;
 import org.jspecify.annotations.Nullable;
@@ -105,16 +104,6 @@ public abstract sealed class HierarchicalTypeSignature extends ScanResultObject
             return typeAnnotationInfoRef;
         }
     }
-
-    /**
-     * Add a type annotation.
-     *
-     * @param typePath
-     *            the type path
-     * @param annotationInfo
-     *            the annotation
-     */
-    abstract void addTypeAnnotation(List<TypePathNode> typePath, AnnotationInfo annotationInfo);
 
     /**
      * Get the names of any classes referenced in the type signature.

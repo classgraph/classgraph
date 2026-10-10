@@ -34,7 +34,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
-import io.github.classgraph.Classfile.TypePathNode;
 import io.github.classgraph.TypeUtils.ModifierType;
 import org.jspecify.annotations.Nullable;
 
@@ -171,13 +170,6 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
     @Nullable
     List<ClassRefOrTypeVariableSignature> getThrowsSignatures() {
         return throwsSignatures;
-    }
-
-    @Override
-    void addTypeAnnotation(final List<TypePathNode> typePath, final AnnotationInfo annotationInfo) {
-        // Individual parts of a class' type each have their own addTypeAnnotation methods
-        throw new UnsupportedOperationException(
-                "Cannot call this method on " + ClassTypeSignature.class.getSimpleName());
     }
 
     // -------------------------------------------------------------------------------------------------------------
