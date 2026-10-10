@@ -239,7 +239,7 @@ public class ClassLoaderProbe {
         final var classloaderOrderLog = log == null ? null
                 : log.log("Finding unique classloaders in delegation order");
         for (final ClassLoader classLoader : classLoaders) {
-            classLoaderOrder.delegateTo(classLoader, /* isParent = */ false, classloaderOrderLog);
+            classLoaderOrder.delegateToPeer(classLoader, classloaderOrderLog);
         }
 
         // Get all parent classloaders

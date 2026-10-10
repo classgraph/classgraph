@@ -81,7 +81,7 @@ class PlexusClassWorldsClassRealmClassLoaderHandler extends URLClassLoaderHandle
                 final var foreignImportClassLoader = (ClassLoader) ReflectionUtils.invokeMethod(false, entry,
                         "getClassLoader");
                 // Treat foreign import classloader as if it is a parent classloader
-                classLoaderOrder.delegateTo(foreignImportClassLoader, /* isParent = */ true, log);
+                classLoaderOrder.delegateToParent(foreignImportClassLoader, log);
             }
         }
 
@@ -99,8 +99,8 @@ class PlexusClassWorldsClassRealmClassLoaderHandler extends URLClassLoaderHandle
         // find classes that are not loaded by the parent classloader).
         final var parentClassLoader = (ClassLoader) ReflectionUtils.invokeMethod(false, classLoader,
                 "getParentClassLoader");
-        classLoaderOrder.delegateTo(parentClassLoader, /* isParent = */ true, log);
-        classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true, log);
+        classLoaderOrder.delegateToParent(parentClassLoader, log);
+        classLoaderOrder.delegateToParent(classLoader.getParent(), log);
 
         // From ClassRealm#loadClassFromSelf(String) -> findLoadedClass(String) for parent-first strategy
         if (isParentFirst) {

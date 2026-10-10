@@ -50,10 +50,9 @@ class EquinoxContextFinderClassLoaderHandler implements OSGiClassLoaderHandler {
     @Override
     public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
             final @Nullable ClassGraphLog log) {
-        classLoaderOrder.delegateTo(
-                (ClassLoader) ReflectionUtils.getFieldVal(false, classLoader, "parentContextClassLoader"),
-                /* isParent = */ true, log);
-        classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true, log);
+        classLoaderOrder.delegateToParent(
+                (ClassLoader) ReflectionUtils.getFieldVal(false, classLoader, "parentContextClassLoader"), log);
+        classLoaderOrder.delegateToParent(classLoader.getParent(), log);
         classLoaderOrder.add(classLoader, log);
     }
 

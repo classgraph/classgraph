@@ -61,7 +61,7 @@ class FelixClassLoaderHandler implements OSGiClassLoaderHandler {
     @Override
     public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
             final @Nullable ClassGraphLog log) {
-        classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true, log);
+        classLoaderOrder.delegateToParent(classLoader.getParent(), log);
         classLoaderOrder.add(classLoader, log);
     }
 

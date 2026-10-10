@@ -71,7 +71,7 @@ class JPMSClassLoaderHandler implements ClassLoaderHandler {
     @Override
     public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
             final @Nullable ClassGraphLog log) {
-        classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true, log);
+        classLoaderOrder.delegateToParent(classLoader.getParent(), log);
         // The bootstrap classloader has a URLClassPath only if the boot classpath was appended to, either with
         // -Xbootclasspath/a or with the Boot-Class-Path attribute of a Java agent's manifest. Those entries are not
         // listed in any system property, and the bootstrap classloader is not reachable through the parent chain,
@@ -80,7 +80,7 @@ class JPMSClassLoaderHandler implements ClassLoaderHandler {
         final var bootClassLoader = getBootClassLoader();
         if (bootClassLoader != null && bootClassLoader != classLoader
                 && URLClassPathReader.getUcp(bootClassLoader) != null) {
-            classLoaderOrder.delegateTo(bootClassLoader, /* isParent = */ true, log);
+            classLoaderOrder.delegateToParent(bootClassLoader, log);
         }
         classLoaderOrder.add(classLoader, log);
     }

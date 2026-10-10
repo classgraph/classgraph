@@ -82,7 +82,7 @@ class TomcatWebappClassLoaderBaseHandler extends URLClassLoaderHandler {
         final var isParentFirst = isParentFirst(classLoader);
         if (isParentFirst) {
             // Use parent-first delegation order
-            classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true, log);
+            classLoaderOrder.delegateToParent(classLoader.getParent(), log);
         }
         if (classIsOrExtendsOrImplements(classLoader.getClass(), TOMEE_WEBAPP_CLASS_LOADER)) {
             // TomEEWebappClassLoader has a lot of complex delegation rules, including classname-specific
@@ -92,13 +92,13 @@ class TomcatWebappClassLoaderBaseHandler extends URLClassLoaderHandler {
             // necessarily visible to ClassGraph's own classloader
             final var openEJB = ReflectionUtils.classForNameOrNull("org.apache.openejb.OpenEJB", classLoader);
             if (openEJB != null) {
-                classLoaderOrder.delegateTo(openEJB.getClassLoader(), /* isParent = */ true, log);
+                classLoaderOrder.delegateToParent(openEJB.getClassLoader(), log);
             }
         }
         classLoaderOrder.add(classLoader, log);
         if (!isParentFirst) {
             // Use parent-last delegation order
-            classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true, log);
+            classLoaderOrder.delegateToParent(classLoader.getParent(), log);
         }
     }
 
