@@ -36,7 +36,7 @@ import java.util.Objects;
 import java.util.Set;
 
 import io.github.classgraph.ClassInfo.RelType;
-import io.github.classgraph.Classfile.TypeAnnotationDecorator;
+import io.github.classgraph.Classfile.TypeAnnotation;
 import io.github.classgraph.TypeUtils.ModifierType;
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.utils.StringUtils;
@@ -57,9 +57,9 @@ public final class FieldInfo extends ClassMemberInfo implements Comparable<Field
     private final @Nullable Object constantInitializerValue;
 
     /**
-     * The type annotation decorators for the {@link TypeSignature} instance of this field.
+     * The type annotations to add to the {@link TypeSignature} instance of this field.
      */
-    private @Nullable List<TypeAnnotationDecorator> typeAnnotationDecorators;
+    private @Nullable List<TypeAnnotation<TypeSignature>> typeAnnotationDecorators;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -81,12 +81,12 @@ public final class FieldInfo extends ClassMemberInfo implements Comparable<Field
      * @param annotationInfo
      *            {@link AnnotationInfo} for any annotations on the field.
      * @param typeAnnotationDecorators
-     *            the type annotation decorators to apply to the parsed field type, or null if none.
+     *            the type annotations to add to the parsed field type, or null if none.
      */
     FieldInfo(final String definingClassName, final String fieldName, final int modifiers,
             final String typeDescriptorStr, final @Nullable String typeSignatureStr,
             final @Nullable Object constantInitializerValue, final @Nullable List<AnnotationInfo> annotationInfo,
-            final @Nullable List<TypeAnnotationDecorator> typeAnnotationDecorators) {
+            final @Nullable List<TypeAnnotation<TypeSignature>> typeAnnotationDecorators) {
         super(definingClassName, fieldName, modifiers, typeDescriptorStr, typeSignatureStr, annotationInfo);
         this.constantInitializerValue = constantInitializerValue;
         this.typeAnnotationDecorators = typeAnnotationDecorators;
@@ -150,7 +150,7 @@ public final class FieldInfo extends ClassMemberInfo implements Comparable<Field
     }
 
     /**
-     * Run the type annotation decorators on the given parsed field type. Any individual type annotation that cannot
+     * Add the field's type annotations to the given parsed field type. Any individual type annotation that cannot
      * be matched to the type (e.g. an unresolvable nested type, or a compiler bug) is skipped rather than being
      * allowed to abort parsing of the whole field type.
      *
@@ -159,16 +159,7 @@ public final class FieldInfo extends ClassMemberInfo implements Comparable<Field
      */
     // #897
     private void decorateType(final TypeSignature fieldType) {
-        if (typeAnnotationDecorators != null) {
-            for (final TypeAnnotationDecorator decorator : typeAnnotationDecorators) {
-                try {
-                    decorator.decorate(fieldType);
-                } catch (final IllegalArgumentException e) {
-                    // Skip a type annotation that cannot be matched to the field type, rather than failing to
-                    // produce the whole field type (best effort). (#897)
-                }
-            }
-        }
+        TypeAnnotation.applyAll(typeAnnotationDecorators, fieldType);
     }
 
     /**

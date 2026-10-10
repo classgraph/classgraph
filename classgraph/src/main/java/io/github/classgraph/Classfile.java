@@ -157,9 +157,9 @@ class Classfile {
     private @Nullable String sourceFile;
 
     /**
-     * The type annotation decorators for the {@link ClassTypeSignature} instance.
+     * The type annotations to add to the {@link ClassTypeSignature} instance.
      */
-    private @Nullable List<ClassTypeAnnotationDecorator> classTypeAnnotationDecorators;
+    private @Nullable List<TypeAnnotation<ClassTypeSignature>> classTypeAnnotationDecorators;
 
     /**
      * The names of accepted classes found in the classpath while scanning paths within classpath elements.
@@ -1102,45 +1102,82 @@ class Classfile {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Adds a type annotation to the part of a class type signature that a type annotation's target info points at.
+     * The part of a type that a type annotation's {@code target_info} names, such as a type parameter, a bound, a
+     * formal parameter or a supertype.
+     *
+     * @param <T>
+     *            the type that the target info indexes into: {@link ClassTypeSignature} for a class,
+     *            {@link MethodTypeSignature} for a method, or {@link TypeSignature} for the type of a field
      */
     @FunctionalInterface
-    interface ClassTypeAnnotationDecorator {
+    interface TypeAnnotationTarget<T> {
         /**
-         * Add the type annotation to the class type signature.
+         * Add a type annotation to the part of the type that the target info names.
          *
-         * @param classTypeSignature
-         *            the class type signature to decorate
+         * @param type
+         *            the type signature or type descriptor to add the annotation to
+         * @param typePath
+         *            the type path of the annotation within the part of the type that the target info names
+         * @param annotationInfo
+         *            the annotation
+         * @throws IllegalArgumentException
+         *             if the type path does not fit the type
          */
-        void decorate(ClassTypeSignature classTypeSignature);
+        void annotate(T type, List<TypePathNode> typePath, AnnotationInfo annotationInfo);
     }
 
     /**
-     * Adds a type annotation to the part of a method type signature that a type annotation's target info points at.
+     * A type annotation read from a {@code RuntimeVisibleTypeAnnotations} or
+     * {@code RuntimeInvisibleTypeAnnotations} attribute. It is added to the type when the type signature or type
+     * descriptor is parsed, which happens after the classfile has been read.
+     *
+     * @param <T>
+     *            the type that the annotation's target info indexes into
+     * @param target
+     *            the part of the type that the annotation's target info names
+     * @param typePath
+     *            the type path of the annotation within that part of the type
+     * @param annotationInfo
+     *            the annotation
      */
-    @FunctionalInterface
-    interface MethodTypeAnnotationDecorator {
+    record TypeAnnotation<T>(TypeAnnotationTarget<T> target, List<TypePathNode> typePath,
+            AnnotationInfo annotationInfo) {
         /**
-         * Add the type annotation to the method type signature.
+         * Add the type annotation to a type signature or type descriptor. A type annotation that cannot be matched
+         * to the type (from a corrupt classfile, or a compiler bug) is skipped, rather than making the whole type
+         * unreadable.
          *
-         * @param methodTypeSignature
-         *            the method type signature to decorate
+         * @param type
+         *            the type signature or type descriptor to add the annotation to
          */
-        void decorate(MethodTypeSignature methodTypeSignature);
-    }
+        // #897
+        void applyTo(final T type) {
+            try {
+                target.annotate(type, typePath, annotationInfo);
+            } catch (final IllegalArgumentException e) {
+                // Skip a type annotation that cannot be matched to the type, rather than failing to produce the
+                // whole type (best effort). (#897)
+            }
+        }
 
-    /**
-     * Adds a type annotation to the part of a type signature that a type annotation's type path points at.
-     */
-    @FunctionalInterface
-    interface TypeAnnotationDecorator {
         /**
-         * Add the type annotation to the type signature.
+         * Add type annotations to a type signature or type descriptor, skipping any that cannot be matched to the
+         * type.
          *
-         * @param typeSignature
-         *            the type signature to decorate
+         * @param <T>
+         *            the type that the annotations' target info indexes into
+         * @param typeAnnotations
+         *            the type annotations, or null if there are none
+         * @param type
+         *            the type signature or type descriptor to add the annotations to
          */
-        void decorate(TypeSignature typeSignature);
+        static <T> void applyAll(final @Nullable List<TypeAnnotation<T>> typeAnnotations, final T type) {
+            if (typeAnnotations != null) {
+                for (final var typeAnnotation : typeAnnotations) {
+                    typeAnnotation.applyTo(type);
+                }
+            }
+        }
     }
 
     /**
@@ -1617,7 +1654,7 @@ class Classfile {
         final var fieldTypeDescriptor = requireConstantPoolString(getConstantPoolString(fieldTypeDescriptorCpIdx),
                 "field type descriptor");
 
-        List<TypeAnnotationDecorator> fieldTypeAnnotationDecorators = null;
+        List<TypeAnnotation<TypeSignature>> fieldTypeAnnotationDecorators = null;
         String fieldTypeSignatureStr = null;
         Object fieldConstValue = null;
         List<AnnotationInfo> fieldAnnotationInfo = null;
@@ -1640,16 +1677,7 @@ class Classfile {
             } else if (isAnnotationsAttribute(attributeNameCpIdx)) {
                 fieldAnnotationInfo = readAnnotations(fieldAnnotationInfo);
             } else if (isTypeAnnotationsAttribute(attributeNameCpIdx)) {
-                final var decorators = readFieldTypeAnnotationDecorators();
-                // Merge with the decorators of the other of the runtime visible/invisible type annotations
-                // attributes, either or both of which may be present
-                if (decorators != null) {
-                    if (fieldTypeAnnotationDecorators == null) {
-                        fieldTypeAnnotationDecorators = decorators;
-                    } else {
-                        fieldTypeAnnotationDecorators.addAll(decorators);
-                    }
-                }
+                fieldTypeAnnotationDecorators = readFieldTypeAnnotationDecorators(fieldTypeAnnotationDecorators);
             } else {
                 // No match, just skip attribute
                 reader().skip(attributeLength);
@@ -1666,26 +1694,34 @@ class Classfile {
     }
 
     /**
-     * Read a field's {@code RuntimeVisibleTypeAnnotations} or {@code RuntimeInvisibleTypeAnnotations} attribute.
+     * Read a field's {@code RuntimeVisibleTypeAnnotations} or {@code RuntimeInvisibleTypeAnnotations} attribute
+     * into a list of type annotations. The two attributes are read into the same list, so the list of the other
+     * attribute, if it was read first, is passed in.
      *
-     * @return one decorator per type annotation, which adds the annotation to the annotated type of a field type
-     *         signature, or null if the attribute holds no annotations
+     * @param typeAnnotationList
+     *            the type annotations read from the other attribute, or null if this is the first of the two
+     *            attributes to be encountered
+     * @return the type annotation list, which is created if it was null and this attribute holds any annotations,
+     *         or null if the attribute holds no annotations and the list had not been created yet
      * @throws IOException
      *             if an I/O exception occurs.
      * @throws ClassfileFormatException
      *             if a type annotation has a target type that is not permitted in a field.
      */
-    private @Nullable List<TypeAnnotationDecorator> readFieldTypeAnnotationDecorators()
+    private @Nullable List<TypeAnnotation<TypeSignature>> readFieldTypeAnnotationDecorators(
+            final @Nullable List<TypeAnnotation<TypeSignature>> typeAnnotationList)
             throws IOException, ClassfileFormatException {
         final var annotationCount = reader().readUnsignedShort();
         if (annotationCount == 0) {
-            return null;
+            return typeAnnotationList;
         }
-        final List<TypeAnnotationDecorator> decorators = new ArrayList<>(annotationCount);
+        final var typeAnnotations = typeAnnotationList == null
+                ? new ArrayList<TypeAnnotation<TypeSignature>>(annotationCount)
+                : typeAnnotationList;
         for (var i = 0; i < annotationCount; i++) {
             final var targetType = reader().readUnsignedByte();
-            // 0x13 is the only target_type that JVMS 26 table 4.7.20-A permits in field_info.
-            // Complete and up to date as of JDK 26.
+            // 0x13 is the only target_type that JVMS 26 table 4.7.20-A permits in field_info. Its target_info is
+            // empty, since it names the field type itself. Complete and up to date as of JDK 26.
             if (targetType != 0x13) {
                 throw new ClassfileFormatException("Class " + className
                         + " has unknown field type annotation target 0x" + Integer.toHexString(targetType)
@@ -1694,9 +1730,9 @@ class Classfile {
             }
             final var typePath = readTypePath();
             final var annotationInfo = readAnnotation();
-            decorators.add(typeSignature -> typeSignature.addTypeAnnotation(typePath, annotationInfo));
+            typeAnnotations.add(new TypeAnnotation<>(TypeSignature::addTypeAnnotation, typePath, annotationInfo));
         }
-        return decorators;
+        return typeAnnotations;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -1759,7 +1795,7 @@ class Classfile {
             throw new ClassfileFormatException("Method name and/or type descriptor is null");
         }
 
-        List<MethodTypeAnnotationDecorator> methodTypeAnnotationDecorators = null;
+        List<TypeAnnotation<MethodTypeSignature>> methodTypeAnnotationDecorators = null;
         String methodTypeSignatureStr = null;
         List<AnnotationInfo> methodAnnotationInfo = null;
         AnnotationInfo[][] methodParameterAnnotations = null;
@@ -1778,16 +1814,7 @@ class Classfile {
             } else if (isParameterAnnotationsAttribute(attributeNameCpIdx)) {
                 methodParameterAnnotations = readMethodParameterAnnotations(methodParameterAnnotations);
             } else if (isTypeAnnotationsAttribute(attributeNameCpIdx)) {
-                final var decorators = readMethodTypeAnnotationDecorators();
-                // Merge with the decorators of the other of the runtime visible/invisible type annotations
-                // attributes, either or both of which may be present
-                if (decorators != null) {
-                    if (methodTypeAnnotationDecorators == null) {
-                        methodTypeAnnotationDecorators = decorators;
-                    } else {
-                        methodTypeAnnotationDecorators.addAll(decorators);
-                    }
-                }
+                methodTypeAnnotationDecorators = readMethodTypeAnnotationDecorators(methodTypeAnnotationDecorators);
             } else if (constantPoolStringEquals(attributeNameCpIdx, "MethodParameters")) {
                 // Read method parameters. For Java, these are only produced in JDK8+, and only if the commandline
                 // switch `-parameters` is provided at compiletime.
@@ -1888,38 +1915,41 @@ class Classfile {
     }
 
     /**
-     * Read a method's {@code RuntimeVisibleTypeAnnotations} or {@code RuntimeInvisibleTypeAnnotations} attribute.
+     * Read a method's {@code RuntimeVisibleTypeAnnotations} or {@code RuntimeInvisibleTypeAnnotations} attribute
+     * into a list of type annotations. The two attributes are read into the same list, so the list of the other
+     * attribute, if it was read first, is passed in.
      *
-     * @return one decorator per type annotation, which adds the annotation to the annotated type of a method type
-     *         signature, or null if the attribute holds no annotations
+     * @param typeAnnotationList
+     *            the type annotations read from the other attribute, or null if this is the first of the two
+     *            attributes to be encountered
+     * @return the type annotation list, which is created if it was null and this attribute holds any annotations,
+     *         or null if the attribute holds no annotations and the list had not been created yet
      * @throws IOException
      *             if an I/O exception occurs.
      * @throws ClassfileFormatException
      *             if a type annotation has a target type that is not permitted in a method.
      */
-    private @Nullable List<MethodTypeAnnotationDecorator> readMethodTypeAnnotationDecorators()
+    private @Nullable List<TypeAnnotation<MethodTypeSignature>> readMethodTypeAnnotationDecorators(
+            final @Nullable List<TypeAnnotation<MethodTypeSignature>> typeAnnotationList)
             throws IOException, ClassfileFormatException {
         final var annotationCount = reader().readUnsignedShort();
         if (annotationCount == 0) {
-            return null;
+            return typeAnnotationList;
         }
-        final List<MethodTypeAnnotationDecorator> decorators = new ArrayList<>(annotationCount);
+        final var typeAnnotations = typeAnnotationList == null
+                ? new ArrayList<TypeAnnotation<MethodTypeSignature>>(annotationCount)
+                : typeAnnotationList;
         for (var i = 0; i < annotationCount; i++) {
             final var targetType = reader().readUnsignedByte();
-            final int typeParameterIndex;
-            final int boundIndex;
-            final int formalParameterIndex;
-            final int throwsTypeIndex;
             // JVMS 26 table 4.7.20-A permits target_types 0x01, 0x12, 0x14, 0x15, 0x16 and 0x17 in method_info; all
             // are handled below, plus 0x10 and 0x13, which are illegal here but are emitted by buggy compilers (see
-            // the notes below). Complete and up to date as of JDK 26.
-            switch (targetType) {
+            // the notes below), and are read but ignored (null target). Complete and up to date as of JDK 26.
+            final TypeAnnotationTarget<MethodTypeSignature> target = switch (targetType) {
             case 0x01 -> {
                 // Type parameter declaration of generic method or constructor
-                typeParameterIndex = reader().readUnsignedByte();
-                boundIndex = -1;
-                formalParameterIndex = -1;
-                throwsTypeIndex = -1;
+                final var typeParameterIndex = reader().readUnsignedByte();
+                yield (methodType, typePath, annotationInfo) -> annotateTypeParameter(
+                        methodType.getTypeParameters(), typeParameterIndex, typePath, annotationInfo);
             }
             case 0x10 -> {
                 // This target_type is not supposed to be added to methods, it is intended for ClassFile
@@ -1927,142 +1957,126 @@ class Classfile {
                 // some reason. Just ignore these annotations.
                 // (#861)
                 reader().readUnsignedShort();
-                typeParameterIndex = -1;
-                boundIndex = -1;
-                formalParameterIndex = -1;
-                throwsTypeIndex = -1;
+                yield null;
             }
             case 0x12 -> {
                 // Type in bound of type parameter declaration of generic method or constructor
-                typeParameterIndex = reader().readUnsignedByte();
-                boundIndex = reader().readUnsignedByte();
-                formalParameterIndex = -1;
-                throwsTypeIndex = -1;
+                final var typeParameterIndex = reader().readUnsignedByte();
+                final var boundIndex = reader().readUnsignedByte();
+                yield (methodType, typePath, annotationInfo) -> annotateTypeParameterBound(
+                        methodType.getTypeParameters(), typeParameterIndex, boundIndex, typePath, annotationInfo);
             }
-            case 0x13, 0x14, 0x15 -> {
-                // 0x13: Type in field or record component declaration (empty target). This target_type is not
-                // supposed to be added to methods, but it seems that the JDK 17 compiler is buggy, and adds this
-                // target_type to the methods of records anyway (#797). Therefore, accept this, but ignore it (the
-                // same target_type should also be added to the fields of records). 0x14: Return type of method, or
-                // type of newly constructed object (empty target). 0x15: Receiver type of method or constructor
-                // (empty target).
-                typeParameterIndex = -1;
-                boundIndex = -1;
-                formalParameterIndex = -1;
-                throwsTypeIndex = -1;
-            }
+            case 0x13 ->
+                // Type in field or record component declaration (empty target). This target_type is not supposed to
+                // be added to methods, but it seems that the JDK 17 compiler is buggy, and adds this target_type to
+                // the methods of records anyway (#797). Therefore, accept this, but ignore it (the same target_type
+                // should also be added to the fields of records).
+                null;
+            case 0x14 ->
+                // Return type of method, or type of newly constructed object (empty target)
+                (methodType, typePath, annotationInfo) -> methodType.getResultType().addTypeAnnotation(typePath,
+                        annotationInfo);
+            case 0x15 ->
+                // Receiver type of method or constructor (explicit receiver parameter) (empty target)
+                (methodType, typePath, annotationInfo) -> methodType.addReceiverTypeAnnotation(annotationInfo);
             case 0x16 -> {
-                // Type in formal parameter declaration of method, constructor, or lambda expression
-                typeParameterIndex = -1;
-                boundIndex = -1;
-                formalParameterIndex = reader().readUnsignedByte();
-                throwsTypeIndex = -1;
+                // Type in formal parameter declaration of method, constructor, or lambda expression.
+                // N.B. formal parameter indices are dodgy, because not all compilers index parameters the same way
+                // -- so be robust here. The classfile spec says "A formal_parameter_index value of i may, but is
+                // not required to, correspond to the i'th parameter descriptor in the method descriptor". Also "The
+                // formal_parameter_target item records that a formal parameter's type is annotated, but does not
+                // record the type itself. The type may be found by inspecting the method descriptor, although a
+                // formal_parameter_index value of 0 does not always indicate the first parameter descriptor in the
+                // method descriptor." What the heck, guys.
+                final var formalParameterIndex = reader().readUnsignedByte();
+                yield (methodType, typePath, annotationInfo) -> {
+                    final var parameterTypeSignatures = methodType.getParameterTypeSignatures();
+                    if (formalParameterIndex < parameterTypeSignatures.size()) {
+                        parameterTypeSignatures.get(formalParameterIndex).addTypeAnnotation(typePath,
+                                annotationInfo);
+                    }
+                };
             }
             case 0x17 -> {
                 // Type in throws clause of method or constructor
-                typeParameterIndex = -1;
-                boundIndex = -1;
-                formalParameterIndex = -1;
-                throwsTypeIndex = reader().readUnsignedShort();
+                final var throwsTypeIndex = reader().readUnsignedShort();
+                yield (methodType, typePath, annotationInfo) -> {
+                    final var throwsSignatures = methodType.getThrowsSignatures();
+                    if (throwsTypeIndex < throwsSignatures.size()) {
+                        throwsSignatures.get(throwsTypeIndex).addTypeAnnotation(typePath, annotationInfo);
+                    }
+                };
             }
             default -> throw new ClassfileFormatException("Class " + className
                     + " has unknown method type annotation target 0x" + Integer.toHexString(targetType)
                     + ": element size unknown, cannot continue reading class. " + "Please report this at "
                     + "https://github.com/classgraph/classgraph/issues");
-            }
+            };
             final var typePath = readTypePath();
             final var annotationInfo = readAnnotation();
-            decorators.add(methodTypeSignature -> decorateMethodTypeSignature(methodTypeSignature, targetType,
-                    typeParameterIndex, boundIndex, formalParameterIndex, throwsTypeIndex, typePath,
-                    annotationInfo));
+            if (target != null) {
+                typeAnnotations.add(new TypeAnnotation<>(target, typePath, annotationInfo));
+            }
         }
-        return decorators;
+        return typeAnnotations;
     }
 
     /**
-     * Add a type annotation to the type of a method type signature that the annotation's target info names.
+     * Add a type annotation to a type parameter of a class or method type signature (target_type 0x00 or 0x01).
      *
-     * @param methodTypeSignature
-     *            the method type signature to decorate
-     * @param targetType
-     *            the {@code target_type} of the type annotation
+     * @param typeParameters
+     *            the type parameters of the class or method type signature
      * @param typeParameterIndex
-     *            the index of the annotated type parameter, or -1 if the target info does not name one
-     * @param boundIndex
-     *            the index of the annotated bound of a type parameter, or -1 if the target info does not name one
-     * @param formalParameterIndex
-     *            the index of the annotated formal parameter, or -1 if the target info does not name one
-     * @param throwsTypeIndex
-     *            the index of the annotated thrown type, or -1 if the target info does not name one
+     *            the index of the annotated type parameter
      * @param typePath
-     *            the type path of the annotation within the annotated type
+     *            the type path of the annotation within the type parameter
      * @param annotationInfo
      *            the annotation
      */
-    private static void decorateMethodTypeSignature(final MethodTypeSignature methodTypeSignature,
-            final int targetType, final int typeParameterIndex, final int boundIndex,
-            final int formalParameterIndex, final int throwsTypeIndex, final List<TypePathNode> typePath,
-            final AnnotationInfo annotationInfo) {
-        switch (targetType) {
-        case 0x01 -> {
-            // Type parameter declaration of generic method or constructor
-            final var typeParameters = methodTypeSignature.getTypeParameters();
-            if (typeParameters != null && typeParameterIndex < typeParameters.size()) {
-                typeParameters.get(typeParameterIndex).addTypeAnnotation(typePath, annotationInfo);
-            }
-            // else this is a method type descriptor, not a method type signature, so there are no type parameters
+    private static void annotateTypeParameter(final List<TypeParameter> typeParameters,
+            final int typeParameterIndex, final List<TypePathNode> typePath, final AnnotationInfo annotationInfo) {
+        if (typeParameterIndex < typeParameters.size()) {
+            typeParameters.get(typeParameterIndex).addTypeAnnotation(typePath, annotationInfo);
         }
-        case 0x12 -> {
-            // Type in bound of type parameter declaration of generic method or constructor
-            final var typeParameters = methodTypeSignature.getTypeParameters();
-            if (typeParameters != null && typeParameterIndex < typeParameters.size()) {
-                final var typeParameter = typeParameters.get(typeParameterIndex);
-                // boundIndex == 0 => class bound; boundIndex > 0 => interface bound
-                if (boundIndex == 0) {
-                    final var classBound = typeParameter.getClassBound();
-                    if (classBound != null) {
-                        classBound.addTypeAnnotation(typePath, annotationInfo);
-                    }
-                } else {
-                    final var interfaceBounds = typeParameter.getInterfaceBounds();
-                    if (interfaceBounds != null && boundIndex - 1 < interfaceBounds.size()) {
-                        interfaceBounds.get(boundIndex - 1).addTypeAnnotation(typePath, annotationInfo);
-                    }
+        // else there is no type parameter at this index, e.g. because the type is a type descriptor, which has no
+        // type parameters
+    }
+
+    /**
+     * Add a type annotation to a bound of a type parameter of a class or method type signature (target_type 0x11 or
+     * 0x12).
+     *
+     * @param typeParameters
+     *            the type parameters of the class or method type signature
+     * @param typeParameterIndex
+     *            the index of the type parameter whose bound is annotated
+     * @param boundIndex
+     *            the index of the annotated bound: 0 for the class bound, or n for the nth interface bound
+     * @param typePath
+     *            the type path of the annotation within the bound
+     * @param annotationInfo
+     *            the annotation
+     */
+    private static void annotateTypeParameterBound(final List<TypeParameter> typeParameters,
+            final int typeParameterIndex, final int boundIndex, final List<TypePathNode> typePath,
+            final AnnotationInfo annotationInfo) {
+        if (typeParameterIndex < typeParameters.size()) {
+            final var typeParameter = typeParameters.get(typeParameterIndex);
+            // boundIndex == 0 => class bound; boundIndex > 0 => interface bound
+            if (boundIndex == 0) {
+                final var classBound = typeParameter.getClassBound();
+                if (classBound != null) {
+                    classBound.addTypeAnnotation(typePath, annotationInfo);
+                }
+            } else {
+                final var interfaceBounds = typeParameter.getInterfaceBounds();
+                if (boundIndex - 1 < interfaceBounds.size()) {
+                    interfaceBounds.get(boundIndex - 1).addTypeAnnotation(typePath, annotationInfo);
                 }
             }
-            // else this is a method type descriptor, not a method type signature, so there are no type parameters
         }
-        case 0x14 ->
-            // Return type of method, or type of newly constructed object
-            methodTypeSignature.getResultType().addTypeAnnotation(typePath, annotationInfo);
-        case 0x15 ->
-            // Receiver type of method or constructor (explicit receiver parameter)
-            methodTypeSignature.addReceiverTypeAnnotation(annotationInfo);
-        case 0x16 -> {
-            // Type in formal parameter declaration of method, constructor, or lambda expression.
-            // N.B. formal parameter indices are dodgy, because not all compilers index parameters the same way --
-            // so be robust here. The classfile spec says "A formal_parameter_index value of i may, but is not
-            // required to, correspond to the i'th parameter descriptor in the method descriptor". Also "The
-            // formal_parameter_target item records that a formal parameter's type is annotated, but does not record
-            // the type itself. The type may be found by inspecting the method descriptor, although a
-            // formal_parameter_index value of 0 does not always indicate the first parameter descriptor in the
-            // method descriptor." What the heck, guys.
-            final var parameterTypeSignatures = methodTypeSignature.getParameterTypeSignatures();
-            if (formalParameterIndex < parameterTypeSignatures.size()) {
-                parameterTypeSignatures.get(formalParameterIndex).addTypeAnnotation(typePath, annotationInfo);
-            }
-        }
-        case 0x17 -> {
-            // Type in throws clause of method or constructor
-            final var throwsSignatures = methodTypeSignature.getThrowsSignatures();
-            if (throwsSignatures != null && throwsTypeIndex < throwsSignatures.size()) {
-                throwsSignatures.get(throwsTypeIndex).addTypeAnnotation(typePath, annotationInfo);
-            }
-        }
-        default -> {
-            // Ignore other target types (e.g. 0x10 and 0x13, which are emitted for methods by some buggy compilers)
-        }
-        }
+        // else there is no type parameter at this index, e.g. because the type is a type descriptor, which has no
+        // type parameters
     }
 
     /**
@@ -2129,16 +2143,7 @@ class Classfile {
             if (isAnnotationsAttribute(attributeNameCpIdx)) {
                 classAnnotations = readAnnotations(classAnnotations);
             } else if (isTypeAnnotationsAttribute(attributeNameCpIdx)) {
-                final var decorators = readClassTypeAnnotationDecorators();
-                // Merge with the decorators of the other of the runtime visible/invisible type annotations
-                // attributes, either or both of which may be present
-                if (decorators != null) {
-                    if (classTypeAnnotationDecorators == null) {
-                        classTypeAnnotationDecorators = decorators;
-                    } else {
-                        classTypeAnnotationDecorators.addAll(decorators);
-                    }
-                }
+                classTypeAnnotationDecorators = readClassTypeAnnotationDecorators(classTypeAnnotationDecorators);
             } else if (constantPoolStringEquals(attributeNameCpIdx, "Record")) {
                 isRecord = true;
                 // No need to read record_components_info entries -- there is a 1:1 correspondence between record
@@ -2167,134 +2172,80 @@ class Classfile {
     }
 
     /**
-     * Read the class' {@code RuntimeVisibleTypeAnnotations} or {@code RuntimeInvisibleTypeAnnotations} attribute.
+     * Read the class' {@code RuntimeVisibleTypeAnnotations} or {@code RuntimeInvisibleTypeAnnotations} attribute
+     * into a list of type annotations. The two attributes are read into the same list, so the list of the other
+     * attribute, if it was read first, is passed in.
      *
-     * @return one decorator per type annotation, which adds the annotation to the annotated type of the class type
-     *         signature, or null if the attribute holds no annotations
+     * @param typeAnnotationList
+     *            the type annotations read from the other attribute, or null if this is the first of the two
+     *            attributes to be encountered
+     * @return the type annotation list, which is created if it was null and this attribute holds any annotations,
+     *         or null if the attribute holds no annotations and the list had not been created yet
      * @throws IOException
      *             if an I/O exception occurs.
      * @throws ClassfileFormatException
      *             if a type annotation has a target type that is not permitted in a class.
      */
-    private @Nullable List<ClassTypeAnnotationDecorator> readClassTypeAnnotationDecorators()
+    private @Nullable List<TypeAnnotation<ClassTypeSignature>> readClassTypeAnnotationDecorators(
+            final @Nullable List<TypeAnnotation<ClassTypeSignature>> typeAnnotationList)
             throws IOException, ClassfileFormatException {
         final var annotationCount = reader().readUnsignedShort();
         if (annotationCount == 0) {
-            return null;
+            return typeAnnotationList;
         }
-        final List<ClassTypeAnnotationDecorator> decorators = new ArrayList<>(annotationCount);
+        final var typeAnnotations = typeAnnotationList == null
+                ? new ArrayList<TypeAnnotation<ClassTypeSignature>>(annotationCount)
+                : typeAnnotationList;
         for (var i = 0; i < annotationCount; i++) {
             final var targetType = reader().readUnsignedByte();
-            final int typeParameterIndex;
-            final int supertypeIndex;
-            final int boundIndex;
             // 0x00, 0x10 and 0x11 are the only target_types that JVMS 26 table 4.7.20-A permits in ClassFile.
             // Complete and up to date as of JDK 26.
-            switch (targetType) {
+            final TypeAnnotationTarget<ClassTypeSignature> target = switch (targetType) {
             case 0x00 -> {
                 // Type parameter declaration of generic class or interface
-                typeParameterIndex = reader().readUnsignedByte();
-                supertypeIndex = -1;
-                boundIndex = -1;
+                final var typeParameterIndex = reader().readUnsignedByte();
+                yield (classType, typePath, annotationInfo) -> annotateTypeParameter(classType.getTypeParameters(),
+                        typeParameterIndex, typePath, annotationInfo);
             }
             case 0x10 -> {
                 // Type in extends or implements clause of class declaration (including the direct superclass or
                 // direct superinterface of an anonymous class declaration), or in extends clause of interface
                 // declaration
-                supertypeIndex = reader().readUnsignedShort();
-                typeParameterIndex = -1;
-                boundIndex = -1;
+                final var supertypeIndex = reader().readUnsignedShort();
+                if (supertypeIndex == 65535) {
+                    // Type in extends clause of class declaration
+                    yield (classType, typePath, annotationInfo) -> {
+                        final var superclassSignature = classType.getSuperclassSignature();
+                        if (superclassSignature != null) {
+                            superclassSignature.addTypeAnnotation(typePath, annotationInfo);
+                        }
+                    };
+                }
+                // Type in implements clause of class declaration, or in extends clause of interface declaration
+                yield (classType, typePath, annotationInfo) -> {
+                    final var superinterfaceSignatures = classType.getSuperinterfaceSignatures();
+                    if (supertypeIndex < superinterfaceSignatures.size()) {
+                        superinterfaceSignatures.get(supertypeIndex).addTypeAnnotation(typePath, annotationInfo);
+                    }
+                };
             }
             case 0x11 -> {
                 // Type in bound of type parameter declaration of generic class or interface
-                typeParameterIndex = reader().readUnsignedByte();
-                boundIndex = reader().readUnsignedByte();
-                supertypeIndex = -1;
+                final var typeParameterIndex = reader().readUnsignedByte();
+                final var boundIndex = reader().readUnsignedByte();
+                yield (classType, typePath, annotationInfo) -> annotateTypeParameterBound(
+                        classType.getTypeParameters(), typeParameterIndex, boundIndex, typePath, annotationInfo);
             }
             default -> throw new ClassfileFormatException("Class " + className
                     + " has unknown class type annotation target 0x" + Integer.toHexString(targetType)
                     + ": element size unknown, cannot continue reading class. "
                     + "Please report this at https://github.com/classgraph/classgraph/issues");
-            }
+            };
             final var typePath = readTypePath();
             final var annotationInfo = readAnnotation();
-            decorators.add(classTypeSignature -> decorateClassTypeSignature(classTypeSignature, targetType,
-                    typeParameterIndex, supertypeIndex, boundIndex, typePath, annotationInfo));
+            typeAnnotations.add(new TypeAnnotation<>(target, typePath, annotationInfo));
         }
-        return decorators;
-    }
-
-    /**
-     * Add a type annotation to the type of a class type signature that the annotation's target info names.
-     *
-     * @param classTypeSignature
-     *            the class type signature to decorate
-     * @param targetType
-     *            the {@code target_type} of the type annotation
-     * @param typeParameterIndex
-     *            the index of the annotated type parameter, or -1 if the target info does not name one
-     * @param supertypeIndex
-     *            the index of the annotated superinterface, or 65535 for the superclass, or -1 if the target info
-     *            does not name a supertype
-     * @param boundIndex
-     *            the index of the annotated bound of a type parameter, or -1 if the target info does not name one
-     * @param typePath
-     *            the type path of the annotation within the annotated type
-     * @param annotationInfo
-     *            the annotation
-     */
-    private static void decorateClassTypeSignature(final ClassTypeSignature classTypeSignature,
-            final int targetType, final int typeParameterIndex, final int supertypeIndex, final int boundIndex,
-            final List<TypePathNode> typePath, final AnnotationInfo annotationInfo) {
-        switch (targetType) {
-        case 0x00 -> {
-            // Type parameter declaration of generic class or interface
-            final var typeParameters = classTypeSignature.getTypeParameters();
-            if (typeParameters != null && typeParameterIndex < typeParameters.size()) {
-                typeParameters.get(typeParameterIndex).addTypeAnnotation(typePath, annotationInfo);
-            }
-        }
-        case 0x10 -> {
-            // Type in extends or implements clause of class declaration (including the direct superclass or direct
-            // superinterface of an anonymous class declaration), or in extends clause of interface declaration
-            if (supertypeIndex == 65535) {
-                // Type in extends clause of class declaration
-                final var superclassSignature = classTypeSignature.getSuperclassSignature();
-                if (superclassSignature != null) {
-                    superclassSignature.addTypeAnnotation(typePath, annotationInfo);
-                }
-            } else {
-                // Type in implements clause of class declaration, or in extends clause of interface
-                // declaration
-                final var superinterfaceSignatures = classTypeSignature.getSuperinterfaceSignatures();
-                if (supertypeIndex < superinterfaceSignatures.size()) {
-                    superinterfaceSignatures.get(supertypeIndex).addTypeAnnotation(typePath, annotationInfo);
-                }
-            }
-        }
-        case 0x11 -> {
-            // Type in bound of type parameter declaration of generic class or interface
-            final var typeParameters = classTypeSignature.getTypeParameters();
-            if (typeParameters != null && typeParameterIndex < typeParameters.size()) {
-                final var typeParameter = typeParameters.get(typeParameterIndex);
-                // boundIndex == 0 => class bound; boundIndex > 0 => interface bound
-                if (boundIndex == 0) {
-                    final var classBound = typeParameter.getClassBound();
-                    if (classBound != null) {
-                        classBound.addTypeAnnotation(typePath, annotationInfo);
-                    }
-                } else {
-                    final var interfaceBounds = typeParameter.getInterfaceBounds();
-                    if (interfaceBounds != null && boundIndex - 1 < interfaceBounds.size()) {
-                        interfaceBounds.get(boundIndex - 1).addTypeAnnotation(typePath, annotationInfo);
-                    }
-                }
-            }
-        }
-        default -> {
-            // No other target types are permitted in ClassFile
-        }
-        }
+        return typeAnnotations;
     }
 
     /**

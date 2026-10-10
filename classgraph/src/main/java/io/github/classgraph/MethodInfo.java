@@ -38,7 +38,7 @@ import java.util.Map;
 import java.util.Set;
 
 import io.github.classgraph.ClassInfo.RelType;
-import io.github.classgraph.Classfile.MethodTypeAnnotationDecorator;
+import io.github.classgraph.Classfile.TypeAnnotation;
 import io.github.classgraph.TypeUtils.ModifierType;
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.utils.Assert;
@@ -85,9 +85,9 @@ public final class MethodInfo extends ClassMemberInfo implements Comparable<Meth
     private int maxLineNum;
 
     /**
-     * The type annotation decorators for the {@link MethodTypeSignature} instance.
+     * The type annotations to add to the {@link MethodTypeSignature} instance.
      */
-    private @Nullable List<MethodTypeAnnotationDecorator> typeAnnotationDecorators;
+    private @Nullable List<TypeAnnotation<MethodTypeSignature>> typeAnnotationDecorators;
 
     /** The names of the exceptions thrown by this method, or null if none. */
     private @Nullable List<String> thrownExceptionNames;
@@ -125,7 +125,7 @@ public final class MethodInfo extends ClassMemberInfo implements Comparable<Meth
      * @param maxLineNum
      *            The maximum line number for the body of this method, or 0 if unknown.
      * @param methodTypeAnnotationDecorators
-     *            Decorator lambdas for method type annotations.
+     *            The type annotations to add to the parsed method type, or null if none.
      * @param thrownExceptionNames
      *            exceptions thrown by this method.
      */
@@ -135,7 +135,7 @@ public final class MethodInfo extends ClassMemberInfo implements Comparable<Meth
             final @Nullable String @Nullable [] parameterNames, final int @Nullable [] parameterModifiers,
             final AnnotationInfo @Nullable [][] parameterAnnotationInfo, final boolean hasBody,
             final int minLineNum, final int maxLineNum,
-            final @Nullable List<MethodTypeAnnotationDecorator> methodTypeAnnotationDecorators,
+            final @Nullable List<TypeAnnotation<MethodTypeSignature>> methodTypeAnnotationDecorators,
             final String @Nullable [] thrownExceptionNames) {
         super(definingClassName, methodName, modifiers, typeDescriptorStr, typeSignatureStr, methodAnnotationInfo);
         this.parameterNames = parameterNames;
@@ -194,7 +194,7 @@ public final class MethodInfo extends ClassMemberInfo implements Comparable<Meth
                         // e.g. the leading enclosing-instance parameter of an inner class constructor, or
                         // the leading (String name, int ordinal) parameters of an enum constructor. Determine how
                         // many such implicit prefix parameters there are, strip them from the descriptor while
-                        // running the decorators so that formal_parameter_index lines up, then restore them. See
+                        // adding the type annotations so that formal_parameter_index lines up, then restore them. See
                         // also getParameterInfo(), which "right-aligns" parameter metadata for the same reason.
                         // (#897)
                         final var descNumParam = typeDescriptor.getParameterTypeSignatures().size();
@@ -269,22 +269,22 @@ public final class MethodInfo extends ClassMemberInfo implements Comparable<Meth
     }
 
     /**
-     * Run the method type annotation decorators on the given parsed method type, temporarily stripping the given
-     * number of implicit prefix parameters so that {@code formal_parameter_index} values line up with the
-     * source-declared parameters. Any individual type annotation that cannot be matched to a parameter type (e.g.
-     * due to compiler-specific parameter indexing, as with Kotlin, local or anonymous classes, or a compiler bug)
-     * is skipped rather than being allowed to abort parsing of the whole method type.
+     * Add the method's type annotations to the given parsed method type, temporarily stripping the given number of
+     * implicit prefix parameters so that {@code formal_parameter_index} values line up with the source-declared
+     * parameters. Any individual type annotation that cannot be matched to a parameter type (e.g. due to
+     * compiler-specific parameter indexing, as with Kotlin, local or anonymous classes, or a compiler bug) is
+     * skipped rather than being allowed to abort parsing of the whole method type.
      *
      * @param methodType
      *            the parsed method type signature or descriptor to decorate.
-     * @param decorators
-     *            the type annotation decorators to run.
+     * @param typeAnnotations
+     *            the type annotations to add.
      * @param numImplicitPrefixParams
      *            the number of implicit prefix parameters to strip while decorating (0 for none).
      */
     // #897
     private static void decorateMethodType(final MethodTypeSignature methodType,
-            final List<MethodTypeAnnotationDecorator> decorators, final int numImplicitPrefixParams) {
+            final List<TypeAnnotation<MethodTypeSignature>> typeAnnotations, final int numImplicitPrefixParams) {
         final var paramSigs = methodType.getParameterTypeSignatures();
         // Take a copy of the implicit prefix params before removing them -- do not use the live view returned by
         // List.subList(), since it would be invalidated by the structural modification of paramSigs below.
@@ -293,14 +293,7 @@ public final class MethodInfo extends ClassMemberInfo implements Comparable<Meth
         for (var i = 0; i < numImplicitPrefixParams; i++) {
             paramSigs.remove(0);
         }
-        for (final MethodTypeAnnotationDecorator decorator : decorators) {
-            try {
-                decorator.decorate(methodType);
-            } catch (final IllegalArgumentException e) {
-                // Skip a type annotation that cannot be matched to a parameter type, rather than failing to produce
-                // the whole method type (best effort). (#897)
-            }
-        }
+        TypeAnnotation.applyAll(typeAnnotations, methodType);
         if (implicitPrefixParams != null) {
             for (var i = numImplicitPrefixParams - 1; i >= 0; --i) {
                 paramSigs.add(0, implicitPrefixParams.get(i));
