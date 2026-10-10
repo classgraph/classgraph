@@ -27,6 +27,8 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import io.github.classgraph.classpath.ModulePathInfo;
+
 /**
  * {@link ClassGraph} is the entry point of the API: it builds up the scan specification, and then either runs a
  * scan or just reports the classpath.
@@ -469,6 +471,19 @@ public class ClassGraphTest {
             assertThat(scanResult.getClasspathURIs()).containsExactly(realClassesDir.toUri(), realJarFile.toUri());
             assertThat(scanResult.getClasspathURLs()).containsExactly(realClassesDir.toUri().toURL(),
                     realJarFile.toUri().toURL());
+        }
+    }
+
+    /**
+     * {@link ClassGraph} and {@link ScanResult} both report the module path switches as the one instance that
+     * describes this JVM.
+     */
+    @Test
+    public void theModulePathInfoIsTheOneInstanceForThisJvm() {
+        final var classGraph = new ClassGraph().enableClasspathEntries(classesDir.toString());
+        assertThat(classGraph.getModulePathInfo()).isSameAs(ModulePathInfo.current());
+        try (var scanResult = classGraph.scan()) {
+            assertThat(scanResult.getModulePathInfo()).isSameAs(ModulePathInfo.current());
         }
     }
 

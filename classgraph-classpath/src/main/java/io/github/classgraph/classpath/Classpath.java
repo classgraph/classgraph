@@ -62,9 +62,6 @@ public final class Classpath implements AutoCloseable, Iterable<ClasspathEntry> 
     /** The non-system modules, in module layer order, and by module name within each layer. */
     private final List<ModuleReference> nonSystemModules;
 
-    /** The module path switches the JVM was launched with. */
-    private final ModulePathInfo modulePathInfo;
-
     /** The virtual filesystem that the jarfiles were read through, in order to read their manifests. */
     private final Vfs vfs;
 
@@ -92,8 +89,6 @@ public final class Classpath implements AutoCloseable, Iterable<ClasspathEntry> 
                 : moduleFinder.getSystemModuleReferences();
         this.nonSystemModules = moduleFinder == null || !classpathSpec.isNonSystemModulesEnabled() ? List.of()
                 : moduleFinder.getNonSystemModuleReferences();
-
-        this.modulePathInfo = classpathSpec.getModulePathInfo();
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -182,12 +177,15 @@ public final class Classpath implements AutoCloseable, Iterable<ClasspathEntry> 
 
     /**
      * Returns the module path switches this JVM was launched with: {@code --module-path}, {@code --add-modules},
-     * {@code --patch-module}, {@code --add-exports}, {@code --add-opens} and {@code --add-reads}.
+     * {@code --patch-module}, {@code --add-exports}, {@code --add-opens} and {@code --add-reads}. This is the same
+     * instance that {@link ModulePathInfo#current()} returns.
      *
      * @return the module path info.
      */
+    // An instance method, so that the module path info is reached the same way as the rest of the result
+    @SuppressWarnings("static-method")
     public ModulePathInfo getModulePathInfo() {
-        return modulePathInfo;
+        return ModulePathInfo.current();
     }
 
     /**
