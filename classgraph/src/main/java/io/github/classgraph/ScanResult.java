@@ -113,7 +113,7 @@ public final class ScanResult implements AutoCloseable {
      * The file, directory and jarfile resources timestamped during a scan, along with their timestamp at the time
      * of the scan. For jarfiles, the timestamp represents the timestamp of all files within the jar. Null if this
      * {@link ScanResult} came from {@code ClassGraph#getClasspathScanResult}, which only determines the classpath
-     * and never scans, so there is nothing to timestamp.
+     * and never scans, so there is nothing to timestamp, or if this {@link ScanResult} has been closed.
      */
     private @Nullable Map<File, Long> fileToLastModified;
 
@@ -1955,10 +1955,15 @@ public final class ScanResult implements AutoCloseable {
      */
     public boolean isClasspathContentsModifiedSinceScan() {
         checkNotClosed();
-        if (fileToLastModified == null) {
+        // Read the field once, since close() may set it to null at any time
+        final var fileToLastModifiedCurr = fileToLastModified;
+        if (fileToLastModifiedCurr == null) {
+            // Null either because this ScanResult recorded no timestamps, or because it was closed since the
+            // check above
+            checkNotClosed();
             return true;
         } else {
-            for (final Entry<File, Long> ent : fileToLastModified.entrySet()) {
+            for (final Entry<File, Long> ent : fileToLastModifiedCurr.entrySet()) {
                 if (ent.getKey().lastModified() != ent.getValue()) {
                     return true;
                 }
@@ -1984,9 +1989,15 @@ public final class ScanResult implements AutoCloseable {
     public long getClasspathContentsLastModifiedMillis() {
         checkNotClosed();
         var maxLastModifiedTime = 0L;
-        if (fileToLastModified != null) {
+        // Read the field once, since close() may set it to null at any time
+        final var fileToLastModifiedCurr = fileToLastModified;
+        if (fileToLastModifiedCurr == null) {
+            // Null either because this ScanResult recorded no timestamps, or because it was closed since the
+            // check above
+            checkNotClosed();
+        } else {
             final var currTime = System.currentTimeMillis();
-            for (final File file : fileToLastModified.keySet()) {
+            for (final File file : fileToLastModifiedCurr.keySet()) {
                 // Read the current timestamp of each file, rather than the timestamp recorded during the scan, so
                 // that the returned value increases when something is modified
                 final var timestamp = file.lastModified();
@@ -2020,10 +2031,10 @@ public final class ScanResult implements AutoCloseable {
         if (!closed.getAndSet(true)) {
             try {
                 nonClosedWeakReferences.remove(weakReference);
-                if (classpathOrder != null) {
-                    classpathOrder.clear();
-                    classpathOrder = null;
-                }
+                // Drop the references to the collections rather than clearing them. They are never modified after
+                // construction, so a getter on another thread that read one of them before this close finishes on
+                // a complete collection, rather than one emptied under it
+                classpathOrder = null;
                 final var allAcceptedResources = allAcceptedResourcesCached;
                 if (allAcceptedResources != null) {
                     for (final Resource classpathResource : allAcceptedResources) {
@@ -2040,21 +2051,12 @@ public final class ScanResult implements AutoCloseable {
                 // reports what it holds itself (such as its name), but any of its methods that has to look up a
                 // class through this ScanResult throws IllegalStateException, unless an earlier call already made
                 // and cached that lookup before the close.
-                if (packageNameToPackageInfo != null) {
-                    packageNameToPackageInfo.clear();
-                    packageNameToPackageInfo = null;
-                }
-                if (moduleNameToModuleInfo != null) {
-                    moduleNameToModuleInfo.clear();
-                    moduleNameToModuleInfo = null;
-                }
-                // Drop the reference to the module list rather than clearing it, since the list is owned by the
-                // caller of the constructor (and is immutable for a ScanResult that only holds the classpath)
+                packageNameToPackageInfo = null;
+                moduleNameToModuleInfo = null;
+                // The module list is also owned by the caller of the constructor (and is immutable for a ScanResult
+                // that only holds the classpath), so it could not be cleared here in any case
                 moduleInfoInScanOrder = null;
-                if (fileToLastModified != null) {
-                    fileToLastModified.clear();
-                    fileToLastModified = null;
-                }
+                fileToLastModified = null;
             } finally {
                 // The virtual filesystem should be closed last, since it needs to have all MappedByteBuffer refs
                 // dropped before it tries to delete any temporary files that were written to disk. It is what holds
