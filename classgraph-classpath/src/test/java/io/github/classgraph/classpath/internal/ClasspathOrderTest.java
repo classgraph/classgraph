@@ -1,6 +1,7 @@
 package io.github.classgraph.classpath.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assumptions.abort;
 
 import java.io.File;
@@ -64,7 +65,7 @@ public class ClasspathOrderTest {
      * @return the classpath entry objects.
      */
     private List<Object> entryObjects() {
-        return classpathOrder.getOrder().stream().map(entry -> entry.classpathEntryObj).toList();
+        return classpathOrder.getOrder().stream().map(Entry::classpathEntryObj).toList();
     }
 
     /**
@@ -73,7 +74,7 @@ public class ClasspathOrderTest {
      * @return the locations.
      */
     private List<String> locations() {
-        return classpathOrder.getOrder().stream().map(entry -> entry.location).toList();
+        return classpathOrder.getOrder().stream().map(Entry::location).toList();
     }
 
     /**
@@ -120,7 +121,20 @@ public class ClasspathOrderTest {
         assertThat(classpathOrder.addClasspathEntry(jar, null, null)).isTrue();
         assertThat(classpathOrder.addClasspathEntry(jar, null, null)).isFalse();
         assertThat(entryObjects()).containsExactly(jar);
-        assertThat(classpathOrder.getClasspathEntryUniqueLocations()).containsExactly(jar);
+        assertThat(locations()).containsExactly(jar);
+    }
+
+    /**
+     * The classpath order can only be added to through the builder, which deduplicates, so the list it returns
+     * cannot be changed.
+     */
+    @Test
+    public void orderCannotBeChangedThroughTheReturnedList(@TempDir final Path tempDir) throws IOException {
+        final var jar = createFile(tempDir.resolve("x.jar"));
+        assertThat(classpathOrder.addClasspathEntry(jar, null, null)).isTrue();
+        final var order = classpathOrder.getOrder();
+        assertThatThrownBy(() -> order.add(order.get(0))).isInstanceOf(UnsupportedOperationException.class);
+        assertThat(locations()).containsExactly(jar);
     }
 
     /**
@@ -136,7 +150,7 @@ public class ClasspathOrderTest {
         final var jarPath = tempDir.resolve("x y.jar");
         final var jar = createFile(jarPath);
         assertThat(classpathOrder.addClasspathEntry(jarPath, null, null)).isTrue();
-        assertThat(classpathOrder.getClasspathEntryUniqueLocations()).containsExactly(jar);
+        assertThat(locations()).containsExactly(jar);
         // The String and File spellings of the same path are now duplicates
         assertThat(classpathOrder.addClasspathEntry(jar, null, null)).isFalse();
         assertThat(classpathOrder.addClasspathEntry(jarPath.toFile(), null, null)).isFalse();
@@ -202,8 +216,8 @@ public class ClasspathOrderTest {
         classpathOrder.addClasspathEntry(createFile(tempDir.resolve("b.jar")), null, null);
 
         assertThat(classpathOrder.getOrder()).hasSize(2);
-        assertThat(classpathOrder.getOrder().get(0).packageRootPrefixes).isSameAs(customPrefixes);
-        assertThat(classpathOrder.getOrder().get(1).packageRootPrefixes).isEmpty();
+        assertThat(classpathOrder.getOrder().get(0).packageRootPrefixes()).isSameAs(customPrefixes);
+        assertThat(classpathOrder.getOrder().get(1).packageRootPrefixes()).isEmpty();
         // The prefixes in force when the entry was added decide which suffix is stripped from it
         final var jar = createFile(tempDir.resolve("c.jar"));
         classpathOrder.setPackageRootPrefixes(customPrefixes);
@@ -224,8 +238,8 @@ public class ClasspathOrderTest {
         classpathOrder.addClasspathEntry(createFile(tempDir.resolve("b.jar")), null, null);
 
         assertThat(classpathOrder.getOrder()).hasSize(2);
-        assertThat(classpathOrder.getOrder().get(0).libDirPrefixes).isSameAs(customPrefixes);
-        assertThat(classpathOrder.getOrder().get(1).libDirPrefixes).isEmpty();
+        assertThat(classpathOrder.getOrder().get(0).libDirPrefixes()).isSameAs(customPrefixes);
+        assertThat(classpathOrder.getOrder().get(1).libDirPrefixes()).isEmpty();
     }
 
     /** A directory with a "/*" suffix is expanded into one classpath entry per file in the directory. */
@@ -355,7 +369,7 @@ public class ClasspathOrderTest {
         for (final Object wildcarded : wildcardedForms) {
             final var order = new ClasspathOrderBuilder(classpathSpec);
             assertThat(order.addClasspathEntry(wildcarded, null, null)).isTrue();
-            assertThat(order.getOrder().stream().map(entry -> entry.location).toList()).containsExactly(jar);
+            assertThat(order.getOrder().stream().map(Entry::location).toList()).containsExactly(jar);
         }
     }
 
@@ -441,7 +455,7 @@ public class ClasspathOrderTest {
     @Test
     public void entryStringNamesTheClassLoader() {
         final var classLoader = getClass().getClassLoader();
-        final var entry = new Entry("/a/b.jar", "/a/b.jar", classLoader, List.of(), List.of());
+        final var entry = new Entry("/a/b.jar", "/a/b.jar", classLoader.toString(), List.of(), List.of());
         assertThat(entry).hasToString("/a/b.jar [" + classLoader + "]");
     }
 }

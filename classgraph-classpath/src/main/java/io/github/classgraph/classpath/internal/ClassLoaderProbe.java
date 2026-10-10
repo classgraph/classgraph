@@ -29,7 +29,6 @@
 package io.github.classgraph.classpath.internal;
 
 import java.util.List;
-import java.util.Map.Entry;
 
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.path.PathList;
@@ -249,10 +248,10 @@ public class ClassLoaderProbe {
         final var classLoaderOrderEntries = classLoaderOrder.getClassLoaderOrder();
         final var classloaderURLLog = log == null ? null
                 : log.log("Obtaining URLs from classloaders in delegation order");
-        for (final Entry<ClassLoader, List<ClassLoaderHandler>> ent : classLoaderOrderEntries
-                .subList(numClassLoadersSearched, classLoaderOrderEntries.size())) {
-            final var classLoader = ent.getKey();
-            for (final ClassLoaderHandler classLoaderHandler : ent.getValue()) {
+        for (final var handledClassLoader : classLoaderOrderEntries.subList(numClassLoadersSearched,
+                classLoaderOrderEntries.size())) {
+            final var classLoader = handledClassLoader.classLoader();
+            for (final ClassLoaderHandler classLoaderHandler : handledClassLoader.handlers()) {
                 if (classpathSpec.isParentClassLoadersIgnored() && allParentClassLoaders.contains(classLoader)) {
                     if (classloaderURLLog != null) {
                         classloaderURLLog.log("Ignoring parent classloader " + classLoader

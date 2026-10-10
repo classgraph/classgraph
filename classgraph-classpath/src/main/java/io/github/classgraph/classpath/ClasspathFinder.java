@@ -512,8 +512,8 @@ public final class ClasspathFinder {
             // The classpath elements that the classloaders declared
             final List<ClasspathEntry> classLoaderEntries = new ArrayList<>();
             for (final var entry : classLoaderProbe.getClasspathOrder().getOrder()) {
-                classLoaderEntries.add(ClasspathEntry.of(entry.classpathEntryObj, entry.location,
-                        entry.getClassLoaderString(), entry.packageRootPrefixes, entry.libDirPrefixes));
+                classLoaderEntries.add(ClasspathEntry.of(entry.classpathEntryObj(), entry.location(),
+                        entry.classLoaderName(), entry.packageRootPrefixes(), entry.libDirPrefixes()));
             }
 
             // Add the classpath elements that those in turn declare, by reading their manifests and their lib dirs.
