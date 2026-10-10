@@ -31,6 +31,7 @@ package io.github.classgraph.vfs.internal;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.util.regex.Pattern;
 
 import io.github.classgraph.base.internal.path.PathSyntax;
@@ -38,8 +39,10 @@ import io.github.classgraph.base.internal.path.PathSyntax;
 /**
  * The temporary files that jarfiles read from a stream (a deflated nested jarfile, or a jarfile downloaded from a
  * URL) are written to when they are too large to buffer in RAM. A temporary file is owned by the slice that reads
- * through it, and is deleted when that slice is closed, which closing the {@link io.github.classgraph.vfs.Vfs} that
- * opened it does.
+ * through it, and is deleted when that slice is closed. Closing the {@link io.github.classgraph.vfs.VfsRoot} that
+ * owns the slice closes it, as does closing the {@link io.github.classgraph.vfs.Vfs} that opened that root, but a
+ * slice that no root owns belongs to whoever opened it, and closing the {@link io.github.classgraph.vfs.Vfs} does
+ * not close it.
  *
  * <p>
  * {@link File#deleteOnExit()} is not used: the JDK keeps every path passed to it until the JVM exits, even after
@@ -55,15 +58,20 @@ public final class TempFile {
      * {@code " * / < > ? \ |}, whereas Linux and macOS reject only {@code /}. Windows accepts {@code :}, but treats
      * it as the start of an NTFS alternate data stream rather than as part of the filename. The remaining
      * characters are legal everywhere, but are replaced anyway so that a temporary filename can be pasted into a
-     * shell command or a log message without quoting.
+     * shell command or a log message without quoting. A surrogate that is not part of a pair ({@code \p{Cs}}) is
+     * not a character at all, and cannot be encoded in a filename on any platform; a surrogate pair matches as one
+     * supplementary character, which is not in {@code \p{Cs}}, so it is kept.
      */
-    private static final Pattern UNSAFE_FILENAME_CHARS = Pattern.compile("[\\x00-\\x1f\"*/:<>?\\\\|&= ]");
+    private static final Pattern UNSAFE_FILENAME_CHARS = Pattern.compile("[\\x00-\\x1f\"*/:<>?\\\\|&= ]|\\p{Cs}");
+
+    /** Characters outside ASCII, replaced only when the platform cannot encode them in a filename. */
+    private static final Pattern NON_ASCII_CHARS = Pattern.compile("\\P{ASCII}");
 
     /**
      * The most characters of a zip entry's leafname that are kept in the name of its temporary file. A filename is
      * limited to 255 bytes on Linux and macOS, and to 255 UTF-16 characters on Windows. A UTF-16 character takes at
      * most 3 bytes in UTF-8, so this leaves room for the prefix and the random number that
-     * {@link File#createTempFile(String, String)} adds.
+     * {@link Files#createTempFile(String, String, java.nio.file.attribute.FileAttribute...)} adds.
      */
     private static final int MAX_LEAFNAME_LENGTH = 64;
 
@@ -81,13 +89,14 @@ public final class TempFile {
     }
 
     /**
-     * Create a temporary file. The caller owns the file that is returned, and must delete it with
-     * {@link #delete(File)} once nothing is reading through it.
+     * Create a temporary file that only its owner can read. The caller owns the file that is returned, and must
+     * delete it with {@link #delete(File)} once nothing is reading through it.
      *
      * <p>
      * The file is named after the leafname of {@code path}, with any character that is not valid in a filename
      * replaced, and with all but the last {@value #MAX_LEAFNAME_LENGTH} characters removed if it is longer than
-     * that.
+     * that. If the encoding that filenames are stored in cannot represent some character of what remains, every
+     * non-ASCII character is replaced too.
      *
      * @param path
      *            The path to derive the temporary filename from.
@@ -105,8 +114,32 @@ public final class TempFile {
             }
             leafname = leafname.substring(startIdx);
         }
-        return File.createTempFile(PathSyntax.TEMP_FILENAME_PREFIX,
-                PathSyntax.TEMP_FILENAME_LEAF_SEPARATOR + leafname);
+        try {
+            return createReadableOnlyByOwner(leafname);
+        } catch (final InvalidPathException e) {
+            // The encoding that filenames are stored in cannot represent some character of the leafname, as happens
+            // to every non-ASCII character when the JVM is started under the C or POSIX locale on Linux
+            return createReadableOnlyByOwner(NON_ASCII_CHARS.matcher(leafname).replaceAll("_"));
+        }
+    }
+
+    /**
+     * Create a temporary file that only its owner can read, unlike {@link File#createTempFile(String, String)},
+     * whose file can be read by every local user under the usual umask of 022. On Windows the file takes the access
+     * control list of the temporary directory.
+     *
+     * @param leafname
+     *            The sanitized leafname to end the temporary filename with.
+     * @return The temporary {@link File}.
+     * @throws IOException
+     *             If the temporary file could not be created.
+     * @throws InvalidPathException
+     *             If the temporary filename cannot be represented in the encoding that filenames are stored in.
+     */
+    private static File createReadableOnlyByOwner(final String leafname) throws IOException {
+        return Files
+                .createTempFile(PathSyntax.TEMP_FILENAME_PREFIX, PathSyntax.TEMP_FILENAME_LEAF_SEPARATOR + leafname)
+                .toFile();
     }
 
     /**
