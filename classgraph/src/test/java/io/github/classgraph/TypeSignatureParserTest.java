@@ -110,4 +110,48 @@ public class TypeSignatureParserTest {
         assertThat(positionInfo).contains("position: 250");
         assertThat(positionInfo.length()).isLessThan(300);
     }
+
+    /**
+     * A class type signature whose type arguments are nested to the given depth, {@code La<La<...La;...>;>;}.
+     *
+     * @param depth
+     *            the number of nested type argument lists
+     * @return the type signature.
+     */
+    private static String nestedTypeArguments(final int depth) {
+        return "La<".repeat(depth) + "La;" + ">;".repeat(depth);
+    }
+
+    /**
+     * Type arguments nested up to the limit parse, and nesting them one level deeper is a parse error, so that a
+     * corrupt or crafted signature cannot make the recursive parser overflow the stack.
+     */
+    @Test
+    public void typeArgumentsNestedPastTheLimitCannotBeParsed() throws TypeSignatureParseException {
+        final var limit = TypeSignatureParser.MAX_TYPE_ARGUMENT_NESTING_DEPTH;
+        assertThat(TypeSignature.parse(nestedTypeArguments(limit), null))
+                .hasToString(nestedTypeArguments(limit).replace("La", "a").replace(";", ""));
+        assertThatExceptionOfType(TypeSignatureParseException.class)
+                .isThrownBy(() -> TypeSignature.parse(nestedTypeArguments(limit + 1), null))
+                .withMessageContaining("nested more than " + limit + " deep");
+        // The limit applies to method signatures too, which are parsed by the same rules
+        assertThatExceptionOfType(TypeSignatureParseException.class)
+                .isThrownBy(() -> MethodTypeSignature.parse("(" + nestedTypeArguments(limit + 1) + ")V", null));
+    }
+
+    /** The limit is on how deeply type argument lists are nested, not on how many lists a signature has. */
+    @Test
+    public void theLimitIsOnNestingNotOnTheNumberOfTypeArgumentLists() throws TypeSignatureParseException {
+        final var limit = TypeSignatureParser.MAX_TYPE_ARGUMENT_NESTING_DEPTH;
+        // Many sibling type arguments, each with its own type argument list
+        final var siblings = "La<" + "La<La;>;".repeat(limit * 2) + ">;";
+        assertThat(TypeSignature.parse(siblings, null)).isNotNull();
+        // Many type argument lists on the inner classes of one class reference
+        final var suffixes = "La<La;>" + ".b<La;>".repeat(limit * 2) + ";";
+        assertThat(TypeSignature.parse(suffixes, null)).isNotNull();
+        // Two parameters, each nested to the limit
+        assertThat(MethodTypeSignature.parse(
+                "(" + nestedTypeArguments(limit) + nestedTypeArguments(limit) + ")" + nestedTypeArguments(limit),
+                null)).isNotNull();
+    }
 }

@@ -51,6 +51,16 @@ class TypeSignatureParser {
     /** The type variable signatures parsed so far, which a method signature links back to once it is parsed. */
     private final List<TypeVariableSignature> typeVariableSignatures = new ArrayList<>();
 
+    /**
+     * The deepest that type argument lists may be nested, as in {@code List<List<String>>}, which nests them two
+     * deep. javac never comes close to this, but the parser is recursive, so a corrupt or crafted signature nested
+     * a few hundred deep could otherwise overflow the stack of a thread with a small stack.
+     */
+    static final int MAX_TYPE_ARGUMENT_NESTING_DEPTH = 100;
+
+    /** How many type argument lists enclose the current position. */
+    private int typeArgumentNestingDepth;
+
     /** How much context to show before the current position. */
     private static final int SHOW_BEFORE = 80;
 
@@ -102,6 +112,25 @@ class TypeSignatureParser {
      */
     public List<TypeVariableSignature> getTypeVariableSignatures() {
         return typeVariableSignatures;
+    }
+
+    /**
+     * Record that parsing has entered a type argument list. Every recursive step of the grammar passes through a
+     * type argument list, so limiting how deeply they nest also limits how deeply the parser recurses.
+     *
+     * @throws TypeSignatureParseException
+     *             If type argument lists are nested more than {@link #MAX_TYPE_ARGUMENT_NESTING_DEPTH} deep.
+     */
+    void enterTypeArguments() throws TypeSignatureParseException {
+        if (++typeArgumentNestingDepth > MAX_TYPE_ARGUMENT_NESTING_DEPTH) {
+            throw new TypeSignatureParseException(this,
+                    "Type arguments are nested more than " + MAX_TYPE_ARGUMENT_NESTING_DEPTH + " deep");
+        }
+    }
+
+    /** Record that parsing has left a type argument list. */
+    void exitTypeArguments() {
+        typeArgumentNestingDepth--;
     }
 
     /**
