@@ -228,22 +228,13 @@ public class MethodTypeSignatureTest {
     }
 
     /**
-     * The signature of a constructor, as it is named in a {@code CONSTANT_NameAndType_info} constant pool entry, is
-     * the string {@code "<init>"} rather than a signature, and is read as a method that takes no parameters and
-     * returns void.
-     *
-     * @throws TypeSignatureParseException
-     *             if the signature could not be parsed.
+     * {@code "<init>"} is the name of a constructor, not a method type signature: a constructor's descriptor has a
+     * parameter list and a void result, like any other method's, such as {@code "()V"}.
      */
     @Test
-    public void theSignatureOfAConstructorIsAMethodThatTakesNoParametersAndReturnsVoid()
-            throws TypeSignatureParseException {
-        final var typeSig = MethodTypeSignature.parse("<init>", /* definingClassName = */ null);
-        assertThat(typeSig.getTypeParameters()).isEmpty();
-        assertThat(typeSig.getParameterTypeSignatures()).isEmpty();
-        assertThat(typeSig.getResultType()).hasToString("void");
-        assertThat(typeSig.getThrowsSignatures()).isEmpty();
-        assertThat(typeSig).hasToString("void ()");
+    public void theNameOfAConstructorIsNotAMethodTypeSignature() {
+        assertThatExceptionOfType(TypeSignatureParseException.class)
+                .isThrownBy(() -> MethodTypeSignature.parse("<init>", /* definingClassName = */ null));
     }
 
     /** Method type signatures are equal if their type parameters, parameter types, result and throws are equal. */
