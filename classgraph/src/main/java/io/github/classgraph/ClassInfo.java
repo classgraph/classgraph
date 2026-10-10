@@ -4091,7 +4091,7 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      * Handle {@link Repeatable} annotations.
      *
      * @param allRepeatableAnnotationNames
-     *            the names of all repeatable annotations
+     *            the names of the container annotations of all repeatable annotations
      */
     void handleRepeatableAnnotations(final Set<String> allRepeatableAnnotationNames) {
         if (annotationInfo != null) {

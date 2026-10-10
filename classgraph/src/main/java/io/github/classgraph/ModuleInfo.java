@@ -33,7 +33,6 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -74,10 +73,11 @@ public final class ModuleInfo implements Comparable<ModuleInfo>, HasName, HasAnn
     private @Nullable URI locationURI;
 
     /**
-     * Unique {@link AnnotationInfo} objects for any annotations on the module-info.class file, if present, else
-     * null.
+     * {@link AnnotationInfo} objects for any annotations on the module-info.class file, if present, else null. An
+     * annotation equal to one already in the list is not added again. A list rather than a set is used, because the
+     * repeats of a repeatable annotation, which are added after the scan, can be equal to each other.
      */
-    private @Nullable Set<AnnotationInfo> annotationInfoSet;
+    private @Nullable List<AnnotationInfo> annotationInfoList;
 
     /**
      * {@link AnnotationInfo} objects for any annotations on the module-info.class file, if present, else null.
@@ -268,7 +268,7 @@ public final class ModuleInfo implements Comparable<ModuleInfo>, HasName, HasAnn
      */
     void setScanResult(final ScanResult scanResult) {
         this.scanResult = scanResult;
-        final var annotations = annotationInfoSet;
+        final var annotations = annotationInfoList;
         if (annotations != null) {
             for (final AnnotationInfo ai : annotations) {
                 ai.setScanResult(scanResult);
@@ -285,11 +285,30 @@ public final class ModuleInfo implements Comparable<ModuleInfo>, HasName, HasAnn
     void addAnnotations(final @Nullable List<AnnotationInfo> moduleAnnotations) {
         // Currently only class annotations are used in the module-info.class file
         if (moduleAnnotations != null && !moduleAnnotations.isEmpty()) {
-            var annotations = annotationInfoSet;
+            var annotations = annotationInfoList;
             if (annotations == null) {
-                annotationInfoSet = annotations = new LinkedHashSet<>();
+                annotationInfoList = annotations = new ArrayList<>();
             }
-            annotations.addAll(moduleAnnotations);
+            // Skip the annotations of a module-info.class that was already read (#347). A single classfile never
+            // holds two equal annotations, since repeats are stored inside a container.
+            for (final AnnotationInfo annotation : moduleAnnotations) {
+                if (!annotations.contains(annotation)) {
+                    annotations.add(annotation);
+                }
+            }
+        }
+    }
+
+    /**
+     * Unpack the container annotations of {@link java.lang.annotation.Repeatable} annotations on this module.
+     *
+     * @param allRepeatableAnnotationNames
+     *            the names of the container annotations of all repeatable annotations
+     */
+    void handleRepeatableAnnotations(final Set<String> allRepeatableAnnotationNames) {
+        final var annotations = annotationInfoList;
+        if (annotations != null) {
+            AnnotationInfoList.unpackRepeatableAnnotations(annotations, allRepeatableAnnotationNames);
         }
     }
 
@@ -309,12 +328,12 @@ public final class ModuleInfo implements Comparable<ModuleInfo>, HasName, HasAnn
         }
         var annotations = annotationInfo;
         if (annotations == null) {
-            final var annotationSet = annotationInfoSet;
-            if (annotationSet == null) {
+            final var annotationList = annotationInfoList;
+            if (annotationList == null) {
                 annotations = AnnotationInfoList.EMPTY_LIST;
             } else {
                 // A module has no superclass, so there are no @Inherited annotations to add
-                annotations = AnnotationInfoList.getIndirectAnnotations(new ArrayList<>(annotationSet),
+                annotations = AnnotationInfoList.getIndirectAnnotations(annotationList,
                         /* annotatedClass = */ null);
             }
             annotationInfo = annotations;

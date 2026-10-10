@@ -179,12 +179,50 @@ public final class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Handle {@link Repeatable} annotations.
+     * Unpack the container annotations of {@link Repeatable} annotations. A repeatable annotation that is applied
+     * more than once is stored in the classfile as a single container annotation, whose {@code value} parameter
+     * holds the repeats. As in the JDK, the container stays in the list, as in
+     * {@link java.lang.reflect.AnnotatedElement#getAnnotations()}, and the repeats are inserted right after it, in
+     * the order they were written, as in {@link java.lang.reflect.AnnotatedElement#getAnnotationsByType(Class)}.
      *
      * @param annotations
-     *            the annotations to search for repeatable annotations
-     * @param allRepeatableAnnotationNames
-     *            the names of all repeatable annotations
+     *            the annotations to search for containers. The repeats are inserted into this list.
+     * @param allContainerAnnotationNames
+     *            the names of all container annotations
+     * @return the repeats that were inserted, or the empty list if none
+     */
+    static List<AnnotationInfo> unpackRepeatableAnnotations(final List<AnnotationInfo> annotations,
+            final Set<String> allContainerAnnotationNames) {
+        List<AnnotationInfo> repeats = List.of();
+        for (var i = 0; i < annotations.size(); i++) {
+            final var container = annotations.get(i);
+            if (allContainerAnnotationNames.contains(container.getName())
+                    && container.getParameterValues().getValue("value") instanceof final Object[] values) {
+                for (final Object value : values) {
+                    if (value instanceof final AnnotationInfo repeat) {
+                        // Skip over the inserted repeat: like the JDK, unpack only one level of containers
+                        annotations.add(++i, repeat);
+                        if (repeats.isEmpty()) {
+                            repeats = new ArrayList<>();
+                        }
+                        repeats.add(repeat);
+                    }
+                }
+            }
+        }
+        return repeats;
+    }
+
+    /**
+     * Unpack the container annotations of {@link Repeatable} annotations on a class, method, method parameter or
+     * field (see {@link #unpackRepeatableAnnotations(List, Set)}), and link each repeat into the class graph. The
+     * container was already linked when the classfile was read, so the class graph, like the annotation list, holds
+     * both the container and the repeats.
+     *
+     * @param annotations
+     *            the annotations to search for containers
+     * @param allContainerAnnotationNames
+     *            the names of all container annotations
      * @param containingClassInfo
      *            the containing class
      * @param forwardRelType
@@ -195,47 +233,16 @@ public final class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
      *            the second reverse relationship type for linking (or null for none)
      */
     static void handleRepeatableAnnotations(final List<AnnotationInfo> annotations,
-            final Set<String> allRepeatableAnnotationNames, final @Nullable ClassInfo containingClassInfo,
+            final Set<String> allContainerAnnotationNames, final @Nullable ClassInfo containingClassInfo,
             final RelType forwardRelType, final RelType reverseRelType0, final @Nullable RelType reverseRelType1) {
-        List<AnnotationInfo> repeatableAnnotations = null;
-        for (var i = annotations.size() - 1; i >= 0; --i) {
-            final var ai = annotations.get(i);
-            if (allRepeatableAnnotationNames.contains(ai.getName())) {
-                if (repeatableAnnotations == null) {
-                    repeatableAnnotations = new ArrayList<>();
-                }
-                repeatableAnnotations.add(ai);
-                // Remove repeatable annotation
-                annotations.remove(i);
-            }
-        }
-        // Add the component annotations in each of the parameters of the repeatable annotation
-        if (repeatableAnnotations != null) {
-            for (final AnnotationInfo repeatableAnnotation : repeatableAnnotations) {
-                final var values = repeatableAnnotation.getParameterValues();
-                if (!values.isEmpty()) {
-                    final var apv = values.get("value");
-                    if (apv != null) {
-                        final var arr = apv.getValue();
-                        if (arr instanceof final Object[] arrValues) {
-                            for (final Object value : arrValues) {
-                                if (value instanceof final AnnotationInfo ai) {
-                                    annotations.add(ai);
-
-                                    // Link annotation
-                                    final var annotationClass = ai.getClassInfo();
-                                    if (annotationClass != null) {
-                                        final var containingClass = Objects.requireNonNull(containingClassInfo);
-                                        containingClass.addRelatedClass(forwardRelType, annotationClass);
-                                        annotationClass.addRelatedClass(reverseRelType0, containingClass);
-                                        if (reverseRelType1 != null) {
-                                            annotationClass.addRelatedClass(reverseRelType1, containingClass);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
+        for (final AnnotationInfo repeat : unpackRepeatableAnnotations(annotations, allContainerAnnotationNames)) {
+            final var annotationClass = repeat.getClassInfo();
+            if (annotationClass != null) {
+                final var containingClass = Objects.requireNonNull(containingClassInfo);
+                containingClass.addRelatedClass(forwardRelType, annotationClass);
+                annotationClass.addRelatedClass(reverseRelType0, containingClass);
+                if (reverseRelType1 != null) {
+                    annotationClass.addRelatedClass(reverseRelType1, containingClass);
                 }
             }
         }
@@ -352,9 +359,15 @@ public final class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
             // Add any @Inherited annotations on superclasses
             for (final ClassInfo superclass : annotatedClass.allSuperclassesIncludingExternal()) {
                 if (superclass.annotationInfo != null) {
+                    // The annotation classes of the subclasses, which override those of this superclass. This is
+                    // a copy, so that every repeat of a repeatable annotation on this superclass is inherited, not
+                    // only the first one.
+                    final Set<ClassInfo> overridingAnnotationClasses = new HashSet<>(
+                            directOrInheritedAnnotationClasses);
                     for (final AnnotationInfo sai : superclass.annotationInfo) {
                         // Don't add inherited superclass annotation if it is overridden in a subclass
-                        if (sai.isInherited() && directOrInheritedAnnotationClasses.add(sai.getClassInfo())) {
+                        if (sai.isInherited() && !overridingAnnotationClasses.contains(sai.getClassInfo())) {
+                            directOrInheritedAnnotationClasses.add(sai.getClassInfo());
                             addReachableAnnotation(sai, Directness.INHERITED, reachableAnnotationInfo, directness);
                             final List<AnnotationInfo> reachableMetaAnnotationInfo = new ArrayList<>(2);
                             findMetaAnnotations(sai, reachableMetaAnnotationInfo, reachedAnnotationClasses,
@@ -374,17 +387,18 @@ public final class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
         // Return sorted annotation list
         // Sort by name, then put the most directly related of any annotations that share a name first, so that
         // AnnotationInfoList#get(String) returns the annotation that is directly present on the annotated element,
-        // if there is one #559
+        // if there is one #559. The sort is stable, so the repeats of a repeatable annotation keep the order they
+        // were written in, as in the JDK, rather than being sorted by their parameter values.
         CollectionUtils.sortIfNotEmpty(reachableAnnotationInfo,
                 Comparator.comparing(AnnotationInfo::getName).thenComparing(
-                        (final AnnotationInfo ai) -> directness.getOrDefault(ai, Directness.META_ANNOTATION))
-                        .thenComparing(Comparator.naturalOrder()));
-        // The reachable annotations have just been sorted into an order that the natural order of AnnotationInfo
-        // does not give, so they must not be sorted again; the direct annotations only need to be in name order,
-        // so they are sorted in natural order
-        return new AnnotationInfoList(reachableAnnotationInfo,
-                directAnnotationInfo == null ? List.<AnnotationInfo> of()
-                        : CollectionUtils.sortCopy(directAnnotationInfo));
+                        (final AnnotationInfo ai) -> directness.getOrDefault(ai, Directness.META_ANNOTATION)));
+        // The direct annotations are sorted by name only, with the same stable sort, for the same reason
+        List<AnnotationInfo> directAnnotationsSorted = List.of();
+        if (directAnnotationInfo != null) {
+            directAnnotationsSorted = new ArrayList<>(directAnnotationInfo);
+            CollectionUtils.sortIfNotEmpty(directAnnotationsSorted, Comparator.comparing(AnnotationInfo::getName));
+        }
+        return new AnnotationInfoList(reachableAnnotationInfo, directAnnotationsSorted);
     }
 
     // -------------------------------------------------------------------------------------------------------------

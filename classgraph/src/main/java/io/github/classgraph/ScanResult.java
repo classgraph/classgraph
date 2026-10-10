@@ -258,7 +258,8 @@ public final class ScanResult implements AutoCloseable {
 
         indexResourcesAndClassInfo(topLevelLog);
 
-        // Handle @Repeatable annotations
+        // Handle @Repeatable annotations: collect the names of their container annotations, which are the values of
+        // their @Repeatable meta-annotations, then unpack the repeats from every container that was applied
         final Set<String> allRepeatableAnnotationNames = new HashSet<>();
         for (final ClassInfo classInfo : classNameToClassInfo.values()) {
             if (classInfo.isAnnotation() && classInfo.annotationInfo != null) {
@@ -282,6 +283,12 @@ public final class ScanResult implements AutoCloseable {
         if (!allRepeatableAnnotationNames.isEmpty()) {
             for (final ClassInfo classInfo : classNameToClassInfo.values()) {
                 classInfo.handleRepeatableAnnotations(allRepeatableAnnotationNames);
+            }
+            for (final PackageInfo packageInfo : packageNameToPackageInfo.values()) {
+                packageInfo.handleRepeatableAnnotations(allRepeatableAnnotationNames);
+            }
+            for (final ModuleInfo moduleInfo : moduleInfoInScanOrder) {
+                moduleInfo.handleRepeatableAnnotations(allRepeatableAnnotationNames);
             }
         }
 
