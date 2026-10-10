@@ -96,7 +96,10 @@ public class SingletonMap<K, V> {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Thrown when the factory that creates a value returns null. */
+    /**
+     * Thrown when the factory that creates a value returns null, or when an earlier call failed to create the
+     * value.
+     */
     public static class NullSingletonException extends Exception {
         /** serialVersionUID. */
         @Serial
@@ -113,7 +116,10 @@ public class SingletonMap<K, V> {
         }
     }
 
-    /** Thrown when the factory that creates a value throws an exception. */
+    /**
+     * Thrown when the factory that creates a value throws anything other than an {@link InterruptedException} or a
+     * {@link VirtualMachineError}, which are rethrown as themselves.
+     */
     public static class NewInstanceException extends Exception {
         /** serialVersionUID. */
         @Serial
@@ -225,7 +231,9 @@ public class SingletonMap<K, V> {
      * <p>
      * A failure to create the value is remembered, so that a later call for the same key throws
      * {@link NullSingletonException} rather than trying again. An interruption is not remembered, since it means
-     * the creating thread was cancelled, not that the key is bad, so a later call tries again.
+     * the creating thread was cancelled, not that the key is bad, so a later call tries again. Nor is a
+     * {@link VirtualMachineError} such as {@link OutOfMemoryError}, since it means the JVM is in trouble, not that
+     * the key is bad; it is rethrown as itself, not wrapped in a {@link NewInstanceException}.
      *
      * @param key
      *            The key.
@@ -256,9 +264,9 @@ public class SingletonMap<K, V> {
                 }
                 // A null value means one of two things. Either the factory failed for this key, and the
                 // holder was left in the map so that the failure is remembered rather than uselessly retried;
-                // or the thread creating the value was interrupted and took the holder out of the map, since
-                // interruption means that thread was cancelled, not that the key is bad. Tell the two apart by
-                // whether the holder is still in the map, and retry the abandoned creation.
+                // or the thread creating the value was interrupted or hit a VirtualMachineError, and took the
+                // holder out of the map, since neither means that the key is bad. Tell the two apart by whether
+                // the holder is still in the map, and retry the abandoned creation.
                 if (map.get(key) == singletonHolder) {
                     throw new NullSingletonException(key);
                 }
@@ -288,6 +296,16 @@ public class SingletonMap<K, V> {
                         // cancelled scan is still seen as cancelled rather than as a failed instantiation
                         Thread.currentThread().interrupt();
                         throw interruptedException;
+                    }
+                    if (t instanceof final VirtualMachineError vmError) {
+                        // An error such as OutOfMemoryError or StackOverflowError says the JVM is in trouble, not
+                        // that the key is bad, so as for interruption, take the holder back out of the map before
+                        // releasing the waiters, so that a later call (or a waiter, which sees the holder gone)
+                        // tries again. Rethrow it as itself rather than wrapping it in a checked exception that
+                        // callers would treat as an ordinary failure to open one key
+                        map.remove(key, newSingletonHolder);
+                        newSingletonHolder.set(null);
+                        throw vmError;
                     }
                     // Any other failure is remembered: the holder stays in the map holding null, so that later
                     // calls for the same key throw NullSingletonException instead of retrying a creation that
