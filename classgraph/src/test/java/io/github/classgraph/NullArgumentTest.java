@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.lang.annotation.Annotation;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 
@@ -88,6 +89,9 @@ class NullArgumentTest {
         rejectsNull(() -> classGraph.acceptJars((String) null));
         rejectsNull(() -> classGraph.acceptModules((String) null));
         rejectsNull(() -> classGraph.enableClasspathEntries((Object[]) null));
+        // So is a null inside a collection or array of classpath entries, which is expanded into its elements
+        rejectsNull(() -> classGraph.enableClasspathEntries(new Object[] { new Object[] { null } }));
+        rejectsNull(() -> classGraph.enableClasspathEntries(List.of(Collections.singletonList(null))));
         rejectsNull(() -> classGraph.enableClassLoaders((ClassLoader) null));
     }
 

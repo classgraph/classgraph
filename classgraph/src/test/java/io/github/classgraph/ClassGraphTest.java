@@ -290,6 +290,27 @@ public class ClassGraphTest {
         }
     }
 
+    /**
+     * A collection or array among the classpath elements is expanded into its own elements, rather than read by its
+     * {@code toString()}, which names no classpath element.
+     */
+    @Test
+    public void aNestedCollectionIsExpandedIntoItsClasspathEntries() throws IOException {
+        final var expected = List.of(markerDir.toRealPath().toFile(), classesDir.toRealPath().toFile());
+        try (var scanResult = new ClassGraph().enableClasspathEntries(List.of(markerDir), classesDir).scan()) {
+            assertThat(scanResult.getClasspathFiles()).isEqualTo(expected);
+            assertThat(scanResult.getAllResources().getPaths()).contains("marker.txt", "res/indir.txt");
+        }
+        try (var scanResult = new ClassGraph().enableClasspathEntries(new Path[] { markerDir }, classesDir)
+                .scan()) {
+            assertThat(scanResult.getClasspathFiles()).isEqualTo(expected);
+        }
+        try (var scanResult = new ClassGraph().enableClasspathEntries(List.of(List.of(markerDir), classesDir))
+                .scan()) {
+            assertThat(scanResult.getClasspathFiles()).isEqualTo(expected);
+        }
+    }
+
     /** A classpath element is only scanned if every path filter accepts its path. */
     @Test
     public void classpathElementsCanBeFilteredByPath() {
