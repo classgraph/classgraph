@@ -7,7 +7,6 @@ import java.io.Serial;
 import java.io.Serializable;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
@@ -167,20 +166,6 @@ public class ClassTypeSignatureTest {
             final var otherTypeSig = classInfo(scanResult, NonGeneric.class).getTypeDescriptor();
             assertThat(typeSig).isEqualTo(typeSig).isNotEqualTo(otherTypeSig).isNotEqualTo(null)
                     .isNotEqualTo(typeSig.toString());
-        }
-    }
-
-    /**
-     * A type annotation cannot be added to a class type signature as a whole -- the type parameters, superclass and
-     * superinterfaces each take their own type annotations.
-     */
-    @Test
-    public void aTypeAnnotationCannotBeAddedToAClassTypeSignatureAsAWhole() {
-        try (var scanResult = scanFixture()) {
-            final var typeSig = classInfo(scanResult, Sub.class).getTypeSignature();
-            assertThat(typeSig).isNotNull();
-            assertThatExceptionOfType(UnsupportedOperationException.class)
-                    .isThrownBy(() -> typeSig.addTypeAnnotation(List.of(), null));
         }
     }
 

@@ -157,7 +157,14 @@ public final class TypeArgument extends HierarchicalTypeSignature {
         return substituted == null ? typeArguments : substituted;
     }
 
-    @Override
+    /**
+     * Add a type annotation to this type argument, or to the type within it that the type path leads to.
+     *
+     * @param typePath
+     *            The type path, relative to this type argument.
+     * @param annotationInfo
+     *            The annotation to add.
+     */
     void addTypeAnnotation(final List<TypePathNode> typePath, final AnnotationInfo annotationInfo) {
         if (typePath.isEmpty() && wildcard != Wildcard.NONE) {
             // Annotation before wildcard

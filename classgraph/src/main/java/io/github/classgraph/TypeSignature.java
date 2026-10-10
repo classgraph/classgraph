@@ -324,20 +324,6 @@ public abstract sealed class TypeSignature extends HierarchicalTypeSignature
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get the names of any classes referenced in the type signature.
-     *
-     * @param refdClassNames
-     *            the referenced class names.
-     */
-    @Override
-    void findReferencedClassNames(final Set<String> refdClassNames) {
-        final var className = getClassName();
-        if (className != null && !className.isEmpty()) {
-            refdClassNames.add(className);
-        }
-    }
-
-    /**
      * Compare base types, ignoring generic type parameters and type annotations.
      *
      * @param other
@@ -398,13 +384,12 @@ public abstract sealed class TypeSignature extends HierarchicalTypeSignature
     }
 
     /**
-     * Add a type annotation to this type.
+     * Add a type annotation to this type, or to the type within it that the type path leads to.
      *
      * @param typePath
-     *            The type path.
+     *            The type path, relative to this type.
      * @param annotationInfo
      *            The annotation to add.
      */
-    @Override
     abstract void addTypeAnnotation(List<TypePathNode> typePath, AnnotationInfo annotationInfo);
 }

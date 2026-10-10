@@ -251,19 +251,6 @@ public class MethodTypeSignatureTest {
         }
     }
 
-    /**
-     * A type annotation cannot be added to a method type signature as a whole -- the type parameters, parameter
-     * types, result type and throws types each take their own type annotations.
-     */
-    @Test
-    public void aTypeAnnotationCannotBeAddedToAMethodTypeSignatureAsAWhole() {
-        try (var scanResult = scanFixture()) {
-            final var typeSig = typeSignature(scanResult, "generic");
-            assertThatExceptionOfType(UnsupportedOperationException.class)
-                    .isThrownBy(() -> typeSig.addTypeAnnotation(List.of(), null));
-        }
-    }
-
     /** A method type signature does not name a class of its own, so it has neither a class name nor a class. */
     @Test
     public void aMethodTypeSignatureDoesNotNameAClass() {
