@@ -197,8 +197,7 @@ final class DirEntry extends VfsEntry {
     private PathSlice openSlice() throws IOException {
         final var root = getRoot();
         root.checkNotClosed(getPath());
-        return new PathSlice(path, root.getVfs(), /* checkAccess = */ false, /* memoryMapWholeFile = */ false,
-                /* log = */ null);
+        return PathSlice.forDirEntry(path, root.getVfs());
     }
 
     @Override

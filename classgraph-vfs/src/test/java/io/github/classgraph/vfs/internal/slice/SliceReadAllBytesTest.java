@@ -124,12 +124,14 @@ public class SliceReadAllBytesTest {
 
     /**
      * A length that is too large to fit in an array is rejected before the array is allocated, so that a zipfile
-     * cannot make the reader run out of memory just by claiming an entry is enormous.
+     * cannot make the reader run out of memory just by claiming an entry is enormous. The stream is still closed,
+     * since the caller has handed it over: for a deflated zip entry, closing it is what returns its inflater.
      */
     @Test
     public void aLengthThatIsTooLargeToFitInAnArrayIsRejected() {
-        assertThatThrownBy(
-                () -> Slice.readAllBytesAsArray(new ByteArrayInputStream(content(16)), Slice.MAX_BUFFER_SIZE + 1L))
+        final var inputStream = new ClosedRecordingInputStream(content(16));
+        assertThatThrownBy(() -> Slice.readAllBytesAsArray(inputStream, Slice.MAX_BUFFER_SIZE + 1L))
                 .isInstanceOf(IOException.class).hasMessage("InputStream is too large to read");
+        assertThat(inputStream.closed).isTrue();
     }
 }

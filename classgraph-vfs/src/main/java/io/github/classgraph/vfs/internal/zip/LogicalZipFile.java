@@ -101,7 +101,7 @@ public final class LogicalZipFile {
     private final boolean multiReleaseVersionsEnabled;
 
     /** The vfs that owns what is opened to read this zipfile and the jarfiles nested within it. */
-    private final Vfs vfs;
+    final Vfs vfs;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -251,7 +251,8 @@ public final class LogicalZipFile {
             // The entry holds a stored nested zipfile, so it can be read in place, as a byte range of this zipfile.
             // Hopefully nested zipfiles are stored, not deflated, as this is the fast path.
             return new JarOpener.OpenedJar(new LogicalZipFile(this, physicalZipFile, zipEntry.entryName,
-                    zipEntry.getSlice(), vfs, log, multiReleaseVersionsEnabled), /* ownedPhysicalZipFile = */ null);
+                    zipEntry.getRawSlice(), vfs, log, multiReleaseVersionsEnabled),
+                    /* ownedPhysicalZipFile = */ null);
         }
 
         // A deflated nested zipfile has to be inflated before its central directory can be read, since a zipfile
@@ -267,8 +268,7 @@ public final class LogicalZipFile {
         // (The stream is opened here, so it is closed here -- PhysicalZipFile does not close what it reads.)
         final var allowance = physicalZipFile.nestedJarInflationAllowance;
         PhysicalZipFile inflatedZipFile = null;
-        final var inflatedInputStream = allowance.limit(zipEntry.getSlice().open(),
-                getPath() + "!/" + zipEntry.entryName);
+        final var inflatedInputStream = allowance.limit(zipEntry.open(), getPath() + "!/" + zipEntry.entryName);
         try (inflatedInputStream) {
             // The declared uncompressed size is only a hint, since the inflated stream is read to its end whatever
             // its length: it decides whether to inflate to RAM or straight to disk, and the initial buffer size
@@ -309,7 +309,7 @@ public final class LogicalZipFile {
      *             if the manifest could not be read.
      */
     private static Map<String, String> parseManifest(final FastZipEntry manifestZipEntry) throws IOException {
-        try (final InputStream manifestInputStream = manifestZipEntry.getSlice().open()) {
+        try (final InputStream manifestInputStream = manifestZipEntry.open()) {
             return ManifestParser.parse(manifestInputStream);
         }
     }
@@ -512,8 +512,7 @@ public final class LogicalZipFile {
                 // Should not happen
                 throw new IOException("Zipfile is truncated");
             }
-            try (final ArraySlice arraySlice = new ArraySlice(eocdBytes, /* isDeflatedZipEntry = */ false,
-                    /* inflatedLengthHint = */ 0L, vfs)) {
+            try (final ArraySlice arraySlice = new ArraySlice(eocdBytes, vfs)) {
                 final var eocdReader = arraySlice.randomAccessReader();
                 for (var i = eocdBytes.length - 22L; i >= 0L; --i) {
                     if (eocdReader.readUnsignedInt(i) == 0x06054b50L) {
@@ -669,8 +668,7 @@ public final class LogicalZipFile {
             // accessed without adding cenPos to each read offset, so that this slice or the slice in the "else"
             // clause below are accessed with the same index, which is the offset from the start of the central
             // directory).
-            return slice.slice(cen.cenPos(), cen.cenSize(), /* isDeflatedZipEntry = */ false,
-                    /* inflatedLengthHint = */ 0L).randomAccessReader();
+            return slice.slice(cen.cenPos(), cen.cenSize()).randomAccessReader();
         }
         // Read the central directory into RAM for speed, then wrap it in an ArraySlice (random access is faster
         // for ArraySlice than for PathSlice)
@@ -679,8 +677,7 @@ public final class LogicalZipFile {
             // Should not happen
             throw new IOException("Zipfile is truncated");
         }
-        return new ArraySlice(entryBytes, /* isDeflatedZipEntry = */ false, /* inflatedLengthHint = */ 0L, vfs)
-                .randomAccessReader();
+        return new ArraySlice(entryBytes, vfs).randomAccessReader();
     }
 
     /**

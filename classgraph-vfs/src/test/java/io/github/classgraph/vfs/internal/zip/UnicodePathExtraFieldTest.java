@@ -195,7 +195,7 @@ public class UnicodePathExtraFieldTest {
         try {
             final var entry = Objects
                     .requireNonNull(JarOpener.openJarFile(jar, vfs, /* log = */ null).zipFile().findEntry("a.txt"));
-            try (var in = entry.getSlice().open()) {
+            try (var in = entry.open()) {
                 assertThat(new String(in.readAllBytes(), StandardCharsets.UTF_8)).isEqualTo("first");
             }
         } finally {
@@ -244,7 +244,7 @@ public class UnicodePathExtraFieldTest {
         try {
             final var entry = Objects
                     .requireNonNull(JarOpener.openJarFile(jar, vfs, /* log = */ null).zipFile().findEntry(name));
-            try (var in = entry.getSlice().open()) {
+            try (var in = entry.open()) {
                 assertThat(new String(in.readAllBytes(), StandardCharsets.UTF_8)).isEqualTo("second");
             }
         } finally {

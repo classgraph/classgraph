@@ -126,7 +126,7 @@ final class ArchiveEntry extends VfsEntry {
     @Override
     InputStream openUnchecked() throws IOException {
         getRoot().checkNotClosed(getPath());
-        return zipEntry.getSlice().open();
+        return zipEntry.open();
     }
 
     @Override
@@ -137,7 +137,7 @@ final class ArchiveEntry extends VfsEntry {
         // tracks the wrapper, so that closing the root closes the wrapper too
         // #939
         final var root = getRoot();
-        final var buffer = new CloseableByteBuffer(zipEntry.getSlice().read(), () -> {
+        final var buffer = new CloseableByteBuffer(zipEntry.read(), () -> {
             // Nothing to release
         }, root);
         if (!root.trackOpenHandle(buffer)) {
@@ -150,8 +150,7 @@ final class ArchiveEntry extends VfsEntry {
     @Override
     RandomAccessContent openRandomAccess() throws IOException {
         getRoot().checkNotClosed(getPath());
-        final var slice = zipEntry.getSlice();
-        if (slice.isDeflatedZipEntry) {
+        if (zipEntry.isDeflated) {
             // The content has to be inflated from the beginning to reach any given offset, so it is inflated only
             // as far as the furthest offset that is read, and what has been inflated so far is buffered
             final var reader = new RandomAccessOrSequentialReader(this);
@@ -159,7 +158,7 @@ final class ArchiveEntry extends VfsEntry {
         }
         // The slice of a zip entry owns no resources of its own, so there is nothing to release when the caller has
         // finished with the reader
-        return new RandomAccessContent(slice.randomAccessReader(), () -> {
+        return new RandomAccessContent(zipEntry.getRawSlice().randomAccessReader(), () -> {
             // Nothing to release
         });
     }
@@ -167,6 +166,6 @@ final class ArchiveEntry extends VfsEntry {
     @Override
     public byte[] load() throws IOException {
         getRoot().checkNotClosed(getPath());
-        return zipEntry.getSlice().load();
+        return zipEntry.load();
     }
 }
