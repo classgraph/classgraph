@@ -417,6 +417,33 @@ public class FastPathResolverTest {
     }
 
     /**
+     * Once a URL scheme has been kept, the rest of the path belongs to that URL, so a host, a userinfo or a path
+     * segment that happens to begin with {@code "jar:"} or {@code "file:"} is not stripped as another scheme, and
+     * the rest of the URL is not percent-decoded as if it were a filesystem path.
+     */
+    @Test
+    public void aSchemeNameAfterAKeptSchemeIsPartOfTheURL() {
+        for (final String host : new String[] { "jar", "file", "JAR" }) {
+            assertThat(FastPathResolver.resolve(null, "http://" + host + ":8080/a%20b.jar"))
+                    .isEqualTo("http://" + host + ":8080/a%20b.jar");
+            assertThat(FastPathResolver.resolve("/base", "https://" + host + ":443/a%20b.jar"))
+                    .isEqualTo("https://" + host + ":443/a%20b.jar");
+            assertThat(FastPathResolver.resolveFilePath("/base", "http://" + host + ":8080/a%20b.jar"))
+                    .isEqualTo("http://" + host + ":8080/a%20b.jar");
+        }
+        assertThat(FastPathResolver.resolve("http://file:pw@h/a%20b.jar")).isEqualTo("http://file:pw@h/a%20b.jar");
+        assertThat(FastPathResolver.resolve("http://jar:8080/x/../../y.jar")).isEqualTo("http://jar:8080/y.jar");
+        assertThat(FastPathResolver.resolve("jar:http://jar:8080/a%20b.jar!/c"))
+                .isEqualTo("http://jar:8080/a%20b.jar!/c");
+        // The same holds after a custom scheme, with two slashes or one
+        assertThat(FastPathResolver.resolve("custom://jar:1/a%20b")).isEqualTo("custom://jar:1/a%20b");
+        assertThat(FastPathResolver.resolve("custom:/file:x/a%20b")).isEqualTo("custom:/file:x/a%20b");
+        // "jar:" and "file:" are still stripped when they wrap the URL
+        assertThat(FastPathResolver.resolve(null, "jar:http://h:1/x.jar")).isEqualTo("http://h:1/x.jar");
+        assertThat(FastPathResolver.resolve("jar:file:/a%20b.jar!/c")).isEqualTo("/a b.jar!/c");
+    }
+
+    /**
      * A URL scheme must be at least two characters long, so that a Windows drive designation is never read as a
      * scheme. Single-letter schemes are unusable in practice for exactly that reason, so nothing is given up: off
      * Windows a path such as {@code "C:/a/b"} is an ordinary relative path, which will not exist, so the classpath

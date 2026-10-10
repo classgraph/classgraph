@@ -345,7 +345,8 @@ public final class FastPathResolver {
     }
 
     /**
-     * Strip any number of nested URL scheme prefixes from the beginning of a path.
+     * Strip any number of nested {@code "jar:"} and {@code "file:"} prefixes from the beginning of a path, then at
+     * most one URL scheme that is kept, such as {@code "http://"}.
      *
      * @param path
      *            the path
@@ -412,7 +413,9 @@ public final class FastPathResolver {
                     parsed.remainderIsFilePath = false;
                 }
             }
-        } while (matchedPrefix);
+            // Only "jar:" and "file:" are stripped and wrap another URL. Once a scheme has been kept, the rest of
+            // the path belongs to that URL, so in "http://jar:8080/x.jar" the host "jar" is not another scheme
+        } while (matchedPrefix && parsed.prefix.isEmpty());
         return parsed;
     }
 
