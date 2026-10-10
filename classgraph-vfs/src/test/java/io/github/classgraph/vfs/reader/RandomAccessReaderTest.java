@@ -457,6 +457,37 @@ public class RandomAccessReaderTest {
     }
 
     /**
+     * A negative source offset or number of bytes is rejected even when the read would copy nothing, because the
+     * number of bytes is zero or the destination is full. A negative number of bytes is usually an overflow in the
+     * caller's length arithmetic, and these reads used to return zero for it, which a copy loop takes to mean that
+     * the destination is full.
+     *
+     * @param readerKind
+     *            the kind of reader to read through
+     * @throws IOException
+     *             if the reader could not be created
+     */
+    @ParameterizedTest
+    @EnumSource(ReaderKind.class)
+    public void aNegativeOffsetOrLengthIsRejectedEvenWhenNothingWouldBeCopied(final ReaderKind readerKind)
+            throws IOException {
+        final var reader = reader(readerKind, PATTERN, 0, PATTERN.length);
+        final var dstArr = new byte[4];
+        final var dstBuf = ByteBuffer.allocate(4);
+        assertThatThrownBy(() -> reader.read(-1, dstArr, 0, 0)).isInstanceOf(IOException.class)
+                .hasMessageContaining("out of bounds");
+        assertThatThrownBy(() -> reader.read(-1, dstBuf, 0, 0)).isInstanceOf(IOException.class)
+                .hasMessageContaining("out of bounds");
+        assertThatThrownBy(() -> reader.read(0, dstArr, dstArr.length, -1)).isInstanceOf(IOException.class)
+                .hasMessageContaining("out of bounds");
+        assertThatThrownBy(() -> reader.read(0, dstBuf, dstBuf.limit(), -1)).isInstanceOf(IOException.class)
+                .hasMessageContaining("out of bounds");
+        // A read of zero bytes at a valid offset still returns zero
+        assertThat(reader.read(0, dstArr, 0, 0)).isZero();
+        assertThat(reader.read(0, dstBuf, 0, 0)).isZero();
+    }
+
+    /**
      * A read into a {@link ByteBuffer} writes at the index it is given, so it must leave the destination's position
      * and limit exactly where the caller left them. A caller that then reads the buffer relatively, or hands it to
      * something that does, gets the whole of it rather than just the window of the last read.
@@ -541,6 +572,11 @@ public class RandomAccessReaderTest {
         final var dstBuf = ByteBuffer.allocate(PATTERN.length).asReadOnlyBuffer();
         assertThatThrownBy(() -> reader.read(0, dstBuf, 0, PATTERN.length)).isInstanceOf(IOException.class)
                 .hasMessage("The destination buffer is read-only");
+        // Also when the read would copy nothing
+        assertThatThrownBy(() -> reader.read(0, dstBuf, 0, 0)).isInstanceOf(IOException.class)
+                .hasMessage("The destination buffer is read-only");
+        assertThatThrownBy(() -> reader.read(0, dstBuf, dstBuf.limit(), PATTERN.length))
+                .isInstanceOf(IOException.class).hasMessage("The destination buffer is read-only");
     }
 
     /**
