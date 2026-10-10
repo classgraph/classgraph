@@ -296,9 +296,10 @@ public class ModuleInfoTest {
      * @return a classpath element for the module directory.
      */
     private static ClasspathElement sameModuleDirClasspathElement() {
-        final var workUnit = new ClasspathEntryWorkUnit(moduleDir, /* classLoader = */ null,
-                /* parentClasspathElement = */ null, /* classpathElementIdx = */ 0, /* packageRootPrefix = */ "",
-                ClassLoaderHandler.NO_PACKAGE_ROOT_PREFIXES, ClassLoaderHandler.NO_LIB_DIR_PREFIXES);
+        final var workUnit = new ClasspathEntryWorkUnit(moduleDir, /* classLoaderStr = */ null,
+                /* parentClasspathElement = */ null, /* classpathElementIdxWithinParent = */ 0,
+                /* packageRootPrefix = */ "", ClassLoaderHandler.NO_PACKAGE_ROOT_PREFIXES,
+                ClassLoaderHandler.NO_LIB_DIR_PREFIXES);
         return new ClasspathElementDir(workUnit, moduleDir, VFS, new ScanSpec());
     }
 }

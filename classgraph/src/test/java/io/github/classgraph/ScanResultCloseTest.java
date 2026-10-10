@@ -119,4 +119,40 @@ public class ScanResultCloseTest {
         ScanResult.closeAll();
         assertThat(open.isClosed()).isTrue();
     }
+
+    /**
+     * {@link ScanResult#closeAll()} also closes a {@link ScanResult} that the caller dropped without closing while
+     * still holding one of its resources. {@link ScanResult#closeAll()} only finds a {@link ScanResult} through a
+     * weak reference, so the resource must keep its {@link ScanResult} reachable: otherwise the {@link ScanResult}
+     * could be garbage collected while the jarfile it opened stays open, reachable through the resource.
+     *
+     * @throws Exception
+     *             if the scan could not be run.
+     */
+    @Test
+    public void closeAllClosesAScanResultReachableOnlyFromAResource() throws Exception {
+        final var resource = resourceOfDroppedScanResult();
+        // Give the garbage collector the chance to collect the ScanResult, if the resource did not keep it reachable
+        for (var i = 0; i < 5; i++) {
+            System.gc();
+            Thread.sleep(20);
+        }
+
+        ScanResult.closeAll();
+
+        assertThat(resource.getVfsEntry().getRoot().getVfs().isClosed()).isTrue();
+        assertThatIllegalStateException().isThrownBy(resource::load)
+                .withMessage("Cannot open a resource after the ScanResult is closed");
+    }
+
+    /**
+     * Scan a jarfile without closing the {@link ScanResult}, and return one of its resources, so that the caller
+     * holds no reference to the {@link ScanResult} itself.
+     *
+     * @return a resource of the jarfile.
+     */
+    private static Resource resourceOfDroppedScanResult() {
+        final var scanResult = new ClassGraph().enableClasspathEntries("src/test/resources/issue286.jar").scan();
+        return scanResult.getAllResources().get(0);
+    }
 }

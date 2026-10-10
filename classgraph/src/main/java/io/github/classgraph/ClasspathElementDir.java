@@ -78,8 +78,7 @@ final class ClasspathElementDir extends ClasspathElement {
     void open(final WorkQueue<ClasspathEntryWorkUnit> workQueue, final @Nullable LogNode log) {
         if (!scanSpec.scanDirs) {
             if (log != null) {
-                log(classpathElementIdx,
-                        "Skipping classpath element, since dir scanning is disabled: " + classpathEltPath, log);
+                log.log("Skipping classpath element, since dir scanning is disabled: " + classpathEltPath);
             }
             skipClasspathElement = true;
             return;
@@ -100,7 +99,7 @@ final class ClasspathElementDir extends ClasspathElement {
                     final var packageRoot = classpathEltPath.resolve(packageRootPrefix);
                     if (FileUtils.canReadAndIsDir(packageRoot)) {
                         if (log != null) {
-                            log(classpathElementIdx, "Found package root: " + packageRootPrefix, log);
+                            log.log("Found package root: " + packageRootPrefix);
                         }
                         childScheduler.schedule(packageRoot, packageRootPrefix);
                     }
@@ -113,8 +112,7 @@ final class ClasspathElementDir extends ClasspathElement {
             for (final var childEntry : ClasspathExpander.childEntries(root, libDirPrefixes,
                     vfsSpec.isNestedJarsEnabled(), log)) {
                 if (log != null) {
-                    log(classpathElementIdx, childEntry.origin().getLogMessage() + ": " + childEntry.location(),
-                            log);
+                    log.log(childEntry.origin().getLogMessage() + ": " + childEntry.location());
                 }
                 // A classpath element that this one declares has to pass the user's classpath element filters, the
                 // same as one that was named directly. The location is tested rather than the path, since the
@@ -133,8 +131,7 @@ final class ClasspathElementDir extends ClasspathElement {
             }
         } catch (final IOException | SecurityException e) {
             if (log != null) {
-                log(classpathElementIdx,
-                        "Skipping classpath element, since dir cannot be accessed: " + classpathEltPath, log);
+                log.log("Skipping classpath element, since dir cannot be accessed: " + classpathEltPath);
             }
             skipClasspathElement = true;
         }
@@ -421,7 +418,7 @@ final class ClasspathElementDir extends ClasspathElement {
                 moduleNameFromManifestFile = manifestRoot.getModuleName();
             } catch (final IOException e) {
                 if (log != null) {
-                    log(classpathElementIdx, "Could not read the manifest of " + classpathEltPath + " : " + e, log);
+                    log.log("Could not read the manifest of " + classpathEltPath + " : " + e);
                 }
             }
         }
