@@ -32,7 +32,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.BitSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -88,72 +87,25 @@ public final class GraphVizDotFile {
     /** The wrap width for method annotations and method parameters. */
     private static final int WRAP_WIDTH = 40;
 
-    /** Which characters are Unicode whitespace. */
-    private static final BitSet IS_UNICODE_WHITESPACE = new BitSet(1 << 16);
-
     /** Not instantiable. */
     private GraphVizDotFile() {
         // Empty
     }
 
-    static {
-        // Valid unicode whitespace chars, see:
-        // http://stackoverflow.com/questions/4731055/whitespace-matching-regex-java
-        // \n and \r are written as escapes rather than as Unicode escapes, since the compiler turns a Unicode escape
-        // for a line terminator into a real line break before parsing, which would end the string literal. See:
-        // https://stackoverflow.com/a/3866219/3950982
-        final var wsChars = "\u0020" // SPACE
-                + "\u0009" // CHARACTER TABULATION
-                + "\n" // LINE FEED (LF)
-                + "\u000B" // LINE TABULATION
-                + "\u000C" // FORM FEED (FF)
-                + "\r" // CARRIAGE RETURN (CR)
-                + "\u0085" // NEXT LINE (NEL)
-                + "\u00A0" // NO-BREAK SPACE
-                + "\u1680" // OGHAM SPACE MARK
-                + "\u180E" // MONGOLIAN VOWEL SEPARATOR
-                + "\u2000" // EN QUAD
-                + "\u2001" // EM QUAD
-                + "\u2002" // EN SPACE
-                + "\u2003" // EM SPACE
-                + "\u2004" // THREE-PER-EM SPACE
-                + "\u2005" // FOUR-PER-EM SPACE
-                + "\u2006" // SIX-PER-EM SPACE
-                + "\u2007" // FIGURE SPACE
-                + "\u2008" // PUNCTUATION SPACE
-                + "\u2009" // THIN SPACE
-                + "\u200A" // HAIR SPACE
-                + "\u2028" // LINE SEPARATOR
-                + "\u2029" // PARAGRAPH SEPARATOR
-                + "\u202F" // NARROW NO-BREAK SPACE
-                + "\u205F" // MEDIUM MATHEMATICAL SPACE
-                + "\u3000"; // IDEOGRAPHIC SPACE
-        for (var i = 0; i < wsChars.length(); i++) {
-            IS_UNICODE_WHITESPACE.set(wsChars.charAt(i));
-        }
-    }
-
     /**
-     * Checks if a character is Unicode whitespace.
-     *
-     * @param c
-     *            the character
-     * @return true if the character is Unicode whitespace
-     */
-    private static boolean isUnicodeWhitespace(final char c) {
-        return IS_UNICODE_WHITESPACE.get(c);
-    }
-
-    /**
-     * Encode HTML-unsafe characters as HTML entities. All whitespace, including newlines, is turned into a plain
-     * space, since a label is laid out by GraphViz as a single line of text unless it is broken up by table cells.
+     * Encode HTML-unsafe characters as HTML entities. Control characters and Unicode whitespace, including
+     * newlines, become a plain space, since a label is laid out by GraphViz as a single line of text unless it is
+     * broken up by table cells. The exception is U+00A0 (no-break space), which is written as {@code &nbsp;}. The
+     * other characters that XML 1.0 does not allow in text, which are lone surrogates, U+FFFE and U+FFFF, are
+     * written as the text {@code \}{@code uXXXX}, since GraphViz parses a label as XML, and since a lone surrogate
+     * cannot be written as UTF-8. A classfile name is modified UTF-8, which can hold any of these characters.
      *
      * @param unsafeStr
      *            The string to escape to make HTML-safe.
      * @param buf
      *            the buffer to append to
      */
-    private static void htmlEncode(final CharSequence unsafeStr, final StringBuilder buf) {
+    static void htmlEncode(final CharSequence unsafeStr, final StringBuilder buf) {
         for (int i = 0, n = unsafeStr.length(); i < n; i++) {
             final var c = unsafeStr.charAt(i);
             switch (c) {
@@ -180,7 +132,15 @@ public final class GraphVizDotFile {
             case '®' -> buf.append("&reg;");
             case (char) 0x00A0 -> buf.append("&nbsp;");
             default -> {
-                if (c <= 32 || isUnicodeWhitespace(c)) {
+                if (Character.isHighSurrogate(c) && i + 1 < n
+                        && Character.isLowSurrogate(unsafeStr.charAt(i + 1))) {
+                    // A valid surrogate pair
+                    buf.append(c).append(unsafeStr.charAt(++i));
+                } else if (Character.isSurrogate(c) || c == 0xFFFE || c == 0xFFFF) {
+                    // The backslash is written as an entity, as above
+                    appendUnicodeEscape(c, "&#x5C;", buf);
+                } else if (c <= ' ' || Character.isSpaceChar(c) || c == 0x0085 || c == 0x180E) {
+                    // NEL (U+0085) is not a space separator, and U+180E has not been one since Unicode 6.3
                     buf.append(' ');
                 } else {
                     buf.append(c);
@@ -751,7 +711,7 @@ public final class GraphVizDotFile {
      */
     static void appendQuotedIdentifier(final CharSequence identifier, final StringBuilder buf) {
         buf.append('"');
-        for (var i = 0; i < identifier.length(); i++) {
+        for (int i = 0, n = identifier.length(); i < n; i++) {
             final char c = identifier.charAt(i);
             switch (c) {
             case '"' -> buf.append("\\\"");
@@ -760,12 +720,15 @@ public final class GraphVizDotFile {
             case '\r' -> buf.append("\\r");
             case '\t' -> buf.append("\\t");
             default -> {
-                if (c < 0x20 || c == 0x7f) {
-                    // DOT does not define a portable escape for every control character. Encode these into a
-                    // collision-free printable form; node identifiers are internal and need not equal the label.
-                    buf.append("\\u");
-                    final String hex = Integer.toHexString(c);
-                    buf.append("0".repeat(4 - hex.length())).append(hex);
+                if (Character.isHighSurrogate(c) && i + 1 < n
+                        && Character.isLowSurrogate(identifier.charAt(i + 1))) {
+                    // A valid surrogate pair
+                    buf.append(c).append(identifier.charAt(++i));
+                } else if (c < 0x20 || c == 0x7f || Character.isSurrogate(c)) {
+                    // DOT does not define a portable escape for every control character, and a lone surrogate
+                    // cannot be written as UTF-8. Encode these into a collision-free printable form (a backslash in
+                    // the identifier is doubled above); node identifiers are internal and need not equal the label.
+                    appendUnicodeEscape(c, "\\", buf);
                 } else {
                     buf.append(c);
                 }
@@ -773,6 +736,22 @@ public final class GraphVizDotFile {
             }
         }
         buf.append('"');
+    }
+
+    /**
+     * Append a character as the text of a Java Unicode escape, i.e. a backslash, the letter {@code u} and four
+     * lowercase hex digits.
+     *
+     * @param c
+     *            the character.
+     * @param backslash
+     *            the text to write for the backslash.
+     * @param buf
+     *            the buffer to append to.
+     */
+    private static void appendUnicodeEscape(final char c, final String backslash, final StringBuilder buf) {
+        final String hex = Integer.toHexString(c);
+        buf.append(backslash).append('u').append("0".repeat(4 - hex.length())).append(hex);
     }
 
     /**
