@@ -25,10 +25,11 @@ the settings a `Vfs` is constructed with, `CloseableByteBuffer` wraps a buffer y
 and `VfsVisitor` is the callback that `VfsRoot#walk()` takes. Those six types are the API you call.
 Two more are public only because `java.nio.file` needs them to be: `VfsFileSystemProvider`, which
 `ServiceLoader` instantiates to serve the `cgvfs:` URL scheme, and `VfsPath`, the `Path` of a
-filesystem view, whose one addition to `Path` is `toCgvfsUri()`. `Vfs` also has one further public
-constructor, which takes a type from a package that is exported only to ClassGraph's own modules, so
-no other module can call it. See the
-[Vfs API](https://github.com/classgraph/classgraph/wiki/Vfs-API) for the full reference.
+filesystem view, whose one addition to `Path` is `toCgvfsUri()`. `Vfs` also has two public members
+that are not part of the API, since they name types from packages that are not exported to every
+module: a constructor that takes a type which, on the module path, only ClassGraph's own modules can
+obtain, and `inflaterRecycler()`, which the virtual filesystem's internal packages read through. See
+the [Vfs API](https://github.com/classgraph/classgraph/wiki/Vfs-API) for the full reference.
 
 `VfsRoot` is sealed, with one public final subclass per kind of storage -- `DirRoot`, `ArchiveRoot`
 and `ModuleRoot` -- so that a root can be switched on where the kind of storage matters. They add no

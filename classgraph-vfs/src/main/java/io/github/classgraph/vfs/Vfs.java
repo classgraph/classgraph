@@ -185,8 +185,9 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
 
     /**
      * Constructor for the other ClassGraph modules, which share an {@link InterruptionChecker} with the rest of a
-     * scan. {@link InterruptionChecker} is in a package that is only exported to those modules, so no other module
-     * can call this constructor, and it is not part of the API.
+     * scan. {@link InterruptionChecker} is in a package that is only exported to those modules, so on the module
+     * path no other module can obtain one to pass. This constructor is public only for those modules, and is not
+     * part of the API.
      *
      * @param vfsSpec
      *            the settings to read storage with.
@@ -194,6 +195,7 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      *            the interruption checker to share with the rest of the scan.
      * @hidden
      */
+    @SuppressWarnings("exports")
     public Vfs(final VfsSpec vfsSpec, final InterruptionChecker interruptionChecker) {
         Assert.notNull(vfsSpec, "vfsSpec");
         Assert.notNull(interruptionChecker, "interruptionChecker");
@@ -969,11 +971,12 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
 
     /**
      * Returns the pool of {@code Inflater} instances that deflated zip entries read through this {@link Vfs} are
-     * inflated with.
+     * inflated with. Public only because the zip package reads through it, and not part of the API.
      *
      * @return the inflater pool.
      * @hidden
      */
+    @SuppressWarnings("exports")
     public Recycler<Inflater, RuntimeException> inflaterRecycler() {
         return inflaterRecycler;
     }
