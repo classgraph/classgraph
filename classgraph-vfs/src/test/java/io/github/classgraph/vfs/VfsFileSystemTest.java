@@ -690,6 +690,152 @@ public class VfsFileSystemTest {
     }
 
     /**
+     * Write a Spring Boot style jarfile, with one class at the top level and one under the package root
+     * {@code BOOT-INF/classes}.
+     *
+     * @param jarFile
+     *            the jarfile to write.
+     * @throws IOException
+     *             if the jarfile could not be written.
+     */
+    private static void writeAppJar(final File jarFile) throws IOException {
+        try (var fileOut = new FileOutputStream(jarFile); var zipOut = new ZipOutputStream(fileOut)) {
+            zipOut.putNextEntry(new ZipEntry("Top.class"));
+            zipOut.closeEntry();
+            zipOut.putNextEntry(new ZipEntry("BOOT-INF/classes/com/xyz/Widget.class"));
+            zipOut.closeEntry();
+        }
+    }
+
+    /**
+     * The root directory of a view of a jarfile names the top of the jarfile's contents, as the root of a zipfs
+     * filesystem does, rather than the jarfile itself.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the root could not be read.
+     */
+    @Test
+    public void theRootOfAJarViewNamesTheTopOfTheJarfile(@TempDir final Path tempDir) throws IOException {
+        final var jarFile = tempDir.resolve("app.jar").toFile();
+        writeAppJar(jarFile);
+
+        try (var vfs = new Vfs()) {
+            final var jarRoot = vfs.open(jarFile);
+            final var rootURI = jarRoot.asFileSystem().getPath("/").toUri();
+            assertThat(rootURI).isEqualTo(jarRoot.resolveURI(""));
+            assertThat(rootURI.toString()).startsWith("jar:file:").endsWith("app.jar!/");
+        }
+    }
+
+    /**
+     * The root directory of a view of a package root names the package root, rather than the whole jarfile, so that
+     * it is not mistaken for the root directory of a view of the whole jarfile.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if a root could not be read.
+     */
+    @Test
+    public void theRootOfAPackageRootViewNamesThePackageRoot(@TempDir final Path tempDir) throws IOException {
+        final var jarFile = tempDir.resolve("app.jar").toFile();
+        writeAppJar(jarFile);
+
+        try (var vfs = new Vfs(); var otherVfs = new Vfs()) {
+            final var wholeView = vfs.open(jarFile).asFileSystem();
+            final var wholeRootURI = wholeView.getPath("/").toUri();
+            final var packageRootView = vfs.open(jarFile.getPath() + "!/BOOT-INF/classes").asFileSystem();
+            final var packageRootURI = packageRootView.getPath("/").toUri();
+            assertThat(packageRootURI.toString()).startsWith("jar:file:").endsWith("app.jar!/BOOT-INF/classes");
+            assertThat(packageRootURI).isNotEqualTo(wholeRootURI);
+            // A directory of the package root is named within the package root, the way its files are
+            assertThat(packageRootView.getPath("/com").toUri().toString()).isEqualTo(packageRootURI + "/com");
+
+            // Another Vfs opens a path of a filesystem it does not own by the path's URI, so the two views must not
+            // open as the same root there
+            final var packageRootInOtherVfs = otherVfs.open(packageRootView.getPath("/"));
+            final var wholeInOtherVfs = otherVfs.open(wholeView.getPath("/"));
+            assertThat(wholeInOtherVfs).isNotSameAs(packageRootInOtherVfs);
+            assertThat(list(Files.newDirectoryStream(wholeInOtherVfs.asFileSystem().getPath("/"))))
+                    .containsExactlyInAnyOrder("/BOOT-INF", "/Top.class");
+            assertThat(list(Files.newDirectoryStream(packageRootInOtherVfs.asFileSystem().getPath("/"))))
+                    .containsExactly("/com");
+        }
+    }
+
+    /**
+     * A directory of a directory root, or of a module exploded into a directory, is named in the same spelling as
+     * the files within it, so that its URI relativizes a file's URI to the file's name, as it does through the
+     * default filesystem.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if a root could not be read.
+     */
+    @Test
+    public void aDirectoryURIRelativizesTheURIOfAFileWithinIt(@TempDir final Path tempDir) throws IOException {
+        // Names that Path#toUri() leaves unencoded or encodes in upper case, which the encoding of a jarfile entry
+        // name encodes differently
+        final var dirNames = List.of("a;b", "a=b", "café");
+        final var dir = tempDir.resolve("classes");
+        final var entryNames = new ArrayList<String>();
+        for (final var dirName : dirNames) {
+            Files.createDirectories(dir.resolve(dirName));
+            Files.write(dir.resolve(dirName).resolve("X.class"), new byte[0]);
+            entryNames.add(dirName + "/X.class");
+        }
+
+        try (var vfs = new Vfs()) {
+            final var dirFileSystem = vfs.open(dir).asFileSystem();
+            final var moduleFileSystem = vfs.open(explodedModule(dir, entryNames)).asFileSystem();
+            for (final var fileSystem : List.of(dirFileSystem, moduleFileSystem)) {
+                for (final var dirName : dirNames) {
+                    final var dirURI = fileSystem.getPath("/" + dirName).toUri();
+                    final var fileURI = fileSystem.getPath("/" + dirName + "/X.class").toUri();
+                    // The default filesystem's URI of the directory, less the '/' it ends a directory's URI with
+                    final var defaultDirURI = dir.resolve(dirName).toUri().toString();
+                    assertThat(dirURI.toString()).isEqualTo(defaultDirURI.substring(0, defaultDirURI.length() - 1));
+                    assertThat(dirURI.relativize(fileURI).toString()).as(dirURI.toString()).isEqualTo("X.class");
+                }
+            }
+        }
+    }
+
+    /**
+     * The root directory and the directories of a module packaged as a jarfile are named within the jarfile, the
+     * way the module names its resources, and the paths of a module of the running JDK are named by its
+     * {@code jrt:} URIs.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if a module could not be read.
+     */
+    @Test
+    public void pathsOfAPackagedModuleAreNamedWithinTheJarfile(@TempDir final Path tempDir) throws IOException {
+        final var jarFile = tempDir.resolve("library.jar").toFile();
+        writeJar(jarFile);
+        // A jarfile with no module descriptor is an automatic module
+        final var moduleReference = ModuleFinder.of(jarFile.toPath()).findAll().iterator().next();
+
+        try (var vfs = new Vfs()) {
+            final var fileSystem = vfs.open(moduleReference).asFileSystem();
+            final var rootURI = fileSystem.getPath("/").toUri();
+            assertThat(rootURI.toString()).startsWith("jar:file:").endsWith("library.jar!/");
+            assertThat(fileSystem.getPath("/com/xyz").toUri().toString()).isEqualTo(rootURI + "com/xyz");
+
+            final var jrtFileSystem = vfs.open(ModuleFinder.ofSystem().find("java.logging").orElseThrow())
+                    .asFileSystem();
+            assertThat(jrtFileSystem.getPath("/").toUri()).isEqualTo(URI.create("jrt:/java.logging"));
+            assertThat(jrtFileSystem.getPath("/java/util").toUri())
+                    .isEqualTo(URI.create("jrt:/java.logging/java/util"));
+        }
+    }
+
+    /**
      * A channel over a resource of a module streams it only as far as the furthest offset that is read, buffering
      * what it has read so far, even though a {@link ModuleReader} cannot say how long a resource is without reading
      * it. A caller that reads a header therefore reads only the header, and a caller that asks how long the
@@ -816,6 +962,19 @@ public class VfsFileSystemTest {
      * @return the module.
      */
     private static ModuleReference explodedModule(final Path moduleDir) {
+        return explodedModule(moduleDir, ENTRY_NAMES);
+    }
+
+    /**
+     * Create a module that is exploded into a directory, the way {@link ModuleFinder#of(Path...)} reports one.
+     *
+     * @param moduleDir
+     *            the directory the module was exploded into.
+     * @param entryNames
+     *            the names of the module's resources.
+     * @return the module.
+     */
+    private static ModuleReference explodedModule(final Path moduleDir, final List<String> entryNames) {
         return new ModuleReference(ModuleDescriptor.newModule("test.module").build(), moduleDir.toUri()) {
             @Override
             public ModuleReader open() {
@@ -828,7 +987,7 @@ public class VfsFileSystemTest {
 
                     @Override
                     public Stream<String> list() {
-                        return ENTRY_NAMES.stream();
+                        return entryNames.stream();
                     }
 
                     @Override
