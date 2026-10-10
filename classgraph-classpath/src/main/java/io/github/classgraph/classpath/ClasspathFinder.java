@@ -34,7 +34,6 @@ import java.util.List;
 import java.util.function.Predicate;
 
 import io.github.classgraph.base.LogNode;
-import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
 import io.github.classgraph.base.internal.utils.Assert;
 import io.github.classgraph.classpath.internal.ClassLoaderProbe;
 import io.github.classgraph.classpath.internal.ClasspathSpec;
@@ -621,7 +620,7 @@ public final class ClasspathFinder {
             // The virtual filesystem owns the classpath elements that are opened to do that, and outlives this
             // method: the returned Classpath hands it to the caller, so that a classpath element that was opened
             // here is not opened a second time when the caller reads it.
-            final var vfs = new Vfs(vfsSpec, new InterruptionChecker());
+            final var vfs = new Vfs(vfsSpec);
             Classpath classpath = null;
             try {
                 final var expandedEntries = TransitiveClasspath.expand(classLoaderEntries,
