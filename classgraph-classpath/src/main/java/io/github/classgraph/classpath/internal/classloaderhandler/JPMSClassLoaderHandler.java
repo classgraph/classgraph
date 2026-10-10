@@ -103,8 +103,10 @@ class JPMSClassLoaderHandler implements ClassLoaderHandler {
         //   jdk.boot.class.path.append, which is removed from the properties the application can read).
         //
         // The jdk.internal.loader package is exported to only three modules, and is never opened, so the ucp field
-        // cannot be read by standard reflection unless the JVM was launched with --add-opens. Narcissus can read
-        // it without that, so these classpath entries are found only when Narcissus is on the classpath.
+        // cannot be read by standard reflection unless the JVM was launched with --add-opens, opening it to
+        // io.github.classgraph.base (or to ALL-UNNAMED, if ClassGraph is on the classpath). Narcissus can read it
+        // without that, so these classpath entries are found only when Narcissus is on the classpath or is a
+        // resolved module, or the package is opened.
         final var ucp = URLClassPathReader.getUcp(classLoader);
         if (ucp != null) {
             URLClassPathReader.addAllClasspathEntries(ucp, classLoader, classpathOrder, log);

@@ -65,7 +65,8 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>
  * The two fields that no public API exposes can only be read if the {@code jdk.internal.loader} package is open,
- * which it is not by default, so in practice these entries are only found if Narcissus is on the classpath.
+ * which it is not by default, so in practice these entries are only found if Narcissus is on the classpath or is a
+ * resolved module.
  */
 final class URLClassPathReader {
     /** The name of the class whose fields are read here. */

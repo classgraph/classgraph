@@ -12,7 +12,9 @@ ClassGraph extension point and needs one of the two types it exports.
 Module name: `io.github.classgraph.base`. Requires JDK 25 or newer. It has no dependencies that
 reach a downstream project: `org.jspecify` supplies the nullness annotations and is `provided`
 scope, so it is never on the runtime classpath, and `io.github.toolfactory:narcissus` is optional,
-used as the reflection driver only if you put it on the classpath yourself -- it reads fields
+used as the reflection driver only if you put it on the classpath yourself, or put it on the
+module path and resolve it (with `requires io.github.toolfactory.narcissus;` in your module, or
+`--add-modules io.github.toolfactory.narcissus`) -- it reads fields
 natively, which lets ClassGraph read the private fields of a classloader that the module system
 would otherwise keep closed.
 

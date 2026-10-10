@@ -485,10 +485,11 @@ public final class ClassGraph {
      * {@code jdk.internal.loader.URLClassPath ucp} field where that is possible, and from the
      * {@code java.class.path} system property otherwise. The {@code jdk.internal.loader} package is exported to
      * only three modules and is never opened, so the field can be read only if
-     * <a href="https://github.com/toolfactory/narcissus">Narcissus</a> is on the classpath, or the JVM was launched
-     * with {@code --add-opens java.base/jdk.internal.loader=ALL-UNNAMED}. Two kinds of classpath entry are
-     * therefore missed when the field cannot be read, since neither is listed in any system property the
-     * application can read:
+     * <a href="https://github.com/toolfactory/narcissus">Narcissus</a> is on the classpath or is a resolved module,
+     * or the JVM was launched with {@code --add-opens java.base/jdk.internal.loader=ALL-UNNAMED} (when ClassGraph
+     * is on the classpath) or {@code --add-opens java.base/jdk.internal.loader=io.github.classgraph.base} (when
+     * ClassGraph is on the module path). Two kinds of classpath entry are therefore missed when the field cannot be
+     * read, since neither is listed in any system property the application can read:
      * <ul>
      * <li>the jars a Java agent appended by calling
      * {@code Instrumentation.appendToSystemClassLoaderSearch(JarFile)}, which is specified not to change the value
