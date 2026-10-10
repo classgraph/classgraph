@@ -49,8 +49,25 @@ class AntClassLoaderHandler implements ClassLoaderHandler {
     @Override
     public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
             final @Nullable ClassGraphLog log) {
-        classLoaderOrder.delegateToParent(classLoader.getParent(), log);
+        // AntClassLoader does not pass its parent to the ClassLoader constructor, so getParent() returns the system
+        // classloader. The parent that it delegates to is in its "parent" field. If that is null, it delegates to
+        // the system classloader.
+        final var parentField = ReflectionUtils.getFieldVal(false, classLoader, "parent");
+        final var parent = parentField instanceof final ClassLoader p ? p : classLoader.getParent();
+        // AntClassLoader can also be set to delegate to its parent last, as Ant's junit and java tasks do. The java
+        // task also makes it isolated, and an isolated classloader that delegates to its parent last does not
+        // delegate to it at all. Whatever these settings are, the classes in some packages can be delegated to the
+        // parent first and others last, which cannot be represented here.
+        final var parentFirstField = ReflectionUtils.getFieldVal(false, classLoader, "parentFirst");
+        final var parentFirst = !Boolean.FALSE.equals(parentFirstField);
+        final var isolated = Boolean.TRUE.equals(ReflectionUtils.getFieldVal(false, classLoader, "ignoreBase"));
+        if (parentFirst) {
+            classLoaderOrder.delegateToParent(parent, log);
+        }
         classLoaderOrder.add(classLoader, log);
+        if (!parentFirst && !isolated) {
+            classLoaderOrder.delegateToParent(parent, log);
+        }
     }
 
     @Override

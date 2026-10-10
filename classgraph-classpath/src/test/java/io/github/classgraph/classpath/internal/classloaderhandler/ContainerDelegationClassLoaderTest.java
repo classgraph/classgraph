@@ -12,6 +12,7 @@ import java.util.List;
 
 import org.apache.openejb.server.cxf.transport.util.CxfContainerClassLoader;
 import org.apache.openejb.server.cxf.transport.util.CxfUtil;
+import org.apache.tools.ant.AntClassLoader;
 import org.eclipse.osgi.internal.framework.ContextFinder;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -20,8 +21,8 @@ import io.github.classgraph.classpath.ClasspathFinder;
 
 /**
  * Tests the classpath of classloaders that load classes through a classloader other than the one that
- * {@link ClassLoader#getParent()} returns: TomEE's {@code CxfContainerClassLoader}, and Equinox'
- * {@code ContextFinder}.
+ * {@link ClassLoader#getParent()} returns: Ant's {@code AntClassLoader}, TomEE's {@code CxfContainerClassLoader},
+ * and Equinox' {@code ContextFinder}.
  */
 public class ContainerDelegationClassLoaderTest {
     /**
@@ -34,6 +35,74 @@ public class ContainerDelegationClassLoaderTest {
     private static List<String> locations(final ClassLoader classLoader) {
         try (var classpath = new ClasspathFinder().enableClassLoaders(classLoader).find()) {
             return classpath.getLocations();
+        }
+    }
+
+    /**
+     * An {@code AntClassLoader} that searches its parent first has its parent's classpath before its own. Its
+     * parent is the classloader it was given, not the system classloader that {@link ClassLoader#getParent()}
+     * returns.
+     *
+     * @param tempDir
+     *            a temporary directory to create the classpaths in.
+     * @throws IOException
+     *             if the classpaths could not be created.
+     */
+    @Test
+    public void antClassLoaderThatSearchesItsParentFirst(@TempDir final Path tempDir) throws IOException {
+        final var parentDir = Files.createDirectory(tempDir.resolve("parent"));
+        final var dir1 = Files.createDirectory(tempDir.resolve("dir1"));
+        final var dir2 = Files.createDirectory(tempDir.resolve("dir2"));
+        try (var parent = new URLClassLoader(new URL[] { parentDir.toUri().toURL() }, /* parent = */ null)) {
+            final var antClassLoader = new AntClassLoader(parent, /* parentFirst = */ true);
+            antClassLoader.addPathElement(dir1.toString());
+            antClassLoader.addPathElement(dir2.toString());
+            assertThat(locations(antClassLoader)).containsExactly(location(parentDir), location(dir1),
+                    location(dir2));
+        }
+    }
+
+    /**
+     * An {@code AntClassLoader} that searches its parent last, as Ant's {@code junit} task sets it to, has its own
+     * classpath before its parent's.
+     *
+     * @param tempDir
+     *            a temporary directory to create the classpaths in.
+     * @throws IOException
+     *             if the classpaths could not be created.
+     */
+    @Test
+    public void antClassLoaderThatSearchesItsParentLast(@TempDir final Path tempDir) throws IOException {
+        final var parentDir = Files.createDirectory(tempDir.resolve("parent"));
+        final var dir1 = Files.createDirectory(tempDir.resolve("dir1"));
+        final var dir2 = Files.createDirectory(tempDir.resolve("dir2"));
+        try (var parent = new URLClassLoader(new URL[] { parentDir.toUri().toURL() }, /* parent = */ null)) {
+            final var antClassLoader = new AntClassLoader(parent, /* parentFirst = */ false);
+            antClassLoader.addPathElement(dir1.toString());
+            antClassLoader.addPathElement(dir2.toString());
+            assertThat(locations(antClassLoader)).containsExactly(location(dir1), location(dir2),
+                    location(parentDir));
+        }
+    }
+
+    /**
+     * An isolated {@code AntClassLoader} that searches its parent last, as Ant's {@code java} task sets it to, does
+     * not fall back to its parent for a class that is not on its own classpath, so its classpath is only its own.
+     *
+     * @param tempDir
+     *            a temporary directory to create the classpaths in.
+     * @throws IOException
+     *             if the classpaths could not be created.
+     */
+    @Test
+    public void isolatedAntClassLoaderThatSearchesItsParentLast(@TempDir final Path tempDir) throws IOException {
+        final var parentDir = Files.createDirectory(tempDir.resolve("parent"));
+        final var dir1 = Files.createDirectory(tempDir.resolve("dir1"));
+        try (var parent = new URLClassLoader(new URL[] { parentDir.toUri().toURL() }, /* parent = */ null)) {
+            final var antClassLoader = new AntClassLoader(parent, /* parentFirst = */ false);
+            antClassLoader.setIsolated(true);
+            antClassLoader.addPathElement(dir1.toString());
+            assertThat(locations(antClassLoader)).containsExactly(location(dir1));
         }
     }
 
