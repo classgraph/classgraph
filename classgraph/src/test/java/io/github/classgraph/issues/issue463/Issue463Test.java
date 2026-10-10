@@ -5,8 +5,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.lang.annotation.Inherited;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import io.github.classgraph.ClassGraph;
 
@@ -57,6 +61,63 @@ public class Issue463Test {
         /** A field annotated by an external annotation. */
         @FieldAnn
         public int field;
+    }
+
+    /** A field, method and method parameter annotation that is meta-annotated by {@link MetaAnn}. */
+    @Retention(RetentionPolicy.RUNTIME)
+    @MetaAnn
+    public @interface MemberAnn {
+    }
+
+    /** A superclass with an annotated public field, method and method parameter, which subclasses inherit. */
+    public static class MemberBase {
+        /** An annotated public field. */
+        @MemberAnn
+        public int annotatedField;
+
+        /** An annotated public method. */
+        @MemberAnn
+        public void annotatedMethod() {
+        }
+
+        /**
+         * A public method with an annotated parameter.
+         *
+         * @param x
+         *            an annotated parameter.
+         */
+        public void methodWithAnnotatedParam(@MemberAnn final int x) {
+        }
+    }
+
+    /** A subclass that inherits the annotated members of {@link MemberBase}. */
+    public static class MemberLeaf extends MemberBase {
+    }
+
+    /** A superclass with an annotated private field, method and method parameter, which are not inherited. */
+    @SuppressWarnings("unused")
+    public static class PrivateMemberBase {
+        /** An annotated private field. */
+        @MemberAnn
+        private int annotatedField;
+
+        /** An annotated private method. */
+        @MemberAnn
+        private void annotatedMethod() {
+        }
+
+        /**
+         * A private method with an annotated parameter.
+         *
+         * @param x
+         *            an annotated parameter.
+         */
+        private void methodWithAnnotatedParam(@MemberAnn final int x) {
+        }
+    }
+
+    /** A subclass of {@link PrivateMemberBase}, which inherits none of its annotated members. */
+    public static class PrivateMemberLeaf extends PrivateMemberBase {
     }
 
     /**
@@ -118,6 +179,55 @@ public class Issue463Test {
                     .containsOnly(Leaf.class.getName());
             assertThat(scanResult.getClassesWithFieldAnnotation(MetaAnn.class).getNames())
                     .containsOnly(Leaf.class.getName());
+        }
+    }
+
+    /**
+     * An accepted class that inherits an annotated non-private field, method or method parameter from an external
+     * superclass is found by the field, method and method parameter annotation queries, both for the annotation and
+     * for its meta-annotation, while the external superclass is left out. A subclass of a class whose annotated
+     * members are private is not found, since private members are not inherited. The expected result is the result
+     * with external classes enabled, less the external classes.
+     *
+     * @param acceptAnnotation
+     *            whether the annotation and meta-annotation are accepted, rather than external.
+     */
+    @ParameterizedTest
+    @ValueSource(booleans = { false, true })
+    public void acceptedSubclassesInheritAnnotatedMembersFromAnExternalSuperclass(final boolean acceptAnnotation) {
+        final var acceptedClasses = new ArrayList<>(
+                List.of(MemberLeaf.class.getName(), PrivateMemberLeaf.class.getName()));
+        if (acceptAnnotation) {
+            acceptedClasses.add(MemberAnn.class.getName());
+            acceptedClasses.add(MetaAnn.class.getName());
+        }
+        for (final var enableExternalClasses : new boolean[] { false, true }) {
+            var classGraph = new ClassGraph().enableClasspath()
+                    .acceptClasses(acceptedClasses.toArray(new String[0])).enableClassInfo().enableFieldInfo()
+                    .enableMethodInfo().enableAnnotationInfo().ignoreFieldVisibility().ignoreMethodVisibility();
+            if (enableExternalClasses) {
+                classGraph = classGraph.enableExternalClasses();
+            }
+            final var expected = enableExternalClasses
+                    ? new String[] { MemberBase.class.getName(), MemberLeaf.class.getName(),
+                            PrivateMemberBase.class.getName() }
+                    : new String[] { MemberLeaf.class.getName() };
+            try (var scanResult = classGraph.scan()) {
+                for (final var annotation : List.of(MemberAnn.class, MetaAnn.class)) {
+                    assertThat(scanResult.getClassesWithFieldAnnotation(annotation).getNames())
+                            .as("getClassesWithFieldAnnotation(%s), external classes enabled: %s",
+                                    annotation.getSimpleName(), enableExternalClasses)
+                            .containsExactlyInAnyOrder(expected);
+                    assertThat(scanResult.getClassesWithMethodAnnotation(annotation).getNames())
+                            .as("getClassesWithMethodAnnotation(%s), external classes enabled: %s",
+                                    annotation.getSimpleName(), enableExternalClasses)
+                            .containsExactlyInAnyOrder(expected);
+                    assertThat(scanResult.getClassesWithMethodParameterAnnotation(annotation).getNames())
+                            .as("getClassesWithMethodParameterAnnotation(%s), external classes enabled: %s",
+                                    annotation.getSimpleName(), enableExternalClasses)
+                            .containsExactlyInAnyOrder(expected);
+                }
+            }
         }
     }
 
