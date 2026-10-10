@@ -1735,6 +1735,7 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      * <p>
      * All annotations and meta-annotations are tested, including any external ones, whether or not
      * {@link ClassGraph#enableExternalClasses()} was called -- this reports the annotations as the JVM sees them.
+     * The annotations inherited from superclasses are those listed by {@link #getAllAnnotations()}.
      *
      * @param annotationName
      *            the name of the annotation class
@@ -2478,7 +2479,9 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      *
      * <p>
      * Also handles the {@link Inherited} meta-annotation, which causes an annotation to annotate a class and all of
-     * its subclasses.
+     * its subclasses. As in Java reflection, an annotation of a superclass is inherited only if the annotation
+     * directly present on the superclass is {@link Inherited}; its meta-annotations are then inherited with it if
+     * they are themselves {@link Inherited}.
      *
      * <p>
      * Filters out meta-annotations in the {@code java.lang.annotation} package.
@@ -2516,22 +2519,29 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
             // Get all annotations on this class
             final var annotationClasses = this.filterClassInfo(RelType.CLASS_ANNOTATIONS,
                     /* excludeExternalClasses = */ false);
-            // Check for any @Inherited annotations on superclasses
+            // Check for any @Inherited annotations on superclasses. As in Java reflection, an annotation of a
+            // superclass is inherited only if the annotation directly present on the superclass is @Inherited;
+            // its meta-annotations are then inherited with it if they are themselves @Inherited. This is the rule
+            // of AnnotationInfoList#getIndirectAnnotations, which getAllAnnotationInfo() uses.
             Set<ClassInfo> inheritedSuperclassAnnotations = null;
             for (final ClassInfo superclass : this
                     .filterClassInfo(RelType.SUPERCLASSES, /* excludeExternalClasses = */ false)
                     .reachableClasses()) {
                 for (final ClassInfo superclassAnnotation : superclass
                         .filterClassInfo(RelType.CLASS_ANNOTATIONS, /* excludeExternalClasses = */ false)
-                        .reachableClasses()) {
-                    // Check if any of the meta-annotations on this annotation are @Inherited, which causes an
-                    // annotation to annotate a class and all of its subclasses.
+                        .directlyRelatedClasses()) {
                     if (superclassAnnotation.isInherited) {
-                        // superclassAnnotation has an @Inherited meta-annotation
                         if (inheritedSuperclassAnnotations == null) {
                             inheritedSuperclassAnnotations = new LinkedHashSet<>();
                         }
                         inheritedSuperclassAnnotations.add(superclassAnnotation);
+                        for (final ClassInfo metaAnnotation : superclassAnnotation
+                                .filterClassInfo(RelType.CLASS_ANNOTATIONS, /* excludeExternalClasses = */ false)
+                                .reachableClasses()) {
+                            if (metaAnnotation.isInherited) {
+                                inheritedSuperclassAnnotations.add(metaAnnotation);
+                            }
+                        }
                     }
                 }
             }
@@ -2695,7 +2705,9 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      *
      * <p>
      * Also handles the {@link Inherited} meta-annotation, which causes an annotation to annotate a class and all of
-     * its subclasses.
+     * its subclasses. As in Java reflection, an annotation of a superclass is inherited only if the annotation
+     * directly present on the superclass is {@link Inherited}; its meta-annotations are then inherited with it if
+     * they are themselves {@link Inherited}.
      *
      * @return A list of {@link AnnotationInfo} objects for the annotations and meta-annotations on this class, or
      *         the empty list if none.
@@ -2744,11 +2756,16 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     }
 
     /**
-     * Get the classes that have this class as an annotation.
+     * Get the classes that have this class as an annotation or meta-annotation.
      *
-     * @return A list of standard classes and non-annotation interfaces that are annotated by this class, if this is
-     *         an annotation class, or the empty list if none. Also handles the {@link Inherited} meta-annotation,
-     *         which causes an annotation on a class to be inherited by all of its subclasses.
+     * <p>
+     * Also handles the {@link Inherited} meta-annotation, which causes an annotation on a class to be inherited by
+     * all of its subclasses. A subclass is included only if it inherits this annotation by the rule of
+     * {@link #getAllAnnotations()}: the annotation directly present on a superclass must be {@link Inherited}, and
+     * must be either this annotation or an annotation that this annotation meta-annotates.
+     *
+     * @return A list of the classes, interfaces and annotations that are annotated or meta-annotated by this class,
+     *         if this is an annotation class, or the empty list if none.
      * @throws IllegalStateException
      *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
      */
@@ -2756,17 +2773,25 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
         scanResult().scanSpec.checkAnnotationInfoEnabled();
 
         if (isInherited) {
-            // If this is an inherited annotation, add into the result all subclasses of the annotated classes.
-            // Don't filter the two traversals, since an accepted class can inherit the annotation from an external
-            // or rejected superclass -- filter the union at the end instead.
+            // If this is an inherited annotation, add into the result the subclasses of the annotated classes that
+            // inherit it. Don't filter the two traversals, since an accepted class can inherit the annotation from
+            // an external or rejected superclass -- filter the union at the end instead.
             final var classesWithAnnotation = this.filterClassInfo(RelType.CLASSES_WITH_ANNOTATION,
                     /* excludeExternalClasses = */ false);
             final Set<ClassInfo> classesWithAnnotationAndTheirSubclasses = new LinkedHashSet<>(
                     classesWithAnnotation.reachableClasses());
             for (final ClassInfo classWithAnnotation : classesWithAnnotation.reachableClasses()) {
-                classesWithAnnotationAndTheirSubclasses.addAll(classWithAnnotation
+                for (final ClassInfo subclass : classWithAnnotation
                         .filterClassInfo(RelType.SUBCLASSES, /* excludeExternalClasses = */ false)
-                        .reachableClasses());
+                        .reachableClasses()) {
+                    // A subclass does not inherit this annotation from a superclass whose annotation is only
+                    // meta-annotated by it and is not itself @Inherited, so apply the inheritance rule of
+                    // allAnnotationsIncludingExternal()
+                    if (!classesWithAnnotationAndTheirSubclasses.contains(subclass)
+                            && subclass.allAnnotationsIncludingExternal().contains(this)) {
+                        classesWithAnnotationAndTheirSubclasses.add(subclass);
+                    }
+                }
             }
             final var scanSpec = scanResult().scanSpec;
             return new ClassInfoList(
