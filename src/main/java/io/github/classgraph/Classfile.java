@@ -312,25 +312,18 @@ class Classfile {
                             + ", since it is rejected");
                 }
             } else {
-                // Search for the named class' classfile among classpath elements, in classpath order (this is O(N)
-                // for each class, but there shouldn't be too many cases of extending scanning upwards)
+                // Read the copy of the classfile that the JVM would load: the first copy in classpath order, as for
+                // classpath masking, even if the current classpath element holds its own copy. The modules that are
+                // being scanned come before all traditional classpath elements in classpathOrder. This is O(N) for
+                // each external class, but each external class is looked up only once.
                 final String classfilePath = JarUtils.classNameToClassfilePath(className);
-                // First check current classpath element, to avoid iterating through other classpath elements
-                Resource classResource = classpathElement.getResource(classfilePath);
+                Resource classResource = null;
                 ClasspathElement foundInClasspathElt = null;
-                if (classResource != null) {
-                    // Found the classfile in the current classpath element
-                    foundInClasspathElt = classpathElement;
-                } else {
-                    // Didn't find the classfile in the current classpath element -- iterate through other elements
-                    for (final ClasspathElement classpathOrderElt : classpathOrder) {
-                        if (classpathOrderElt != classpathElement) {
-                            classResource = classpathOrderElt.getResource(classfilePath);
-                            if (classResource != null) {
-                                foundInClasspathElt = classpathOrderElt;
-                                break;
-                            }
-                        }
+                for (final ClasspathElement classpathOrderElt : classpathOrder) {
+                    classResource = classpathOrderElt.getResource(classfilePath);
+                    if (classResource != null) {
+                        foundInClasspathElt = classpathOrderElt;
+                        break;
                     }
                 }
                 if (classResource != null) {
@@ -339,11 +332,8 @@ class Classfile {
                         // Log the extended scan as a child LogNode of the current class' scan log, since the
                         // external class is not scanned at the regular place in the classpath element hierarchy
                         // traversal
-                        classResource.scanLog = log
-                                .log("Extending scanning to external " + relationship
-                                        + (foundInClasspathElt == classpathElement ? " in same classpath element"
-                                                : " in classpath element " + foundInClasspathElt)
-                                        + ": " + className);
+                        classResource.scanLog = log.log("Extending scanning to external " + relationship
+                                + " in classpath element " + foundInClasspathElt + ": " + className);
                     }
                     if (additionalWorkUnits == null) {
                         additionalWorkUnits = new ArrayList<>();
