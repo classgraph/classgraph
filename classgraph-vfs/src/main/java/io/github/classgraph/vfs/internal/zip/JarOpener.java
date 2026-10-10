@@ -86,7 +86,7 @@ public final class JarOpener {
      */
     public static OpenedJar openJarFile(final File canonicalFile, final Vfs vfs, final @Nullable LogNode log)
             throws IOException {
-        return readCentralDirectory(new PhysicalZipFile(canonicalFile, vfs, log), log);
+        return readCentralDirectory(new PhysicalZipFile(canonicalFile, vfs, log), vfs, log);
     }
 
     /**
@@ -115,7 +115,7 @@ public final class JarOpener {
             throw new IOException("Fetching a jarfile over \"" + scheme + ":\" is not allowed: " + url);
         }
         // Read the jar from the URL into RAM, or into a temporary file if it is too large for RAM
-        return readCentralDirectory(JarURLDownloader.downloadJarFromURL(url, vfs, log), log);
+        return readCentralDirectory(JarURLDownloader.downloadJarFromURL(url, vfs, log), vfs, log);
     }
 
     /**
@@ -135,7 +135,7 @@ public final class JarOpener {
      */
     public static OpenedJar openJarFromPath(final Path path, final Vfs vfs, final @Nullable LogNode log)
             throws IOException {
-        return readCentralDirectory(new PhysicalZipFile(path, vfs, log), log);
+        return readCentralDirectory(new PhysicalZipFile(path, vfs, log), vfs, log);
     }
 
     /**
@@ -163,7 +163,8 @@ public final class JarOpener {
         // The physical zipfile is created here rather than fetched from a cache, so nothing else can reach it, and
         // two streams read under the same name stay two separate jarfiles even though the two physical zipfiles
         // wrapping them compare equal
-        return readCentralDirectory(new PhysicalZipFile(inputStream, inputStreamLengthHint, name, vfs, log), log);
+        return readCentralDirectory(new PhysicalZipFile(inputStream, inputStreamLengthHint, name, vfs, log), vfs,
+                log);
     }
 
     /**
@@ -172,16 +173,25 @@ public final class JarOpener {
      * @param physicalZipFile
      *            the physical zipfile, which passes to the caller if this returns, and is released here if it
      *            throws.
+     * @param vfs
+     *            the {@link Vfs} that is opening this jarfile.
      * @param log
      *            the log node, or null to skip logging.
      * @return the jarfile, with the physical zipfile, which the caller owns.
      * @throws IOException
-     *             if the central directory could not be read.
+     *             if the central directory could not be read, or the {@link Vfs} has been closed.
      */
-    private static OpenedJar readCentralDirectory(final PhysicalZipFile physicalZipFile,
+    private static OpenedJar readCentralDirectory(final PhysicalZipFile physicalZipFile, final Vfs vfs,
             final @Nullable LogNode log) throws IOException {
         try {
-            return new OpenedJar(physicalZipFile.getLogicalZipFile(log), physicalZipFile);
+            // The Vfs may have been closed while the jarfile was being opened or downloaded. Nothing would leak if
+            // the central directory were read anyway, since the Vfs closes any root built after it was closed, and
+            // that releases this zipfile, but the read would be wasted
+            if (vfs.isClosed()) {
+                throw new IOException("Already closed");
+            }
+            return new OpenedJar(new LogicalZipFile(new ZipFileSlice(physicalZipFile), vfs, log,
+                    vfs.getVfsSpec().isMultiReleaseVersionsEnabled()), physicalZipFile);
         } catch (final IOException | RuntimeException | Error e) {
             // The caller gets the exception rather than the zipfile, so nothing would ever reach what was just
             // opened
