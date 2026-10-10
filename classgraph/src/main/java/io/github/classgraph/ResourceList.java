@@ -43,6 +43,7 @@ import java.util.Objects;
 import java.util.TreeMap;
 import java.util.function.Predicate;
 
+import io.github.classgraph.base.internal.path.PathSyntax;
 import io.github.classgraph.base.internal.utils.Assert;
 
 /**
@@ -92,12 +93,32 @@ public final class ResourceList extends UnmodifiableList<Resource> implements Au
     }
 
     /**
+     * Normalize a resource path given to a lookup method, so that it can be compared with
+     * {@link Resource#getPath()}: any leading or trailing '/' is removed, empty and "." segments are removed, and
+     * each ".." segment removes the segment before it, without going above the package root. A '!' is an ordinary
+     * character, and the filesystem is not read. Every method that looks up a resource by path calls this, so that
+     * they all accept the same spellings of a path.
+     *
+     * @param resourcePath
+     *            the path to normalize.
+     * @return the normalized path.
+     */
+    static String normalizeResourcePath(final String resourcePath) {
+        return PathSyntax.sanitizeRelativePath(resourcePath, /* removeFinalSlash = */ true);
+    }
+
+    /**
      * Returns a list of all resources with the requested path. (There may be more than one resource with a given
      * path, from different classpath elements or modules, so this returns a {@link ResourceList} rather than a
      * single {@link Resource}.)
      *
      * @param resourcePath
-     *            The path of a resource
+     *            The path of a resource, relative to the package root. The path is normalized before it is matched,
+     *            in the same way as by {@link ScanResult#getResourcesWithPath(String)}: any leading or trailing '/'
+     *            is removed, empty and "." segments are removed, and each ".." segment removes the segment before
+     *            it, without going above the package root. So {@code "/a/b.txt"}, {@code "a//b.txt"} and
+     *            {@code "a/./b.txt"} all match a resource whose path is {@code "a/b.txt"}. Letter case is matched
+     *            exactly.
      * @return A {@link ResourceList} of {@link Resource} objects in this list that have the given path (there may
      *         be more than one resource with a given path, from different classpath elements or modules, so this
      *         returns a {@link ResourceList} rather than a single {@link Resource}.) Returns the empty list if no
@@ -105,9 +126,21 @@ public final class ResourceList extends UnmodifiableList<Resource> implements Au
      */
     public ResourceList get(final String resourcePath) {
         Assert.notNull(resourcePath, "resourcePath");
+        return getNormalizedPath(normalizeResourcePath(resourcePath));
+    }
+
+    /**
+     * Returns a list of all resources whose path is equal to a path that has already been normalized by
+     * {@link #normalizeResourcePath(String)}, without normalizing it again.
+     *
+     * @param path
+     *            the normalized path.
+     * @return the resources in this list that have the given path, or the empty list if there are none.
+     */
+    ResourceList getNormalizedPath(final String path) {
         final List<Resource> matchingResources = new ArrayList<>(2);
         for (final Resource res : this) {
-            if (res.getPath().equals(resourcePath)) {
+            if (res.getPath().equals(path)) {
                 matchingResources.add(res);
             }
         }
@@ -208,7 +241,10 @@ public final class ResourceList extends UnmodifiableList<Resource> implements Au
      *
      * @return This {@link ResourceList} as a map from resource path (obtained from {@link Resource#getPath()}) to a
      *         {@link ResourceList} of {@link Resource} objects that have that path, sorted by resource path. Each
-     *         map value lists the resources with that path in the order they appear in this list.
+     *         map value lists the resources with that path in the order they appear in this list. The keys are
+     *         exactly the strings returned by {@link Resource#getPath()}, which have no leading or trailing '/' and
+     *         no empty, "." or ".." segments, and {@link Map#get(Object)} does not normalize the path it is given.
+     *         To look up a path written in another form, use {@link #get(String)}.
      */
     public Map<String, ResourceList> asMap() {
         final Map<String, List<Resource>> pathToResources = new TreeMap<>();

@@ -55,7 +55,6 @@ import java.util.regex.Pattern;
 
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.path.PathList;
-import io.github.classgraph.base.internal.path.PathSyntax;
 import io.github.classgraph.base.internal.utils.Assert;
 import io.github.classgraph.classpath.ModulePathInfo;
 import io.github.classgraph.vfs.Vfs;
@@ -695,7 +694,10 @@ public final class ScanResult implements AutoCloseable {
      *
      * @return An unmodifiable map from resource path to {@link Resource} for all resources (including classfiles
      *         and non-classfiles) found in accepted packages, sorted by resource path. Each value lists the
-     *         resources with that path in classpath order.
+     *         resources with that path in classpath order. This is {@link ResourceList#asMap()} of
+     *         {@link #getAllResources()}, so its keys are exactly the strings returned by
+     *         {@link Resource#getPath()}, and {@link Map#get(Object)} does not normalize the path it is given. To
+     *         look up a path written in another form, use {@link #getResourcesWithPath(String)}.
      * @throws IllegalStateException
      *             if this {@link ScanResult} has been closed.
      */
@@ -704,18 +706,10 @@ public final class ScanResult implements AutoCloseable {
         synchronized (this) {
             var pathToAcceptedResources = pathToAcceptedResourcesCached;
             if (pathToAcceptedResources == null) {
-                final Map<String, List<Resource>> pathToResources = new TreeMap<>();
-                for (final Resource res : getAllResources()) {
-                    pathToResources.computeIfAbsent(res.getPath(), k -> new ArrayList<>(1)).add(res);
-                }
-                final Map<String, ResourceList> pathToAcceptedResourceListMap = new TreeMap<>();
-                for (final Entry<String, List<Resource>> ent : pathToResources.entrySet()) {
-                    pathToAcceptedResourceListMap.put(ent.getKey(), new ResourceList(ent.getValue()));
-                }
                 // Set atomically for thread safety
-                pathToAcceptedResourcesCached = pathToAcceptedResources = pathToAcceptedResourceListMap;
+                pathToAcceptedResourcesCached = pathToAcceptedResources = getAllResources().asMap();
             }
-            return Collections.unmodifiableMap(pathToAcceptedResources);
+            return pathToAcceptedResources;
         }
     }
 
@@ -724,7 +718,10 @@ public final class ScanResult implements AutoCloseable {
      * root of the classpath element. May match several resources, up to one per classpath element.
      *
      * @param resourcePath
-     *            A complete resource path, relative to the classpath entry package root.
+     *            A complete resource path, relative to the classpath entry package root. The path is normalized
+     *            before it is matched, in the same way as by {@link ResourceList#get(String)}: any leading or
+     *            trailing '/' is removed, empty and "." segments are removed, and each ".." segment removes the
+     *            segment before it, without going above the package root.
      * @return A list of all resources found in accepted packages that have the given path, relative to the package
      *         root of the classpath element. May match several resources, up to one per classpath element.
      * @throws IllegalStateException
@@ -733,22 +730,14 @@ public final class ScanResult implements AutoCloseable {
     public ResourceList getResourcesWithPath(final String resourcePath) {
         checkNotClosed();
         Assert.notNull(resourcePath, "resourcePath");
-        final var path = PathSyntax.sanitizeRelativePath(resourcePath, /* removeFinalSlash = */ true);
+        final var path = ResourceList.normalizeResourcePath(resourcePath);
         if (getResourcesWithPathCallCount.incrementAndGet() > 3) {
-            // If numerous calls are made, produce and cache a single HashMap for O(1) access time
+            // If numerous calls are made, build and cache a single sorted map (a TreeMap), for O(log n) lookups
             final var matchingResources = getAllResourcesAsMap().get(path);
             return matchingResources == null ? ResourceList.EMPTY_LIST : matchingResources;
         }
         // If just a few calls are made, directly search for resource with the requested path
-        final List<Resource> matchingResources = new ArrayList<>(1);
-        for (final ClasspathElement classpathElt : classpathOrder()) {
-            for (final Resource res : classpathElt.acceptedResources) {
-                if (res.getPath().equals(path)) {
-                    matchingResources.add(res);
-                }
-            }
-        }
-        return matchingResources.isEmpty() ? ResourceList.EMPTY_LIST : new ResourceList(matchingResources);
+        return getAllResources().getNormalizedPath(path);
     }
 
     /**
@@ -765,11 +754,14 @@ public final class ScanResult implements AutoCloseable {
      * resource with the same path is open. Close each resource found here when done with it.
      *
      * <p>
-     * The path is matched exactly, including the case of every character, on every operating system and for every
-     * kind of classpath element, so a path this method finds is a path a classloader will also find.
+     * After normalization, the path is matched with exact letter case, on every operating system and for every kind
+     * of classpath element, so a path this method finds is a path a classloader will also find.
      *
      * @param resourcePath
-     *            A complete resource path, relative to the classpath entry package root.
+     *            A complete resource path, relative to the classpath entry package root. The path is normalized
+     *            before it is matched, in the same way as by {@link ResourceList#get(String)}: any leading or
+     *            trailing '/' is removed, empty and "." segments are removed, and each ".." segment removes the
+     *            segment before it, without going above the package root.
      * @return A list of all resources found in any classpath element, <i>whether in accepted packages or not (as
      *         long as the resource is not rejected)</i>, that have the given path, relative to the package root of
      *         the classpath element. May match several resources, up to one per classpath element.
@@ -779,7 +771,7 @@ public final class ScanResult implements AutoCloseable {
     public ResourceList getResourcesWithPathIgnoringAccept(final String resourcePath) {
         checkNotClosed();
         Assert.notNull(resourcePath, "resourcePath");
-        final var path = PathSyntax.sanitizeRelativePath(resourcePath, /* removeFinalSlash = */ true);
+        final var path = ResourceList.normalizeResourcePath(resourcePath);
         // ClasspathElement#getResource(String) ignores the accept and reject criteria, since it is also how the
         // class graph is extended upwards through classes that were not accepted, so reject is applied here
         if (scanSpec.resourcePathIsRejected(path)) {

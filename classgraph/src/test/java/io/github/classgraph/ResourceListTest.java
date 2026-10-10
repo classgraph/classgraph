@@ -16,6 +16,8 @@ import java.util.TreeMap;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
@@ -303,6 +305,67 @@ public class ResourceListTest {
 
             // Every path is a key of the map form, whether or not it is duplicated
             assertThat(scanResult.getAllResources().asMap()).containsOnlyKeys(FILE_NAMES);
+        }
+    }
+
+    /**
+     * {@link ResourceList#get(String)} normalizes the path the same way as
+     * {@link ScanResult#getResourcesWithPath(String)} and {@link ScanResult#getResourcesWithPathIgnoringAccept}, so
+     * all three find a resource from the same loosely written path.
+     */
+    @Test
+    public void getNormalizesThePathLikeTheScanResultLookups() {
+        try (var scanResult = scanFixtureDir()) {
+            final var expected = scanResult.getAllResources().get("a.txt");
+            assertThat(expected).hasSize(1);
+            for (final var path : List.of("a.txt", "/a.txt", "a.txt/", "//a.txt", "./a.txt", "x/../a.txt",
+                    "/./x//../a.txt/")) {
+                assertThat(scanResult.getAllResources().get(path)).as(path).isEqualTo(expected);
+                assertThat(scanResult.getResourcesWithPath(path)).as(path).isEqualTo(expected);
+                assertThat(scanResult.getResourcesWithPathIgnoringAccept(path)).as(path).isEqualTo(expected);
+            }
+            // A path that normalizes to the package root names no resource
+            assertThat(scanResult.getAllResources().get("/")).isEmpty();
+        }
+    }
+
+    /**
+     * A '!' in a resource path is an ordinary character to every path lookup, so a path that starts with what looks
+     * like a URL scheme and contains "!!" is not read as a URL with a nested jar separator. (':' is not a legal
+     * filename character on Windows.)
+     *
+     * @param tempDir
+     *            the temporary directory to write the fixture into.
+     * @throws IOException
+     *             if the fixture could not be written.
+     */
+    @Test
+    @DisabledOnOs(OS.WINDOWS)
+    public void aBangInAResourcePathIsAnOrdinaryCharacter(@TempDir final Path tempDir) throws IOException {
+        Files.writeString(tempDir.resolve("foo:a!!b.txt"), "x");
+        try (var scanResult = new ClassGraph().enableClasspathEntries(tempDir.toString()).scan()) {
+            assertThat(scanResult.getAllResources().get("foo:a!!b.txt").getPaths()).containsExactly("foo:a!!b.txt");
+            assertThat(scanResult.getResourcesWithPathIgnoringAccept("/foo:a!!b.txt").getPaths())
+                    .containsExactly("foo:a!!b.txt");
+            // The first three calls search the list, and later calls use the map built by getAllResourcesAsMap
+            for (var i = 0; i < 5; i++) {
+                assertThat(scanResult.getResourcesWithPath("/foo:a!!b.txt").getPaths()).as("call %d", i)
+                        .containsExactly("foo:a!!b.txt");
+            }
+        }
+    }
+
+    /**
+     * {@link ScanResult#getAllResourcesAsMap()} is the {@link ResourceList#asMap()} form of
+     * {@link ScanResult#getAllResources()}, built once and then returned from every call.
+     */
+    @Test
+    public void getAllResourcesAsMapIsTheMapFormOfGetAllResources() {
+        try (var scanResult = scanFixtureDir()) {
+            final var map = scanResult.getAllResourcesAsMap();
+            assertThat(map).isEqualTo(scanResult.getAllResources().asMap());
+            assertThat(map).containsOnlyKeys(FILE_NAMES);
+            assertThat(scanResult.getAllResourcesAsMap()).isSameAs(map);
         }
     }
 }
