@@ -94,10 +94,11 @@ public final class VersionFinder {
             OS = OperatingSystem.Windows;
         } else if (osName == null) {
             OS = OperatingSystem.Unknown;
+        } else if (osName.contains("mac") || osName.contains("darwin")) {
+            // Tested before "win", since "darwin" contains "win"
+            OS = OperatingSystem.MacOSX;
         } else if (osName.contains("win")) {
             OS = OperatingSystem.Windows;
-        } else if (osName.contains("mac") || osName.contains("darwin")) {
-            OS = OperatingSystem.MacOSX;
         } else if (osName.contains("nux")) {
             OS = OperatingSystem.Linux;
         } else if (osName.contains("sunos") || osName.contains("solaris")) {
