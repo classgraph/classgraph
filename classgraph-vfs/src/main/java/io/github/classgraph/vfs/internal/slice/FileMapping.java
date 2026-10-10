@@ -41,9 +41,18 @@ import org.jspecify.annotations.Nullable;
  * reads through {@link #byteBuffer}, and only the owning slice may release it.
  *
  * <p>
- * The file is mapped through an {@link Arena}, so that closing the arena unmaps the file the moment the owning
- * slice is closed, and makes a thread that is still reading it throw {@link IllegalStateException}.
+ * The file is mapped through a shared {@link Arena}, so that closing the arena unmaps the file the moment the
+ * owning slice is closed, and makes a thread that is still reading it throw {@link IllegalStateException} rather
+ * than read memory that is no longer there. The garbage collector cannot release a mapping in a shared arena: only
+ * closing the arena does.
+ *
+ * <p>
+ * Unmapping needs no class that mapping did not already load: this class is loaded by {@link #map}, and closing an
+ * arena loads nothing that opening it and mapping the file through it has not. That matters because the owning
+ * slice may be closed from a shutdown hook or a container's teardown code, after the classloader that loaded
+ * ClassGraph has been closed and can no longer load anything.
  */
+// #331
 // #939
 final class FileMapping {
     /** The mapped {@link ByteBuffer}, covering the whole file. */
@@ -86,11 +95,6 @@ final class FileMapping {
         if (fileLength > Slice.MAX_BUFFER_SIZE) {
             return null;
         }
-        // A mapping is not released until the root that mapped the file is closed, which can happen long after the
-        // file was mapped -- so load the classes needed to release it now, while the classloader that loaded
-        // ClassGraph is certainly still alive
-        // #331
-        OffHeapMemory.warmUpDirectByteBufferClosing();
         // A shared arena rather than a confined one, since the mapping may be read and closed by multiple threads
         final var arena = Arena.ofShared();
         ByteBuffer byteBuffer = null;
@@ -110,7 +114,7 @@ final class FileMapping {
             // address space here: a mapping whose ByteBuffer is unreachable is unmapped by its Cleaner once the
             // reference is cleared, which is a phantom-reference mechanism, not finalization. The collection has to
             // be waited for, since the unmapping happens after the collection itself is over.)
-            OffHeapMemory.freeUnreachableBuffers();
+            PathSlice.freeUnreachableBuffers();
             try {
                 byteBuffer = mapWholeFile(arena, fileChannel, fileLength);
             } catch (IOException | OutOfMemoryError e2) {
@@ -122,7 +126,7 @@ final class FileMapping {
         }
         if (byteBuffer == null) {
             // The arena ended up not being used to map the file -- close it again
-            OffHeapMemory.closeArena(arena, log);
+            closeArena(arena, log);
             return null;
         }
         return new FileMapping(byteBuffer, arena);
@@ -161,6 +165,30 @@ final class FileMapping {
      */
     // #939
     boolean unmap() {
-        return OffHeapMemory.closeArena(arena, /* log = */ null);
+        return closeArena(arena, /* log = */ null);
+    }
+
+    /**
+     * Close an arena, unmapping any file mapped with it. The mapping must no longer be in use by any thread.
+     *
+     * @param arena
+     *            the arena to close.
+     * @param log
+     *            the log node, or null to skip logging
+     * @return true if the arena was successfully closed.
+     */
+    // #939
+    static boolean closeArena(final Arena arena, final @Nullable LogNode log) {
+        try {
+            arena.close();
+            return true;
+        } catch (final RuntimeException e) {
+            // IllegalStateException, if the arena has already been closed, or if another thread is accessing
+            // memory in it at this moment
+            if (log != null) {
+                log.log("Could not close arena: " + e);
+            }
+            return false;
+        }
     }
 }

@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.IOException;
+import java.lang.foreign.Arena;
 import java.nio.channels.FileChannel;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
@@ -82,5 +83,13 @@ public class FileMappingTest {
                 assertThat(log.toString()).contains("cannot be memory mapped");
             }
         }
+    }
+
+    /** Closing an arena that has already been closed reports failure, rather than throwing. */
+    @Test
+    public void closingAnArenaTwiceReportsFailureRatherThanThrowing() {
+        final var arena = Arena.ofShared();
+        assertThat(FileMapping.closeArena(arena, /* log = */ null)).isTrue();
+        assertThat(FileMapping.closeArena(arena, /* log = */ null)).isFalse();
     }
 }

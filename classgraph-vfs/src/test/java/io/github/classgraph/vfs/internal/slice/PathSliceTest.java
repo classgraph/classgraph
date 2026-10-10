@@ -3,11 +3,16 @@ package io.github.classgraph.vfs.internal.slice;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.RandomAccessFile;
 import java.lang.ref.WeakReference;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.FileSystemException;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
@@ -18,6 +23,7 @@ import org.junit.jupiter.api.condition.EnabledOnOs;
 import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
 
+import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
 import io.github.classgraph.vfs.VfsSpec;
 import io.github.classgraph.vfs.Vfs;
@@ -405,5 +411,49 @@ public class PathSliceTest {
         } finally {
             slice.close();
         }
+    }
+
+    /**
+     * Closing a slice over a temporary file needs no ClassGraph class that was not already loaded when the slice
+     * was opened, even when the temporary file cannot be deleted at the first attempt. A slice may be closed from a
+     * shutdown hook or a container's teardown code, after the classloader that loaded ClassGraph has been closed,
+     * and that classloader can then no longer load anything.
+     *
+     * @throws Exception
+     *             if the slice could not be opened or closed.
+     */
+    // #331
+    @Test
+    public void closingATempFileSliceNeedsNoClassThatWasNotLoadedWhenItWasOpened() throws Exception {
+        final var classgraphLocations = new URL[] { Slice.class.getProtectionDomain().getCodeSource().getLocation(),
+                InterruptionChecker.class.getProtectionDomain().getCodeSource().getLocation() };
+        final AutoCloseable slice;
+        try (var classLoader = new URLClassLoader(classgraphLocations, ClassLoader.getPlatformClassLoader())) {
+            final var vfsSpecClass = classLoader.loadClass(VfsSpec.class.getName());
+            final var vfsSpec = vfsSpecClass.getConstructor().newInstance();
+            vfsSpecClass.getMethod("setMaxBufferedJarRAMSize", int.class).invoke(vfsSpec, 4);
+            final var interruptionCheckerClass = classLoader.loadClass(InterruptionChecker.class.getName());
+            final var vfsClass = classLoader.loadClass(Vfs.class.getName());
+            final var vfs = vfsClass.getConstructor(vfsSpecClass, interruptionCheckerClass).newInstance(vfsSpec,
+                    interruptionCheckerClass.getConstructor().newInstance());
+            final var sliceClass = classLoader.loadClass(Slice.class.getName());
+            // Longer than maxBufferedJarRAMSize, so the stream is spilled to a temporary file
+            slice = (AutoCloseable) sliceClass
+                    .getMethod("fromInputStream", InputStream.class, String.class, long.class, vfsClass,
+                            classLoader.loadClass(LogNode.class.getName()))
+                    .invoke(null, new ByteArrayInputStream(CONTENT), "test.jar", -1L, vfs, null);
+            final var tempFile = (File) slice.getClass().getMethod("getFile").invoke(slice);
+            // Delete the temporary file out from under the slice, so that the slice's own attempt to delete it
+            // fails, and the slice has to try to free whatever is keeping the file open
+            try {
+                Files.delete(tempFile.toPath());
+            } catch (final FileSystemException _) {
+                // Windows does not let a file be deleted while the slice has it memory-mapped. Closing the slice
+                // then unmaps the file and deletes it, which must not need a class that was not loaded either
+                assertThat(OS.current()).isEqualTo(OS.WINDOWS);
+            }
+        }
+        // The classloader has been closed, so a class that the slice did not load before now cannot be loaded
+        slice.close();
     }
 }
