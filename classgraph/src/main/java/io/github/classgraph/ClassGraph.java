@@ -137,9 +137,9 @@ public final class ClassGraph {
     );
 
     /**
-     * The default maximum length of time to wait for a worker thread to finish. This is long enough that a healthy
-     * scan will never hit it, but short enough that a scan that can never finish is reported rather than hanging
-     * forever.
+     * The default maximum length of time to wait for a worker thread to finish. This is far longer than a healthy
+     * scan of local files takes to open or scan any one classpath element, but short enough that a scan that can
+     * never finish is reported rather than hanging forever.
      */
     static final Duration DEFAULT_WORKER_TIMEOUT = Duration.ofMinutes(1);
 
@@ -1411,8 +1411,10 @@ public final class ClassGraph {
 
     /**
      * Set the maximum length of time to wait for a worker thread to finish, once the calling thread has run out of
-     * work of its own to do. If a worker thread does not finish within this time, the scan throws
-     * {@link ClassGraphException} rather than blocking forever.
+     * work of its own to do. If no worker thread finishes a unit of work (opening or scanning a classpath element,
+     * or scanning a classfile) within this time, the scan throws {@link ClassGraphException} rather than blocking
+     * forever. The time counts from when a unit of work last finished, so a scan whose worker threads are still
+     * finishing units of work is not stopped, however long it takes altogether.
      *
      * <p>
      * A worker thread that never finishes means the scan cannot complete. The two known causes are a classloading
@@ -1422,8 +1424,10 @@ public final class ClassGraph {
      * indefinitely on a filesystem or network read of a classpath element.
      *
      * <p>
-     * Default: 1 minute. Set a longer timeout if a scan of a very large or very slow classpath needs it. A timeout
-     * that is zero or negative disables the timeout, so that worker threads are waited for indefinitely.
+     * Default: 1 minute. Set a longer timeout if a single classpath element can take longer than that to open or
+     * scan, for example a large jar downloaded from a slow server, or a large directory on a slow network
+     * filesystem. A timeout that is zero or negative disables the timeout, so that worker threads are waited for
+     * indefinitely.
      *
      * @param workerTimeout
      *            the maximum length of time to wait for a worker thread to finish.

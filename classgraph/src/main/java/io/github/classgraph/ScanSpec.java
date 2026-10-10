@@ -187,7 +187,8 @@ class ScanSpec {
     public Duration workerTimeout = ClassGraph.DEFAULT_WORKER_TIMEOUT;
 
     /**
-     * Get {@link #workerTimeout} in nanoseconds, for {@link Future#get(long, TimeUnit)}.
+     * Get {@link #workerTimeout} in nanoseconds, for {@link Future#get(long, TimeUnit)} and
+     * {@link java.util.concurrent.BlockingQueue#poll(long, TimeUnit)}.
      *
      * @return the number of nanoseconds to wait for a worker thread to finish, or {@link Long#MAX_VALUE} if
      *         {@link #workerTimeout} is zero, negative, or too long to express in nanoseconds, meaning that worker
