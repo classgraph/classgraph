@@ -49,12 +49,12 @@ import io.github.classgraph.vfs.reader.RandomAccessOrSequentialReader;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A classfile binary format parser. Implements its own buffering to avoid the overhead of using DataInputStream.
- * This class should only be used by a single thread at a time, but can be re-used to scan multiple classfiles in
- * sequence, to avoid re-allocating buffer memory.
+ * A classfile binary format parser. Each instance parses one classfile, in its constructor, and holds what it read
+ * until {@link #link} transfers it into {@link ClassInfo}, {@link PackageInfo} and {@link ModuleInfo} objects.
+ * Instances are not threadsafe and are not reused.
  *
  * <p>
- * See <a href="https://docs.oracle.com/javase/specs/jvms/se17/html/jvms-4.html">the class file format spec</a>.
+ * See <a href="https://docs.oracle.com/javase/specs/jvms/se26/html/jvms-4.html">the class file format spec</a>.
  */
 class Classfile {
     /**
@@ -1150,8 +1150,8 @@ class Classfile {
      * the nested type that the annotation actually applies to.
      *
      * @param typePathKind
-     *            the kind of step to take: 0 to descend into an array type, 1 to descend into the enclosing type of
-     *            a nested type, 2 to move to the bound of a wildcard type argument, or 3 to move to a type argument
+     *            the kind of step to take: 0 to descend into an array type, 1 to descend from a type into the type
+     *            nested in it, 2 to move to the bound of a wildcard type argument, or 3 to move to a type argument
      * @param typeArgumentIdx
      *            the index of the type argument to move to, if {@code typePathKind} is 3, otherwise 0
      */
@@ -1411,10 +1411,10 @@ class Classfile {
             // dynamic, invoke dynamic
             case 17, 18 -> reader().skip(4);
             // module (for module-info.class in JDK9+) see
-            // https://docs.oracle.com/javase/specs/jvms/se17/html/jvms-4.html#jvms-4.4
+            // https://docs.oracle.com/javase/specs/jvms/se26/html/jvms-4.html#jvms-4.4
             case 19 -> indirectStringRefs[i] = reader().readUnsignedShort();
             // package (for module-info.class in JDK9+) see
-            // https://docs.oracle.com/javase/specs/jvms/se17/html/jvms-4.html#jvms-4.4
+            // https://docs.oracle.com/javase/specs/jvms/se26/html/jvms-4.html#jvms-4.4
             case 20 -> reader().skip(2);
             default -> throw new ClassfileFormatException("Unknown constant pool tag " + entryTag[i]
                     + " (element size unknown, cannot continue reading class). Please report this at "
@@ -1597,7 +1597,7 @@ class Classfile {
      */
     private void readField() throws IOException, ClassfileFormatException {
         // Info on modifier flags:
-        // https://docs.oracle.com/javase/specs/jvms/se17/html/jvms-4.html#jvms-4.5
+        // https://docs.oracle.com/javase/specs/jvms/se26/html/jvms-4.html#jvms-4.5
         final var fieldModifierFlags = reader().readUnsignedShort();
         final var isPublicField = (fieldModifierFlags & 0x0001) == 0x0001;
         final var fieldIsVisible = isPublicField || scanSpec.ignoreFieldVisibility;
@@ -1730,7 +1730,7 @@ class Classfile {
      */
     private void readMethod() throws IOException, ClassfileFormatException {
         // Info on modifier flags:
-        // https://docs.oracle.com/javase/specs/jvms/se17/html/jvms-4.html#jvms-4.6
+        // https://docs.oracle.com/javase/specs/jvms/se26/html/jvms-4.html#jvms-4.6
         final var methodModifierFlags = reader().readUnsignedShort();
         final var isPublicMethod = (methodModifierFlags & 0x0001) == 0x0001;
         final var methodIsVisible = isPublicMethod || scanSpec.ignoreMethodVisibility;
@@ -2130,7 +2130,7 @@ class Classfile {
                 final var moduleNameCpIdx = reader().readUnsignedShort();
                 classpathElement.moduleNameFromModuleDescriptor = getConstantPoolString(moduleNameCpIdx);
                 // (Future work): parse the rest of the module descriptor fields, and add to ModuleInfo:
-                // https://docs.oracle.com/javase/specs/jvms/se17/html/jvms-4.html#jvms-4.7.25
+                // https://docs.oracle.com/javase/specs/jvms/se26/html/jvms-4.html#jvms-4.7.25
                 reader().skip(attributeLength - 2);
             } else {
                 reader().skip(attributeLength);
@@ -2298,9 +2298,10 @@ class Classfile {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Directly examine contents of classfile binary header to determine annotations, implemented interfaces, the
-     * super-class etc. Creates a new ClassInfo object, and adds it to classNameToClassInfoOut. Assumes classpath
-     * masking has already been performed, so that only one class of a given name will be added.
+     * Parses the classfile's header, constant pool, fields, methods and attributes, and, if scanning is extended
+     * upward to external classes, schedules the external classes it refers to (superclasses, interfaces,
+     * annotations and others) for scanning. The {@link ClassInfo} is created later, by {@link #link}. Assumes
+     * classpath masking has already been performed, so that only one class of a given name will be added.
      *
      * @param classpathElement
      *            the classpath element
