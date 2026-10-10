@@ -1050,12 +1050,18 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
      * {@link ClosedFileSystemException}.
      *
      * <p>
-     * Every {@link CloseableByteBuffer} this root handed out, and every channel opened over one of its entries, is
-     * closed by this if the caller has not closed it, as the step before the root releases what it owns -- so that
-     * nothing the caller left open can hold a memory mapping open past this close, and every file this root mapped
-     * is unmapped, and every temporary file it created deleted, before this returns. A {@link java.nio.ByteBuffer}
-     * reference taken from such a wrapper before the close is not revoked by it, and reading through one afterwards
-     * is undefined; see {@link CloseableByteBuffer#getByteBuffer()}.
+     * Every {@link CloseableByteBuffer} this root handed out, and every channel opened over one of its entries
+     * through the {@link FileSystem} view, is closed by this if the caller has not closed it, as the step before
+     * the root releases what it owns -- so that nothing the caller left open can hold a memory mapping open past
+     * this close, and every file this root mapped is unmapped, and every temporary file it created deleted, before
+     * this returns. A {@link java.nio.ByteBuffer} reference taken from such a wrapper before the close is not
+     * revoked by it, and reading through one afterwards is undefined; see
+     * {@link CloseableByteBuffer#getByteBuffer()}.
+     *
+     * <p>
+     * A stream or channel from {@link VfsEntry#open()} or {@link VfsEntry#openChannel()}, or a stream opened
+     * through the {@link FileSystem} view, is not closed by this: every further read of it throws
+     * {@link IOException}, but the caller must still close it.
      *
      * <p>
      * There is rarely a reason to call this by hand, since {@link Vfs#close()} closes every root the {@link Vfs}

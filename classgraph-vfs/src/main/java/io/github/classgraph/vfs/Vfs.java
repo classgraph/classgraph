@@ -89,8 +89,9 @@ import org.jspecify.annotations.Nullable;
  * A nested jarfile is read in place, without being extracted to disk, unless it is stored deflated rather than
  * uncompressed and is too large to inflate into RAM -- only then is it spilled to a temporary file, which is
  * deleted when the root that extracted it is closed, and no later than when this {@link Vfs} is closed. A
- * {@link CloseableByteBuffer} the caller has not closed does not delay that: the root closes every buffer and
- * channel it handed out before it releases what it owns, so the file is unmapped and deleted as the root closes.
+ * {@link CloseableByteBuffer} the caller has not closed does not delay that: the root closes every buffer it handed
+ * out, and every channel opened through its {@link VfsRoot#asFileSystem()} view, before it releases what it owns,
+ * so the file is unmapped and deleted as the root closes.
  *
  * <p>
  * A {@link Vfs} caches every root it opens, so opening the same path twice returns the same {@link VfsRoot}, and a
@@ -1003,9 +1004,10 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      * <p>
      * Every file that was memory mapped is unmapped before this returns, including one that a
      * {@link CloseableByteBuffer} or an open channel the caller has not closed is still a view of: each root closes
-     * every buffer and channel it handed out as the step before it releases what it owns, so nothing the caller
-     * left open can hold a mapping open past this. That is what lets every temporary file be deleted here, since
-     * Windows refuses to delete, rename or overwrite a file while it is mapped.
+     * every buffer it handed out, and every channel opened through its {@link VfsRoot#asFileSystem()} view, as the
+     * step before it releases what it owns, so nothing the caller left open can hold a mapping open past this. That
+     * is what lets every temporary file be deleted here, since Windows refuses to delete, rename or overwrite a
+     * file while it is mapped.
      *
      * <p>
      * Closing an already-closed {@link Vfs} has no effect.

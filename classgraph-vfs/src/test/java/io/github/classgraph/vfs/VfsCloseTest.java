@@ -35,11 +35,13 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.lang.module.ModuleFinder;
 import java.nio.ByteBuffer;
 import java.nio.channels.ClosedChannelException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Objects;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -293,6 +295,25 @@ class VfsCloseTest {
         vfs.close();
 
         assertThatThrownBy(entry::open).hasMessageContaining("has been closed");
+    }
+
+    /**
+     * A stream on a resource of a module refuses to read once the {@link Vfs} is closed, as a stream on a file or a
+     * jarfile entry does: a {@code ModuleReader} stream has no closed check of its own to fall back on.
+     */
+    @Test
+    void aModuleEntryStreamRefusesToReadAfterTheVfsCloses() throws Exception {
+        final var vfs = new Vfs();
+        final var entry = Objects.requireNonNull(vfs.open(ModuleFinder.ofSystem().find("java.base").orElseThrow())
+                .getEntry("java/lang/Object.class"));
+        try (var inputStream = entry.open()) {
+            assertThat(inputStream.read()).isEqualTo(0xca);
+
+            vfs.close();
+
+            assertThatThrownBy(inputStream::readAllBytes).isInstanceOf(IOException.class)
+                    .hasMessageContaining(entry.getPath()).hasMessageContaining("has been closed");
+        }
     }
 
     /**

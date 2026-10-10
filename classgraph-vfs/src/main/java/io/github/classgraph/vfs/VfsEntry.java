@@ -268,16 +268,140 @@ public abstract sealed class VfsEntry permits ArchiveEntry, DirEntry, ModuleEntr
      * Open this entry's content as an {@link InputStream}, decompressing it if it is stored compressed. The caller
      * owns the returned stream and must close it.
      *
+     * <p>
+     * Once the root this entry came from, or the {@link Vfs} that opened that root, is closed, every further read
+     * of the stream throws {@link IOException}. The close does not close the stream, so the caller must still close
+     * it.
+     *
      * @return the content of the entry, as a stream.
      * @throws IOException
      *             if the entry could not be read, or if the root, or the {@link Vfs} that opened it, has been
      *             closed.
      */
-    public abstract InputStream open() throws IOException;
+    public final InputStream open() throws IOException {
+        getRoot().checkNotClosed(getPath());
+        final var inputStream = openUnchecked();
+        try {
+            return new RootCheckedInputStream(this, inputStream);
+        } catch (final RuntimeException | Error e) {
+            // The caller never sees the stream if this throws, so nothing else would close it
+            try {
+                inputStream.close();
+            } catch (final IOException e2) {
+                e.addSuppressed(e2);
+            }
+            throw e;
+        }
+    }
+
+    /**
+     * Open this entry's content as an {@link InputStream}, for {@link #open()} to wrap in the check that refuses to
+     * read once the root is closed. The stream this returns checks at most the {@link Vfs}, not the root.
+     *
+     * @return the content of the entry, as a stream, which the caller owns and must close.
+     * @throws IOException
+     *             if the entry could not be read, or if the root, or the {@link Vfs} that opened it, has been
+     *             closed.
+     */
+    abstract InputStream openUnchecked() throws IOException;
+
+    /**
+     * The stream {@link #open()} returns: it checks before every read that the root of the entry, and the
+     * {@link Vfs} that opened that root, are still open, so that closing either one stops a stream it handed out,
+     * whatever kind of root it is. Without the check, a stream on a file in a directory, on a jarfile held in
+     * memory, or on a module resource would keep reading after the close, since none of those reads anything the
+     * root releases.
+     */
+    private static final class RootCheckedInputStream extends InputStream {
+        /** The entry being read. */
+        private final VfsEntry entry;
+
+        /** The stream that the entry opened. */
+        private final InputStream inputStream;
+
+        /**
+         * Constructor.
+         *
+         * @param entry
+         *            the entry being read.
+         * @param inputStream
+         *            the stream that the entry opened.
+         */
+        RootCheckedInputStream(final VfsEntry entry, final InputStream inputStream) {
+            this.entry = entry;
+            this.inputStream = inputStream;
+        }
+
+        /**
+         * Throw an {@link IOException} if the root of the entry, or the {@link Vfs} that opened it, has been
+         * closed.
+         *
+         * @throws IOException
+         *             if the root or its {@link Vfs} has been closed.
+         */
+        private void checkRootNotClosed() throws IOException {
+            final var root = entry.getRoot();
+            // Only build the path of the entry for the error message once the root is found closed, since the path
+            // of some entries is built anew by each call, and this check runs on every read
+            if (root.isClosed()) {
+                root.checkNotClosed(entry.getPath());
+            }
+        }
+
+        @Override
+        public int read() throws IOException {
+            checkRootNotClosed();
+            return inputStream.read();
+        }
+
+        @Override
+        public int read(final byte[] buf, final int off, final int len) throws IOException {
+            checkRootNotClosed();
+            return inputStream.read(buf, off, len);
+        }
+
+        @Override
+        public long skip(final long n) throws IOException {
+            checkRootNotClosed();
+            return inputStream.skip(n);
+        }
+
+        @Override
+        public int available() throws IOException {
+            checkRootNotClosed();
+            return inputStream.available();
+        }
+
+        @Override
+        public void mark(final int readlimit) {
+            inputStream.mark(readlimit);
+        }
+
+        @Override
+        public void reset() throws IOException {
+            checkRootNotClosed();
+            inputStream.reset();
+        }
+
+        @Override
+        public boolean markSupported() {
+            return inputStream.markSupported();
+        }
+
+        @Override
+        public void close() throws IOException {
+            inputStream.close();
+        }
+    }
 
     /**
      * Open this entry's content as a {@link ReadableByteChannel}, decompressing it if it is stored compressed. The
      * caller owns the returned channel and must close it.
+     *
+     * <p>
+     * Once the root this entry came from, or the {@link Vfs} that opened that root, is closed, every further read
+     * of the channel throws {@link IOException}. The close does not close the channel, so the caller must still
+     * close it.
      *
      * @return the content of the entry, as a channel.
      * @throws IOException
