@@ -37,7 +37,8 @@ import io.github.classgraph.base.LogNode;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A superclass of objects accessible from a {@link ScanResult} that are associated with a {@link ClassInfo} object.
+ * A superclass of objects accessible from a {@link ScanResult}. Most of them refer to a class, and can return its
+ * {@link ClassInfo} object.
  */
 abstract class ScanResultObject {
     /** The scan result. */
@@ -116,6 +117,13 @@ abstract class ScanResultObject {
 
     /**
      * The name of the class (used by {@code getClassInfo()} to fetch the {@link ClassInfo} object for the class).
+     *
+     * <p>
+     * The subclasses that do not refer to a single class ({@link AnnotationParameterValue},
+     * {@link MethodTypeSignature}, {@link TypeArgument} and {@link TypeParameter}) throw
+     * {@link UnsupportedOperationException} from this method and from {@code getClassInfo()}, so code that collects
+     * the classes referred to by any {@link ScanResultObject} must call {@code findReferencedClassInfo}, which is
+     * overridden for those subclasses so that it does not call either method.
      *
      * @return The class name.
      */
