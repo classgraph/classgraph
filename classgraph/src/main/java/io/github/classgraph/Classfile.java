@@ -347,9 +347,7 @@ class Classfile {
             // Log the extended scan as a child LogNode of the current class' scan log, since the external class is
             // not scanned at the regular place in the classpath element hierarchy traversal
             classResource.scanLog = log.log("Extending scanning to external " + relationship
-                    + (foundInClasspathElt == classpathElement ? " in same classpath element"
-                            : " in classpath element " + foundInClasspathElt)
-                    + ": " + className);
+                    + " in classpath element " + foundInClasspathElt + ": " + className);
         }
         if (additionalWorkUnits == null) {
             additionalWorkUnits = new ArrayList<>();
@@ -360,8 +358,8 @@ class Classfile {
     }
 
     /**
-     * Find the classfile of a named class, searching the classpath elements that are being scanned first, then the
-     * modules that are not being scanned.
+     * Find the classfile of a named class that the JVM would load: the classfile in the module that contains the
+     * class' package, if there is one, otherwise the first classfile in classpath order.
      *
      * @param className
      *            the name of the class to find.
@@ -371,29 +369,26 @@ class Classfile {
      *         found.
      */
     private @Nullable ClassfileLocation findClassfile(final String className, final @Nullable LogNode log) {
-        // Search for the named class' classfile among classpath elements, in classpath order (this is O(N) for each
-        // class, but there shouldn't be too many cases of extending scanning upwards)
+        // Read the copy of the classfile that the JVM would load. If the class' package is in a module, the JVM
+        // loads the class from that module, never from the traditional classpath. Look in the modules that are not
+        // being scanned first, so that the class graph above an accepted class is still completed through classes
+        // in modules, which are not scanned unless their kind of module is asked for (#902), and so that a copy of
+        // a module's class in a jar on the classpath (e.g. a javax.xml class in xml-apis) is not read instead
         final var classfilePath = ClassNames.classNameToClassfilePath(className);
-        // First check current classpath element, to avoid iterating through other classpath elements
-        final var classResource = classpathElement.getResource(classfilePath);
-        if (classResource != null) {
-            return new ClassfileLocation(classpathElement, classResource);
+        final var workUnit = unscannedModules.findClassfile(className, classfilePath, log);
+        if (workUnit != null) {
+            return new ClassfileLocation(workUnit.classpathElement(), workUnit.classfileResource());
         }
-        // Didn't find the classfile in the current classpath element -- iterate through other elements
+        // Otherwise the first copy in classpath order wins, as for classpath masking. The modules that are being
+        // scanned come before all traditional classpath elements in classpathOrder. This is O(N) for each external
+        // class, but each external class is looked up only once.
         for (final ClasspathElement classpathOrderElt : classpathOrder) {
-            if (classpathOrderElt != classpathElement) {
-                final var classResourceInOtherElt = classpathOrderElt.getResource(classfilePath);
-                if (classResourceInOtherElt != null) {
-                    return new ClassfileLocation(classpathOrderElt, classResourceInOtherElt);
-                }
+            final var classResource = classpathOrderElt.getResource(classfilePath);
+            if (classResource != null) {
+                return new ClassfileLocation(classpathOrderElt, classResource);
             }
         }
-        // The classfile is not in any classpath element that is being scanned. Look in the modules that are not
-        // being scanned, so that the class graph above an accepted class is still completed through classes in
-        // modules, which are not scanned unless their kind of module is asked for (#902)
-        final var workUnit = unscannedModules.findClassfile(className, classfilePath, log);
-        return workUnit == null ? null
-                : new ClassfileLocation(workUnit.classpathElement(), workUnit.classfileResource());
+        return null;
     }
 
     /**
