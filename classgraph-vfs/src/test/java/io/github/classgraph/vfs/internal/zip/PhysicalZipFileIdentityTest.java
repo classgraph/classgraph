@@ -3,6 +3,7 @@ package io.github.classgraph.vfs.internal.zip;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.zip.ZipEntry;
@@ -17,7 +18,8 @@ import io.github.classgraph.vfs.Vfs;
 
 /**
  * A zipfile on disk can be opened through either the {@link File} API or the {@link java.nio.file.Path} API, and
- * can be opened more than once. Whichever way it was opened, it is the same zipfile, and is identified by its path.
+ * can be opened more than once. Each opening is a zipfile of its own, which is named by its path but not identified
+ * by it: a zipfile read from a stream is named by a label that other zipfiles can share.
  */
 public class PhysicalZipFileIdentityTest {
     /**
@@ -37,8 +39,8 @@ public class PhysicalZipFileIdentityTest {
     }
 
     /**
-     * Two zipfiles opened on the same path are the same zipfile, whether they were opened through the {@link File}
-     * API or the {@link java.nio.file.Path} API, and a zipfile opened on a different path is a different zipfile.
+     * Each opening of a zipfile is a zipfile of its own, whether it was opened through the {@link File} API or the
+     * {@link java.nio.file.Path} API: two openings of the same path have the same name, but are not equal.
      *
      * @param tempDir
      *            a directory to write the jarfiles into
@@ -46,7 +48,7 @@ public class PhysicalZipFileIdentityTest {
      *             if a jarfile could not be written or opened
      */
     @Test
-    public void aZipfileIsIdentifiedByItsPath(@TempDir final File tempDir) throws Exception {
+    public void twoOpeningsOfOneZipfileAreDifferentZipfiles(@TempDir final File tempDir) throws Exception {
         final var jarFile = new File(tempDir, "physical-zipfile.jar");
         writeJar(jarFile);
         final var otherJarFile = new File(tempDir, "other-physical-zipfile.jar");
@@ -58,10 +60,10 @@ public class PhysicalZipFileIdentityTest {
             final var fromPath = new PhysicalZipFile(jarFile.toPath(), vfs, /* log = */ null);
             final var fromOtherFile = new PhysicalZipFile(otherJarFile, vfs, /* log = */ null);
 
-            assertThat(fromFile).isEqualTo(fromFile).isEqualTo(fromPath).hasSameHashCodeAs(fromPath)
-                    .isNotEqualTo(fromOtherFile).isNotEqualTo(jarFile.getPath());
+            assertThat(fromFile).isEqualTo(fromFile).isNotEqualTo(fromPath).isNotEqualTo(fromOtherFile)
+                    .isNotEqualTo(jarFile.getPath());
 
-            // The two zipfiles are equal even though only one of them has a File, and only the other has a Path
+            // Only one of the two openings has a File, and only the other has a Path
             assertThat(fromFile.getFile()).isEqualTo(jarFile);
             assertThat(fromFile.getPath()).isNull();
             assertThat(fromPath.getPath()).isEqualTo(jarFile.toPath());
@@ -79,9 +81,42 @@ public class PhysicalZipFileIdentityTest {
     }
 
     /**
+     * Two different jarfiles read from streams under the same name share that name, but are two different zipfiles.
+     *
+     * @param tempDir
+     *            a directory to write the jarfiles into
+     * @throws Exception
+     *             if a jarfile could not be written or read
+     */
+    @Test
+    public void twoStreamsReadUnderOneNameAreDifferentZipfiles(@TempDir final File tempDir) throws Exception {
+        final var jarFile = new File(tempDir, "first.jar");
+        writeJar(jarFile);
+        final var otherJarFile = new File(tempDir, "second.jar");
+        try (var fileOut = new FileOutputStream(otherJarFile); var zipOut = new ZipOutputStream(fileOut)) {
+            zipOut.putNextEntry(new ZipEntry("otherpkg/other.txt"));
+            zipOut.write("other contents".getBytes(StandardCharsets.UTF_8));
+            zipOut.closeEntry();
+        }
+
+        final var vfs = new Vfs(new VfsSpec(), new InterruptionChecker());
+        try (var in = new FileInputStream(jarFile); var otherIn = new FileInputStream(otherJarFile)) {
+            final var first = new PhysicalZipFile(in, jarFile.length(), "lib.jar", vfs, /* log = */ null);
+            final var second = new PhysicalZipFile(otherIn, otherJarFile.length(), "lib.jar", vfs,
+                    /* log = */ null);
+
+            assertThat(first.getPathString()).isEqualTo(second.getPathString());
+            assertThat(first.length()).isNotEqualTo(second.length());
+            assertThat(first).isNotEqualTo(second);
+        } finally {
+            vfs.close(/* log = */ null);
+        }
+    }
+
+    /**
      * Opening the same zipfile twice produces two separate handles on it, each with its own file handle and memory
      * mapping, so closing one of them must not close the other -- which means the two of them are not the same
-     * logical zipfile, even though they are the same physical zipfile.
+     * logical zipfile, even though they were opened from the same file.
      *
      * @param tempDir
      *            a directory to write the jarfile into
@@ -99,7 +134,7 @@ public class PhysicalZipFileIdentityTest {
             final var logicalZipFile = JarOpener.openJarFile(jarFile, vfs, /* log = */ null).zipFile();
             final var openedAgain = JarOpener.openJarFile(jarFile, otherVfs, /* log = */ null).zipFile();
 
-            // The two openings are the same physical zipfile, but not the same handle on it
+            // The two openings are of the same file, but are not the same handle on it
             assertThat(logicalZipFile.getPhysicalFile()).isEqualTo(openedAgain.getPhysicalFile());
             assertThat(logicalZipFile.getPath()).isEqualTo(openedAgain.getPath());
             assertThat(logicalZipFile).isEqualTo(logicalZipFile).isNotEqualTo(openedAgain)

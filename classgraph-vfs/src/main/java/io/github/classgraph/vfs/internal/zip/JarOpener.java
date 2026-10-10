@@ -161,8 +161,8 @@ public final class JarOpener {
     public static OpenedJar openJarFromInputStream(final InputStream inputStream, final long inputStreamLengthHint,
             final String name, final Vfs vfs, final @Nullable LogNode log) throws IOException {
         // The physical zipfile is created here rather than fetched from a cache, so nothing else can reach it, and
-        // two streams read under the same name stay two separate jarfiles even though the two physical zipfiles
-        // wrapping them compare equal
+        // each call reads its own copy of its stream, so two streams read under the same name stay two separate
+        // jarfiles
         return readCentralDirectory(new PhysicalZipFile(inputStream, inputStreamLengthHint, name, vfs, log), vfs,
                 log);
     }

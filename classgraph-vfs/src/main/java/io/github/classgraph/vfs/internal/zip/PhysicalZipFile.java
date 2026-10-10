@@ -33,7 +33,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.channels.FileChannel;
 import java.nio.file.Path;
-import java.util.Objects;
 
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.path.FastPathResolver;
@@ -187,7 +186,9 @@ public final class PhysicalZipFile {
     }
 
     /**
-     * Get the path of this zipfile, which is also its identity.
+     * Get the path or name of this zipfile, which log messages and entry paths use. This does not identify the
+     * zipfile: two zipfiles read from streams under the same name, such as the same nested jar of two different
+     * outer jars, have the same name.
      *
      * @return the path of the file or {@link Path} this zipfile was opened from, or, if it was read from a stream,
      *         the name it was read under: the URL it was downloaded from, or the name of the zip entry it was
@@ -204,24 +205,6 @@ public final class PhysicalZipFile {
      */
     public long length() {
         return slice.sliceLength;
-    }
-
-    @Override
-    public int hashCode() {
-        // (Use pathStr for identity, not file -- file is null for Path-backed zipfiles, and for streams that were
-        // read into RAM rather than spilled to disk, so it does not identify a zipfile on its own)
-        return Objects.hashCode(pathStr);
-    }
-
-    @Override
-    public boolean equals(final @Nullable Object o) {
-        if (o == this) {
-            return true;
-        }
-        if (!(o instanceof final PhysicalZipFile other)) {
-            return false;
-        }
-        return Objects.equals(pathStr, other.pathStr);
     }
 
     @Override

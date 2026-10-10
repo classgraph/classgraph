@@ -19,10 +19,9 @@ import io.github.classgraph.vfs.VfsSpec;
 import io.github.classgraph.vfs.Vfs;
 
 /**
- * Zip entries are used as map keys, so two of them stand for the same entry only if they name the same entry of the
- * same open zipfile. They are also sorted, so that for a multi-release jarfile the highest version of an entry
- * comes first, and so that where a zipfile holds more than one entry with the same name, the earliest one comes
- * first.
+ * Each zip entry is an entry of its own: two entries are equal only if they are the same object. The entries of a
+ * zipfile are sorted, so that for a multi-release jarfile the highest version of an entry comes first, and so that
+ * where a zipfile holds more than one entry with the same name, the last one comes first.
  */
 public class FastZipEntryIdentityTest {
     /** The name of an entry of the base layer of the jarfile. */
@@ -104,9 +103,12 @@ public class FastZipEntryIdentityTest {
         void run(LogicalZipFile logicalZipFile) throws Exception;
     }
 
-    /** Two entries stand for the same entry if they name the same position of the same zipfile. */
+    /**
+     * Two entries built for the same name and position of the same zipfile are two different entries, though they
+     * sort equal.
+     */
     @Test
-    public void anEntryIsIdentifiedByItsZipfileNameAndPosition(@TempDir final File tempDir) throws Exception {
+    public void twoEntriesForOnePositionAreDifferentEntries(@TempDir final File tempDir) throws Exception {
         final var jarFile = new File(tempDir, "entry-identity.jar");
         writeJar(jarFile);
         withZipFile(jarFile, logicalZipFile -> {
@@ -115,13 +117,10 @@ public class FastZipEntryIdentityTest {
             final var sameEntryAgain = entry(logicalZipFile, BASE_ENTRY_NAME, 0L);
 
             assertThat(readFromZipfile.entryName).isEqualTo(BASE_ENTRY_NAME);
-            assertThat(sameEntry).isEqualTo(sameEntry).isEqualTo(sameEntryAgain).hasSameHashCodeAs(sameEntryAgain)
-                    .isEqualTo(readFromZipfile).hasSameHashCodeAs(readFromZipfile)
+            assertThat(sameEntry).isEqualTo(sameEntry).isNotEqualTo(sameEntryAgain).isNotEqualTo(readFromZipfile)
                     .isNotEqualTo(readFromZipfile.entryName);
-
-            // A different entry of the same zipfile, and the same entry at a different position, are both different
-            assertThat(sameEntry).isNotEqualTo(entry(logicalZipFile, SECOND_ENTRY_NAME, 0L))
-                    .isNotEqualTo(entry(logicalZipFile, BASE_ENTRY_NAME, 100L));
+            assertThat(sameEntry.compareTo(sameEntryAgain)).isZero();
+            assertThat(sameEntry.compareTo(readFromZipfile)).isZero();
         });
     }
 
