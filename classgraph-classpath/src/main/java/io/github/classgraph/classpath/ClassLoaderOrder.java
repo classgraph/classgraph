@@ -73,8 +73,9 @@ public interface ClassLoaderOrder {
      * <p>
      * The classloader is not placed in the order here: its own handler places it, by calling
      * {@link #add(ClassLoader, ClassGraphLog)} either before or after it delegates to the classloader's parent,
-     * according to whether the classloader resolves classes parent-first or parent-last. The handlers of a
-     * classloader are run only the first time it is reached, by either method.
+     * according to whether the classloader resolves classes parent-first or parent-last. If no handler places the
+     * classloader, it is placed after the classloaders its handlers delegated to. The handlers of a classloader are
+     * run only the first time it is reached, by either method.
      *
      * @param parent
      *            the parent class loader, or null (ignored)
@@ -94,7 +95,8 @@ public interface ClassLoaderOrder {
      *
      * <p>
      * The classloader is not placed in the order here: its own handler places it, by calling
-     * {@link #add(ClassLoader, ClassGraphLog)}. The handlers of a classloader are run only the first time it is
+     * {@link #add(ClassLoader, ClassGraphLog)}. If no handler places the classloader, it is placed after the
+     * classloaders its handlers delegated to. The handlers of a classloader are run only the first time it is
      * reached, by either method.
      *
      * @param classLoader

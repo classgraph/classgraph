@@ -303,7 +303,8 @@ public class ClassLoaderOrderBuilder implements ClassLoaderOrder {
      * {@link #add(ClassLoader, ClassGraphLog)} either before or after it delegates to the classloader's parent,
      * according to whether the classloader resolves classes parent-first or parent-last. That is what puts the
      * classpath elements in the order that classes are resolved in, which is the order that class masking depends
-     * on.
+     * on. If no handler places the classloader, it is placed after the classloaders its handlers delegated to, so
+     * that its classpath is still read.
      *
      * @param classLoader
      *            the class loader, or null (ignored)
@@ -333,6 +334,15 @@ public class ClassLoaderOrderBuilder implements ClassLoaderOrder {
             // the ones that run later can only add classloaders that an earlier one did not already place.
             for (final ClassLoaderHandler handler : getClassLoaderHandlers(classLoader, log)) {
                 handler.findClassLoaderOrder(classLoader, this, log);
+            }
+            // A classloader that no handler placed would never have its classpath read. Placing it after
+            // everything its handlers delegated to cannot move a classloader that a handler did place.
+            if (!added.contains(classLoader)) {
+                if (log != null) {
+                    log.log("No ClassLoaderHandler placed classloader " + classLoader.getClass().getName()
+                            + " in the classloader order, so it is placed after the classloaders it delegates to");
+                }
+                add(classLoader, log);
             }
         }
     }
