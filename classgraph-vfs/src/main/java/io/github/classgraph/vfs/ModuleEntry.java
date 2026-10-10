@@ -92,7 +92,7 @@ final class ModuleEntry extends VfsEntry {
     @Override
     InputStream openUnchecked() throws IOException {
         final var recycler = getRoot().moduleReaderRecycler();
-        final var reader = recycler.acquire();
+        final var reader = getRoot().acquireReader(recycler);
         InputStream inputStream = null;
         var handedOffToCaller = false;
         try {
@@ -137,7 +137,7 @@ final class ModuleEntry extends VfsEntry {
     @Override
     public CloseableByteBuffer read() throws IOException {
         final var recycler = getRoot().moduleReaderRecycler();
-        final var reader = recycler.acquire();
+        final var reader = getRoot().acquireReader(recycler);
         var handedOffToCaller = false;
         try {
             final var byteBuffer = ModuleReaderUtils.read(reader, name);
@@ -182,7 +182,7 @@ final class ModuleEntry extends VfsEntry {
     @Override
     public byte[] load() throws IOException {
         final var recycler = getRoot().moduleReaderRecycler();
-        final var reader = recycler.acquire();
+        final var reader = getRoot().acquireReader(recycler);
         try {
             final var byteBuffer = ModuleReaderUtils.read(reader, name);
             try {

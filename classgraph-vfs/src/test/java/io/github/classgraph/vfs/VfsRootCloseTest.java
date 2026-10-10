@@ -31,8 +31,10 @@ package io.github.classgraph.vfs;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.module.ModuleDescriptor;
 import java.lang.module.ModuleFinder;
 import java.lang.module.ModuleReader;
@@ -406,10 +408,104 @@ class VfsRootCloseTest {
         }
     }
 
-    /** A {@link ModuleReference} whose readers are {@link FakeModuleReader} instances. */
+    /** A read of a module root, or of an entry of it, that acquires a {@link ModuleReader}. */
+    @FunctionalInterface
+    private interface ModuleRead {
+        /**
+         * Read the entry, or the root it belongs to.
+         *
+         * @param entry
+         *            the entry {@code "a.txt"} of the root.
+         * @throws Exception
+         *             if the read failed.
+         */
+        void read(ModuleEntry entry) throws Exception;
+    }
+
+    /**
+     * Close a module root just as a read of it opens a fresh {@link ModuleReader} -- after the read has got past
+     * the closed check and been handed the recycler, but before the reader it opens is on loan, so that the
+     * force-close of the recycler does not see it -- and check that the read is refused and the reader is closed,
+     * rather than the read going ahead through a reader of a closed root.
+     *
+     * @param read
+     *            the read.
+     * @throws Exception
+     *             if the check fails.
+     */
+    private static void assertReaderOpenedAsTheRootClosesIsNotUsed(final ModuleRead read) throws Exception {
+        try (var vfs = new Vfs()) {
+            final var moduleReference = new FakeModuleReference("test.race");
+            final var root = (ModuleRoot) vfs.open(moduleReference);
+            // Built directly rather than looked up, since a lookup would leave a reader in the pool, and the read
+            // below would then reuse it rather than opening the reader that the close races with
+            final var entry = new ModuleEntry(root, "a.txt");
+            moduleReference.onReaderOpen = root::close;
+
+            assertThatThrownBy(() -> read.read(entry)).isInstanceOf(IOException.class)
+                    .hasMessageContaining("after the root has been closed");
+            assertThat(moduleReference.openedReaders).hasSize(1).allMatch(reader -> reader.closed);
+        }
+    }
+
+    /** {@link VfsEntry#open()} does not use a reader that was opened as the root closed. */
+    @Test
+    void anEntryStreamIsNotOpenedOnAReaderOpenedAsTheRootCloses() throws Exception {
+        assertReaderOpenedAsTheRootClosesIsNotUsed(entry -> entry.open().close());
+    }
+
+    /** {@link VfsEntry#read()} does not use a reader that was opened as the root closed. */
+    @Test
+    void anEntryIsNotReadIntoABufferThroughAReaderOpenedAsTheRootCloses() throws Exception {
+        assertReaderOpenedAsTheRootClosesIsNotUsed(entry -> entry.read().close());
+    }
+
+    /** {@link VfsEntry#load()} does not use a reader that was opened as the root closed. */
+    @Test
+    void anEntryIsNotLoadedThroughAReaderOpenedAsTheRootCloses() throws Exception {
+        assertReaderOpenedAsTheRootClosesIsNotUsed(ModuleEntry::load);
+    }
+
+    /** {@link VfsRoot#getEntry(String)} does not use a reader that was opened as the root closed. */
+    @Test
+    void anEntryIsNotLookedUpThroughAReaderOpenedAsTheRootCloses() throws Exception {
+        assertReaderOpenedAsTheRootClosesIsNotUsed(entry -> entry.getRoot().getEntry("a.txt"));
+    }
+
+    /** {@link VfsRoot#getEntries()} does not use a reader that was opened as the root closed. */
+    @Test
+    void aModuleIsNotListedThroughAReaderOpenedAsTheRootCloses() throws Exception {
+        assertReaderOpenedAsTheRootClosesIsNotUsed(entry -> entry.getRoot().getEntries());
+    }
+
+    /**
+     * {@link VfsRoot#resolveURI(String)} still names a path when the root closes as the read opens a reader, as it
+     * does on a root that is already closed, and leaves no reader open.
+     */
+    @Test
+    void aURIIsStillResolvedWhenTheRootClosesAsAReaderOpens() throws Exception {
+        try (var vfs = new Vfs()) {
+            final var moduleReference = new FakeModuleReference("test.race");
+            final var root = (ModuleRoot) vfs.open(moduleReference);
+            moduleReference.onReaderOpen = root::close;
+
+            assertThat(root.resolveURI("a.txt")).isEqualTo(URI.create("fake:test.race/a.txt"));
+            assertThat(root.isClosed()).isTrue();
+            assertThat(moduleReference.openedReaders).isNotEmpty().allMatch(reader -> reader.closed);
+        }
+    }
+
+    /**
+     * A {@link ModuleReference} whose readers are {@link FakeModuleReader} instances, each of which reads a module
+     * that holds the one resource {@code "a.txt"}.
+     */
     private static final class FakeModuleReference extends ModuleReference {
         /** Every reader this module has opened. */
         final List<FakeModuleReader> openedReaders = new ArrayList<>();
+
+        /** Runs when a reader of this module is opened. Replaced by a test that races a close with the open. */
+        Runnable onReaderOpen = () -> {
+        };
 
         /** Runs when a reader of this module is closed. Replaced by a test that observes the close. */
         Runnable onReaderClose = () -> {
@@ -429,6 +525,7 @@ class VfsRootCloseTest {
         public ModuleReader open() {
             final var reader = new FakeModuleReader(this);
             openedReaders.add(reader);
+            onReaderOpen.run();
             return reader;
         }
     }
@@ -453,12 +550,20 @@ class VfsRootCloseTest {
 
         @Override
         public Optional<URI> find(final String name) {
-            return Optional.empty();
+            return "a.txt".equals(name)
+                    ? Optional.of(URI.create("fake:" + moduleReference.descriptor().name() + "/" + name))
+                    : Optional.empty();
+        }
+
+        @Override
+        public Optional<InputStream> open(final String name) {
+            return "a.txt".equals(name) ? Optional.of(new ByteArrayInputStream(new byte[] { 'a' }))
+                    : Optional.empty();
         }
 
         @Override
         public Stream<String> list() {
-            return Stream.empty();
+            return Stream.of("a.txt");
         }
 
         @Override
