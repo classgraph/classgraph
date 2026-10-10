@@ -99,7 +99,7 @@ class ClasspathElementModule extends ClasspathElement {
      */
     ClasspathElementModule(final ModuleReference moduleReference, final Vfs vfs,
             final ClasspathEntryWorkUnit workUnit, final boolean isLookupOnly, final ScanSpec scanSpec) {
-        super(workUnit, scanSpec);
+        super(workUnit, vfs, scanSpec);
         this.vfs = vfs;
         this.moduleReference = moduleReference;
         this.isLookupOnly = isLookupOnly;

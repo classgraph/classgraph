@@ -1325,6 +1325,38 @@ public class VfsTest {
         }
     }
 
+    /**
+     * A {@link Vfs} copies the {@link VfsSpec} it is constructed with, so changing that spec afterward does not
+     * change how the {@link Vfs} reads, and the spec can still be changed, e.g. to configure another {@link Vfs}.
+     *
+     * @param tempDir
+     *            a temporary directory
+     * @throws IOException
+     *             if a jarfile could not be written or read
+     */
+    @Test
+    public void changingASpecAfterConstructingAVfsDoesNotChangeTheVfs(@TempDir final File tempDir)
+            throws IOException {
+        final var innerJarFile = new File(tempDir, "inner.jar");
+        writeJar(innerJarFile, "com/xyz/widget.txt");
+        final var outerJarFile = new File(tempDir, "outer.jar");
+        writeJarContainingJar(outerJarFile, "lib/inner.jar", readFile(innerJarFile));
+        final var nestedJarPath = outerJarFile.getPath() + "!/lib/inner.jar";
+
+        final var vfsSpec = new VfsSpec();
+        try (var vfs = new Vfs(vfsSpec)) {
+            vfsSpec.disableNestedJars().denyURLScheme("https");
+            // A nested jarfile that the Vfs had not opened before the spec was changed is still opened
+            assertThat(entryContent(vfs.open(nestedJarPath), "com/xyz/widget.txt")).isEqualTo(RESOURCE_CONTENT);
+            assertThat(vfs.getVfsSpec().isNestedJarsEnabled()).isTrue();
+            assertThat(vfs.getVfsSpec().getDeniedURLSchemes()).isEmpty();
+        }
+        // The changed spec configures the next Vfs it is passed to
+        try (var vfs = new Vfs(vfsSpec)) {
+            assertThatThrownBy(() -> vfs.open(nestedJarPath)).isInstanceOf(IOException.class);
+        }
+    }
+
     /** A trailing "!/" section that names a directory is used as the package root. */
     @Test
     public void aPackageRootStripsThePrefixFromEntryNames(@TempDir final File tempDir) throws IOException {

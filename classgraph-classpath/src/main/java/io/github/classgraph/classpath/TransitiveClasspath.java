@@ -40,7 +40,6 @@ import io.github.classgraph.base.LogNode;
 import io.github.classgraph.classpath.internal.ClasspathExpander;
 import io.github.classgraph.classpath.internal.ClasspathOrderBuilder;
 import io.github.classgraph.vfs.Vfs;
-import io.github.classgraph.vfs.VfsSpec;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -57,9 +56,6 @@ final class TransitiveClasspath {
     /** Opens the classpath elements, so that their manifests and their lib dirs can be read. */
     private final Vfs vfs;
 
-    /** The settings that govern how the jarfiles are read. */
-    private final VfsSpec vfsSpec;
-
     /** The log node, or null to skip logging. */
     private final @Nullable LogNode log;
 
@@ -74,14 +70,11 @@ final class TransitiveClasspath {
      *
      * @param vfs
      *            opens the classpath elements, so that their manifests and their lib dirs can be read.
-     * @param vfsSpec
-     *            the settings that govern how the jarfiles are read.
      * @param log
      *            the log node, or null to skip logging.
      */
-    private TransitiveClasspath(final Vfs vfs, final VfsSpec vfsSpec, final @Nullable LogNode log) {
+    private TransitiveClasspath(final Vfs vfs, final @Nullable LogNode log) {
         this.vfs = vfs;
-        this.vfsSpec = vfsSpec;
         this.log = log;
     }
 
@@ -92,18 +85,17 @@ final class TransitiveClasspath {
      * @param entries
      *            the classpath elements that the classloaders declared.
      * @param vfs
-     *            opens the classpath elements, so that their manifests and their lib dirs can be read.
-     * @param vfsSpec
-     *            the settings that govern how the jarfiles are read.
+     *            opens the classpath elements, so that their manifests and their lib dirs can be read, with the
+     *            settings that govern how the jarfiles are read.
      * @param log
      *            the log node, or null to skip logging.
      * @return the expanded classpath.
      * @throws IllegalStateException
      *             if the thread was interrupted.
      */
-    static List<ClasspathEntry> expand(final List<ClasspathEntry> entries, final Vfs vfs, final VfsSpec vfsSpec,
+    static List<ClasspathEntry> expand(final List<ClasspathEntry> entries, final Vfs vfs,
             final @Nullable LogNode log) {
-        final var classpath = new TransitiveClasspath(vfs, vfsSpec, log);
+        final var classpath = new TransitiveClasspath(vfs, log);
         classpath.addAll(entries);
         return classpath.expanded;
     }
@@ -164,7 +156,7 @@ final class TransitiveClasspath {
             // filesystem owns it, and hands the same root back to whoever reads the classpath element next.
             final var root = entry.open(vfs);
             childEntries = ClasspathExpander.childEntries(root, entry.getLibDirPrefixes(),
-                    vfsSpec.isNestedJarsEnabled(), log);
+                    vfs.getVfsSpec().isNestedJarsEnabled(), log);
         } catch (final IOException | IllegalArgumentException e) {
             if (Thread.currentThread().isInterrupted()) {
                 throw new IllegalStateException("Interrupted while reading the jarfiles on the classpath", e);

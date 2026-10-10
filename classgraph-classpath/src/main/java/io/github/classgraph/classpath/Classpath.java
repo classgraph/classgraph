@@ -193,8 +193,9 @@ public final class Classpath implements AutoCloseable, Iterable<ClasspathEntry> 
     /**
      * Returns the {@link Vfs} that the jarfiles on the classpath were read through, so that they can be read again
      * without being opened a second time. It opens a directory, a jarfile, or a jarfile nested inside another
-     * jarfile all the same way, and it has the same settings that the {@link ClasspathFinder} was configured with,
-     * so it can be passed straight to {@link ClasspathEntry#open(Vfs)} to read a classpath element, or to
+     * jarfile all the same way, and it has the settings that the {@link ClasspathFinder} had when
+     * {@link ClasspathFinder#find()} was called (changing the {@link ClasspathFinder} afterward does not change
+     * them), so it can be passed straight to {@link ClasspathEntry#open(Vfs)} to read a classpath element, or to
      * {@link Vfs#open(java.lang.module.ModuleReference)} to read a module.
      *
      * <p>

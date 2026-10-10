@@ -356,6 +356,27 @@ public class ClasspathFinderTest {
         assertThatThrownBy(() -> vfs.open(location(jar))).isInstanceOf(IOException.class);
     }
 
+    /**
+     * The {@link io.github.classgraph.vfs.Vfs} of a {@link Classpath} keeps the settings the finder had when
+     * {@link ClasspathFinder#find()} was called, so changing the finder afterward only changes the next
+     * {@link Classpath} it finds.
+     */
+    @Test
+    public void changingTheFinderAfterFindDoesNotChangeTheClasspathItFound(@TempDir final Path tempDir)
+            throws IOException {
+        final var jar = writeJarWithManifest(tempDir.resolve("only.jar"));
+        final var finder = new ClasspathFinder().enableClasspathEntries((Object) jar);
+        try (var classpath = finder.find()) {
+            finder.allowURLScheme("https").denyURLScheme("s3");
+            assertThat(classpath.getVfs().getVfsSpec().getDeniedURLSchemes()).containsExactly("ftp", "http",
+                    "https", "mailto");
+            try (var nextClasspath = finder.find()) {
+                assertThat(nextClasspath.getVfs().getVfsSpec().getDeniedURLSchemes()).containsExactly("ftp", "http",
+                        "mailto", "s3");
+            }
+        }
+    }
+
     /** The result prints one classpath element or module per line. */
     @Test
     public void theClassPathPrintsOneEntryPerLine(@TempDir final Path tempDir) throws IOException {
