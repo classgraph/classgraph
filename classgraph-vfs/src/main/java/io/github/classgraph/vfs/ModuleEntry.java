@@ -90,7 +90,7 @@ final class ModuleEntry extends VfsEntry {
     // -------------------------------------------------------------------------------------------------------------
 
     @Override
-    public InputStream open() throws IOException {
+    InputStream openUnchecked() throws IOException {
         final var recycler = getRoot().moduleReaderRecycler();
         final var reader = recycler.acquire();
         InputStream inputStream = null;

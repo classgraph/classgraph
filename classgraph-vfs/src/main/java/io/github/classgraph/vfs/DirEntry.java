@@ -200,7 +200,7 @@ final class DirEntry extends VfsEntry {
     }
 
     @Override
-    public InputStream open() throws IOException {
+    InputStream openUnchecked() throws IOException {
         final var slice = openSlice();
         // The slice holds the open file channel, so closing the stream has to close the slice too
         return slice.open(slice);
