@@ -160,10 +160,8 @@ public final class PhysicalZipFile {
      * @return the {@link LogicalZipFile} spanning the whole of this physical zipfile.
      * @throws IOException
      *             if the central directory could not be read, or the {@link Vfs} has been closed.
-     * @throws InterruptedException
-     *             if the thread was interrupted.
      */
-    LogicalZipFile getLogicalZipFile(final @Nullable LogNode log) throws IOException, InterruptedException {
+    LogicalZipFile getLogicalZipFile(final @Nullable LogNode log) throws IOException {
         // The zipfile is only valid while the Vfs is open, so a lookup is turned away once it has been closed,
         // rather than reading a central directory that nothing would ever release again
         if (vfs.isClosed()) {
