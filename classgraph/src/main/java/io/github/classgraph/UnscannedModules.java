@@ -49,7 +49,8 @@ import org.jspecify.annotations.Nullable;
  * Scanning is extended upwards from an accepted class to its superclasses, interfaces and annotations, so that the
  * part of the class graph above an accepted class is complete. The classfiles of those classes are looked for in
  * the classpath elements that are being scanned, but system modules are not scanned unless
- * {@link ClassGraph#enableSystemModules()} is called, so a class hierarchy that passes through a class in a system
+ * {@link ClassGraph#enableSystemModules()} is called, and non-system modules are not scanned unless
+ * {@link ClassGraph#enableNonSystemModules()} is called, so a class hierarchy that passes through a class in a
  * module (e.g. through {@code java.util.TimerTask}, which implements {@link Runnable}) would otherwise stop at that
  * class.
  *

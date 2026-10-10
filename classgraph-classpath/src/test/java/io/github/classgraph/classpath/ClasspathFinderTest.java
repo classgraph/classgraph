@@ -278,6 +278,29 @@ public class ClasspathFinderTest {
     }
 
     /**
+     * The non-system modules are not listed unless they are enabled, even though the module finder lists them
+     * either way, so that a scan can read a superclass from a module it does not scan.
+     */
+    @Test
+    public void theNonSystemModulesAreNotListedUnlessEnabled(@TempDir final Path tempDir) throws IOException {
+        final var jar = writeJarWithEntry(tempDir.resolve("nonsystem-module.jar"), "nonsystem/module/A.class");
+        final var finder = java.lang.module.ModuleFinder.of(jar.toPath());
+        final var bootLayer = ModuleLayer.boot();
+        final var layer = bootLayer.defineModulesWithOneLoader(bootLayer.configuration().resolve(finder,
+                java.lang.module.ModuleFinder.of(), Set.of("nonsystem.module")),
+                ClassLoader.getSystemClassLoader());
+        try (var classpath = new ClasspathFinder().enableModuleLayers(layer).enableSystemModules().find()) {
+            assertThat(classpath.getSystemModules()).isNotEmpty();
+            assertThat(classpath.getNonSystemModules()).isEmpty();
+            assertThat(classpath.getModules()).containsExactlyElementsOf(classpath.getSystemModules());
+        }
+        try (var classpath = new ClasspathFinder().enableModuleLayers(layer).enableNonSystemModules().find()) {
+            assertThat(classpath.getNonSystemModules())
+                    .anyMatch(module -> "nonsystem.module".equals(module.descriptor().name()));
+        }
+    }
+
+    /**
      * The classes on the traditional classpath are in the unnamed module, which is not in any module layer, so
      * asking for the non-system modules does not find the classpath, even though the caller is on the classpath.
      */

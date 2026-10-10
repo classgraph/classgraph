@@ -386,7 +386,7 @@ class Classfile {
         }
         // The classfile is not in any classpath element that is being scanned. Look in the modules that are not
         // being scanned, so that the class graph above an accepted class is still completed through classes in
-        // system modules, which are not scanned unless they are asked for (#902)
+        // modules, which are not scanned unless their kind of module is asked for (#902)
         final var workUnit = unscannedModules.findClassfile(className, classfilePath, log);
         return workUnit == null ? null
                 : new ClassfileLocation(workUnit.classpathElement(), workUnit.classfileResource());
