@@ -567,21 +567,35 @@ public final class Resource implements AutoCloseable, Comparable<Resource> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get a string representation of the resource's location (as a URL string).
+     * Get a string representation of the resource's location: its URI, or, for a resource of a module that cannot
+     * name a URI for it (see {@link #getURI()}), the module name and the path within the module, separated by
+     * {@code "/"}, which is the notation the JDK uses for a resource of a module.
      *
-     * @return the resource location as a URL String.
+     * @return the resource's URI as a string, or the module name and the path within the module if the resource has
+     *         no URI.
      */
     @Override
     public String toString() {
-        if (toString != null) {
-            return toString;
-        } else {
-            return toString = getURI().toString();
+        if (toString == null) {
+            String str;
+            try {
+                str = getURI().toString();
+            } catch (final IllegalStateException _) {
+                // A module's ModuleReader may be unable to name a URI for a resource that it can list and open.
+                // The entry's path is then used instead, which for a module resource is "<module>/<path>". This
+                // has no URI scheme unless the module name contains ':', which no module declared in Java source
+                // can, so it does not equal the URI string of another resource. It is cached like a URI string, so
+                // that hashCode() and equals() stay consistent, and do not ask the ModuleReader for the URI again
+                // on every call
+                str = entry.getPath();
+            }
+            toString = str;
         }
+        return toString;
     }
 
     /**
-     * Get the hash code of the resource's URI.
+     * Get the hash code of the resource's URI, or of its {@link #toString()} form if it has no URI.
      *
      * @return the hash code.
      */
@@ -591,11 +605,13 @@ public final class Resource implements AutoCloseable, Comparable<Resource> {
     }
 
     /**
-     * Compare this resource with another resource for equality, by URI.
+     * Compare this resource with another resource for equality, by URI, or by {@link #toString()} form for a
+     * resource that has no URI.
      *
      * @param obj
      *            the object to compare with.
-     * @return true if the other object is a {@link Resource} with the same URI.
+     * @return true if the other object is a {@link Resource} with the same {@link #toString()} form, which is the
+     *         same URI for two resources that have one.
      */
     @Override
     public boolean equals(final @Nullable Object obj) {
@@ -608,11 +624,12 @@ public final class Resource implements AutoCloseable, Comparable<Resource> {
     }
 
     /**
-     * Compare this resource with another resource, by URI.
+     * Compare this resource with another resource, by URI, or by {@link #toString()} form for a resource that has
+     * no URI.
      *
      * @param other
      *            the resource to compare with.
-     * @return the ordering of this resource's URI relative to the other resource's URI.
+     * @return the ordering of this resource's {@link #toString()} form relative to the other resource's.
      */
     @Override
     public int compareTo(final Resource other) {
