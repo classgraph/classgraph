@@ -103,14 +103,14 @@ import org.jspecify.annotations.Nullable;
  * <p>
  * Every method is safe to call from multiple threads at once. Two threads that ask for the same path at the same
  * time get back the same {@link VfsRoot}, and the jarfile behind it is only read once. How storage is read is set
- * by the {@link VfsSpec} this {@link Vfs} was constructed with. Its settings are meant to be chosen before anything
- * is opened, but are safe to change from any thread. {@link #close()} takes effect the moment it is called, so a
- * thread that calls any other method after that -- even while the close is still running -- gets an
- * {@link IOException} from an {@code open} method, or an {@link IllegalStateException} from {@link #verbose()},
- * rather than a root backed by storage that is being released.
+ * by a copy of the {@link VfsSpec} this {@link Vfs} was constructed with, taken by the constructor, so its settings
+ * cannot change while it is open. {@link #close()} takes effect the moment it is called, so a thread that calls any
+ * other method after that -- even while the close is still running -- gets an {@link IOException} from an
+ * {@code open} method, or an {@link IllegalStateException} from {@link #verbose()}, rather than a root backed by
+ * storage that is being released.
  */
 public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
-    /** The settings that govern how storage is read. */
+    /** The settings that govern how storage is read: a copy of those passed in, which cannot be changed. */
     private final VfsSpec vfsSpec;
 
     /** The interruption checker shared by every thread reading through this {@link Vfs}. */
@@ -167,10 +167,9 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      * Constructor, taking the settings to read storage with.
      *
      * <p>
-     * The {@link VfsSpec} is held, not copied, and each setting is read where it is needed, so a setting should be
-     * changed before this {@link Vfs} opens anything -- a setting changed while entries are being read takes effect
-     * for some of them and not others. Changing one is safe from any thread, since every setting is held in a
-     * volatile field.
+     * The {@link VfsSpec} is copied, so everything this {@link Vfs} opens is read with the settings it had when
+     * this constructor was called. Changing a setting of the {@link VfsSpec} afterward does not change this
+     * {@link Vfs}, only a {@link Vfs} constructed from it afterward.
      *
      * <pre>
      * try (Vfs vfs = new Vfs(new VfsSpec().disableMultiReleaseVersions().setMaxBufferedJarRAMSize(65536))) {
@@ -197,7 +196,7 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      * @hidden
      */
     public Vfs(final VfsSpec vfsSpec, final InterruptionChecker interruptionChecker) {
-        this.vfsSpec = vfsSpec;
+        this.vfsSpec = new VfsSpec(vfsSpec);
         this.interruptionChecker = interruptionChecker;
     }
 
@@ -951,9 +950,9 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
 
     /**
      * Returns the settings that govern how this {@link Vfs} reads storage: the {@link VfsSpec} it was constructed
-     * with, or the default settings if it was constructed without one. The settings are held rather than copied, so
-     * this is the same object that was passed in, and changing a setting through it changes how this {@link Vfs}
-     * reads whatever it opens next.
+     * with, or the default settings if it was constructed without one. This is the copy the constructor took, not
+     * the object that was passed in, and its settings cannot be changed: each method that would change one throws
+     * {@link IllegalStateException}.
      *
      * @return the settings that govern how this {@link Vfs} reads storage.
      */

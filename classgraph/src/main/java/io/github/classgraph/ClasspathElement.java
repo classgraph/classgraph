@@ -48,6 +48,7 @@ import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.path.FileUtils;
 import io.github.classgraph.base.internal.path.PathSyntax;
+import io.github.classgraph.vfs.Vfs;
 import io.github.classgraph.vfs.VfsRoot;
 import io.github.classgraph.vfs.VfsSpec;
 import org.jspecify.annotations.Nullable;
@@ -187,7 +188,10 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
     /** The scan spec. */
     final ScanSpec scanSpec;
 
-    /** The settings that govern how archives are read. */
+    /**
+     * The settings that govern how archives are read: those of the {@link Vfs} the classpath element is read
+     * through, so that its entries are filtered with the same settings they were read with.
+     */
     final VfsSpec vfsSpec;
 
     /**
@@ -203,16 +207,18 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      *
      * @param workUnit
      *            the work unit
+     * @param vfs
+     *            the virtual filesystem the classpath element is read through
      * @param scanSpec
      *            the scan spec
      */
-    ClasspathElement(final ClasspathEntryWorkUnit workUnit, final ScanSpec scanSpec) {
+    ClasspathElement(final ClasspathEntryWorkUnit workUnit, final Vfs vfs, final ScanSpec scanSpec) {
         this.packageRootPrefix = workUnit.packageRootPrefix;
         this.packageRootPrefixes = workUnit.packageRootPrefixes;
         this.libDirPrefixes = workUnit.libDirPrefixes;
         this.classLoaderStr = workUnit.classLoaderStr;
         this.scanSpec = scanSpec;
-        this.vfsSpec = scanSpec.vfsSpec;
+        this.vfsSpec = vfs.getVfsSpec();
     }
 
     // -------------------------------------------------------------------------------------------------------------

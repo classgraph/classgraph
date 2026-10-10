@@ -244,9 +244,9 @@ names the same bytes to code that has never heard of ClassGraph.
 * **Multi-release jarfiles**, resolved to the newest version of each entry that the running JVM can
   use, or every version if multi-release versions were disabled on the `VfsSpec`.
 * **Jarfiles at a URL**, for any scheme the JVM has a handler for, unless that scheme was denied on
-  the `Vfs`. The file is downloaded in full first, because a zipfile's central directory is at the
-  end. A scheme with a `FileSystemProvider` installed for it is read in place instead, with no copy.
-  See [Custom URL schemes](#custom-url-schemes).
+  the `VfsSpec`. The file is downloaded in full first, because a zipfile's central directory is at
+  the end. A scheme with a `FileSystemProvider` installed for it is read in place instead, with no
+  copy. See [Custom URL schemes](#custom-url-schemes).
 * **Entry names encoded in IBM Code Page 437**, which the zip specification requires when bit 11 of
   the entry's general purpose bit flag is clear. Windows Explorer and Info-ZIP both write such
   names.
@@ -274,10 +274,11 @@ new Vfs(new VfsSpec().denyURLScheme("https").setMaxBufferedJarRAMSize(65536))
 `VfsSpec.DEFAULT_ENABLE_MULTI_RELEASE_VERSIONS` and `VfsSpec.DEFAULT_MAX_BUFFERED_JAR_RAM_SIZE` name
 the defaults.
 
-The `VfsSpec` is held by the `Vfs`, not copied, and `vfs.getVfsSpec()` hands back the same object.
-Each setting is read where it is needed, so a setting should be chosen before the `Vfs` opens
-anything -- a setting changed while entries are being read takes effect for some of them and not
-others. Changing one is safe from any thread: every setting is held in a volatile field.
+The `Vfs` constructor copies the `VfsSpec`, so everything one `Vfs` opens is read with the same
+settings. Changing a setting of your `VfsSpec` afterward only affects a `Vfs` constructed from it
+afterward. `vfs.getVfsSpec()` returns the copy, which cannot be changed: each of its setters throws
+`IllegalStateException`. A setting of your own `VfsSpec` is safe to change from any thread, since
+every setting is held in a volatile field.
 
 ## Custom URL schemes
 

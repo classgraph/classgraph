@@ -520,7 +520,7 @@ public final class ClasspathFinder {
             final var vfs = new Vfs(vfsSpec, new InterruptionChecker());
             Classpath classpath = null;
             try {
-                final var expandedEntries = TransitiveClasspath.expand(classLoaderEntries, vfs, vfsSpec, log);
+                final var expandedEntries = TransitiveClasspath.expand(classLoaderEntries, vfs, log);
                 classpath = new Classpath(expandedEntries, classLoaderProbe, classpathSpec, vfs);
                 return classpath;
             } finally {

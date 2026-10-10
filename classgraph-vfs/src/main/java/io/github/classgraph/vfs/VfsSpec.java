@@ -52,9 +52,15 @@ import io.github.classgraph.vfs.internal.zip.LogicalZipFile;
  * </pre>
  *
  * <p>
- * Every setting is safe to change from any thread, at any time: each is held in a volatile field, and
- * {@link #denyURLScheme(String)} publishes an unmodifiable set rather than adding to one in place, so a setting
- * changed by one thread is seen whole by the threads that read archives, whenever they were started.
+ * A {@link Vfs} copies the {@link VfsSpec} it is constructed with, so that everything it opens is read with the
+ * same settings. A setting changed after that applies only to a {@link Vfs} constructed afterward. The copy, which
+ * {@link Vfs#getVfsSpec()} returns, cannot be changed: each method that would change one of its settings throws
+ * {@link IllegalStateException}.
+ *
+ * <p>
+ * A setting is safe to change from any thread: each is held in a volatile field, and {@link #denyURLScheme(String)}
+ * publishes an unmodifiable set rather than adding to one in place. A {@link Vfs} constructed while another thread
+ * is changing settings may copy some of the changes and not others.
  */
 public final class VfsSpec {
     /** The default value of {@link #isNestedJarsEnabled()}. */
@@ -75,18 +81,48 @@ public final class VfsSpec {
     /**
      * URL schemes that jarfiles may not be fetched from. Every scheme the JVM has a handler for is allowed unless
      * it appears here. Only ever assigned an unmodifiable set, so that a reader can iterate it while another thread
-     * denies a further scheme.
+     * denies a further scheme, and so that a copy can share it.
      */
     private volatile Set<String> deniedURLSchemes = Set.of();
 
     /** The maximum size of a jarfile that may be held in RAM rather than spilled to disk, in bytes. */
     private volatile int maxBufferedJarRAMSize = DEFAULT_MAX_BUFFERED_JAR_RAM_SIZE;
 
+    /** True if this is the copy that a {@link Vfs} holds, whose settings cannot be changed. */
+    private final boolean frozen;
+
     // -------------------------------------------------------------------------------------------------------------
 
     /** Constructor, using the default value of every setting. */
     public VfsSpec() {
-        // Intentionally empty
+        this.frozen = false;
+    }
+
+    /**
+     * Copy constructor, for the copy that a {@link Vfs} holds, whose settings cannot be changed.
+     *
+     * @param vfsSpec
+     *            the settings to copy.
+     */
+    VfsSpec(final VfsSpec vfsSpec) {
+        this.nestedJarsEnabled = vfsSpec.nestedJarsEnabled;
+        this.multiReleaseVersionsEnabled = vfsSpec.multiReleaseVersionsEnabled;
+        this.deniedURLSchemes = vfsSpec.deniedURLSchemes;
+        this.maxBufferedJarRAMSize = vfsSpec.maxBufferedJarRAMSize;
+        this.frozen = true;
+    }
+
+    /**
+     * Refuse to change a setting of the copy that a {@link Vfs} holds.
+     *
+     * @throws IllegalStateException
+     *             if this is the copy that a {@link Vfs} holds.
+     */
+    private void checkNotFrozen() {
+        if (frozen) {
+            throw new IllegalStateException("The settings of a Vfs cannot be changed after it is constructed: "
+                    + "change the VfsSpec it was constructed with, and construct a new Vfs");
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -96,8 +132,11 @@ public final class VfsSpec {
      * a jarfile, and not just a package root within a jarfile. This is the default.
      *
      * @return this (for method chaining).
+     * @throws IllegalStateException
+     *             if this is the copy that a {@link Vfs} holds, which {@link Vfs#getVfsSpec()} returns.
      */
     public VfsSpec enableNestedJars() {
+        checkNotFrozen();
         nestedJarsEnabled = true;
         return this;
     }
@@ -107,8 +146,11 @@ public final class VfsSpec {
      * package root within a jarfile.
      *
      * @return this (for method chaining).
+     * @throws IllegalStateException
+     *             if this is the copy that a {@link Vfs} holds, which {@link Vfs#getVfsSpec()} returns.
      */
     public VfsSpec disableNestedJars() {
+        checkNotFrozen();
         nestedJarsEnabled = false;
         return this;
     }
@@ -128,8 +170,11 @@ public final class VfsSpec {
      * the running JVM, under the entry's unversioned path. This is the default.
      *
      * @return this (for method chaining).
+     * @throws IllegalStateException
+     *             if this is the copy that a {@link Vfs} holds, which {@link Vfs#getVfsSpec()} returns.
      */
     public VfsSpec enableMultiReleaseVersions() {
+        checkNotFrozen();
         multiReleaseVersionsEnabled = true;
         return this;
     }
@@ -145,8 +190,11 @@ public final class VfsSpec {
      * {@code "META-INF/versions/11/com/xyz/Widget.class"} for a class in package {@code "com.xyz"}.
      *
      * @return this (for method chaining).
+     * @throws IllegalStateException
+     *             if this is the copy that a {@link Vfs} holds, which {@link Vfs#getVfsSpec()} returns.
      */
     public VfsSpec disableMultiReleaseVersions() {
+        checkNotFrozen();
         multiReleaseVersionsEnabled = false;
         return this;
     }
@@ -185,8 +233,11 @@ public final class VfsSpec {
      * @throws IllegalArgumentException
      *             if the scheme is shorter than two characters (a one-character scheme cannot be told apart from a
      *             Windows drive letter), or is not a valid URL scheme.
+     * @throws IllegalStateException
+     *             if this is the copy that a {@link Vfs} holds, which {@link Vfs#getVfsSpec()} returns.
      */
     public synchronized VfsSpec denyURLScheme(final String scheme) {
+        checkNotFrozen();
         Assert.notNull(scheme, "scheme");
         final var normalizedScheme = URLPaths.normalizeURLScheme(scheme);
         // Copy on write, rather than adding to the set in place, so that a thread reading the set while this one
@@ -212,8 +263,12 @@ public final class VfsSpec {
      * @throws IllegalArgumentException
      *             if the scheme is shorter than two characters (a one-character scheme cannot be told apart from a
      *             Windows drive letter), or is not a valid URL scheme.
+     * @throws IllegalStateException
+     *             if this is the copy that a {@link Vfs} holds, which {@link Vfs#getVfsSpec()} returns, even if the
+     *             scheme is not denied.
      */
     public synchronized VfsSpec allowURLScheme(final String scheme) {
+        checkNotFrozen();
         Assert.notNull(scheme, "scheme");
         final var normalizedScheme = URLPaths.normalizeURLScheme(scheme);
         if (!deniedURLSchemes.contains(normalizedScheme)) {
@@ -260,8 +315,11 @@ public final class VfsSpec {
      * @return this (for method chaining).
      * @throws IllegalArgumentException
      *             if {@code maxBufferedJarRAMSize} is negative.
+     * @throws IllegalStateException
+     *             if this is the copy that a {@link Vfs} holds, which {@link Vfs#getVfsSpec()} returns.
      */
     public VfsSpec setMaxBufferedJarRAMSize(final int maxBufferedJarRAMSize) {
+        checkNotFrozen();
         if (maxBufferedJarRAMSize < 0) {
             throw new IllegalArgumentException("maxBufferedJarRAMSize cannot be negative");
         }

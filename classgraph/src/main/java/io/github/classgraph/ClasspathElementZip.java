@@ -94,7 +94,7 @@ class ClasspathElementZip extends ClasspathElement {
      *            the scan spec
      */
     ClasspathElementZip(final ClasspathEntryWorkUnit workUnit, final Vfs vfs, final ScanSpec scanSpec) {
-        super(workUnit, scanSpec);
+        super(workUnit, vfs, scanSpec);
         final var rawPathObj = Objects.requireNonNull(workUnit.classpathEntryObj);
 
         // Convert the raw path object (Path, URL, or URI) to a string. Any required URL/URI parsing is done when

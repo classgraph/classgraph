@@ -3,6 +3,12 @@ package io.github.classgraph.vfs;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.util.Arrays;
+
 import org.junit.jupiter.api.Test;
 
 /** The settings a {@link Vfs} is constructed with. */
@@ -74,5 +80,65 @@ public class VfsSpecTest {
         assertThat(new VfsSpec().denyURLScheme("https").setMaxBufferedJarRAMSize(1024).toString()).contains(
                 "nestedJars: true", "multiReleaseVersions: true", "deniedURLSchemes: [https]",
                 "maxBufferedJarRAMSize: 1024");
+    }
+
+    /**
+     * A {@link Vfs} copies the spec it is constructed with, and the copy keeps every setting. The list of fields is
+     * checked too, so that a setting added later fails this test until it is copied, and set here to a value other
+     * than its default.
+     */
+    @Test
+    public void aVfsCopiesEverySetting() {
+        final var vfsSpec = new VfsSpec().disableNestedJars().disableMultiReleaseVersions().denyURLScheme("https")
+                .setMaxBufferedJarRAMSize(1024);
+        try (var vfs = new Vfs(vfsSpec)) {
+            final var copy = vfs.getVfsSpec();
+            assertThat(copy).isNotSameAs(vfsSpec);
+            assertThat(copy.isNestedJarsEnabled()).isFalse();
+            assertThat(copy.isMultiReleaseVersionsEnabled()).isFalse();
+            assertThat(copy.getDeniedURLSchemes()).containsExactly("https");
+            assertThat(copy.getMaxBufferedJarRAMSize()).isEqualTo(1024);
+        }
+        assertThat(Arrays.stream(VfsSpec.class.getDeclaredFields())
+                .filter(field -> !Modifier.isStatic(field.getModifiers()) && !field.isSynthetic())
+                .map(Field::getName)).containsExactlyInAnyOrder("nestedJarsEnabled", "multiReleaseVersionsEnabled",
+                        "deniedURLSchemes", "maxBufferedJarRAMSize", "frozen");
+    }
+
+    /**
+     * The copy that a {@link Vfs} holds cannot be changed, so a {@link Vfs} reads everything it opens with the same
+     * settings. Every method that returns a {@link VfsSpec} is tried, so that a setting added later is covered too.
+     */
+    @Test
+    public void theSpecAVfsHoldsCannotBeChanged() {
+        try (var vfs = new Vfs()) {
+            final var copy = vfs.getVfsSpec();
+            final var mutators = Arrays.stream(VfsSpec.class.getMethods()).filter(
+                    method -> !Modifier.isStatic(method.getModifiers()) && method.getReturnType() == VfsSpec.class)
+                    .toList();
+            assertThat(mutators).extracting(Method::getName).contains("enableNestedJars", "disableNestedJars",
+                    "enableMultiReleaseVersions", "disableMultiReleaseVersions", "denyURLScheme", "allowURLScheme",
+                    "setMaxBufferedJarRAMSize");
+            for (final var mutator : mutators) {
+                // A valid argument, so that only the spec being frozen can make the call fail
+                final var args = Arrays.stream(mutator.getParameterTypes()).map(type -> {
+                    if (type == String.class) {
+                        return "https";
+                    } else if (type == int.class) {
+                        return 0;
+                    }
+                    throw new AssertionError("No test argument for a parameter of type " + type + " of " + mutator);
+                }).toArray();
+                assertThatThrownBy(() -> mutator.invoke(copy, args)).as(mutator.getName())
+                        .isInstanceOf(InvocationTargetException.class)
+                        .hasCauseInstanceOf(IllegalStateException.class);
+            }
+            // Nothing was changed by the calls that were refused
+            assertThat(copy.isNestedJarsEnabled()).isEqualTo(VfsSpec.DEFAULT_ENABLE_NESTED_JARS);
+            assertThat(copy.isMultiReleaseVersionsEnabled())
+                    .isEqualTo(VfsSpec.DEFAULT_ENABLE_MULTI_RELEASE_VERSIONS);
+            assertThat(copy.getMaxBufferedJarRAMSize()).isEqualTo(VfsSpec.DEFAULT_MAX_BUFFERED_JAR_RAM_SIZE);
+            assertThat(copy.getDeniedURLSchemes()).isEmpty();
+        }
     }
 }

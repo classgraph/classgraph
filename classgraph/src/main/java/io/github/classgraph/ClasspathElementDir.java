@@ -72,7 +72,7 @@ class ClasspathElementDir extends ClasspathElement {
      *            the scan spec
      */
     ClasspathElementDir(final ClasspathEntryWorkUnit workUnit, final Vfs vfs, final ScanSpec scanSpec) {
-        super(workUnit, scanSpec);
+        super(workUnit, vfs, scanSpec);
         this.classpathEltPath = (Path) Objects.requireNonNull(workUnit.classpathEntryObj);
         this.vfs = vfs;
     }
