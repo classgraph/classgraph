@@ -559,17 +559,27 @@ public final class GraphVizDotFile {
                 }
             }
 
-            // Parameter type -- without the parameter annotations, as for a field type
-            appendSpaceIfNeeded(buf);
-            final var paramTypeSig = Objects.requireNonNull(param.getTypeSignatureOrTypeDescriptor());
-            final var paramTypeStr = paramTypeSig.toString(options.useSimpleNames, paramAnnotations);
-            htmlEncode(paramTypeStr, buf);
-            wrapPos += paramTypeStr.length();
+            // Parameter type -- without the parameter annotations, as for a field type. A parameter has no type if
+            // the classfile lists more parameters in its parameter names or parameter annotations than in the type
+            // descriptor of the method.
+            final var paramTypeSig = param.getTypeSignatureOrTypeDescriptor();
+            if (paramTypeSig != null) {
+                var paramTypeStr = paramTypeSig.toString(options.useSimpleNames, paramAnnotations);
+                // The variadic parameter of a variadic method has an array type, but is shown as "T..." not "T[]".
+                // The rendering of an array type always ends in "[]", since an array has at least one dimension.
+                if (param.isVarArgs() && paramTypeSig instanceof ArrayTypeSignature) {
+                    paramTypeStr = paramTypeStr.substring(0, paramTypeStr.length() - 2) + "...";
+                }
+                appendSpaceIfNeeded(buf);
+                htmlEncode(paramTypeStr, buf);
+                wrapPos += paramTypeStr.length();
+            }
 
             // Parameter name
             final var paramName = param.getName();
             if (paramName != null) {
-                buf.append(" <b>");
+                appendSpaceIfNeeded(buf);
+                buf.append("<b>");
                 htmlEncode(paramName, buf);
                 wrapPos += 1 + paramName.length();
                 buf.append("</b>");
@@ -622,13 +632,31 @@ public final class GraphVizDotFile {
                 buf.append(mi.getModifiersString());
             }
 
+            // Method type parameters -- a constructor can have them too
+            final var methodType = mi.getTypeSignatureOrTypeDescriptor();
+            final var typeParameters = methodType.getTypeParameters();
+            if (!typeParameters.isEmpty()) {
+                final var typeParametersStr = new StringBuilder("<");
+                for (var i = 0; i < typeParameters.size(); i++) {
+                    if (i > 0) {
+                        typeParametersStr.append(", ");
+                    }
+                    final var typeParameter = typeParameters.get(i);
+                    typeParametersStr.append(options.useSimpleNames ? typeParameter.toStringWithSimpleNames()
+                            : typeParameter.toString());
+                }
+                typeParametersStr.append('>');
+                appendSpaceIfNeeded(buf);
+                htmlEncode(typeParametersStr.toString(), buf);
+            }
+
             // Method return type -- constructors have none
             appendSpaceIfNeeded(buf);
             if (isConstructor) {
                 buf.append("<b>&lt;constructor&gt;</b>");
             } else {
                 // Without the method annotations, as for a field type
-                final var resultTypeSig = mi.getTypeSignatureOrTypeDescriptor().getResultType();
+                final var resultTypeSig = methodType.getResultType();
                 htmlEncode(resultTypeSig.toString(options.useSimpleNames, methodAnnotations), buf);
             }
             buf.append("</td>");

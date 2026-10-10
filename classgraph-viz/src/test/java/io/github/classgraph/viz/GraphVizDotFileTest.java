@@ -868,6 +868,210 @@ public class GraphVizDotFileTest {
         }
     }
 
+    /** A class with generic methods, a generic constructor and variadic methods. */
+    public static class GenericMethods {
+        /**
+         * A constructor with a type parameter.
+         *
+         * @param <K>
+         *            the type parameter.
+         * @param key
+         *            a key.
+         */
+        public <K> GenericMethods(final K key) {
+            // Empty
+        }
+
+        /**
+         * A variadic method with a bounded type parameter.
+         *
+         * @param <T>
+         *            the type parameter.
+         * @param list
+         *            a list.
+         * @param more
+         *            more values.
+         * @return the first value of the list.
+         */
+        @SafeVarargs
+        public static <T extends Comparable<T>> T max(final List<T> list, final T... more) {
+            return list.get(0);
+        }
+
+        /**
+         * A method with a type parameter, whose last parameter is an array but not variadic.
+         *
+         * @param <E>
+         *            the type parameter.
+         * @param list
+         *            a list.
+         * @param elements
+         *            the elements to add.
+         */
+        public static <E> void addAll(final List<E> list, final E[] elements) {
+            // Empty
+        }
+
+        /**
+         * A variadic method with a parameter of primitive array type.
+         *
+         * @param values
+         *            the values.
+         */
+        public static void sum(final int... values) {
+            // Empty
+        }
+    }
+
+    /**
+     * The type parameters of a method or constructor are shown before its return type, as they are declared, and
+     * the variadic parameter of a variadic method is shown as {@code T...} rather than as the array type
+     * {@code T[]} that it has.
+     */
+    @Test
+    public void methodTypeParametersAndVarargsAreShownAsDeclared() {
+        try (var genericScanResult = new ClassGraph().enableClasspath()
+                .acceptClasses(GenericMethods.class.getName()).enableClassInfo().enableMethodInfo().scan()) {
+            final var simple = node(graph(genericScanResult, new GraphVizDotFileOptions()),
+                    GenericMethods.class.getName());
+            assertThat(simple).contains(
+                    "valign='top'>&lt;T extends Comparable&lt;T&gt;&gt; T</td><td align='left' valign='top'>"
+                            + "<b>max</b>",
+                    "(List&lt;T&gt; <b>list</b>, T... <b>more</b>)",
+                    "valign='top'>&lt;E&gt; void</td><td align='left' valign='top'><b>addAll</b>",
+                    // An array parameter that is not variadic keeps its array type
+                    "(List&lt;E&gt; <b>list</b>, E[] <b>elements</b>)", "(int... <b>values</b>)",
+                    "valign='top'>&lt;K&gt; <b>&lt;constructor&gt;</b>");
+
+            final var qualified = node(
+                    graph(genericScanResult, new GraphVizDotFileOptions().useFullyQualifiedNames()),
+                    GenericMethods.class.getName());
+            assertThat(qualified).contains("valign='top'>&lt;T extends java.lang.Comparable&lt;T&gt;&gt; T</td>",
+                    "(java.util.List&lt;T&gt; <b>list</b>, T... <b>more</b>)");
+        }
+    }
+
+    /**
+     * Write an abstract class {@code Untyped} with two methods {@code void named(int)} and
+     * {@code void annotated(int)}, whose parameter metadata lists two parameters, one more than the type descriptor
+     * has. The method {@code named} has a {@code MethodParameters} attribute naming the parameters {@code extra}
+     * and {@code x}, and the method {@code annotated} has a {@code RuntimeVisibleParameterAnnotations} attribute
+     * that puts {@link NotBlank @NotBlank} on the first parameter. ClassGraph aligns the metadata with the last
+     * parameters of the type descriptor, so the first parameter of each method has no type.
+     *
+     * @param dir
+     *            the directory to write the classfile to.
+     * @throws IOException
+     *             if the classfile could not be written.
+     */
+    private static void writeUntypedParameterClassfile(final Path dir) throws IOException {
+        final var untyped = new ByteArrayOutputStream();
+        try (var out = new DataOutputStream(untyped)) {
+            out.writeInt(0xCAFEBABE);
+            out.writeShort(0); // Minor version
+            out.writeShort(52); // Major version (Java 8)
+            out.writeShort(13); // Constant pool count (one greater than the number of entries)
+            // #1
+            out.writeByte(1);
+            out.writeUTF("Untyped");
+            // #2
+            out.writeByte(7); // class ref to #1 (this_class)
+            out.writeShort(1);
+            // #3
+            out.writeByte(1);
+            out.writeUTF("java/lang/Object");
+            // #4
+            out.writeByte(7); // class ref to #3 (super_class)
+            out.writeShort(3);
+            // #5
+            out.writeByte(1);
+            out.writeUTF("MethodParameters");
+            // #6
+            out.writeByte(1);
+            out.writeUTF("RuntimeVisibleParameterAnnotations");
+            // #7
+            out.writeByte(1);
+            out.writeUTF("named");
+            // #8
+            out.writeByte(1);
+            out.writeUTF("annotated");
+            // #9
+            out.writeByte(1);
+            out.writeUTF("(I)V");
+            // #10
+            out.writeByte(1);
+            out.writeUTF("extra");
+            // #11
+            out.writeByte(1);
+            out.writeUTF("x");
+            // #12
+            out.writeByte(1);
+            out.writeUTF("L" + NotBlank.class.getName().replace('.', '/') + ";");
+
+            out.writeShort(0x0421); // ACC_PUBLIC | ACC_SUPER | ACC_ABSTRACT
+            out.writeShort(2); // this_class
+            out.writeShort(4); // super_class
+            out.writeShort(0); // Number of interfaces
+            out.writeShort(0); // Number of fields
+
+            out.writeShort(2); // Number of methods
+            // public abstract void named(int), with two entries in its MethodParameters attribute
+            out.writeShort(0x0401);
+            out.writeShort(7);
+            out.writeShort(9);
+            out.writeShort(1); // attributes_count
+            out.writeShort(5); // "MethodParameters"
+            out.writeInt(9);
+            out.writeByte(2); // parameters_count
+            out.writeShort(10); // "extra"
+            out.writeShort(0); // access_flags
+            out.writeShort(11); // "x"
+            out.writeShort(0); // access_flags
+            // public abstract void annotated(int), with two entries in its RuntimeVisibleParameterAnnotations
+            // attribute
+            out.writeShort(0x0401);
+            out.writeShort(8);
+            out.writeShort(9);
+            out.writeShort(1); // attributes_count
+            out.writeShort(6); // "RuntimeVisibleParameterAnnotations"
+            out.writeInt(9);
+            out.writeByte(2); // num_parameters
+            out.writeShort(1); // num_annotations of the first parameter
+            out.writeShort(12); // @NotBlank
+            out.writeShort(0); // num_element_value_pairs
+            out.writeShort(0); // num_annotations of the second parameter
+
+            out.writeShort(0); // Number of attributes
+        }
+        Files.write(dir.resolve("Untyped.class"), untyped.toByteArray());
+    }
+
+    /**
+     * A method parameter with no type, which a classfile whose parameter metadata lists more parameters than the
+     * type descriptor of the method gives, is shown with its name and annotations only, and does not make the graph
+     * fail.
+     *
+     * @param tempDir
+     *            the directory to write the classfile to.
+     * @throws IOException
+     *             if the classfile could not be written.
+     */
+    @Test
+    public void parametersWithNoTypeAreShownWithoutAType(@TempDir final Path tempDir) throws IOException {
+        writeUntypedParameterClassfile(tempDir);
+        try (var untypedScanResult = new ClassGraph().enableClasspathEntries(tempDir).enableClassInfo()
+                .enableMethodInfo().enableAnnotationInfo().scan()) {
+            final var named = untypedScanResult.getClassInfo("Untyped").getMethodInfo("named").get(0);
+            assertThat(named.getParameterInfo()).hasSize(2);
+            assertThat(named.getParameterInfo().get(0).getTypeSignatureOrTypeDescriptor()).isNull();
+
+            final var untyped = node(graph(untypedScanResult, new GraphVizDotFileOptions()), "Untyped");
+            assertThat(untyped).contains(
+                    "<b>named</b>&nbsp;</td><td align='left' valign='top'>" + "(<b>extra</b>, int <b>x</b>)",
+                    "<b>annotated</b>&nbsp;</td><td align='left' valign='top'>(@NotBlank, int)");
+        }
+    }
+
     /**
      * Write a class {@code Target} with no members, and an abstract class {@code BrokenTypeDescriptors} with the
      * fields {@code typed} and {@code untyped} and the methods {@code typed()} and {@code untyped()}, all of which
