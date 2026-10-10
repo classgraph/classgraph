@@ -3395,10 +3395,12 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
 
     /**
      * Get all classes that have this class as a method annotation, and their subclasses, if the method is
-     * non-private.
+     * non-private. A subclass is found even if the class that declares the method is external or rejected. An
+     * annotated method of an interface, such as a default method, does not add the classes that implement the
+     * interface, or its subinterfaces.
      *
-     * @return A list of classes that have a declared method with this annotation or meta-annotation, or the empty
-     *         list if none.
+     * @return A list of classes that declare a method with this annotation or meta-annotation, and the subclasses
+     *         of those classes if the method is non-private, or the empty list if none.
      * @throws IllegalStateException
      *             if {@link ClassGraph#enableMethodInfo()} and {@link ClassGraph#enableAnnotationInfo()} were not
      *             both called before scanning.
@@ -3410,10 +3412,12 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
 
     /**
      * Get all classes that have this class as a method parameter annotation, and their subclasses, if the method is
-     * non-private.
+     * non-private. A subclass is found even if the class that declares the method is external or rejected. A method
+     * of an interface does not add the classes that implement the interface, or its subinterfaces.
      *
-     * @return A list of classes that have a declared method with a parameter that is annotated with this annotation
-     *         or meta-annotation, or the empty list if none.
+     * @return A list of classes that declare a method with a parameter that is annotated with this annotation or
+     *         meta-annotation, and the subclasses of those classes if the method is non-private, or the empty list
+     *         if none.
      * @throws IllegalStateException
      *             if {@link ClassGraph#enableMethodInfo()} and {@link ClassGraph#enableAnnotationInfo()} were not
      *             both called before scanning.
@@ -3751,10 +3755,12 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     }
 
     /**
-     * Get the classes that have this class as a field annotation or meta-annotation.
+     * Get the classes that have this class as a field annotation or meta-annotation, and their subclasses, if the
+     * field is non-private. A subclass is found even if the class that declares the field is external or rejected.
+     * A field of an interface does not add the classes that implement the interface, or its subinterfaces.
      *
-     * @return A list of classes that have a field with this annotation or meta-annotation, or the empty list if
-     *         none.
+     * @return A list of classes that declare a field with this annotation or meta-annotation, and the subclasses of
+     *         those classes if the field is non-private, or the empty list if none.
      * @throws IllegalStateException
      *             if {@link ClassGraph#enableFieldInfo()} and {@link ClassGraph#enableAnnotationInfo()} were not
      *             both called before scanning.
