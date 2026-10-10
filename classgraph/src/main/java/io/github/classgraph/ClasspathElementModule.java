@@ -116,7 +116,7 @@ final class ClasspathElementModule extends ClasspathElement {
             // The module itself is not opened until it is listed or read, so this only fails if the virtual
             // filesystem has been closed
             if (log != null) {
-                log(classpathElementIdx, "Skipping module " + getModuleName() + " : " + e, log);
+                log.log("Skipping module " + getModuleName() + " : " + e);
             }
             skipClasspathElement = true;
         }

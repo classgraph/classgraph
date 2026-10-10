@@ -118,13 +118,12 @@ final class ClasspathElementZip extends ClasspathElement {
     void open(final WorkQueue<ClasspathEntryWorkUnit> workQueue, final @Nullable LogNode log) {
         if (!scanSpec.scanJars) {
             if (log != null) {
-                log(classpathElementIdx, "Skipping classpath element, since jar scanning is disabled: " + rawPath,
-                        log);
+                log.log("Skipping classpath element, since jar scanning is disabled: " + rawPath);
             }
             skipClasspathElement = true;
             return;
         }
-        final var subLog = log == null ? null : log(classpathElementIdx, "Opening jar: " + rawPath, log);
+        final var subLog = log == null ? null : log.log("Opening jar: " + rawPath);
 
         final var root = openVfsRoot(subLog);
         if (root == null) {

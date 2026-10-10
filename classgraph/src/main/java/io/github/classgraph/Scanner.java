@@ -1035,8 +1035,10 @@ class Scanner {
         final var scanResult = new ScanResult(scanSpec, finalClasspathEltOrder, classNameToClassInfo,
                 packageNameToPackageInfo, moduleNameToModuleInfo, fileToLastModified, vfs, topLevelLog);
 
-        // Set the ScanResult in each classpath element, so that the classpath elements can determine when the
-        // ScanResult is closed
+        // Set the ScanResult in each classpath element, so that a resource can determine when the ScanResult is
+        // closed. This also keeps the ScanResult reachable from each resource it hands out, so that
+        // ScanResult.closeAll() can still close a ScanResult that was dropped without being closed while one of its
+        // resources is still held (ScanResult only keeps a weak reference to itself for closeAll()).
         for (final ClasspathElement classpathElement : finalClasspathEltOrder) {
             classpathElement.setScanResult(scanResult);
         }

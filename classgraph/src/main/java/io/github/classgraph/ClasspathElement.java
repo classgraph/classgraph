@@ -56,7 +56,11 @@ import org.jspecify.annotations.Nullable;
 /** A classpath element (a directory or jarfile on the classpath). */
 abstract sealed class ClasspathElement implements Comparable<ClasspathElement>
         permits ClasspathElementDir, ClasspathElementZip, ClasspathElementModule {
-    /** The index of the classpath element within the classpath or module path. */
+    /**
+     * The position of the classpath element in the final classpath order. It is 0 until the scanner assigns it,
+     * once that order is known, which is after the classpath element has been opened. It is used only as the sort
+     * key that writes the log entries of {@link #scanPaths(LogNode)}, which runs in parallel, in classpath order.
+     */
     int classpathElementIdx;
 
     /**
@@ -200,7 +204,11 @@ abstract sealed class ClasspathElement implements Comparable<ClasspathElement>
 
     /**
      * The ScanResult that the classpath element came from, or null until {@link #setScanResult(ScanResult)} is
-     * called after the scan is complete.
+     * called after the scan is complete. {@link Resource#checkCanOpen()} reads it to refuse to open a resource
+     * after the ScanResult is closed. It also keeps the ScanResult reachable from every {@link Resource} handed
+     * out, which {@link ScanResult#closeAll()} relies on: that method finds an unclosed ScanResult only through a
+     * weak reference, so without this field a ScanResult that the caller dropped without closing could be garbage
+     * collected while the caller still holds one of its resources, leaving the files it opened open.
      */
     protected @Nullable ScanResult scanResult;
 
@@ -770,24 +778,6 @@ abstract sealed class ClasspathElement implements Comparable<ClasspathElement>
      */
     protected static LogNode log(final int classpathElementIdx, final String msg, final LogNode log) {
         return log.log(String.format(Locale.US, "%07d", classpathElementIdx), msg);
-    }
-
-    /**
-     * Write entries to log in classpath / module path order.
-     *
-     * @param classpathElementIdx
-     *            the index of this element in classpath / module path order
-     * @param msg
-     *            the log message
-     * @param t
-     *            the exception that was thrown
-     * @param log
-     *            the log node to write to
-     * @return the new {@link LogNode}
-     */
-    protected static LogNode log(final int classpathElementIdx, final String msg, final Throwable t,
-            final LogNode log) {
-        return log.log(String.format(Locale.US, "%07d", classpathElementIdx), msg, t);
     }
 
     // -------------------------------------------------------------------------------------------------------------
