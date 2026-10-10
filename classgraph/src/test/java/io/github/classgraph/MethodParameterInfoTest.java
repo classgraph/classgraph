@@ -8,10 +8,20 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import java.lang.classfile.Annotation;
+import java.lang.classfile.AnnotationElement;
+import java.lang.classfile.ClassFile;
+import java.lang.classfile.CodeBuilder;
+import java.lang.classfile.attribute.MethodParametersAttribute;
+import java.lang.classfile.attribute.RuntimeVisibleParameterAnnotationsAttribute;
+import java.lang.constant.ClassDesc;
+import java.lang.constant.ConstantDescs;
+import java.lang.constant.MethodTypeDesc;
 import java.lang.reflect.Modifier;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Optional;
 
 import javax.tools.ToolProvider;
 
@@ -345,6 +355,63 @@ public class MethodParameterInfoTest {
             assertThat(param.isSynthetic()).isFalse();
             assertThat(param.isMandated()).isFalse();
             assertThat(param).hasToString("java.lang.String _unnamed_param");
+        }
+    }
+
+    /**
+     * A {@code MethodParameters} or parameter annotation attribute with more entries than the method descriptor has
+     * parameter types gives the leading parameter no type. javac never writes such a classfile, but a bytecode tool
+     * can, and the JVM loads it. Both renderers must then show the parameter without its type, rather than throw or
+     * print an empty parameter.
+     *
+     * @param tempDir
+     *            the temporary directory to write the classfile to.
+     * @throws IOException
+     *             if the classfile could not be written.
+     */
+    @Test
+    public void aParameterWithNoTypeIsRenderedWithoutItsType(@TempDir final Path tempDir) throws IOException {
+        final var className = "com.xyz.paddedparams.PaddedParameters";
+        final var voidOfInt = MethodTypeDesc.of(ConstantDescs.CD_void, ConstantDescs.CD_int);
+        final var classfile = ClassFile.of().build(ClassDesc.of(className), cb -> cb.withFlags(ClassFile.ACC_PUBLIC)
+                .withSuperclass(ConstantDescs.CD_Object)
+                // m(int x), with an extra leading MethodParameters entry named "extra"
+                .withMethod("m", voidOfInt, ClassFile.ACC_PUBLIC, mb -> mb
+                        .with(MethodParametersAttribute.of(
+                                java.lang.classfile.attribute.MethodParameterInfo.ofParameter(Optional.of("extra"),
+                                        0),
+                                java.lang.classfile.attribute.MethodParameterInfo.ofParameter(Optional.of("x"), 0)))
+                        .withCode(CodeBuilder::return_))
+                // n(@Param("y") int), with an extra leading parameter annotation entry, and no parameter names
+                .withMethod("n", voidOfInt, ClassFile.ACC_PUBLIC, mb -> mb
+                        .with(RuntimeVisibleParameterAnnotationsAttribute.of(List.of(List.of(),
+                                List.of(Annotation.of(ClassDesc.of(Param.class.getName()),
+                                        AnnotationElement.ofString("value", "y"))))))
+                        .withCode(CodeBuilder::return_)));
+        final var classfilePath = tempDir.resolve("com/xyz/paddedparams/PaddedParameters.class");
+        Files.createDirectories(classfilePath.getParent());
+        Files.write(classfilePath, classfile);
+
+        try (var scanResult = new ClassGraph().enableClassInfo().enableMethodInfo().enableAnnotationInfo()
+                .enableClasspathEntries(tempDir.toString()).acceptClasses(className).scan()) {
+            final var classInfo = scanResult.getClassInfo(className);
+            assertThat(classInfo).isNotNull();
+
+            final var m = classInfo.getMethodInfo("m").get(0);
+            final var mParams = m.getParameterInfo();
+            assertThat(mParams).hasSize(2);
+            assertThat(mParams.get(0).getTypeSignatureOrTypeDescriptor()).isNull();
+            assertThat(mParams.get(0)).hasToString("extra");
+            assertThat(mParams.get(1)).hasToString("int x");
+            assertThat(m).hasToString("public void m(extra, int x)");
+
+            final var n = classInfo.getMethodInfo("n").get(0);
+            final var nParams = n.getParameterInfo();
+            assertThat(nParams).hasSize(2);
+            assertThat(nParams.get(0).getTypeSignatureOrTypeDescriptor()).isNull();
+            assertThat(nParams.get(0)).hasToString("_unnamed_param");
+            assertThat(nParams.get(1)).hasToString("@" + Param.class.getName() + "(\"y\") int _unnamed_param");
+            assertThat(n).hasToString("public void n(_unnamed_param, @" + Param.class.getName() + "(\"y\") int)");
         }
     }
 }

@@ -311,6 +311,7 @@ public final class MethodParameterInfo implements HasAnnotations {
      *            the buffer to append to
      */
     protected void toString(final boolean useSimpleNames, final StringBuilder buf) {
+        final var startLength = buf.length();
         // Exclude the parameter annotations from the type annotations at the toplevel of the type signature, so
         // that a TYPE_USE annotation on the parameter is not listed twice
         final List<AnnotationInfo> annotationsToExclude;
@@ -326,15 +327,23 @@ public final class MethodParameterInfo implements HasAnnotations {
 
         modifiersToString(modifiers, buf);
 
-        final var paramType = Objects.requireNonNull(getTypeSignatureOrTypeDescriptor());
-        // The variadic parameter of a variadic method has an array type, but is shown as "T..." not "T[]"
-        if (paramType instanceof final ArrayTypeSignature arrayType && isVarArgs()) {
-            arrayType.toStringVarArgs(useSimpleNames, annotationsToExclude, buf);
-        } else {
-            paramType.toStringInternal(useSimpleNames, annotationsToExclude, buf);
+        // The type is null if neither the type signature nor the descriptor gives this parameter a type: when a
+        // MethodParameters or parameter annotation attribute has more entries than the descriptor has parameter
+        // types (only a bytecode tool writes such a classfile), or when the descriptor does not parse. The
+        // parameter is then shown without a type.
+        final var paramType = getTypeSignatureOrTypeDescriptor();
+        if (paramType != null) {
+            // The variadic parameter of a variadic method has an array type, but is shown as "T..." not "T[]"
+            if (paramType instanceof final ArrayTypeSignature arrayType && isVarArgs()) {
+                arrayType.toStringVarArgs(useSimpleNames, annotationsToExclude, buf);
+            } else {
+                paramType.toStringInternal(useSimpleNames, annotationsToExclude, buf);
+            }
         }
 
-        buf.append(' ');
+        if (buf.length() > startLength && buf.charAt(buf.length() - 1) != ' ') {
+            buf.append(' ');
+        }
         buf.append(name == null ? "_unnamed_param" : name);
     }
 
