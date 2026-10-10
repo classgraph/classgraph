@@ -305,10 +305,10 @@ public List<String> getLibDirPrefixes() {
 ```
 
 Declare a prefix only if the classloader really does look there.
-`BOOT-INF` and `WEB-INF` are unambiguous, because a hyphen is not legal in a Java identifier, so a
-directory with one of those names cannot be a package; an ordinary name like `classes/` or `lib/`
-can be, and declaring one wrongly either hides a real package or puts jarfiles that are only
-resources on the classpath.
+`BOOT-INF` and `WEB-INF` are unambiguous, because a hyphen is not legal in a Java identifier, so no
+Java source can declare a package with one of those names; an ordinary name like `classes/` or
+`lib/` can be a package, and declaring one wrongly either hides a real package or puts jarfiles that
+are only resources on the classpath.
 
 If a handler is useful to more than your own project, please open a pull request so it can ship with
 ClassGraph, registered alongside the built-in handlers in `ClassLoaderHandlerRegistry`.
