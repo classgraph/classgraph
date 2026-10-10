@@ -41,9 +41,7 @@ import java.util.Objects;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
@@ -1498,14 +1496,16 @@ public final class ClassGraph {
      * loading a class on any other thread would then deadlock (#933).
      *
      * @param executorService
-     *            A custom {@link ExecutorService} to use for scheduling worker tasks. This {@link ExecutorService}
-     *            should start tasks in FIFO order to avoid a deadlock during scan, i.e. be sure to construct the
-     *            {@link ExecutorService} with a {@link LinkedBlockingQueue} as its task queue. (This is the default
-     *            for {@link Executors#newFixedThreadPool(int)}.)
+     *            A custom {@link ExecutorService} to use for scheduling worker tasks. Any {@link ExecutorService}
+     *            can be used, whatever order it starts tasks in. The calling thread always does part of the work,
+     *            so a worker task that the {@link ExecutorService} rejects (for example because its task queue is
+     *            full, or because it has been shut down), or does not start before the work is done, is not an
+     *            error: the calling thread and the worker tasks that did start do its share of the work.
      * @param numParallelTasks
-     *            The number of parallel tasks to break the work into during the most CPU-intensive stage of
-     *            classpath scanning. Must be at least 1. The calling thread is one of these tasks; ideally the
-     *            ExecutorService will have at least {@code numParallelTasks - 1} threads available.
+     *            The maximum number of parallel tasks to break the work into during the most CPU-intensive stage of
+     *            classpath scanning. Must be at least 1. The calling thread is one of these tasks, and the other
+     *            {@code numParallelTasks - 1} are submitted to the {@link ExecutorService}, so the scan is only as
+     *            parallel as asked if the {@link ExecutorService} has that many threads free.
      * @return a {@link ScanResult} object representing the result of the scan.
      * @throws ClassGraphException
      *             if any thread of the scan throws an uncaught exception, or the scan was interrupted. An

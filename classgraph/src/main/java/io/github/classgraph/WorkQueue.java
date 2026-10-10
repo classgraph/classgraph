@@ -36,6 +36,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -254,7 +255,12 @@ final class WorkQueue<T> implements AutoCloseable {
     }
 
     /**
-     * Submit workers to the {@link ExecutorService}.
+     * Submit workers to the {@link ExecutorService}. Once the {@link ExecutorService} rejects a worker, as a pool
+     * with a bounded queue does when it is busy and any pool does once it has been shut down, no more workers are
+     * submitted. That is not an error, since the calling thread runs the work loop too, so the work units are then
+     * processed by the calling thread and the workers that were started. (The poison pills that
+     * {@link #sendPoisonPills()} sends for the workers that were not started stay in the queue, which is discarded
+     * with this work queue.)
      *
      * @param executorService
      *            the executor service
@@ -264,12 +270,22 @@ final class WorkQueue<T> implements AutoCloseable {
     private void startWorkers(final ExecutorService executorService, final int numTasks) {
         for (var i = 0; i < numTasks; i++) {
             final var claimed = new AtomicBoolean();
-            workerTasks.add(new Worker(claimed, executorService.submit(() -> {
-                if (claimed.compareAndSet(false, true)) {
-                    runWorkLoop(/* isCallingThread = */ false);
+            final Future<?> future;
+            try {
+                future = executorService.submit(() -> {
+                    if (claimed.compareAndSet(false, true)) {
+                        runWorkLoop(/* isCallingThread = */ false);
+                    }
+                    return null;
+                });
+            } catch (final RejectedExecutionException e) {
+                if (log != null) {
+                    log.log("The ExecutorService rejected a worker task, so " + i + " of " + numTasks
+                            + " worker tasks were started, and the calling thread does the rest of the work", e);
                 }
-                return null;
-            })));
+                break;
+            }
+            workerTasks.add(new Worker(claimed, future));
         }
     }
 

@@ -66,8 +66,11 @@ public class ClassGraphExceptionTest {
 
     /** How the {@link ExecutorService} that a scan is given makes the scan fail. */
     enum ExecutorFailure {
-        /** The worker is rejected, as it is by an {@link ExecutorService} that has been shut down. */
-        REJECTED,
+        /**
+         * Submitting the worker throws an unchecked exception. (Not a {@link RejectedExecutionException}, which
+         * does not fail the scan, since the calling thread then does the work of the rejected worker.)
+         */
+        SUBMIT_THREW,
         /** The worker runs, but never reports that it finished, so the scan times out waiting for it. */
         TIMED_OUT,
         /** The worker runs, but reports that it threw an exception. */
@@ -88,8 +91,8 @@ public class ClassGraphExceptionTest {
                 new LinkedBlockingQueue<>()) {
             @Override
             public <T> Future<T> submit(final Callable<T> task) {
-                if (failure == ExecutorFailure.REJECTED) {
-                    throw new RejectedExecutionException("the reason");
+                if (failure == ExecutorFailure.SUBMIT_THREW) {
+                    throw new IllegalStateException("the reason");
                 }
                 // Run the worker here, so that it has finished before the scan waits for it, and only the result
                 // that it reports is wrong
