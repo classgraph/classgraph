@@ -219,8 +219,27 @@ public class ScanSourceSpec {
      * @return true if the classloaders detected in the environment, or classloaders the caller named, are searched.
      */
     public boolean searchesClassLoaders() {
-        return classpathSources.stream()
-                .anyMatch(source -> source instanceof DetectedClassLoaders || source instanceof NamedClassLoaders);
+        return classpathSources.stream().anyMatch(ScanSourceSpec::isClassLoaderSource);
+    }
+
+    /**
+     * Whether a classpath source asks classloaders for classpath elements. Each kind of source is named, so a new
+     * kind of source fails until it is added here.
+     *
+     * @param source
+     *            the classpath source.
+     * @return true if the source is a set of classloaders, false if it is a set of classpath entries.
+     * @throws AssertionError
+     *             if the source is of a kind that is not named here.
+     */
+    private static boolean isClassLoaderSource(final ClasspathSource source) {
+        if (source instanceof DetectedClassLoaders || source instanceof NamedClassLoaders) {
+            return true;
+        } else if (source instanceof NamedClasspathEntries || source instanceof ClasspathString) {
+            return false;
+        } else {
+            throw new AssertionError(source);
+        }
     }
 
     /**

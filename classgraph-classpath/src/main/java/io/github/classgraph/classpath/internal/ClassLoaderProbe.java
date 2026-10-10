@@ -36,6 +36,7 @@ import io.github.classgraph.base.internal.path.PathList;
 import io.github.classgraph.classpath.ClassLoaderHandler;
 import io.github.classgraph.classpath.internal.ScanSourceSpec.ClasspathSource;
 import io.github.classgraph.classpath.internal.ScanSourceSpec.ClasspathString;
+import io.github.classgraph.classpath.internal.ScanSourceSpec.DetectedClassLoaders;
 import io.github.classgraph.classpath.internal.ScanSourceSpec.NamedClassLoaders;
 import io.github.classgraph.classpath.internal.ScanSourceSpec.NamedClasspathEntries;
 import io.github.classgraph.classpath.internal.classloaderhandler.ClassLoaderHandlerRegistry;
@@ -63,7 +64,8 @@ public class ClassLoaderProbe {
     /**
      * Get the classpath order.
      *
-     * @return The order of raw classpath elements obtained from ClassLoaders.
+     * @return The order of the raw classpath elements, both the ones obtained from classloaders and the ones the
+     *         caller named directly.
      */
     public ClasspathOrderBuilder getClasspathOrder() {
         return classpathOrder;
@@ -166,7 +168,8 @@ public class ClassLoaderProbe {
         final var classLoaderOrder = new ClassLoaderOrderBuilder(userClassLoaderHandlers);
         var numClassLoadersSearched = 0;
 
-        // Search the classpath sources in the order the caller enabled them in
+        // Search the classpath sources in the order the caller enabled them in. Each kind of source has its own
+        // branch, and the last one throws, so a new kind of source fails until it is given a branch here.
         for (final ClasspathSource classpathSource : scanSourceSpec.getClasspathSources()) {
             if (classpathSource instanceof final NamedClasspathEntries namedClasspathEntries) {
                 addNamedClasspathEntries(namedClasspathEntries.classpathEntries(), classLoaderProbeLog);
@@ -176,12 +179,14 @@ public class ClassLoaderProbe {
                 addNamedClasspathEntries(
                         List.of(PathList.split(classpathString.classpath(), classpathSpec.getAllowedURLSchemes())),
                         classLoaderProbeLog);
-            } else {
-                final var classLoaders = classpathSource instanceof final NamedClassLoaders namedClassLoaders
-                        ? namedClassLoaders.classLoaders()
-                        : environmentClassLoaders;
-                numClassLoadersSearched = addClassLoaderClasspathEntries(classLoaders, classpathSpec,
+            } else if (classpathSource instanceof final NamedClassLoaders namedClassLoaders) {
+                numClassLoadersSearched = addClassLoaderClasspathEntries(namedClassLoaders.classLoaders(),
+                        classpathSpec, classLoaderOrder, numClassLoadersSearched, classLoaderProbeLog);
+            } else if (classpathSource instanceof DetectedClassLoaders) {
+                numClassLoadersSearched = addClassLoaderClasspathEntries(environmentClassLoaders, classpathSpec,
                         classLoaderOrder, numClassLoadersSearched, classLoaderProbeLog);
+            } else {
+                throw new AssertionError(classpathSource);
             }
         }
     }
