@@ -56,8 +56,8 @@ public final class ArchiveRoot extends VfsRoot {
 
     /**
      * The root this root was opened within: for a package root view, the root of the whole jarfile; for a nested
-     * jarfile, the root of the jarfile that encloses it; null for a toplevel jarfile. This is the parent this root
-     * was registered with, so closing it closes this root.
+     * jarfile, the root of the jarfile that encloses it; null for a toplevel jarfile. Once this root is built, the
+     * {@link Vfs} adds it to the container's children, so closing the container closes this root.
      */
     private final @Nullable ArchiveRoot container;
 
@@ -133,7 +133,7 @@ public final class ArchiveRoot extends VfsRoot {
      */
     private ArchiveRoot(final Vfs vfs, final @Nullable ArchiveRoot container, final LogicalZipFile logicalZipFile,
             final String packageRoot, final @Nullable PhysicalZipFile ownedZipFile) {
-        super(vfs, container);
+        super(vfs);
         this.container = container;
         this.logicalZipFile = logicalZipFile;
         this.packageRoot = packageRoot;

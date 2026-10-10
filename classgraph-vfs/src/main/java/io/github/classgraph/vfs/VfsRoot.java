@@ -90,39 +90,36 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
 
     /**
      * The roots built within this one -- the root of a jarfile nested within this root's jarfile, or a package root
-     * view of it. Closing this root closes each of them first, depth-first, so that resources are released from the
-     * innermost root outwards; a child that is closed by hand takes itself out of this set, pruning the tree at
-     * that point.
+     * view of it. A child is added by {@link #addChild(VfsRoot)} once it is fully built and adopted by the
+     * {@link Vfs}, never from its constructor. Closing this root closes each of them first, depth-first, so that
+     * resources are released from the innermost root outwards; a child that is closed by hand takes itself out of
+     * this set, pruning the tree at that point.
      */
     private final Set<VfsRoot> children = ConcurrentHashMap.newKeySet();
-
-    /**
-     * Constructor for a root that stands alone.
-     *
-     * @param vfs
-     *            the {@link Vfs} that opened this root.
-     */
-    VfsRoot(final Vfs vfs) {
-        this(vfs, null);
-    }
 
     /**
      * Constructor.
      *
      * @param vfs
      *            the {@link Vfs} that opened this root.
-     * @param parent
-     *            the root this root is built within, which closes this root when it is closed -- or null for a root
-     *            that stands alone. A creator that finds the parent was closed while this constructor ran must
-     *            close the root it just built, since a parent that has already snapshotted its children closes only
-     *            the roots in the snapshot.
      */
-    VfsRoot(final Vfs vfs, final @Nullable VfsRoot parent) {
+    VfsRoot(final Vfs vfs) {
         this.vfs = vfs;
-        if (parent != null) {
-            parent.children.add(this);
-            addUnregistration(() -> parent.children.remove(this));
-        }
+    }
+
+    /**
+     * Add a root that was just built within this one to this root's children, so that closing this root closes it,
+     * and hand the child the action that takes it back out, so that closing the child prunes it from the tree. The
+     * child must be fully built before it is added, since a concurrent close of this root may close it as soon as
+     * it is in the set. The caller must check afterwards whether this root was closed, and close the child if so,
+     * since a close that took its snapshot of the children before the child was added does not see it.
+     *
+     * @param child
+     *            the root that was just built within this one.
+     */
+    void addChild(final VfsRoot child) {
+        children.add(child);
+        child.addUnregistration(() -> children.remove(child));
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -1103,8 +1100,8 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
         // Close the roots built within this one, depth-first, so that resources are released from the innermost
         // root outwards -- a nested jarfile releases what it holds of the jarfile that encloses it before the
         // enclosing jarfile's own resources go. Each child takes itself out of the children set as it closes, so
-        // the walk is over a snapshot; a child adopted after the snapshot is closed by its creator, which sees
-        // this root closed
+        // the walk is over a snapshot; a child added after the snapshot is closed by its creator, which checks
+        // whether this root is closed only after adding the child
         for (final var child : new ArrayList<>(children)) {
             child.close(log);
         }

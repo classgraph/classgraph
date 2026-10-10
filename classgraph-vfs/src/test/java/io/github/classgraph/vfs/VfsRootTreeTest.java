@@ -165,4 +165,25 @@ class VfsRootTreeTest {
             assertThat(vfs).hasSize(3);
         }
     }
+
+    /**
+     * A root built within a container root joins the container's children only once the {@link Vfs} adopts it, not
+     * while it is being built: a container closed by another thread while the child's constructor runs would
+     * otherwise close a child whose fields are not yet set, and so would release nothing of what the child goes on
+     * to own, such as the temporary file a deflated nested jarfile is inflated to.
+     */
+    @Test
+    void aRootIsNotTiedToItsContainerUntilAdopted() throws Exception {
+        try (var vfs = new Vfs()) {
+            final var container = (ArchiveRoot) vfs.open(outerJarPath);
+            final var child = new ArchiveRoot(vfs, container, PACKAGE_ROOT + "/");
+            try {
+                container.close();
+
+                assertThat(child.isClosed()).isFalse();
+            } finally {
+                child.close();
+            }
+        }
+    }
 }
