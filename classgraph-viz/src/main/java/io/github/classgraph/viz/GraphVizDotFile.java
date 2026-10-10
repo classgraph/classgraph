@@ -45,13 +45,20 @@ import java.util.function.Supplier;
 
 import io.github.classgraph.AnnotationInfo;
 import io.github.classgraph.AnnotationInfoList;
+import io.github.classgraph.ArrayTypeSignature;
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ClassInfo;
 import io.github.classgraph.ClassInfoList;
+import io.github.classgraph.ClassRefTypeSignature;
 import io.github.classgraph.FieldInfo;
 import io.github.classgraph.MethodInfo;
 import io.github.classgraph.MethodParameterInfo;
+import io.github.classgraph.ReferenceTypeSignature;
 import io.github.classgraph.ScanResult;
+import io.github.classgraph.TypeArgument;
+import io.github.classgraph.TypeParameter;
+import io.github.classgraph.TypeSignature;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Renders the class graph found by ClassGraph as a <a href="https://graphviz.org/">GraphViz</a> {@code .dot} file,
@@ -750,8 +757,97 @@ public final class GraphVizDotFile {
     }
 
     /**
-     * Append the edges from a standard class to its superclass, to the interfaces it implements, and to the types
-     * of its fields and methods.
+     * Append the edges from a class to its direct superclass and to its direct superinterfaces, i.e. the interfaces
+     * that a class implements, or that an interface extends.
+     *
+     * @param classNode
+     *            the class to append edges for
+     * @param allVisibleNodes
+     *            the names of the classes that have a node in the graph
+     * @param buf
+     *            the buffer to append to
+     */
+    private static void appendSupertypeEdges(final ClassInfo classNode, final Set<String> allVisibleNodes,
+            final StringBuilder buf) {
+        for (final ClassInfo directSuperclassNode : classNode.getAllSuperclasses().directOnly()) {
+            // java.lang.Object is skipped: every class descends from it, and it is the recorded superclass of every
+            // interface and annotation
+            if (allVisibleNodes.contains(directSuperclassNode.getName())
+                    && !"java.lang.Object".equals(directSuperclassNode.getName())) {
+                // class --> superclass
+                appendEdge(classNode.getName(), directSuperclassNode.getName(), "[arrowsize=2.5]", buf);
+            }
+        }
+
+        for (final ClassInfo superinterfaceNode : classNode.getDirectSuperinterfaces()) {
+            if (allVisibleNodes.contains(superinterfaceNode.getName())) {
+                // class --<> superinterface
+                appendEdge(classNode.getName(), superinterfaceNode.getName(), "[arrowhead=diamond, arrowsize=2.5]",
+                        buf);
+            }
+        }
+    }
+
+    /**
+     * Add the names of the classes in a type signature to a set: the class of a class reference type, the classes
+     * in its type arguments (including the type arguments of an enclosing class, as in {@code Outer<A>.Inner<B>}),
+     * and the classes in the element type of an array type. A base type or a type variable names no class.
+     *
+     * @param typeSignature
+     *            the type signature, or null if there is none
+     * @param classNames
+     *            the set to add the class names to
+     */
+    private static void addClassNames(final @Nullable TypeSignature typeSignature, final Set<String> classNames) {
+        if (typeSignature instanceof final ClassRefTypeSignature classRef) {
+            classNames.add(classRef.getFullyQualifiedClassName());
+            for (final TypeArgument typeArgument : classRef.getTypeArguments()) {
+                addClassNames(typeArgument.getTypeSignature(), classNames);
+            }
+            for (final List<TypeArgument> suffixTypeArguments : classRef.getSuffixTypeArguments()) {
+                for (final TypeArgument typeArgument : suffixTypeArguments) {
+                    addClassNames(typeArgument.getTypeSignature(), classNames);
+                }
+            }
+        } else if (typeSignature instanceof final ArrayTypeSignature array) {
+            addClassNames(array.getElementTypeSignature(), classNames);
+        }
+    }
+
+    /**
+     * Append one edge from each of the types of a class' members to the class. The class itself, and any type that
+     * has no node in the graph, are skipped.
+     *
+     * @param classNode
+     *            the class to append edges for
+     * @param typeNames
+     *            the names of the classes in the types of the class' members
+     * @param allVisibleNodes
+     *            the names of the classes that have a node in the graph
+     * @param attributes
+     *            the Graphviz attributes of the edges
+     * @param buf
+     *            the buffer to append to
+     */
+    private static void appendTypeEdges(final ClassInfo classNode, final Set<String> typeNames,
+            final Set<String> allVisibleNodes, final String attributes, final StringBuilder buf) {
+        for (final String typeName : typeNames) {
+            if (!typeName.equals(classNode.getName()) && allVisibleNodes.contains(typeName)) {
+                appendEdge(typeName, classNode.getName(), attributes, buf);
+            }
+        }
+    }
+
+    /**
+     * Append the edges from the types of a class' fields and methods to the class: one edge for each class named in
+     * the type of a field, and one for each class named in the return type, parameter types or type parameter
+     * bounds of a method or constructor, however many members name it. The annotations on the members and the
+     * exceptions that methods throw are not types of the members, so they get no edge here.
+     *
+     * <p>
+     * Type variables are not resolved, but both the type signature and the type descriptor of a member are read, so
+     * a member whose type is a type variable is joined to the erasure of the type variable. A type descriptor that
+     * does not parse is skipped.
      *
      * @param scanResult
      *            the scan result the class came from
@@ -764,54 +860,58 @@ public final class GraphVizDotFile {
      * @param buf
      *            the buffer to append to
      */
-    private static void appendStandardClassEdges(final ScanResult scanResult, final ClassInfo classNode,
+    private static void appendMemberTypeEdges(final ScanResult scanResult, final ClassInfo classNode,
             final Set<String> allVisibleNodes, final GraphVizDotFileOptions options, final StringBuilder buf) {
-        for (final ClassInfo directSuperclassNode : classNode.getAllSuperclasses().directOnly()) {
-            if (allVisibleNodes.contains(directSuperclassNode.getName())
-                    && !"java.lang.Object".equals(directSuperclassNode.getName())) {
-                // class --> superclass
-                appendEdge(classNode.getName(), directSuperclassNode.getName(), "[arrowsize=2.5]", buf);
-            }
-        }
-
-        for (final ClassInfo implementedInterfaceNode : classNode.getDirectSuperinterfaces()) {
-            if (allVisibleNodes.contains(implementedInterfaceNode.getName())) {
-                // class --<> implemented interface
-                appendEdge(classNode.getName(), implementedInterfaceNode.getName(),
-                        "[arrowhead=diamond, arrowsize=2.5]", buf);
-            }
-        }
-
         if (options.showFieldTypeDependencyEdges && scanResult.isFieldInfoEnabled()) {
-            for (final FieldInfo fi : classNode.getDeclaredFieldInfo()) {
-                for (final ClassInfo referencedFieldType : fi.getClassDependencies()) {
-                    if (allVisibleNodes.contains(referencedFieldType.getName())) {
-                        // class --[ ] field type (open box)
-                        appendEdge(referencedFieldType.getName(), classNode.getName(),
-                                "[arrowtail=obox, arrowsize=2.5, dir=back]", buf);
-                    }
+            final Set<String> fieldTypeNames = new TreeSet<>();
+            for (final FieldInfo fi : fieldsToShow(classNode.getDeclaredFieldInfo())) {
+                try {
+                    addClassNames(fi.getTypeSignatureOrTypeDescriptor(), fieldTypeNames);
+                    addClassNames(fi.getTypeDescriptor(), fieldTypeNames);
+                } catch (final IllegalArgumentException _) {
+                    // Only a classfile that the JVM rejects has a type descriptor that does not parse. The classes
+                    // in the type signature, if the field has one, have been added already
                 }
             }
+            // class --[ ] field type (open box)
+            appendTypeEdges(classNode, fieldTypeNames, allVisibleNodes, "[arrowtail=obox, arrowsize=2.5, dir=back]",
+                    buf);
         }
 
         if (options.showMethodTypeDependencyEdges && scanResult.isMethodInfoEnabled()) {
-            for (final MethodInfo mi : classNode.getDeclaredMethodAndConstructorInfo()) {
-                for (final ClassInfo referencedMethodType : mi.getClassDependencies()) {
-                    if (allVisibleNodes.contains(referencedMethodType.getName())) {
-                        // class --[#] method type (filled box)
-                        appendEdge(referencedMethodType.getName(), classNode.getName(),
-                                "[arrowtail=box, arrowsize=2.5, dir=back]", buf);
+            final Set<String> methodTypeNames = new TreeSet<>();
+            for (final MethodInfo mi : methodsToShow(classNode.getDeclaredMethodAndConstructorInfo())) {
+                for (final MethodParameterInfo mpi : mi.getParameterInfo()) {
+                    addClassNames(mpi.getTypeSignature(), methodTypeNames);
+                    addClassNames(mpi.getTypeDescriptor(), methodTypeNames);
+                }
+                try {
+                    final var methodType = mi.getTypeSignatureOrTypeDescriptor();
+                    for (final TypeParameter typeParameter : methodType.getTypeParameters()) {
+                        addClassNames(typeParameter.getClassBound(), methodTypeNames);
+                        for (final ReferenceTypeSignature interfaceBound : typeParameter.getInterfaceBounds()) {
+                            addClassNames(interfaceBound, methodTypeNames);
+                        }
                     }
+                    addClassNames(methodType.getResultType(), methodTypeNames);
+                    addClassNames(mi.getTypeDescriptor().getResultType(), methodTypeNames);
+                } catch (final IllegalArgumentException _) {
+                    // Only a classfile that the JVM rejects has a type descriptor that does not parse. The classes
+                    // in the type signature, if the method has one, have been added already
                 }
             }
+            // class --[#] method type (filled box)
+            appendTypeEdges(classNode, methodTypeNames, allVisibleNodes, "[arrowtail=box, arrowsize=2.5, dir=back]",
+                    buf);
         }
     }
 
     /**
-     * Index the classes that are directly annotated by each annotation, so that the annotation edges can be drawn
-     * without having to ask each annotation which classes it annotates (which would also return the classes reached
-     * through a meta-annotation, or through {@link java.lang.annotation.Inherited @Inherited} -- those classes are
-     * still reachable from the annotation along a path of edges in the graph).
+     * Index the classes that are directly annotated by each annotation, or that have a field, method or method
+     * parameter directly annotated by it, so that the annotation edges can be drawn without having to ask each
+     * annotation which classes it annotates (which would also return the classes reached through a meta-annotation,
+     * or through {@link java.lang.annotation.Inherited @Inherited} -- those classes are still reachable from the
+     * annotation along a path of edges in the graph).
      *
      * @param scanResult
      *            the scan result the classes came from
@@ -819,15 +919,13 @@ public final class GraphVizDotFile {
      *            the classes that have a node in the graph
      * @param classAnnotations
      *            populated with annotation name to the classes it directly annotates
-     * @param methodAnnotations
-     *            populated with annotation name to the classes with a method it directly annotates
-     * @param fieldAnnotations
-     *            populated with annotation name to the classes with a field it directly annotates
+     * @param memberAnnotations
+     *            populated with annotation name to the classes with a field, method or method parameter it directly
+     *            annotates, listing each class once however many of its members the annotation is on
      */
     private static void indexAnnotations(final ScanResult scanResult, final List<ClassInfo> allVisibleClasses,
             final Map<String, List<ClassInfo>> classAnnotations,
-            final Map<String, List<ClassInfo>> methodAnnotations,
-            final Map<String, List<ClassInfo>> fieldAnnotations) {
+            final Map<String, List<ClassInfo>> memberAnnotations) {
         if (!scanResult.isAnnotationInfoEnabled()) {
             return;
         }
@@ -835,74 +933,63 @@ public final class GraphVizDotFile {
             for (final AnnotationInfo ai : ci.getAllAnnotationInfo().directOnly()) {
                 classAnnotations.computeIfAbsent(ai.getName(), _ -> new ArrayList<>()).add(ci);
             }
-            if (scanResult.isMethodInfoEnabled()) {
-                final Set<String> methodAnnotationNames = new HashSet<>();
-                for (final MethodInfo mi : ci.getDeclaredMethodAndConstructorInfo()) {
-                    for (final AnnotationInfo ai : mi.getAllAnnotationInfo().directOnly()) {
-                        methodAnnotationNames.add(ai.getName());
-                    }
-                }
-                for (final String name : methodAnnotationNames) {
-                    methodAnnotations.computeIfAbsent(name, _ -> new ArrayList<>()).add(ci);
-                }
-            }
+            final Set<String> memberAnnotationNames = new HashSet<>();
             if (scanResult.isFieldInfoEnabled()) {
-                final Set<String> fieldAnnotationNames = new HashSet<>();
                 for (final FieldInfo fi : ci.getDeclaredFieldInfo()) {
                     for (final AnnotationInfo ai : fi.getAllAnnotationInfo().directOnly()) {
-                        fieldAnnotationNames.add(ai.getName());
+                        memberAnnotationNames.add(ai.getName());
                     }
                 }
-                for (final String name : fieldAnnotationNames) {
-                    fieldAnnotations.computeIfAbsent(name, _ -> new ArrayList<>()).add(ci);
+            }
+            if (scanResult.isMethodInfoEnabled()) {
+                for (final MethodInfo mi : ci.getDeclaredMethodAndConstructorInfo()) {
+                    for (final AnnotationInfo ai : mi.getAllAnnotationInfo().directOnly()) {
+                        memberAnnotationNames.add(ai.getName());
+                    }
+                    for (final MethodParameterInfo mpi : mi.getParameterInfo()) {
+                        for (final AnnotationInfo ai : mpi.getAllAnnotationInfo().directOnly()) {
+                            memberAnnotationNames.add(ai.getName());
+                        }
+                    }
                 }
+            }
+            for (final String name : memberAnnotationNames) {
+                memberAnnotations.computeIfAbsent(name, _ -> new ArrayList<>()).add(ci);
             }
         }
         for (final List<ClassInfo> classes : classAnnotations.values()) {
             classes.sort(null);
         }
-        for (final List<ClassInfo> classes : methodAnnotations.values()) {
-            classes.sort(null);
-        }
-        for (final List<ClassInfo> classes : fieldAnnotations.values()) {
+        for (final List<ClassInfo> classes : memberAnnotations.values()) {
             classes.sort(null);
         }
     }
 
     /**
-     * Append the edges from an annotation to the classes it annotates, either directly or through one of their
-     * fields or methods.
+     * Append the edges from the classes an annotation annotates to the annotation: one edge for each class it
+     * annotates directly, and one for each class with a field, method or method parameter it annotates.
      *
      * @param annotationNode
      *            the annotation to append edges for
      * @param classAnnotations
      *            annotation name to the classes it directly annotates
-     * @param methodAnnotations
-     *            annotation name to the classes with a method it directly annotates
-     * @param fieldAnnotations
-     *            annotation name to the classes with a field it directly annotates
+     * @param memberAnnotations
+     *            annotation name to the classes with a field, method or method parameter it directly annotates
      * @param buf
      *            the buffer to append to
      */
     private static void appendAnnotationEdges(final ClassInfo annotationNode,
             final Map<String, List<ClassInfo>> classAnnotations,
-            final Map<String, List<ClassInfo>> methodAnnotations,
-            final Map<String, List<ClassInfo>> fieldAnnotations, final StringBuilder buf) {
+            final Map<String, List<ClassInfo>> memberAnnotations, final StringBuilder buf) {
         final var annotationName = annotationNode.getName();
         for (final ClassInfo annotatedClassNode : classAnnotations.getOrDefault(annotationName, List.of())) {
             // annotated class --o annotation
             appendEdge(annotatedClassNode.getName(), annotationName, "[arrowhead=dot, arrowsize=2.5]", buf);
         }
-        for (final ClassInfo classWithMethodAnnotationNode : methodAnnotations.getOrDefault(annotationName,
+        for (final ClassInfo classWithMemberAnnotationNode : memberAnnotations.getOrDefault(annotationName,
                 List.of())) {
-            // class with method annotation --o method annotation
-            appendEdge(classWithMethodAnnotationNode.getName(), annotationName, "[arrowhead=odot, arrowsize=2.5]",
-                    buf);
-        }
-        for (final ClassInfo classWithFieldAnnotationNode : fieldAnnotations.getOrDefault(annotationName,
-                List.of())) {
-            // class with field annotation --o field annotation
-            appendEdge(classWithFieldAnnotationNode.getName(), annotationName, "[arrowhead=odot, arrowsize=2.5]",
+            // class with annotated field, method or method parameter --o annotation
+            appendEdge(classWithMemberAnnotationNode.getName(), annotationName, "[arrowhead=odot, arrowsize=2.5]",
                     buf);
         }
     }
@@ -970,25 +1057,16 @@ public final class GraphVizDotFile {
         }
 
         buf.append('\n');
-        for (final ClassInfo classNode : standardClassNodes) {
-            appendStandardClassEdges(scanResult, classNode, allVisibleNodes, options, buf);
-        }
-        for (final ClassInfo interfaceNode : interfaceNodes) {
-            for (final ClassInfo superinterfaceNode : interfaceNode.getDirectSuperinterfaces()) {
-                if (allVisibleNodes.contains(superinterfaceNode.getName())) {
-                    // interface --<> superinterface
-                    appendEdge(interfaceNode.getName(), superinterfaceNode.getName(),
-                            "[arrowhead=diamond, arrowsize=2.5]", buf);
-                }
-            }
+        for (final ClassInfo classNode : allVisibleClasses) {
+            appendSupertypeEdges(classNode, allVisibleNodes, buf);
+            appendMemberTypeEdges(scanResult, classNode, allVisibleNodes, options, buf);
         }
         if (options.showAnnotationDependencyEdges && !annotationNodes.isEmpty()) {
             final Map<String, List<ClassInfo>> classAnnotations = new HashMap<>();
-            final Map<String, List<ClassInfo>> methodAnnotations = new HashMap<>();
-            final Map<String, List<ClassInfo>> fieldAnnotations = new HashMap<>();
-            indexAnnotations(scanResult, allVisibleClasses, classAnnotations, methodAnnotations, fieldAnnotations);
+            final Map<String, List<ClassInfo>> memberAnnotations = new HashMap<>();
+            indexAnnotations(scanResult, allVisibleClasses, classAnnotations, memberAnnotations);
             for (final ClassInfo annotationNode : annotationNodes) {
-                appendAnnotationEdges(annotationNode, classAnnotations, methodAnnotations, fieldAnnotations, buf);
+                appendAnnotationEdges(annotationNode, classAnnotations, memberAnnotations, buf);
             }
         }
         buf.append('}');
