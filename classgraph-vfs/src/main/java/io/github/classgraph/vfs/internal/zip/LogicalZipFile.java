@@ -28,8 +28,10 @@
  */
 package io.github.classgraph.vfs.internal.zip;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -51,9 +53,11 @@ import io.github.classgraph.vfs.reader.RandomAccessReader;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A logical zipfile, which represents a zipfile contained within a ZipFileSlice of a PhysicalZipFile.
+ * A zipfile, read from a byte range of a {@link PhysicalZipFile}: the whole of it, for a toplevel zipfile or a
+ * nested zipfile that was inflated, or the bytes of one entry of an enclosing zipfile, for a nested zipfile that
+ * was stored rather than deflated.
  */
-public class LogicalZipFile extends ZipFileSlice {
+public final class LogicalZipFile {
     /**
      * The value a 32-bit central directory field holds when its real value did not fit in 32 bits, in which case
      * the real value is held by the Zip64 extended information extra field instead.
@@ -65,6 +69,27 @@ public class LogicalZipFile extends ZipFileSlice {
      * name is encoded in UTF-8 rather than in the zip specification's default of IBM Code Page 437.
      */
     private static final int UTF8_NAME_FLAG_BIT = 1 << 11;
+
+    /** The zipfile that this zipfile is nested within, or null if this is a toplevel zipfile. */
+    private final @Nullable LogicalZipFile parent;
+
+    /**
+     * The physical zipfile that this zipfile is read through. This zipfile only reads through it and does not own
+     * it: it is owned, and released, by the root it was opened for, which for a zipfile stored within another
+     * zipfile is the root of an enclosing zipfile -- see {@link JarOpener.OpenedJar}.
+     */
+    private final PhysicalZipFile physicalZipFile;
+
+    /**
+     * For a toplevel zipfile, the zipfile path; for a nested zipfile, the name of the zip entry it was read from.
+     */
+    private final String pathWithinParent;
+
+    /**
+     * The {@link Slice} that holds the bytes of this zipfile: the whole of the physical zipfile, or, for a nested
+     * zipfile that was stored rather than deflated, the byte range of the entry it is stored in.
+     */
+    public final Slice slice;
 
     /** The zipfile entries, which are only changed while the central directory is being read. */
     private List<FastZipEntry> entries;
@@ -98,10 +123,17 @@ public class LogicalZipFile extends ZipFileSlice {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Construct a logical zipfile from a slice of a physical zipfile.
+     * Construct a zipfile from a byte range of a physical zipfile, and read its central directory.
      *
-     * @param zipFileSlice
-     *            the zipfile slice
+     * @param parent
+     *            the zipfile that this zipfile is nested within, or null if this is a toplevel zipfile
+     * @param physicalZipFile
+     *            the physical zipfile to read through, which this zipfile does not own
+     * @param pathWithinParent
+     *            for a toplevel zipfile, the zipfile path; for a nested zipfile, the name of the entry of the
+     *            parent zipfile that it is read from
+     * @param slice
+     *            the bytes of this zipfile: the slice of {@code physicalZipFile}, or a byte range of it
      * @param vfs
      *            the {@link Vfs} that is opening this jarfile
      * @param log
@@ -111,12 +143,85 @@ public class LogicalZipFile extends ZipFileSlice {
      * @throws IOException
      *             If an I/O exception occurs.
      */
-    LogicalZipFile(final ZipFileSlice zipFileSlice, final Vfs vfs, final @Nullable LogNode log,
+    LogicalZipFile(final @Nullable LogicalZipFile parent, final PhysicalZipFile physicalZipFile,
+            final String pathWithinParent, final Slice slice, final Vfs vfs, final @Nullable LogNode log,
             final boolean multiReleaseVersionsEnabled) throws IOException {
-        super(zipFileSlice);
+        this.parent = parent;
+        this.physicalZipFile = physicalZipFile;
+        this.pathWithinParent = pathWithinParent;
+        this.slice = slice;
         this.vfs = vfs;
         this.multiReleaseVersionsEnabled = multiReleaseVersionsEnabled;
         readCentralDirectory(vfs, log);
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Recursively append the path in top down ancestral order.
+     *
+     * @param buf
+     *            the buf to append the path to
+     */
+    private void appendPath(final StringBuilder buf) {
+        if (parent != null) {
+            parent.appendPath(buf);
+            if (!buf.isEmpty()) {
+                buf.append("!/");
+            }
+        }
+        buf.append(pathWithinParent);
+    }
+
+    /**
+     * Get the path of this zipfile, e.g. "/path/to/jarfile.jar!/nestedjar1.jar".
+     *
+     * @return the path of this zipfile.
+     */
+    public String getPath() {
+        final StringBuilder buf = new StringBuilder();
+        appendPath(buf);
+        return buf.toString();
+    }
+
+    /**
+     * Get the physical {@link File} that this zipfile is read from. For a nested jarfile stored uncompressed, this
+     * is the file of the jarfile that encloses it, since the nested jarfile is read in place as a byte range of
+     * that file. For a jarfile that was read from a stream, downloaded from a URL or inflated from a deflated
+     * nested entry, and was too large to hold in RAM, it is the temporary file the jarfile was spilled to.
+     *
+     * @return the physical {@link File} that this zipfile is read from, or null if the physical zipfile is held in
+     *         RAM (read from a stream, downloaded from a URL, or inflated from a nested jar), or is a {@link Path}
+     *         in a filesystem that has no {@link File} view of its files.
+     */
+    public @Nullable File getPhysicalFile() {
+        final var path = physicalZipFile.getPath();
+        if (path != null) {
+            try {
+                return path.toFile();
+            } catch (final UnsupportedOperationException e) {
+                // Filesystem supports the Path API but not the File API
+                return null;
+            }
+        } else {
+            return physicalZipFile.getFile();
+        }
+    }
+
+    /**
+     * Get the physical {@link Path} that this zipfile is read from, chosen the same way as
+     * {@link #getPhysicalFile()}.
+     *
+     * @return the physical {@link Path} that this zipfile is read from, or null if the physical zipfile is held in
+     *         RAM (read from a stream, downloaded from a URL, or inflated from a nested jar).
+     */
+    public @Nullable Path getPhysicalPath() {
+        final var path = physicalZipFile.getPath();
+        if (path != null) {
+            return path;
+        }
+        final var file = physicalZipFile.getFile();
+        return file == null ? null : file.toPath();
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -141,7 +246,8 @@ public class LogicalZipFile extends ZipFileSlice {
             // The entry holds a stored nested zipfile, so it can be read in place, as a byte range of this zipfile.
             // Hopefully nested zipfiles are stored, not deflated, as this is the fast path.
             return new JarOpener.OpenedJar(
-                    new LogicalZipFile(new ZipFileSlice(zipEntry), vfs, log, multiReleaseVersionsEnabled),
+                    new LogicalZipFile(zipEntry.parentLogicalZipFile, zipEntry.parentLogicalZipFile.physicalZipFile,
+                            zipEntry.entryName, zipEntry.getSlice(), vfs, log, multiReleaseVersionsEnabled),
                     /* ownedPhysicalZipFile = */ null);
         }
 
@@ -163,8 +269,9 @@ public class LogicalZipFile extends ZipFileSlice {
         }
 
         try {
-            return new JarOpener.OpenedJar(new LogicalZipFile(new ZipFileSlice(inflatedZipFile, zipEntry), vfs, log,
-                    multiReleaseVersionsEnabled), inflatedZipFile);
+            return new JarOpener.OpenedJar(new LogicalZipFile(zipEntry.parentLogicalZipFile, inflatedZipFile,
+                    zipEntry.entryName, inflatedZipFile.slice, vfs, log, multiReleaseVersionsEnabled),
+                    inflatedZipFile);
         } catch (final IOException | RuntimeException | Error e) {
             // The caller gets the exception rather than the zipfile, so nothing would ever reach what was just
             // inflated
@@ -494,7 +601,8 @@ public class LogicalZipFile extends ZipFileSlice {
     private RandomAccessReader openCentralDirectoryReader(final RandomAccessReader reader,
             final CentralDirectory cen, final Vfs vfs) throws IOException {
         // Read entries into a byte array, if central directory is smaller than 2GB. If central directory is larger
-        // than 2GB, need to read each entry field from the file directly using ZipFileSliceReader.
+        // than 2GB, need to read each entry field directly from the zipfile, through a RandomAccessReader over a
+        // slice of this zipfile's slice.
         if (cen.cenSize() > Slice.MAX_BUFFER_SIZE) {
             // Create a slice that covers the central directory (this allows a central directory larger than 2GB to
             // be accessed using the slower PathSlice API, which reads the file directly, but also the slice can be

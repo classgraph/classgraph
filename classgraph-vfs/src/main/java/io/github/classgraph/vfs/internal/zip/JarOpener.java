@@ -190,8 +190,10 @@ public final class JarOpener {
             if (vfs.isClosed()) {
                 throw new IOException("Already closed");
             }
-            return new OpenedJar(new LogicalZipFile(new ZipFileSlice(physicalZipFile), vfs, log,
-                    vfs.getVfsSpec().isMultiReleaseVersionsEnabled()), physicalZipFile);
+            return new OpenedJar(
+                    new LogicalZipFile(/* parent = */ null, physicalZipFile, physicalZipFile.getPathString(),
+                            physicalZipFile.slice, vfs, log, vfs.getVfsSpec().isMultiReleaseVersionsEnabled()),
+                    physicalZipFile);
         } catch (final IOException | RuntimeException | Error e) {
             // The caller gets the exception rather than the zipfile, so nothing would ever reach what was just
             // opened
