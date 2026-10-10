@@ -505,8 +505,8 @@ public final class ClassGraph {
      *
      * <p>
      * This method does not enable the scanning of modules. Classes in modules are reached by
-     * {@link #enableSystemModules()}, {@link #enableNonSystemModules()} or
-     * {@link #enableModuleLayers(ModuleLayer...)}, and modules are always scanned before the classpath.
+     * {@link #enableSystemModules()} or {@link #enableNonSystemModules()}, and modules are always scanned before
+     * the classpath.
      *
      * @return this (for method chaining).
      */
@@ -1189,9 +1189,9 @@ public final class ClassGraph {
      * criteria).
      *
      * <p>
-     * This narrows what is scanned; it does not enable the scanning of modules. Call
-     * {@link #enableSystemModules()}, {@link #enableNonSystemModules()} or
-     * {@link #enableModuleLayers(ModuleLayer...)} to say which modules are looked for in the first place.
+     * This narrows what is scanned; it does not enable the scanning of modules. Call {@link #enableSystemModules()}
+     * or {@link #enableNonSystemModules()} to say which modules are looked for in the first place, and
+     * {@link #enableModuleLayers(ModuleLayer...)} to say which layers they are looked for in.
      *
      * @param moduleNames
      *            The names of the modules that should be scanned. May contain glob wildcards, where {@code '*'}
@@ -1853,8 +1853,9 @@ public final class ClassGraph {
 
     /**
      * Returns the {@link ModuleReference} for each enabled module. Only the modules that would have been scanned
-     * are returned: a module is found only if it was enabled with {@link #enableSystemModules()},
-     * {@link #enableNonSystemModules()} or {@link #enableModuleLayers(ModuleLayer...)}, and was not narrowed out by
+     * are returned: a module is found only if its kind was enabled with {@link #enableSystemModules()} or
+     * {@link #enableNonSystemModules()}, it is in a layer that is searched (see
+     * {@link #enableModuleLayers(ModuleLayer...)}), and it was not narrowed out by
      * {@link #acceptModules(String...)} or {@link #rejectModules(String...)}.
      *
      * @return a list of the {@link ModuleReference} for each enabled module.

@@ -251,9 +251,8 @@ public final class ClasspathFinder {
      * as well as what you named.
      *
      * <p>
-     * This method does not enable the module path. Modules are found by {@link #enableSystemModules()},
-     * {@link #enableNonSystemModules()} or {@link #enableModuleLayers(ModuleLayer...)}, and modules always precede
-     * the classpath.
+     * This method does not enable the module path. Modules are found by {@link #enableSystemModules()} or
+     * {@link #enableNonSystemModules()}, and modules always precede the classpath.
      *
      * @return this (for method chaining).
      */

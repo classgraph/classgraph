@@ -584,9 +584,9 @@ public final class ScanResult implements AutoCloseable {
      * Get the {@link ModuleReference} for each module that was scanned, in the order it was scanned in.
      *
      * <p>
-     * Only the modules that were actually scanned are listed: a module is scanned only if it was enabled with
-     * {@link ClassGraph#enableSystemModules()}, {@link ClassGraph#enableNonSystemModules()} or
-     * {@link ClassGraph#enableModuleLayers(ModuleLayer...)}, and was not narrowed out by
+     * Only the modules that were actually scanned are listed: a module is scanned only if its kind was enabled with
+     * {@link ClassGraph#enableSystemModules()} or {@link ClassGraph#enableNonSystemModules()}, it is in a layer
+     * that is searched (see {@link ClassGraph#enableModuleLayers(ModuleLayer...)}), and it was not narrowed out by
      * {@link ClassGraph#acceptModules(String...)} or {@link ClassGraph#rejectModules(String...)}. A module that was
      * merely looked in, in order to complete the class graph above an accepted class, is not listed here.
      *
