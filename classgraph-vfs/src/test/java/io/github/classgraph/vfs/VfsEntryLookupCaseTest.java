@@ -32,10 +32,17 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.io.IOException;
+import java.lang.module.ModuleDescriptor;
+import java.lang.module.ModuleFinder;
+import java.lang.module.ModuleReader;
+import java.lang.module.ModuleReference;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -261,6 +268,79 @@ public class VfsEntryLookupCaseTest {
             assertThat(throughFileLink.getPathFromRoot()).isEqualTo("Alias.txt");
             assertThat(new String(throughFileLink.load(), StandardCharsets.UTF_8)).isEqualTo(CONTENT);
         }
+    }
+
+    /**
+     * A module exploded into a directory that is reached through a symbolic link answers a lookup the same way a
+     * directory root over the same directory does. The case check compares the real path of the file with the
+     * directory, so it has to be given the real path of the directory too.
+     *
+     * <p>
+     * A case-sensitive filesystem has no case folding, so the case-only symbolic link {@code alias.txt ->
+     * Alias.txt} stands in for it: its real path differs from the name it was reached through only in case, which
+     * is what a case-insensitive filesystem reports for a differently-cased name.
+     *
+     * @param tempDir
+     *            a temporary directory to build in.
+     * @throws IOException
+     *             if the directory could not be built or read.
+     */
+    @Test
+    public void anExplodedModuleReachedThroughASymbolicLinkAnswersLikeADirectoryRoot(@TempDir final Path tempDir)
+            throws IOException {
+        final var realDir = makeDir(tempDir.resolve("real"), STORED_NAME, "Alias.txt");
+        final Path linkedDir;
+        try {
+            Files.createSymbolicLink(realDir.resolve("alias.txt"), Path.of("Alias.txt"));
+            linkedDir = Files.createSymbolicLink(tempDir.resolve("linked"), realDir);
+        } catch (final IOException | UnsupportedOperationException e) {
+            assumeTrue(false, "Symbolic links are not supported here: " + e);
+            return;
+        }
+        try (var vfs = new Vfs()) {
+            final var dirRoot = vfs.open(linkedDir.toString());
+            final var moduleRoot = vfs.open(explodedModule(linkedDir));
+            for (final var name : new String[] { STORED_NAME, DIFFERENTLY_CASED_NAME, "Alias.txt", "alias.txt" }) {
+                assertThat(moduleRoot.getEntry(name) == null).as(name).isEqualTo(dirRoot.getEntry(name) == null);
+            }
+            assertThat(moduleRoot.getEntry(STORED_NAME)).isNotNull();
+        }
+    }
+
+    /**
+     * Create a module that is exploded into a directory, the way {@link ModuleFinder#of(Path...)} reports one.
+     *
+     * @param moduleDir
+     *            the directory the module was exploded into.
+     * @return the module.
+     */
+    private static ModuleReference explodedModule(final Path moduleDir) {
+        return new ModuleReference(ModuleDescriptor.newModule("test.module").build(), moduleDir.toUri()) {
+            @Override
+            public ModuleReader open() {
+                return new ModuleReader() {
+                    @Override
+                    public Optional<URI> find(final String name) {
+                        final var file = moduleDir.resolve(name);
+                        return Files.isRegularFile(file) ? Optional.of(file.toUri()) : Optional.empty();
+                    }
+
+                    @Override
+                    public Stream<String> list() throws IOException {
+                        try (var files = Files.walk(moduleDir)) {
+                            return files.filter(Files::isRegularFile)
+                                    .map(file -> moduleDir.relativize(file).toString().replace('\\', '/')).toList()
+                                    .stream();
+                        }
+                    }
+
+                    @Override
+                    public void close() {
+                        // A reader that reads through the default filesystem holds nothing open between reads
+                    }
+                };
+            }
+        };
     }
 
     /**
