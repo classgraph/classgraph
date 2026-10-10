@@ -8,6 +8,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.UUID;
 
+import org.assertj.core.api.SoftAssertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -135,6 +136,31 @@ public class PathSyntaxSanitizeEntryPathTest {
         assertThat(sanitize("a./b/")).isEqualTo("a./b/");
         assertThat(sanitize("foo.bar.")).isEqualTo("foo.bar.");
         assertThat(sanitize("a/b/")).isEqualTo("a/b/");
+    }
+
+    /**
+     * A NUL character is an ordinary filename character, as it is to the JDK's zip reader, so it neither ends a
+     * segment nor forms an empty segment, whether or not some other part of the path needs sanitizing.
+     */
+    @Test
+    public void nulCharactersAreOrdinaryCharacters() {
+        final var softly = new SoftAssertions();
+        final String[][] inputsAndOutputs = { //
+                { "a\0\0b", "a\0\0b" }, //
+                { "\0abc", "\0abc" }, //
+                { "abc\0", "abc\0" }, //
+                { "a\0..", "a\0.." }, //
+                { "x/..\0y", "x/..\0y" }, //
+                { "./a\0b", "a\0b" }, //
+                { "\0abc/./x", "\0abc/x" }, //
+                { "abc\0/./x", "abc\0/x" } };
+        for (final String[] inputAndOutput : inputsAndOutputs) {
+            softly.assertThat(sanitize(inputAndOutput[0])).as("sanitizeEntryPath(%s)", inputAndOutput[0])
+                    .isEqualTo(inputAndOutput[1]);
+            softly.assertThat(PathSyntax.sanitizeRelativePath(inputAndOutput[0], false))
+                    .as("sanitizeRelativePath(%s)", inputAndOutput[0]).isEqualTo(inputAndOutput[1]);
+        }
+        softly.assertAll();
     }
 
     /**

@@ -229,9 +229,13 @@ public final class PathSyntax {
         var prevC = '\0';
         var inFirstSection = true;
         for (int i = 0, ii = pathLen + 1; i < ii; i++) {
-            final var c = i == pathLen ? '\0' : path.charAt(i);
+            // The end of the path ends the last segment. It is detected by its index, not by the '\0' stand-in
+            // character, since '\0' is an ordinary character within a path. At the end of the path, a segment of
+            // length 0 means the previous character was a separator, so prevC is never '\0' there.
+            final var atEnd = i == pathLen;
+            final var c = atEnd ? '\0' : path.charAt(i);
             final var isSectionMarker = c == '!' && isNestedJarSeparatorAt(path, i, nestedJarSepIdx);
-            if (c == '/' || isSectionMarker || c == '\0') {
+            if (c == '/' || isSectionMarker || atEnd) {
                 final var segmentLength = i - (lastSepIdx + 1);
                 if (
                 // Found empty segment "//" or "!!"
@@ -278,9 +282,11 @@ public final class PathSyntax {
         var lastSepIdx = -1;
         var inFirstSection = true;
         for (var i = 0; i < pathLen + 1; i++) {
-            final var c = i == pathLen ? '\0' : path.charAt(i);
+            // The end of the path ends the last segment ('\0' is an ordinary character within a path)
+            final var atEnd = i == pathLen;
+            final var c = atEnd ? '\0' : path.charAt(i);
             final var isSectionMarker = c == '!' && isNestedJarSeparatorAt(path, i, nestedJarSepIdx);
-            if (c == '/' || isSectionMarker || c == '\0') {
+            if (c == '/' || isSectionMarker || atEnd) {
                 final var segmentStartIdx = lastSepIdx + 1;
                 final var segmentLen = i - segmentStartIdx;
                 if (segmentLen == 0 || (segmentLen == 1 && path.charAt(segmentStartIdx) == '.')) {
