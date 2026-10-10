@@ -449,4 +449,120 @@ public class RegisteredClassLoaderHandlerTest {
                 .registerClassLoaderHandler(new FixedEntryHandler(SubURLClassLoader.class, specificDir))))
                 .containsExactly(generalDir, specificDir);
     }
+
+    /**
+     * A handler whose {@code canHandle} throws is treated as not handling the classloader, so the classloaders it
+     * is offered are still read by the other handlers.
+     */
+    @Test
+    public void aHandlerWhoseCanHandleThrowsIsSkipped(@TempDir final Path tempDir) throws Exception {
+        final var urlDir = classesDir(tempDir, "url");
+        final var classLoader = new URLClassLoader(new URL[] { urlDir.toUri().toURL() }, /* parent = */ null);
+        final var handler = new UnknownClassLoaderHandler() {
+            @Override
+            public boolean canHandle(final Class<?> classLoaderClass, final @Nullable ClassGraphLog log) {
+                throw new IllegalStateException("canHandle failed");
+            }
+        };
+
+        assertThat(find(new ClasspathFinder().enableClassLoaders(classLoader).registerClassLoaderHandler(handler)))
+                .containsExactly(urlDir);
+    }
+
+    /**
+     * A handler whose {@code canHandle} throws for a superclass of the classloader, when the handlers that can
+     * handle the classloader are ranked by how specific they are, is ranked as if it did not handle that
+     * superclass.
+     */
+    @Test
+    public void aHandlerWhoseCanHandleThrowsWhileRankingHandlersIsSkipped(@TempDir final Path tempDir)
+            throws Exception {
+        final var urlDir = classesDir(tempDir, "url");
+        final var handlerDir = classesDir(tempDir, "handler");
+        final var classLoader = new SubURLClassLoader(new URL[] { urlDir.toUri().toURL() });
+        final var handler = new FixedEntryHandler(SubURLClassLoader.class, handlerDir) {
+            @Override
+            public boolean canHandle(final Class<?> classLoaderClass, final @Nullable ClassGraphLog log) {
+                if (classLoaderClass == SubURLClassLoader.class) {
+                    return true;
+                }
+                throw new IllegalStateException("canHandle failed");
+            }
+        };
+
+        // The registered handler handles only SubURLClassLoader, so the built-in URLClassLoaderHandler is dropped
+        assertThat(find(new ClasspathFinder().enableClassLoaders(classLoader).registerClassLoaderHandler(handler)))
+                .containsExactly(handlerDir);
+    }
+
+    /**
+     * A handler whose {@code findClassLoaderOrder} throws leaves the classloaders it had already delegated to in
+     * place, its own classloader is placed after them, and every other classloader is still read.
+     */
+    @Test
+    public void aHandlerWhoseFindClassLoaderOrderThrowsIsSkipped(@TempDir final Path tempDir) throws Exception {
+        final var parentDir = classesDir(tempDir, "parent");
+        final var childDir = classesDir(tempDir, "child");
+        final var otherDir = classesDir(tempDir, "other");
+        final var parent = new URLClassLoader(new URL[] { parentDir.toUri().toURL() }, /* parent = */ null);
+        final var child = new UnknownClassLoader(childDir.toString(), parent);
+        final var other = new URLClassLoader(new URL[] { otherDir.toUri().toURL() }, /* parent = */ null);
+        final var handler = new UnknownClassLoaderHandler() {
+            @Override
+            public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
+                    final @Nullable ClassGraphLog log) {
+                classLoaderOrder.delegateToParent(classLoader.getParent(), log);
+                throw new NoClassDefFoundError("org/example/ContainerInternals");
+            }
+        };
+
+        assertThat(find(new ClasspathFinder().enableClassLoaders(child, other).registerClassLoaderHandler(handler)))
+                .containsExactly(parentDir, childDir, otherDir);
+    }
+
+    /**
+     * A handler whose {@code findClasspathOrder} throws keeps the classpath entries it added before it threw, and
+     * every other classloader is still read.
+     */
+    @Test
+    public void aHandlerWhoseFindClasspathOrderThrowsIsSkipped(@TempDir final Path tempDir) throws Exception {
+        final var unknownDir = classesDir(tempDir, "unknown");
+        final var otherDir = classesDir(tempDir, "other");
+        final var unknown = new UnknownClassLoader(unknownDir.toString());
+        final var other = new URLClassLoader(new URL[] { otherDir.toUri().toURL() }, /* parent = */ null);
+        final var handler = new UnknownClassLoaderHandler() {
+            @Override
+            public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
+                    final @Nullable ClassGraphLog log) {
+                super.findClasspathOrder(classLoader, classpathOrder, log);
+                throw new IllegalStateException("findClasspathOrder failed");
+            }
+        };
+
+        assertThat(
+                find(new ClasspathFinder().enableClassLoaders(unknown, other).registerClassLoaderHandler(handler)))
+                .containsExactly(unknownDir, otherDir);
+    }
+
+    /**
+     * A handler whose {@code getPackageRootPrefixes} throws adds nothing, and every other classloader is still
+     * read.
+     */
+    @Test
+    public void aHandlerWhosePrefixGetterThrowsIsSkipped(@TempDir final Path tempDir) throws Exception {
+        final var unknownDir = classesDir(tempDir, "unknown");
+        final var otherDir = classesDir(tempDir, "other");
+        final var unknown = new UnknownClassLoader(unknownDir.toString());
+        final var other = new URLClassLoader(new URL[] { otherDir.toUri().toURL() }, /* parent = */ null);
+        final var handler = new UnknownClassLoaderHandler() {
+            @Override
+            public List<String> getPackageRootPrefixes() {
+                throw new IllegalStateException("getPackageRootPrefixes failed");
+            }
+        };
+
+        assertThat(
+                find(new ClasspathFinder().enableClassLoaders(unknown, other).registerClassLoaderHandler(handler)))
+                .containsExactly(otherDir);
+    }
 }

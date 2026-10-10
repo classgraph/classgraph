@@ -57,6 +57,16 @@ import org.jspecify.annotations.Nullable;
  * {@link ClasspathOrder#claimOncePerScan(String)}.
  *
  * <p>
+ * If a method of a handler throws a {@link RuntimeException} or a {@link LinkageError}, the exception is logged and
+ * the scan goes on without that handler's help for that classloader, so a handler that fails does not stop the
+ * other classloaders from being read. A handler whose {@link #canHandle(Class, ClassGraphLog)} throws is taken not
+ * to handle the class. If {@link #findClassLoaderOrder(ClassLoader, ClassLoaderOrder, ClassGraphLog)} throws, the
+ * classloader is placed after the classloaders the handler had already delegated to, unless it was already placed.
+ * If {@link #getPackageRootPrefixes()}, {@link #getLibDirPrefixes()} or
+ * {@link #findClasspathOrder(ClassLoader, ClasspathOrder, ClassGraphLog)} throws, the classpath entries the handler
+ * added for the classloader before the exception are kept.
+ *
+ * <p>
  * If you write a handler for a classloader that others are likely to hit, please consider contributing it to the
  * ClassGraph project.
  */

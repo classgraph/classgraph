@@ -164,13 +164,13 @@ public class ClassLoaderOrderBuilder implements ClassLoaderOrder {
         // The user's handlers are offered the classloader before the built-in handlers are, so that a user handler
         // can override a built-in one
         for (final ClassLoaderHandler handler : userClassLoaderHandlers) {
-            if (handler.canHandle(classLoaderClass, log)) {
+            if (canHandle(handler, classLoaderClass, log)) {
                 handlers.add(handler);
             }
         }
         final var numUserHandlers = handlers.size();
         for (final ClassLoaderHandler handler : ClassLoaderHandlerRegistry.CLASS_LOADER_HANDLERS) {
-            if (handler.canHandle(classLoaderClass, log)) {
+            if (canHandle(handler, classLoaderClass, log)) {
                 // This ClassLoaderHandler can handle the ClassLoader class, or one of its superclasses
                 handlers.add(handler);
             }
@@ -181,6 +181,31 @@ public class ClassLoaderOrderBuilder implements ClassLoaderOrder {
             return dropMoreGeneralHandlers(handlers, numUserHandlers, classLoaderClass, log);
         }
         return handlers;
+    }
+
+    /**
+     * Check whether a {@link ClassLoaderHandler} can handle a given {@link ClassLoader} class, treating a handler
+     * that throws as one that cannot, so that one failing handler does not stop every classloader from being read.
+     *
+     * @param handler
+     *            the handler.
+     * @param classLoaderClass
+     *            the {@link ClassLoader} class or one of its superclasses.
+     * @param log
+     *            the log node, or null to skip logging
+     * @return true if the handler can handle the class.
+     */
+    private static boolean canHandle(final ClassLoaderHandler handler, final Class<?> classLoaderClass,
+            final @Nullable ClassGraphLog log) {
+        try {
+            return handler.canHandle(classLoaderClass, log);
+        } catch (final RuntimeException | LinkageError e) {
+            if (log != null) {
+                log.log("ClassLoaderHandler " + handler.getClass().getName() + " failed when asked whether it can "
+                        + "handle " + classLoaderClass.getName() + ", so it is taken not to handle it", e);
+            }
+            return false;
+        }
     }
 
     /**
@@ -229,7 +254,7 @@ public class ClassLoaderOrderBuilder implements ClassLoaderOrder {
             // Index 0 does not need testing -- every handler already handles the classloader class itself
             for (var j = classHierarchy.size() - 1; j > 0; j--) {
                 // Don't log the probing calls, since they say nothing about the classloader being handled
-                if (handlers.get(i).canHandle(classHierarchy.get(j), /* log = */ null)) {
+                if (canHandle(handlers.get(i), classHierarchy.get(j), /* log = */ null)) {
                     generality[i] = j;
                     break;
                 }
@@ -303,8 +328,8 @@ public class ClassLoaderOrderBuilder implements ClassLoaderOrder {
      * {@link #add(ClassLoader, ClassGraphLog)} either before or after it delegates to the classloader's parent,
      * according to whether the classloader resolves classes parent-first or parent-last. That is what puts the
      * classpath elements in the order that classes are resolved in, which is the order that class masking depends
-     * on. If no handler places the classloader, it is placed after the classloaders its handlers delegated to, so
-     * that its classpath is still read.
+     * on. If no handler places the classloader, which includes a handler that throws before placing it, it is
+     * placed after the classloaders its handlers delegated to, so that its classpath is still read.
      *
      * @param classLoader
      *            the class loader, or null (ignored)
@@ -333,10 +358,20 @@ public class ClassLoaderOrderBuilder implements ClassLoaderOrder {
             // several equally specific handlers remain, they are called in the order they were registered in, and
             // the ones that run later can only add classloaders that an earlier one did not already place.
             for (final ClassLoaderHandler handler : getClassLoaderHandlers(classLoader, log)) {
-                handler.findClassLoaderOrder(classLoader, this, log);
+                try {
+                    handler.findClassLoaderOrder(classLoader, this, log);
+                } catch (final RuntimeException | LinkageError e) {
+                    // One failing handler, for example one that meets a container version whose internals have
+                    // changed, must not stop every other classloader from being read
+                    if (log != null) {
+                        log.log("ClassLoaderHandler " + handler.getClass().getName() + " failed on classloader "
+                                + classLoader.getClass().getName() + ", so it is skipped", e);
+                    }
+                }
             }
-            // A classloader that no handler placed would never have its classpath read. Placing it after
-            // everything its handlers delegated to cannot move a classloader that a handler did place.
+            // A classloader that no handler placed, including one whose handler failed before placing it, would
+            // never have its classpath read. Placing it after everything its handlers delegated to cannot move a
+            // classloader that a handler did place.
             if (!added.contains(classLoader)) {
                 if (log != null) {
                     log.log("No ClassLoaderHandler placed classloader " + classLoader.getClass().getName()

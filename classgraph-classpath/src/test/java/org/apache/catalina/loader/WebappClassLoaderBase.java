@@ -17,6 +17,15 @@ public class WebappClassLoaderBase extends URLClassLoader {
     public boolean delegate = true;
 
     /**
+     * Get the value of the {@code delegate} field.
+     *
+     * @return true if this classloader delegates to its parent before looking in the webapp.
+     */
+    public boolean getDelegate() {
+        return delegate;
+    }
+
+    /**
      * Constructor.
      *
      * @param resources

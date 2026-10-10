@@ -69,8 +69,13 @@ class TomcatWebappClassLoaderBaseHandler extends URLClassLoaderHandler {
      */
     private static boolean isParentFirst(final ClassLoader classLoader) {
         final var delegateObject = ReflectionUtils.getFieldVal(false, classLoader, "delegate");
-        if (delegateObject != null) {
-            return (boolean) delegateObject;
+        if (delegateObject instanceof final Boolean delegate) {
+            return delegate;
+        }
+        // A subclass can declare a field of its own named "delegate" that hides Catalina's boolean field from the
+        // lookup by name, so ask Catalina's public getter instead
+        if (ReflectionUtils.invokeMethod(false, classLoader, "getDelegate") instanceof final Boolean delegate) {
+            return delegate;
         }
         // Assume parent-first delegation order
         return true;
