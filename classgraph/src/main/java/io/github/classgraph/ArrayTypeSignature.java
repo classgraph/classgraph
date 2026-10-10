@@ -161,15 +161,15 @@ public final class ArrayTypeSignature extends ReferenceTypeSignature {
     }
 
     /**
-     * Get a list of {@link AnnotationInfo} objects for the type annotations on this array type, or null if none.
+     * Get a list of {@link AnnotationInfo} objects for the type annotations on this array type.
      *
      * @see #getNestedType() if you want to read for type annotations on inner (nested) dimensions of the array
      *      type.
-     * @return a list of {@link AnnotationInfo} objects for the type annotations on this array type, or null if
-     *         none.
+     * @return a list of {@link AnnotationInfo} objects for the type annotations on this array type, or the empty
+     *         list if none.
      */
     @Override
-    public @Nullable AnnotationInfoList getTypeAnnotationInfo() {
+    public AnnotationInfoList getTypeAnnotationInfo() {
         return super.getTypeAnnotationInfo();
     }
 

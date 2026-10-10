@@ -78,7 +78,7 @@ public class MethodTypeSignatureTest {
      */
     private static ScanResult scanFixture() {
         return new ClassGraph().enableClassInfo().enableClasspath().acceptClasses(Methods.class.getName())
-                .enableMethodInfo().scan();
+                .enableMethodInfo().enableAnnotationInfo().scan();
     }
 
     /**
@@ -129,7 +129,7 @@ public class MethodTypeSignatureTest {
                     .containsExactly(IOException.class.getName());
 
             // Only a method with an explicit receiver parameter can have annotations on that parameter
-            assertThat(typeSig.getReceiverTypeAnnotationInfo()).isNull();
+            assertThat(typeSig.getReceiverTypeAnnotationInfo()).isEmpty();
         }
     }
 

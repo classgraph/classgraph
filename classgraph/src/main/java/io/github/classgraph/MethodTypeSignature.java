@@ -142,16 +142,18 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
     }
 
     /**
-     * Get type annotations on the explicit receiver parameter, or null if none.
+     * Get type annotations on the explicit receiver parameter.
      *
-     * @return type annotations on the explicit receiver parameter, or null if none.
+     * @return type annotations on the explicit receiver parameter, or the empty list if none (including when the
+     *         method has no explicit receiver parameter).
      */
-    public @Nullable AnnotationInfoList getReceiverTypeAnnotationInfo() {
+    public AnnotationInfoList getReceiverTypeAnnotationInfo() {
         synchronized (this) {
             if (receiverTypeAnnotationInfoRef == null) {
                 final var receiverTypeAnnotationList = receiverTypeAnnotations;
                 if (receiverTypeAnnotationList == null) {
-                    return null;
+                    // Not cached, so that a type annotation added later is still seen
+                    return AnnotationInfoList.EMPTY_LIST;
                 }
                 // The order of type annotations in a classfile is not specified, so sort them by name
                 receiverTypeAnnotationInfoRef = new AnnotationInfoList(

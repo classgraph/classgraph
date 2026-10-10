@@ -87,16 +87,18 @@ public abstract sealed class HierarchicalTypeSignature extends ScanResultObject
     }
 
     /**
-     * Get a list of {@link AnnotationInfo} objects for any type annotations on this type, or null if none.
+     * Get a list of {@link AnnotationInfo} objects for any type annotations on this type.
      *
-     * @return a list of {@link AnnotationInfo} objects for any type annotations on this type, or null if none.
+     * @return a list of {@link AnnotationInfo} objects for any type annotations on this type, or the empty list if
+     *         none.
      */
-    public @Nullable AnnotationInfoList getTypeAnnotationInfo() {
+    public AnnotationInfoList getTypeAnnotationInfo() {
         synchronized (this) {
             if (typeAnnotationInfoRef == null) {
                 final var typeAnnotationList = typeAnnotations;
                 if (typeAnnotationList == null) {
-                    return null;
+                    // Not cached, so that a type annotation added later is still seen
+                    return AnnotationInfoList.EMPTY_LIST;
                 }
                 // The order of type annotations in a classfile is not specified, so sort them by name
                 typeAnnotationInfoRef = new AnnotationInfoList(CollectionUtils.sortCopy(typeAnnotationList));
