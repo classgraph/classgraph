@@ -540,10 +540,15 @@ public final class FastPathResolver {
      * Strip the trailing separator, and any trailing nested jar separator, from a normalized path.
      *
      * @param path
-     *            the normalized path
+     *            the normalized path, with its scheme prefix removed
+     * @param prefix
+     *            the scheme prefix that was removed from the path and will be added back, such as
+     *            {@code "http://"}, or the empty string if the path is a filesystem path. Whether a trailing '!' is
+     *            a nested jar separator depends on whether the path is a URL, so the test is made on the path with
+     *            its prefix.
      * @return the path, without any trailing separator.
      */
-    private static String stripTrailingSeparators(final String path) {
+    private static String stripTrailingSeparators(final String path, final String prefix) {
         if ("/".equals(path)) {
             // The root path is the one path whose final separator is the whole of its name
             return path;
@@ -557,8 +562,11 @@ public final class FastPathResolver {
         // jarfile before it -- a trailing '!' is otherwise part of a directory name (#903). Use
         // lastIndexOfNestedJarSeparator, not indexOfNestedJarSeparator, so that the trailing '!' of a doubly-nested
         // path such as "/a/b.war!/WEB-INF/lib/c.jar!" is stripped too: the innermost separator is the relevant one,
-        // and this is the rule the Vfs applies when splitting the resulting path back apart.
-        if (pathStr.endsWith("!") && PathSyntax.lastIndexOfNestedJarSeparator(pathStr) == pathStr.length() - 1) {
+        // and this is the rule the Vfs applies when splitting the resulting path back apart. The Vfs sees the path
+        // with its scheme prefix, and without the prefix a remote URL such as "http://host/x.jar!" would be tested
+        // as a local relative path, whose '!' is not a separator unless a local file precedes it.
+        if (pathStr.endsWith("!") && PathSyntax.lastIndexOfNestedJarSeparator(prefix + pathStr) == prefix.length()
+                + pathStr.length() - 1) {
             pathStr = pathStr.substring(0, pathStr.length() - 1);
         }
         if (pathStr.endsWith("/")) {
@@ -642,7 +650,7 @@ public final class FastPathResolver {
 
         // Normalize the path, then add any UNC or URL prefix
         final var pathRaw = parsed.startIdx == 0 ? relativePath : relativePath.substring(parsed.startIdx);
-        var pathStr = stripTrailingSeparators(normalizePath(pathRaw, parsed.remainderIsFilePath));
+        var pathStr = stripTrailingSeparators(normalizePath(pathRaw, parsed.remainderIsFilePath), parsed.prefix);
 
         // On Windows, the root directory of a drive is "C:/", and it is a root path in the same sense that "/" is:
         // its final separator is the whole of its name, and dropping it leaves the drive designation "C:", which
