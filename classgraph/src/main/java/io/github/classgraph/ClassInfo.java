@@ -52,7 +52,7 @@ import java.util.Set;
 import java.util.function.Function;
 
 import io.github.classgraph.Classfile.ClassContainment;
-import io.github.classgraph.Classfile.ClassTypeAnnotationDecorator;
+import io.github.classgraph.Classfile.TypeAnnotation;
 import io.github.classgraph.TypeUtils.ModifierType;
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.utils.Assert;
@@ -195,10 +195,10 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     AnnotationParameterValueList annotationDefaultParamValues;
 
     /**
-     * The type annotation decorators for the {@link ClassTypeSignature} instance.
+     * The type annotations to add to the {@link ClassTypeSignature} instance.
      */
     @Nullable
-    List<ClassTypeAnnotationDecorator> typeAnnotationDecorators;
+    List<TypeAnnotation<ClassTypeSignature>> typeAnnotationDecorators;
 
     /**
      * Names of classes referenced by this class in class refs and type signatures in the constant pool of the
@@ -598,12 +598,13 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Add {@link ClassTypeAnnotationDecorator} instances.
+     * Add the type annotations of the class, which are added to the class type signature or type descriptor when it
+     * is parsed.
      *
      * @param classTypeAnnotationDecorators
-     *            {@link ClassTypeAnnotationDecorator} instances.
+     *            the {@link TypeAnnotation} instances read from the classfile.
      */
-    void addTypeDecorators(final List<ClassTypeAnnotationDecorator> classTypeAnnotationDecorators) {
+    void addTypeDecorators(final List<TypeAnnotation<ClassTypeSignature>> classTypeAnnotationDecorators) {
         if (typeAnnotationDecorators == null) {
             typeAnnotationDecorators = new ArrayList<>();
         }
@@ -3750,7 +3751,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Run the type annotation decorators on the given class type signature or synthetic type descriptor. A type
+     * Add the type annotations of this class to the given class type signature or synthetic type descriptor. A type
      * annotation that cannot be matched to the type it names (from a corrupt classfile, or a compiler bug) is
      * skipped, rather than making the whole class type unreadable.
      *
@@ -3759,16 +3760,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     // #897
     private void decorateType(final ClassTypeSignature classType) {
-        if (typeAnnotationDecorators != null) {
-            for (final ClassTypeAnnotationDecorator decorator : typeAnnotationDecorators) {
-                try {
-                    decorator.decorate(classType);
-                } catch (final IllegalArgumentException _) {
-                    // Skip a type annotation that cannot be matched to the class type, rather than failing to
-                    // produce the whole class type (best effort). (#897)
-                }
-            }
-        }
+        TypeAnnotation.applyAll(typeAnnotationDecorators, classType);
     }
 
     /**
