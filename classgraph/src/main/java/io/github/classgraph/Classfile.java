@@ -1833,29 +1833,39 @@ class Classfile {
      * are merged into a single array of annotations for each method parameter, so if both attributes are present,
      * the parameter annotation arrays have to be enlarged when the second attribute is encountered.
      *
+     * <p>
+     * Each attribute gives its own parameter count (JVMS 4.7.18 and 4.7.19), and the two counts may differ, for
+     * example when javac leaves the implicit outer instance parameter of an inner class constructor out of one
+     * attribute and a bytecode tool writes the other attribute with a count taken from the method descriptor. Both
+     * attributes are therefore aligned with the last parameter, as {@link MethodInfo} aligns all other parameter
+     * metadata, and the merged array has the length of the longer attribute.
+     *
      * @param parameterAnnotations
      *            the parameter annotations read from the other attribute, or null if this is the first of the two
      *            attributes to be encountered
-     * @return the merged parameter annotations
+     * @return the merged parameter annotations, with an array (possibly {@link #NO_ANNOTATIONS}) for every
+     *         parameter
      * @throws IOException
      *             if an I/O exception occurs.
-     * @throws ClassfileFormatException
-     *             if the two attributes disagree on the number of parameters.
      */
     private AnnotationInfo[][] readMethodParameterAnnotations(
-            final AnnotationInfo @Nullable [][] parameterAnnotations) throws IOException, ClassfileFormatException {
+            final AnnotationInfo @Nullable [][] parameterAnnotations) throws IOException {
         final var numParams = reader().readUnsignedByte();
+        final var prevNumParams = parameterAnnotations == null ? 0 : parameterAnnotations.length;
+        final var mergedNumParams = Math.max(numParams, prevNumParams);
         final AnnotationInfo[][] mergedParameterAnnotations;
-        if (parameterAnnotations == null) {
-            mergedParameterAnnotations = new AnnotationInfo[numParams][];
-        } else if (parameterAnnotations.length != numParams) {
-            throw new ClassfileFormatException(
-                    "Mismatch in number of parameters between RuntimeVisibleParameterAnnotations "
-                            + "and RuntimeInvisibleParameterAnnotations");
-        } else {
+        if (parameterAnnotations != null && prevNumParams == mergedNumParams) {
             mergedParameterAnnotations = parameterAnnotations;
+        } else {
+            mergedParameterAnnotations = new AnnotationInfo[mergedNumParams][];
+            if (parameterAnnotations != null) {
+                // Shift the earlier attribute's entries right, so that both attributes end at the last parameter
+                System.arraycopy(parameterAnnotations, 0, mergedParameterAnnotations,
+                        mergedNumParams - prevNumParams, prevNumParams);
+            }
         }
-        for (var paramIdx = 0; paramIdx < numParams; paramIdx++) {
+        final var offset = mergedNumParams - numParams;
+        for (var paramIdx = offset; paramIdx < mergedNumParams; paramIdx++) {
             final var numAnnotations = reader().readUnsignedShort();
             if (numAnnotations > 0) {
                 var annStartIdx = 0;
@@ -1869,7 +1879,10 @@ class Classfile {
                 for (var annIdx = 0; annIdx < numAnnotations; annIdx++) {
                     mergedParameterAnnotations[paramIdx][annStartIdx + annIdx] = readAnnotation();
                 }
-            } else if (mergedParameterAnnotations[paramIdx] == null) {
+            }
+        }
+        for (var paramIdx = 0; paramIdx < mergedNumParams; paramIdx++) {
+            if (mergedParameterAnnotations[paramIdx] == null) {
                 mergedParameterAnnotations[paramIdx] = NO_ANNOTATIONS;
             }
         }
