@@ -224,12 +224,15 @@ public class GraphVizDotFileOptionsTest {
      */
     @Test
     public void externalClassesCanBeShownOrHiddenInTheDependencyGraph() {
+        // The external class java.lang.annotation.Retention is a dependency of the fixture annotation classes,
+        // which are annotated with it
         assertThat(dependencyGraph(new GraphVizDotFileOptions().includeExternalClasses()))
-                .contains("\"java.lang.String\"[shape=");
+                .contains("\"java.lang.annotation.Retention\"[shape=");
         assertThat(dependencyGraph(new GraphVizDotFileOptions().excludeExternalClasses()))
-                .doesNotContain("java.lang.String");
+                .doesNotContain("java.lang.annotation.Retention");
         // The graph follows the scan's own setting if neither option was chosen -- external classes were enabled in
         // the scan, so they are shown
-        assertThat(dependencyGraph(new GraphVizDotFileOptions())).contains("\"java.lang.String\"[shape=");
+        assertThat(dependencyGraph(new GraphVizDotFileOptions()))
+                .contains("\"java.lang.annotation.Retention\"[shape=");
     }
 }

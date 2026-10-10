@@ -4101,8 +4101,9 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     }
 
     /**
-     * Get {@link ClassInfo} objects for any classes referenced in this class' type descriptor, or the type
-     * descriptors of fields, methods or annotations.
+     * Get {@link ClassInfo} objects for the classes referenced by this class's own classfile: the classes named in
+     * its constant pool (including its superclass and interfaces) and its type signature, and the classes named by
+     * its declared fields, methods and constructors and by the annotations directly on it, if those were recorded.
      *
      * @param classNameToClassInfo
      *            the map to add a {@link ClassInfo} object to, for a referenced class that has none in the scan
@@ -4125,17 +4126,22 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
                 refdClassInfo.add(classInfo);
             }
         }
-        // Only the members that were recorded can name a dependency, and asking for a kind of member that was not
-        // enabled throws, so the dependencies of the methods, fields and annotations are found only if the scan
-        // read them
-        if (scanResult().scanSpec.enableMethodInfo) {
-            getMethodInfo().findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
+        // Only this class's own members and annotations are read: the declared methods, constructors and static
+        // initializer, the declared fields, and the annotations directly on this class. Not the inherited
+        // members or @Inherited annotations, which the superclasses and interfaces depend on, and not the
+        // meta-annotations, which the annotation classes depend on. The dependencies of each kind are found only if
+        // the scan was asked to record that kind: the field and annotation lists are null otherwise, but the
+        // methods of an annotation class are always recorded, since they define its parameters.
+        if (scanResult().scanSpec.enableMethodInfo && methodInfo != null) {
+            methodInfo.findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
         }
-        if (scanResult().scanSpec.enableFieldInfo) {
-            getFieldInfo().findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
+        if (fieldInfo != null) {
+            fieldInfo.findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
         }
-        if (scanResult().scanSpec.enableAnnotationInfo) {
-            getAllAnnotationInfo().findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
+        if (annotationInfo != null) {
+            for (final AnnotationInfo ai : annotationInfo) {
+                ai.findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
+            }
         }
         if (annotationDefaultParamValues != null) {
             annotationDefaultParamValues.findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
@@ -4165,9 +4171,15 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     }
 
     /**
-     * Get the class dependencies.
+     * Get the class dependencies: the classes referenced by this class's own classfile. These are its superclass
+     * and interfaces, the classes named in its constant pool and type signature, and, if they were scanned, the
+     * classes named by its declared fields, methods and constructors (their types, type signatures and annotations,
+     * and the exceptions that the methods throw), by the annotations directly on this class, and, for an annotation
+     * class, by the default values of its parameters. The members and {@link java.lang.annotation.Inherited}
+     * annotations that this class inherits, and the meta-annotations of its annotations, belong to other classes,
+     * so their dependencies are found by asking those classes, not this one. {@code java.lang.Object} is left out.
      *
-     * @return A {@link ClassInfoList} of {@link ClassInfo} objects for all classes referenced by this class. Note
+     * @return A {@link ClassInfoList} of {@link ClassInfo} objects for the classes referenced by this class. Note
      *         that you need to call {@link ClassGraph#enableInterClassDependencies()} before
      *         {@link ClassGraph#scan()} for this method to work. You should also call
      *         {@link ClassGraph#enableExternalClasses()} before {@link ClassGraph#scan()} if you want non-accepted
