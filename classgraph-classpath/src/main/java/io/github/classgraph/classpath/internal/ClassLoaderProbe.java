@@ -268,11 +268,21 @@ public class ClassLoaderProbe {
                     // loads jarfiles from without listing them as classpath elements. They are normalized and copied
                     // here, so a handler that spells them loosely, or that refills one list for each classloader,
                     // still gives each classpath element the prefixes that were declared for it
-                    classpathOrder.setPackageRootPrefixes(classLoaderHandler.getPackageRootPrefixes(),
-                            classloaderHandlerLog);
-                    classpathOrder.setLibDirPrefixes(classLoaderHandler.getLibDirPrefixes(), classloaderHandlerLog);
                     try {
+                        classpathOrder.setPackageRootPrefixes(classLoaderHandler.getPackageRootPrefixes(),
+                                classloaderHandlerLog);
+                        classpathOrder.setLibDirPrefixes(classLoaderHandler.getLibDirPrefixes(),
+                                classloaderHandlerLog);
                         classLoaderHandler.findClasspathOrder(classLoader, classpathOrder, classloaderHandlerLog);
+                    } catch (final RuntimeException | LinkageError e) {
+                        // One failing handler, for example one that meets a container version whose internals
+                        // have changed, must not stop every other classloader from being read. The classpath
+                        // entries the handler added before it failed are kept.
+                        if (classloaderHandlerLog != null) {
+                            classloaderHandlerLog.log("ClassLoaderHandler "
+                                    + classLoaderHandler.getClass().getName() + " failed on classloader "
+                                    + classLoader.getClass().getName() + ", so it is skipped", e);
+                        }
                     } finally {
                         classpathOrder.setPackageRootPrefixes(null, null);
                         classpathOrder.setLibDirPrefixes(null, null);
