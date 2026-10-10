@@ -46,8 +46,7 @@ class ClassLoaderHandlerRegistryTest {
     @MethodSource("registeredHandlers")
     void onlyTheHandlersOfClassLoadersThatLookInFixedDirsDeclarePrefixes(final ClassLoaderHandler handler) {
         final var handlerClass = handler.getClass();
-        if (handlerClass != TomcatWebappClassLoaderBaseHandler.class
-                && handlerClass != UnoOneJarClassLoaderHandler.class) {
+        if (handlerClass != UnoOneJarClassLoaderHandler.class) {
             assertThat(handler.getPackageRootPrefixes()).as(handlerClass.getSimpleName()).isEmpty();
             assertThat(handler.getLibDirPrefixes()).as(handlerClass.getSimpleName()).isEmpty();
         }
@@ -59,14 +58,6 @@ class ClassLoaderHandlerRegistryTest {
         registeredHandlers().forEach(handler -> assertThat(
                 Stream.concat(handler.getPackageRootPrefixes().stream(), handler.getLibDirPrefixes().stream()))
                 .allMatch(prefix -> prefix.endsWith("/")));
-    }
-
-    /** Catalina serves a webapp's own classes and jarfiles from the two fixed dirs of the war layout. */
-    @Test
-    void tomcatDeclaresTheWebappClassesAndLibDirs() {
-        final var handler = handlerOf(TomcatWebappClassLoaderBaseHandler.class);
-        assertThat(handler.getPackageRootPrefixes()).containsExactly("WEB-INF/classes/");
-        assertThat(handler.getLibDirPrefixes()).containsExactly("WEB-INF/lib/");
     }
 
     /**

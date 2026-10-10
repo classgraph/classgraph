@@ -6,14 +6,11 @@ import java.util.List;
 
 /**
  * Stand-in for Catalina's {@code StandardRoot}, the {@code WebResourceRoot} implementation that a
- * {@code WebappClassLoaderBase} serves resources through. Only the two members that ClassGraph reads are modelled:
- * the {@code getBaseUrls()} method, and the {@code allResources} field, which holds the five {@code WebResourceSet}
- * lists (pre, main, class, jar and post resources).
+ * {@code WebappClassLoaderBase} serves resources through. Only the {@code allResources} field, which holds the five
+ * {@code WebResourceSet} lists (pre, main, class, jar and post resources), and the {@code getBaseUrls()} method are
+ * modelled.
  */
 public class StandardRoot {
-    /** The URLs returned by {@code getBaseUrls()}. */
-    private final List<URL> baseUrls = new ArrayList<>();
-
     /** The {@code WebResourceSet}s, grouped as Catalina groups them. */
     public final List<List<Object>> allResources = new ArrayList<>();
 
@@ -30,23 +27,22 @@ public class StandardRoot {
     }
 
     /**
-     * Add a URL to be returned by {@code getBaseUrls()}.
-     *
-     * @param url
-     *            the URL.
-     * @return this, for chaining.
-     */
-    public StandardRoot addBaseUrl(final URL url) {
-        baseUrls.add(url);
-        return this;
-    }
-
-    /**
-     * The base URLs of the webapp.
+     * The URL of the directory or archive of every resource set that serves static content, as Catalina computes
+     * them. These include the webapp's own directory or WAR file, so most of what they hold is not on the
+     * classpath.
      *
      * @return the base URLs.
      */
     public List<URL> getBaseUrls() {
+        final List<URL> baseUrls = new ArrayList<>();
+        for (final List<Object> webResourceSets : allResources) {
+            for (final Object webResourceSet : webResourceSets) {
+                if (webResourceSet instanceof final AbstractResourceSet resourceSet
+                        && !resourceSet.getClassLoaderOnly() && resourceSet.getBaseUrl() != null) {
+                    baseUrls.add(resourceSet.getBaseUrl());
+                }
+            }
+        }
         return baseUrls;
     }
 }

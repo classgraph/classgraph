@@ -89,9 +89,9 @@ succeed. A path is given in canonical form, spelled the way the file is stored: 
 resolved, and on a filesystem that ignores case, so is the case of each name. That is also what
 decides whether two entries are the same, so a file that two classloaders reach by different paths
 is listed once, at the first position it is reached at. `getPackageRootPrefixes()` lists the
-prefixes to strip from entry names within that element, e.g. `WEB-INF/classes` for a Tomcat webapp
-classloader; it is empty for a classloader that loads classes only from the classpath elements it
-was given, which is almost all of them.
+prefixes to strip from entry names within that element, e.g. `WEB-INF/classes` for a classloader
+that serves a whole war file; it is empty for a classloader that loads classes only from the
+classpath elements it was given, which is almost all of them.
 
 An entry that names a file or directory the filesystem says is not there, or that cannot be read, is
 left out of the classpath rather than listed and then failed on, since it can contribute no class.

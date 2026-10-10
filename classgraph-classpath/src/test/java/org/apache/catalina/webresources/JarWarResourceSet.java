@@ -1,51 +1,30 @@
 package org.apache.catalina.webresources;
 
 /**
- * Stand-in for Catalina's {@code JarWarResourceSet}, which serves resources from a jarfile that is itself nested
- * inside a WAR file. {@code getBaseUrlString()} is the WAR, and the {@code archivePath} field is the path of the
- * jarfile within the WAR.
+ * Stand-in for Catalina's {@code JarWarResourceSet}, which serves files from a jarfile that is itself nested inside
+ * a WAR file. Catalina serves each jarfile in a packed WAR file's {@code WEB-INF/lib} this way. {@code getBase()}
+ * is the WAR file, and the {@code archivePath} field is the path of the jarfile within the WAR.
  */
-public class JarWarResourceSet {
-    /** The URL of the WAR file that the jarfile is nested inside. */
-    private final String baseUrlString;
-
-    /** The path of the jarfile within the WAR file. */
-    public final String archivePath;
-
-    /** The path within the jarfile that resources are served from. */
-    private final String internalPath;
+public class JarWarResourceSet extends AbstractArchiveResourceSet {
+    /** The path of the jarfile within the WAR file. Like Catalina's, it is private, and is read by reflection. */
+    @SuppressWarnings("unused")
+    private final String archivePath;
 
     /**
      * Constructor.
      *
-     * @param baseUrlString
-     *            the URL of the WAR file that the jarfile is nested inside.
+     * @param webAppMount
+     *            the path within the webapp's resources that the files are served at.
+     * @param base
+     *            the filesystem path of the WAR file that the jarfile is nested inside.
      * @param archivePath
      *            the path of the jarfile within the WAR file.
      * @param internalPath
-     *            the path within the jarfile that resources are served from.
+     *            the path within the jarfile that the files are served from.
      */
-    public JarWarResourceSet(final String baseUrlString, final String archivePath, final String internalPath) {
-        this.baseUrlString = baseUrlString;
+    public JarWarResourceSet(final String webAppMount, final String base, final String archivePath,
+            final String internalPath) {
+        super(webAppMount, base, internalPath);
         this.archivePath = archivePath;
-        this.internalPath = internalPath;
-    }
-
-    /**
-     * The URL of the WAR file that the jarfile is nested inside.
-     *
-     * @return the WAR file URL.
-     */
-    public String getBaseUrlString() {
-        return baseUrlString;
-    }
-
-    /**
-     * The path within the jarfile that resources are served from.
-     *
-     * @return the internal path.
-     */
-    public String getInternalPath() {
-        return internalPath;
     }
 }

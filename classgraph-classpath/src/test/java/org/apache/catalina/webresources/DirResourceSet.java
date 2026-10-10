@@ -1,46 +1,22 @@
 package org.apache.catalina.webresources;
 
-import java.io.File;
-
 /**
- * Stand-in for Catalina's {@code DirResourceSet}, which serves resources from a directory on the filesystem. The
- * directory is read from {@code getFileBase()}.
+ * Stand-in for Catalina's {@code DirResourceSet}, which serves files from a directory on the filesystem. It serves
+ * an unpacked webapp's directory, mounted at {@code "/"}, and any extra directory that a {@code <Resources>}
+ * element adds.
  */
-public class DirResourceSet {
-    /** The directory that resources are served from. */
-    private final File fileBase;
-
-    /** The path within this resource set that resources are served from. */
-    private final String internalPath;
-
+public class DirResourceSet extends AbstractFileResourceSet {
     /**
      * Constructor.
      *
-     * @param fileBase
-     *            the directory that resources are served from.
+     * @param webAppMount
+     *            the path within the webapp's resources that the files are served at.
+     * @param base
+     *            the filesystem path of the directory that the files are served from.
      * @param internalPath
-     *            the path within this resource set that resources are served from.
+     *            the path within the directory that the files are served from.
      */
-    public DirResourceSet(final File fileBase, final String internalPath) {
-        this.fileBase = fileBase;
-        this.internalPath = internalPath;
-    }
-
-    /**
-     * The directory that resources are served from.
-     *
-     * @return the directory.
-     */
-    public File getFileBase() {
-        return fileBase;
-    }
-
-    /**
-     * The path within this resource set that resources are served from.
-     *
-     * @return the internal path.
-     */
-    public String getInternalPath() {
-        return internalPath;
+    public DirResourceSet(final String webAppMount, final String base, final String internalPath) {
+        super(webAppMount, base, internalPath);
     }
 }

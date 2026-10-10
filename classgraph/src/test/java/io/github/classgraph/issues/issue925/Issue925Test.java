@@ -147,8 +147,8 @@ public class Issue925Test {
      * servlet container loads a webapp's classes from, is scanned in both of them: {@code WEB-INF/classes/} is
      * scanned as a package root, and each jarfile in {@code WEB-INF/lib/} is scanned as a classpath element of its
      * own. This is the scanner's side of the contract that {@link ClassLoaderHandler#getPackageRootPrefixes()} and
-     * {@link ClassLoaderHandler#getLibDirPrefixes()} define; that Tomcat's own handler declares these two prefixes
-     * is tested in {@code classgraph-classpath}.
+     * {@link ClassLoaderHandler#getLibDirPrefixes()} define. (Tomcat's own handler declares neither, since it lists
+     * {@code WEB-INF/classes/} and each jarfile that the webapp loads from as a classpath element of its own.)
      *
      * @throws IOException
      *             if the classloader could not be closed.
@@ -187,10 +187,11 @@ public class Issue925Test {
      * both hold is reported from the package root.
      *
      * <p>
-     * A servlet container's classloader loads a webapp's classes only from {@code WEB-INF/classes/} and
-     * {@code WEB-INF/lib/}, and never from the root of the WAR file, even though the WAR file itself is what it
-     * puts on ClassGraph's classpath. The root of the WAR file is still scanned, since an archive can be built to
-     * be usable both ways, but the copy of a class that the classloader would load has to be the one reported.
+     * A classloader that serves a whole WAR file, as {@link WarClassLoader} does, loads a webapp's classes only
+     * from {@code WEB-INF/classes/} and {@code WEB-INF/lib/}, and never from the root of the WAR file, even though
+     * the WAR file itself is what it puts on ClassGraph's classpath. The root of the WAR file is still scanned,
+     * since an archive can be built to be usable both ways, but the copy of a class that the classloader would load
+     * has to be the one reported.
      *
      * @param tempDir
      *            a temporary directory to build the WAR file in.

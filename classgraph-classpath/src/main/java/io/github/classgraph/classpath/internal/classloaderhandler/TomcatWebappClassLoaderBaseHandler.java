@@ -40,39 +40,19 @@ import org.jspecify.annotations.Nullable;
 /** Extract classpath entries from the Tomcat/Catalina WebappClassLoaderBase. */
 class TomcatWebappClassLoaderBaseHandler extends URLClassLoaderHandler {
     /**
-     * The dir a webapp's own classes are served from. Catalina mounts it at a fixed location within the webapp's
-     * main resource set, which is the webapp's directory or war file: {@code StandardRoot#getClassLoaderResource}
-     * looks up every class under {@code "/WEB-INF/classes"}, so the webapp's directory or war is on the classpath
-     * with that dir as an automatic package root.
+     * The path within a webapp's resources that its classloader loads from: {@code StandardRoot} looks up every
+     * classloader resource {@code "x"} as the webapp resource {@code "/WEB-INF/classes/x"}.
      */
-    private static final List<String> WEBAPP_PACKAGE_ROOT_PREFIXES = List.of("WEB-INF/classes/");
-
-    /**
-     * The dir a webapp's own jarfiles are served from. {@code StandardRoot#processWebInfLib} lists
-     * {@code "/WEB-INF/lib"} at startup and mounts every {@code .jar} it finds there, so those jarfiles are on the
-     * classpath even though the webapp never lists them.
-     */
-    private static final List<String> WEBAPP_LIB_DIR_PREFIXES = List.of("WEB-INF/lib/");
+    private static final String CLASSLOADER_RESOURCES_PATH = "/WEB-INF/classes";
 
     /** The TomEE classloader, which has its own delegation rules. */
     private static final String TOMEE_WEBAPP_CLASS_LOADER = "org.apache.tomee.catalina.TomEEWebappClassLoader";
 
-    /** The {@code WebResourceSet} classes that serve resources from within a jarfile. */
-    private static final String[] JAR_RESOURCE_SETS = { "org.apache.catalina.webresources.JarResourceSet",
-            "org.apache.catalina.webresources.JarWarResourceSet" };
+    /** The superclass of the {@code WebResourceSet}s that serve resources from a jarfile or a WAR file. */
+    private static final String ARCHIVE_RESOURCE_SET = "org.apache.catalina.webresources.AbstractArchiveResourceSet";
 
     /** Constructor. */
     TomcatWebappClassLoaderBaseHandler() {
-    }
-
-    @Override
-    public List<String> getPackageRootPrefixes() {
-        return WEBAPP_PACKAGE_ROOT_PREFIXES;
-    }
-
-    @Override
-    public List<String> getLibDirPrefixes() {
-        return WEBAPP_LIB_DIR_PREFIXES;
     }
 
     @Override
@@ -133,19 +113,14 @@ class TomcatWebappClassLoaderBaseHandler extends URLClassLoaderHandler {
             // this, none of the WebResourceSets below were found on Tomcat 10.1 or above. (#925)
             resources = ReflectionUtils.getFieldVal(false, classLoader, "resources");
         }
-        // type List<URL>
-        final var baseURLs = ReflectionUtils.invokeMethod(false, resources, "getBaseUrls");
-        classpathOrder.addClasspathEntryObject(baseURLs, classLoader, log);
         // type List<List<WebResourceSet>> members: preResources, mainResources, classResources, jarResources,
-        // postResources
+        // postResources, in the order that StandardRoot looks a resource up in
         @SuppressWarnings("unchecked")
         final var allResources = (List<List<?>>) ReflectionUtils.getFieldVal(false, resources, "allResources");
         if (allResources != null) {
             // type List<WebResourceSet>
             for (final List<?> webResourceSetList : allResources) {
                 // type WebResourceSet
-                // {DirResourceSet, FileResourceSet, JarResourceSet, JarWarResourceSet,
-                // EmptyResourceSet}
                 for (final Object webResourceSet : webResourceSetList) {
                     if (webResourceSet != null) {
                         addWebResourceSet(webResourceSet, classLoader, classpathOrder, log);
@@ -159,11 +134,27 @@ class TomcatWebappClassLoaderBaseHandler extends URLClassLoaderHandler {
     }
 
     /**
-     * Add the classpath entry that a single Catalina {@code WebResourceSet} serves resources from.
+     * Add the part of a single Catalina {@code WebResourceSet} that the webapp's classloader loads from, if any.
+     *
+     * <p>
+     * A resource set serves the files under a path within its directory or archive (its internal path) at a path
+     * within the webapp's resources (its mount), and the classloader loads only what is served under
+     * {@code "/WEB-INF/classes"}. So:
+     * <ul>
+     * <li>A resource set mounted at {@code "/WEB-INF/classes"}, as every jarfile in {@code WEB-INF/lib} is, is on
+     * the classpath as a whole.
+     * <li>A resource set mounted above {@code "/WEB-INF/classes"}, as the webapp's own directory or WAR file is, is
+     * on the classpath only as far as its {@code WEB-INF/classes} dir. The rest of the webapp, e.g.
+     * {@code index.jsp} or {@code WEB-INF/web.xml}, is not on the classpath.
+     * <li>A resource set mounted anywhere else, e.g. static content mounted at {@code "/static"}, is not on the
+     * classpath. Neither is a resource set marked as serving static content only, as the {@code META-INF/resources}
+     * dir of each resource jar is.
+     * </ul>
      *
      * @param webResourceSet
      *            the {@code WebResourceSet}, one of {@code DirResourceSet}, {@code FileResourceSet},
-     *            {@code JarResourceSet}, {@code JarWarResourceSet} or {@code EmptyResourceSet}.
+     *            {@code JarResourceSet}, {@code JarWarResourceSet}, {@code WarResourceSet} or
+     *            {@code EmptyResourceSet}.
      * @param classLoader
      *            the classloader the {@code WebResourceSet} was found in.
      * @param classpathOrder
@@ -173,40 +164,47 @@ class TomcatWebappClassLoaderBaseHandler extends URLClassLoaderHandler {
      */
     private void addWebResourceSet(final Object webResourceSet, final ClassLoader classLoader,
             final ClasspathOrder classpathOrder, final @Nullable ClassGraphLog log) {
-        // For DirResourceSet
-        final var file = (File) ReflectionUtils.invokeMethod(false, webResourceSet, "getFileBase");
-        var base = file == null ? null : file.getPath();
-        if (base == null) {
-            // For FileResourceSet
-            base = (String) ReflectionUtils.invokeMethod(false, webResourceSet, "getBase");
-        }
-        if (base == null) {
-            // For JarResourceSet and JarWarResourceSet, the absolute path to the WAR file on the file system in
-            // which the JAR is located
-            base = (String) ReflectionUtils.invokeMethod(false, webResourceSet, "getBaseUrlString");
-        }
-        if (base == null) {
-            // This WebResourceSet serves nothing from the filesystem (e.g. EmptyResourceSet)
+        // Every resource set that serves files extends AbstractResourceSet, which holds these. The path of its
+        // directory or archive is a filesystem path, and Catalina normalizes an internal path or a mount of "/" to
+        // "", so each of those is either "" or starts with "/"
+        final var base = (String) ReflectionUtils.invokeMethod(false, webResourceSet, "getBase");
+        final var internalPath = (String) ReflectionUtils.invokeMethod(false, webResourceSet, "getInternalPath");
+        var webAppMount = (String) ReflectionUtils.invokeMethod(false, webResourceSet, "getWebAppMount");
+        if (base == null || internalPath == null || webAppMount == null
+                || Boolean.TRUE.equals(ReflectionUtils.invokeMethod(false, webResourceSet, "getStaticOnly"))) {
+            // This resource set serves nothing from the filesystem (e.g. EmptyResourceSet), or nothing to the
+            // classloader
             return;
         }
-        // For JarWarResourceSet: the path within the WAR file where the JAR file is located
-        final var archivePath = (String) ReflectionUtils.getFieldVal(false, webResourceSet, "archivePath");
-        if (archivePath != null && !archivePath.isEmpty()) {
-            // If archivePath is non-null, this is a jar within a war
-            base += "!" + (archivePath.startsWith("/") ? archivePath : "/" + archivePath);
+        if (webAppMount.endsWith("/")) {
+            // Catalina matches a mount as a plain prefix of the path it looks up, so it serves the same files at
+            // "/WEB-INF/" as at "/WEB-INF"
+            webAppMount = webAppMount.substring(0, webAppMount.length() - 1);
         }
-        // (These class names previously had a spurious "java." prefix, so isJar was always false, and the internal
-        // path of a resource JAR was appended as a directory path rather than as a path within the JAR)
-        final var isJar = findMatchingClassName(webResourceSet.getClass(), JAR_RESOURCE_SETS) != null;
-        // The path within this WebResourceSet where resources will be served from, e.g. for a resource JAR, this
-        // would be "META-INF/resources"
-        final var internalPath = (String) ReflectionUtils.invokeMethod(false, webResourceSet, "getInternalPath");
-        if (internalPath != null && !internalPath.isEmpty() && !"/".equals(internalPath)) {
+        if (!webAppMount.equals(CLASSLOADER_RESOURCES_PATH)
+                && !CLASSLOADER_RESOURCES_PATH.startsWith(webAppMount + "/")) {
+            // A resource set mounted below "/WEB-INF/classes" is loaded from too, but with the rest of its mount as a
+            // prefix, e.g. "sub/x" for "x" mounted at "/WEB-INF/classes/sub", which a classpath element cannot
+            // express
+            if (log != null) {
+                log.log("Skipping " + base + ", which the webapp mounts at " + webAppMount + ", not at or above "
+                        + CLASSLOADER_RESOURCES_PATH);
+            }
+            return;
+        }
+        // The path within the directory or archive that the classloader loads from
+        final var classpathElementPath = internalPath + CLASSLOADER_RESOURCES_PATH.substring(webAppMount.length());
+        if (classIsOrExtendsOrImplements(webResourceSet.getClass(), ARCHIVE_RESOURCE_SET)) {
+            // For JarWarResourceSet: the path of the jarfile within the WAR file
+            final var archivePath = (String) ReflectionUtils.getFieldVal(false, webResourceSet, "archivePath");
+            final var archive = archivePath == null ? base
+                    : base + "!" + (archivePath.startsWith("/") ? archivePath : "/" + archivePath);
             classpathOrder.addClasspathEntryObject(
-                    base + (isJar ? "!" : "") + (internalPath.startsWith("/") ? internalPath : "/" + internalPath),
-                    classLoader, log);
+                    classpathElementPath.isEmpty() ? archive : archive + "!" + classpathElementPath, classLoader,
+                    log);
         } else {
-            classpathOrder.addClasspathEntryObject(base, classLoader, log);
+            classpathOrder.addClasspathEntryObject(new File(base, classpathElementPath).getPath(), classLoader,
+                    log);
         }
     }
 

@@ -1,45 +1,23 @@
 package org.apache.catalina.webresources;
 
 /**
- * Stand-in for Catalina's {@code JarResourceSet}, which serves resources from within a jarfile -- typically the
- * {@code META-INF/resources} directory of a resource jar in {@code WEB-INF/lib}. The jarfile is read from
- * {@code getBaseUrlString()}.
+ * Stand-in for Catalina's {@code JarResourceSet}, which serves files from a jarfile. Catalina serves each jarfile
+ * in an unpacked webapp's {@code WEB-INF/lib} twice: once mounted at {@code "/WEB-INF/classes"} for the
+ * classloader, and, for a resource jar, once more with the internal path {@code "/META-INF/resources"} mounted at
+ * {@code "/"}, for static content only.
  */
-public class JarResourceSet {
-    /** The URL of the jarfile that resources are served from. */
-    private final String baseUrlString;
-
-    /** The path within the jarfile that resources are served from. */
-    private final String internalPath;
-
+public class JarResourceSet extends AbstractSingleArchiveResourceSet {
     /**
      * Constructor.
      *
-     * @param baseUrlString
-     *            the URL of the jarfile that resources are served from.
+     * @param webAppMount
+     *            the path within the webapp's resources that the files are served at.
+     * @param base
+     *            the filesystem path of the jarfile that the files are served from.
      * @param internalPath
-     *            the path within the jarfile that resources are served from.
+     *            the path within the jarfile that the files are served from.
      */
-    public JarResourceSet(final String baseUrlString, final String internalPath) {
-        this.baseUrlString = baseUrlString;
-        this.internalPath = internalPath;
-    }
-
-    /**
-     * The URL of the jarfile that resources are served from.
-     *
-     * @return the jarfile URL.
-     */
-    public String getBaseUrlString() {
-        return baseUrlString;
-    }
-
-    /**
-     * The path within the jarfile that resources are served from.
-     *
-     * @return the internal path.
-     */
-    public String getInternalPath() {
-        return internalPath;
+    public JarResourceSet(final String webAppMount, final String base, final String internalPath) {
+        super(webAppMount, base, internalPath);
     }
 }
