@@ -57,7 +57,7 @@ import io.github.classgraph.vfs.VfsVisitor;
 import org.jspecify.annotations.Nullable;
 
 /** A zip/jarfile classpath element. */
-class ClasspathElementZip extends ClasspathElement {
+final class ClasspathElementZip extends ClasspathElement {
     /**
      * The {@link String} representation of the path string, {@link URL}, {@link URI}, or {@link Path} for this
      * zipfile.
@@ -88,14 +88,18 @@ class ClasspathElementZip extends ClasspathElement {
      *
      * @param workUnit
      *            the work unit
+     * @param rawPathObj
+     *            the normalized classpath entry of the work unit (a {@link String} path, {@link Path}, {@link URL}
+     *            or {@link URI})
      * @param vfs
      *            the virtual filesystem to enumerate and read the jarfile through
      * @param scanSpec
      *            the scan spec
      */
-    ClasspathElementZip(final ClasspathEntryWorkUnit workUnit, final Vfs vfs, final ScanSpec scanSpec) {
-        super(workUnit, vfs, scanSpec);
-        final var rawPathObj = Objects.requireNonNull(workUnit.classpathEntryObj);
+    ClasspathElementZip(final ClasspathEntryWorkUnit workUnit, final Object rawPathObj, final Vfs vfs,
+            final ScanSpec scanSpec) {
+        super(workUnit.classLoaderStr(), workUnit.packageRootPrefix(), workUnit.packageRootPrefixes(),
+                workUnit.libDirPrefixes(), vfs, scanSpec);
 
         // Convert the raw path object (Path, URL, or URI) to a string. Any required URL/URI parsing is done when
         // the Vfs opens the path.
@@ -114,48 +118,6 @@ class ClasspathElementZip extends ClasspathElement {
         this.rawPath = rawPath;
         this.zipFilePath = rawPath; // May change when open() is called
         this.vfs = vfs;
-    }
-
-    /**
-     * Schedules the child classpath elements found within this classpath element -- nested lib jars, and the
-     * entries of the manifest's {@code Class-Path} and {@code Bundle-ClassPath} attributes -- for scanning.
-     */
-    private final class ChildClasspathElementScheduler {
-        /** The work queue to add child classpath elements to. */
-        private final WorkQueue<ClasspathEntryWorkUnit> workQueue;
-        /**
-         * The child classpath elements that have already been scheduled, so that no child classpath element is
-         * scheduled twice, and so that this classpath element is not scheduled as a child of itself.
-         */
-        private final Set<String> alreadyScheduled = new HashSet<>();
-        /** The order of the next child classpath element within this classpath element. */
-        private int childClasspathEntryIdx;
-
-        /**
-         * Constructor.
-         *
-         * @param workQueue
-         *            the work queue to add child classpath elements to
-         */
-        ChildClasspathElementScheduler(final WorkQueue<ClasspathEntryWorkUnit> workQueue) {
-            this.workQueue = workQueue;
-            alreadyScheduled.add(rawPath);
-        }
-
-        /**
-         * Schedule a child classpath element for scanning, unless it has already been scheduled.
-         *
-         * @param childClasspathEltPath
-         *            the path of the child classpath element
-         */
-        void schedule(final String childClasspathEltPath) {
-            if (alreadyScheduled.add(childClasspathEltPath)) {
-                workQueue.addWorkUnit(new ClasspathEntryWorkUnit(childClasspathEltPath, getClassLoaderString(),
-                        /* parentClasspathElement = */ ClasspathElementZip.this,
-                        /* orderWithinParentClasspathElement = */ childClasspathEntryIdx++,
-                        /* packageRootPrefix = */ "", packageRootPrefixes, libDirPrefixes));
-            }
-        }
     }
 
     @Override
@@ -178,7 +140,7 @@ class ClasspathElementZip extends ClasspathElement {
 
         // Schedule the child classpath elements in the order the classloader would look in them, since the classpath
         // order determines which of two copies of the same class masks the other
-        final var childScheduler = new ChildClasspathElementScheduler(workQueue);
+        final var childScheduler = new ChildClasspathElementScheduler(workQueue, rawPath);
 
         // A package root within the jarfile is a classpath element in its own right, exactly as it is when the
         // jarfile has been exploded into a directory, so schedule it as one. It comes first, because a classloader
@@ -203,9 +165,10 @@ class ClasspathElementZip extends ClasspathElement {
                     }
                     // Name the package root the way a nested classpath entry is named, so that the virtual
                     // filesystem opens the jarfile at the package root and reports the entries beneath it relative
-                    // to it
+                    // to it (the package root prefix of the child is found from that name when it is opened)
                     childScheduler.schedule(
-                            zipFilePath + "!/" + packageRootPrefix.substring(0, packageRootPrefix.length() - 1));
+                            zipFilePath + "!/" + packageRootPrefix.substring(0, packageRootPrefix.length() - 1),
+                            /* childPackageRootPrefix = */ "");
                 }
             }
         }
@@ -235,7 +198,7 @@ class ClasspathElementZip extends ClasspathElement {
                 }
                 continue;
             }
-            childScheduler.schedule(childEntry.location());
+            childScheduler.schedule(childEntry.location(), /* childPackageRootPrefix = */ "");
         }
     }
 

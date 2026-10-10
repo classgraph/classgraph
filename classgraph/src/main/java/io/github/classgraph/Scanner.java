@@ -70,7 +70,6 @@ import io.github.classgraph.base.internal.path.FastPathResolver;
 import io.github.classgraph.base.internal.path.FileUtils;
 import io.github.classgraph.base.internal.path.PathSyntax;
 import io.github.classgraph.base.internal.utils.CollectionUtils;
-import io.github.classgraph.classpath.ClassLoaderHandler;
 import io.github.classgraph.classpath.internal.CallStackInfo;
 import io.github.classgraph.classpath.internal.ClassLoaderProbe;
 import io.github.classgraph.classpath.internal.ScanSourceSpec;
@@ -259,10 +258,7 @@ class Scanner implements Callable<ScanResult> {
             if (isAccepted) {
                 // Create a new ClasspathElementModule
                 final var classpathElementModule = new ClasspathElementModule(moduleReference, vfs,
-                        new ClasspathEntryWorkUnit(null, defaultClassLoaderStr, null, moduleOrder.size(), "",
-                                ClassLoaderHandler.NO_PACKAGE_ROOT_PREFIXES,
-                                ClassLoaderHandler.NO_LIB_DIR_PREFIXES),
-                        /* isLookupOnly = */ false, scanSpec);
+                        defaultClassLoaderStr, /* isLookupOnly = */ false, scanSpec);
                 moduleOrder.add(classpathElementModule);
                 // Open the ClasspathElementModule
                 classpathElementModule.open(/* ignored */ null, classLoaderProbeLog);
@@ -390,71 +386,40 @@ class Scanner implements Callable<ScanResult> {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /** Used to enqueue classpath elements for opening. */
-    static class ClasspathEntryWorkUnit {
+    /**
+     * Used to enqueue classpath entries for opening as a {@link ClasspathElementDir} or
+     * {@link ClasspathElementZip}.
+     *
+     * @param classpathEntryObj
+     *            the raw classpath entry object (a {@link String} path, {@link Path}, {@link URL} or {@link URI}),
+     *            as it was found, before it is normalized
+     * @param classLoaderStr
+     *            the string form of the classloader the classpath entry object was obtained from, or null if
+     *            unknown. Only the string is kept, not the classloader itself, so that scanning does not keep a
+     *            classloader alive.
+     * @param parentClasspathElement
+     *            the parent classpath element, or null if this is a toplevel entry
+     * @param classpathElementIdxWithinParent
+     *            the order within the parent classpath element, or within the classpath for a toplevel entry
+     * @param packageRootPrefix
+     *            the package root prefix (e.g. {@code "BOOT-INF/classes/"}), or {@code ""} if the entry is not a
+     *            package root
+     * @param packageRootPrefixes
+     *            the automatic package root prefixes to look for within this classpath element, as declared by the
+     *            {@code ClassLoaderHandler} that found it
+     * @param libDirPrefixes
+     *            the lib dirs (e.g. {@code "BOOT-INF/lib/"}) whose jarfiles are to be added to the classpath if
+     *            they are present within this classpath element, as declared by the {@code ClassLoaderHandler} that
+     *            found it
+     */
+    record ClasspathEntryWorkUnit(Object classpathEntryObj, @Nullable String classLoaderStr,
+            @Nullable ClasspathElement parentClasspathElement, int classpathElementIdxWithinParent,
+            String packageRootPrefix, List<String> packageRootPrefixes, List<String> libDirPrefixes) {
         /**
-         * The classpath entry object (a {@link String} path, {@link Path}, {@link URL} or {@link URI}), or null for
-         * module classpath entries.
+         * Check that the classpath entry object is not null.
          */
-        @Nullable
-        Object classpathEntryObj;
-
-        /**
-         * The string form of the classloader the classpath entry object was obtained from, or null if unknown. Only
-         * the string is kept, not the classloader itself, so that scanning does not keep a classloader alive.
-         */
-        final @Nullable String classLoaderStr;
-
-        /** The parent classpath element, or null if this is a toplevel entry. */
-        final @Nullable ClasspathElement parentClasspathElement;
-
-        /** The order within the parent classpath element. */
-        final int classpathElementIdxWithinParent;
-
-        /** The package root prefix (e.g. "BOOT-INF/classes/"). */
-        final String packageRootPrefix;
-
-        /**
-         * The automatic package root prefixes to look for within this classpath element, as declared by the
-         * {@code ClassLoaderHandler} that found it.
-         */
-        final List<String> packageRootPrefixes;
-
-        /**
-         * The lib dirs (e.g. {@code "BOOT-INF/lib/"}) whose jarfiles are to be added to the classpath if they are
-         * present within this classpath element, as declared by the {@code ClassLoaderHandler} that found it.
-         */
-        final List<String> libDirPrefixes;
-
-        /**
-         * Constructor.
-         *
-         * @param classpathEntryObj
-         *            the raw classpath entry object
-         * @param classLoaderStr
-         *            the string form of the classloader the classpath entry object was obtained from
-         * @param parentClasspathElement
-         *            the parent classpath element
-         * @param classpathElementIdxWithinParent
-         *            the order within parent classpath element
-         * @param packageRootPrefix
-         *            the package root prefix
-         * @param packageRootPrefixes
-         *            the automatic package root prefixes to look for within this classpath element
-         * @param libDirPrefixes
-         *            the lib dirs whose jarfiles are to be added to the classpath, within this classpath element
-         */
-        public ClasspathEntryWorkUnit(final @Nullable Object classpathEntryObj,
-                final @Nullable String classLoaderStr, final @Nullable ClasspathElement parentClasspathElement,
-                final int classpathElementIdxWithinParent, final String packageRootPrefix,
-                final List<String> packageRootPrefixes, final List<String> libDirPrefixes) {
-            this.classpathEntryObj = classpathEntryObj;
-            this.classLoaderStr = classLoaderStr;
-            this.parentClasspathElement = parentClasspathElement;
-            this.classpathElementIdxWithinParent = classpathElementIdxWithinParent;
-            this.packageRootPrefix = packageRootPrefix;
-            this.packageRootPrefixes = packageRootPrefixes;
-            this.libDirPrefixes = libDirPrefixes;
+        ClasspathEntryWorkUnit {
+            Objects.requireNonNull(classpathEntryObj, "classpathEntryObj");
         }
     }
 
@@ -470,13 +435,9 @@ class Scanner implements Callable<ScanResult> {
      *            The classpath entry object.
      * @return The normalized classpath entry object.
      * @throws IOException
-     *             if the classpath entry object is null, or could not be normalized.
+     *             if the classpath entry object could not be normalized.
      */
-    private static Object normalizeClasspathEntry(final @Nullable Object classpathEntryObj) throws IOException {
-        if (classpathEntryObj == null) {
-            // Should not happen
-            throw new IOException("Got null classpath entry object");
-        }
+    private static Object normalizeClasspathEntry(final Object classpathEntryObj) throws IOException {
         var classpathEntryObjNormalized = classpathEntryObj;
 
         // Convert URL/URI (or anything other than URL/URI, or Path) into a String. Paths.get fails with
@@ -675,9 +636,8 @@ class Scanner implements Callable<ScanResult> {
             final Set<ClasspathElement> toplevelClasspathEltsOut) {
         return (workUnit, workQueue, log) -> {
             try {
-                // Normalize the classpath entry object, and update it in the work unit
-                final var classpathEntryObj = normalizeClasspathEntry(workUnit.classpathEntryObj);
-                workUnit.classpathEntryObj = classpathEntryObj;
+                // Normalize the classpath entry object
+                final var classpathEntryObj = normalizeClasspathEntry(workUnit.classpathEntryObj());
 
                 // Determine if classpath entry is a jar or dir
                 final var isJar = classpathEntryIsJar(classpathEntryObj);
@@ -687,8 +647,8 @@ class Scanner implements Callable<ScanResult> {
                 final var classpathElement = classpathEntryObjToClasspathEntrySingletonMap.get(classpathEntryObj,
                         () -> {
                             final ClasspathElement classpathElt = isJar
-                                    ? new ClasspathElementZip(workUnit, vfs, scanSpec)
-                                    : new ClasspathElementDir(workUnit, vfs, scanSpec);
+                                    ? new ClasspathElementZip(workUnit, classpathEntryObj, vfs, scanSpec)
+                                    : new ClasspathElementDir(workUnit, (Path) classpathEntryObj, vfs, scanSpec);
 
                             // Run open() on the ClasspathElement
                             final LogNode subLog = log == null ? null
@@ -705,11 +665,11 @@ class Scanner implements Callable<ScanResult> {
                         });
 
                 // Register this work unit's reference to the classpath element. This has to be done for every work
-                // unit that references the classpath element, rather than only within newInstance() above, because
-                // the same classpath element can be referenced both from the toplevel classpath and from the
-                // Class-Path manifest entry of another classpath element, and which of those work units wins the
-                // race to create the singleton is nondeterministic (#810).
-                final var parentClasspathElement = workUnit.parentClasspathElement;
+                // unit that references the classpath element, rather than only when the classpath element is created
+                // above, because the same classpath element can be referenced both from the toplevel classpath and
+                // from the Class-Path manifest entry of another classpath element, and which of those work units wins
+                // the race to create the singleton is nondeterministic (#810).
+                final var parentClasspathElement = workUnit.parentClasspathElement();
                 if (parentClasspathElement == null) {
                     toplevelClasspathEltsOut.add(classpathElement);
                 } else {
@@ -717,17 +677,17 @@ class Scanner implements Callable<ScanResult> {
                     // on the edge from the parent, since the same classpath element can be named by the Class-Path
                     // manifest entries of two different jarfiles, at a different position within each of them (#810)
                     parentClasspathElement.childClasspathElements.add(new ClasspathElement.ChildClasspathElement(
-                            workUnit.classpathElementIdxWithinParent, classpathElement));
+                            workUnit.classpathElementIdxWithinParent(), classpathElement));
                 }
                 classpathElement.addReference(parentClasspathElement == null,
-                        workUnit.classpathElementIdxWithinParent, workUnit.classLoaderStr);
+                        workUnit.classpathElementIdxWithinParent(), workUnit.classLoaderStr());
 
             } catch (final InterruptedException e) {
                 // Don't swallow interruption in the catch-all handler below
                 throw e;
             } catch (final Exception e) {
                 if (log != null) {
-                    log.log("Skipping invalid classpath entry " + workUnit.classpathEntryObj + " : "
+                    log.log("Skipping invalid classpath entry " + workUnit.classpathEntryObj() + " : "
                             + (e.getCause() == null ? e : e.getCause()));
                 }
             }
@@ -961,20 +921,21 @@ class Scanner implements Callable<ScanResult> {
                     }
                 }
             }
-            if (classpathElt instanceof ClasspathElementDir) {
-                // Separate out ClasspathElementFileDir and ClasspathElementPathDir elements from other types
+            switch (classpathElt) {
+            case ClasspathElementDir _ -> {
                 final var file = classpathElt.getFile();
                 // File#getPath() uses the platform separator, so on Windows the path is separated by '\', but
                 // nested classpath root prefixes are matched against '/'-separated relative paths
                 final var path = file == null ? classpathElt.toString()
                         : file.getPath().replace(File.separatorChar, '/');
                 classpathEltDirs.add(new SimpleEntry<>(path, classpathElt));
-
-            } else if (classpathElt instanceof final ClasspathElementZip classpathEltZip) {
-                // Separate out ClasspathElementZip elements from other types
-                classpathEltZips.add(new SimpleEntry<>(classpathEltZip.getZipFilePath(), classpathElt));
             }
-            // (Ignore ClasspathElementModule, no preprocessing to perform)
+            case final ClasspathElementZip classpathEltZip ->
+                classpathEltZips.add(new SimpleEntry<>(classpathEltZip.getZipFilePath(), classpathElt));
+            case ClasspathElementModule _ -> {
+                // No preprocessing to perform
+            }
+            }
         }
         // Find nested classpath elements (writes to ClasspathElement#nestedClasspathRootPrefixes)
         findNestedClasspathElements(classpathEltDirs, classLoaderProbeLog);

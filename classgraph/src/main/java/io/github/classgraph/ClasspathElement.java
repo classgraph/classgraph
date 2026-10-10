@@ -34,6 +34,7 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -54,7 +55,8 @@ import io.github.classgraph.vfs.VfsSpec;
 import org.jspecify.annotations.Nullable;
 
 /** A classpath element (a directory or jarfile on the classpath). */
-abstract class ClasspathElement implements Comparable<ClasspathElement> {
+abstract sealed class ClasspathElement implements Comparable<ClasspathElement>
+        permits ClasspathElementDir, ClasspathElementZip, ClasspathElementModule {
     /** The index of the classpath element within the classpath or module path. */
     int classpathElementIdx;
 
@@ -205,20 +207,79 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
     /**
      * A classpath element.
      *
-     * @param workUnit
-     *            the work unit
+     * @param classLoaderStr
+     *            the string form of the classloader the classpath element was obtained from, or null if unknown
+     * @param packageRootPrefix
+     *            the package root prefix (e.g. {@code "BOOT-INF/classes/"}), or {@code ""} if the classpath element
+     *            is not a package root
+     * @param packageRootPrefixes
+     *            the automatic package root prefixes to look for within this classpath element
+     * @param libDirPrefixes
+     *            the lib dirs whose jarfiles are to be added to the classpath, within this classpath element
      * @param vfs
      *            the virtual filesystem the classpath element is read through
      * @param scanSpec
      *            the scan spec
      */
-    ClasspathElement(final ClasspathEntryWorkUnit workUnit, final Vfs vfs, final ScanSpec scanSpec) {
-        this.packageRootPrefix = workUnit.packageRootPrefix;
-        this.packageRootPrefixes = workUnit.packageRootPrefixes;
-        this.libDirPrefixes = workUnit.libDirPrefixes;
-        this.classLoaderStr = workUnit.classLoaderStr;
+    ClasspathElement(final @Nullable String classLoaderStr, final String packageRootPrefix,
+            final List<String> packageRootPrefixes, final List<String> libDirPrefixes, final Vfs vfs,
+            final ScanSpec scanSpec) {
+        this.classLoaderStr = classLoaderStr;
+        this.packageRootPrefix = packageRootPrefix;
+        this.packageRootPrefixes = packageRootPrefixes;
+        this.libDirPrefixes = libDirPrefixes;
         this.scanSpec = scanSpec;
         this.vfsSpec = vfs.getVfsSpec();
+    }
+
+    /**
+     * Schedules the child classpath elements found within this classpath element -- package roots, nested lib jars,
+     * and the entries of the manifest's {@code Class-Path} and {@code Bundle-ClassPath} attributes -- for opening,
+     * in the order they are scheduled in. Created by {@link #open(WorkQueue, LogNode)}, and used only by the thread
+     * that runs it.
+     */
+    final class ChildClasspathElementScheduler {
+        /** The work queue to add child classpath elements to. */
+        private final WorkQueue<ClasspathEntryWorkUnit> workQueue;
+        /**
+         * The child classpath entries that have already been scheduled, so that no child classpath element is
+         * scheduled twice, and so that this classpath element is not scheduled as a child of itself.
+         */
+        private final Set<Object> alreadyScheduled = new HashSet<>();
+        /** The order of the next child classpath element within this classpath element. */
+        private int childClasspathEntryIdx;
+
+        /**
+         * Constructor.
+         *
+         * @param workQueue
+         *            the work queue to add child classpath elements to
+         * @param ownClasspathEntry
+         *            the classpath entry of this classpath element, which is never scheduled as its own child
+         */
+        ChildClasspathElementScheduler(final WorkQueue<ClasspathEntryWorkUnit> workQueue,
+                final Object ownClasspathEntry) {
+            this.workQueue = workQueue;
+            alreadyScheduled.add(ownClasspathEntry);
+        }
+
+        /**
+         * Schedule a child classpath element for opening, unless it has already been scheduled.
+         *
+         * @param childClasspathEntry
+         *            the classpath entry of the child classpath element (a {@link String} path or a
+         *            {@link java.nio.file.Path})
+         * @param childPackageRootPrefix
+         *            the package root prefix of the child classpath element, or {@code ""} if it is not a package
+         *            root
+         */
+        void schedule(final Object childClasspathEntry, final String childPackageRootPrefix) {
+            if (alreadyScheduled.add(childClasspathEntry)) {
+                workQueue.addWorkUnit(new ClasspathEntryWorkUnit(childClasspathEntry, getClassLoaderString(),
+                        /* parentClasspathElement = */ ClasspathElement.this, childClasspathEntryIdx++,
+                        childPackageRootPrefix, packageRootPrefixes, libDirPrefixes));
+            }
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------

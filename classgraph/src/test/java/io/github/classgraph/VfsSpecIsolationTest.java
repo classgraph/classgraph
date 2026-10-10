@@ -100,18 +100,19 @@ public class VfsSpecIsolationTest {
      */
     @Test
     public void aClasspathElementFiltersWithTheSettingsOfItsVfs() {
-        final var workUnit = new ClasspathEntryWorkUnit(Path.of("."), /* classLoader = */ null,
+        final var dir = Path.of(".");
+        final var workUnit = new ClasspathEntryWorkUnit(dir, /* classLoader = */ null,
                 /* parentClasspathElement = */ null, /* classpathElementIdx = */ 0, /* packageRootPrefix = */ "",
                 ClassLoaderHandler.NO_PACKAGE_ROOT_PREFIXES, ClassLoaderHandler.NO_LIB_DIR_PREFIXES);
         final var versionedPath = "META-INF/versions/9/com/xyz/Widget.class";
         // The ScanSpec is left at its defaults, which honor multi-release versioning, unlike the Vfs
         try (var vfs = new Vfs(new VfsSpec().disableMultiReleaseVersions())) {
-            assertThat(new ClasspathElementDir(workUnit, vfs, new ScanSpec()).isIgnoredVersionedPath(versionedPath))
-                    .isFalse();
+            assertThat(new ClasspathElementDir(workUnit, dir, vfs, new ScanSpec())
+                    .isIgnoredVersionedPath(versionedPath)).isFalse();
         }
         try (var vfs = new Vfs()) {
-            assertThat(new ClasspathElementDir(workUnit, vfs, new ScanSpec()).isIgnoredVersionedPath(versionedPath))
-                    .isTrue();
+            assertThat(new ClasspathElementDir(workUnit, dir, vfs, new ScanSpec())
+                    .isIgnoredVersionedPath(versionedPath)).isTrue();
         }
     }
 }

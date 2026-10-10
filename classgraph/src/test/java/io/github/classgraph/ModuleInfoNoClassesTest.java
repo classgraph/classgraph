@@ -28,10 +28,11 @@ public class ModuleInfoNoClassesTest {
      */
     @Test
     public void moduleWithNoAcceptedClasses() {
-        final var workUnit = new ClasspathEntryWorkUnit(Path.of("."), /* classLoader = */ null,
+        final var dir = Path.of(".");
+        final var workUnit = new ClasspathEntryWorkUnit(dir, /* classLoader = */ null,
                 /* parentClasspathElement = */ null, /* classpathElementIdx = */ 0, /* packageRootPrefix = */ "",
                 ClassLoaderHandler.NO_PACKAGE_ROOT_PREFIXES, ClassLoaderHandler.NO_LIB_DIR_PREFIXES);
-        final var classpathElement = new ClasspathElementDir(workUnit, vfs, new ScanSpec());
+        final var classpathElement = new ClasspathElementDir(workUnit, dir, vfs, new ScanSpec());
         final var moduleInfo = new ModuleInfo(/* moduleRef = */ null, classpathElement, "com.xyz.mymodule");
         assertThat(moduleInfo.getClassInfo()).isEmpty();
         assertThat(moduleInfo.getClassInfo("com.xyz.Foo")).isNull();
