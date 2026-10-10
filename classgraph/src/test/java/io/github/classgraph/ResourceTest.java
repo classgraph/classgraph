@@ -5,15 +5,29 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.UncheckedIOException;
+import java.lang.module.ModuleDescriptor;
+import java.lang.module.ModuleFinder;
+import java.lang.module.ModuleReader;
+import java.lang.module.ModuleReference;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Stream;
 import java.util.zip.CRC32;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -765,6 +779,129 @@ public class ResourceTest {
             assertThat(resource).isNotEqualTo(otherResource).isNotEqualTo(resource.toString());
             assertThat(resource.compareTo(otherResource))
                     .isEqualTo(resource.toString().compareTo(otherResource.toString()));
+        }
+    }
+
+    /** The package of the resources in {@link #moduleLayerWithNoURIs(String)}. */
+    private static final String IN_MEMORY_PACKAGE = "memmod.pkg";
+
+    /** The path of the classfile in {@link #moduleLayerWithNoURIs(String)}. */
+    private static final String IN_MEMORY_CLASSFILE = "memmod/pkg/Foo.class";
+
+    /** The paths of the text resources in {@link #moduleLayerWithNoURIs(String)}. */
+    private static final List<String> IN_MEMORY_TEXT_FILES = List.of("memmod/pkg/a.txt", "memmod/pkg/b.txt");
+
+    /**
+     * A module layer holding one module whose {@link ModuleReader} lists and opens its resources, but whose
+     * {@link ModuleReader#find(String)} returns empty, which its contract allows when "a URI cannot be constructed
+     * to locate the resource". The module has no location either, as an in-memory module would not.
+     *
+     * @param moduleName
+     *            the name of the module.
+     * @return the module layer.
+     */
+    private static ModuleLayer moduleLayerWithNoURIs(final String moduleName) {
+        final Map<String, byte[]> contents = new HashMap<>();
+        // The bytes of a real classfile, so that the scanner reads it as one; the class name does not have to
+        // match the path for the classfile to be masked by a classfile at the same path in another module
+        try (var in = ResourceTest.class.getResourceAsStream("ResourceTest.class")) {
+            contents.put(IN_MEMORY_CLASSFILE, in.readAllBytes());
+        } catch (final IOException e) {
+            throw new UncheckedIOException(e);
+        }
+        for (final var textFile : IN_MEMORY_TEXT_FILES) {
+            contents.put(textFile, textFile.getBytes(StandardCharsets.UTF_8));
+        }
+        final var reader = new ModuleReader() {
+            @Override
+            public Optional<URI> find(final String name) {
+                return Optional.empty();
+            }
+
+            @Override
+            public Optional<InputStream> open(final String name) {
+                return Optional.ofNullable(contents.get(name)).map(ByteArrayInputStream::new);
+            }
+
+            @Override
+            public Stream<String> list() {
+                return contents.keySet().stream();
+            }
+
+            @Override
+            public void close() {
+                // Nothing to close
+            }
+        };
+        final var descriptor = ModuleDescriptor.newModule(moduleName).packages(Set.of(IN_MEMORY_PACKAGE)).build();
+        final var moduleReference = new ModuleReference(descriptor, /* location = */ null) {
+            @Override
+            public ModuleReader open() {
+                return reader;
+            }
+        };
+        final var finder = new ModuleFinder() {
+            @Override
+            public Optional<ModuleReference> find(final String name) {
+                return name.equals(moduleName) ? Optional.of(moduleReference) : Optional.empty();
+            }
+
+            @Override
+            public Set<ModuleReference> findAll() {
+                return Set.of(moduleReference);
+            }
+        };
+        final var bootLayer = ModuleLayer.boot();
+        final var configuration = bootLayer.configuration().resolve(finder, ModuleFinder.of(), Set.of(moduleName));
+        return bootLayer.defineModulesWithOneLoader(configuration, ClassLoader.getSystemClassLoader());
+    }
+
+    /**
+     * A resource of a module that cannot name a URI for it still has a string form, a hash code and an ordering, so
+     * it can be printed, put in a set and sorted, rather than each of those throwing the
+     * {@link IllegalStateException} that {@link Resource#getURI()} throws.
+     */
+    @Test
+    public void aResourceWithNoURIStillHasAStringFormAndAnIdentity() {
+        try (var scanResult = new ClassGraph().enableNonSystemModules()
+                .enableModuleLayers(moduleLayerWithNoURIs("inmemory.mod")).ignoreParentModuleLayers()
+                .acceptPaths("memmod").scan()) {
+            final var resource = resource(scanResult, IN_MEMORY_TEXT_FILES.get(0));
+            final var otherResource = resource(scanResult, IN_MEMORY_TEXT_FILES.get(1));
+            assertThatThrownBy(resource::getURI).isInstanceOf(IllegalStateException.class);
+
+            // The module name and the path within the module, the notation the JDK uses for a module's resources
+            assertThat(resource.toString()).isEqualTo("inmemory.mod/memmod/pkg/a.txt");
+            assertThat(otherResource.toString()).isEqualTo("inmemory.mod/memmod/pkg/b.txt");
+            assertThat(resource).isEqualTo(resource).isNotEqualTo(otherResource)
+                    .hasSameHashCodeAs(resource(scanResult, IN_MEMORY_TEXT_FILES.get(0)));
+            assertThat(resource.compareTo(otherResource)).isNegative();
+            assertThat(new HashSet<>(List.of(resource, otherResource, resource))).hasSize(2);
+            final var sorted = new ArrayList<>(List.of(otherResource, resource));
+            Collections.sort(sorted);
+            assertThat(sorted).containsExactly(resource, otherResource);
+            assertThat(scanResult.getResourcesWithExtension("txt").toString()).contains(resource.toString(),
+                    otherResource.toString());
+        }
+    }
+
+    /**
+     * A verbose scan logs the location of a classfile that is masked by a classfile at the same path in an earlier
+     * module. When the location has no URI, the scan still completes, as it does when it is not verbose.
+     */
+    @Test
+    public void aVerboseScanCompletesWhenAMaskedClassfileHasNoURI() {
+        final var layer1 = moduleLayerWithNoURIs("inmemory.one");
+        final var layer2 = moduleLayerWithNoURIs("inmemory.two");
+        for (final boolean verbose : new boolean[] { true, false }) {
+            try (var scanResult = new ClassGraph().verbose(verbose).enableClassInfo().enableNonSystemModules()
+                    .enableModuleLayers(layer1, layer2).ignoreParentModuleLayers().acceptPaths("memmod").scan()) {
+                // Masking only stops the second classfile from being read as a class: both are still resources,
+                // and they are told apart by their module names
+                assertThat(scanResult.getResourcesWithPath(IN_MEMORY_CLASSFILE)).as("verbose = " + verbose)
+                        .extracting(Resource::toString).containsExactlyInAnyOrder(
+                                "inmemory.one/" + IN_MEMORY_CLASSFILE, "inmemory.two/" + IN_MEMORY_CLASSFILE);
+            }
         }
     }
 }
