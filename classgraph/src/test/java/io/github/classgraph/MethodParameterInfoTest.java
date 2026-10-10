@@ -3,6 +3,8 @@ package io.github.classgraph;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -345,6 +347,147 @@ public class MethodParameterInfoTest {
             assertThat(param.isSynthetic()).isFalse();
             assertThat(param.isMandated()).isFalse();
             assertThat(param).hasToString("java.lang.String _unnamed_param");
+        }
+    }
+
+    /**
+     * Write the code attribute of a method that takes {@code this} and one int, and only returns.
+     *
+     * @param out
+     *            the stream to write to.
+     * @param codeNameIndex
+     *            the constant pool index of the string "Code".
+     * @throws IOException
+     *             if the attribute could not be written.
+     */
+    private static void writeReturnOnlyCode(final DataOutputStream out, final int codeNameIndex)
+            throws IOException {
+        out.writeShort(codeNameIndex);
+        out.writeInt(13); // attribute_length
+        out.writeShort(0); // max_stack
+        out.writeShort(2); // max_locals: this and the int parameter
+        out.writeInt(1); // code_length
+        out.writeByte(0xB1); // return
+        out.writeShort(0); // exception_table_length
+        out.writeShort(0); // attributes_count
+    }
+
+    /**
+     * Generate the classfile of {@code public class com.xyz.paddedparams.PaddedParameters} with two methods. The
+     * first, {@code public void m(int x)}, has a {@code MethodParameters} attribute with an extra leading entry
+     * named "extra". The second, {@code public void n(@Param("y") int)}, has a parameter annotation attribute with
+     * an extra leading entry, and no parameter names.
+     *
+     * @return the bytes of the classfile.
+     * @throws IOException
+     *             if the classfile could not be written.
+     */
+    private static byte[] paddedParametersClassfile() throws IOException {
+        final var byteArrayOutputStream = new ByteArrayOutputStream();
+        try (var out = new DataOutputStream(byteArrayOutputStream)) {
+            out.writeInt(0xCAFEBABE);
+            out.writeShort(0); // Minor version
+            out.writeShort(52); // Major version (Java 8)
+
+            out.writeShort(16); // Constant pool count (one greater than the number of entries)
+            final String[] utf8Entries = { "com/xyz/paddedparams/PaddedParameters", null, "java/lang/Object", null,
+                    "m", "(I)V", "n", "Code", "MethodParameters", "extra", "x",
+                    "RuntimeVisibleParameterAnnotations", "L" + Param.class.getName().replace('.', '/') + ";",
+                    "value", "y" };
+            for (var i = 0; i < utf8Entries.length; i++) {
+                if (utf8Entries[i] == null) {
+                    // #2 and #4 are class refs to #1 and #3
+                    out.writeByte(7);
+                    out.writeShort(i);
+                } else {
+                    out.writeByte(1);
+                    out.writeUTF(utf8Entries[i]);
+                }
+            }
+
+            out.writeShort(0x0021); // ACC_PUBLIC | ACC_SUPER
+            out.writeShort(2); // this_class
+            out.writeShort(4); // super_class
+            out.writeShort(0); // Number of interfaces
+            out.writeShort(0); // Number of fields
+
+            out.writeShort(2); // Number of methods
+
+            // public void m(int x), with an extra leading MethodParameters entry named "extra"
+            out.writeShort(0x0001); // ACC_PUBLIC
+            out.writeShort(5); // name_index: "m"
+            out.writeShort(6); // descriptor_index: "(I)V"
+            out.writeShort(2); // attributes_count
+            writeReturnOnlyCode(out, 8);
+            out.writeShort(9); // "MethodParameters"
+            out.writeInt(9); // attribute_length
+            out.writeByte(2); // parameters_count
+            out.writeShort(10); // name_index: "extra"
+            out.writeShort(0); // access_flags
+            out.writeShort(11); // name_index: "x"
+            out.writeShort(0); // access_flags
+
+            // public void n(@Param("y") int), with an extra leading parameter annotation entry
+            out.writeShort(0x0001); // ACC_PUBLIC
+            out.writeShort(7); // name_index: "n"
+            out.writeShort(6); // descriptor_index: "(I)V"
+            out.writeShort(2); // attributes_count
+            writeReturnOnlyCode(out, 8);
+            out.writeShort(12); // "RuntimeVisibleParameterAnnotations"
+            out.writeInt(14); // attribute_length
+            out.writeByte(2); // num_parameters
+            out.writeShort(0); // num_annotations of the extra entry
+            out.writeShort(1); // num_annotations
+            out.writeShort(13); // type_index: Param
+            out.writeShort(1); // num_element_value_pairs
+            out.writeShort(14); // element_name_index: "value"
+            out.writeByte('s'); // tag: String
+            out.writeShort(15); // const_value_index: "y"
+
+            out.writeShort(0); // Number of attributes
+        }
+        return byteArrayOutputStream.toByteArray();
+    }
+
+    /**
+     * A {@code MethodParameters} or parameter annotation attribute with more entries than the method descriptor has
+     * parameter types gives the leading parameter no type. javac never writes such a classfile, but a bytecode tool
+     * can, and the JVM loads it. Both renderers must then show the parameter without its type, rather than throw or
+     * print an empty parameter.
+     *
+     * @param tempDir
+     *            the temporary directory to write the classfile to.
+     * @throws IOException
+     *             if the classfile could not be written.
+     */
+    @Test
+    public void aParameterWithNoTypeIsRenderedWithoutItsType(@TempDir final Path tempDir) throws IOException {
+        final var className = "com.xyz.paddedparams.PaddedParameters";
+        final var classfile = paddedParametersClassfile();
+        final var classfilePath = tempDir.resolve("com/xyz/paddedparams/PaddedParameters.class");
+        Files.createDirectories(classfilePath.getParent());
+        Files.write(classfilePath, classfile);
+
+        try (var scanResult = new ClassGraph().enableClassInfo().enableMethodInfo().enableAnnotationInfo()
+                .enableClasspathEntries(tempDir.toString()).acceptClasses(className).scan()) {
+            final var classInfo = scanResult.getClassInfo(className);
+            assertThat(classInfo).isNotNull();
+
+            final var m = classInfo.getMethodInfo("m").get(0);
+            final var mParams = m.getParameterInfo();
+            assertThat(mParams).hasSize(2);
+            assertThat(mParams.get(0).getTypeSignatureOrTypeDescriptor()).isNull();
+            assertThat(mParams.get(0)).hasToString("extra");
+            assertThat(mParams.get(1)).hasToString("int x");
+            assertThat(m).hasToString("public void m(extra, int x)");
+
+            final var n = classInfo.getMethodInfo("n").get(0);
+            final var nParams = n.getParameterInfo();
+            assertThat(nParams).hasSize(2);
+            assertThat(nParams.get(0).getTypeSignatureOrTypeDescriptor()).isNull();
+            assertThat(nParams.get(0)).hasToString("_unnamed_param");
+            assertThat(nParams.get(1)).hasToString("@" + Param.class.getName() + "(\"y\") int _unnamed_param");
+            assertThat(n).hasToString("public void n(_unnamed_param, @" + Param.class.getName() + "(\"y\") int)");
         }
     }
 }

@@ -1017,8 +1017,8 @@ public final class MethodInfo extends ClassMemberInfo implements Comparable<Meth
      *            the buffer to append to
      */
     private void toStringParameterList(final boolean useSimpleNames, final StringBuilder buf) {
-        // If at least one param is named, then use placeholder names for unnamed params, otherwise don't show names
-        // for any params
+        // Show parameter names only if at least one param is named. An unnamed param is then shown without a name,
+        // unless it also has no type, in which case it is shown as "_unnamed_param".
         final var allParamInfo = getParameterInfo();
         var hasParamNames = false;
         for (final MethodParameterInfo methodParamInfo : allParamInfo) {
@@ -1047,8 +1047,9 @@ public final class MethodInfo extends ClassMemberInfo implements Comparable<Meth
             MethodParameterInfo.modifiersToString(paramInfo.getModifiers(), buf);
 
             final var paramTypeSignature = paramInfo.getTypeSignatureOrTypeDescriptor();
-            // Param type signature may be null in the case of a `synthetic`, `bridge`, or `mandated` parameter
-            // implicitly added to a non-generic method
+            // The param type is null if neither the type signature nor the descriptor gives this param a type: when a
+            // MethodParameters or parameter annotation attribute has more entries than the descriptor has parameter
+            // types (only a bytecode tool writes such a classfile), or when the descriptor does not parse
             if (paramTypeSignature != null) {
                 // Exclude parameter annotations from type annotations at toplevel of type signature, so that
                 // annotation is not listed twice
@@ -1066,14 +1067,13 @@ public final class MethodInfo extends ClassMemberInfo implements Comparable<Meth
                 }
             }
 
-            if (hasParamNames) {
-                final var paramName = paramInfo.getName();
-                if (paramName != null) {
-                    if (buf.charAt(buf.length() - 1) != ' ') {
-                        buf.append(' ');
-                    }
-                    buf.append(paramName);
+            final var paramName = hasParamNames ? paramInfo.getName() : null;
+            if (paramName != null || paramTypeSignature == null) {
+                final var lastChar = buf.charAt(buf.length() - 1);
+                if (lastChar != ' ' && lastChar != '(') {
+                    buf.append(' ');
                 }
+                buf.append(paramName != null ? paramName : "_unnamed_param");
             }
         }
         buf.append(')');
