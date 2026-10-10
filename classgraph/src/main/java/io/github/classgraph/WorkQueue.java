@@ -40,6 +40,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
@@ -106,10 +107,18 @@ final class WorkQueue<T> implements AutoCloseable {
     private final InterruptionChecker interruptionChecker;
 
     /**
-     * The maximum number of nanoseconds that {@link #close()} waits for a worker to finish, or
-     * {@link Long#MAX_VALUE} to wait indefinitely.
+     * The maximum number of nanoseconds that the calling thread waits for a work unit to finish while it has no
+     * work of its own to do, and that {@link #close()} waits for a worker to finish, or {@link Long#MAX_VALUE} to
+     * wait indefinitely.
      */
     private final long workerTimeoutNanos;
+
+    /**
+     * The {@link System#nanoTime()} at which the last work unit finished, or at which this work queue was created
+     * if no work unit has finished yet. The calling thread stops waiting for more work once the worker timeout has
+     * passed since then, so a work queue that is still finishing work units is never stopped.
+     */
+    private final AtomicLong lastProgressNanos = new AtomicLong(System.nanoTime());
 
     /** The log node. */
     private final @Nullable LogNode log;
@@ -164,7 +173,7 @@ final class WorkQueue<T> implements AutoCloseable {
 
     /**
      * Start a work queue on the elements in the provided collection, blocking until all work units have been
-     * completed.
+     * completed, or the work queue has failed or timed out.
      *
      * @param <U>
      *            The type of the work queue units.
@@ -178,7 +187,8 @@ final class WorkQueue<T> implements AutoCloseable {
      *            The number of parallel tasks.
      * @param workerTimeoutNanos
      *            The maximum number of nanoseconds to wait for a worker to finish, or {@link Long#MAX_VALUE} to
-     *            wait indefinitely.
+     *            wait indefinitely. Once the calling thread has no work of its own left to do, the timeout counts
+     *            from when a work unit last finished.
      * @param log
      *            The log.
      * @param workUnitProcessor
@@ -186,7 +196,10 @@ final class WorkQueue<T> implements AutoCloseable {
      * @throws InterruptedException
      *             If the work was interrupted.
      * @throws ExecutionException
-     *             If a worker throws an uncaught exception, or does not finish before the timeout.
+     *             If the calling thread throws an uncaught exception while processing a work unit, or if no work
+     *             unit finishes within the timeout while the calling thread is waiting for more work. A failure or
+     *             timeout of a worker thread is not thrown here, but recorded in the {@link InterruptionChecker},
+     *             to be thrown by its next {@link InterruptionChecker#check()}.
      */
     public static <U> void runWorkQueue(final Collection<U> elements, final ExecutorService executorService,
             final InterruptionChecker interruptionChecker, final int numParallelTasks,
@@ -208,7 +221,7 @@ final class WorkQueue<T> implements AutoCloseable {
             // Use the current thread to do work too, in case there is only one thread available in the
             // ExecutorService, or in case numParallelTasks is greater than the number of available threads in the
             // ExecutorService.
-            workQueue.runWorkLoop();
+            workQueue.runWorkLoop(/* isCallingThread = */ true);
         }
     }
 
@@ -253,7 +266,7 @@ final class WorkQueue<T> implements AutoCloseable {
             final var claimed = new AtomicBoolean();
             workerTasks.add(new Worker(claimed, executorService.submit(() -> {
                 if (claimed.compareAndSet(false, true)) {
-                    runWorkLoop();
+                    runWorkLoop(/* isCallingThread = */ false);
                 }
                 return null;
             })));
@@ -273,22 +286,28 @@ final class WorkQueue<T> implements AutoCloseable {
      * Take work units from the queue and process them until a poison pill is received. Each worker started by
      * {@link #startWorkers(ExecutorService, int)} runs this, and so does the thread that called
      * {@link #runWorkQueue}, so that the work still gets done if the ExecutorService has fewer free threads than
-     * numParallelTasks. When this method returns, either all the work has been completed, or this or some other
-     * thread was interrupted. If InterruptedException is thrown, this thread or another was interrupted.
+     * numParallelTasks. When this method returns normally, either all the work has been completed, or another
+     * thread failed, was interrupted or timed out, and emptied the queue so that every thread stops.
      *
+     * @param isCallingThread
+     *            true on the thread that called {@link #runWorkQueue}, which stops waiting for more work once no
+     *            work unit has finished for the worker timeout. False on a worker thread, which waits for more work
+     *            for as long as it takes, since the calling thread sends it a poison pill if the work queue times
+     *            out.
      * @throws InterruptedException
-     *             if a worker thread was interrupted
+     *             if this thread or another thread was interrupted
      * @throws ExecutionException
-     *             if a worker thread throws an uncaught exception
+     *             if this thread throws an uncaught exception, if a failure of another thread has been recorded in
+     *             the {@link InterruptionChecker}, or if this is the calling thread and the work queue timed out
      */
-    private void runWorkLoop() throws InterruptedException, ExecutionException {
+    private void runWorkLoop(final boolean isCallingThread) throws InterruptedException, ExecutionException {
         for (;;) {
             try {
                 // Check for interruption
                 interruptionChecker.check();
 
                 // Get next work unit
-                final var workUnit = workUnits.take().workUnit();
+                final var workUnit = isCallingThread ? takeWorkUnitOnCallingThread() : workUnits.take().workUnit();
 
                 if (workUnit == null) {
                     // Received poison pill
@@ -314,11 +333,72 @@ final class WorkQueue<T> implements AutoCloseable {
                 throw new ExecutionException("Worker thread threw unchecked exception", e);
 
             }
+            lastProgressNanos.set(System.nanoTime());
             if (numIncompleteWorkUnits.decrementAndGet() == 0) {
                 // No more work units -- send poison pills
                 sendPoisonPills();
             }
         }
+    }
+
+    /**
+     * Take the next work unit from the queue on the thread that called {@link #runWorkQueue}, giving up once no
+     * work unit has finished for the worker timeout. The calling thread cannot wait for more work indefinitely,
+     * since a worker thread that never finishes its work unit would then stop it from ever reaching
+     * {@link #close()}, where the worker timeout is applied to each worker.
+     *
+     * <p>
+     * The timeout counts from when a work unit last finished on any thread, not from when this thread ran out of
+     * work, so that the work queue is not stopped while the other threads are still finishing work units.
+     *
+     * @return the work unit, or null for a poison pill.
+     * @throws InterruptedException
+     *             if this thread was interrupted while waiting.
+     * @throws ExecutionException
+     *             if no work unit finished for the worker timeout. The queue has then been emptied and the other
+     *             threads sent poison pills, and the timeout has been recorded in the {@link InterruptionChecker}.
+     */
+    private @Nullable T takeWorkUnitOnCallingThread() throws InterruptedException, ExecutionException {
+        if (workerTimeoutNanos == Long.MAX_VALUE) {
+            return workUnits.take().workUnit();
+        }
+        for (;;) {
+            final var lastProgress = lastProgressNanos.get();
+            final var workUnitWrapper = workUnits.poll(workerTimeoutNanos - (System.nanoTime() - lastProgress),
+                    TimeUnit.NANOSECONDS);
+            if (workUnitWrapper != null) {
+                return workUnitWrapper.workUnit();
+            }
+            if (lastProgressNanos.get() == lastProgress) {
+                // No work unit finished for the whole timeout, so a worker thread is stuck. Record the timeout
+                // before throwing it, so that close() does not wait for the full timeout again for the stuck
+                // worker, and so that the other workers stop at their next check()
+                final var timeout = newWorkerTimeoutException();
+                interruptionChecker.setExecutionException(timeout);
+                workUnits.clear();
+                numIncompleteWorkUnits.set(0);
+                sendPoisonPills();
+                throw timeout;
+            }
+            // A work unit finished while this thread was waiting, so wait until the timeout has passed since then
+        }
+    }
+
+    /**
+     * Create the exception that reports that a worker thread did not finish within the worker timeout. The message
+     * has to go in the innermost exception, since {@link InterruptionChecker#getCause(Throwable)} unwraps nested
+     * {@link ExecutionException}s.
+     *
+     * @return the exception.
+     */
+    private ExecutionException newWorkerTimeoutException() {
+        return new ExecutionException(new IllegalStateException("Timed out after "
+                + TimeUnit.NANOSECONDS.toMillis(workerTimeoutNanos)
+                + "ms waiting for a worker thread to finish. Either the calling thread holds a lock that the "
+                + "classloader needs in order to load one of ClassGraph's own classes on a worker thread, which "
+                + "deadlocks the scan (call scan(1) to run the whole scan on the calling thread, so that no class "
+                + "is loaded on a worker thread), or a worker thread is blocked reading a classpath element from a "
+                + "filesystem or network (call ClassGraph#setWorkerTimeout(Duration) to allow more time)"));
     }
 
     /**
@@ -363,9 +443,10 @@ final class WorkQueue<T> implements AutoCloseable {
      */
     @Override
     public void close() {
-        // Once a worker has failed or timed out, the remaining workers are only polled rather than each waited on
-        // for the full timeout, since the failure is reported however long they take to finish
-        var timeoutNanos = workerTimeoutNanos;
+        // Once a worker has failed or timed out, here or while the calling thread was waiting for more work, the
+        // remaining workers are only polled rather than each waited on for the full timeout, since the failure is
+        // reported however long they take to finish
+        var timeoutNanos = interruptionChecker.getExecutionException() != null ? 0L : workerTimeoutNanos;
         for (Worker worker; (worker = workerTasks.poll()) != null;) {
             // If the ExecutorService did not have a free thread to start a worker on, claiming the worker here
             // stops it running the work loop if it is started later, so there is nothing to wait for. Waiting for
@@ -383,16 +464,8 @@ final class WorkQueue<T> implements AutoCloseable {
             } catch (final TimeoutException e) {
                 // The worker is still running, and there is no way to stop it, since a thread blocked on class
                 // loading or on a filesystem read cannot be interrupted. All that can be done is to report why the
-                // scan cannot finish. The message has to go in the innermost exception, since
-                // InterruptionChecker#getCause(Throwable) unwraps nested ExecutionExceptions.
-                interruptionChecker.setExecutionException(new ExecutionException(new IllegalStateException(
-                        "Timed out after " + TimeUnit.NANOSECONDS.toMillis(workerTimeoutNanos)
-                                + "ms waiting for a worker thread to finish. Either the calling thread holds a lock "
-                                + "that the classloader needs in order to load one of ClassGraph's own classes on "
-                                + "a worker thread, which deadlocks the scan (call scan(1) to run the whole scan "
-                                + "on the calling thread, so that no class is loaded on a worker thread), or a "
-                                + "worker thread is blocked reading a classpath element from a filesystem or "
-                                + "network (call ClassGraph#setWorkerTimeout(Duration) to allow more time)")));
+                // scan cannot finish.
+                interruptionChecker.setExecutionException(newWorkerTimeoutException());
                 timeoutNanos = 0L;
             } catch (final CancellationException e) {
                 if (log != null) {
