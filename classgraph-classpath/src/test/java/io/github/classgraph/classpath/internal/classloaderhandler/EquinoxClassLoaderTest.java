@@ -97,9 +97,31 @@ public class EquinoxClassLoaderTest {
     public void aDirectoryNestedInsideABundleJarIsOnTheClasspathAsAPathWithinTheJar(@TempDir final Path tempDir)
             throws IOException {
         final var bundleJar = Files.createFile(tempDir.resolve("bundle.jar"));
-        final var extractedDir = Files.createDirectory(tempDir.resolve("extracted"));
+        // Equinox's NestedDirBundleFile takes its base file from the bundle file it is nested in
         final var classLoader = new EquinoxClassLoader(new ClasspathManager(new ClasspathEntry(
-                new NestedDirBundleFile(extractedDir.toFile(), new ZipBundleFile(bundleJar.toFile()), "bin"))));
+                new NestedDirBundleFile(bundleJar.toFile(), new ZipBundleFile(bundleJar.toFile()), "bin"))));
+        assertThat(locations(classLoader)).containsExactly(location(bundleJar) + "!/bin");
+    }
+
+    /**
+     * When a framework extension installs a hook that wraps every bundle file (as Equinox's own class sharing hook
+     * does on OpenJ9), the bundle jar that a nested directory lives inside is wrapped too. The nested directory is
+     * still on the classpath as a path within that jar.
+     *
+     * @param tempDir
+     *            a temporary directory to create the bundle in.
+     * @throws IOException
+     *             if the bundle could not be created.
+     */
+    @Test
+    public void aDirectoryNestedInsideAWrappedBundleJarIsOnTheClasspathAsAPathWithinTheJar(
+            @TempDir final Path tempDir) throws IOException {
+        final var bundleJar = Files.createFile(tempDir.resolve("bundle.jar"));
+        // Equinox puts the hook's wrapper in a BundleFileWrapperChain, which holds it in its "wrapped" field
+        final var wrappedJar = new BundleFile(bundleJar.toFile())
+                .wrapping(new BundleFileWrapper(new ZipBundleFile(bundleJar.toFile())));
+        final var classLoader = new EquinoxClassLoader(new ClasspathManager(
+                new ClasspathEntry(new NestedDirBundleFile(bundleJar.toFile(), wrappedJar, "bin"))));
         assertThat(locations(classLoader)).containsExactly(location(bundleJar) + "!/bin");
     }
 
