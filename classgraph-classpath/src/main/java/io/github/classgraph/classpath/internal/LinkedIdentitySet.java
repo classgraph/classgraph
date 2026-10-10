@@ -26,7 +26,7 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.classgraph.base.internal.utils;
+package io.github.classgraph.classpath.internal;
 
 import java.util.AbstractSet;
 import java.util.ArrayList;
@@ -59,7 +59,7 @@ import java.util.Map;
  * @param <E>
  *            the element type.
  */
-public final class LinkedIdentitySet<E> extends AbstractSet<E> {
+final class LinkedIdentitySet<E> extends AbstractSet<E> {
     /** The elements, for reference-equality lookup. */
     private final Map<E, Boolean> elements = new IdentityHashMap<>();
 

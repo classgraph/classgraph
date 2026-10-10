@@ -33,11 +33,10 @@ import java.time.Duration;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
+import io.github.classgraph.AcceptReject.AcceptRejectLeafname;
+import io.github.classgraph.AcceptReject.AcceptRejectPrefix;
+import io.github.classgraph.AcceptReject.AcceptRejectWholeString;
 import io.github.classgraph.base.LogNode;
-import io.github.classgraph.base.internal.filter.AcceptReject.AcceptRejectLeafname;
-import io.github.classgraph.base.internal.filter.AcceptReject.AcceptRejectPrefix;
-import io.github.classgraph.base.internal.filter.AcceptReject.AcceptRejectWholeString;
-import io.github.classgraph.base.internal.filter.AcceptReject;
 import io.github.classgraph.classpath.internal.ClasspathSpec;
 import io.github.classgraph.vfs.VfsSpec;
 import org.jspecify.annotations.Nullable;

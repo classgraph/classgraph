@@ -26,7 +26,7 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  * OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.classgraph.base.internal.filter;
+package io.github.classgraph;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -45,7 +45,7 @@ import io.github.classgraph.base.internal.utils.CollectionUtils;
  * compiled to a regexp; any other criterion is matched literally. A string is accepted if the accept criteria are
  * empty, or if it matches one of them, and is rejected if it matches one of the reject criteria.
  */
-public abstract class AcceptReject {
+abstract class AcceptReject {
     /** The package or path separator character. */
     protected final char separatorChar;
 

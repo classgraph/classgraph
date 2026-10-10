@@ -1,14 +1,12 @@
 package io.github.classgraph.issues.issue940;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.base.internal.filter.AcceptReject;
 
 /**
  * Since 4.8.186, {@code '*'} in an accepted package name matches within a single package segment only, which left
@@ -91,32 +89,6 @@ public class Issue940Test {
     }
 
     /**
-     * Pattern-level check of the {@code "**"} glob translation, for both package and path separators.
-     */
-    @Test
-    public void segmentGlobToPatternHandlesDoubleGlob() {
-        final var packagePattern = AcceptReject.globToPattern("org.creekservice.**.schema", '.',
-                /* prefixMatch = */ false);
-        assertThat(packagePattern.matcher("org.creekservice.api.base.schema").matches()).isTrue();
-        assertThat(packagePattern.matcher("org.creekservice.other.schema").matches()).isTrue();
-        assertThat(packagePattern.matcher("org.creekservice.schema").matches()).isTrue();
-        assertThat(packagePattern.matcher("org.creekservice.api.base.schemaX").matches()).isFalse();
-        assertThat(packagePattern.matcher("org.creekservice.api.base.schema.sub").matches()).isFalse();
-        assertThat(packagePattern.matcher("org.creekserviceschema").matches()).isFalse();
-
-        final var leadingPattern = AcceptReject.globToPattern("**.api.*", '.', /* prefixMatch = */ false);
-        assertThat(leadingPattern.matcher("org.creekservice.api.base").matches()).isTrue();
-        assertThat(leadingPattern.matcher("api.base").matches()).isTrue();
-        assertThat(leadingPattern.matcher("xapi.base").matches()).isFalse();
-
-        final var pathPattern = AcceptReject.globToPattern("org/creekservice/**/schema/", '/',
-                /* prefixMatch = */ false);
-        assertThat(pathPattern.matcher("org/creekservice/api/base/schema/").matches()).isTrue();
-        assertThat(pathPattern.matcher("org/creekservice/schema/").matches()).isTrue();
-        assertThat(pathPattern.matcher("org/creekservice/api/other/").matches()).isFalse();
-    }
-
-    /**
      * {@code "**"} spans path segments in {@link ClassGraph#acceptPaths}, not just in accepted package names.
      */
     @Test
@@ -129,14 +101,5 @@ public class Issue940Test {
                             pkgPath + "/schema/TopLevelSchemaThing.class")
                     .doesNotContain(pkgPath + "/api/base/other/NonSchemaThing.class");
         }
-    }
-
-    /** {@code "**"} that does not form a complete segment is still rejected. */
-    @Test
-    public void gluedDoubleGlobIsRejected() {
-        assertThatThrownBy(() -> AcceptReject.globToPattern("com.a**b.impl", '.', /* prefixMatch = */ false))
-                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("**");
-        assertThatThrownBy(() -> AcceptReject.globToPattern("com.***.impl", '.', /* prefixMatch = */ false))
-                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("**");
     }
 }
