@@ -301,11 +301,6 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
      */
     static MethodTypeSignature parse(final String typeDescriptor, final @Nullable String definingClassName)
             throws TypeSignatureParseException {
-        if ("<init>".equals(typeDescriptor)) {
-            // Special case for instance initialization method signatures in a CONSTANT_NameAndType_info structure:
-            // https://docs.oracle.com/javase/specs/jvms/se17/html/jvms-4.html#jvms-4.4.2
-            return new MethodTypeSignature(List.of(), List.of(), /* void */ new BaseTypeSignature('V'), List.of());
-        }
         final TypeSignatureParser parser = new TypeSignatureParser(typeDescriptor);
         final var typeParameters = TypeParameter.parseList(parser, definingClassName);
         parser.expect('(');

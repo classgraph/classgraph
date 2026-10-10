@@ -189,7 +189,10 @@ class Classfile {
     /** The tag (type) for each entry in the constant pool. */
     private int[] entryTag;
 
-    /** The indirection index for String/Class entries in the constant pool. */
+    /**
+     * For each Class, String, NameAndType and Module entry in the constant pool, the index of the CONSTANT_Utf8
+     * entry holding its string (for a NameAndType entry, its name), or -1 for any other entry.
+     */
     private int[] indirectStringRefs;
 
     // -------------------------------------------------------------------------------------------------------------
@@ -687,27 +690,19 @@ class Classfile {
      * Get the byte offset within the buffer of a string from the constant pool, or 0 for a null string.
      *
      * @param cpIdx
-     *            the constant pool index
-     * @param subFieldIdx
-     *            should be 0 for CONSTANT_Utf8, CONSTANT_Class and CONSTANT_String, and for
-     *            CONSTANT_NameAndType_info, fetches the name for value 0, or the type descriptor for value 1.
+     *            the constant pool index of a CONSTANT_Utf8, CONSTANT_Class, CONSTANT_String, CONSTANT_NameAndType
+     *            or CONSTANT_Module entry. A CONSTANT_NameAndType entry gives its name.
      * @return the constant pool string offset
      * @throws ClassfileFormatException
      *             If a problem is detected
      */
-    private int getConstantPoolStringOffset(final int cpIdx, final int subFieldIdx)
-            throws ClassfileFormatException {
+    private int getConstantPoolStringOffset(final int cpIdx) throws ClassfileFormatException {
         if (cpIdx < 1 || cpIdx >= cpCount) {
             throw new ClassfileFormatException("Constant pool index " + cpIdx + ", should be in range [1, "
                     + (cpCount - 1) + "] -- cannot continue reading class. "
                     + "Please report this at https://github.com/classgraph/classgraph/issues");
         }
         final var t = entryTag[cpIdx];
-        if ((t != 12 && subFieldIdx != 0) || (t == 12 && subFieldIdx != 0 && subFieldIdx != 1)) {
-            throw new ClassfileFormatException(
-                    "Bad subfield index " + subFieldIdx + " for tag " + t + ", cannot continue reading class. "
-                            + "Please report this at https://github.com/classgraph/classgraph/issues");
-        }
         final int cpIdxToUse;
         switch (t) {
         case 0 -> {
@@ -717,9 +712,9 @@ class Classfile {
         case 1 ->
             // CONSTANT_Utf8
             cpIdxToUse = cpIdx;
-        case 7, 8, 19 -> {
+        case 7, 8, 12, 19 -> {
             // t == 7 => CONSTANT_Class, e.g. "[[I", "[Ljava/lang/Thread;"; t == 8 => CONSTANT_String;
-            // t == 19 => CONSTANT_Module
+            // t == 12 => CONSTANT_NameAndType, whose name is stored here; t == 19 => CONSTANT_Module
             final var indirIdx = indirectStringRefs[cpIdx];
             if (indirIdx == -1) {
                 // Should not happen
@@ -729,22 +724,6 @@ class Classfile {
             if (indirIdx == 0) {
                 // I assume this represents a null string, since the zeroeth entry is unused
                 return 0;
-            }
-            cpIdxToUse = indirIdx;
-        }
-        case 12 -> {
-            // CONSTANT_NameAndType_info
-            final var compoundIndirIdx = indirectStringRefs[cpIdx];
-            if (compoundIndirIdx == -1) {
-                // Should not happen
-                throw new ClassfileFormatException("Bad string indirection index, cannot continue reading class. "
-                        + "Please report this at https://github.com/classgraph/classgraph/issues");
-            }
-            final var indirIdx = (subFieldIdx == 0 ? (compoundIndirIdx >> 16) : compoundIndirIdx) & 0xffff;
-            if (indirIdx == 0) {
-                // Should not happen
-                throw new ClassfileFormatException("Bad string indirection index, cannot continue reading class. "
-                        + "Please report this at https://github.com/classgraph/classgraph/issues");
             }
             cpIdxToUse = indirIdx;
         }
@@ -761,24 +740,23 @@ class Classfile {
     }
 
     /**
-     * Get a string from the constant pool, optionally replacing '/' with '.'.
+     * Get a string from the constant pool that holds a class name or a type descriptor, and replace '/' with '.' in
+     * it.
      *
      * @param cpIdx
      *            the constant pool index
-     * @param replaceSlashWithDot
-     *            if true, replace slash with dot in the result.
      * @param stripLSemicolon
-     *            if true, strip 'L' from the beginning and ';' from the end before returning (for class reference
-     *            constants)
-     * @return the constant pool string
+     *            if true, strip 'L' from the beginning and ';' from the end before returning, to turn a class type
+     *            descriptor into a class name
+     * @return the constant pool string, with '/' replaced with '.'
      * @throws ClassfileFormatException
      *             If a problem occurs.
      * @throws IOException
      *             If an IO exception occurs.
      */
-    private @Nullable String getConstantPoolString(final int cpIdx, final boolean replaceSlashWithDot,
-            final boolean stripLSemicolon) throws ClassfileFormatException, IOException {
-        final var constantPoolStringOffset = getConstantPoolStringOffset(cpIdx, /* subFieldIdx = */ 0);
+    private @Nullable String getConstantPoolClassString(final int cpIdx, final boolean stripLSemicolon)
+            throws ClassfileFormatException, IOException {
+        final var constantPoolStringOffset = getConstantPoolStringOffset(cpIdx);
         if (constantPoolStringOffset == 0) {
             return null;
         }
@@ -787,35 +765,8 @@ class Classfile {
             return "";
         }
         return intern(StringUtils.normalizeTypeDescriptor(
-                reader().readStringModifiedUtf8(constantPoolStringOffset + 2L, utfLen), replaceSlashWithDot,
-                stripLSemicolon));
-    }
-
-    /**
-     * Get a string from the constant pool.
-     *
-     * @param cpIdx
-     *            the constant pool index
-     * @param subFieldIdx
-     *            should be 0 for CONSTANT_Utf8, CONSTANT_Class and CONSTANT_String, and for
-     *            CONSTANT_NameAndType_info, fetches the name for value 0, or the type descriptor for value 1.
-     * @return the constant pool string
-     * @throws ClassfileFormatException
-     *             If a problem occurs.
-     * @throws IOException
-     *             If an IO exception occurs.
-     */
-    private @Nullable String getConstantPoolString(final int cpIdx, final int subFieldIdx)
-            throws ClassfileFormatException, IOException {
-        final var constantPoolStringOffset = getConstantPoolStringOffset(cpIdx, subFieldIdx);
-        if (constantPoolStringOffset == 0) {
-            return null;
-        }
-        final var utfLen = reader().readUnsignedShort(constantPoolStringOffset);
-        if (utfLen == 0) {
-            return "";
-        }
-        return intern(reader().readStringModifiedUtf8(constantPoolStringOffset + 2L, utfLen));
+                reader().readStringModifiedUtf8(constantPoolStringOffset + 2L, utfLen),
+                /* replaceSlashWithDot = */ true, stripLSemicolon));
     }
 
     /**
@@ -830,7 +781,15 @@ class Classfile {
      *             If an IO exception occurs.
      */
     private @Nullable String getConstantPoolString(final int cpIdx) throws ClassfileFormatException, IOException {
-        return getConstantPoolString(cpIdx, /* subFieldIdx = */ 0);
+        final var constantPoolStringOffset = getConstantPoolStringOffset(cpIdx);
+        if (constantPoolStringOffset == 0) {
+            return null;
+        }
+        final var utfLen = reader().readUnsignedShort(constantPoolStringOffset);
+        if (utfLen == 0) {
+            return "";
+        }
+        return intern(reader().readStringModifiedUtf8(constantPoolStringOffset + 2L, utfLen));
     }
 
     /**
@@ -868,7 +827,7 @@ class Classfile {
      */
     private @Nullable String getConstantPoolClassName(final int cpIdx)
             throws ClassfileFormatException, IOException {
-        return getConstantPoolString(cpIdx, /* replaceSlashWithDot = */ true, /* stripLSemicolon = */ false);
+        return getConstantPoolClassString(cpIdx, /* stripLSemicolon = */ false);
     }
 
     /**
@@ -886,7 +845,7 @@ class Classfile {
      */
     private @Nullable String getConstantPoolClassDescriptor(final int cpIdx)
             throws ClassfileFormatException, IOException {
-        return getConstantPoolString(cpIdx, /* replaceSlashWithDot = */ true, /* stripLSemicolon = */ true);
+        return getConstantPoolClassString(cpIdx, /* stripLSemicolon = */ true);
     }
 
     /**
@@ -905,7 +864,7 @@ class Classfile {
      */
     private boolean constantPoolStringEquals(final int cpIdx, final @Nullable String asciiStr)
             throws ClassfileFormatException, IOException {
-        final var cpStrOffset = getConstantPoolStringOffset(cpIdx, /* subFieldIdx = */ 0);
+        final var cpStrOffset = getConstantPoolStringOffset(cpIdx);
         if (cpStrOffset == 0) {
             return asciiStr == null;
         } else if (asciiStr == null) {
@@ -1320,11 +1279,11 @@ class Classfile {
      *
      * @param classRefCpIdxs
      *            the indices of the modified UTF8 entries referenced by class ref (tag 7) entries
-     * @param nameAndTypeCpIdxs
-     *            the indices of the modified UTF8 entries holding the type signature of a name and type (tag 12)
-     *            entry
+     * @param descriptorCpIdxs
+     *            the indices of the modified UTF8 entries holding the descriptor of a name and type (tag 12) or
+     *            method type (tag 16) entry
      */
-    private record ReferencedClassCpIdxs(List<Integer> classRefCpIdxs, List<Integer> nameAndTypeCpIdxs) {
+    private record ReferencedClassCpIdxs(List<Integer> classRefCpIdxs, List<Integer> descriptorCpIdxs) {
         /** Constructor. */
         ReferencedClassCpIdxs() {
             this(new ArrayList<>(), new ArrayList<>());
@@ -1357,13 +1316,13 @@ class Classfile {
         if (referencedClassCpIdxs != null) {
             // Note that there are some class refs that will not be found this way, e.g. enum classes and class refs
             // in annotation parameter values, since they are referenced as strings (tag 1) rather than classes
-            // (tag 7) or type signatures (part of tag 12). Therefore, a hybrid approach needs to be applied of
+            // (tag 7) or descriptors (part of tag 12 or 16). Therefore, a hybrid approach needs to be applied of
             // extracting these other class refs from the ClassInfo graph, and combining them with class names
             // extracted from the constant pool here.
             final Set<String> refdClassNamesSet = new HashSet<>();
             refdClassNames = refdClassNamesSet;
             addClassNamesFromClassRefs(referencedClassCpIdxs.classRefCpIdxs(), refdClassNamesSet);
-            addClassNamesFromTypeSignatures(referencedClassCpIdxs.nameAndTypeCpIdxs(), refdClassNamesSet, log);
+            addClassNamesFromDescriptors(referencedClassCpIdxs.descriptorCpIdxs(), refdClassNamesSet, log);
         }
     }
 
@@ -1423,20 +1382,26 @@ class Classfile {
             // Field ref, method ref, interface method ref -- each refers to a class ref (case 7) and then a name
             // and type (case 12)
             case 9, 10, 11 -> reader().skip(4);
-            // Name and type
+            // Name and type -- an indirect reference to the modified UTF8 entry holding the name, then one to the
+            // entry holding the field or method descriptor
             case 12 -> {
-                final var nameRef = reader().readUnsignedShort();
-                final var typeRef = reader().readUnsignedShort();
+                indirectStringRefs[i] = reader().readUnsignedShort();
+                final var descriptorRef = reader().readUnsignedShort();
                 if (referencedClassCpIdxs != null) {
-                    referencedClassCpIdxs.nameAndTypeCpIdxs().add(typeRef);
+                    referencedClassCpIdxs.descriptorCpIdxs().add(descriptorRef);
                 }
-                indirectStringRefs[i] = (nameRef << 16) | typeRef;
             }
             // There is no constant pool tag type 13 or 14
             // method handle
             case 15 -> reader().skip(3);
-            // method type
-            case 16 -> reader().skip(2);
+            // Method type -- an indirect reference to the modified UTF8 entry holding a method descriptor. Resolving
+            // a method type resolves every class named in its descriptor (JVMS 5.4.3.5).
+            case 16 -> {
+                final var descriptorRef = reader().readUnsignedShort();
+                if (referencedClassCpIdxs != null) {
+                    referencedClassCpIdxs.descriptorCpIdxs().add(descriptorRef);
+                }
+            }
             // dynamic, invoke dynamic
             case 17, 18 -> reader().skip(4);
             // module (for module-info.class in JDK9+) see
@@ -1465,11 +1430,13 @@ class Classfile {
     private void addClassNamesFromClassRefs(final List<Integer> classRefCpIdxs, final Set<String> refdClassNames)
             throws IOException {
         for (final int cpIdx : classRefCpIdxs) {
-            final var refdClassName = getConstantPoolString(cpIdx, /* replaceSlashWithDot = */ true,
-                    /* stripLSemicolon = */ false);
+            final var refdClassName = getConstantPoolClassString(cpIdx, /* stripLSemicolon = */ false);
             if (refdClassName != null) {
                 if (refdClassName.startsWith("[")) {
-                    // Parse array type signature, e.g. "[Ljava.lang.String;" -- uses '.' rather than '/'
+                    // An array class, e.g. "[Ljava.lang.String;". The type signature parser reads '.' as the
+                    // separator before the name of an inner class, so turn every '.' back into '/' before parsing.
+                    // This gives the same class name as the non-array branch below, even for a class name that
+                    // contains '.' in the classfile.
                     try {
                         final var typeSig = TypeSignature.parse(refdClassName.replace('.', '/'),
                                 /* definingClass = */ null);
@@ -1486,11 +1453,11 @@ class Classfile {
     }
 
     /**
-     * Add the names of the classes named by the type signatures of name and type (tag 12) constant pool entries to
-     * {@code refdClassNames}.
+     * Add the names of the classes named by the descriptors of name and type (tag 12) and method type (tag 16)
+     * constant pool entries to {@code refdClassNames}.
      *
-     * @param nameAndTypeCpIdxs
-     *            the constant pool indices of the modified UTF8 entries holding the type signatures
+     * @param descriptorCpIdxs
+     *            the constant pool indices of the modified UTF8 entries holding the descriptors
      * @param refdClassNames
      *            the set of referenced class names to add to
      * @param log
@@ -1498,31 +1465,25 @@ class Classfile {
      * @throws IOException
      *             if the classfile could not be read.
      */
-    private void addClassNamesFromTypeSignatures(final List<Integer> nameAndTypeCpIdxs,
+    private void addClassNamesFromDescriptors(final List<Integer> descriptorCpIdxs,
             final Set<String> refdClassNames, final @Nullable LogNode log) throws IOException {
-        for (final int cpIdx : nameAndTypeCpIdxs) {
-            final var typeSigStr = getConstantPoolString(cpIdx);
-            if (typeSigStr != null) {
+        for (final int cpIdx : descriptorCpIdxs) {
+            final var descriptor = getConstantPoolString(cpIdx);
+            if (descriptor != null) {
                 try {
-                    if (typeSigStr.startsWith("L") && typeSigStr.endsWith(";")) {
-                        // Parse the class name
-                        final var typeSig = TypeSignature.parse(typeSigStr, /* definingClassName = */ null);
-                        // Extract class names from type signature
-                        typeSig.findReferencedClassNames(refdClassNames);
-                    } else if (typeSigStr.indexOf('(') >= 0 || "<init>".equals(typeSigStr)) {
-                        // Parse the type signature
-                        final var typeSig = MethodTypeSignature.parse(typeSigStr, /* definingClassName = */ null);
-                        // Extract class names from type signature
+                    // A method descriptor starts with '('. Anything else is a field descriptor: a base type, a class
+                    // type or an array type. Only the first character is checked, because a class name may contain
+                    // '(' (#645).
+                    if (descriptor.startsWith("(")) {
+                        final var typeSig = MethodTypeSignature.parse(descriptor, /* definingClassName = */ null);
                         typeSig.findReferencedClassNames(refdClassNames);
                     } else {
-                        if (log != null) {
-                            log.log("Could not extract referenced class names from constant pool string: "
-                                    + typeSigStr);
-                        }
+                        final var typeSig = TypeSignature.parse(descriptor, /* definingClassName = */ null);
+                        typeSig.findReferencedClassNames(refdClassNames);
                     }
                 } catch (final TypeSignatureParseException e) {
                     if (log != null) {
-                        log.log("Could not extract referenced class names from constant pool string: " + typeSigStr
+                        log.log("Could not extract referenced class names from constant pool string: " + descriptor
                                 + " : " + e);
                     }
                 }
@@ -2316,9 +2277,9 @@ class Classfile {
         // block, or a field initializer) rather than in a method or constructor (JVMS 4.7.7). The classfile does
         // not say which initializer, so no defining method name is recorded.
         if (enclosingMethodCpIdx != 0) {
-            final var definingMethodName = requireConstantPoolString(
-                    getConstantPoolString(enclosingMethodCpIdx, /* subFieldIdx = */ 0), "enclosing method name");
-            // Could also fetch method type signature using subFieldIdx = 1, if needed
+            // method_index refers to a CONSTANT_NameAndType entry, which resolves to the method's name
+            final var definingMethodName = requireConstantPoolString(getConstantPoolString(enclosingMethodCpIdx),
+                    "enclosing method name");
             this.fullyQualifiedDefiningMethodName = innermostEnclosingClassName + "." + definingMethodName;
         }
         // Link local and anonymous classes to the class they are declared in
