@@ -83,10 +83,10 @@ found, and is not a stable format to parse.
 ## Everything else
 
 The rest of the library is in `io.github.classgraph.base.internal.*`. Those packages are qualified
-exports in `module-info.java`, readable only by the other four ClassGraph modules, and are not
-covered by any compatibility guarantee -- they change between releases without notice. If you find
-yourself wanting something out of them, open an issue instead, and it can be considered for the
-public API of whichever library it belongs to.
+exports in `module-info.java`, readable only by the classgraph-vfs, classgraph-classpath and
+classgraph modules, and are not covered by any compatibility guarantee -- they change between
+releases without notice. If you find yourself wanting something out of them, open an issue instead,
+and it can be considered for the public API of whichever library it belongs to.
 
 | Package | Contents |
 | --- | --- |

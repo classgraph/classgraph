@@ -16,11 +16,6 @@
 		<!-- The shared files (the code formatter profile and the license) are one directory up -->
 		<rootDir>${project.basedir}/..</rootDir>
 
-		<!-- The internal packages are exported to io.github.classgraph, which sits on top of this module and so
-		     cannot be on the module path while this module is compiled. javac cannot check the target of such an
-		     export, and warns that the module was not found, which -Werror would turn into a build failure. -->
-		<javacLintSuppressions>-Xlint:-exports,-module</javacLintSuppressions>
-
 		<osgiBundleName>ClassGraph virtual filesystem</osgiBundleName>
 		<!-- Must list the same packages as the exports in src/main/java/module-info.java. -->
 		<osgiExportPackage>io.github.classgraph.vfs;version="${project.version}",io.github.classgraph.vfs.reader;version="${project.version}"</osgiExportPackage>

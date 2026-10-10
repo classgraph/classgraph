@@ -256,7 +256,7 @@ final class ClasspathElementZip extends ClasspathElement {
             }
 
             if (!scanSpec.enableSystemJars && isJREJar(root)) {
-                // Found a rejected JRE jar that was not caught by filtering for rt.jar in ClassLoaderProbe
+                // Skip a jarfile of the JRE (see isJREJar) unless system jars are enabled
                 if (log != null) {
                     log.log("Ignoring JRE jar: " + rawPath);
                 }
