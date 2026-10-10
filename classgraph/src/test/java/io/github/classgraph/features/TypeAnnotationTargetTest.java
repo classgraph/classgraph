@@ -461,8 +461,8 @@ public class TypeAnnotationTargetTest {
     }
 
     /**
-     * A method target that is not permitted in a method, and whose size is therefore unknown, stops the class from
-     * being read, rather than being skipped.
+     * A method target that is not permitted in a method, and whose size is therefore unknown, causes the rest of
+     * the attribute to be skipped, as the JVM skips it, but the class and the method are still read.
      *
      * @param tempDir
      *            the directory to write the classfile to.
@@ -470,14 +470,17 @@ public class TypeAnnotationTargetTest {
      *             if the classfile could not be written.
      */
     @Test
-    void unknownMethodTargetDropsTheClass(@TempDir final File tempDir) throws IOException {
+    void unknownMethodTargetSkipsTheAttribute(@TempDir final File tempDir) throws IOException {
         final var className = "UnknownMethodTarget";
         // target_type 0x40 (type in local variable declaration), which is only permitted in a Code attribute
         Files.write(new File(tempDir, className + ".class").toPath(),
                 methodClassfileBytes(className, typeAnnotation(new byte[] { 0x40, 0, 0 }, RETURN)));
         try (var scanResult = new ClassGraph().enableClassInfo().enableMethodInfo().enableAnnotationInfo()
                 .enableClasspathEntries(tempDir).scan()) {
-            assertThat(scanResult.getClassInfo(className)).isNull();
+            final var classInfo = scanResult.getClassInfo(className);
+            assertThat(classInfo).isNotNull();
+            final var resultType = classInfo.getMethodInfo("m").get(0).getTypeDescriptor().getResultType();
+            assertThat(resultType.getTypeAnnotationInfo()).isNullOrEmpty();
         }
     }
 }

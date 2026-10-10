@@ -339,8 +339,8 @@ public final class RandomAccessOrSequentialReader implements RandomAccessReader,
 
     /**
      * The position the sequential read methods read from next, which starts at zero and is advanced by each of
-     * them, and by {@link #skip(int)}. The random access read methods take the position to read from as an
-     * argument, and do not move it.
+     * them, and by {@link #skip(int)}, and which {@link #position(int)} sets. The random access read methods take
+     * the position to read from as an argument, and do not move it.
      *
      * @return the current read position.
      */
@@ -809,6 +809,29 @@ public final class RandomAccessOrSequentialReader implements RandomAccessReader,
             }
         }
         currIdx = (int) targetIdx;
+    }
+
+    /**
+     * Move the position that the sequential read methods read from next. Unlike {@link #skip(int)}, this can also
+     * move the position back, to content that has already been read, which is still buffered.
+     *
+     * @param newPosition
+     *            the new position, relative to the start of the content.
+     * @throws IllegalArgumentException
+     *             if {@code newPosition} is negative.
+     * @throws IOException
+     *             if {@code newPosition} is past the end of the content, or the content up to it could not be read.
+     *             The position is then not moved.
+     */
+    public void position(final int newPosition) throws IOException {
+        if (newPosition < 0) {
+            throw new IllegalArgumentException("Negative position: " + newPosition);
+        }
+        if (newPosition < currIdx) {
+            currIdx = newPosition;
+        } else {
+            skip(newPosition - currIdx);
+        }
     }
 
     @Override
