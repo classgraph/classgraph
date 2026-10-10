@@ -169,9 +169,9 @@ Closing the root, or the `Vfs` that opened it, closes every view of it in the sa
 handles, memory mappings and temporary files by closing the root or the `Vfs`, not by closing a
 view.
 
-The one exception is a filesystem that `FileSystems.newFileSystem` created for a `cgvfs:` URI: it
-created the `Vfs` behind it, and is the only reference you have to it, so closing that filesystem
-closes that `Vfs` too.
+The one exception is a filesystem that `FileSystems.newFileSystem` created, for a `cgvfs:` URI or
+for a directory: it created the `Vfs` behind it, and is the only reference you have to it, so
+closing that filesystem closes that `Vfs` too.
 
 ## The `cgvfs:` URL scheme
 
@@ -205,10 +205,11 @@ for zipfs. `FileSystems.newFileSystem(uri, env)` opens the whole path as a files
 filesystem open, so with the filesystem above open, `cgvfs:/path/to/outer.jar!/lib/inner.jar!/com/xyz/Widget.class`
 is a path *inside* `inner.jar`, not inside `outer.jar`.
 
-One filesystem is open at a path at a time: a second `newFileSystem` at the same path throws
-`FileSystemAlreadyExistsException` until the first is closed, and `FileSystems.getFileSystem(uri)`
-finds the open one or throws `FileSystemNotFoundException`. A filesystem created this way owns the
-`Vfs` behind it, so closing it releases everything that `Vfs` took.
+One filesystem is open at a URI at a time: a second `FileSystems.newFileSystem(uri, env)` for the
+same path throws `FileSystemAlreadyExistsException`, without opening anything, until the first is
+closed, and `FileSystems.getFileSystem(uri)` finds the open one or throws
+`FileSystemNotFoundException`. A filesystem created this way owns the `Vfs` behind it, so closing it
+releases everything that `Vfs` took.
 
 Installing the scheme changes one thing outside it. `FileSystems.newFileSystem(path)` tries each
 installed provider in turn and takes the first that does not decline the path, in an order that is
@@ -217,7 +218,10 @@ zipfs. So this provider accepts only a *directory*, which no built-in provider r
 filesystem, and declines every other path with `UnsupportedOperationException` so that the search
 carries on. A jarfile still goes to zipfs, and so does a path where `Map.of("create", "true")` asks
 zipfs to create a zipfile. A directory gets a `cgvfs:` filesystem where that call would otherwise
-throw `ProviderNotFoundException`. To open an archive through this provider, call
+throw `ProviderNotFoundException`. Each such call returns a new filesystem, which owns the `Vfs` it
+opened and, as with zipfs, is not registered under its path: `FileSystems.getFileSystem(uri)` and
+`Paths.get(uri)` do not find it, and it does not stop a later `newFileSystem` at the same directory,
+by path or by URI. To open an archive through this provider, call
 `vfs.open(path).asFileSystem()`, or name it with a `cgvfs:` URI.
 
 Two options can be passed in the `env` map: `"vfsSpec"`, a `VfsSpec` configuring the `Vfs` that will

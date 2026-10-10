@@ -8,6 +8,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
@@ -20,14 +22,19 @@ import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.ProviderNotFoundException;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.spi.FileSystemProvider;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+
+import com.sun.net.httpserver.HttpServer;
 
 import io.github.classgraph.base.internal.path.FastPathResolver;
 
@@ -132,6 +139,20 @@ public class VfsFileSystemProviderUriTest {
         } catch (final URISyntaxException e) {
             throw new IllegalArgumentException("Path cannot be written as a URI: " + path, e);
         }
+    }
+
+    /**
+     * The root of the filesystem of a file, reached the way code outside this package can reach it: the
+     * {@link BasicFileAttributes#fileKey()} of a file is its {@link VfsEntry}, whose root is public.
+     *
+     * @param file
+     *            a file of a {@code "cgvfs:"} filesystem.
+     * @return the root of that filesystem.
+     * @throws IOException
+     *             if the attributes of the file could not be read.
+     */
+    private static VfsRoot rootOf(final Path file) throws IOException {
+        return ((VfsEntry) Files.readAttributes(file, BasicFileAttributes.class).fileKey()).getRoot();
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -319,6 +340,92 @@ public class VfsFileSystemProviderUriTest {
     }
 
     /**
+     * Closing the root of a filesystem created from a URI, or the {@link Vfs} behind it, from outside the
+     * filesystem -- both are reachable through {@link BasicFileAttributes#fileKey()} -- frees the name just as
+     * closing the filesystem does: the closed filesystem is no longer found by URI, and the path can be opened
+     * again. Closing the dead filesystem afterwards still closes the {@link Vfs} it owns, and leaves the new
+     * filesystem at that path registered.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the jarfile could not be read.
+     */
+    @Test
+    public void closingTheRootOfAUriFilesystemUnregistersIt(@TempDir final Path tempDir) throws IOException {
+        final var jarFile = tempDir.resolve("library.jar").toFile();
+        writeJar(jarFile);
+        final var uri = cgvfsUri(jarFile.getPath());
+
+        final List<Consumer<VfsRoot>> closers = List.of(VfsRoot::close, root -> root.getVfs().close());
+        for (final var closer : closers) {
+            final VfsRoot root;
+            final FileSystem reopened;
+            try (var fileSystem = FileSystems.newFileSystem(uri, Map.of())) {
+                root = rootOf(fileSystem.getPath("/root.txt"));
+                closer.accept(root);
+                assertThat(fileSystem.isOpen()).isFalse();
+                assertThatThrownBy(() -> FileSystems.getFileSystem(uri))
+                        .isInstanceOf(FileSystemNotFoundException.class);
+
+                reopened = FileSystems.newFileSystem(uri, Map.of());
+            }
+            // The dead filesystem has now been closed, while the new one at its path is open
+            try (reopened) {
+                assertThat(root.getVfs().isClosed()).isTrue();
+                assertThat(FileSystems.getFileSystem(uri)).isSameAs(reopened);
+                assertThat(Files.readAllBytes(reopened.getPath("/root.txt"))).isEqualTo(contentOf("root.txt"));
+            }
+        }
+    }
+
+    /**
+     * A second {@link FileSystems#newFileSystem(URI, Map)} for a path that already has a filesystem open is turned
+     * away before it opens anything. Code written for zipfs commonly calls it and falls back to
+     * {@link FileSystems#getFileSystem(URI)} when it throws {@link FileSystemAlreadyExistsException}, and that must
+     * not download a remote jarfile, or extract a nested one, again on every call only to discard it.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the jarfile could not be written or read, or the server could not be started.
+     */
+    @Test
+    public void aSecondOpenOfARegisteredUriDoesNotRepeatTheOpen(@TempDir final Path tempDir) throws IOException {
+        final var jarFile = tempDir.resolve("library.jar").toFile();
+        writeJar(jarFile);
+        final var jarBytes = Files.readAllBytes(jarFile.toPath());
+        final var numRequests = new AtomicInteger();
+        // A backlog of 0 means the system default, not a backlog of zero
+        final var server = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0),
+                /* backlog = */ 0);
+        server.createContext("/library.jar", exchange -> {
+            numRequests.incrementAndGet();
+            exchange.sendResponseHeaders(200, jarBytes.length);
+            try (var responseBody = exchange.getResponseBody()) {
+                responseBody.write(jarBytes);
+            }
+        });
+        server.start();
+        try {
+            final var uri = URI.create(
+                    VfsFileSystemProvider.SCHEME + ":http://" + server.getAddress().getAddress().getHostAddress()
+                            + ":" + server.getAddress().getPort() + "/library.jar");
+            try (var fileSystem = FileSystems.newFileSystem(uri, Map.of())) {
+                assertThat(Files.readAllBytes(fileSystem.getPath("/root.txt"))).isEqualTo(contentOf("root.txt"));
+                assertThat(numRequests).hasValue(1);
+
+                assertThatThrownBy(() -> FileSystems.newFileSystem(uri, Map.of()))
+                        .isInstanceOf(FileSystemAlreadyExistsException.class);
+                assertThat(FileSystems.getFileSystem(uri)).isSameAs(fileSystem);
+                assertThat(numRequests).hasValue(1);
+            }
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    /**
      * A filesystem created from a URI owns the {@link Vfs} that opened its root, so closing the filesystem releases
      * the file handles and temporary files that reading through it took.
      *
@@ -501,6 +608,87 @@ public class VfsFileSystemProviderUriTest {
         try (var fileSystem = new VfsFileSystemProvider().newFileSystem(tempDir, Map.of())) {
             assertThat(fileSystem.provider().getScheme()).isEqualTo("cgvfs");
             assertThat(Files.readString(fileSystem.getPath("/root.txt"))).isEqualTo("root");
+        }
+    }
+
+    /**
+     * Each {@link FileSystems#newFileSystem(Path)} call over a directory returns a new filesystem, as
+     * {@link FileSystemProvider#newFileSystem(Path, Map)} specifies and as zipfs does for a zipfile: a second call
+     * for the same directory does not throw, and closing one of the two leaves the other readable.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the directory could not be read.
+     */
+    @Test
+    public void twoFilesystemsCanBeOpenedOnOneDirectoryByPath(@TempDir final Path tempDir) throws IOException {
+        assumeTrue(VfsFileSystemProvider.isInstalled(), "The \"cgvfs:\" scheme is not installed");
+        Files.writeString(tempDir.resolve("root.txt"), "root");
+        try (var kept = FileSystems.newFileSystem(tempDir)) {
+            try (var closedFirst = FileSystems.newFileSystem(tempDir)) {
+                assertThat(kept.provider().getScheme()).isEqualTo("cgvfs");
+                assertThat(closedFirst).isNotSameAs(kept);
+                assertThat(kept.isOpen()).isTrue();
+                assertThat(closedFirst.isOpen()).isTrue();
+            }
+            assertThat(kept.isOpen()).isTrue();
+            assertThat(Files.readString(kept.getPath("/root.txt"))).isEqualTo("root");
+        }
+    }
+
+    /**
+     * A filesystem created from a {@link Path} is not found by URI, since
+     * {@link FileSystemProvider#getFileSystem(URI)} returns only the filesystems created from a URI. Nor does it
+     * stop a filesystem being created from a URI of the same directory, or the other way round.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the directory could not be read.
+     */
+    @Test
+    public void aFilesystemOpenedByPathIsNotFoundByUri(@TempDir final Path tempDir) throws IOException {
+        assumeTrue(VfsFileSystemProvider.isInstalled(), "The \"cgvfs:\" scheme is not installed");
+        Files.writeString(tempDir.resolve("root.txt"), "root");
+        final var uri = cgvfsUri(tempDir.toString());
+        try (var byPath = FileSystems.newFileSystem(tempDir)) {
+            assertThatThrownBy(() -> FileSystems.getFileSystem(uri))
+                    .isInstanceOf(FileSystemNotFoundException.class);
+            assertThatThrownBy(() -> Paths.get(cgvfsUri(tempDir + "!/root.txt")))
+                    .isInstanceOf(FileSystemNotFoundException.class);
+
+            try (var byUri = FileSystems.newFileSystem(uri, Map.of())) {
+                assertThat(FileSystems.getFileSystem(uri)).isSameAs(byUri);
+                try (var byPathAgain = FileSystems.newFileSystem(tempDir)) {
+                    assertThat(byPathAgain).isNotSameAs(byPath);
+                    assertThat(Files.readString(byPathAgain.getPath("/root.txt"))).isEqualTo("root");
+                }
+                assertThat(FileSystems.getFileSystem(uri)).isSameAs(byUri);
+            }
+            assertThat(Files.readString(byPath.getPath("/root.txt"))).isEqualTo("root");
+        }
+    }
+
+    /**
+     * A filesystem created by the provider, from a URI or from a {@link Path}, is the view that its root hands out,
+     * so code that reaches the root through {@link BasicFileAttributes#fileKey()} and asks it for its filesystem
+     * gets the filesystem the caller holds rather than a second view whose paths would not be equal to the
+     * caller's.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the jarfile or the directory could not be read.
+     */
+    @Test
+    public void anOwningFilesystemIsTheRootsView(@TempDir final Path tempDir) throws IOException {
+        final var jarFile = tempDir.resolve("library.jar").toFile();
+        writeJar(jarFile);
+        try (var byUri = FileSystems.newFileSystem(cgvfsUri(jarFile.getPath()), Map.of());
+                var byPath = new VfsFileSystemProvider().newFileSystem(tempDir, Map.of())) {
+            assertThat(rootOf(byUri.getPath("/root.txt")).asFileSystem()).isSameAs(byUri);
+            assertThat(rootOf(byPath.getPath("/library.jar")).asFileSystem()).isSameAs(byPath);
         }
     }
 
