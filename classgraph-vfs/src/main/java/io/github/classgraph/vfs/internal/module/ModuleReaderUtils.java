@@ -284,13 +284,15 @@ public final class ModuleReaderUtils {
 
     /**
      * Use a {@link ModuleReader} to test whether the module contains the named resource, without listing the
-     * contents of the module.
+     * contents of the module. A directory is not a resource, so the module does not contain one, although the
+     * readers of modular jarfiles and of exploded modules find it, by a {@link URI} that ends in '/'.
      *
      * @param moduleReader
      *            the module reader.
      * @param path
      *            The path to the resource to look for.
-     * @return true if the module contains the named resource.
+     * @return true if the module contains the named resource, and false if it does not, or if the path names a
+     *         directory.
      * @throws IOException
      *             If the module could not be searched for the resource.
      */
@@ -301,7 +303,7 @@ public final class ModuleReaderUtils {
         } catch (final IOException | SecurityException e) {
             throw new IOException("Could not call ModuleReader#find(String) for path " + path, e);
         }
-        return optionalURI != null && optionalURI.isPresent();
+        return optionalURI != null && optionalURI.isPresent() && !optionalURI.get().toString().endsWith("/");
     }
 
     /**

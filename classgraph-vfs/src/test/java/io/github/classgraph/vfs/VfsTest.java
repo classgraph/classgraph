@@ -1213,6 +1213,78 @@ public class VfsTest {
         }
     }
 
+    /**
+     * A module reader finds a directory as well as a resource, but a directory is not an entry of a module, just as
+     * it is not an entry of a jarfile or a directory, so looking one up by name finds nothing. This holds for a
+     * modular jarfile that stores its directories as entries of their own, as the {@code jar} tool writes them, and
+     * for a module exploded into a directory.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if a module could not be written or read.
+     */
+    @Test
+    public void aModuleDirectoryIsNotAnEntry(@TempDir final Path tempDir) throws IOException {
+        final var jarPath = tempDir.resolve("dirs.jar");
+        try (var fileOut = Files.newOutputStream(jarPath); var zipOut = new ZipOutputStream(fileOut)) {
+            zipOut.putNextEntry(new ZipEntry("META-INF/MANIFEST.MF"));
+            zipOut.write("Manifest-Version: 1.0\nAutomatic-Module-Name: com.xyz.dirs\n\n"
+                    .getBytes(StandardCharsets.UTF_8));
+            zipOut.closeEntry();
+            for (final var entryName : List.of("META-INF/services/", "p/", "p/A.txt")) {
+                zipOut.putNextEntry(new ZipEntry(entryName));
+                if (!entryName.endsWith("/")) {
+                    zipOut.write(RESOURCE_CONTENT.getBytes(StandardCharsets.UTF_8));
+                }
+                zipOut.closeEntry();
+            }
+        }
+        final var jarModule = ModuleFinder.of(jarPath).find("com.xyz.dirs").orElseThrow();
+
+        final var moduleDir = tempDir.resolve("exploded");
+        writeDirWithFiles(moduleDir.toFile(), "p/A.txt");
+        Files.createDirectories(moduleDir.resolve("META-INF/services"));
+        // The module reader that ModuleFinder.of(Path...) gives an exploded module finds a directory by the URI of
+        // the directory, which ends in '/', as this one does
+        final var explodedModule = new ModuleReference(ModuleDescriptor.newModule("com.xyz.exploded").build(),
+                moduleDir.toUri()) {
+            @Override
+            public ModuleReader open() {
+                return new ModuleReader() {
+                    @Override
+                    public Optional<URI> find(final String name) {
+                        final var file = moduleDir.resolve(name);
+                        return Files.exists(file) ? Optional.of(file.toUri()) : Optional.empty();
+                    }
+
+                    @Override
+                    public Stream<String> list() {
+                        return Stream.of("META-INF/services/", "p/", "p/A.txt");
+                    }
+
+                    @Override
+                    public void close() {
+                        // Nothing is held open between reads
+                    }
+                };
+            }
+        };
+
+        try (var vfs = new Vfs()) {
+            for (final var moduleReference : List.of(jarModule, explodedModule)) {
+                final var root = vfs.open(moduleReference);
+                assertThat(root.getEntries()).extracting(VfsEntry::getPathFromRoot).contains("p/A.txt")
+                        .doesNotContain("p", "p/", "META-INF/services", "META-INF/services/");
+                assertThat(entryContent(root, "p/A.txt")).isEqualTo(RESOURCE_CONTENT);
+                for (final var dirName : List.of("p", "p/", "META-INF/services", "META-INF/services/")) {
+                    assertThat(root.getEntry(dirName)).as("%s in %s", dirName, root.getPath()).isNull();
+                }
+                assertThat(root.getEntryCaseInsensitive("p")).isNull();
+            }
+        }
+    }
+
     /** A jarfile nested inside another jarfile is read in place. */
     @Test
     public void aNestedJarfileCanBeRead(@TempDir final File tempDir) throws IOException {

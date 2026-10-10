@@ -12,14 +12,20 @@ import java.lang.module.ModuleReader;
 import java.lang.module.ModuleReference;
 import java.net.URI;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 import io.github.classgraph.base.LogNode;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 /**
  * Tests for the calls into the module system. Some {@link ModuleReader} implementations in the wild break the
@@ -136,6 +142,39 @@ public class ModuleReaderUtilsTest {
             } finally {
                 moduleReader.release(byteBuffer);
             }
+        }
+    }
+
+    /**
+     * The module reader of a modular jarfile finds a directory that the jarfile stores as an entry of its own, by a
+     * URI that ends in '/', with or without the '/' in the name it is asked for. A directory is not a resource, so
+     * the module does not contain it.
+     *
+     * @param tempDir
+     *            a temporary directory
+     * @throws IOException
+     *             if the jarfile could not be written or read
+     */
+    @Test
+    public void aDirectoryIsNotAResourceOfTheModule(@TempDir final Path tempDir) throws IOException {
+        final var jarPath = tempDir.resolve("dirs.jar");
+        try (var zipOut = new ZipOutputStream(Files.newOutputStream(jarPath))) {
+            zipOut.putNextEntry(new ZipEntry("META-INF/MANIFEST.MF"));
+            zipOut.write("Manifest-Version: 1.0\nAutomatic-Module-Name: com.xyz.dirs\n\n"
+                    .getBytes(StandardCharsets.UTF_8));
+            zipOut.putNextEntry(new ZipEntry("p/"));
+            zipOut.putNextEntry(new ZipEntry("p/A.txt"));
+            zipOut.write('A');
+            zipOut.closeEntry();
+        }
+        final var moduleReference = ModuleFinder.of(jarPath).find("com.xyz.dirs").orElseThrow();
+        try (var moduleReader = ModuleReaderUtils.openModule(moduleReference)) {
+            // The JDK reader does find the directory, which is why it has to be told apart by its URI
+            assertThat(moduleReader.find("p")).hasValueSatisfying(uri -> assertThat(uri.toString()).endsWith("/"));
+
+            assertThat(ModuleReaderUtils.contains(moduleReader, "p/A.txt")).isTrue();
+            assertThat(ModuleReaderUtils.contains(moduleReader, "p")).isFalse();
+            assertThat(ModuleReaderUtils.contains(moduleReader, "p/")).isFalse();
         }
     }
 
