@@ -13,6 +13,7 @@ import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
@@ -135,8 +136,8 @@ public class ClasspathOrderTest {
         assertThat(classpathOrder.addClasspathEntry(null, null, null)).isFalse();
         assertThat(classpathOrder.addClasspathEntry("", null, null)).isFalse();
         assertThat(classpathOrder.addClasspathEntry(new File(""), null, null)).isFalse();
-        assertThat(classpathOrder.addClasspathEntries(null, null, null)).isFalse();
-        assertThat(classpathOrder.addClasspathEntries(List.of(), null, null)).isFalse();
+        assertThat(classpathOrder.addClasspathEntry(List.of(), null, null)).isFalse();
+        assertThat(classpathOrder.addClasspathEntry(new String[0], null, null)).isFalse();
         assertThat(classpathOrder.addClasspathPathStr(null, null, null)).isFalse();
         assertThat(classpathOrder.addClasspathPathStr("", null, null)).isFalse();
         // A path string that contains only separators splits into no path elements at all
@@ -552,8 +553,8 @@ public class ClasspathOrderTest {
     public void bulkAddsReportWhetherAnythingWasAdded(@TempDir final Path tempDir) throws IOException {
         final var jarA = createFile(tempDir.resolve("a.jar"));
         final var missing = tempDir.resolve("missing.jar").toString();
-        assertThat(classpathOrder.addClasspathEntries(List.of(jarA), null, null)).isTrue();
-        assertThat(classpathOrder.addClasspathEntries(List.of(jarA, missing), null, null)).isFalse();
+        assertThat(classpathOrder.addClasspathEntry(List.of(jarA), null, null)).isTrue();
+        assertThat(classpathOrder.addClasspathEntry(List.of(jarA, missing), null, null)).isFalse();
         assertThat(classpathOrder.addClasspathPathStr(jarA + File.pathSeparator + missing, null, null)).isFalse();
         assertThat(classpathOrder.addClasspathEntryObject(List.of(jarA, missing), null, null)).isFalse();
         assertThat(entryObjects()).containsExactly(jarA);
@@ -577,6 +578,161 @@ public class ClasspathOrderTest {
 
         // Each element is kept in the form it arrived in, so the one that arrived as a File is still a File
         assertThat(entryObjects()).containsExactly(jarA, new File(jarB), jarC, jarD);
+    }
+
+    /**
+     * {@link ClasspathOrderBuilder#addClasspathEntry(Object, ClassLoader, io.github.classgraph.base.ClassGraphLog)}
+     * adds each element of an array or {@link Iterable}, nested to any depth. It used to add the string form of the
+     * container instead, such as {@code "[Ljava.net.URL;@1a2b3c"}, which names no file, so a handler that passed
+     * the {@code URL[]} or {@code List<URL>} it read from a classloader silently added nothing.
+     */
+    @Test
+    public void addClasspathEntryAddsEachElementOfAnArrayOrIterable(@TempDir final Path tempDir)
+            throws IOException {
+        final var jarA = createFile(tempDir.resolve("a.jar"));
+        final var jarB = createFile(tempDir.resolve("b.jar"));
+        final var jarC = createFile(tempDir.resolve("c.jar"));
+        final var jarD = createFile(tempDir.resolve("d.jar"));
+        final var jarE = createFile(tempDir.resolve("e.jar"));
+        final var jarF = createFile(tempDir.resolve("f.jar"));
+
+        assertThat(classpathOrder.addClasspathEntry(
+                new URL[] { Path.of(jarA).toUri().toURL(), Path.of(jarB).toUri().toURL() }, null, null)).isTrue();
+        assertThat(classpathOrder.addClasspathEntry(List.of(new File(jarC), Path.of(jarD)), null, null)).isTrue();
+        assertThat(
+                classpathOrder.addClasspathEntry(new Object[] { List.of(jarE), new String[] { jarF } }, null, null))
+                .isTrue();
+        // Nothing is added from a container of duplicates, and the return value says so
+        assertThat(classpathOrder.addClasspathEntry(List.of(jarA, jarB), null, null)).isFalse();
+
+        assertThat(locations()).containsExactly(jarA, jarB, jarC, jarD, jarE, jarF);
+    }
+
+    /**
+     * A {@link Path} is an {@link Iterable} of its own name elements, but it is one classpath entry, both on its
+     * own and as the element of a list.
+     */
+    @Test
+    public void aPathIsOneClasspathEntry(@TempDir final Path tempDir) throws IOException {
+        final var jarA = Path.of(createFile(tempDir.resolve("a.jar")));
+        final var jarB = Path.of(createFile(tempDir.resolve("b.jar")));
+        assertThat(classpathOrder.addClasspathEntry(jarA, null, null)).isTrue();
+        assertThat(classpathOrder.addClasspathEntryObject(jarB, null, null)).isTrue();
+        assertThat(classpathOrder.addClasspathEntry(List.of(jarA, jarB), null, null)).isFalse();
+
+        assertThat(entryObjects()).containsExactly(jarA, jarB);
+    }
+
+    /**
+     * A string passed to
+     * {@link ClasspathOrderBuilder#addClasspathEntry(Object, ClassLoader, io.github.classgraph.base.ClassGraphLog)}
+     * is one path, even inside a list, so a directory whose name holds the path separator character is found. Only
+     * {@link ClasspathOrderBuilder#addClasspathEntryObject(Object, ClassLoader, io.github.classgraph.base.ClassGraphLog)}
+     * and
+     * {@link ClasspathOrderBuilder#addClasspathPathStr(String, ClassLoader, io.github.classgraph.base.ClassGraphLog)}
+     * split a string.
+     */
+    @Test
+    @DisabledOnOs(value = OS.WINDOWS, disabledReason = "A Windows file name cannot hold ';'")
+    public void addClasspathEntryDoesNotSplitAString(@TempDir final Path tempDir) throws IOException {
+        final var dir = Files.createDirectory(tempDir.resolve("my" + File.pathSeparator + "dir")).toRealPath()
+                .toString();
+        assertThat(new ClasspathOrderBuilder(classpathSpec).addClasspathEntry(dir, null, null)).isTrue();
+        assertThat(new ClasspathOrderBuilder(classpathSpec).addClasspathEntry(List.of(dir), null, null)).isTrue();
+        assertThat(new ClasspathOrderBuilder(classpathSpec).addClasspathEntryObject(dir, null, null)).isFalse();
+    }
+
+    /**
+     * A list that holds itself is expanded once: when it is met again inside its own expansion, it is skipped. It
+     * used to be expanded again and again until the stack overflowed, which ended the whole scan.
+     */
+    @Test
+    public void aListThatContainsItselfDoesNotOverflowTheStack(@TempDir final Path tempDir) throws IOException {
+        final var jar = createFile(tempDir.resolve("a.jar"));
+        final List<Object> list = new ArrayList<>();
+        list.add(jar);
+        list.add(list);
+        assertThat(classpathOrder.addClasspathEntryObject(list, null, null)).isTrue();
+        assertThat(new ClasspathOrderBuilder(classpathSpec).addClasspathEntry(list, null, null)).isTrue();
+
+        assertThat(locations()).containsExactly(jar);
+    }
+
+    /**
+     * Two lists that hold each other are each expanded once. When the outer list is met again, it is skipped rather
+     * than added by its string form, since the string form of a list that holds itself through another list
+     * recurses until the stack overflows.
+     */
+    @Test
+    public void listsThatContainEachOtherDoNotOverflowTheStack(@TempDir final Path tempDir) throws IOException {
+        final var jarA = createFile(tempDir.resolve("a.jar"));
+        final var jarB = createFile(tempDir.resolve("b.jar"));
+        final List<Object> outer = new ArrayList<>();
+        final List<Object> inner = new ArrayList<>();
+        outer.add(jarA);
+        outer.add(inner);
+        inner.add(jarB);
+        inner.add(outer);
+        assertThat(classpathOrder.addClasspathEntryObject(outer, null, null)).isTrue();
+        assertThat(new ClasspathOrderBuilder(classpathSpec).addClasspathEntry(outer, null, null)).isTrue();
+
+        assertThat(locations()).containsExactly(jarA, jarB);
+    }
+
+    /** An array that holds itself is expanded once, as a list that holds itself is. */
+    @Test
+    public void anArrayThatContainsItselfDoesNotOverflowTheStack(@TempDir final Path tempDir) throws IOException {
+        final var jar = createFile(tempDir.resolve("a.jar"));
+        final var array = new Object[2];
+        array[0] = jar;
+        array[1] = array;
+        assertThat(classpathOrder.addClasspathEntryObject(array, null, null)).isTrue();
+        assertThat(new ClasspathOrderBuilder(classpathSpec).addClasspathEntry(array, null, null)).isTrue();
+
+        assertThat(locations()).containsExactly(jar);
+    }
+
+    /**
+     * An {@link Iterable} that yields only itself, as an Apache Ant {@code FileResource} does, whose string form is
+     * the path of its file.
+     */
+    private static class SelfIterable implements Iterable<Object> {
+        /** The path of the file. */
+        private final String path;
+
+        /**
+         * Constructor.
+         *
+         * @param path
+         *            the path of the file.
+         */
+        SelfIterable(final String path) {
+            this.path = path;
+        }
+
+        @Override
+        public Iterator<Object> iterator() {
+            return List.<Object> of(this).iterator();
+        }
+
+        @Override
+        public String toString() {
+            return path;
+        }
+    }
+
+    /**
+     * An {@link Iterable} that yields only itself is added by its string form, so an Apache Ant {@code Path}, whose
+     * every element is such a resource, gives the paths of its files.
+     */
+    @Test
+    public void anIterableThatYieldsItselfIsAddedByItsString(@TempDir final Path tempDir) throws IOException {
+        final var jarA = createFile(tempDir.resolve("a.jar"));
+        final var jarB = createFile(tempDir.resolve("b.jar"));
+        assertThat(classpathOrder.addClasspathEntryObject(List.of(new SelfIterable(jarA)), null, null)).isTrue();
+        assertThat(classpathOrder.addClasspathEntry(new SelfIterable(jarB), null, null)).isTrue();
+
+        assertThat(locations()).containsExactly(jarA, jarB);
     }
 
     /**

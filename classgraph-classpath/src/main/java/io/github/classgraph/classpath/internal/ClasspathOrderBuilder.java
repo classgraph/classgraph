@@ -41,8 +41,10 @@ import java.nio.file.InvalidPathException;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -633,9 +635,104 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
     @Override
     public boolean addClasspathEntry(final @Nullable Object pathElement, final @Nullable ClassLoader classLoader,
             final @Nullable ClassGraphLog log) {
-        if (pathElement == null) {
+        return addFlattened(pathElement, /* splitStrings = */ false, classLoader, log,
+                Collections.newSetFromMap(new IdentityHashMap<>()));
+    }
+
+    @Override
+    public boolean addClasspathPathStr(final @Nullable String pathStr, final @Nullable ClassLoader classLoader,
+            final @Nullable ClassGraphLog log) {
+        var added = false;
+        if (pathStr != null && !pathStr.isEmpty()) {
+            for (final String pathElement : PathList.split(pathStr, classpathSpec.getAllowedURLSchemes())) {
+                added |= addSingleClasspathEntry(pathElement, classLoader, log);
+            }
+        }
+        return added;
+    }
+
+    @Override
+    public boolean addClasspathEntryObject(final @Nullable Object pathObject,
+            final @Nullable ClassLoader classLoader, final @Nullable ClassGraphLog log) {
+        return addFlattened(pathObject, /* splitStrings = */ true, classLoader, log,
+                Collections.newSetFromMap(new IdentityHashMap<>()));
+    }
+
+    /**
+     * Add the classpath entries held by an object, adding each element of an array or {@link Iterable}, nested to
+     * any depth.
+     *
+     * @param pathObject
+     *            a {@link URL}, {@link URI}, {@link File}, {@link Path} or {@link CharSequence}, an array or
+     *            {@link Iterable} of these, or any other object, which is converted with {@link Object#toString()}.
+     * @param splitStrings
+     *            true to split a {@link CharSequence}, or the string form of an object of any other type, at the
+     *            system path separator character; false to add it as one path.
+     * @param classLoader
+     *            the {@link ClassLoader} that the classpath entries were obtained from.
+     * @param log
+     *            the log node, or null to skip logging
+     * @param expanding
+     *            the arrays and {@link Iterable}s whose elements are being added, by identity. One that is met
+     *            again while its own elements are being added is not expanded again, which would never end: an
+     *            array or {@link Collection} is skipped, and any other {@link Iterable} is converted with
+     *            {@link Object#toString()}. (An Apache Ant {@code FileResource} is an {@link Iterable} that yields
+     *            only itself, and its string form is the path of its file.)
+     * @return true if at least one classpath element was added.
+     */
+    private boolean addFlattened(final @Nullable Object pathObject, final boolean splitStrings,
+            final @Nullable ClassLoader classLoader, final @Nullable ClassGraphLog log,
+            final Set<Object> expanding) {
+        if (pathObject == null) {
             return false;
         }
+        // A Path is checked before Iterable, since a Path is an Iterable of its own name elements
+        if (pathObject instanceof URL || pathObject instanceof URI || pathObject instanceof Path
+                || pathObject instanceof File) {
+            return addSingleClasspathEntry(pathObject, classLoader, log);
+        }
+        final var isArray = pathObject.getClass().isArray();
+        if ((isArray || pathObject instanceof Collection<?>) && expanding.contains(pathObject)) {
+            // The string form of an array or Collection names no file, and the string form of a Collection that
+            // holds itself through another Collection recurses until the stack overflows, so it is skipped
+            return false;
+        }
+        if ((isArray || pathObject instanceof Iterable<?>) && expanding.add(pathObject)) {
+            var added = false;
+            try {
+                if (isArray) {
+                    for (int j = 0, n = Array.getLength(pathObject); j < n; j++) {
+                        added |= addFlattened(Array.get(pathObject, j), splitStrings, classLoader, log, expanding);
+                    }
+                } else {
+                    for (final Object elt : (Iterable<?>) pathObject) {
+                        added |= addFlattened(elt, splitStrings, classLoader, log, expanding);
+                    }
+                }
+            } finally {
+                expanding.remove(pathObject);
+            }
+            return added;
+        }
+        // A string, or any other object, which is converted with toString()
+        return splitStrings ? addClasspathPathStr(pathObject.toString(), classLoader, log)
+                : addSingleClasspathEntry(pathObject, classLoader, log);
+    }
+
+    /**
+     * Add a single classpath entry.
+     *
+     * @param pathElement
+     *            the {@link String} path, {@link URL}, {@link URI}, {@link File} or {@link Path} of the classpath
+     *            element, or some other object whose {@link Object#toString()} method gives the classpath element.
+     * @param classLoader
+     *            the {@link ClassLoader} that this classpath element was obtained from.
+     * @param log
+     *            the log node, or null to skip logging
+     * @return true if the classpath element was added.
+     */
+    private boolean addSingleClasspathEntry(final Object pathElement, final @Nullable ClassLoader classLoader,
+            final @Nullable ClassGraphLog log) {
         var pathElementStr = toPathElementStr(pathElement);
         if (pathElementStr.isEmpty()) {
             // Check for an empty path element before resolving it, not after: resolving an empty path against the
@@ -693,58 +790,5 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
                     log);
         }
         return addClasspathEntryAndLog(pathElementStr, pathElementStr, pathElementStr, classLoader, log);
-    }
-
-    @Override
-    public boolean addClasspathEntries(final @Nullable List<?> classpathEntries,
-            final @Nullable ClassLoader classLoader, final @Nullable ClassGraphLog log) {
-        var added = false;
-        if (classpathEntries != null) {
-            for (final Object pathElement : classpathEntries) {
-                added |= addClasspathEntry(pathElement, classLoader, log);
-            }
-        }
-        return added;
-    }
-
-    @Override
-    public boolean addClasspathPathStr(final @Nullable String pathStr, final @Nullable ClassLoader classLoader,
-            final @Nullable ClassGraphLog log) {
-        var added = false;
-        if (pathStr != null && !pathStr.isEmpty()) {
-            for (final String pathElement : PathList.split(pathStr, classpathSpec.getAllowedURLSchemes())) {
-                added |= addClasspathEntry(pathElement, classLoader, log);
-            }
-        }
-        return added;
-    }
-
-    @Override
-    public boolean addClasspathEntryObject(final @Nullable Object pathObject,
-            final @Nullable ClassLoader classLoader, final @Nullable ClassGraphLog log) {
-        var added = false;
-        if (pathObject != null) {
-            if (pathObject instanceof URL || pathObject instanceof URI || pathObject instanceof Path
-                    || pathObject instanceof File) {
-                added |= addClasspathEntry(pathObject, classLoader, log);
-            } else if (pathObject instanceof final Iterable<?> iterable) {
-                for (final Object elt : iterable) {
-                    added |= addClasspathEntryObject(elt, classLoader, log);
-                }
-            } else {
-                final Class<?> valClass = pathObject.getClass();
-                if (valClass.isArray()) {
-                    for (int j = 0, n = Array.getLength(pathObject); j < n; j++) {
-                        final var elt = Array.get(pathObject, j);
-                        added |= addClasspathEntryObject(elt, classLoader, log);
-                    }
-                } else {
-                    // Try simply calling toString() as a final fallback, to handle String objects, or to try to
-                    // handle anything else
-                    added |= addClasspathPathStr(pathObject.toString(), classLoader, log);
-                }
-            }
-        }
-        return added;
     }
 }

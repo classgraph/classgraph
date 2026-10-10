@@ -267,9 +267,12 @@ try (Classpath classpath = new ClasspathFinder().enableClasspath()
 }
 ```
 
-`addClasspathEntry` accepts a `String`, `File`, `Path`, `URL` or `URI`, and returns false if the
-entry was rejected -- because it is empty, because the filesystem says it is not there or that it
-cannot be read, because a classpath element filter rejected it, or because it was already added.
+`addClasspathEntry` accepts a `String`, `File`, `Path`, `URL` or `URI`, or an array or `Iterable`
+of these, such as the `URL[]` a classloader returns. It never splits a `String` at the path
+separator: use `addClasspathPathStr` for a string that holds several paths. It returns false if
+nothing was added, because each entry was rejected -- because it is empty, because the filesystem
+says it is not there or that it cannot be read, because a classpath element filter rejected it, or
+because it was already added.
 There is no need to check any of that before calling: hand it everything the classloader offers, in
 the order the classloader would search it. A handler must be stateless,
 since one instance handles every classloader in every scan, and scans can run concurrently; state

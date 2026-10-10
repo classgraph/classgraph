@@ -3,6 +3,7 @@ package io.github.classgraph.classpath;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Files;
@@ -315,6 +316,33 @@ public class RegisteredClassLoaderHandlerTest {
             assertThat(classpath.getEntries().get(1).getPackageRootPrefixes()).containsExactly("p1/");
             assertThat(classpath.getEntries().get(1).getLibDirPrefixes()).containsExactly("l1/");
         }
+    }
+
+    /**
+     * A handler may pass the list of URLs it reads from its classloader to
+     * {@link ClasspathOrder#addClasspathEntry(Object, ClassLoader, ClassGraphLog)} as it is, and each URL is found.
+     * The string form of the list used to be added as a single path instead, which named no file, so nothing was
+     * found.
+     */
+    @Test
+    public void aHandlerMayAddAListOfClasspathEntries(@TempDir final Path tempDir) throws Exception {
+        final var dirA = classesDir(tempDir, "a");
+        final var dirB = classesDir(tempDir, "b");
+        final var handler = new UnknownClassLoaderHandler() {
+            @Override
+            public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
+                    final @Nullable ClassGraphLog log) {
+                try {
+                    classpathOrder.addClasspathEntry(List.of(dirA.toUri().toURL(), dirB.toUri().toURL()),
+                            classLoader, log);
+                } catch (final MalformedURLException e) {
+                    throw new IllegalStateException(e);
+                }
+            }
+        };
+
+        assertThat(find(new ClasspathFinder().enableClassLoaders(new UnknownClassLoader(dirA.toString()))
+                .registerClassLoaderHandler(handler))).containsExactly(dirA, dirB);
     }
 
     /**

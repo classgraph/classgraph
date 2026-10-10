@@ -32,7 +32,6 @@ import java.io.File;
 import java.net.URI;
 import java.net.URL;
 import java.nio.file.Path;
-import java.util.List;
 
 import io.github.classgraph.base.ClassGraphLog;
 import org.jspecify.annotations.Nullable;
@@ -63,37 +62,33 @@ import org.jspecify.annotations.Nullable;
  */
 public interface ClasspathOrder {
     /**
-     * Add a classpath entry.
+     * Add a classpath entry, or each classpath entry in an array or {@link Iterable}.
+     *
+     * <p>
+     * The object may be a {@link String} path, {@link URL}, {@link URI}, {@link File} or {@link Path}, or an array
+     * or {@link Iterable} of any of those, nested to any depth. A {@link Path} is one classpath entry, although it
+     * is an {@link Iterable} of its name elements. A {@link Path} keeps its own filesystem, so it need not be on
+     * the default filesystem; do not convert it to a string first. Anything else is converted with
+     * {@link Object#toString()}. An array or {@link Iterable} that is met again while its own elements are being
+     * added is not expanded again: an array or {@link java.util.Collection} is skipped, and any other
+     * {@link Iterable} is converted with {@link Object#toString()}.
+     *
+     * <p>
+     * A {@link String} is always one path, and is never split at the system path separator character. Pass a string
+     * that holds several paths to {@link #addClasspathPathStr(String, ClassLoader, ClassGraphLog)} or
+     * {@link #addClasspathEntryObject(Object, ClassLoader, ClassGraphLog)} instead.
      *
      * @param pathElement
-     *            the {@link String} path, {@link URL} or {@link URI} of the classpath element, or some object whose
-     *            {@link Object#toString()} method can be called to obtain the classpath element.
+     *            the classpath entry, or the array or {@link Iterable} of classpath entries.
      * @param classLoader
-     *            the {@link ClassLoader} that this classpath element was obtained from.
+     *            the {@link ClassLoader} that the classpath entries were obtained from.
      * @param log
      *            the log node, or null to skip logging
-     * @return true if the classpath element was added, or false if it was null or empty, if it names a file or
-     *         directory that the filesystem says is not there or cannot be read, if it was filtered out by the
-     *         user's classpath element filters, or if it duplicates a classpath element already added.
+     * @return true if at least one classpath element was added, or false if each one was null or empty, named a
+     *         file or directory that the filesystem says is not there or cannot be read, was filtered out by the
+     *         user's classpath element filters, or duplicated a classpath element already added.
      */
     boolean addClasspathEntry(@Nullable Object pathElement, @Nullable ClassLoader classLoader,
-            @Nullable ClassGraphLog log);
-
-    /**
-     * Add several classpath entries.
-     *
-     * @param classpathEntries
-     *            a list of {@link String} path, {@link URL}, {@link URI} or {@link File} objects, one per classpath
-     *            entry. Nothing is split here, so a {@link String} that holds several paths separated by the system
-     *            path separator character is added as a single entry -- pass that to
-     *            {@link #addClasspathPathStr(String, ClassLoader, ClassGraphLog)} instead.
-     * @param classLoader
-     *            the {@link ClassLoader} that these classpath entries were obtained from.
-     * @param log
-     *            the log node, or null to skip logging
-     * @return true if at least one classpath element was added.
-     */
-    boolean addClasspathEntries(@Nullable List<?> classpathEntries, @Nullable ClassLoader classLoader,
             @Nullable ClassGraphLog log);
 
     /**
@@ -114,7 +109,14 @@ public interface ClasspathOrder {
      * Add classpath entries from an object obtained by reflection, of a type that is only known at runtime. The
      * object may be a {@link URL}, {@link URI}, {@link File}, {@link Path} or {@link String} (holding a single
      * path, or several paths separated by the system path separator character), or an array or {@link Iterable} of
-     * any of those. Anything else is converted with {@link Object#toString()}.
+     * any of those, nested to any depth. Anything else is converted with {@link Object#toString()}, and the result
+     * is split at the system path separator character, as a {@link String} is.
+     *
+     * <p>
+     * This differs from {@link #addClasspathEntry(Object, ClassLoader, ClassGraphLog)} only in splitting strings,
+     * so a directory whose name holds the system path separator character cannot be added with this method. As
+     * there, an array or {@link Iterable} that is met again while its own elements are being added is not expanded
+     * again.
      *
      * @param pathObject
      *            the object holding a classpath entry or entries.
