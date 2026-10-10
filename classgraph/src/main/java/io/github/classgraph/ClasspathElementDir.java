@@ -122,6 +122,17 @@ class ClasspathElementDir extends ClasspathElement {
                     log(classpathElementIdx, childEntry.origin().getLogMessage() + ": " + childEntry.location(),
                             log);
                 }
+                // A classpath element that this one declares has to pass the user's classpath element filters, the
+                // same as one that was named directly. The location is tested rather than the path, since the
+                // string form of a path within a jarfile leaves out the path of the jarfile.
+                if (!scanSpec.classpathSpec.acceptsClasspathElement(/* classpathElementURL = */ null,
+                        childEntry.location())) {
+                    if (log != null) {
+                        log(classpathElementIdx, "Classpath element did not match filter criterion, skipping: "
+                                + childEntry.location(), log);
+                    }
+                    continue;
+                }
                 final var childPath = childEntry.path();
                 workQueue.addWorkUnit(
                         new ClasspathEntryWorkUnit(childPath == null ? childEntry.location() : childPath,

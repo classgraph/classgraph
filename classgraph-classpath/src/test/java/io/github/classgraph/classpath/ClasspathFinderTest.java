@@ -17,6 +17,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.jar.Attributes;
 import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
@@ -639,6 +640,168 @@ public class ClasspathFinderTest {
         try (var classpath = new ClasspathFinder().enableClasspathEntries((Object) dir.toFile()).find()) {
             assertThat(classpath.getLocations()).containsExactly(location(dir.toFile()));
         }
+    }
+
+    /**
+     * The jarfiles of the classpath element filter tests: {@code a.jar} names {@code b.jar}, which names
+     * {@code c.jar}, and {@code wild/w2.jar} names {@code c.jar} too, while {@code wild/w1.jar} names nothing. The
+     * classpath is {@code a.jar} followed by the wildcard {@code wild/*}.
+     *
+     * @param a
+     *            a.jar.
+     * @param b
+     *            b.jar.
+     * @param c
+     *            c.jar.
+     * @param w1
+     *            wild/w1.jar.
+     * @param w2
+     *            wild/w2.jar.
+     * @param wildcard
+     *            the wildcarded directory, {@code wild/*}.
+     */
+    private record FilterFixture(File a, File b, File c, File w1, File w2, String wildcard) {
+        /**
+         * Write the jarfiles.
+         *
+         * @param dir
+         *            the directory to write them in.
+         * @return the fixture.
+         * @throws IOException
+         *             if a jarfile could not be written.
+         */
+        static FilterFixture write(final Path dir) throws IOException {
+            final var wildDir = Files.createDirectory(dir.resolve("wild"));
+            return new FilterFixture(writeJarWithManifest(dir.resolve("a.jar"), "Class-Path", "b.jar"),
+                    writeJarWithManifest(dir.resolve("b.jar"), "Class-Path", "c.jar"),
+                    writeJarWithManifest(dir.resolve("c.jar")), writeJarWithManifest(wildDir.resolve("w1.jar")),
+                    writeJarWithManifest(wildDir.resolve("w2.jar"), "Class-Path", "../c.jar"), wildDir + "/*");
+        }
+
+        /**
+         * Find the classpath with a filter, and return the locations found.
+         *
+         * @param filter
+         *            the filter.
+         * @return the locations.
+         */
+        List<String> find(final Predicate<? super ClasspathEntry> filter) {
+            try (var classpath = new ClasspathFinder().enableClasspathEntries(a, wildcard)
+                    .filterClasspathEntries(filter).find()) {
+                return classpath.getLocations();
+            }
+        }
+    }
+
+    /**
+     * A classpath element that the filter rejects is not reported and not opened, so the classpath elements that
+     * only it declares are not found either. A classpath element that an accepted element also declares is still
+     * found.
+     */
+    @Test
+    public void aRejectedClasspathElementIsNotOpened(@TempDir final Path tempDir) throws IOException {
+        final var f = FilterFixture.write(tempDir);
+        final var seen = new ArrayList<String>();
+        assertThat(f.find(entry -> {
+            seen.add(entry.getLocation());
+            return !entry.getLocation().equals(location(f.a()));
+        })).containsExactlyInAnyOrder(location(f.w1()), location(f.w2()), location(f.c()));
+        // b.jar is only declared by a.jar, which was never opened, so the filter never saw it
+        assertThat(seen).doesNotContain(location(f.b()));
+    }
+
+    /** The filter is applied to the classpath elements that a manifest's {@code Class-Path} entry declares. */
+    @Test
+    public void theFilterSeesManifestClassPathEntries(@TempDir final Path tempDir) throws IOException {
+        final var f = FilterFixture.write(tempDir);
+        assertThat(f.find(entry -> !entry.getLocation().equals(location(f.c()))))
+                .containsExactlyInAnyOrder(location(f.a()), location(f.b()), location(f.w1()), location(f.w2()));
+    }
+
+    /** The filter is applied to each jarfile that a wildcarded directory is expanded into. */
+    @Test
+    public void theFilterSeesTheJarfilesInAWildcardedDirectory(@TempDir final Path tempDir) throws IOException {
+        final var f = FilterFixture.write(tempDir);
+        // w2.jar is not opened, so c.jar is reached only through a.jar and b.jar
+        assertThat(f.find(entry -> !entry.getLocation().equals(location(f.w2()))))
+                .containsExactlyInAnyOrder(location(f.a()), location(f.b()), location(f.c()), location(f.w1()));
+    }
+
+    /**
+     * The filter is applied to the jarfiles in a lib dir that a classloader handler declares.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if a jarfile could not be written, or the classloader could not be closed.
+     */
+    @Test
+    public void theFilterSeesLibDirJars(@TempDir final Path tempDir) throws IOException {
+        final var dir = Files.createDirectory(tempDir.resolve("exploded"));
+        final var libDir = dir.resolve("BOOT-INF").resolve("lib");
+        final var kept = writeJarWithEntry(libDir.resolve("kept.jar"), "resource.txt");
+        final var rejected = writeJarWithEntry(libDir.resolve("rejected.jar"), "resource.txt");
+        try (var classLoader = new URLClassLoader(new URL[] { dir.toUri().toURL() }, /* parent = */ null);
+                var classpath = new ClasspathFinder().enableClassLoaders(classLoader)
+                        .registerClassLoaderHandler(libDirHandler("BOOT-INF/lib/"))
+                        .filterClasspathEntries(entry -> !entry.getLocation().equals(location(rejected))).find()) {
+            assertThat(classpath.getLocations()).containsExactly(location(dir.toFile()), location(kept));
+        }
+    }
+
+    /**
+     * The filter is given the location a classpath element is reported under, which is the path it is stored at, so
+     * a filter written against that location rejects the classpath element even when it was named through a
+     * symbolic link.
+     */
+    @Test
+    public void theFilterSeesTheLocationAClasspathElementIsStoredAt(@TempDir final Path tempDir)
+            throws IOException {
+        final var dir = Files.createDirectory(tempDir.resolve("real"));
+        final var rejected = writeJarWithManifest(dir.resolve("rejected.jar"));
+        final var kept = writeJarWithManifest(dir.resolve("kept.jar"));
+        final Path linkedDir;
+        try {
+            linkedDir = Files.createSymbolicLink(tempDir.resolve("link"), dir);
+        } catch (IOException | UnsupportedOperationException e) {
+            // Creating a symlink needs a privilege that is not granted by default on Windows
+            abort("Symlinks cannot be created: " + e);
+            return;
+        }
+        try (var classpath = new ClasspathFinder()
+                .enableClasspathEntries(linkedDir.resolve("rejected.jar").toFile(), kept)
+                .filterClasspathEntries(entry -> !entry.getLocation().equals(location(rejected))).find()) {
+            assertThat(classpath.getLocations()).containsExactly(location(kept));
+        }
+    }
+
+    /** A classpath element is reported only if it passes every filter. */
+    @Test
+    public void aClasspathElementMustPassEveryFilter(@TempDir final Path tempDir) throws IOException {
+        final var f = FilterFixture.write(tempDir);
+        try (var classpath = new ClasspathFinder().enableClasspathEntries(f.c(), f.w1(), f.w2())
+                .filterClasspathEntries(entry -> !entry.getLocation().equals(location(f.c())))
+                .filterClasspathEntries(entry -> !entry.getLocation().equals(location(f.w1()))).find()) {
+            assertThat(classpath.getLocations()).containsExactly(location(f.w2()));
+        }
+    }
+
+    /**
+     * A null filter is refused, and a filter is refused when no classpath element is searched, rather than being
+     * silently ignored.
+     */
+    @Test
+    public void aFilterNeedsAClasspathSource() {
+        assertThatThrownBy(() -> new ClasspathFinder().filterClasspathEntries(null))
+                .isInstanceOf(NullPointerException.class);
+        final var message = "ClasspathFinder#filterClasspathEntries() has no effect unless "
+                + "ClasspathFinder#enableClasspath() or ClasspathFinder#enableClassLoaders() or "
+                + "ClasspathFinder#enableClasspathEntries() is also called";
+        assertThatThrownBy(() -> new ClasspathFinder().filterClasspathEntries(_ -> true).find())
+                .isInstanceOf(IllegalArgumentException.class).hasMessage(message);
+        assertThatThrownBy(
+                () -> new ClasspathFinder().enableSystemModules().filterClasspathEntries(_ -> true).find())
+                .isInstanceOf(IllegalArgumentException.class).hasMessage(message);
     }
 
     /**
