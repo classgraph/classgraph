@@ -40,6 +40,13 @@ import nonapi.io.github.classgraph.types.Parser;
 
 /** An array type signature. */
 public class ArrayTypeSignature extends ReferenceTypeSignature {
+    /**
+     * The maximum number of dimensions of an array type (JVMS 4.3.2 and 4.4.1). The nested dimensions of an array
+     * type signature are built, hashed and compared by recursion, one call per dimension, so this limit also bounds
+     * the depth of that recursion.
+     */
+    static final int MAX_DIMENSIONS = 255;
+
     /** The raw type signature string for the array type. */
     private final String typeSignatureStr;
 
@@ -442,6 +449,9 @@ public class ArrayTypeSignature extends ReferenceTypeSignature {
         while (parser.peek() == '[') {
             numArrayDims++;
             parser.next();
+        }
+        if (numArrayDims > MAX_DIMENSIONS) {
+            throw new ParseException(parser, "Array type has more than " + MAX_DIMENSIONS + " dimensions");
         }
         if (numArrayDims > 0) {
             final TypeSignature elementTypeSignature = TypeSignature.parse(parser, definingClassName);

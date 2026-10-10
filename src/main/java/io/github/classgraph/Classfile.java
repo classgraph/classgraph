@@ -763,7 +763,39 @@ class Classfile {
      *             If an IO exception occurs.
      */
     private String getConstantPoolClassName(final int cpIdx) throws ClassfileFormatException, IOException {
-        return getConstantPoolString(cpIdx, /* replaceSlashWithDot = */ true, /* stripLSemicolon = */ false);
+        return checkArrayDimensions(
+                getConstantPoolString(cpIdx, /* replaceSlashWithDot = */ true, /* stripLSemicolon = */ false));
+    }
+
+    /**
+     * Check that a class name does not name an array type with more than {@link ArrayTypeSignature#MAX_DIMENSIONS}
+     * dimensions, counting both a leading '[' (e.g. "[[I") and a trailing "[]" (e.g. "int[][]") as a dimension,
+     * since {@link ClassInfo#getOrCreateClassInfo(String, Map)} counts both. The JVM never creates such an array
+     * class, but it does not check a class name that it does not resolve.
+     *
+     * @param className
+     *            the class name, or null
+     * @return {@code className}
+     * @throws ClassfileFormatException
+     *             If the class name names an array type with too many dimensions.
+     */
+    private static String checkArrayDimensions(final String className) throws ClassfileFormatException {
+        if (className != null) {
+            int numDims = 0;
+            for (int i = 0; i < className.length() && className.charAt(i) == '['; i++) {
+                numDims++;
+            }
+            for (int end = className.length(); end >= 2 && className.charAt(end - 2) == '['
+                    && className.charAt(end - 1) == ']'; end -= 2) {
+                numDims++;
+            }
+            if (numDims > ArrayTypeSignature.MAX_DIMENSIONS) {
+                // N.B. the class name can be 64kB long, so it is not put in the message
+                throw new ClassfileFormatException(
+                        "Class name has more than " + ArrayTypeSignature.MAX_DIMENSIONS + " array dimensions");
+            }
+        }
+        return className;
     }
 
     /**
@@ -780,7 +812,8 @@ class Classfile {
      *             If an IO exception occurs.
      */
     private String getConstantPoolClassDescriptor(final int cpIdx) throws ClassfileFormatException, IOException {
-        return getConstantPoolString(cpIdx, /* replaceSlashWithDot = */ true, /* stripLSemicolon = */ true);
+        return checkArrayDimensions(
+                getConstantPoolString(cpIdx, /* replaceSlashWithDot = */ true, /* stripLSemicolon = */ true));
     }
 
     /**
@@ -1334,8 +1367,7 @@ class Classfile {
             refdClassNames = new HashSet<>();
             // Get class names from direct class references in constant pool
             for (final int cpIdx : classNameCpIdxs) {
-                final String refdClassName = getConstantPoolString(cpIdx, /* replaceSlashWithDot = */ true,
-                        /* stripLSemicolon = */ false);
+                final String refdClassName = getConstantPoolClassName(cpIdx);
                 if (refdClassName != null) {
                     if (refdClassName.startsWith("[")) {
                         // Parse array type signature, e.g. "[Ljava.lang.String;" -- uses '.' rather than '/'
@@ -1893,7 +1925,10 @@ class Classfile {
                         thrownExceptionNames = new String[exceptionCount];
                         for (int k = 0; k < exceptionCount; k++) {
                             final int cpIdx = reader.readUnsignedShort();
-                            thrownExceptionNames[k] = getConstantPoolClassName(cpIdx);
+                            // A thrown exception class is only looked up by name, never created, so its name is
+                            // not checked for too many array dimensions, since that check would drop the class
+                            thrownExceptionNames[k] = getConstantPoolString(cpIdx,
+                                    /* replaceSlashWithDot = */ true, /* stripLSemicolon = */ false);
                         }
                     } else if (constantPoolStringEquals(attributeNameCpIdx, "Code")) {
                         methodHasBody = true;

@@ -367,6 +367,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * @param classNameToClassInfo
      *            the map from class name to class info
      * @return the {@link ClassInfo} object.
+     * @throws IllegalArgumentException
+     *             if the class name names an array type whose element type has no type signature, or that has more
+     *             than {@link ArrayTypeSignature#MAX_DIMENSIONS} dimensions.
      */
     static ClassInfo getOrCreateClassInfo(final String className,
             final Map<String, ClassInfo> classNameToClassInfo) {
@@ -402,6 +405,9 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             if (numArrayDims == 0) {
                 classInfo = new ClassInfo(canonicalClassName, /* classModifiers = */ 0,
                         /* classfileResource = */ null);
+            } else if (numArrayDims > ArrayTypeSignature.MAX_DIMENSIONS) {
+                throw new IllegalArgumentException(
+                        "Array type has more than " + ArrayTypeSignature.MAX_DIMENSIONS + " dimensions");
             } else {
                 final StringBuilder arrayTypeSigStrBuf = new StringBuilder();
                 for (int i = 0; i < numArrayDims; i++) {
