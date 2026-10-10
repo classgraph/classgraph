@@ -122,8 +122,8 @@ public class Issue925Test {
 
     /**
      * Scanning the WAR file itself should find both the classes in {@code WEB-INF/classes/} and the classes in the
-     * jarfiles in {@code WEB-INF/lib/}, which is the classpath element that Tomcat's main resource set yields for a
-     * non-exploded WAR.
+     * jarfiles in {@code WEB-INF/lib/}, since ClassGraph treats {@code "WEB-INF/classes/"} as a package root and
+     * {@code "WEB-INF/lib/"} as a library directory within a WAR file.
      */
     @Test
     public void warFileClasspathElementIsScanned() {
