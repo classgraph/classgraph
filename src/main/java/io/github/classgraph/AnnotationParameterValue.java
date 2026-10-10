@@ -92,6 +92,11 @@ public class AnnotationParameterValue extends ScanResultObject
      *         referenced class)
      *         <li>{@link AnnotationInfo}, for nested annotations
      *         </ul>
+     *         An array is returned as an {@link Object}[] array if the annotation class does not declare a
+     *         one-dimensional array type for this parameter, or if its elements do not have the declared element
+     *         type. This happens when the annotation class was changed after the annotated class was compiled (the
+     *         JDK reports such a value as an {@link java.lang.annotation.AnnotationTypeMismatchException} when it
+     *         is read).
      */
     public Object getValue() {
         return value == null ? null : value.get();

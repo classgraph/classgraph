@@ -247,20 +247,31 @@ class ObjectTypedValueWrapper extends ScanResultObject {
             final Class<?> eltClass = instantiate
                     ? (Class<?>) getArrayValueClassOrName(annotationClassInfo, paramName, /* getClass = */ true)
                     : null;
-            // Allocate array as either a generic Object[] array, if the element type could not be determined,
-            // or as an array of specific element type, if the element type was determined.
-            final Object annotationValueObjectArray = eltClass == null ? new Object[objectArrayValue.length]
-                    : Array.newInstance(eltClass, objectArrayValue.length);
-            // Fill the array instance.
+            // Get the element values (may also cause the elements to be instantiated)
+            final Object[] eltValues = new Object[objectArrayValue.length];
             for (int i = 0; i < objectArrayValue.length; i++) {
                 if (objectArrayValue[i] != null) {
-                    // Get the element value (may also cause the element to be instantiated)
-                    final Object eltValue = objectArrayValue[i].instantiateOrGet(annotationClassInfo, paramName);
-                    // Store the possibly-instantiated value in the array
-                    Array.set(annotationValueObjectArray, i, eltValue);
+                    eltValues[i] = objectArrayValue[i].instantiateOrGet(annotationClassInfo, paramName);
                 }
             }
-            return annotationValueObjectArray;
+            if (eltClass != null) {
+                // Copy the values into an array of the element type, if the element type was determined
+                final Object annotationValueArray = Array.newInstance(eltClass, eltValues.length);
+                try {
+                    for (int i = 0; i < eltValues.length; i++) {
+                        if (eltValues[i] != null) {
+                            Array.set(annotationValueArray, i, eltValues[i]);
+                        }
+                    }
+                    return annotationValueArray;
+                } catch (final IllegalArgumentException e) {
+                    // An element cannot be stored in an array of the element type, for example because the
+                    // annotation class was recompiled with another element type after the annotated class was
+                    // compiled. Like the JDK, which reports a type mismatch only when this value is read, return
+                    // the Object[] array, so that the other parameter values can still be read.
+                }
+            }
+            return eltValues;
         } else {
             return null;
         }
@@ -287,7 +298,8 @@ class ObjectTypedValueWrapper extends ScanResultObject {
      * @param getClass
      *            If true, return a {@code Class<?>} reference, otherwise return the class name.
      * @return the array value type as a {@code Class<?>} reference if getClass is true, otherwise the class name as
-     *         a String.
+     *         a String, or null if the annotation class does not declare a one-dimensional array type for this
+     *         parameter, so that the array cannot be converted.
      */
     private Object getArrayValueClassOrName(final ClassInfo annotationClassInfo, final String paramName,
             final boolean getClass) {
@@ -295,24 +307,21 @@ class ObjectTypedValueWrapper extends ScanResultObject {
         final MethodInfoList annotationMethodList = annotationClassInfo == null
                 || annotationClassInfo.methodInfo == null ? null : annotationClassInfo.methodInfo.get(paramName);
         if (annotationClassInfo != null && annotationMethodList != null && !annotationMethodList.isEmpty()) {
+            // The annotation class may have been recompiled after the annotated class was compiled, so that the
+            // parameter no longer has a one-dimensional array type, or the annotation class may not be valid
+            // (javac cannot write two methods with the same name in an annotation class). The JDK reports such a
+            // value as a type mismatch only when it is read, so leave the value unconverted.
             if (annotationMethodList.size() > 1) {
-                // There should only be one method with a given name in an annotation
-                throw new IllegalArgumentException("Duplicated annotation parameter method " + paramName + "()"
-                        + " in annotation class " + annotationClassInfo.getName());
+                return null;
             }
             // Get the result type of the method with the same name as the annotation parameter
             final TypeSignature annotationMethodResultTypeSig = annotationMethodList.get(0)
                     .getTypeSignatureOrTypeDescriptor().getResultType();
-            // The result type has to be an array type
-            if (!(annotationMethodResultTypeSig instanceof ArrayTypeSignature)) {
-                throw new IllegalArgumentException("Annotation parameter " + paramName + " in annotation class "
-                        + annotationClassInfo.getName()
-                        + " holds an array, but does not have an array type signature");
+            if (!(annotationMethodResultTypeSig instanceof ArrayTypeSignature)
+                    || ((ArrayTypeSignature) annotationMethodResultTypeSig).getNumDimensions() != 1) {
+                return null;
             }
             final ArrayTypeSignature arrayTypeSig = (ArrayTypeSignature) annotationMethodResultTypeSig;
-            if (arrayTypeSig.getNumDimensions() != 1) {
-                throw new IllegalArgumentException("Annotations only support 1-dimensional arrays");
-            }
             final TypeSignature elementTypeSig = arrayTypeSig.getElementTypeSignature();
             if (elementTypeSig instanceof ClassRefTypeSignature) {
                 // Look up the name of the element type, for non-primitive arrays
@@ -362,7 +371,9 @@ class ObjectTypedValueWrapper extends ScanResultObject {
     }
 
     /**
-     * Replace Object[] arrays containing boxed types with primitive arrays.
+     * Replace Object[] arrays containing boxed types with primitive arrays. If the annotation class does not
+     * declare a one-dimensional array type for the parameter, or an element does not have the declared element
+     * type, the Object[] array is kept.
      *
      * <p>
      * Two threads can read the same annotation parameter value for the first time at once, and both then convert
@@ -396,6 +407,17 @@ class ObjectTypedValueWrapper extends ScanResultObject {
             // Find the method in the annotation class with the same name as the annotation parameter.
             final String targetElementTypeName = (String) getArrayValueClassOrName(annotationClassInfo, paramName,
                     /* getClass = */ false);
+            if (targetElementTypeName == null) {
+                return;
+            }
+            for (final ObjectTypedValueWrapper elt : objectArrayValue) {
+                if (!elt.holdsValueOfType(targetElementTypeName)) {
+                    // The element does not have the element type, for example because the annotation class was
+                    // recompiled with another element type after the annotated class was compiled. Like the JDK,
+                    // which reports a type mismatch only when this value is read, keep the Object[] array.
+                    return;
+                }
+            }
 
             // Get array element type for 1D non-primitive arrays, and convert to a primitive array
             switch (targetElementTypeName) {
@@ -410,13 +432,6 @@ class ObjectTypedValueWrapper extends ScanResultObject {
             case "int":
                 intArrayValue = new int[objectArrayValue.length];
                 for (int j = 0; j < objectArrayValue.length; j++) {
-                    final ObjectTypedValueWrapper elt = objectArrayValue[j];
-                    if (elt == null) {
-                        throw new IllegalArgumentException("Illegal null value for array of element type "
-                                + targetElementTypeName + " in parameter " + paramName + " of annotation class "
-                                + (annotationClassInfo == null ? "<class outside accept>"
-                                        : annotationClassInfo.getName()));
-                    }
                     intArrayValue[j] = objectArrayValue[j].integerValue;
                 }
                 objectArrayValue = null;
@@ -424,13 +439,6 @@ class ObjectTypedValueWrapper extends ScanResultObject {
             case "long":
                 longArrayValue = new long[objectArrayValue.length];
                 for (int j = 0; j < objectArrayValue.length; j++) {
-                    final ObjectTypedValueWrapper elt = objectArrayValue[j];
-                    if (elt == null) {
-                        throw new IllegalArgumentException("Illegal null value for array of element type "
-                                + targetElementTypeName + " in parameter " + paramName + " of annotation class "
-                                + (annotationClassInfo == null ? "<class outside accept>"
-                                        : annotationClassInfo.getName()));
-                    }
                     longArrayValue[j] = objectArrayValue[j].longValue;
                 }
                 objectArrayValue = null;
@@ -438,13 +446,6 @@ class ObjectTypedValueWrapper extends ScanResultObject {
             case "short":
                 shortArrayValue = new short[objectArrayValue.length];
                 for (int j = 0; j < objectArrayValue.length; j++) {
-                    final ObjectTypedValueWrapper elt = objectArrayValue[j];
-                    if (elt == null) {
-                        throw new IllegalArgumentException("Illegal null value for array of element type "
-                                + targetElementTypeName + " in parameter " + paramName + " of annotation class "
-                                + (annotationClassInfo == null ? "<class outside accept>"
-                                        : annotationClassInfo.getName()));
-                    }
                     shortArrayValue[j] = objectArrayValue[j].shortValue;
                 }
                 objectArrayValue = null;
@@ -452,13 +453,6 @@ class ObjectTypedValueWrapper extends ScanResultObject {
             case "char":
                 charArrayValue = new char[objectArrayValue.length];
                 for (int j = 0; j < objectArrayValue.length; j++) {
-                    final ObjectTypedValueWrapper elt = objectArrayValue[j];
-                    if (elt == null) {
-                        throw new IllegalArgumentException("Illegal null value for array of element type "
-                                + targetElementTypeName + " in parameter " + paramName + " of annotation class "
-                                + (annotationClassInfo == null ? "<class outside accept>"
-                                        : annotationClassInfo.getName()));
-                    }
                     charArrayValue[j] = objectArrayValue[j].characterValue;
                 }
                 objectArrayValue = null;
@@ -466,13 +460,6 @@ class ObjectTypedValueWrapper extends ScanResultObject {
             case "float":
                 floatArrayValue = new float[objectArrayValue.length];
                 for (int j = 0; j < objectArrayValue.length; j++) {
-                    final ObjectTypedValueWrapper elt = objectArrayValue[j];
-                    if (elt == null) {
-                        throw new IllegalArgumentException("Illegal null value for array of element type "
-                                + targetElementTypeName + " in parameter " + paramName + " of annotation class "
-                                + (annotationClassInfo == null ? "<class outside accept>"
-                                        : annotationClassInfo.getName()));
-                    }
                     floatArrayValue[j] = objectArrayValue[j].floatValue;
                 }
                 objectArrayValue = null;
@@ -480,13 +467,6 @@ class ObjectTypedValueWrapper extends ScanResultObject {
             case "double":
                 doubleArrayValue = new double[objectArrayValue.length];
                 for (int j = 0; j < objectArrayValue.length; j++) {
-                    final ObjectTypedValueWrapper elt = objectArrayValue[j];
-                    if (elt == null) {
-                        throw new IllegalArgumentException("Illegal null value for array of element type "
-                                + targetElementTypeName + " in parameter " + paramName + " of annotation class "
-                                + (annotationClassInfo == null ? "<class outside accept>"
-                                        : annotationClassInfo.getName()));
-                    }
                     doubleArrayValue[j] = objectArrayValue[j].doubleValue;
                 }
                 objectArrayValue = null;
@@ -494,13 +474,6 @@ class ObjectTypedValueWrapper extends ScanResultObject {
             case "boolean":
                 booleanArrayValue = new boolean[objectArrayValue.length];
                 for (int j = 0; j < objectArrayValue.length; j++) {
-                    final ObjectTypedValueWrapper elt = objectArrayValue[j];
-                    if (elt == null) {
-                        throw new IllegalArgumentException("Illegal null value for array of element type "
-                                + targetElementTypeName + " in parameter " + paramName + " of annotation class "
-                                + (annotationClassInfo == null ? "<class outside accept>"
-                                        : annotationClassInfo.getName()));
-                    }
                     booleanArrayValue[j] = objectArrayValue[j].booleanValue;
                 }
                 objectArrayValue = null;
@@ -508,13 +481,6 @@ class ObjectTypedValueWrapper extends ScanResultObject {
             case "byte":
                 byteArrayValue = new byte[objectArrayValue.length];
                 for (int j = 0; j < objectArrayValue.length; j++) {
-                    final ObjectTypedValueWrapper elt = objectArrayValue[j];
-                    if (elt == null) {
-                        throw new IllegalArgumentException("Illegal null value for array of element type "
-                                + targetElementTypeName + " in parameter " + paramName + " of annotation class "
-                                + (annotationClassInfo == null ? "<class outside accept>"
-                                        : annotationClassInfo.getName()));
-                    }
                     byteArrayValue[j] = objectArrayValue[j].byteValue;
                 }
                 objectArrayValue = null;
@@ -523,6 +489,39 @@ class ObjectTypedValueWrapper extends ScanResultObject {
                 // Leave objectArrayValue as-is
                 break;
             }
+        }
+    }
+
+    /**
+     * Check whether this wrapper holds a single value that can be stored in an array of the named element type.
+     *
+     * @param elementTypeName
+     *            the element type name, as returned by {@code getArrayValueClassOrName}
+     * @return true if this wrapper holds a value of the named type, or if the named type is not a primitive type
+     *         or String (an array of such a type is not converted).
+     */
+    private boolean holdsValueOfType(final String elementTypeName) {
+        switch (elementTypeName) {
+        case "java.lang.String":
+            return stringValue != null;
+        case "int":
+            return integerValue != null;
+        case "long":
+            return longValue != null;
+        case "short":
+            return shortValue != null;
+        case "char":
+            return characterValue != null;
+        case "float":
+            return floatValue != null;
+        case "double":
+            return doubleValue != null;
+        case "boolean":
+            return booleanValue != null;
+        case "byte":
+            return byteValue != null;
+        default:
+            return true;
         }
     }
 
