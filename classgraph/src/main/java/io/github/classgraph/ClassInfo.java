@@ -4312,7 +4312,6 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      */
     @Override
     protected void toString(final boolean useSimpleNames, final StringBuilder buf) {
-        final var initialBufEmpty = buf.length() == 0;
         if (annotationInfo != null) {
             for (final AnnotationInfo annotation : annotationInfo) {
                 if (buf.length() > 0 && buf.charAt(buf.length() - 1) != ' '
@@ -4322,59 +4321,12 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
                 annotation.toString(useSimpleNames, buf);
             }
         }
-        if (!initialBufEmpty) {
-            // In an extends/implements clause, only the name of the class is rendered: its modifiers, its class
-            // type, its type parameters, its record parameters and its own supertypes all belong to its own
-            // declaration, not to the declaration of the class that extends or implements it
-            if (buf.charAt(buf.length() - 1) != ' ' && buf.charAt(buf.length() - 1) != '(') {
-                buf.append(' ');
-            }
-            buf.append(useSimpleNames ? ClassInfo.getSimpleName(name) : name);
-            return;
-        }
-        // A corrupt classfile can make the type signature unparseable -- render the class as if it were non-generic,
-        // rather than throwing from toString()
-        final var typeSig = getTypeSignatureIfParseable();
-        if (typeSig != null) {
-            // Generic classes
-            // N.B. pass useSimpleNames through, so that the type parameter bounds, the superclass and the
-            // superinterfaces are simplified too, not just the class name (toStringInternal simplifies the class
-            // name itself if useSimpleNames is true)
-            typeSig.appendClassDeclaration(useSimpleNames, buf);
-        } else {
-            // Non-generic classes
-            TypeUtils.modifiersToString(modifiers, ModifierType.CLASS, /* ignored */ false, buf);
-            if (buf.length() > 0 && buf.charAt(buf.length() - 1) != ' ' && buf.charAt(buf.length() - 1) != '(') {
-                buf.append(' ');
-            }
-            buf.append(isRecord() ? "record " //
-                    : isEnum() ? "enum " //
-                            : isAnnotation() ? "@interface " //
-                                    : isInterface() ? "interface " //
-                                            : "class ");
-            buf.append(useSimpleNames ? ClassInfo.getSimpleName(name) : name);
-            appendRecordComponents(useSimpleNames, buf);
-            final var superclass = superclassIncludingExternal();
-            if (superclass != null && !isImplicitSupertype(superclass.getName())) {
-                buf.append(" extends ");
-                superclass.toString(useSimpleNames, buf);
-            }
-            final var interfaces = this
-                    .filterClassInfo(RelType.IMPLEMENTED_INTERFACES, /* excludeExternalClasses = */ false)
-                    .directlyRelatedClasses();
-            var isFirstInterface = true;
-            for (final ClassInfo iface : interfaces) {
-                if (isImplicitSupertype(iface.getName())) {
-                    continue;
-                }
-                if (isFirstInterface) {
-                    buf.append(isInterface() ? " extends " : " implements ");
-                    isFirstInterface = false;
-                } else {
-                    buf.append(", ");
-                }
-                iface.toString(useSimpleNames, buf);
-            }
-        }
+        // Render a non-generic class through its synthetic type descriptor, as a generic class is rendered through
+        // its type signature, so that the extends and implements clauses carry the type annotations written on
+        // them in both cases. A type signature that does not parse (from a corrupt classfile) is replaced by the
+        // type descriptor too, rather than throwing from toString().
+        // N.B. pass useSimpleNames through, so that the type parameter bounds, the superclass and the
+        // superinterfaces are simplified too, not just the class name
+        getTypeSignatureOrTypeDescriptor().appendClassDeclaration(useSimpleNames, buf);
     }
 }
