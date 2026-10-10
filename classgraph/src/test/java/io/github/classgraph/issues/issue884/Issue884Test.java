@@ -8,16 +8,15 @@ import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ClassInfo;
-import io.github.classgraph.base.internal.filter.AcceptReject.AcceptRejectPrefix;
 
 /**
  * A reject criterion containing a glob wildcard was not applied to the sub-packages of a matched package.
  *
  * <p>
  * {@code rejectPackages("javax.swing.*")} adds {@code "javax.swing.*."} as a rejected <i>prefix</i>, which is how
- * "and everything below a matched package" is implemented. {@link AcceptRejectPrefix} stores a prefix containing a
+ * "and everything below a matched package" is implemented. {@code AcceptRejectPrefix} stores a prefix containing a
  * wildcard as a regexp rather than as a literal {@code String#startsWith} prefix, but
- * {@link AcceptRejectPrefix#isRejected(String)} only tested the literal prefixes -- so the glob prefixes it stored
+ * {@code AcceptRejectPrefix#isRejected(String)} only tested the literal prefixes -- so the glob prefixes it stored
  * were never consulted, and the sub-packages of a glob-matched package were scanned anyway.
  *
  * <p>
@@ -25,21 +24,6 @@ import io.github.classgraph.base.internal.filter.AcceptReject.AcceptRejectPrefix
  * where classfile entries are enumerated flat rather than walked as a tree, as they are for modules.
  */
 public class Issue884Test {
-
-    /**
-     * A glob prefix must be applied by {@link AcceptRejectPrefix#isRejected(String)}, not just stored.
-     */
-    @Test
-    public void globRejectPrefixIsApplied() {
-        final var acceptReject = new AcceptRejectPrefix('.');
-        acceptReject.addToReject("javax.swing.*.");
-        assertThat(acceptReject.isRejected("javax.swing.plaf.basic")).isTrue();
-        assertThat(acceptReject.isRejected("javax.swing.text.html.parser")).isTrue();
-        // The wildcard matches within a single segment only, so "javax.swing" itself is not matched
-        assertThat(acceptReject.isRejected("javax.swing")).isFalse();
-        // ... and nor is an unrelated package
-        assertThat(acceptReject.isRejected("javax.sound.midi")).isFalse();
-    }
 
     /**
      * End-to-end: {@code rejectPackages("javax.swing.*")} must reject every sub-package of {@code javax.swing},

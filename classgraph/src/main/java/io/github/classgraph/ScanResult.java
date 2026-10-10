@@ -53,7 +53,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 
 import io.github.classgraph.base.LogNode;
-import io.github.classgraph.base.internal.filter.AcceptReject;
 import io.github.classgraph.base.internal.path.PathList;
 import io.github.classgraph.base.internal.path.PathSyntax;
 import io.github.classgraph.base.internal.utils.Assert;

@@ -35,7 +35,6 @@ import java.util.List;
 import java.util.Set;
 
 import io.github.classgraph.base.LogNode;
-import io.github.classgraph.base.internal.utils.LinkedIdentitySet;
 import org.jspecify.annotations.Nullable;
 
 /** Finds the classloaders that are present in the environment of the caller. */

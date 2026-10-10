@@ -1,4 +1,4 @@
-package io.github.classgraph.base.internal.filter;
+package io.github.classgraph;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -6,9 +6,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import io.github.classgraph.base.internal.filter.AcceptReject.AcceptRejectLeafname;
-import io.github.classgraph.base.internal.filter.AcceptReject.AcceptRejectPrefix;
-import io.github.classgraph.base.internal.filter.AcceptReject.AcceptRejectWholeString;
+import io.github.classgraph.AcceptReject.AcceptRejectLeafname;
+import io.github.classgraph.AcceptReject.AcceptRejectPrefix;
+import io.github.classgraph.AcceptReject.AcceptRejectWholeString;
 
 /** Tests for {@link AcceptReject} and its three subclasses. */
 public class AcceptRejectTest {
@@ -70,6 +70,33 @@ public class AcceptRejectTest {
             assertThat(matches("com.a.**", "com.ab")).isFalse();
         }
 
+        /**
+         * Pattern-level check of the {@code "**"} glob translation, for both package and path separators.
+         */
+        // #940
+        @Test
+        public void segmentGlobToPatternHandlesDoubleGlob() {
+            final var packagePattern = AcceptReject.globToPattern("org.creekservice.**.schema", '.',
+                    /* prefixMatch = */ false);
+            assertThat(packagePattern.matcher("org.creekservice.api.base.schema").matches()).isTrue();
+            assertThat(packagePattern.matcher("org.creekservice.other.schema").matches()).isTrue();
+            assertThat(packagePattern.matcher("org.creekservice.schema").matches()).isTrue();
+            assertThat(packagePattern.matcher("org.creekservice.api.base.schemaX").matches()).isFalse();
+            assertThat(packagePattern.matcher("org.creekservice.api.base.schema.sub").matches()).isFalse();
+            assertThat(packagePattern.matcher("org.creekserviceschema").matches()).isFalse();
+
+            final var leadingPattern = AcceptReject.globToPattern("**.api.*", '.', /* prefixMatch = */ false);
+            assertThat(leadingPattern.matcher("org.creekservice.api.base").matches()).isTrue();
+            assertThat(leadingPattern.matcher("api.base").matches()).isTrue();
+            assertThat(leadingPattern.matcher("xapi.base").matches()).isFalse();
+
+            final var pathPattern = AcceptReject.globToPattern("org/creekservice/**/schema/", '/',
+                    /* prefixMatch = */ false);
+            assertThat(pathPattern.matcher("org/creekservice/api/base/schema/").matches()).isTrue();
+            assertThat(pathPattern.matcher("org/creekservice/schema/").matches()).isTrue();
+            assertThat(pathPattern.matcher("org/creekservice/api/other/").matches()).isFalse();
+        }
+
         /** {@code "**"} that does not form a complete segment is rejected, rather than silently misinterpreted. */
         @Test
         public void aDoubleStarThatIsNotAWholeSegmentIsRejected() {
@@ -79,6 +106,16 @@ public class AcceptRejectTest {
                         .isInstanceOf(IllegalArgumentException.class)
                         .hasMessageContaining("may only be used as a complete segment");
             }
+        }
+
+        /** {@code "**"} that does not form a complete segment is still rejected. */
+        // #940
+        @Test
+        public void gluedDoubleGlobIsRejected() {
+            assertThatThrownBy(() -> AcceptReject.globToPattern("com.a**b.impl", '.', /* prefixMatch = */ false))
+                    .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("**");
+            assertThatThrownBy(() -> AcceptReject.globToPattern("com.***.impl", '.', /* prefixMatch = */ false))
+                    .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("**");
         }
 
         /** Regexp metacharacters in a glob are matched literally, rather than being interpreted. */
@@ -237,6 +274,22 @@ public class AcceptRejectTest {
             assertThat(acceptReject.isRejected("javax.swing.plaf.basic")).isTrue();
             assertThat(acceptReject.isRejected("javax.print")).isFalse();
             assertThat(acceptReject.isAcceptedAndNotRejected("javax.swing.plaf.basic")).isFalse();
+        }
+
+        /**
+         * A glob prefix must be applied by {@link AcceptRejectPrefix#isRejected(String)}, not just stored.
+         */
+        // #884
+        @Test
+        public void globRejectPrefixIsApplied() {
+            final var acceptReject = new AcceptRejectPrefix('.');
+            acceptReject.addToReject("javax.swing.*.");
+            assertThat(acceptReject.isRejected("javax.swing.plaf.basic")).isTrue();
+            assertThat(acceptReject.isRejected("javax.swing.text.html.parser")).isTrue();
+            // The wildcard matches within a single segment only, so "javax.swing" itself is not matched
+            assertThat(acceptReject.isRejected("javax.swing")).isFalse();
+            // ... and nor is an unrelated package
+            assertThat(acceptReject.isRejected("javax.sound.midi")).isFalse();
         }
 
         /** Asking whether a string is a prefix of an accepted string is meaningless for a prefix criterion. */
