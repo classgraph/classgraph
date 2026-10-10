@@ -73,7 +73,11 @@ public final class GraphVizDotFileOptions {
      */
     boolean showMethodTypeDependencyEdges = true;
 
-    /** Whether to show annotations within class nodes. */
+    /**
+     * Whether to show the annotations on a class and on its fields, methods and method parameters within its class
+     * node. Annotations that apply only to types, which are part of a field, parameter or result type, are shown
+     * either way.
+     */
     boolean showAnnotations = true;
 
     /**
@@ -215,8 +219,14 @@ public final class GraphVizDotFileOptions {
     }
 
     /**
-     * Show annotations within class nodes, if {@link ClassGraph#enableAnnotationInfo()} was called before scanning.
-     * (This is the default.)
+     * Show the annotations on a class, and on its fields, its methods and their parameters, within the class node,
+     * if {@link ClassGraph#enableAnnotationInfo()} was called before scanning. (This is the default.)
+     *
+     * <p>
+     * An annotation that applies both to a declaration and to the declared type (one whose
+     * {@link java.lang.annotation.Target @Target} includes {@link java.lang.annotation.ElementType#TYPE_USE
+     * TYPE_USE} as well as, for example, {@link java.lang.annotation.ElementType#FIELD FIELD}) is shown once, as an
+     * annotation of the field, method or parameter.
      *
      * @return this {@link GraphVizDotFileOptions}, for method chaining.
      */
@@ -226,8 +236,16 @@ public final class GraphVizDotFileOptions {
     }
 
     /**
-     * Do not show annotations within class nodes. (Annotations on a class, and on its fields, its methods and their
-     * parameters, are shown by default, if {@link ClassGraph#enableAnnotationInfo()} was called before scanning.)
+     * Do not show the annotations on a class, or on its fields, its methods and their parameters, within the class
+     * node. (They are shown by default, if {@link ClassGraph#enableAnnotationInfo()} was called before scanning.)
+     *
+     * <p>
+     * This also hides an annotation that applies both to a declaration and to the declared type, such as
+     * {@code @NotNull} from Jakarta Bean Validation. An annotation that applies only to types (whose
+     * {@link java.lang.annotation.Target @Target} is {@link java.lang.annotation.ElementType#TYPE_USE TYPE_USE}
+     * alone, such as {@code @NonNull} from JSpecify) is part of the type it is written on, whether that is the
+     * whole field type, as in {@code @NonNull String}, or a part of it, as in {@code List<@NonNull String>}, and is
+     * still shown.
      *
      * @return this {@link GraphVizDotFileOptions}, for method chaining.
      */
