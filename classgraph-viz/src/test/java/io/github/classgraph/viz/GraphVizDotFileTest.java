@@ -1658,6 +1658,98 @@ public class GraphVizDotFileTest {
                 GraphVizDotFile.generateFromInterClassDependencies(scanResult, scanResult.getAllClasses()));
     }
 
+    /** Ten 'x' characters. */
+    private static final String X10 = "xxxxxxxxxx";
+
+    /** 100 'x' characters. */
+    private static final String X100 = X10 + X10 + X10 + X10 + X10 + X10 + X10 + X10 + X10 + X10;
+
+    /** 1000 'x' characters. */
+    private static final String X1000 = X100 + X100 + X100 + X100 + X100 + X100 + X100 + X100 + X100 + X100;
+
+    /** 20000 'x' characters, as a compile-time constant, so that it can be an annotation parameter value. */
+    private static final String X20000 = X1000 + X1000 + X1000 + X1000 + X1000 + X1000 + X1000 + X1000 + X1000
+            + X1000 + X1000 + X1000 + X1000 + X1000 + X1000 + X1000 + X1000 + X1000 + X1000 + X1000;
+
+    /** Ten backslashes. */
+    private static final String B10 = "\\\\\\\\\\\\\\\\\\\\";
+
+    /** 100 backslashes. */
+    private static final String B100 = B10 + B10 + B10 + B10 + B10 + B10 + B10 + B10 + B10 + B10;
+
+    /** 1000 backslashes. */
+    private static final String B1000 = B100 + B100 + B100 + B100 + B100 + B100 + B100 + B100 + B100 + B100;
+
+    /**
+     * 3000 backslashes. {@link io.github.classgraph.AnnotationInfo#toString()} writes each as two, and the graph
+     * writes each of those as a six-character entity.
+     */
+    private static final String B3000 = B1000 + B1000 + B1000;
+
+    /** An annotation that is given a long parameter value. */
+    @Retention(RetentionPolicy.RUNTIME)
+    public @interface LongValue {
+        /**
+         * The value.
+         *
+         * @return the value.
+         */
+        String value();
+    }
+
+    /** A class with long annotations on itself, a field, a method and a method parameter. */
+    @LongValue(X20000)
+    public static class LongAnnotated {
+        /** A field with an annotation that is long after escaping. */
+        @LongValue(B3000)
+        public int field;
+
+        /**
+         * A method with a long annotation, and a parameter with a long annotation.
+         *
+         * @param parameter
+         *            the parameter.
+         */
+        @LongValue(X20000)
+        public void method(@LongValue(X20000) final int parameter) {
+            // Empty
+        }
+    }
+
+    /**
+     * Annotations are cut short in labels. GraphViz cannot read a run of text between two tags of 16382 characters
+     * or more, and rejects the whole file, so one long annotation, such as the {@code ScalaSignature} of a Scala
+     * class or the {@code Metadata} of a Kotlin class, would otherwise keep the whole graph from being drawn.
+     */
+    @Test
+    public void longAnnotationsAreCutShort() {
+        try (var longScanResult = new ClassGraph().enableClasspath()
+                .acceptClasses(LongAnnotated.class.getName(), LongValue.class.getName()).enableClassInfo()
+                .enableFieldInfo().enableMethodInfo().enableAnnotationInfo().scan()) {
+            final var classGraph = graph(longScanResult, new GraphVizDotFileOptions());
+            for (final var textRun : classGraph.split("[<>]")) {
+                assertThat(textRun).hasSizeLessThan(16382);
+            }
+            // The annotation is cut after 200 characters, the first 12 of which are '@LongValue("'. It is cut on the
+            // class, the method and the method parameter, and the backslashes of the field annotation are cut too.
+            final var cutXs = "@LongValue(&quot;" + "x".repeat(188) + "...";
+            assertThat(classGraph.split(Pattern.quote(cutXs), -1)).hasSize(4);
+            assertThat(classGraph).contains("@LongValue(&quot;" + "&#x5C;".repeat(188) + "...")
+                    .doesNotContain("x".repeat(189), "&#x5C;".repeat(189));
+        }
+    }
+
+    /** An annotation is cut short after 200 characters, but never inside a surrogate pair. */
+    @Test
+    public void annotationsAreCutShortOutsideSurrogatePairs() {
+        final var x200 = X100 + X100;
+        assertThat(GraphVizDotFile.truncateAnnotation(x200)).isEqualTo(x200);
+        assertThat(GraphVizDotFile.truncateAnnotation(x200 + "y")).isEqualTo(x200 + "...");
+        final var surrogatePairAtTheCut = X100 + X100.substring(1) + str(0x1F600) + "y";
+        assertThat(GraphVizDotFile.truncateAnnotation(surrogatePairAtTheCut))
+                .isEqualTo(X100 + X100.substring(1) + "...");
+    }
+
     /** Null arguments are rejected. */
     @Test
     public void nullArgumentsAreRejected() {

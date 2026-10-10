@@ -87,6 +87,15 @@ public final class GraphVizDotFile {
     /** The wrap width for method annotations and method parameters. */
     private static final int WRAP_WIDTH = 40;
 
+    /**
+     * The number of characters after which an annotation is cut short in a label. GraphViz rejects the whole file
+     * if a label has a run of text of 16382 characters or more between two tags, and compilers write annotations
+     * far longer than that, such as the {@code ScalaSignature} of a Scala class or the {@code Metadata} of a Kotlin
+     * class. Even if every character is escaped as a six-character entity, a cut annotation stays near 1200
+     * characters, and an annotation longer than this cannot be read in a graph anyway.
+     */
+    private static final int MAX_ANNOTATION_LENGTH = 200;
+
     /** Not instantiable. */
     private GraphVizDotFile() {
         // Empty
@@ -175,11 +184,31 @@ public final class GraphVizDotFile {
      *            the annotation
      * @param options
      *            the graph options
-     * @return the annotation, as it would be written in source code
+     * @return the annotation, as it would be written in source code, cut short after {@link #MAX_ANNOTATION_LENGTH}
+     *         characters
      */
     private static String annotationToString(final AnnotationInfo annotationInfo,
             final GraphVizDotFileOptions options) {
-        return options.useSimpleNames ? annotationInfo.toStringWithSimpleNames() : annotationInfo.toString();
+        return truncateAnnotation(
+                options.useSimpleNames ? annotationInfo.toStringWithSimpleNames() : annotationInfo.toString());
+    }
+
+    /**
+     * Cut an annotation short after {@link #MAX_ANNOTATION_LENGTH} characters, ending it with "...", unless that
+     * would split a surrogate pair, in which case it is cut one character earlier.
+     *
+     * @param str
+     *            the string form of the annotation
+     * @return the string, cut short if it is longer than {@link #MAX_ANNOTATION_LENGTH} characters
+     */
+    static String truncateAnnotation(final String str) {
+        if (str.length() <= MAX_ANNOTATION_LENGTH) {
+            return str;
+        }
+        final var end = Character.isHighSurrogate(str.charAt(MAX_ANNOTATION_LENGTH - 1)) ? MAX_ANNOTATION_LENGTH - 1
+                : MAX_ANNOTATION_LENGTH;
+        // ASCII dots rather than U+2026, which some charsets cannot represent
+        return str.substring(0, end) + "...";
     }
 
     /**
