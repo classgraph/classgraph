@@ -41,6 +41,7 @@ import java.util.Arrays;
 
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.vfs.Vfs;
+import io.github.classgraph.vfs.internal.InputStreamUtils;
 import io.github.classgraph.vfs.internal.TempFile;
 import io.github.classgraph.vfs.internal.recycler.RecycledInflaterInputStream;
 import io.github.classgraph.vfs.reader.RandomAccessReader;
@@ -185,65 +186,95 @@ public abstract class Slice implements AutoCloseable {
         // the heap is, and the jar would then not be read at all, instead of the rest of it being spilled to disk.
         // A known length longer than MAX_BUFFER_SIZE cannot fit in an array either, so it goes straight to disk.
         final var maxBufferedJarRAMSize = Math.min(vfs.getVfsSpec().getMaxBufferedJarRAMSize(), MAX_BUFFER_SIZE);
-        if (inputStreamLengthHint <= maxBufferedJarRAMSize) {
-            // inputStreamLengthHint is unknown (-1) or no longer than maxBufferedJarRAMSize, so read the stream
-            // into an array. A known length is allocated up front, since it is usually right, but only up to
-            // MAX_INITIAL_BUFFER_SIZE, since the length of a nested jar is whatever its zip entry claims. A length
-            // that is unknown, or that is zero and so may or may not be right, starts at the default buffer size.
-            // Either way the buffer is doubled from there as it fills, so that reading a small stream does not
-            // allocate the whole of maxBufferedJarRAMSize.
-            var buf = new byte[inputStreamLengthHint <= 0L ? Math.min(DEFAULT_BUFFER_SIZE, maxBufferedJarRAMSize)
-                    : (int) Math.min(inputStreamLengthHint, MAX_INITIAL_BUFFER_SIZE)];
-
-            var bufBytesUsed = 0;
-            for (;;) {
-                int bytesRead;
-                while ((bytesRead = inputStream.read(buf, bufBytesUsed, buf.length - bufBytesUsed)) > 0) {
-                    // Fill buffer until nothing more can be read
-                    bufBytesUsed += bytesRead;
-                }
-                if (bytesRead < 0) {
-                    // Reached the end of the stream
-                    break;
-                }
-                // bytesRead == 0, so the buffer is full, or the stream returned zero from a read of a non-empty
-                // buffer. Probe the stream by reading one more byte to see which it was. (The probe is the
-                // single-byte InputStream#read, which returns either a byte value or -1 for the end of the
-                // stream -- a probe through InputStream#read(byte[], int, int) could return zero, which is what
-                // made the probe necessary in the first place, and the stream would be truncated here.)
-                final var overflowByte = inputStream.read();
-                if (overflowByte == -1) {
-                    // Reached the end of the stream
-                    break;
-                }
-                // There is more of the stream to read. Only grow the buffer if it is actually full -- the read can
-                // also have returned zero from a buffer with room left in it, and doubling the buffer on every one
-                // of those reads would grow it to maxBufferedJarRAMSize to hold a handful of bytes.
-                if (bufBytesUsed == buf.length) {
-                    if (buf.length >= maxBufferedJarRAMSize) {
-                        // The buffer is not allowed to grow any further, so the rest of the stream goes to disk
-                        return spillToDisk(inputStream, tempFileBaseName, buf, bufBytesUsed,
-                                new byte[] { (byte) overflowByte }, vfs, log);
-                    }
-                    // Double the size of the buffer (in long arithmetic, since the doubling can overflow an int)
-                    buf = Arrays.copyOf(buf, (int) Math.min(buf.length * 2L, maxBufferedJarRAMSize));
-                }
-                // Put the byte that the probe read into the buffer, so that the probe does not lose it
-                buf[bufBytesUsed++] = (byte) overflowByte;
-            }
-            // Successfully reached end of stream
-            if (bufBytesUsed < buf.length) {
-                // Trim array if needed (this is needed if inputStreamLengthHint was -1, or overestimated the
-                // length of the InputStream)
-                buf = Arrays.copyOf(buf, bufBytesUsed);
-            }
-            // Return buf as new ArraySlice
-            return new ArraySlice(buf, /* isDeflatedZipEntry = */ false, /* inflatedLengthHint = */ 0L, vfs);
-
+        if (inputStreamLengthHint > maxBufferedJarRAMSize) {
+            // inputStreamLengthHint is longer than maxBufferedJarRAMSize, so immediately spill to disk
+            return spillToDisk(inputStream, tempFileBaseName, /* prefix = */ null, vfs, log);
         }
-        // inputStreamLengthHint is longer than maxBufferedJarRAMSize, so immediately spill to disk
-        return spillToDisk(inputStream, tempFileBaseName, /* buf = */ null, /* bufBytesUsed = */ 0,
-                /* overflowBuf = */ null, vfs, log);
+        // inputStreamLengthHint is unknown (-1) or no longer than maxBufferedJarRAMSize, so read the stream into an
+        // array, unless it turns out to be longer than maxBufferedJarRAMSize after all
+        final var prefix = readUpTo(inputStream, inputStreamLengthHint, maxBufferedJarRAMSize);
+        if (prefix.overflowByte() < 0) {
+            return new ArraySlice(prefix.bytes(), /* isDeflatedZipEntry = */ false, /* inflatedLengthHint = */ 0L,
+                    vfs);
+        }
+        // The buffer is not allowed to grow any further, so the rest of the stream goes to disk, after what has
+        // already been read from it
+        return spillToDisk(inputStream, tempFileBaseName, prefix, vfs, log);
+    }
+
+    /**
+     * The start of a stream, read into an array by {@link #readUpTo}.
+     *
+     * @param bytes
+     *            the bytes read from the stream, in order. The array holds nothing else.
+     * @param overflowByte
+     *            the byte that was read after {@code bytes} had reached the largest size allowed, or -1 if the
+     *            stream ended first, in which case {@code bytes} holds the whole of the stream.
+     */
+    private record StreamPrefix(byte[] bytes, int overflowByte) {
+    }
+
+    /**
+     * Read a stream into an array, until the end of the stream, or until the array has reached a given size and
+     * there is more of the stream to read.
+     *
+     * <p>
+     * A known length is allocated up front, since it is usually right, but only up to
+     * {@link #MAX_INITIAL_BUFFER_SIZE}: the length is only a hint, e.g. the uncompressed size that a zip entry
+     * claims, which can be anything, and a zipfile must not be able to make the reader allocate more memory than
+     * its content needs just by claiming that an entry is enormous. A length that is unknown, or that is zero and
+     * so may or may not be right, starts at {@link #DEFAULT_BUFFER_SIZE}. Either way the array is doubled from
+     * there as it fills, so that reading a small stream does not allocate the whole of {@code maxSize}.
+     *
+     * <p>
+     * The array is only grown once it is full, and a stream does not report that it has ended until it is asked for
+     * a byte that it does not have, so a full array is followed by a read of a single byte, to find out whether
+     * there is more of the stream before growing the array to hold it. That byte is the overflow byte if the array
+     * cannot grow any further. A read into an array with room left in it goes through
+     * {@link InputStreamUtils#readAtLeastOne}, so a stream that returns zero from such a read is neither taken to
+     * have ended there, which would truncate the content, nor taken to have filled the array, which would grow the
+     * array once per zero, up to {@code maxSize}, to hold a handful of bytes.
+     *
+     * @param inputStream
+     *            the stream to read from. Not closed by this method.
+     * @param lengthHint
+     *            the length of the stream if known, else -1L.
+     * @param maxSize
+     *            the largest size that the array may grow to, which is at most {@link #MAX_BUFFER_SIZE}.
+     * @return the bytes read, and the byte that was read past {@code maxSize}, if any.
+     * @throws IOException
+     *             if the stream could not be read.
+     */
+    private static StreamPrefix readUpTo(final InputStream inputStream, final long lengthHint, final int maxSize)
+            throws IOException {
+        var buf = new byte[lengthHint <= 0L ? Math.min(DEFAULT_BUFFER_SIZE, maxSize)
+                : (int) Math.min(Math.min(lengthHint, MAX_INITIAL_BUFFER_SIZE), maxSize)];
+        var bufBytesUsed = 0;
+        for (;;) {
+            if (bufBytesUsed == buf.length) {
+                // The array is full, so find out whether the stream has ended before growing the array
+                final var nextByte = inputStream.read();
+                if (nextByte < 0) {
+                    break;
+                }
+                if (buf.length >= maxSize) {
+                    return new StreamPrefix(buf, nextByte);
+                }
+                // Double the size of the array (in long arithmetic, since the doubling can overflow an int)
+                buf = Arrays.copyOf(buf, (int) Math.min(buf.length * 2L, maxSize));
+                buf[bufBytesUsed++] = (byte) nextByte;
+            } else {
+                final var bytesRead = InputStreamUtils.readAtLeastOne(inputStream, buf, bufBytesUsed,
+                        buf.length - bufBytesUsed);
+                if (bytesRead < 0) {
+                    break;
+                }
+                bufBytesUsed += bytesRead;
+            }
+        }
+        // Trim the array to the length of the stream, if the length was unknown or overstated
+        return new StreamPrefix(bufBytesUsed == buf.length ? buf : Arrays.copyOf(buf, bufBytesUsed),
+                /* overflowByte = */ -1);
     }
 
     /**
@@ -253,13 +284,9 @@ public abstract class Slice implements AutoCloseable {
      *            The {@link InputStream}.
      * @param tempFileBaseName
      *            The stem to base the temporary filename on.
-     * @param buf
-     *            The first buffer to write to the beginning of the file, or null if none.
-     * @param bufBytesUsed
-     *            The number of bytes of {@code buf} that were filled.
-     * @param overflowBuf
-     *            The second buffer to write to the beginning of the file, or null if none. (Should have same
-     *            nullity as buf.)
+     * @param prefix
+     *            The start of the stream that has already been read, which ran past the largest size allowed, to
+     *            write to the beginning of the file, or null if nothing has been read from the stream.
      * @param vfs
      *            the {@link Vfs} that opened this slice
      * @param log
@@ -269,8 +296,7 @@ public abstract class Slice implements AutoCloseable {
      *             If anything went wrong creating or writing to the temp file.
      */
     private static PathSlice spillToDisk(final InputStream inputStream, final String tempFileBaseName,
-            final byte @Nullable [] buf, final int bufBytesUsed, final byte @Nullable [] overflowBuf, final Vfs vfs,
-            final @Nullable LogNode log) throws IOException {
+            final @Nullable StreamPrefix prefix, final Vfs vfs, final @Nullable LogNode log) throws IOException {
         // Create temp file
         File tempFile;
         try {
@@ -288,7 +314,7 @@ public abstract class Slice implements AutoCloseable {
         // From here on the temporary file has to be deleted by whatever fails, until it is handed to the PathSlice
         // that owns it -- nothing else knows it exists
         try {
-            return spillToTempFile(inputStream, tempFile, buf, bufBytesUsed, overflowBuf, vfs, log);
+            return spillToTempFile(inputStream, tempFile, prefix, vfs, log);
         } catch (final IOException | RuntimeException | Error e) {
             TempFile.delete(tempFile);
             throw e;
@@ -303,13 +329,9 @@ public abstract class Slice implements AutoCloseable {
      *            The {@link InputStream}.
      * @param tempFile
      *            The temporary file to write to.
-     * @param buf
-     *            The first buffer to write to the beginning of the file, or null if none.
-     * @param bufBytesUsed
-     *            The number of bytes of {@code buf} that were filled.
-     * @param overflowBuf
-     *            The second buffer to write to the beginning of the file, or null if none. (Should have same
-     *            nullity as buf.)
+     * @param prefix
+     *            The start of the stream that has already been read, which ran past the largest size allowed, to
+     *            write to the beginning of the file, or null if nothing has been read from the stream.
      * @param vfs
      *            the {@link Vfs} that opened this slice
      * @param log
@@ -319,35 +341,20 @@ public abstract class Slice implements AutoCloseable {
      *             If anything went wrong writing to the temp file, or opening the slice over it.
      */
     private static PathSlice spillToTempFile(final InputStream inputStream, final File tempFile,
-            final byte @Nullable [] buf, final int bufBytesUsed, final byte @Nullable [] overflowBuf, final Vfs vfs,
-            final @Nullable LogNode log) throws IOException {
+            final @Nullable StreamPrefix prefix, final Vfs vfs, final @Nullable LogNode log) throws IOException {
         // Copy everything read so far and the rest of the InputStream to the temporary file
         try (OutputStream outputStream = new BufferedOutputStream(new FileOutputStream(tempFile))) {
-            // Write already-read buffered bytes to temp file, if anything was read (buf and overflowBuf always have
-            // the same nullity)
-            if (buf != null && overflowBuf != null) {
-                outputStream.write(buf, 0, bufBytesUsed);
-                outputStream.write(overflowBuf);
+            // Write the bytes that have already been read, including the one read past the end of the buffer
+            if (prefix != null) {
+                outputStream.write(prefix.bytes());
+                outputStream.write(prefix.overflowByte());
             }
-            // Copy the rest of the InputStream to the file. A stream can return zero from a read of a non-empty
-            // buffer, at its end or before it, so zero is not taken for the end of the stream, which would
-            // truncate the file, and is not simply read past, which InputStream#transferTo does, and which loops
-            // forever on a stream that returns zero at its end. Instead the stream is asked for a single byte,
-            // which InputStream#read() can only answer with a byte or the end of the stream.
+            // Copy the rest of the InputStream to the file. This does not use InputStream#transferTo, which reads
+            // forever from a stream that returns zero at its end rather than -1.
             final var copyBuf = new byte[DEFAULT_BUFFER_SIZE];
-            for (;;) {
-                final var bytesRead = inputStream.read(copyBuf, 0, copyBuf.length);
-                if (bytesRead > 0) {
-                    outputStream.write(copyBuf, 0, bytesRead);
-                } else if (bytesRead < 0) {
-                    break;
-                } else {
-                    final var nextByte = inputStream.read();
-                    if (nextByte < 0) {
-                        break;
-                    }
-                    outputStream.write(nextByte);
-                }
+            int bytesRead;
+            while ((bytesRead = InputStreamUtils.readAtLeastOne(inputStream, copyBuf, 0, copyBuf.length)) > 0) {
+                outputStream.write(copyBuf, 0, bytesRead);
             }
         }
 
@@ -460,45 +467,11 @@ public abstract class Slice implements AutoCloseable {
             throw new IOException("InputStream is too large to read");
         }
         try (inputStream) {
-            final var bufferSize = uncompressedLengthHint < 1L
-                    // If the length is zero or unknown, use the default buffer size
-                    ? DEFAULT_BUFFER_SIZE
-                    // The length is just a hint -- limit the max allocated buffer size, so that invalid ZipEntry
-                    // lengths do not become a memory allocation attack vector
-                    : Math.min((int) uncompressedLengthHint, MAX_INITIAL_BUFFER_SIZE);
-            var buf = new byte[bufferSize];
-            var totBytesRead = 0;
-            for (int bytesRead;;) {
-                while ((bytesRead = inputStream.read(buf, totBytesRead, buf.length - totBytesRead)) > 0) {
-                    // Fill buffer until nothing more can be read
-                    totBytesRead += bytesRead;
-                }
-                if (bytesRead < 0) {
-                    // Reached end of stream without filling buf
-                    break;
-                }
-
-                // bytesRead == 0: either the buffer was the correct size and the end of the stream has been
-                // reached, or the buffer was too small. Need to try reading one more byte to see which is the case.
-                final var extraByte = inputStream.read();
-                if (extraByte == -1) {
-                    // Reached end of stream
-                    break;
-                }
-
-                // Haven't reached end of stream yet. Grow the buffer (double its size) if it is full, and append
-                // the extra byte that was just read. (The read can also have returned zero from a buffer with room
-                // left in it, as in fromInputStream, and the buffer must not grow on every one of those reads.)
-                if (totBytesRead == buf.length) {
-                    if (buf.length == MAX_BUFFER_SIZE) {
-                        throw new IOException("InputStream too large to read into array");
-                    }
-                    buf = Arrays.copyOf(buf, (int) Math.min(buf.length * 2L, MAX_BUFFER_SIZE));
-                }
-                buf[totBytesRead++] = (byte) extraByte;
+            final var prefix = readUpTo(inputStream, uncompressedLengthHint, MAX_BUFFER_SIZE);
+            if (prefix.overflowByte() >= 0) {
+                throw new IOException("InputStream too large to read into array");
             }
-            // Return buffer and number of bytes read
-            return totBytesRead == buf.length ? buf : Arrays.copyOf(buf, totBytesRead);
+            return prefix.bytes();
         }
     }
 
