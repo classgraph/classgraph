@@ -249,7 +249,48 @@ public final class PathSlice extends Slice {
     private PathSlice(final @Nullable Path path, final @Nullable File file, final String pathStr, final Vfs vfs,
             final boolean checkAccess, final boolean memoryMapWholeFile, final boolean isTempFile,
             final @Nullable LogNode log) throws IOException {
-        this(openChannel(path, file, checkAccess), path, file, pathStr, vfs, memoryMapWholeFile, isTempFile, log);
+        // The slice's length is the file's length, so the file is opened before super() is called. If super()
+        // throws, the channel leaks, but super() only throws for a negative length, which FileChannel#size never
+        // returns
+        final var openedChannel = openChannel(path, file, checkAccess);
+        super(openedChannel.fileLength(), vfs);
+
+        this.path = path;
+        this.file = file;
+        this.pathStr = pathStr;
+        this.fileLength = openedChannel.fileLength();
+        this.tempFile = isTempFile ? file : null;
+        this.tempFileLog = isTempFile ? log : null;
+        // Set before anything below can fail, since it is what tells close() that this slice owns the file channel
+        this.topLevelPathSlice = this;
+        this.fileChannelLock = new Object();
+        final var fileChannelOpened = openedChannel.channel();
+        this.fileChannel = fileChannelOpened;
+        // Nothing but this constructor knows about the file channel yet, so if anything below throws, this is the
+        // only place the channel can be released. A temporary file is not deleted here: until this constructor
+        // returns, the caller that created the file still owns it, and deletes it when this throws
+        try {
+            if (memoryMapWholeFile && VersionFinder.OS == OperatingSystem.Windows) {
+                // Memory-map the whole file, if it can be mapped -- otherwise fall through and read through the
+                // FileChannel API instead. Mapping is measurably faster on Windows and is not on Linux or macOS,
+                // where it can even be slower, so it is done on Windows only. (The measurements are at
+                // https://github.com/classgraph/classgraph/wiki/Memory-Mapping-Benchmark .)
+                final var mapping = FileMapping.map(fileChannelOpened, fileLength, pathStr, log);
+                fileMapping = mapping;
+                backingByteBuffer = mapping == null ? null : mapping.byteBuffer;
+            }
+        } catch (final RuntimeException | Error e) {
+            // The mapping was not made, since nothing after FileMapping#map can throw, so there is only the
+            // channel to release
+            isClosed.set(true);
+            fileChannel = null;
+            try {
+                fileChannelOpened.close();
+            } catch (final IOException e2) {
+                e.addSuppressed(e2);
+            }
+            throw e;
+        }
     }
 
     /**
@@ -304,69 +345,6 @@ public final class PathSlice extends Slice {
         } catch (final IOException | RuntimeException | Error e) {
             try {
                 channel.close();
-            } catch (final IOException e2) {
-                e.addSuppressed(e2);
-            }
-            throw e;
-        }
-    }
-
-    /**
-     * Constructor for toplevel file slice, given the file channel opened on the file.
-     *
-     * @param openedChannel
-     *            the file channel, which this slice takes ownership of, and the length of the file
-     * @param path
-     *            the path, or null if the file is only reachable through the {@link File} API
-     * @param file
-     *            the file, if this slice is opened from a {@link File}, or null if it is opened from a {@link Path}
-     * @param pathStr
-     *            the path of the file, as it was given, for use in log and exception messages
-     * @param vfs
-     *            the {@link Vfs} that opened this slice
-     * @param memoryMapWholeFile
-     *            if true, and files are memory-mapped on this platform, memory-map the whole file.
-     * @param isTempFile
-     *            if true, the file is a temporary file that this slice owns, and deletes when it is closed.
-     * @param log
-     *            the log node, or null to skip logging
-     */
-    private PathSlice(final OpenedChannel openedChannel, final @Nullable Path path, final @Nullable File file,
-            final String pathStr, final Vfs vfs, final boolean memoryMapWholeFile, final boolean isTempFile,
-            final @Nullable LogNode log) {
-        super(openedChannel.fileLength(), vfs);
-
-        this.path = path;
-        this.file = file;
-        this.pathStr = pathStr;
-        this.fileLength = openedChannel.fileLength();
-        this.tempFile = isTempFile ? file : null;
-        this.tempFileLog = isTempFile ? log : null;
-        // Set before anything below can fail, since it is what tells close() that this slice owns the file channel
-        this.topLevelPathSlice = this;
-        this.fileChannelLock = new Object();
-        final var fileChannelOpened = openedChannel.channel();
-        this.fileChannel = fileChannelOpened;
-        // Nothing but this constructor knows about the file channel yet, so if anything below throws, this is the
-        // only place the channel can be released. A temporary file is not deleted here: until this constructor
-        // returns, the caller that created the file still owns it, and deletes it when this throws
-        try {
-            if (memoryMapWholeFile && VersionFinder.OS == OperatingSystem.Windows) {
-                // Memory-map the whole file, if it can be mapped -- otherwise fall through and read through the
-                // FileChannel API instead. Mapping is measurably faster on Windows and is not on Linux or macOS,
-                // where it can even be slower, so it is done on Windows only. (The measurements are at
-                // https://github.com/classgraph/classgraph/wiki/Memory-Mapping-Benchmark .)
-                final var mapping = FileMapping.map(fileChannelOpened, fileLength, pathStr, log);
-                fileMapping = mapping;
-                backingByteBuffer = mapping == null ? null : mapping.byteBuffer;
-            }
-        } catch (final RuntimeException | Error e) {
-            // The mapping was not made, since nothing after FileMapping#map can throw, so there is only the
-            // channel to release
-            isClosed.set(true);
-            fileChannel = null;
-            try {
-                fileChannelOpened.close();
             } catch (final IOException e2) {
                 e.addSuppressed(e2);
             }
