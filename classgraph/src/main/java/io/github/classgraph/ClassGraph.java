@@ -36,7 +36,6 @@ import java.net.URL;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CancellationException;
@@ -46,7 +45,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Predicate;
-import java.util.stream.Collectors;
 
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
@@ -683,6 +681,11 @@ public final class ClassGraph {
      * running alongside it, and has to add the classloader's own URLs itself. A classloader or classpath entry that
      * has already been placed keeps the position the first handler to place it gave it.
      *
+     * <p>
+     * A handler is only offered the classloaders that are searched, so {@link #enableClasspath()} or
+     * {@link #enableClassLoaders(ClassLoader...)} has to be called too, or the scan throws
+     * {@link IllegalArgumentException}.
+     *
      * @param classLoaderHandler
      *            the {@link ClassLoaderHandler} to register.
      * @return this (for method chaining).
@@ -705,7 +708,6 @@ public final class ClassGraph {
      * @return this (for method chaining).
      */
     public ClassGraph enableSystemModules() {
-        scanSourceSpec.enableModuleScanning();
         scanSpec.classpathSpec.enableSystemModules();
         return this;
     }
@@ -720,7 +722,6 @@ public final class ClassGraph {
      * @return this (for method chaining).
      */
     public ClassGraph enableNonSystemModules() {
-        scanSourceSpec.enableModuleScanning();
         scanSpec.classpathSpec.enableNonSystemModules();
         return this;
     }
@@ -1515,7 +1516,6 @@ public final class ClassGraph {
      *             if a config option was enabled without the option that reads it.
      */
     private void checkConfigIsExplicit() {
-        final var moduleKindMethods = "enableSystemModules or enableNonSystemModules";
         checkRequires(scanSpec.enableFieldInfo, "enableFieldInfo", scanSpec.enableClassInfo, "enableClassInfo");
         checkRequires(scanSpec.enableMethodInfo, "enableMethodInfo", scanSpec.enableClassInfo, "enableClassInfo");
         checkRequires(scanSpec.enableAnnotationInfo, "enableAnnotationInfo", scanSpec.enableClassInfo,
@@ -1535,15 +1535,7 @@ public final class ClassGraph {
         checkRequires(scanSpec.disableRuntimeInvisibleAnnotations, "disableRuntimeInvisibleAnnotations",
                 scanSpec.enableAnnotationInfo, "enableAnnotationInfo");
         checkRequires(realtimeLoggingEnabled, "enableRealtimeLogging", verbose, "verbose");
-        // The module layer methods say which layers to look in, so they need a kind of module to look for
-        checkRequires(scanSourceSpec.namedModuleLayers != null, "enableModuleLayers",
-                scanSourceSpec.moduleScanningEnabled, moduleKindMethods);
-        checkRequires(scanSourceSpec.searchDetectedModuleLayers, "enableDetectedModuleLayers",
-                scanSourceSpec.moduleScanningEnabled, moduleKindMethods);
-        checkRequires(scanSpec.classpathSpec.isParentModuleLayersIgnored(), "ignoreParentModuleLayers",
-                scanSourceSpec.moduleScanningEnabled, moduleKindMethods);
-        checkRequires(scanSpec.classpathSpec.isParentClassLoadersIgnored(), "ignoreParentClassLoaders",
-                scanSourceSpec.searchesClassLoaders(), "enableClasspath or enableClassLoaders");
+        scanSourceSpec.checkSourcesAreExplicit(scanSpec.classpathSpec, "ClassGraph");
     }
 
     /**
@@ -1555,19 +1547,14 @@ public final class ClassGraph {
      *            the name of the config method that needs a companion option.
      * @param companionEnabled
      *            true if the companion config option was enabled.
-     * @param companionMethodNames
-     *            the name of the companion config method, or several names separated by " or ".
+     * @param companionMethodName
+     *            the name of the companion config method.
      * @throws IllegalArgumentException
      *             if {@code enabled} is true and {@code companionEnabled} is false.
      */
     private static void checkRequires(final boolean enabled, final String methodName,
-            final boolean companionEnabled, final String companionMethodNames) {
-        if (enabled && !companionEnabled) {
-            final var companions = Arrays.stream(companionMethodNames.split(" or "))
-                    .map(name -> "ClassGraph#" + name + "()").collect(Collectors.joining(" or "));
-            throw new IllegalArgumentException(
-                    "ClassGraph#" + methodName + "() has no effect unless " + companions + " is also called");
-        }
+            final boolean companionEnabled, final String companionMethodName) {
+        Assert.companionIsCalled(enabled, "ClassGraph", methodName, companionEnabled, companionMethodName);
     }
 
     /**

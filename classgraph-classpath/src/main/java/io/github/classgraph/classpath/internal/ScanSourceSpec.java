@@ -100,23 +100,17 @@ public class ScanSourceSpec {
     }
 
     /** The places classpath elements are looked for, in the order they were enabled in. */
-    public final List<ClasspathSource> classpathSources = new ArrayList<>();
+    private final List<ClasspathSource> classpathSources = new ArrayList<>();
 
     /**
      * If true, the caller asked for the module layers that are visible from it, and the boot layer, to be searched.
-     * Test this with {@link #searchesDetectedModuleLayers()} rather than directly, since they are also searched
-     * when module scanning was enabled and the caller named no layers of its own.
+     * They are also searched without being asked for when a kind of module is enabled and the caller named no
+     * layers -- see {@link #searchesDetectedModuleLayers(ClasspathSpec)}.
      */
-    public boolean searchDetectedModuleLayers;
-
-    /**
-     * If true, a kind of module was enabled for scanning, which searches the module layers that are visible from
-     * the caller unless the caller named the layers to search itself.
-     */
-    public boolean moduleScanningEnabled;
+    private boolean detectedModuleLayersRequested;
 
     /** If non-null, the module layers the caller named. */
-    public @Nullable List<ModuleLayer> namedModuleLayers;
+    private @Nullable List<ModuleLayer> namedModuleLayers;
 
     // -----------------------------------------------------------------------------------------------------------
 
@@ -200,26 +194,22 @@ public class ScanSourceSpec {
 
     /** Search the module layers that are visible from the caller, and the boot layer. */
     public void enableDetectedModuleLayers() {
-        searchDetectedModuleLayers = true;
-    }
-
-    /**
-     * Record that a kind of module was enabled for scanning, which is what makes a module layer worth searching.
-     */
-    public void enableModuleScanning() {
-        moduleScanningEnabled = true;
+        detectedModuleLayersRequested = true;
     }
 
     /**
      * Whether the module layers that are visible from the caller are searched: they are, if the caller asked for
-     * them, and also if module scanning was enabled and the caller named no layers of its own. Layers the caller
+     * them, and also if a kind of module was enabled and the caller named no layers of its own. Layers the caller
      * named otherwise replace the detected ones rather than adding to them, since naming layers is how a caller
      * says which layers to search.
      *
+     * @param classpathSpec
+     *            the classpath settings, which say which kinds of module are scanned.
      * @return true if the module layers detected in the environment are searched.
      */
-    public boolean searchesDetectedModuleLayers() {
-        return searchDetectedModuleLayers || moduleScanningEnabled && namedModuleLayers == null;
+    public boolean searchesDetectedModuleLayers(final ClasspathSpec classpathSpec) {
+        return detectedModuleLayersRequested
+                || classpathSpec.isModuleScanningEnabled() && namedModuleLayers == null;
     }
 
     /**
@@ -256,16 +246,75 @@ public class ScanSourceSpec {
     // -----------------------------------------------------------------------------------------------------------
 
     /**
+     * Get the places classpath elements are looked for.
+     *
+     * @return the classpath sources, in the order they were enabled in.
+     */
+    public List<ClasspathSource> getClasspathSources() {
+        return Collections.unmodifiableList(classpathSources);
+    }
+
+    /**
+     * Get the module layers the caller named.
+     *
+     * @return the module layers named by {@link #enableModuleLayers(ModuleLayer...)}, in the order they were named
+     *         in, or null if none were named.
+     */
+    public @Nullable List<ModuleLayer> getNamedModuleLayers() {
+        final var moduleLayers = namedModuleLayers;
+        return moduleLayers == null ? null : Collections.unmodifiableList(moduleLayers);
+    }
+
+    /**
+     * Check that every option that says how the sources are searched was asked for alongside a source that it
+     * applies to. No config method turns on another config method for you, so an option with no source to apply to
+     * would otherwise be silently ignored. {@code ClassGraph} and
+     * {@link io.github.classgraph.classpath.ClasspathFinder} both check their sources with this, so that the two
+     * refuse the same configurations.
+     *
+     * @param classpathSpec
+     *            the classpath settings.
+     * @param className
+     *            the simple name of the class whose config methods were called, e.g. {@code "ClassGraph"}, which
+     *            the exception message names the methods by.
+     * @throws IllegalArgumentException
+     *             if an option was asked for without a source that it applies to.
+     */
+    public void checkSourcesAreExplicit(final ClasspathSpec classpathSpec, final String className) {
+        // The module layer options say which layers to look in, so they need a kind of module to look for
+        final var moduleScanningEnabled = classpathSpec.isModuleScanningEnabled();
+        Assert.companionIsCalled(namedModuleLayers != null, className, "enableModuleLayers", moduleScanningEnabled,
+                "enableSystemModules", "enableNonSystemModules");
+        Assert.companionIsCalled(detectedModuleLayersRequested, className, "enableDetectedModuleLayers",
+                moduleScanningEnabled, "enableSystemModules", "enableNonSystemModules");
+        Assert.companionIsCalled(classpathSpec.isParentModuleLayersIgnored(), className, "ignoreParentModuleLayers",
+                moduleScanningEnabled, "enableSystemModules", "enableNonSystemModules");
+
+        // The classloader options apply only to the classloaders that are searched, so a classloader has to be
+        // searched. Named classpath entries and modules are found without asking any classloader.
+        final var classLoadersSearched = searchesClassLoaders();
+        Assert.companionIsCalled(classpathSpec.isParentClassLoadersIgnored(), className, "ignoreParentClassLoaders",
+                classLoadersSearched, "enableClasspath", "enableClassLoaders");
+        Assert.companionIsCalled(!classpathSpec.getClassLoaderHandlers().isEmpty(), className,
+                "registerClassLoaderHandler", classLoadersSearched, "enableClasspath", "enableClassLoaders");
+    }
+
+    // -----------------------------------------------------------------------------------------------------------
+
+    /**
      * Log the sources that the caller enabled.
      *
+     * @param classpathSpec
+     *            the classpath settings, which say whether the module layers detected in the environment are
+     *            searched.
      * @param log
      *            the log node, or null to skip logging
      */
-    public void log(final @Nullable LogNode log) {
+    public void log(final ClasspathSpec classpathSpec, final @Nullable LogNode log) {
         if (log != null) {
             final var subLog = log.log("ScanSourceSpec:");
             subLog.log("classpathSources: " + classpathSources);
-            subLog.log("searchDetectedModuleLayers: " + searchesDetectedModuleLayers());
+            subLog.log("searchDetectedModuleLayers: " + searchesDetectedModuleLayers(classpathSpec));
             subLog.log("namedModuleLayers: " + namedModuleLayers);
         }
     }

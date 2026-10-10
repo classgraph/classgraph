@@ -28,6 +28,9 @@
  */
 package io.github.classgraph.base.internal.utils;
 
+import java.util.Arrays;
+import java.util.stream.Collectors;
+
 import org.jspecify.annotations.Nullable;
 
 /** Assertions. */
@@ -107,6 +110,33 @@ public final class Assert {
     public static void isInterface(final Class<?> clazz) {
         if (!clazz.isInterface()) {
             throw new IllegalArgumentException(clazz + " is not an interface");
+        }
+    }
+
+    /**
+     * Throw {@link IllegalArgumentException} if a config method was called without any of the config methods that
+     * read the option it sets, since the option would otherwise be silently ignored.
+     *
+     * @param enabled
+     *            true if the config method that needs a companion was called.
+     * @param className
+     *            the simple name of the class that the config methods belong to, e.g. {@code "ClassGraph"}.
+     * @param methodName
+     *            the name of the config method that needs a companion.
+     * @param companionEnabled
+     *            true if a companion config method was called.
+     * @param companionMethodNames
+     *            the names of the companion config methods, any one of which is enough.
+     * @throws IllegalArgumentException
+     *             if {@code enabled} is true and {@code companionEnabled} is false.
+     */
+    public static void companionIsCalled(final boolean enabled, final String className, final String methodName,
+            final boolean companionEnabled, final String... companionMethodNames) {
+        if (enabled && !companionEnabled) {
+            final var companions = Arrays.stream(companionMethodNames).map(name -> className + "#" + name + "()")
+                    .collect(Collectors.joining(" or "));
+            throw new IllegalArgumentException(
+                    className + "#" + methodName + "() has no effect unless " + companions + " is also called");
         }
     }
 }
