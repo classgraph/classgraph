@@ -1831,11 +1831,14 @@ public final class ClassGraph {
      * Note that the returned {@link ModulePathInfo} object reports what the commandline asked for, whether or not
      * any of it was enabled for scanning, and does not include classpath entries from the traditional classpath or
      * system modules. This is an immutable snapshot of JVM command-line arguments; manifest attributes encountered
-     * during a scan do not mutate it. Use {@link #getModuleReferences()} to get the modules that were enabled.
+     * during a scan do not mutate it. It is the same instance that {@link ModulePathInfo#current()} returns. Use
+     * {@link #getModuleReferences()} to get the modules that were enabled.
      *
      * @return The {@link ModulePathInfo}.
      */
+    // An instance method, so that the module path info is reached the same way as the classpath and the modules
+    @SuppressWarnings("static-method")
     public ModulePathInfo getModulePathInfo() {
-        return scanSpec.classpathSpec.getModulePathInfo();
+        return ModulePathInfo.current();
     }
 }

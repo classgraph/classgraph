@@ -9,17 +9,19 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 /** Tests for the immutable commandline snapshot represented by {@link ModulePathInfo}. */
 public class ModulePathInfoTest {
-    /** A new instance has nothing in it, and prints as the empty string rather than as a bare switch. */
+    /**
+     * Command line arguments with no module switch give an instance with nothing in it, which prints as the empty
+     * string rather than as a bare switch.
+     */
     @Test
-    public void aNewInstanceIsEmpty() {
-        final var modulePathInfo = new ModulePathInfo();
+    public void argumentsWithNoModuleSwitchGiveAnEmptyInstance() {
+        final var modulePathInfo = new ModulePathInfo(List.of("-Xmx1g", "-Dmodule-path=x"));
         assertThat(modulePathInfo.getModulePath()).isEmpty();
         assertThat(modulePathInfo.getAddModules()).isEmpty();
         assertThat(modulePathInfo.getPatchModules()).isEmpty();
@@ -29,10 +31,31 @@ public class ModulePathInfoTest {
         assertThat(modulePathInfo).hasToString("");
     }
 
-    /** Every getter returns an unmodifiable view, so that a caller cannot change the scan result. */
+    /**
+     * When {@code --module-path} is given more than once, only the last occurrence is kept, as the JVM does. Every
+     * occurrence of the other switches is kept, since the JVM adds them together.
+     */
+    @Test
+    public void onlyTheLastModulePathIsKept() {
+        final var modulePathInfo = new ModulePathInfo(List.of("--module-path=a" + File.pathSeparator + "b",
+                "--add-opens=java.base/java.lang=ALL-UNNAMED", "--module-path=c", "--add-modules=java.sql",
+                "--add-opens=java.base/java.io=ALL-UNNAMED", "--add-modules=java.xml"));
+        assertThat(modulePathInfo.getModulePath()).containsExactly("c");
+        assertThat(modulePathInfo.getAddModules()).containsExactly("java.sql", "java.xml");
+        assertThat(modulePathInfo.getAddOpens()).containsExactly("java.base/java.lang=ALL-UNNAMED",
+                "java.base/java.io=ALL-UNNAMED");
+        assertThat(modulePathInfo).hasToString("--module-path=c --add-modules=java.sql,java.xml"
+                + " --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.io=ALL-UNNAMED");
+    }
+
+    /**
+     * Every getter returns an unmodifiable view, so that a caller cannot change the instance that every other
+     * caller shares.
+     */
     @Test
     public void gettersReturnUnmodifiableSets() {
-        final var modulePathInfo = new ModulePathInfo();
+        final var modulePathInfo = new ModulePathInfo(List.of("--module-path=a", "--add-modules=b",
+                "--patch-module=c=d", "--add-exports=e/f=g", "--add-opens=h/i=j", "--add-reads=k=l"));
         assertThatThrownBy(() -> modulePathInfo.getModulePath().add("x"))
                 .isInstanceOf(UnsupportedOperationException.class);
         assertThatThrownBy(() -> modulePathInfo.getAddModules().add("x"))
@@ -48,16 +71,16 @@ public class ModulePathInfoTest {
     }
 
     /**
-     * The module switches this JVM was launched with are read from the runtime the first time a getter is called,
-     * without the reflective call to {@code java.lang.management} failing on a runtime that has it. Which switches
-     * are found depends on how the test JVM was launched, so the contents are not asserted on here; a second read
-     * is a no-op, and leaves what was already read in place.
+     * The module switches this JVM was launched with are read from the runtime once, into one instance that every
+     * caller shares, without the reflective call to {@code java.lang.management} failing on a runtime that has it.
+     * Which switches are found depends on how the test JVM was launched, so the contents are not asserted on here;
+     * the child JVM tests below check them.
      */
     @Test
-    public void theCommandlineSwitchesAreReadFromTheRuntime() {
-        final var modulePathInfo = new ModulePathInfo();
-        final var addOpensAfterFirstRead = Set.copyOf(modulePathInfo.getAddOpens());
-        assertThat(modulePathInfo.getAddOpens()).isEqualTo(addOpensAfterFirstRead);
+    public void theCommandlineSwitchesAreReadFromTheRuntimeIntoOneInstance() {
+        final var modulePathInfo = ModulePathInfo.current();
+        assertThat(ModulePathInfo.current()).isSameAs(modulePathInfo);
+        assertThat(ModulePathInfo.current().getAddOpens()).isEqualTo(modulePathInfo.getAddOpens());
     }
 
     // -----------------------------------------------------------------------------------------------------------
@@ -165,5 +188,27 @@ public class ModulePathInfoTest {
         assertThat(valuesOf(outputLines, "addModules")).containsExactly("java.sql");
         assertThat(valuesOf(outputLines, "commandline"))
                 .containsExactly("--module-path=" + moduleDir + " --add-modules=java.sql");
+    }
+
+    /**
+     * When {@code --module-path} is given more than once, the JVM uses only the last occurrence, so only that one
+     * is reported. The other module switches add to each other, so every occurrence of them is reported.
+     *
+     * @param tempDir
+     *            a temporary directory to hold the two module directories.
+     * @throws Exception
+     *             if the directories could not be created, or the child JVM could not be run.
+     */
+    @Test
+    public void onlyTheLastModulePathSwitchIsRead(@TempDir final Path tempDir) throws Exception {
+        final var firstModuleDir = Files.createDirectory(tempDir.resolve("first-modules"));
+        final var lastModuleDir = Files.createDirectory(tempDir.resolve("last-modules"));
+        final var outputLines = runChildJvm(List.of("--module-path=" + firstModuleDir, "--add-modules=java.sql",
+                "-p", lastModuleDir.toString(), "--add-modules=java.xml"));
+
+        assertThat(valuesOf(outputLines, "modulePath")).containsExactly(lastModuleDir.toString());
+        assertThat(valuesOf(outputLines, "addModules")).containsExactly("java.sql", "java.xml");
+        assertThat(valuesOf(outputLines, "commandline"))
+                .containsExactly("--module-path=" + lastModuleDir + " --add-modules=java.sql,java.xml");
     }
 }

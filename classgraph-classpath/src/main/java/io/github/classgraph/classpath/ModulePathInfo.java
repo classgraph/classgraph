@@ -43,8 +43,15 @@ import io.github.classgraph.base.internal.utils.StringUtils;
  * The module system switches the JVM was launched with: {@code --module-path}, {@code --add-modules},
  * {@code --patch-module}, {@code --add-exports}, {@code --add-opens} and {@code --add-reads}. Only what was given
  * on the command line is listed here, so the traditional classpath and the system modules are not.
+ *
+ * <p>
+ * The command line cannot change while the JVM runs, so there is one instance for the whole JVM, returned by
+ * {@link #current()}.
  */
 public final class ModulePathInfo {
+    // The sets below are filled in by the constructor and never changed afterward, so an instance can be read from
+    // any thread without locking, and the getters can return unmodifiable views of them rather than copies
+
     /** The module path provided by the {@code --module-path} or {@code -p} switch. */
     private final Set<String> modulePath = new LinkedHashSet<>();
 
@@ -73,10 +80,14 @@ public final class ModulePathInfo {
      * @param argPartSeparatorChar
      *            the character that separates the values of one occurrence of the switch, or {@code '\0'} if the
      *            switch takes a single value and has to be repeated to give more than one.
+     * @param lastOccurrenceWins
+     *            true if the JVM uses only the last occurrence of the switch when it is given more than once, as it
+     *            does for {@code --module-path}; false if it adds the occurrences together.
      * @param values
      *            the values read for the switch, in the order they were listed on the command line.
      */
-    private record ModulePathSwitch(String argSwitch, char argPartSeparatorChar, Set<String> values) {
+    private record ModulePathSwitch(String argSwitch, char argPartSeparatorChar, boolean lastOccurrenceWins,
+            Set<String> values) {
         /**
          * Add the value of one occurrence of this switch, splitting it into parts if the switch takes several
          * values at once.
@@ -85,6 +96,10 @@ public final class ModulePathInfo {
          *            the text that followed the switch.
          */
         private void addArgParam(final String argParam) {
+            if (lastOccurrenceWins) {
+                // An earlier occurrence of the switch is overridden by this one
+                values.clear();
+            }
             if (argPartSeparatorChar == '\0') {
                 values.add(argParam);
             } else {
@@ -96,19 +111,75 @@ public final class ModulePathInfo {
 
     /** The module path command line switches, each paired with the values read for it. */
     private final List<ModulePathSwitch> modulePathSwitches = List.of( //
-            new ModulePathSwitch("--module-path=", File.pathSeparatorChar, modulePath), //
-            new ModulePathSwitch("--add-modules=", ',', addModules), //
-            new ModulePathSwitch("--patch-module=", '\0', patchModules), //
-            new ModulePathSwitch("--add-exports=", '\0', addExports), //
-            new ModulePathSwitch("--add-opens=", '\0', addOpens), //
-            new ModulePathSwitch("--add-reads=", '\0', addReads) //
+            new ModulePathSwitch("--module-path=", File.pathSeparatorChar, /* lastOccurrenceWins = */ true,
+                    modulePath), //
+            new ModulePathSwitch("--add-modules=", ',', false, addModules), //
+            new ModulePathSwitch("--patch-module=", '\0', false, patchModules), //
+            new ModulePathSwitch("--add-exports=", '\0', false, addExports), //
+            new ModulePathSwitch("--add-opens=", '\0', false, addOpens), //
+            new ModulePathSwitch("--add-reads=", '\0', false, addReads) //
     );
 
-    /** Set to true once the command line arguments have been read. */
-    private boolean readCommandLineArguments;
+    /**
+     * Holds the instance for this JVM. The command line is read when this class is initialized, which is the first
+     * time {@link #current()} is called, rather than when {@link ModulePathInfo} is loaded: reading it can cause an
+     * illegal access warning on some JREs, e.g. Adopt JDK 11 (#605), so it is read only if it is asked for.
+     */
+    private static final class Current {
+        /** The module path switches this JVM was launched with. */
+        static final ModulePathInfo INSTANCE = new ModulePathInfo(readInputArguments());
 
-    /** Constructor. */
-    public ModulePathInfo() {
+        /**
+         * Read the arguments this JVM was launched with.
+         *
+         * <p>
+         * If the java.management module is not present in the deployed runtime, or the runtime does not contain the
+         * java.lang.management package (e.g. the Android build system), the arguments cannot be read, and an empty
+         * list is returned (#404). This must not throw, since an exception here would make every call to
+         * {@link ModulePathInfo#current()} fail.
+         *
+         * @return the arguments, or an empty list if they could not be read.
+         */
+        private static List<String> readInputArguments() {
+            final Class<?> managementFactory = ReflectionUtils
+                    .classForNameOrNull("java.lang.management.ManagementFactory");
+            final var runtimeMXBean = managementFactory == null ? null
+                    : ReflectionUtils.invokeStaticMethod(/* throwException = */ false, managementFactory,
+                            "getRuntimeMXBean");
+            @SuppressWarnings("unchecked")
+            final var inputArguments = runtimeMXBean == null ? null
+                    : (List<String>) ReflectionUtils.invokeMethod(/* throwException = */ false, runtimeMXBean,
+                            "getInputArguments");
+            return inputArguments == null ? List.of() : inputArguments;
+        }
+    }
+
+    /**
+     * Parse the module switches out of a list of JVM arguments. Arguments that are not module switches are ignored.
+     * This does not throw.
+     *
+     * @param inputArguments
+     *            the JVM arguments, in the normalized form that {@code RuntimeMXBean#getInputArguments()} reports
+     *            them in.
+     */
+    ModulePathInfo(final List<String> inputArguments) {
+        for (final String arg : inputArguments) {
+            for (final ModulePathSwitch modulePathSwitch : modulePathSwitches) {
+                if (arg.startsWith(modulePathSwitch.argSwitch())) {
+                    modulePathSwitch.addArgParam(arg.substring(modulePathSwitch.argSwitch().length()));
+                }
+            }
+        }
+    }
+
+    /**
+     * Returns the module path switches this JVM was launched with. The command line is read the first time this is
+     * called, and every call returns the same instance.
+     *
+     * @return the module path switches this JVM was launched with.
+     */
+    public static ModulePathInfo current() {
+        return Current.INSTANCE;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -116,7 +187,8 @@ public final class ModulePathInfo {
     /**
      * Returns the module path provided on the command line by the {@code --module-path} or {@code -p} switch, as an
      * ordered set of module path elements (directories and jarfiles, not module names), in the order they were
-     * listed on the command line.
+     * listed on the command line. If the switch was given more than once, only the last occurrence is reported,
+     * since that is the only one the JVM uses.
      *
      * <p>
      * Note that the modules the runtime adds by itself (such as the system modules) are not reached through this
@@ -125,7 +197,7 @@ public final class ModulePathInfo {
      * @return The module path, as an unmodifiable set.
      */
     public Set<String> getModulePath() {
-        return snapshot(modulePath);
+        return Collections.unmodifiableSet(modulePath);
     }
 
     /**
@@ -137,7 +209,7 @@ public final class ModulePathInfo {
      * @return The added modules, as an unmodifiable set.
      */
     public Set<String> getAddModules() {
-        return snapshot(addModules);
+        return Collections.unmodifiableSet(addModules);
     }
 
     /**
@@ -148,7 +220,7 @@ public final class ModulePathInfo {
      * @return The module patch directives, as an unmodifiable set.
      */
     public Set<String> getPatchModules() {
-        return snapshot(patchModules);
+        return Collections.unmodifiableSet(patchModules);
     }
 
     /**
@@ -160,7 +232,7 @@ public final class ModulePathInfo {
      * @return The {@code exports} directives, as an unmodifiable set.
      */
     public Set<String> getAddExports() {
-        return snapshot(addExports);
+        return Collections.unmodifiableSet(addExports);
     }
 
     /**
@@ -172,7 +244,7 @@ public final class ModulePathInfo {
      * @return The {@code opens} directives, as an unmodifiable set.
      */
     public Set<String> getAddOpens() {
-        return snapshot(addOpens);
+        return Collections.unmodifiableSet(addOpens);
     }
 
     /**
@@ -183,59 +255,7 @@ public final class ModulePathInfo {
      * @return The {@code reads} directives, as an unmodifiable set.
      */
     public Set<String> getAddReads() {
-        return snapshot(addReads);
-    }
-
-    /**
-     * Read the command line arguments if they have not been read yet, then return an unmodifiable copy of one of
-     * the field sets.
-     *
-     * @param field
-     *            the field set to snapshot.
-     * @return the snapshot.
-     */
-    private synchronized Set<String> snapshot(final Set<String> field) {
-        readCommandLineArguments();
-        return Collections.unmodifiableSet(new LinkedHashSet<>(field));
-    }
-
-    /**
-     * Fill in the module path fields from the VM command line arguments, the first time any of them is read.
-     *
-     * <p>
-     * Synchronized rather than guarded by an atomic flag, so that a second thread calling this concurrently blocks
-     * until the first thread has finished populating the field sets. An atomic test-and-set would let the second
-     * thread return immediately and read the (plain, non-thread-safe) {@link LinkedHashSet} fields while the first
-     * thread was still adding to them.
-     */
-    private synchronized void readCommandLineArguments() {
-        // The command line arguments are only read if the module path info is actually asked for, to avoid an
-        // illegal access warning on some JREs, e.g. Adopt JDK 11 (#605)
-        if (!readCommandLineArguments) {
-            readCommandLineArguments = true;
-            // Read the raw command line arguments to get the module path override parameters. If the java.management
-            // module is not present in the deployed runtime (for JDK 9+), or the runtime does not contain the
-            // java.lang.management package (e.g. the Android build system, which also does not support JPMS
-            // currently), then skip trying to read the command line arguments (#404).
-            final Class<?> managementFactory = ReflectionUtils
-                    .classForNameOrNull("java.lang.management.ManagementFactory");
-            final var runtimeMXBean = managementFactory == null ? null
-                    : ReflectionUtils.invokeStaticMethod(/* throwException = */ false, managementFactory,
-                            "getRuntimeMXBean");
-            @SuppressWarnings("unchecked")
-            final var commandlineArguments = runtimeMXBean == null ? null
-                    : (List<String>) ReflectionUtils.invokeMethod(/* throwException = */ false, runtimeMXBean,
-                            "getInputArguments");
-            if (commandlineArguments != null) {
-                for (final String arg : commandlineArguments) {
-                    for (final ModulePathSwitch modulePathSwitch : modulePathSwitches) {
-                        if (arg.startsWith(modulePathSwitch.argSwitch())) {
-                            modulePathSwitch.addArgParam(arg.substring(modulePathSwitch.argSwitch().length()));
-                        }
-                    }
-                }
-            }
-        }
+        return Collections.unmodifiableSet(addReads);
     }
 
     /**
@@ -244,8 +264,7 @@ public final class ModulePathInfo {
      * @return the module path command line string.
      */
     @Override
-    public synchronized String toString() {
-        readCommandLineArguments();
+    public String toString() {
         final StringBuilder buf = new StringBuilder(1024);
         for (final ModulePathSwitch modulePathSwitch : modulePathSwitches) {
             final var values = modulePathSwitch.values();

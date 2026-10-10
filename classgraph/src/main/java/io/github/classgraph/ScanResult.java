@@ -610,10 +610,11 @@ public final class ScanResult implements AutoCloseable {
      * {@code --patch-module}, {@code --add-exports}, {@code --add-opens}, and {@code --add-reads}.
      *
      * <p>
-     * Note that the returned {@link ModulePathInfo} object is an immutable snapshot of JVM command-line arguments.
-     * It reports what the commandline asked for, whether or not any of it was scanned, and does not include
-     * traditional classpath entries, system modules, or jar manifest attributes. Use {@link #getModuleReferences()}
-     * to get the modules that were actually scanned.
+     * Note that the returned {@link ModulePathInfo} object is an immutable snapshot of JVM command-line arguments,
+     * and is the same instance that {@link ModulePathInfo#current()} returns. It reports what the commandline asked
+     * for, whether or not any of it was scanned, and does not include traditional classpath entries, system
+     * modules, or jar manifest attributes. Use {@link #getModuleReferences()} to get the modules that were actually
+     * scanned.
      *
      * @return The {@link ModulePathInfo}.
      * @throws IllegalStateException
@@ -621,7 +622,7 @@ public final class ScanResult implements AutoCloseable {
      */
     public ModulePathInfo getModulePathInfo() {
         checkNotClosed();
-        return scanSpec.classpathSpec.getModulePathInfo();
+        return ModulePathInfo.current();
     }
 
     // -------------------------------------------------------------------------------------------------------------

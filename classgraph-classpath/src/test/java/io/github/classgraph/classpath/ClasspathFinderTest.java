@@ -400,10 +400,15 @@ public class ClasspathFinderTest {
                         + "is also called");
     }
 
-    /** The module path switches the JVM was launched with are reachable from the result. */
+    /**
+     * The module path switches the JVM was launched with are reachable from the result, as the one instance that
+     * describes this JVM.
+     */
     @Test
     public void theModulePathInfoIsReachable() {
-        assertThat(new ClasspathFinder().enableClasspath().find().getModulePathInfo()).isNotNull();
+        try (var classpath = new ClasspathFinder().enableClasspath().find()) {
+            assertThat(classpath.getModulePathInfo()).isSameAs(ModulePathInfo.current());
+        }
     }
 
     /**

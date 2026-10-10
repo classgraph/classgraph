@@ -34,7 +34,7 @@ public final class ModulePathInfoPrinter {
      *            ignored.
      */
     public static void main(final String[] args) {
-        final var modulePathInfo = new ModulePathInfo();
+        final var modulePathInfo = ModulePathInfo.current();
         print("modulePath", modulePathInfo.getModulePath());
         print("addModules", modulePathInfo.getAddModules());
         print("patchModules", modulePathInfo.getPatchModules());

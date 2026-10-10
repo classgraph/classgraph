@@ -125,9 +125,6 @@ public class ClasspathSpec {
      */
     private boolean ignoreParentModuleLayers;
 
-    /** The module path switches the JVM was launched with. */
-    private final ModulePathInfo modulePathInfo = new ModulePathInfo();
-
     // -----------------------------------------------------------------------------------------------------------
 
     /** Constructor. */
@@ -357,15 +354,6 @@ public class ClasspathSpec {
         return Collections.unmodifiableList(classLoaderHandlers);
     }
 
-    /**
-     * Get the module path switches the JVM was launched with.
-     *
-     * @return the {@link ModulePathInfo}.
-     */
-    public ModulePathInfo getModulePathInfo() {
-        return modulePathInfo;
-    }
-
     // -----------------------------------------------------------------------------------------------------------
 
     /**
@@ -390,6 +378,8 @@ public class ClasspathSpec {
                     classpathSpecLog.log(field.getName() + ": could not be read: " + e);
                 }
             }
+            // Not a setting, but logged with them, since it affects which modules the JVM can see
+            classpathSpecLog.log("modulePathInfo: " + ModulePathInfo.current());
         }
     }
 }
