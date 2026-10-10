@@ -104,17 +104,22 @@ public final class ModuleRoot extends VfsRoot {
         // resources with "jrt:" URIs that have nothing to do with the module's own location
         try {
             final Recycler<ModuleReader, IOException> recycler;
+            final ModuleReader reader;
             try {
                 recycler = moduleReaderRecycler();
+                reader = acquireReader(recycler);
             } catch (final IOException e) {
+                if (!isClosed()) {
+                    // The module could not be opened
+                    throw e;
+                }
                 // This root has been closed. A URI only names the path, as it does for a directory or a jarfile,
                 // whose roots can still name a path once closed, so the URI is asked of a reader that is opened for
                 // this one lookup, and so is not left open by the closed root
-                try (var reader = ModuleReaderUtils.openModule(moduleReference)) {
-                    return ModuleReaderUtils.find(reader, pathWithinRoot);
+                try (var oneOffReader = ModuleReaderUtils.openModule(moduleReference)) {
+                    return ModuleReaderUtils.find(oneOffReader, pathWithinRoot);
                 }
             }
-            final var reader = recycler.acquire();
             try {
                 return ModuleReaderUtils.find(reader, pathWithinRoot);
             } finally {
@@ -173,6 +178,10 @@ public final class ModuleRoot extends VfsRoot {
      * reads the module borrows a pooled reader of its own. The pooled readers are closed when this root is closed,
      * which happens no later than when the {@link Vfs} is closed.
      *
+     * <p>
+     * A reader must be acquired from the recycler with {@link #acquireReader(Recycler)} rather than with
+     * {@link Recycler#acquire()}, since this root can close between the return of this method and the acquire.
+     *
      * @return the recycler.
      * @throws IOException
      *             if this root or the {@link Vfs} has been closed. The module itself cannot fail to open here,
@@ -181,10 +190,11 @@ public final class ModuleRoot extends VfsRoot {
     Recycler<ModuleReader, IOException> moduleReaderRecycler() throws IOException {
         synchronized (moduleReaderRecyclerLock) {
             // Checked under the lock that releaseResources() takes, and even when the recycler already exists, so
-            // that a read through a closed root is turned away rather than opening a fresh reader from a pool that
-            // the close has already force-closed: either this check passes and the recycler is assigned before
-            // releaseResources() can take the lock and force-close it, or the close got here first and the check
-            // throws -- before the recycler has opened anything, so a recycler dropped by the throw owns nothing
+            // that a closed root does not create a recycler that nothing would ever force-close: either this check
+            // passes and the recycler is assigned before releaseResources() can take the lock and force-close it,
+            // or the close got here first and the check throws -- before the recycler has opened anything, so a
+            // recycler dropped by the throw owns nothing. The root can still close once this returns, before the
+            // caller acquires a reader, which acquireReader() checks for
             checkNotClosed(getPath());
             var recycler = moduleReaderRecycler;
             if (recycler == null) {
@@ -200,11 +210,40 @@ public final class ModuleRoot extends VfsRoot {
         }
     }
 
+    /**
+     * Acquire a {@link ModuleReader} from the recycler that {@link #moduleReaderRecycler()} returned, and hand it
+     * straight back if this root has closed since then. The caller must hand the reader back to the recycler once
+     * it has finished with it.
+     *
+     * @param recycler
+     *            the recycler.
+     * @return the reader.
+     * @throws IOException
+     *             if the module could not be opened, or if this root, or the {@link Vfs} that opened it, has been
+     *             closed.
+     */
+    ModuleReader acquireReader(final Recycler<ModuleReader, IOException> recycler) throws IOException {
+        final var reader = recycler.acquire();
+        // A close that began after moduleReaderRecycler() returned may have force-closed the recycler before the
+        // acquire put this reader on loan, in which case the force-close did not see it and nothing has closed it.
+        // The acquire puts the reader on loan before this check, and the close marks this root closed before it
+        // force-closes the recycler, so either this check sees the close, or the force-close sees the reader on
+        // loan and closes it
+        if (isClosed()) {
+            // Handing the reader back to a force-closed recycler closes it; one the close has yet to reach is
+            // pooled, and the force-close then closes it
+            recycler.recycle(reader);
+            checkNotClosed(getPath());
+        }
+        return reader;
+    }
+
     @Override
     void releaseResources(final @Nullable LogNode log) {
-        // Taking the lock that creates the recycler is what closes the race against a concurrent read: a recycler
-        // being created as this root closes is either assigned before this runs, and force-closed here, or its
-        // creation is turned away by the closed check it makes under this lock
+        // Taking the lock that creates the recycler means a recycler being created as this root closes is either
+        // assigned before this runs, and force-closed here, or its creation is turned away by the closed check it
+        // makes under this lock. A reader acquired from the recycler after this runs is turned away by
+        // acquireReader()
         synchronized (moduleReaderRecyclerLock) {
             final var recycler = moduleReaderRecycler;
             if (recycler != null) {
@@ -251,8 +290,11 @@ public final class ModuleRoot extends VfsRoot {
     private List<VfsEntry> listEntries(final @Nullable LogNode log) throws IOException {
         final var recycler = moduleReaderRecycler();
         final List<String> resourcePaths;
-        try (var moduleReader = recycler.acquireRecycleOnClose()) {
-            resourcePaths = ModuleReaderUtils.list(moduleReader.get(), getPath(), log);
+        final var moduleReader = acquireReader(recycler);
+        try {
+            resourcePaths = ModuleReaderUtils.list(moduleReader, getPath(), log);
+        } finally {
+            recycler.recycle(moduleReader);
         }
         // List the entries of a module in a deterministic order, since ModuleReader#list() does not specify one
         Collections.sort(resourcePaths);
@@ -284,10 +326,13 @@ public final class ModuleRoot extends VfsRoot {
         }
         final var recycler = moduleReaderRecycler();
         // Ask the module reader whether it has the resource, rather than listing the whole module to find out
-        try (var moduleReader = recycler.acquireRecycleOnClose()) {
-            if (!ModuleReaderUtils.contains(moduleReader.get(), name)) {
+        final var moduleReader = acquireReader(recycler);
+        try {
+            if (!ModuleReaderUtils.contains(moduleReader, name)) {
                 return null;
             }
+        } finally {
+            recycler.recycle(moduleReader);
         }
         // An exploded module is a directory, and a module reader reads one through the filesystem, so on Windows and
         // macOS it answers a lookup for a name whose case does not match the name the file is stored under. This
