@@ -31,6 +31,7 @@ package io.github.classgraph.vfs;
 import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicReference;
 
+import io.github.classgraph.base.internal.utils.Assert;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -117,6 +118,8 @@ public final class CloseableByteBuffer implements AutoCloseable {
      *            is built.
      */
     CloseableByteBuffer(final ByteBuffer byteBuffer, final Runnable onClose, final @Nullable VfsRoot owner) {
+        Assert.notNull(byteBuffer, "byteBuffer");
+        Assert.notNull(onClose, "onClose");
         this.byteBuffer = byteBuffer;
         this.onClose = new AtomicReference<>(onClose);
         this.owner = owner;

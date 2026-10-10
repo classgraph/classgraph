@@ -2,6 +2,7 @@ package io.github.classgraph.vfs;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 
 import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -48,5 +49,18 @@ public class CloseableByteBufferTest {
         });
         assertThatCode(closeableByteBuffer::close).doesNotThrowAnyException();
         assertThat(closeableByteBuffer.getByteBuffer()).isNull();
+    }
+
+    /**
+     * A null buffer or close action is rejected when the wrapper is built. A null buffer would otherwise be
+     * indistinguishable from a closed wrapper, since {@link CloseableByteBuffer#getByteBuffer()} returns null for
+     * both.
+     */
+    @Test
+    public void nullArgumentsAreRejected() {
+        assertThatNullPointerException().isThrownBy(() -> new CloseableByteBuffer((ByteBuffer) null, () -> {
+        })).withMessage("byteBuffer must not be null");
+        assertThatNullPointerException().isThrownBy(() -> new CloseableByteBuffer(ByteBuffer.allocate(8), null))
+                .withMessage("onClose must not be null");
     }
 }

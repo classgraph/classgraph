@@ -1,6 +1,7 @@
 package io.github.classgraph.vfs;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assumptions.abort;
 
@@ -40,6 +41,7 @@ import java.util.zip.ZipOutputStream;
 
 import com.google.common.jimfs.Configuration;
 import com.google.common.jimfs.Jimfs;
+import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledOnOs;
 import org.junit.jupiter.api.condition.OS;
@@ -1824,7 +1826,16 @@ public class VfsTest {
         final var jarFile = new File(tempDir, "widget.jar");
         writeJar(jarFile, "com/xyz/widget.txt");
 
+        // The constructor checks its arguments itself, so the message names the argument, not a field of VfsSpec
+        assertThatNullPointerException().isThrownBy(() -> new Vfs((VfsSpec) null))
+                .withMessage("vfsSpec must not be null");
+        assertThatNullPointerException().isThrownBy(() -> new Vfs(null, new InterruptionChecker()))
+                .withMessage("vfsSpec must not be null");
+        assertThatNullPointerException().isThrownBy(() -> new Vfs(new VfsSpec(), null))
+                .withMessage("interruptionChecker must not be null");
+
         try (var vfs = new Vfs(); InputStream inputStream = new ByteArrayInputStream(new byte[0])) {
+            assertThatNullPointerException().isThrownBy(() -> vfs.evict(null)).withMessage("root must not be null");
             assertThatThrownBy(() -> vfs.open((String) null)).isInstanceOf(NullPointerException.class);
             assertThatThrownBy(() -> vfs.open((File) null)).isInstanceOf(NullPointerException.class);
             assertThatThrownBy(() -> vfs.open((Path) null)).isInstanceOf(NullPointerException.class);
