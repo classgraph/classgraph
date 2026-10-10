@@ -243,4 +243,37 @@ public class EquinoxClassLoaderTest {
                         new EquinoxContainer(new Storage(new ModuleContainer(new ModuleDatabase(systemModule))))));
         assertThat(locations(classLoader)).containsExactly(location(bundleDir), location(otherJar));
     }
+
+    /**
+     * Equinox records the location of a bundle in the install area relative to the install area, as in
+     * "initial@reference:file:plugins/x.jar", and resolves it against the install area, not against the current
+     * directory. An absolute location is left as it is.
+     *
+     * @param tempDir
+     *            a temporary directory to create the install area in.
+     * @throws IOException
+     *             if the bundles could not be created.
+     */
+    @Test
+    public void bundleLocationsRelativeToTheInstallAreaAreResolvedAgainstTheInstallArea(@TempDir final Path tempDir)
+            throws IOException {
+        final var bundleDir = Files.createDirectory(tempDir.resolve("bundle"));
+        final var installDir = Files.createDirectory(tempDir.resolve("install dir"));
+        final var pluginsDir = Files.createDirectory(installDir.resolve("plugins"));
+        final var initialJar = Files.createFile(pluginsDir.resolve("x.jar"));
+        final var laterJar = Files.createFile(pluginsDir.resolve("y.jar"));
+        final var outsideJar = Files.createFile(tempDir.resolve("z.jar"));
+        final var systemModule = new Module("System Bundle");
+        final var systemBundle = new EquinoxBundle(systemModule);
+        systemBundle.inContext(new BundleContextImpl(systemBundle,
+                new EquinoxBundle(new Module("initial@reference:file:plugins/x.jar")),
+                new EquinoxBundle(new Module("reference:file:plugins/y.jar")),
+                new EquinoxBundle(new Module("reference:file:" + location(outsideJar)))));
+        final var classLoader = new EquinoxClassLoader(
+                new ClasspathManager(new ClasspathEntry(new DirBundleFile(bundleDir.toFile()))))
+                .withFramework(new BundleLoader(new EquinoxContainer(new Storage(
+                        new ModuleContainer(new ModuleDatabase(systemModule)), location(installDir) + "/"))));
+        assertThat(locations(classLoader)).containsExactly(location(bundleDir), location(initialJar),
+                location(laterJar), location(outsideJar));
+    }
 }
