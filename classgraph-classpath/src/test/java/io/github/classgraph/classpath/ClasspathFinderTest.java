@@ -1136,7 +1136,8 @@ public class ClasspathFinderTest {
     /**
      * A classpath element named by a URL is only read if its scheme has been allowed. It is reported either way,
      * but until the scheme is allowed the jarfile it names is not fetched, so the elements it declares are not
-     * found.
+     * found. The URL is passed as a classpath string, which is split at {@link java.io.File#pathSeparatorChar}, and
+     * the colon before its port is not a separator.
      *
      * @param tempDir
      *            a temporary directory to build the jarfile in.
@@ -1154,19 +1155,19 @@ public class ClasspathFinderTest {
             final var declaredURL = jarURL.replace("served.jar", "declared.jar");
 
             // The scheme has not been allowed, so the jarfile is not fetched and its manifest is not read
-            try (var classpath = new ClasspathFinder().enableClasspathEntries((Object) jarURL).find()) {
+            try (var classpath = new ClasspathFinder().enableClasspathEntries(jarURL).find()) {
                 assertThat(classpath.getLocations()).containsExactly(jarURL);
             }
 
             // With the scheme allowed, the jarfile is fetched, and the element its manifest declares is found too
-            try (var classpath = new ClasspathFinder().allowURLScheme("http")
-                    .enableClasspathEntries((Object) jarURL).find()) {
+            try (var classpath = new ClasspathFinder().allowURLScheme("http").enableClasspathEntries(jarURL)
+                    .find()) {
                 assertThat(classpath.getLocations()).containsExactly(jarURL, declaredURL);
             }
 
             // Denying the scheme again stops the jarfile from being fetched
             try (var classpath = new ClasspathFinder().allowURLScheme("http").denyURLScheme("http")
-                    .enableClasspathEntries((Object) jarURL).find()) {
+                    .enableClasspathEntries(jarURL).find()) {
                 assertThat(classpath.getLocations()).containsExactly(jarURL);
             }
         } finally {

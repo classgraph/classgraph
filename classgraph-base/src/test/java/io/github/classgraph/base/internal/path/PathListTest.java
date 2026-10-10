@@ -43,6 +43,29 @@ public class PathListTest {
     }
 
     /**
+     * A colon in the authority of a URL (before a port, inside a user name and password, or inside an IPv6 address)
+     * is part of the URL, not a separator, but the colon after the URL's path still is.
+     */
+    @Test
+    public void urlPathElementsAreNotSplitInTheirAuthority() {
+        assertThat(PathList.split("http://h:8080/x.jar", ':', null)).containsExactly("http://h:8080/x.jar");
+        assertThat(PathList.split("jar:http://h:8080/x.jar!/", ':', null))
+                .containsExactly("jar:http://h:8080/x.jar!/");
+        assertThat(PathList.split("/a.jar:http://h:80/x.jar:/b.jar", ':', null)).containsExactly("/a.jar",
+                "http://h:80/x.jar", "/b.jar");
+        assertThat(PathList.split("/a.jar: https://h:443/x.jar", ':', null)).containsExactly("/a.jar",
+                "https://h:443/x.jar");
+        assertThat(PathList.split("http://[::1]:8080/x.jar", ':', null)).containsExactly("http://[::1]:8080/x.jar");
+        assertThat(PathList.split("http://u:p@h/x.jar", ':', null)).containsExactly("http://u:p@h/x.jar");
+        assertThat(PathList.split("s3://bucket:9000/x.jar:/b.jar", ':', Set.of("s3")))
+                .containsExactly("s3://bucket:9000/x.jar", "/b.jar");
+
+        // A "://" that does not follow a scheme at the start of a path element does not start an authority
+        assertThat(PathList.split("/odd/http://x:8080/b.jar", ':', null)).containsExactly("/odd/http", "//x",
+                "8080/b.jar");
+    }
+
+    /**
      * A path element written as a URL in a container's own URL protocol is one path element, not two: Tomcat serves
      * a non-exploded WAR through a {@code "war:"} URL, and Spring Boot addresses an entry within an executable jar
      * through a {@code "nested:"} URL, and both of those schemes sit inside a {@code "jar:"} URL.
