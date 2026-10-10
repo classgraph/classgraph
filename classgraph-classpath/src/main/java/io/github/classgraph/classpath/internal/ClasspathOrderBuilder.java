@@ -439,26 +439,38 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
                 || pathElement instanceof Path || pathElement instanceof File;
         var pathElementWithoutSuffix = pathElement;
         if (isPathObject && hasSuffix) {
-            try {
-                pathElementWithoutSuffix = pathElement instanceof URL ? new URL(pathElementStrWithoutSuffix)
-                        : pathElement instanceof URI ? new URI(pathElementStrWithoutSuffix)
-                                : pathElement instanceof Path ? Path.of(pathElementStrWithoutSuffix)
-                                        // For File, just use path string
-                                        : pathElementStrWithoutSuffix;
-            } catch (MalformedURLException | URISyntaxException | InvalidPathException e) {
+            // Rebuild the classpath element as an object of the same type, so that the form it was found in is not
+            // lost. If it cannot be rebuilt, it degrades to the path string, rather than being dropped entirely
+            if (pathElement instanceof File) {
+                pathElementWithoutSuffix = new File(pathElementStrWithoutSuffix);
+            } else if (!(pathElement instanceof Path)
+                    && !URLPaths.startsWithURLScheme(pathElementStrWithoutSuffix)) {
+                // The resolved path of a URL or URI that names a local file has lost its "file:" or "jar:file:"
+                // scheme and its percent encoding, so the URL or URI is rebuilt from the path of the file, which
+                // Path#toUri() encodes again. (Parsing the resolved path as a URL or URI would give a URI with no
+                // scheme, a URL with a space in it that cannot be turned into a URI, or a URL that names a different
+                // file once the scanner decodes a "%" that had been encoded as "%25".) The "jar:" scheme is kept if
+                // the path is still nested inside an archive once the suffix has been stripped (a URI scheme is not
+                // case sensitive, so it may be spelled "JAR:")
                 try {
-                    pathElementWithoutSuffix = pathElement instanceof URL
-                            ? new URL("file:" + pathElementStrWithoutSuffix)
-                            : pathElement instanceof URI ? new URI("file:" + pathElementStrWithoutSuffix)
-                                    : pathElementStrWithoutSuffix;
-                } catch (MalformedURLException | URISyntaxException e2) {
-                    // (Path.of() is not retried, since prefixing an invalid path with "file:" cannot fix it --
-                    // the Path degrades to a path string, as a File does)
-                    //
-                    // Neither spelling could be parsed, which a path holding a character that a URI cannot hold
-                    // unquoted does: a space makes both new URI(path) and new URI("file:" + path) throw, since
-                    // the resolved path is percent-decoded. Degrade to the path string, as the File and Path
-                    // branches above do, rather than dropping the classpath element entirely
+                    var uri = Path.of(pathElementStrWithoutSuffix).toUri();
+                    if (pathElement.toString().regionMatches(/* ignoreCase = */ true, 0, "jar:", 0, 4)
+                            && pathElementStrWithoutSuffix.contains("!/")) {
+                        uri = new URI("jar:" + uri);
+                    }
+                    pathElementWithoutSuffix = pathElement instanceof URL ? uri.toURL() : uri;
+                } catch (InvalidPathException | IOError | SecurityException | URISyntaxException
+                        | MalformedURLException e) {
+                    pathElementWithoutSuffix = pathElementStrWithoutSuffix;
+                }
+            } else {
+                // A Path, or a URL or URI whose resolved path still has a URL scheme (such as "http:"), which keeps
+                // its percent encoding, so it can be parsed again
+                try {
+                    pathElementWithoutSuffix = pathElement instanceof URL ? new URL(pathElementStrWithoutSuffix)
+                            : pathElement instanceof URI ? new URI(pathElementStrWithoutSuffix)
+                                    : Path.of(pathElementStrWithoutSuffix);
+                } catch (MalformedURLException | URISyntaxException | InvalidPathException e) {
                     pathElementWithoutSuffix = pathElementStrWithoutSuffix;
                 }
             }

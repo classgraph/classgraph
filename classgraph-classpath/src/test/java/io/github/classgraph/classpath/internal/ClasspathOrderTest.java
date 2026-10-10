@@ -20,6 +20,8 @@ import org.junit.jupiter.api.condition.DisabledOnOs;
 import org.junit.jupiter.api.condition.EnabledOnOs;
 import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import io.github.classgraph.base.internal.path.FastPathResolver;
 import io.github.classgraph.base.internal.path.FileUtils;
@@ -175,9 +177,8 @@ public class ClasspathOrderTest {
     /**
      * A classpath entry given as a {@link URI} whose path holds a character that a URI cannot hold unquoted is
      * still added once its package root suffix has been stripped. The suffix is stripped from the resolved path,
-     * which is percent-decoded, so neither {@code new URI(path)} nor {@code new URI("file:" + path)} can parse it
-     * back; the entry degrades to its path string, as a {@link File} or {@link Path} entry does, rather than being
-     * dropped. Every path on Windows holds such characters, since a backslash is one.
+     * which is percent-decoded, so the URI cannot be rebuilt by parsing that path, and the entry used to be dropped
+     * when neither {@code new URI(path)} nor {@code new URI("file:" + path)} could parse it.
      */
     @Test
     public void aUriEntryWhosePathNeedsQuotingIsNotDropped(@TempDir final Path tempDir) throws Exception {
@@ -191,6 +192,64 @@ public class ClasspathOrderTest {
         // The same jar without the package root suffix is now a duplicate, so the entry really was added under the
         // path the suffix was stripped from
         assertThat(classpathOrder.addClasspathEntry(jar, null, null)).isFalse();
+    }
+
+    /**
+     * A classpath entry given as a {@link URI}, {@link URL} or {@link File} keeps its type once its package root
+     * suffix has been stripped, and a URI or URL keeps its "file:" scheme and the percent encoding of its path, so
+     * that it still names the archive the suffix was stripped from, both as an object and when the scanner turns
+     * its string form back into a path.
+     */
+    @ParameterizedTest
+    @CsvSource({ "URI, app.war", "URI, my app.war", "URI, a%20b.war", "URL, app.war", "URL, my app.war",
+            "URL, a%20b.war", "File, app.war", "File, my app.war", "File, a%20b.war" })
+    public void strippingAPackageRootSuffixKeepsTheTypeAndSchemeOfTheEntry(final String type, final String warName,
+            @TempDir final Path tempDir) throws Exception {
+        final var war = createFile(tempDir.resolve(warName));
+        classpathOrder.setPackageRootPrefixes(List.of("WEB-INF/classes/"), null);
+        final var uri = new URI("jar:" + Path.of(war).toUri() + "!/WEB-INF/classes");
+        final Object pathElement = switch (type) {
+        case "URI" -> uri;
+        case "URL" -> uri.toURL();
+        default -> new File(war + "!/WEB-INF/classes");
+        };
+        assertThat(classpathOrder.addClasspathEntry(pathElement, null, null)).isTrue();
+        assertThat(locations()).containsExactly(war);
+
+        final var entryObj = entryObjects().get(0);
+        assertThat(entryObj).isExactlyInstanceOf(pathElement.getClass());
+        if (entryObj instanceof final URI entryURI) {
+            assertThat(entryURI.getScheme()).isEqualTo("file");
+            assertThat(Path.of(entryURI)).isEqualTo(Path.of(war));
+        } else if (entryObj instanceof final URL entryURL) {
+            assertThat(entryURL.getProtocol()).isEqualTo("file");
+            assertThat(Path.of(entryURL.toURI())).isEqualTo(Path.of(war));
+        } else {
+            assertThat(entryObj).isEqualTo(new File(war));
+        }
+        // The scanner opens a classpath entry that is not a Path by resolving its string form
+        assertThat(FastPathResolver.resolveFilePath(FileUtils.currDirPath(), entryObj.toString())).isEqualTo(war);
+    }
+
+    /**
+     * A classpath entry given as a "jar:" {@link URI} or {@link URL} that is still nested inside another archive
+     * once its package root suffix has been stripped keeps its "jar:" scheme, so that it still names the archive
+     * entry rather than a file whose name contains "!/". A URI scheme is not case sensitive, so "JAR:" is kept too,
+     * as "jar:".
+     */
+    @ParameterizedTest
+    @CsvSource({ "jar, false", "jar, true", "JAR, false" })
+    public void strippingAPackageRootSuffixKeepsTheJarSchemeOfANestedEntry(final String scheme, final boolean asURL,
+            @TempDir final Path tempDir) throws Exception {
+        final var jar = createFile(tempDir.resolve("outer.jar"));
+        classpathOrder.setPackageRootPrefixes(List.of("WEB-INF/classes/"), null);
+        final var uri = new URI(scheme + ":" + Path.of(jar).toUri() + "!/app.war!/WEB-INF/classes");
+        assertThat(classpathOrder.addClasspathEntry(asURL ? uri.toURL() : uri, null, null)).isTrue();
+        assertThat(locations()).containsExactly(jar + "!/app.war");
+
+        final var entryObj = entryObjects().get(0);
+        assertThat(entryObj).isExactlyInstanceOf(asURL ? URL.class : URI.class);
+        assertThat(entryObj.toString()).isEqualTo("jar:" + Path.of(jar).toUri() + "!/app.war");
     }
 
     /**
