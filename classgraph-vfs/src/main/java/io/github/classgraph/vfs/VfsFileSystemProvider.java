@@ -32,6 +32,7 @@ import java.io.IOError;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.ClosedChannelException;
@@ -80,8 +81,10 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Pattern;
 
 import io.github.classgraph.base.internal.path.FastPathResolver;
+import io.github.classgraph.base.internal.path.URLPaths;
 import io.github.classgraph.base.internal.utils.Assert;
 import org.jspecify.annotations.Nullable;
 
@@ -308,6 +311,19 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
      *             if the URI is not a {@code "cgvfs:"} URI, or names nothing.
      */
     private static String pathOf(final URI uri) {
+        return rootPathOf(rawPathOf(uri));
+    }
+
+    /**
+     * Returns the scheme-specific part of a {@code "cgvfs:"} URI, with its percent encoding as it is written.
+     *
+     * @param uri
+     *            the URI.
+     * @return the scheme-specific part of the URI, not decoded.
+     * @throws IllegalArgumentException
+     *             if the URI is not a {@code "cgvfs:"} URI, or names nothing.
+     */
+    private static String rawPathOf(final URI uri) {
         Assert.notNull(uri, "uri");
         if (!SCHEME.equalsIgnoreCase(uri.getScheme())) {
             throw new IllegalArgumentException("Not a \"" + SCHEME + ":\" URI: " + uri);
@@ -321,22 +337,69 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
         if (uri.getFragment() != null) {
             throw new IllegalArgumentException("A \"" + SCHEME + ":\" URI cannot have a fragment: " + uri);
         }
-        // Decoded, so that a path written with "%20" for a space names the file that has a space in its name. This
-        // decodes by ClassGraph's rule rather than URI#getSchemeSpecificPart's: a separator is never produced by
-        // decoding, so "%2F" and "%5C" stay as they are written. Under the rules of a URI they are a slash and a
-        // backslash that are not separators, but no filesystem allows either character in a name, so decoding one
-        // could only introduce a separator that was never in the path, and name a different file than the same
-        // path string handed to Vfs#open -- which does not percent-decode a path at all, since a path is not
-        // percent-encoded. That is what made a Coursier cache path unscannable in #255. Nothing but the percent
-        // encoding is changed here: the separators are left for FastPathResolver#resolve, which knows which of
-        // them belong to a nested URL's scheme and authority.
-        //
-        // A path written with a "file:" or "jar:" scheme is left alone, since FastPathResolver#resolve decodes
-        // that one itself further down: decoding it here as well would look for a file whose name contains the
-        // three characters "%20" under a name with a space in it instead. Either way the path is decoded exactly
-        // once, so both spellings of a path name the same file
-        return FastPathResolver.resolveDecodesPercentEncoding(rawPath) ? rawPath
-                : FastPathResolver.decodePercentEncoding(rawPath);
+        return rawPath;
+    }
+
+    /**
+     * Decode the part of a {@code "cgvfs:"} URI that names a root into the path {@link Vfs#open(String)} takes,
+     * decoding its percent encoding exactly once.
+     *
+     * @param rawPath
+     *            the part of the URI that names the root, with its percent encoding as it is written.
+     * @return the path of the root.
+     */
+    private static String rootPathOf(final String rawPath) {
+        if (!URLPaths.startsWithURLScheme(rawPath)) {
+            // A path with no scheme is decoded here, since Vfs#open does not decode a path at all: a path is not
+            // percent-encoded. It is decoded by ClassGraph's rule, which never produces a separator, rather than by
+            // URI#getSchemeSpecificPart's, so "%2F" and "%5C" stay as they are written. FastPathResolver#resolve
+            // reads a backslash as a separator on every platform, so decoding "%5C" would introduce a separator
+            // that was never in the path, and name a different file than the same path string handed to Vfs#open.
+            // That is what made a Coursier cache path unscannable in #255
+            return FastPathResolver.decodePercentEncoding(rawPath);
+        }
+        if (FastPathResolver.resolveDecodesPercentEncoding(rawPath)) {
+            // A path written with a "file:" or "jar:" scheme is left alone, since FastPathResolver#resolve decodes
+            // that one itself when Vfs#open resolves it: decoding it here as well would look for a file whose name
+            // contains the three characters "%20" under a name with a space in it instead
+            return rawPath;
+        }
+        // A URL that names something fetched over http, https or another scheme is kept exactly as it is written,
+        // since that is the URL Vfs#open fetches: decoding "my%20lib.jar" would request "/my lib.jar", which is
+        // a different resource. Only what follows its first "!/" is decoded, since that is a path within an
+        // archive, which neither FastPathResolver#resolve nor Vfs#open decodes
+        final var separatorIdx = rawPath.indexOf("!/");
+        return separatorIdx < 0 ? rawPath
+                : rawPath.substring(0, separatorIdx)
+                        + FastPathResolver.decodePercentEncoding(rawPath.substring(separatorIdx));
+    }
+
+    /** A percent-encoded backslash, in either case. */
+    private static final Pattern ESCAPED_BACKSLASH = Pattern.compile("%5[cC]");
+
+    /**
+     * Decode the part of a {@code "cgvfs:"} URI that names a path within a filesystem, decoding its percent
+     * encoding exactly once.
+     *
+     * <p>
+     * Unlike the path of a root, this is never resolved by {@link FastPathResolver#resolve(String)}: it is split on
+     * {@code '/'} alone, so a backslash is an ordinary character of a name, and {@code "%5C"} is decoded to one.
+     * {@code "%2F"} is still kept as it is written, since a slash would be a separator.
+     *
+     * @param rawEntryName
+     *            the path within the filesystem, with its percent encoding as it is written.
+     * @return the decoded path.
+     */
+    private static String entryNameOf(final String rawEntryName) {
+        final var parts = ESCAPED_BACKSLASH.split(rawEntryName, -1);
+        final var buf = new StringBuilder(rawEntryName.length());
+        for (var i = 0; i < parts.length; i++) {
+            if (i > 0) {
+                buf.append('\\');
+            }
+            buf.append(FastPathResolver.decodePercentEncoding(parts[i]));
+        }
+        return buf.toString();
     }
 
     /** Opens one root of a {@link Vfs}, so that both {@code newFileSystem} overloads share the same plumbing. */
@@ -456,6 +519,39 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
      */
     static String cgvfsPathOf(final VfsRoot root) {
         return root instanceof ModuleRoot ? "jrt:/" + root.getPath() : root.reportedPath();
+    }
+
+    /**
+     * Returns the {@code "cgvfs:"} URI of a path within the filesystem of a root, quoted so that
+     * {@link #getPath(URI)} decodes each part of it back to what it was.
+     *
+     * @param root
+     *            the root.
+     * @param entryName
+     *            the path within the root, without a leading {@code '/'}, or the empty string for the root itself.
+     * @return the URI.
+     * @throws URISyntaxException
+     *             if the path cannot be written as a URI.
+     */
+    static URI cgvfsUriOf(final VfsRoot root, final String entryName) throws URISyntaxException {
+        final var rootPath = cgvfsPathOf(root);
+        final var path = rootPath + (entryName.isEmpty() ? "" : "!/" + entryName);
+        if (!URLPaths.startsWithURLScheme(rootPath) || FastPathResolver.resolveDecodesPercentEncoding(rootPath)) {
+            // This URI constructor quotes the characters that a URI cannot hold, and every '%', so a path with a
+            // space in it gives a URI with "%20" in it, which is decoded back to the space when the URI is read.
+            // The separators are not quoted, since the path of a root is already resolved, so they are forward
+            // slashes even on Windows: a separator is written as a separator, never as "%2F"
+            return new URI(SCHEME, path, /* fragment = */ null);
+        }
+        // A root fetched over a URL is written with the URL as it is, since rootPathOf keeps it as it is written:
+        // only the characters a URI cannot hold are quoted, and an escape that is already written is kept. What
+        // follows the URL's first "!/" is a path within an archive, which is quoted as a path is, and decoded
+        final var separatorIdx = path.indexOf("!/");
+        final var url = separatorIdx < 0 ? path : path.substring(0, separatorIdx);
+        final var pathInArchive = separatorIdx < 0 ? ""
+                : new URI(/* scheme = */ null, /* host = */ null, "/" + path.substring(separatorIdx),
+                        /* fragment = */ null).getRawPath().substring(1);
+        return new URI(SCHEME + ":" + URLPaths.encodeURL(url) + pathInArchive);
     }
 
     /**
@@ -680,22 +776,25 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
      */
     @Override
     public Path getPath(final URI uri) {
-        final var path = pathOf(uri);
+        // Split before decoding, and decode each part by its own rule: the prefix names a root, which is decoded
+        // as newFileSystem decodes it, and the rest names a path within that root's filesystem, which nothing
+        // else decodes. An escaped "%21/" is not a separator, since the split is made before it is decoded
+        final var rawPath = rawPathOf(uri);
         // Longest prefix first, so that the path of a nested jarfile is read against the nested jarfile's own
         // filesystem rather than against the enclosing jarfile that also has a filesystem open. The whole path is
         // tried before any prefix of it, so a URI that names a filesystem exactly is that filesystem's root
-        var separatorIdx = path.length();
+        var separatorIdx = rawPath.length();
         while (separatorIdx > 0) {
-            final var prefix = path.substring(0, separatorIdx);
-            final var fileSystem = FILESYSTEMS_BY_PATH.get(FastPathResolver.resolve(prefix));
+            final var prefix = rawPath.substring(0, separatorIdx);
+            final var fileSystem = FILESYSTEMS_BY_PATH.get(FastPathResolver.resolve(rootPathOf(prefix)));
             if (fileSystem != null) {
-                final var entryName = separatorIdx == path.length() ? ""
-                        : path.substring(separatorIdx + "!/".length());
+                final var entryName = separatorIdx == rawPath.length() ? ""
+                        : entryNameOf(rawPath.substring(separatorIdx + "!/".length()));
                 return fileSystem.getPath("/" + entryName);
             }
-            separatorIdx = path.lastIndexOf("!/", separatorIdx - 1);
+            separatorIdx = rawPath.lastIndexOf("!/", separatorIdx - 1);
         }
-        throw new FileSystemNotFoundException("No filesystem is open at " + path
+        throw new FileSystemNotFoundException("No filesystem is open at " + rootPathOf(rawPath)
                 + ", nor at any prefix of it; create one with FileSystems#newFileSystem");
     }
 

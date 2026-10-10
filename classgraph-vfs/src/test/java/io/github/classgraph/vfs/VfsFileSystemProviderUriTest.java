@@ -23,6 +23,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.ProviderNotFoundException;
 import java.nio.file.spi.FileSystemProvider;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -31,6 +32,8 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
 
 import com.sun.net.httpserver.HttpServer;
@@ -616,6 +619,214 @@ public class VfsFileSystemProviderUriTest {
             assertThat(uri.getRawSchemeSpecificPart()).endsWith("!/com/xyz/a%20b.class");
             assertThat(Paths.get(uri)).isEqualTo(path);
             assertThat(Files.readAllBytes(Paths.get(uri))).isEqualTo(contentOf(entryName));
+        }
+    }
+
+    /**
+     * Write a jarfile with the given entries, each holding its own content.
+     *
+     * @param jarFile
+     *            the jarfile to write.
+     * @param entryNames
+     *            the names of the entries.
+     * @throws IOException
+     *             if the jarfile could not be written.
+     */
+    private static void writeJar(final File jarFile, final String... entryNames) throws IOException {
+        try (var fileOut = new FileOutputStream(jarFile); var zipOut = new ZipOutputStream(fileOut)) {
+            for (final var entryName : entryNames) {
+                zipOut.putNextEntry(new ZipEntry(entryName));
+                zipOut.write(contentOf(entryName));
+                zipOut.closeEntry();
+            }
+        }
+    }
+
+    /**
+     * The entry part of a URI, after the last {@code "!/"}, is decoded exactly once whichever spelling names the
+     * jarfile before it. A {@code "file:"} or {@code "jar:file:"} spelling of the jarfile is decoded by the path
+     * resolver rather than by the provider, but the entry part never reaches the resolver, so it has to be decoded
+     * on its own.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the jarfile could not be read.
+     */
+    @Test
+    public void anEntryPartIsDecodedOnceWhateverTheRootSpelling(@TempDir final Path tempDir) throws IOException {
+        // The second entry is what a URI names if its entry part is not decoded at all
+        final var jarFile = tempDir.resolve("library.jar").toFile();
+        writeJar(jarFile, "c d.txt", "c%20d.txt", "d/é.txt");
+
+        final var rawPath = cgvfsUri(jarFile.getPath()).getRawSchemeSpecificPart();
+        final var absPath = rawPath.startsWith("/") ? rawPath : "/" + rawPath;
+        try (var fileSystem = FileSystems.newFileSystem(cgvfsUri(jarFile.getPath()), Map.of())) {
+            for (final var spelling : List.of(rawPath, "file:" + absPath, "file://" + absPath,
+                    "jar:file:" + absPath)) {
+                final var spaced = Paths
+                        .get(URI.create(VfsFileSystemProvider.SCHEME + ":" + spelling + "!/c%20d.txt"));
+                assertThat(spaced).as(spelling).isEqualTo(fileSystem.getPath("/c d.txt"));
+                assertThat(Files.readAllBytes(spaced)).as(spelling).isEqualTo(contentOf("c d.txt"));
+
+                final var accented = Paths
+                        .get(URI.create(VfsFileSystemProvider.SCHEME + ":" + spelling + "!/d/%C3%A9.txt"));
+                assertThat(Files.readAllBytes(accented)).as(spelling).isEqualTo(contentOf("d/é.txt"));
+            }
+        }
+    }
+
+    /**
+     * A name that holds a backslash round-trips through {@link VfsPath#toCgvfsUri()}. A backslash is an ordinary
+     * character in a jar entry name on every platform, since an entry name is split on {@code '/'} only.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the jarfile could not be read.
+     */
+    @Test
+    public void anEntryNameWithABackslashRoundTrips(@TempDir final Path tempDir) throws IOException {
+        final var jarFile = tempDir.resolve("library.jar").toFile();
+        writeJar(jarFile, "a\\b.txt", "c/d\\e.txt");
+
+        try (var fileSystem = FileSystems.newFileSystem(cgvfsUri(jarFile.getPath()), Map.of())) {
+            for (final var entryName : List.of("a\\b.txt", "c/d\\e.txt")) {
+                final var path = (VfsPath) fileSystem.getPath("/" + entryName);
+                final var uri = path.toCgvfsUri();
+                assertThat(Paths.get(uri)).as(uri.toString()).isEqualTo(path);
+                assertThat(Files.readAllBytes(Paths.get(uri))).isEqualTo(contentOf(entryName));
+            }
+        }
+    }
+
+    /**
+     * A file of a directory whose name holds a backslash round-trips through {@link VfsPath#toCgvfsUri()}. Only
+     * Windows forbids a backslash in a filename.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the directory could not be read.
+     */
+    @Test
+    @DisabledOnOs(OS.WINDOWS)
+    public void aFileNameWithABackslashRoundTrips(@TempDir final Path tempDir) throws IOException {
+        final var dir = Files.createDirectory(tempDir.resolve("dir"));
+        Files.write(dir.resolve("back\\slash.txt"), contentOf("back\\slash.txt"));
+
+        try (var fileSystem = FileSystems.newFileSystem(cgvfsUri(dir.toString()), Map.of())) {
+            final var path = (VfsPath) fileSystem.getPath("/back\\slash.txt");
+            final var uri = path.toCgvfsUri();
+            assertThat(Paths.get(uri)).as(uri.toString()).isEqualTo(path);
+            assertThat(Files.readAllBytes(Paths.get(uri))).isEqualTo(contentOf("back\\slash.txt"));
+        }
+    }
+
+    /**
+     * A jarfile fetched over http is fetched from the URL the {@code "cgvfs:"} URI holds, with its percent escapes
+     * as written: that URL is what {@link Vfs#open(String)} takes, and decoding it would request a different
+     * resource. Its paths also round-trip through {@link VfsPath#toCgvfsUri()}.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if a jarfile could not be read.
+     */
+    @Test
+    public void aRemoteJarWhoseUrlHoldsAnEscapeIsFetchedFromThatUrl(@TempDir final Path tempDir)
+            throws IOException {
+        // Each jarfile is served only at its raw request path, so a decoded request finds nothing. The decoy is at
+        // the path that a request for "/a%20b.jar" is cut down to once the space is decoded. Each jarfile holds one
+        // entry, whose name is its own raw path, so a test can tell which jarfile it read
+        final var rawPaths = List.of("/a%20b.jar", "/q%3Fx.jar", "/h%23x.jar", "/p%25x.jar", "/a");
+        final var jarBytesByRawPath = new HashMap<String, byte[]>();
+        for (final var rawPath : rawPaths) {
+            final var jarFile = tempDir.resolve("served" + jarBytesByRawPath.size() + ".jar").toFile();
+            writeJar(jarFile, rawPath.substring(1) + ".txt");
+            jarBytesByRawPath.put(rawPath, Files.readAllBytes(jarFile.toPath()));
+        }
+        final var server = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0),
+                /* backlog = */ 0);
+        server.createContext("/", exchange -> {
+            final var jarBytes = jarBytesByRawPath.get(exchange.getRequestURI().getRawPath());
+            if (jarBytes == null) {
+                exchange.sendResponseHeaders(404, -1);
+                exchange.close();
+                return;
+            }
+            exchange.sendResponseHeaders(200, jarBytes.length);
+            try (var responseBody = exchange.getResponseBody()) {
+                responseBody.write(jarBytes);
+            }
+        });
+        server.start();
+        try {
+            final var base = "http://" + server.getAddress().getAddress().getHostAddress() + ":"
+                    + server.getAddress().getPort();
+            for (final var rawPath : rawPaths.subList(0, 4)) {
+                final var uri = URI.create(VfsFileSystemProvider.SCHEME + ":" + base + rawPath);
+                try (var fileSystem = FileSystems.newFileSystem(uri, Map.of())) {
+                    final var entryName = rawPath.substring(1) + ".txt";
+                    final var path = (VfsPath) fileSystem.getPath("/" + entryName);
+                    assertThat(Files.readAllBytes(path)).as(rawPath).isEqualTo(contentOf(entryName));
+
+                    // A path within it is named by appending the entry name, quoted
+                    final var entryUri = URI.create(uri + "!/" + entryName.replace("%", "%25"));
+                    assertThat(Paths.get(entryUri)).as(entryUri.toString()).isEqualTo(path);
+
+                    // The URL is written back with its escapes as they are, not quoted a second time
+                    final var cgvfsUri = path.toCgvfsUri();
+                    assertThat(cgvfsUri).isEqualTo(entryUri);
+                    assertThat(Paths.get(cgvfsUri)).as(cgvfsUri.toString()).isEqualTo(path);
+                    assertThat(FileSystems.getFileSystem(((VfsPath) fileSystem.getPath("/")).toCgvfsUri()))
+                            .isSameAs(fileSystem);
+                }
+            }
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    /**
+     * A jarfile nested inside a jarfile fetched over http is named by the URL of the outer jarfile, kept as it is
+     * written, followed by the name of the nested jarfile, which is a name within an archive and so is decoded like
+     * the entry name of any other URI. Its paths round-trip through {@link VfsPath#toCgvfsUri()}.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if a jarfile could not be read.
+     */
+    @Test
+    public void aJarNestedInARemoteJarCanBeNamedByUri(@TempDir final Path tempDir) throws IOException {
+        final var outerJarFile = tempDir.resolve("outer.jar").toFile();
+        writeNestedJar(outerJarFile, "lib/in ner.jar");
+        final var outerJarBytes = Files.readAllBytes(outerJarFile.toPath());
+        final var server = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0),
+                /* backlog = */ 0);
+        server.createContext("/outer.jar", exchange -> {
+            exchange.sendResponseHeaders(200, outerJarBytes.length);
+            try (var responseBody = exchange.getResponseBody()) {
+                responseBody.write(outerJarBytes);
+            }
+        });
+        server.start();
+        try {
+            final var uri = URI.create(
+                    VfsFileSystemProvider.SCHEME + ":http://" + server.getAddress().getAddress().getHostAddress()
+                            + ":" + server.getAddress().getPort() + "/outer.jar!/lib/in%20ner.jar");
+            try (var fileSystem = FileSystems.newFileSystem(uri, Map.of())) {
+                final var path = (VfsPath) fileSystem.getPath("/root.txt");
+                assertThat(Files.readAllBytes(path)).isEqualTo(contentOf("root.txt"));
+                assertThat(Paths.get(URI.create(uri + "!/root.txt"))).isEqualTo(path);
+
+                final var cgvfsUri = path.toCgvfsUri();
+                assertThat(cgvfsUri).isEqualTo(URI.create(uri + "!/root.txt"));
+                assertThat(Paths.get(cgvfsUri)).as(cgvfsUri.toString()).isEqualTo(path);
+            }
+        } finally {
+            server.stop(0);
         }
     }
 

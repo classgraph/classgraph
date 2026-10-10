@@ -198,7 +198,7 @@ public final class URLPaths {
      *            the URL.
      * @return the URL, with the characters a URI cannot hold percent-encoded.
      */
-    private static String encodeURL(final String url) {
+    public static String encodeURL(final String url) {
         final StringBuilder buf = new StringBuilder(url.length() + 16);
         for (var i = 0; i < url.length(); i++) {
             final var c = url.charAt(i);
