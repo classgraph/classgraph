@@ -29,6 +29,7 @@
 package io.github.classgraph.classpath;
 
 import java.io.File;
+import java.lang.management.ManagementFactory;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashSet;
@@ -36,7 +37,6 @@ import java.util.List;
 import java.util.Set;
 
 import io.github.classgraph.base.internal.path.PathList;
-import io.github.classgraph.base.internal.reflection.ReflectionUtils;
 import io.github.classgraph.base.internal.utils.StringUtils;
 
 /**
@@ -122,8 +122,9 @@ public final class ModulePathInfo {
 
     /**
      * Holds the instance for this JVM. The command line is read when this class is initialized, which is the first
-     * time {@link #current()} is called, rather than when {@link ModulePathInfo} is loaded: reading it can cause an
-     * illegal access warning on some JREs, e.g. Adopt JDK 11 (#605), so it is read only if it is asked for.
+     * time {@link #current()} is called, rather than when {@link ModulePathInfo} is loaded, since calling
+     * {@code ManagementFactory.getRuntimeMXBean()} initializes the JDK's management support, which is wasted work
+     * unless the module path info is asked for (#605).
      */
     private static final class Current {
         /** The module path switches this JVM was launched with. */
@@ -138,24 +139,19 @@ public final class ModulePathInfo {
          * Read the arguments this JVM was launched with.
          *
          * <p>
-         * If the java.management module is not present in the deployed runtime, or the runtime does not contain the
-         * java.lang.management package (e.g. the Android build system), the arguments cannot be read, and an empty
-         * list is returned (#404). This must not throw, since an exception here would make every call to
-         * {@link ModulePathInfo#current()} fail.
+         * When ClassGraph is on the classpath of a runtime image without the java.management module (e.g. one
+         * launched with {@code --limit-modules java.base}), the reference to {@code ManagementFactory} fails to
+         * resolve when it is first run, the arguments cannot be read, and an empty list is returned (#404). This
+         * must not throw, since an exception here would make every call to {@link ModulePathInfo#current()} fail.
          *
          * @return the arguments, or an empty list if they could not be read.
          */
         private static List<String> readInputArguments() {
-            final Class<?> managementFactory = ReflectionUtils
-                    .classForNameOrNull("java.lang.management.ManagementFactory");
-            final var runtimeMXBean = managementFactory == null ? null
-                    : ReflectionUtils.invokeStaticMethod(/* throwException = */ false, managementFactory,
-                            "getRuntimeMXBean");
-            @SuppressWarnings("unchecked")
-            final var inputArguments = runtimeMXBean == null ? null
-                    : (List<String>) ReflectionUtils.invokeMethod(/* throwException = */ false, runtimeMXBean,
-                            "getInputArguments");
-            return inputArguments == null ? List.of() : inputArguments;
+            try {
+                return ManagementFactory.getRuntimeMXBean().getInputArguments();
+            } catch (final NoClassDefFoundError _) {
+                return List.of();
+            }
         }
     }
 

@@ -72,9 +72,9 @@ public class ModulePathInfoTest {
 
     /**
      * The module switches this JVM was launched with are read from the runtime once, into one instance that every
-     * caller shares, without the reflective call to {@code java.lang.management} failing on a runtime that has it.
-     * Which switches are found depends on how the test JVM was launched, so the contents are not asserted on here;
-     * the child JVM tests below check them.
+     * caller shares, without the call to {@code java.lang.management} failing on a runtime that has it. Which
+     * switches are found depends on how the test JVM was launched, so the contents are not asserted on here; the
+     * child JVM tests below check them.
      */
     @Test
     public void theCommandlineSwitchesAreReadFromTheRuntimeIntoOneInstance() {
@@ -210,5 +210,22 @@ public class ModulePathInfoTest {
         assertThat(valuesOf(outputLines, "addModules")).containsExactly("java.sql", "java.xml");
         assertThat(valuesOf(outputLines, "commandline"))
                 .containsExactly("--module-path=" + lastModuleDir + " --add-modules=java.sql,java.xml");
+    }
+
+    /**
+     * On a runtime without the {@code java.management} module, the commandline switches cannot be read, so every
+     * set is empty, rather than reading them throwing an error.
+     *
+     * @throws Exception
+     *             if the child JVM could not be run.
+     */
+    @Test
+    public void nothingIsReadWithoutTheManagementModule() throws Exception {
+        final var outputLines = runChildJvm(
+                List.of("--limit-modules", "java.base", "--add-opens", "java.base/java.lang=ALL-UNNAMED"));
+
+        // The --add-opens switch would be read if java.management were present
+        assertThat(valuesOf(outputLines, "addOpens")).isEmpty();
+        assertThat(valuesOf(outputLines, "commandline")).containsExactly("");
     }
 }

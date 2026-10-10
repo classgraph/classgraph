@@ -29,6 +29,7 @@
 package io.github.classgraph;
 
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
@@ -53,6 +54,13 @@ class AutoCloseableExecutorService extends ThreadPoolExecutor {
     private static final long TERMINATION_TIMEOUT_MILLIS = 2500;
 
     /**
+     * Creates the worker threads of every executor: daemon threads named {@code ClassGraph-worker-<n>}, numbered
+     * across the whole JVM, in the thread group of the thread that creates them.
+     */
+    private static final ThreadFactory WORKER_THREAD_FACTORY = Thread.ofPlatform().name("ClassGraph-worker-", 0)
+            .daemon(true).factory();
+
+    /**
      * A ThreadPoolExecutor that can be used in a try-with-resources block.
      *
      * @param numThreads
@@ -60,7 +68,7 @@ class AutoCloseableExecutorService extends ThreadPoolExecutor {
      */
     public AutoCloseableExecutorService(final int numThreads) {
         super(numThreads, numThreads, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>(),
-                new SimpleThreadFactory("ClassGraph-worker-", true));
+                WORKER_THREAD_FACTORY);
     }
 
     /** Shut down thread pool on close(). */
