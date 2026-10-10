@@ -410,6 +410,25 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
     }
 
     /**
+     * Returns how a root is written in a {@code "cgvfs:"} URI, so that {@link #newFileSystem(URI, Map)} opens that
+     * root again. This is the path the root reports itself at, except for a module, which is written
+     * {@code "jrt:/<module>"}: that is the only spelling {@link #moduleNameOf(String)} reads as a module, and the
+     * bare module name that a module reports itself at names a directory relative to the working directory.
+     *
+     * <p>
+     * {@code "jrt:/<module>"} is resolved in the layer that the {@code "layer"} option names, by default the boot
+     * layer. So once the filesystem of a module of another layer is closed, its URI opens the module of that name
+     * in the layer given to the new call, or fails if that layer has none, but it never opens a directory.
+     *
+     * @param root
+     *            the root.
+     * @return the path of the root in a {@code "cgvfs:"} URI.
+     */
+    static String cgvfsPathOf(final VfsRoot root) {
+        return root instanceof ModuleRoot ? "jrt:/" + root.getPath() : root.reportedPath();
+    }
+
+    /**
      * Read a value of an expected type out of an env map.
      *
      * @param <T>
@@ -443,8 +462,9 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
      * @param fileSystem
      *            the filesystem to register.
      * @param requestedPath
-     *            the path the caller named it by, which need not be the path the root reports itself at -- an alias
-     *            through a symlink, or a {@code "file:"} URL of the same jarfile, resolve to the same root.
+     *            the path the caller named it by, which need not be the path its root is written as in a
+     *            {@code "cgvfs:"} URI -- an alias through a symlink, or a {@code "file:"} URL of the same jarfile,
+     *            resolve to the same root.
      * @throws FileSystemAlreadyExistsException
      *             if a filesystem is already open under one of those names.
      */
@@ -476,8 +496,8 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
     }
 
     /**
-     * Returns the registry keys of a filesystem: the path it was named by, and the path its root reports itself at,
-     * which differ when it was named through a symlink, by URL, or by a Windows short name.
+     * Returns the registry keys of a filesystem: the path it was named by, and the path its root is written as in a
+     * {@code "cgvfs:"} URI, which differ when it was named through a symlink, by URL, or by a Windows short name.
      *
      * @param fileSystem
      *            the filesystem.
@@ -488,7 +508,10 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
     private static Collection<String> keysOf(final VfsFileSystem fileSystem, final String requestedPath) {
         final var keys = new LinkedHashSet<String>(4);
         keys.add(FastPathResolver.resolve(requestedPath));
-        keys.add(fileSystem.getRoot().reportedPath());
+        // Not the path the root reports itself at, which for a module is its bare name: that would claim the key
+        // of a relative directory of the same name, and getFileSystem and getPath would return the module's
+        // filesystem for that directory
+        keys.add(cgvfsPathOf(fileSystem.getRoot()));
         return keys;
     }
 

@@ -359,13 +359,13 @@ public final class VfsPath implements Path {
                     + " by ServiceLoader when classgraph-vfs is loaded by the system class loader, which is not the"
                     + " case here.");
         }
-        final var rootPath = fileSystem.getRoot().reportedPath();
+        final var rootPath = VfsFileSystemProvider.cgvfsPathOf(fileSystem.getRoot());
         final var name = entryName();
         try {
             // This URI constructor quotes the characters that a URI cannot hold, so a path with a space in it
             // gives a URI with "%20" in it, which FastPathResolver decodes back to the space when the URI is
-            // read. The separators are not quoted, since the reported path of a root is already resolved, so
-            // they are forward slashes even on Windows: a separator is written as a separator, never as "%2F"
+            // read. The separators are not quoted, since the path of a root is already resolved, so they are
+            // forward slashes even on Windows: a separator is written as a separator, never as "%2F"
             return new URI(VfsFileSystemProvider.SCHEME, rootPath + (name.isEmpty() ? "" : "!/" + name),
                     /* fragment = */ null);
         } catch (final URISyntaxException e) {

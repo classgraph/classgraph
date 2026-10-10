@@ -1239,8 +1239,11 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
 
     /**
      * Returns the path this root reports itself at: the path of the directory or jarfile that backs it, with the
-     * package root appended if it was opened at one. This is what fully names a root, so it is the path {@link Vfs}
-     * caches it under, as well as what {@link #toString()} returns.
+     * package root appended if it was opened at one, or the name of a module. This is what {@link #toString()}
+     * returns, and for a root opened by path, it fully names the root, so it is one of the keys {@link Vfs} caches
+     * the root under. A module is cached by its {@link java.lang.module.ModuleReference} instead, and is written as
+     * {@code "jrt:/<module>"} in a {@code "cgvfs:"} URI, where its bare name would name a relative directory: see
+     * {@link VfsFileSystemProvider#cgvfsPathOf(VfsRoot)}.
      *
      * @return the path of this root, with the package root appended if there is one.
      */
