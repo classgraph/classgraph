@@ -198,16 +198,10 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
             copy.prependTypeAnnotations(annotations);
         } else {
             // A type annotation on the type as a whole is on the innermost nested class, as in "Map.@A Entry", and
-            // the type annotations of the base class apply only to the outermost class
-            final var lastSuffixIdx = suffixes.size() - 1;
-            final var copySuffixTypeAnnotations = copy.suffixTypeAnnotations;
-            if (copySuffixTypeAnnotations == null) {
-                for (final AnnotationInfo annotationInfo : annotations) {
-                    copy.addSuffixTypeAnnotation(lastSuffixIdx, annotationInfo);
-                }
-            } else {
-                copySuffixTypeAnnotations.get(lastSuffixIdx).addAll(0, annotations);
-            }
+            // the type annotations of the base class apply only to the outermost class. The annotations are not
+            // given the copy's ScanResult, which is not set yet: they are shared with the type signature that the
+            // substitution was made in, and keep its ScanResult.
+            copy.suffixTypeAnnotationLists().get(suffixes.size() - 1).addAll(0, annotations);
         }
         return copy;
     }
@@ -262,15 +256,12 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
     }
 
     /**
-     * Add a type annotation to one of the suffixes (nested classes) of this class reference, allocating the
-     * per-suffix annotation lists if this is the first such annotation.
+     * Get the per-suffix type annotation lists of this class reference, one list per suffix (nested class),
+     * allocating them if this class reference has no suffix type annotations yet.
      *
-     * @param suffixIdx
-     *            the index of the suffix that the annotation applies to
-     * @param annotationInfo
-     *            the type annotation
+     * @return the per-suffix type annotation lists.
      */
-    private void addSuffixTypeAnnotation(final int suffixIdx, final AnnotationInfo annotationInfo) {
+    private List<List<AnnotationInfo>> suffixTypeAnnotationLists() {
         var typeAnnotations = suffixTypeAnnotations;
         if (typeAnnotations == null) {
             suffixTypeAnnotations = typeAnnotations = new ArrayList<>(suffixes.size());
@@ -278,7 +269,22 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
                 typeAnnotations.add(new ArrayList<>(1));
             }
         }
-        typeAnnotations.get(suffixIdx).add(annotationInfo);
+        return typeAnnotations;
+    }
+
+    /**
+     * Add a type annotation to one of the suffixes (nested classes) of this class reference.
+     *
+     * @param suffixIdx
+     *            the index of the suffix that the annotation applies to
+     * @param annotationInfo
+     *            the type annotation
+     */
+    private void addSuffixTypeAnnotation(final int suffixIdx, final AnnotationInfo annotationInfo) {
+        // Set the ScanResult as the annotation is added, for the same reason as in
+        // HierarchicalTypeSignature#addTypeAnnotation
+        annotationInfo.setScanResult(scanResult);
+        suffixTypeAnnotationLists().get(suffixIdx).add(annotationInfo);
     }
 
     @Override
@@ -385,6 +391,14 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
         for (final List<TypeArgument> typeArgumentList : suffixTypeArguments) {
             for (final TypeArgument typeArgument : typeArgumentList) {
                 typeArgument.setScanResult(scanResult);
+            }
+        }
+        final var suffixAnnotations = suffixTypeAnnotations;
+        if (suffixAnnotations != null) {
+            for (final List<AnnotationInfo> annotations : suffixAnnotations) {
+                for (final AnnotationInfo annotationInfo : annotations) {
+                    annotationInfo.setScanResult(scanResult);
+                }
             }
         }
     }
