@@ -62,11 +62,11 @@ import org.jspecify.annotations.Nullable;
  */
 public final class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     /**
-     * The annotations that are directly present on the annotated item, rather than reached through a
-     * meta-annotation or inherited, or null if this list holds only directly present annotations. See
+     * The annotations in this list that are directly present on the annotated item, rather than reached through a
+     * meta-annotation or inherited. It is this list itself when every annotation in it is directly present. See
      * {@link #directOnly()}.
      */
-    private final @Nullable AnnotationInfoList directlyRelatedAnnotations;
+    private final AnnotationInfoList directlyRelatedAnnotations;
 
     /** An unmodifiable empty {@link AnnotationInfoList}. */
     static final AnnotationInfoList EMPTY_LIST = new AnnotationInfoList(List.of());
@@ -108,17 +108,21 @@ public final class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     }
 
     /**
-     * Constructor for two lists that the caller has already ordered.
+     * Constructor for a list of reachable annotations, given which of them are directly present on the annotated
+     * item. As in {@link InfoList#InfoList(List)}, this list claims both of the given lists, and the caller is
+     * responsible for having sorted them.
      *
      * @param reachableAnnotations
      *            the reachable annotations
-     * @param directlyRelatedAnnotations
-     *            the directly related annotations, or null if this is already a list of direct annotations
+     * @param directAnnotations
+     *            the reachable annotations that are directly present on the annotated item
      */
-    AnnotationInfoList(final AnnotationInfoList reachableAnnotations,
-            final @Nullable AnnotationInfoList directlyRelatedAnnotations) {
+    AnnotationInfoList(final List<AnnotationInfo> reachableAnnotations,
+            final List<AnnotationInfo> directAnnotations) {
         super(reachableAnnotations);
-        this.directlyRelatedAnnotations = directlyRelatedAnnotations;
+        // The direct list is built by the one-argument constructor, so it is its own direct list, and directOnly()
+        // returns the same list however many times it is called
+        directlyRelatedAnnotations = new AnnotationInfoList(directAnnotations);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -135,22 +139,21 @@ public final class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
      */
     public AnnotationInfoList filter(final Predicate<AnnotationInfo> filter) {
         Assert.notNull(filter, "filter");
+        // If every annotation in this list is directly present, then so is every annotation that is kept
+        final var allDirect = directlyRelatedAnnotations == this;
         final List<AnnotationInfo> reachableFiltered = new ArrayList<>();
-        final var directAnnotations = directlyRelatedAnnotations;
-        final List<AnnotationInfo> directlyRelatedFiltered = directAnnotations == null ? null : new ArrayList<>();
+        final List<AnnotationInfo> directlyRelatedFiltered = new ArrayList<>();
         for (final AnnotationInfo annotationInfo : this) {
             if (filter.test(annotationInfo)) {
                 reachableFiltered.add(annotationInfo);
-                if (directAnnotations != null && directlyRelatedFiltered != null
-                        && directAnnotations.contains(annotationInfo)) {
+                if (!allDirect && directlyRelatedAnnotations.contains(annotationInfo)) {
                     directlyRelatedFiltered.add(annotationInfo);
                 }
             }
         }
         // Filtering preserves the order of this list, which is already sorted, so don't sort again
-        final var reachableResult = new AnnotationInfoList(reachableFiltered);
-        return directlyRelatedFiltered == null ? reachableResult
-                : new AnnotationInfoList(reachableResult, new AnnotationInfoList(directlyRelatedFiltered));
+        return allDirect ? new AnnotationInfoList(reachableFiltered)
+                : new AnnotationInfoList(reachableFiltered, directlyRelatedFiltered);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -376,12 +379,12 @@ public final class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
                 Comparator.comparing(AnnotationInfo::getName).thenComparing(
                         (final AnnotationInfo ai) -> directness.getOrDefault(ai, Directness.META_ANNOTATION))
                         .thenComparing(Comparator.naturalOrder()));
-        // The reachable annotations have just been sorted into an order that the AnnotationInfoList constructor
-        // cannot produce, so don't let the constructor sort them again; the direct annotations are sorted by the
-        // constructor, since they only need to be in name order
-        return new AnnotationInfoList(new AnnotationInfoList(reachableAnnotationInfo),
-                new AnnotationInfoList(directAnnotationInfo == null ? List.<AnnotationInfo> of()
-                        : CollectionUtils.sortCopy(directAnnotationInfo)));
+        // The reachable annotations have just been sorted into an order that the natural order of AnnotationInfo
+        // does not give, so they must not be sorted again; the direct annotations only need to be in name order,
+        // so they are sorted in natural order
+        return new AnnotationInfoList(reachableAnnotationInfo,
+                directAnnotationInfo == null ? List.<AnnotationInfo> of()
+                        : CollectionUtils.sortCopy(directAnnotationInfo));
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -395,11 +398,7 @@ public final class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
      * @return The list of directly-related annotations.
      */
     public AnnotationInfoList directOnly() {
-        // If directlyRelatedAnnotations == null, this list was itself returned by directOnly(). Otherwise return a
-        // new list consisting of only the direct annotations.
-        return this.directlyRelatedAnnotations == null ? this
-                // Make .directOnly() idempotent
-                : new AnnotationInfoList(directlyRelatedAnnotations, /* directlyRelatedAnnotations = */ null);
+        return directlyRelatedAnnotations;
     }
 
     // -------------------------------------------------------------------------------------------------------------
