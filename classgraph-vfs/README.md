@@ -608,9 +608,12 @@ does not say which, so test for the file directly if the difference matters.
 and for every kind of root, so a name it finds is a name a classloader will also find. Windows and
 macOS have case-insensitive filesystems, and a lookup that such a filesystem answered by folding the
 case of the name is rejected here rather than handing back an entry under a name that is not the one
-it is stored under. A name that reaches a file through a symbolic link is the one exception:
-following the link changes the path by more than the case of its characters, which is the only thing
-that tells a folded name from a followed link.
+it is stored under. A symbolic link is found by its own name, even if that name differs from the
+name of the file it points at only in case. The one exception is a case-insensitive filesystem
+mounted on Linux, such as a directory with the casefold attribute on ext4, f2fs or tmpfs, or a vfat,
+exFAT or CIFS mount: there the real path of a file is spelled the way it was looked up rather than
+the way it is stored, which leaves nothing to tell a folded name by, so such a filesystem can still
+find a name in a case it is not stored in.
 
 When the case should be ignored instead, `getEntryCaseInsensitive` returns the first entry whose name
 matches with the case of both ignored, and `getEntriesCaseInsensitive` returns all of them -- a root
