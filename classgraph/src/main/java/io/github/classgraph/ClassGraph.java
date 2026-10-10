@@ -1234,7 +1234,8 @@ public final class ClassGraph {
 
     /**
      * Accept classpath elements based on resource paths. Only classpath elements that contain resources with paths
-     * matching the accept will be scanned.
+     * matching the accept will be scanned. Every resource in a classpath element is matched, whatever the package
+     * and path filters accept or reject.
      *
      * <p>
      * This narrows what is scanned to the classpath elements that match; it does not add a classpath element to the
@@ -1258,7 +1259,8 @@ public final class ClassGraph {
 
     /**
      * Reject classpath elements based on resource paths. Classpath elements that contain resources with paths
-     * matching the reject will not be scanned.
+     * matching the reject will not be scanned. Every resource in a classpath element is matched, whatever the
+     * package and path filters accept or reject.
      *
      * <p>
      * This leaves the matching classpath elements out of what is being scanned; like the {@code accept} methods, it
