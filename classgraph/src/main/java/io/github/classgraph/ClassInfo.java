@@ -2853,8 +2853,9 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     }
 
     /**
-     * Get the methods and/or constructors of the class, its superclasses and its interfaces. Static initializer
-     * blocks are never returned -- they can only be reached by name, via {@link #getMethodInfo(String)}.
+     * Get the methods of the class, its superclasses and its interfaces, and/or the constructors of the class
+     * itself. Static initializer blocks are never returned -- they can only be reached by name, via
+     * {@link #getMethodInfo(String)}.
      *
      * @param getNormalMethods
      *            whether to get methods that are not constructors
@@ -2871,15 +2872,20 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
 
     /**
      * Get the methods of the class, its superclasses and its interfaces that have the given name. Unlike
-     * {@link #getMethodInfoOfKind(boolean, boolean)}, this ignores the kind of the method, so it can return
-     * constructors ({@code "<init>"}) and static initializer blocks ({@code "<clinit>"}).
+     * {@link #getMethodInfoOfKind(boolean, boolean)}, this ignores the kind of the method, so it can return this
+     * class's own constructors ({@code "<init>"}) and static initializer block ({@code "<clinit>"}), but never
+     * those of a superclass or interface.
      *
      * @param methodName
      *            the method name
      * @return the method info
      */
     private MethodInfoList getMethodInfoWithName(final String methodName) {
-        return mergeDeclaredMethodsInOverrideOrder(ci -> ci.getDeclaredMethodInfoWithName(methodName));
+        // Constructors and static initializer blocks are not inherited
+        final var inherited = !"<init>".equals(methodName) && !"<clinit>".equals(methodName);
+        return mergeDeclaredMethodsInOverrideOrder(
+                ci -> ci == this || inherited ? ci.getDeclaredMethodInfoWithName(methodName)
+                        : MethodInfoList.EMPTY_LIST);
     }
 
     /**
@@ -2965,7 +2971,7 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      * </ul>
      *
      * <p>
-     * There may be more than one constructor of a given name with different type signatures, due to overloading.
+     * There may be more than one constructor with different type signatures, due to overloading.
      *
      * <p>
      * Requires that {@link ClassGraph#enableMethodInfo()} be called before scanning, otherwise throws
@@ -2985,8 +2991,9 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     }
 
     /**
-     * Returns information on visible constructors declared by this class, or by its interfaces or superclasses.
-     * Constructors have the method name of {@code "<init>"}. See also:
+     * Returns information on visible constructors declared by this class. Constructors are not inherited, so this
+     * returns the same list as {@link #getDeclaredConstructorInfo()}. Constructors have the method name of
+     * {@code "<init>"}. See also:
      *
      * <ul>
      * <li>{@link #getMethodInfo(String)}
@@ -2999,18 +3006,18 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      * </ul>
      *
      * <p>
-     * There may be more than one method of a given name with different type signatures, due to overloading.
+     * There may be more than one constructor with different type signatures, due to overloading.
      *
      * <p>
      * Requires that {@link ClassGraph#enableMethodInfo()} be called before scanning, otherwise throws
      * {@link IllegalStateException}.
      *
      * <p>
-     * By default only returns information for public methods, unless {@link ClassGraph#ignoreMethodVisibility()}
-     * was called before the scan.
+     * By default only returns information for public constructors, unless
+     * {@link ClassGraph#ignoreMethodVisibility()} was called before the scan.
      *
-     * @return the list of {@link MethodInfo} objects for visible constructors of this class and its superclasses,
-     *         or the empty list if no methods were found.
+     * @return the list of {@link MethodInfo} objects for visible constructors declared by this class, or the empty
+     *         list if no constructors were found or visible.
      * @throws IllegalStateException
      *             if {@link ClassGraph#enableMethodInfo()} was not called prior to initiating the scan.
      */
@@ -3033,8 +3040,8 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      * </ul>
      *
      * <p>
-     * There may be more than one method or constructor or method of a given name with different type signatures,
-     * due to overloading.
+     * There may be more than one method or constructor of a given name with different type signatures, due to
+     * overloading.
      *
      * <p>
      * Requires that {@link ClassGraph#enableMethodInfo()} be called before scanning, otherwise throws
@@ -3059,8 +3066,9 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     }
 
     /**
-     * Returns information on visible methods and constructors declared by this class, or by its interfaces or
-     * superclasses. Constructors have the method name of {@code "<init>"}. See also:
+     * Returns information on visible methods declared by this class, or by its interfaces or superclasses, and on
+     * visible constructors declared by this class (constructors are not inherited). Constructors have the method
+     * name of {@code "<init>"}. See also:
      *
      * <ul>
      * <li>{@link #getMethodInfo(String)}
@@ -3088,8 +3096,9 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      * {@link #getMethodInfo(String)} with a method name of {@code "<clinit>"}, and only if
      * {@link ClassGraph#ignoreMethodVisibility()} was called before the scan.
      *
-     * @return the list of {@link MethodInfo} objects for visible methods and constructors of this class, its
-     *         interfaces and superclasses, or the empty list if no methods were found.
+     * @return the list of {@link MethodInfo} objects for visible methods of this class, its interfaces and
+     *         superclasses, and for visible constructors of this class, or the empty list if no methods or
+     *         constructors were found.
      * @throws IllegalStateException
      *             if {@link ClassGraph#enableMethodInfo()} was not called prior to initiating the scan.
      */
@@ -3158,6 +3167,10 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      *
      * <p>
      * May return info for multiple methods with the same name (with different type signatures).
+     *
+     * <p>
+     * Constructors ({@code "<init>"}) and static initializer blocks ({@code "<clinit>"}) are not inherited, so for
+     * those names this returns the same list as {@link #getDeclaredMethodInfo(String)}.
      *
      * @param methodName
      *            The method name to query.
