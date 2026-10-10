@@ -433,7 +433,8 @@ class Classfile {
     }
 
     /**
-     * Check if scanning needs to be extended upwards to an external superclass, interface or annotation.
+     * Check if scanning needs to be extended upwards to an external superclass, interface, annotation, enclosing
+     * class, class named in an annotation parameter value, or thrown exception type.
      *
      * @param log
      *            the log node, or null to skip logging
@@ -2474,15 +2475,15 @@ class Classfile {
         // Write class info to log
         final var subLog = logParsedClassfile(log);
 
-        // Check if any superclasses, interfaces or annotations are external (non-accepted) classes that need to be
+        // Check if any superclasses, interfaces, annotations, enclosing classes, classes named in annotation
+        // parameter values, or thrown exception types are external (non-accepted) classes that need to be
         // scheduled for scanning, so that all of the "upwards" direction of the class graph is scanned for any
-        // accepted class, even if the superclasses / interfaces / annotations are not themselves accepted.
-        if (scanSpec.extendScanningUpwardsToExternalClasses) {
-            extendScanningUpwards(subLog);
-            // If any external classes were found, schedule them for scanning
-            if (additionalWorkUnits != null) {
-                workQueue.addWorkUnits(additionalWorkUnits);
-            }
+        // accepted class, even if those classes are not themselves accepted (#261). This is always done: without
+        // it, an accepted class whose supertypes are not accepted would have an incomplete class hierarchy.
+        extendScanningUpwards(subLog);
+        // If any external classes were found, schedule them for scanning
+        if (additionalWorkUnits != null) {
+            workQueue.addWorkUnits(additionalWorkUnits);
         }
     }
 
