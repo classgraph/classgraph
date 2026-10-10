@@ -358,8 +358,10 @@ public final class GraphVizDotFile {
         final List<FieldInfo> fieldInfoSorted = new ArrayList<>(fieldInfo);
         fieldInfoSorted.sort(null);
         for (var i = fieldInfoSorted.size() - 1; i >= 0; --i) {
-            // Remove serialVersionUID field
-            if ("serialVersionUID".equals(fieldInfoSorted.get(i).getName())) {
+            // Remove the serialVersionUID field, and fields that the compiler generated rather than the source code
+            // declared, such as this$0, $VALUES and $assertionsDisabled
+            final var fi = fieldInfoSorted.get(i);
+            if ("serialVersionUID".equals(fi.getName()) || fi.isSynthetic()) {
                 fieldInfoSorted.remove(i);
             }
         }
@@ -435,17 +437,37 @@ public final class GraphVizDotFile {
         final List<MethodInfo> methodInfoSorted = new ArrayList<>(methodInfo);
         methodInfoSorted.sort(null);
         for (var i = methodInfoSorted.size() - 1; i >= 0; --i) {
-            // Don't list static initializer blocks or methods of Object
+            // Don't list static initializer blocks, methods of Object, or methods that the compiler generated rather
+            // than the source code declared, such as lambda bodies, an enum's $values() and bridge methods (the
+            // methods an enum must have, values() and valueOf(String), are not marked synthetic, so are listed)
             final var mi = methodInfoSorted.get(i);
             final var name = mi.getName();
             final var numParam = mi.getParameterInfo().size();
-            if ("<clinit>".equals(name) || "hashCode".equals(name) && numParam == 0
-                    || "toString".equals(name) && numParam == 0 || "equals".equals(name) && numParam == 1
+            if (mi.isSynthetic() || mi.isBridge() || "<clinit>".equals(name)
+                    || "hashCode".equals(name) && numParam == 0 || "toString".equals(name) && numParam == 0
+                    || "equals".equals(name) && numParam == 1
                             && "boolean (java.lang.Object)".equals(mi.getTypeDescriptor().toString())) {
                 methodInfoSorted.remove(i);
             }
         }
         return methodInfoSorted;
+    }
+
+    /**
+     * Get the parameters to list for a method: all but those that the compiler generated rather than the source
+     * code declared, such as the name and ordinal parameters of an enum constructor. A parameter is known to be
+     * generated only if the classfile records the flags of its parameters. javac 21 and later record them for any
+     * method with a generated parameter; earlier versions of javac record them only when run with
+     * {@code -parameters}.
+     *
+     * @param methodInfo
+     *            the method
+     * @return the parameters to list
+     */
+    private static List<MethodParameterInfo> parametersToShow(final MethodInfo methodInfo) {
+        final List<MethodParameterInfo> paramInfo = new ArrayList<>(methodInfo.getParameterInfo());
+        paramInfo.removeIf(MethodParameterInfo::isSynthetic);
+        return paramInfo;
     }
 
     /**
@@ -605,7 +627,7 @@ public final class GraphVizDotFile {
             // Method parameters
             buf.append("<td align='left' valign='top'>");
             buf.append('(');
-            appendMethodParameters(scanResult, mi.getParameterInfo(), options, buf);
+            appendMethodParameters(scanResult, parametersToShow(mi), options, buf);
             buf.append(')');
             buf.append("</td></tr>");
         }
@@ -881,7 +903,7 @@ public final class GraphVizDotFile {
         if (options.showMethodTypeDependencyEdges && scanResult.isMethodInfoEnabled()) {
             final Set<String> methodTypeNames = new TreeSet<>();
             for (final MethodInfo mi : methodsToShow(classNode.getDeclaredMethodAndConstructorInfo())) {
-                for (final MethodParameterInfo mpi : mi.getParameterInfo()) {
+                for (final MethodParameterInfo mpi : parametersToShow(mi)) {
                     addClassNames(mpi.getTypeSignature(), methodTypeNames);
                     addClassNames(mpi.getTypeDescriptor(), methodTypeNames);
                 }

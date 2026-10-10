@@ -13,6 +13,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.regex.Pattern;
 
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
@@ -22,6 +24,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import io.github.classgraph.ClassGraph;
+import io.github.classgraph.FieldInfo;
+import io.github.classgraph.MethodInfo;
+import io.github.classgraph.MethodParameterInfo;
 import io.github.classgraph.ScanResult;
 
 /** Tests the graphs written by {@link GraphVizDotFile}. */
@@ -683,6 +688,111 @@ public class GraphVizDotFileTest {
     public void hidingTheAnnotationEdgesHidesTheEdgesToTheAnnotationsOfMembers() {
         assertThat(memberTypeGraph(new GraphVizDotFileOptions().hideAnnotationDependencyEdges()))
                 .doesNotContain(edge("Holder", "Colored"), edge("Colored", "Holder"));
+    }
+
+    /** A class for which the compiler generates synthetic and bridge members. */
+    // This fixture is graphed, not called, so its members and their parameters are never used
+    @SuppressWarnings("unused")
+    public static class Synth implements Comparable<Synth> {
+        /** A lambda, whose body is compiled into a synthetic method. */
+        private final Runnable task = () -> {
+            // Empty
+        };
+
+        /** The value compared by {@link #compareTo(Synth)}. */
+        private int value;
+
+        /** Compiled together with a bridge method {@code compareTo(Object)}. */
+        @Override
+        public int compareTo(final Synth other) {
+            return Integer.compare(value, other.value);
+        }
+
+        /**
+         * A method with an assert statement, which makes the compiler add a synthetic field.
+         *
+         * @param x
+         *            a positive number.
+         */
+        public void check(final int x) {
+            assert x > 0;
+        }
+
+        /** An inner class, which has a synthetic field holding its enclosing instance. */
+        public class Inner {
+            /**
+             * Use the enclosing instance, so that the compiler keeps the field that holds it.
+             *
+             * @return the value of the enclosing instance.
+             */
+            public int outerValue() {
+                return value;
+            }
+        }
+
+        /** An enum, which has a synthetic field and method holding and making the array of its constants. */
+        public enum Shade {
+            /** Dark. */
+            DARK
+        }
+    }
+
+    /**
+     * Members and method parameters that the compiler generated, rather than ones declared in the source code, are
+     * left out of the class nodes and do not produce type edges.
+     */
+    @Test
+    public void compilerGeneratedMembersAreOmitted() {
+        try (var synthScanResult = new ClassGraph().enableClasspath()
+                .acceptClasses(Synth.class.getName(), Synth.Inner.class.getName(), Synth.Shade.class.getName())
+                .enableClassInfo().enableFieldInfo().enableMethodInfo().ignoreClassVisibility()
+                .ignoreFieldVisibility().ignoreMethodVisibility().scan()) {
+            // The names of the generated members and parameters depend on the compiler, so they are taken from the
+            // scan
+            final Set<String> generatedMembers = new TreeSet<>();
+            final Set<String> generatedParameters = new TreeSet<>();
+            for (final var ci : synthScanResult.getAllClasses()) {
+                for (final FieldInfo fi : ci.getDeclaredFieldInfo()) {
+                    if (fi.isSynthetic()) {
+                        generatedMembers.add(fi.getName());
+                    }
+                }
+                for (final MethodInfo mi : ci.getDeclaredMethodAndConstructorInfo()) {
+                    if (mi.isSynthetic() || mi.isBridge()) {
+                        generatedMembers.add(mi.getName());
+                    } else {
+                        // The parameters of a generated method are generated too, but are named after the
+                        // parameters of the method it calls
+                        for (final MethodParameterInfo mpi : mi.getParameterInfo()) {
+                            if (mpi.isSynthetic()) {
+                                generatedParameters.add(mpi.getName());
+                            }
+                        }
+                    }
+                }
+            }
+            // The bridge method has the same name as the method it bridges to, which is listed once
+            assertThat(generatedMembers).contains("compareTo").hasSizeGreaterThan(1);
+            generatedMembers.remove("compareTo");
+            // The name and ordinal parameters of the enum constructor
+            assertThat(generatedParameters).isNotEmpty();
+
+            final var dotFile = graph(synthScanResult, new GraphVizDotFileOptions());
+            // Field and method names are written at the start of a cell, and parameter names after their type
+            final var memberRow = "valign='top'><b>";
+            assertThat(count(dotFile, memberRow + "compareTo</b>")).isEqualTo(1);
+            for (final var name : generatedMembers) {
+                assertThat(dotFile).doesNotContain(memberRow + name + "</b>");
+            }
+            for (final var name : generatedParameters) {
+                assertThat(dotFile).doesNotContain(" <b>" + name + "</b>");
+            }
+            assertThat(dotFile).contains(memberRow + "Shade</b>&nbsp;</td><td align='left' valign='top'>()");
+            // The field that holds the enclosing instance does not join the inner class to the enclosing class
+            assertThat(dotFile).doesNotContain(edge("Synth", "Synth$Inner") + FIELD_TYPE_EDGE);
+            // The methods that the language requires of an enum are not generated by the compiler, so are listed
+            assertThat(dotFile).contains(memberRow + "values</b>", memberRow + "valueOf</b>");
+        }
     }
 
     /**
