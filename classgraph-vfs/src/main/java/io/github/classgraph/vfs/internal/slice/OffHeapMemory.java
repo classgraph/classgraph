@@ -29,8 +29,6 @@
 package io.github.classgraph.vfs.internal.slice;
 
 import java.io.IOException;
-import java.lang.ref.PhantomReference;
-import java.lang.ref.ReferenceQueue;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
@@ -58,8 +56,8 @@ import org.jspecify.annotations.Nullable;
  * <p>
  * A mapping made without an arena that {@link #closeDirectByteBuffer(ByteBuffer, LogNode)} could not unmap is left
  * to the garbage collector, which unmaps the file once every view of the mapping has become unreachable.
- * {@link #freeUnreachableBuffers()} asks for that to happen. The garbage collector cannot release a mapping made in
- * a shared arena: only closing the arena does.
+ * {@link PathSlice#freeUnreachableBuffers()} asks for that to happen. The garbage collector cannot release a
+ * mapping made in a shared arena: only closing the arena does.
  */
 final class OffHeapMemory {
     /** Not instantiable. */
@@ -362,54 +360,5 @@ final class OffHeapMemory {
                 closeDirectByteBuffer(ByteBuffer.allocateDirect(32), /* log = */ null);
             }
         }
-    }
-
-    // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * The longest {@link #freeUnreachableBuffers()} waits for the garbage collector to process the references that
-     * a collection found, in milliseconds.
-     */
-    private static final int REFERENCE_PROCESSING_TIMEOUT_MILLIS = 100;
-
-    /**
-     * Ask the garbage collector to run, and wait for the references that the collection found to be processed, so
-     * that a mapping that nothing can reach any more is more likely to have been released by the time this returns.
-     *
-     * <p>
-     * This is best effort, and cannot be made reliable: a file is unmapped while the reference to its mapped buffer
-     * is processed, and nothing can observe that a particular reference has been processed. That is why a file is
-     * unmapped explicitly rather than left to this -- this is only for what an explicit unmapping cannot reach: an
-     * address range that has to be freed before a mapping can be retried, a buffer that could not be unmapped
-     * explicitly, and a temporary file that Windows would not let ClassGraph delete. A JVM started with
-     * {@code -XX:+DisableExplicitGC} ignores the request to collect altogether, in which case this returns once the
-     * wait times out, having done nothing.
-     */
-    // #939
-    static void freeUnreachableBuffers() {
-        // System.gc() returns once the collection itself is over, which is before the references that the
-        // collection found have been processed. A phantom reference to an object that the same collection finds
-        // unreachable is enqueued while those references are processed, so waiting for it to be enqueued waits for
-        // most of that processing -- but the order within one batch of references is arbitrary, so this is a wait
-        // that sometimes helps rather than a guarantee. (Measured by benchmark/MapProbe.java, over 300 rounds of
-        // mapping eight files and dropping every reference to them, on JDK 8, 17, 21 and 26: a file was still
-        // mapped when System.gc() returned in between 5 and all 300 of the rounds, depending on the JDK and the
-        // machine, and waiting for reference processing first moved that in both directions. Two more collections
-        // and 100ms cleared every straggler in every run but one, so the collector does get there -- just not by
-        // the time the request to collect returns, which is when a caller waiting to delete or overwrite the file
-        // needs it gone.)
-        final var collected = new ReferenceQueue<>();
-        final var canary = new PhantomReference<>(new Object(), collected);
-        System.gc();
-        try {
-            // Bounded, so that a JVM that ignores the request to collect cannot make this wait forever
-            collected.remove(REFERENCE_PROCESSING_TIMEOUT_MILLIS);
-        } catch (final InterruptedException e) {
-            // Leave the files to be unmapped by a later collection, and let the caller see the interruption
-            Thread.currentThread().interrupt();
-        }
-        // Keep the canary reachable until it has been waited for -- a phantom reference that has itself become
-        // unreachable is never enqueued
-        canary.clear();
     }
 }

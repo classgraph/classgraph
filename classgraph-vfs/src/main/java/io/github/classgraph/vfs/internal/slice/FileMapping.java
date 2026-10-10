@@ -159,7 +159,7 @@ final class FileMapping {
             // address space here: a mapping whose ByteBuffer is unreachable is unmapped by its Cleaner once the
             // reference is cleared, which is a phantom-reference mechanism, not finalization. The collection has to
             // be waited for, since the unmapping happens after the collection itself is over.)
-            OffHeapMemory.freeUnreachableBuffers();
+            PathSlice.freeUnreachableBuffers();
             try {
                 byteBuffer = mapWholeFile(arena, fileChannel, fileLength);
             } catch (IOException | OutOfMemoryError e2) {
