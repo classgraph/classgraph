@@ -359,6 +359,26 @@ public class VfsTest {
         }
     }
 
+    /**
+     * The path of an entry of a directory at the root of the filesystem ("/", or a drive root such as "C:/") has a
+     * single separator after the root, the same path that the entry has when reached through its own directory.
+     */
+    @Test
+    public void anEntryOfARootAtTheFilesystemRootHasASingleSeparator(@TempDir final File tempDir)
+            throws IOException {
+        final var dir = tempDir.toPath().toRealPath();
+        Files.writeString(dir.resolve("widget.txt"), RESOURCE_CONTENT);
+        final var fsRoot = Objects.requireNonNull(dir.getRoot());
+        final var nameFromFsRoot = fsRoot.relativize(dir).toString().replace(File.separatorChar, '/')
+                + "/widget.txt";
+
+        try (var vfs = new Vfs()) {
+            final var entry = Objects.requireNonNull(vfs.open(fsRoot).getEntry(nameFromFsRoot));
+            final var sameFileEntry = Objects.requireNonNull(vfs.open(dir).getEntry("widget.txt"));
+            assertThat(entry.getPath()).isEqualTo(sameFileEntry.getPath()).doesNotContain("//");
+        }
+    }
+
     /** Looking up an entry that is not in the jarfile returns null. */
     @Test
     public void anEntryThatIsNotPresentIsNull(@TempDir final File tempDir) throws IOException {
