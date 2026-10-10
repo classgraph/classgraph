@@ -10,7 +10,6 @@ import java.lang.module.ModuleReference;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.List;
 
 import javax.tools.ToolProvider;
 
@@ -255,8 +254,7 @@ public class ModuleInfoTest {
             }
         };
         // The classpath element is never opened, so the module is never read
-        final var classpathElement = new ClasspathElementModule(moduleReference, VFS,
-                new ClasspathEntryWorkUnit(null, null, null, 0, "", List.of(), List.of()),
+        final var classpathElement = new ClasspathElementModule(moduleReference, VFS, /* classLoaderStr = */ null,
                 /* isLookupOnly = */ false, new ScanSpec());
         return new ModuleInfo(moduleReference, classpathElement, "com.xyz.located");
     }
@@ -301,6 +299,6 @@ public class ModuleInfoTest {
         final var workUnit = new ClasspathEntryWorkUnit(moduleDir, /* classLoader = */ null,
                 /* parentClasspathElement = */ null, /* classpathElementIdx = */ 0, /* packageRootPrefix = */ "",
                 ClassLoaderHandler.NO_PACKAGE_ROOT_PREFIXES, ClassLoaderHandler.NO_LIB_DIR_PREFIXES);
-        return new ClasspathElementDir(workUnit, VFS, new ScanSpec());
+        return new ClasspathElementDir(workUnit, moduleDir, VFS, new ScanSpec());
     }
 }

@@ -33,7 +33,6 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.Objects;
 
 import io.github.classgraph.ScanSpec.ScanSpecPathMatch;
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
@@ -48,7 +47,7 @@ import io.github.classgraph.vfs.VfsVisitor;
 import org.jspecify.annotations.Nullable;
 
 /** A directory classpath element, using the {@link Path} API. */
-class ClasspathElementDir extends ClasspathElement {
+final class ClasspathElementDir extends ClasspathElement {
     /** The directory at the root of the classpath element. */
     private final Path classpathEltPath;
 
@@ -65,15 +64,19 @@ class ClasspathElementDir extends ClasspathElement {
      * A directory classpath element.
      *
      * @param workUnit
-     *            the work unit -- workUnit.classpathEntryObj must be a {@link Path} object
+     *            the work unit
+     * @param classpathEltPath
+     *            the normalized classpath entry of the work unit, which is the directory
      * @param vfs
      *            the virtual filesystem to enumerate and read the directory through
      * @param scanSpec
      *            the scan spec
      */
-    ClasspathElementDir(final ClasspathEntryWorkUnit workUnit, final Vfs vfs, final ScanSpec scanSpec) {
-        super(workUnit, vfs, scanSpec);
-        this.classpathEltPath = (Path) Objects.requireNonNull(workUnit.classpathEntryObj);
+    ClasspathElementDir(final ClasspathEntryWorkUnit workUnit, final Path classpathEltPath, final Vfs vfs,
+            final ScanSpec scanSpec) {
+        super(workUnit.classLoaderStr(), workUnit.packageRootPrefix(), workUnit.packageRootPrefixes(),
+                workUnit.libDirPrefixes(), vfs, scanSpec);
+        this.classpathEltPath = classpathEltPath;
         this.vfs = vfs;
     }
 
@@ -92,7 +95,7 @@ class ClasspathElementDir extends ClasspathElement {
             // classpath order determines which of two copies of the same class masks the other
             final var root = vfs.open(classpathEltPath);
             this.manifestRoot = openManifestRoot(root);
-            var childClasspathEntryIdx = 0;
+            final var childScheduler = new ChildClasspathElementScheduler(workQueue, classpathEltPath);
 
             // A package root within the directory is a classpath element in its own right. It comes first, because
             // a classloader that serves a directory with a package root looks there before it looks in the
@@ -105,10 +108,7 @@ class ClasspathElementDir extends ClasspathElement {
                         if (log != null) {
                             log(classpathElementIdx, "Found package root: " + packageRootPrefix, log);
                         }
-                        workQueue.addWorkUnit(new ClasspathEntryWorkUnit(packageRoot, getClassLoaderString(),
-                                /* parentClasspathElement = */ this,
-                                /* orderWithinParentClasspathElement = */ childClasspathEntryIdx++,
-                                packageRootPrefix, packageRootPrefixes, libDirPrefixes));
+                        childScheduler.schedule(packageRoot, packageRootPrefix);
                     }
                 }
             }
@@ -134,11 +134,8 @@ class ClasspathElementDir extends ClasspathElement {
                     continue;
                 }
                 final var childPath = childEntry.path();
-                workQueue.addWorkUnit(
-                        new ClasspathEntryWorkUnit(childPath == null ? childEntry.location() : childPath,
-                                getClassLoaderString(), /* parentClasspathElement = */ this,
-                                /* orderWithinParentClasspathElement = */ childClasspathEntryIdx++,
-                                /* packageRootPrefix = */ "", packageRootPrefixes, libDirPrefixes));
+                childScheduler.schedule(childPath == null ? childEntry.location() : childPath,
+                        /* childPackageRootPrefix = */ "");
             }
         } catch (final IOException | SecurityException e) {
             if (log != null) {

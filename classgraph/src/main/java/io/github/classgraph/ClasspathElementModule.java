@@ -40,6 +40,7 @@ import java.util.Set;
 import io.github.classgraph.ScanSpec.ScanSpecPathMatch;
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
 import io.github.classgraph.base.LogNode;
+import io.github.classgraph.classpath.ClassLoaderHandler;
 import io.github.classgraph.vfs.Vfs;
 import io.github.classgraph.vfs.VfsEntry;
 import io.github.classgraph.vfs.VfsRoot;
@@ -51,7 +52,7 @@ import org.jspecify.annotations.Nullable;
  *
  * @author Luke Hutchison
  */
-class ClasspathElementModule extends ClasspathElement {
+final class ClasspathElementModule extends ClasspathElement {
 
     /** The module. */
     final ModuleReference moduleReference;
@@ -89,8 +90,8 @@ class ClasspathElementModule extends ClasspathElement {
      *            the module
      * @param vfs
      *            the virtual filesystem to read the module through
-     * @param workUnit
-     *            the work unit
+     * @param classLoaderStr
+     *            the string form of the classloader to record for the module, or null if there is none
      * @param isLookupOnly
      *            true if the module is not being scanned, and was only opened so that the classfiles of individual
      *            classes can be read from it
@@ -98,8 +99,10 @@ class ClasspathElementModule extends ClasspathElement {
      *            the scan spec
      */
     ClasspathElementModule(final ModuleReference moduleReference, final Vfs vfs,
-            final ClasspathEntryWorkUnit workUnit, final boolean isLookupOnly, final ScanSpec scanSpec) {
-        super(workUnit, vfs, scanSpec);
+            final @Nullable String classLoaderStr, final boolean isLookupOnly, final ScanSpec scanSpec) {
+        // A module has no package roots or lib dirs
+        super(classLoaderStr, /* packageRootPrefix = */ "", ClassLoaderHandler.NO_PACKAGE_ROOT_PREFIXES,
+                ClassLoaderHandler.NO_LIB_DIR_PREFIXES, vfs, scanSpec);
         this.vfs = vfs;
         this.moduleReference = moduleReference;
         this.isLookupOnly = isLookupOnly;

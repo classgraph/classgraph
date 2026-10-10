@@ -35,9 +35,7 @@ import java.util.List;
 import java.util.Map;
 
 import io.github.classgraph.Scanner.ClassfileScanWorkUnit;
-import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
 import io.github.classgraph.base.LogNode;
-import io.github.classgraph.classpath.ClassLoaderHandler;
 import io.github.classgraph.vfs.Vfs;
 import org.jspecify.annotations.Nullable;
 
@@ -182,9 +180,7 @@ class UnscannedModules {
             final @Nullable LogNode log) {
         var classpathElement = moduleToClasspathElement.get(moduleReference);
         if (classpathElement == null) {
-            classpathElement = new ClasspathElementModule(moduleReference, vfs,
-                    new ClasspathEntryWorkUnit(null, classLoaderStr, null, 0, "",
-                            ClassLoaderHandler.NO_PACKAGE_ROOT_PREFIXES, ClassLoaderHandler.NO_LIB_DIR_PREFIXES),
+            classpathElement = new ClasspathElementModule(moduleReference, vfs, classLoaderStr,
                     /* isLookupOnly = */ true, scanSpec);
             classpathElement.open(/* workQueue = */ null, log);
             moduleToClasspathElement.put(moduleReference, classpathElement);
