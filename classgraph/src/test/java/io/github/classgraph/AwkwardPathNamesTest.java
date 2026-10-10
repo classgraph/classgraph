@@ -10,6 +10,7 @@ import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
 import java.util.stream.Stream;
 
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -104,6 +105,35 @@ public class AwkwardPathNamesTest {
             try (var inputStream = connection.getInputStream()) {
                 assertThat(inputStream.readAllBytes()).isNotEmpty();
             }
+        }
+    }
+
+    /**
+     * The URL of a resource within a jarfile below a directory whose name ends in '!'. The JDK ends the jarfile's
+     * part of a {@code "jar:"} URL at its first {@code "!/"}, so an unescaped '!' at the end of the directory name
+     * ended the jarfile's part there, and the URL named a file that does not exist.
+     *
+     * @param tempDir
+     *            a temporary directory to build in.
+     * @throws IOException
+     *             if the jarfile could not be built or read.
+     */
+    @Test
+    public void resourceURLOfAJarBelowADirectoryEndingInBangCanBeRead(@TempDir final Path tempDir)
+            throws IOException {
+        final var jar = makeJar(tempDir, "ends-with-bang!");
+        try (var scanResult = new ClassGraph().enableClasspathEntries(jar.toString()).scan()) {
+            final var resource = scanResult.getResourcesWithExtension("class").get(0);
+            final var connection = resource.getURL().openConnection();
+            // A cached JarFile is never closed, which would stop the temporary directory from being deleted on
+            // Windows
+            connection.setUseCaches(false);
+            try (var inputStream = connection.getInputStream()) {
+                assertThat(inputStream.readAllBytes()).isEqualTo(classfileBytes());
+            }
+            // The jarfile's part of the URL, given back to ClassGraph, names the same jarfile
+            final var uriStr = resource.getURI().toString();
+            assertThatScanFindsTheClass(uriStr.substring(0, uriStr.lastIndexOf("!/") + 2));
         }
     }
 
