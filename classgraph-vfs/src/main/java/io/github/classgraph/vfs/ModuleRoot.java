@@ -41,6 +41,7 @@ import java.util.Collections;
 import java.util.List;
 
 import io.github.classgraph.base.LogNode;
+import io.github.classgraph.base.internal.path.FileUtils;
 import io.github.classgraph.vfs.internal.module.ModuleReaderUtils;
 import io.github.classgraph.vfs.internal.recycler.Recycler;
 import org.jspecify.annotations.Nullable;
@@ -52,6 +53,12 @@ public final class ModuleRoot extends VfsRoot {
 
     /** The entries of the module, or null until {@link #getEntries()} is first called. */
     private volatile @Nullable List<VfsEntry> entries;
+
+    /**
+     * The canonical path of the directory an exploded module is read from, or null until
+     * {@link #canonicalModuleDir()} first finds it.
+     */
+    private volatile @Nullable Path canonicalModuleDir;
 
     /**
      * Hands out {@link ModuleReader} instances for this module, one per thread that is reading it, or null until
@@ -339,11 +346,40 @@ public final class ModuleRoot extends VfsRoot {
         // macOS it answers a lookup for a name whose case does not match the name the file is stored under. This
         // method matches names exactly, so such a match is not one. A module packaged as a modular jarfile carries
         // its own exact namespace, whatever filesystem it is read from, as does a module of the running JDK
-        final var moduleDir = getNioPath();
-        if (moduleDir != null && Files.isDirectory(moduleDir)
-                && isCaseFoldedMatch(moduleDir, moduleDir.resolve(name))) {
+        final var moduleDir = canonicalModuleDir();
+        if (moduleDir != null && isCaseFoldedMatch(moduleDir, moduleDir.resolve(name))) {
             return null;
         }
         return new ModuleEntry(this, name);
+    }
+
+    /**
+     * The canonical path of the directory an exploded module is read from, which is what
+     * {@link #isCaseFoldedMatch(Path, Path)} compares the real path of a file with, the same way {@link DirRoot}
+     * gives it its canonicalized directory. The location of a module is not canonicalized by the JDK, so a module
+     * directory reached through a symbolic link, or on Windows through an 8.3 short name, would otherwise never
+     * contain the real path of any of its files, and the case check would never fire.
+     *
+     * @return the canonical path of the module directory, or the path it was reached through if it cannot be
+     *         canonicalized, or null if the module is not exploded into a directory.
+     */
+    private @Nullable Path canonicalModuleDir() {
+        var dir = canonicalModuleDir;
+        if (dir == null) {
+            final var moduleDir = getNioPath();
+            if (moduleDir == null || !Files.isDirectory(moduleDir)) {
+                return null;
+            }
+            try {
+                dir = FileUtils.canonicalize(moduleDir);
+            } catch (final IOException _) {
+                // A directory whose canonical path cannot be found is checked against the path it was reached
+                // through, as DirRoot does
+                dir = moduleDir;
+            }
+            // Two threads racing here each compute the same path, which is harmless
+            canonicalModuleDir = dir;
+        }
+        return dir;
     }
 }

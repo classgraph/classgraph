@@ -550,9 +550,12 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
      * does not match the name the file is stored under.
      *
      * @param dir
-     *            the directory the lookup was made within.
+     *            the directory the lookup was made within, canonicalized. A directory spelled through a symbolic
+     *            link or an 8.3 short name never contains the real path of a file, so for it this method would
+     *            always return false.
      * @param path
-     *            the path the file was looked up by, which the filesystem found a file at.
+     *            the path the file was looked up by, which the filesystem found a file at, resolved against
+     *            {@code dir}.
      * @return true if the file is stored under a path that differs from the one it was looked up by only in case.
      * @throws IOException
      *             if the real path of the file could not be read.
