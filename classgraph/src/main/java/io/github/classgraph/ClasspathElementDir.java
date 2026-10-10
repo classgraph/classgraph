@@ -288,9 +288,6 @@ final class ClasspathElementDir extends ClasspathElement {
         /** True if the directory currently being visited is the package root. */
         private boolean isPackageRootDir;
 
-        /** True if this classpath element is a modular jar. */
-        private boolean isModularJar;
-
         /**
          * Constructor.
          *
@@ -315,9 +312,6 @@ final class ClasspathElementDir extends ClasspathElement {
             }
             parentMatchStatus = matchStatus;
             isPackageRootDir = "/".equals(dirName);
-            // A directory classpath element is a modular jar if it has a module descriptor, which is read from the
-            // package root before any other directory is entered
-            isModularJar = getModuleName() != null;
             recordLastModified(isPackageRootDir ? classpathEltPath : classpathEltPath.resolve(dirName));
             return true;
         }
@@ -334,9 +328,6 @@ final class ClasspathElementDir extends ClasspathElement {
                             subLog);
                     recordLastModified(entry);
                 }
-                return true;
-            }
-            if (isIgnoredDefaultPackageClassfile(isModularJar, entryName)) {
                 return true;
             }
             // Accept/reject classpath elements based on file resource paths

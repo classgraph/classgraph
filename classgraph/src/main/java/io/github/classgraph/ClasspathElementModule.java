@@ -161,6 +161,25 @@ final class ClasspathElementModule extends ClasspathElement {
     }
 
     /**
+     * Check whether a path is that of a classfile in the default (unnamed) package.
+     *
+     * <p>
+     * A module cannot contain classes in the default package, and {@code module-info.class} is the only classfile
+     * allowed in the root of a module, so any other classfile found there cannot be loaded, and is ignored. This
+     * applies only to a module on the module path: a jarfile or directory on the classpath is in the unnamed
+     * module, even if it has a {@code module-info.class} or an {@code Automatic-Module-Name} manifest attribute,
+     * and the JVM loads the classes in its default package.
+     *
+     * @param relativePath
+     *            the path of an entry, relative to the root of the module.
+     * @return true if the entry is a classfile in the default package, and should be ignored.
+     */
+    private static boolean isDefaultPackageClassfile(final String relativePath) {
+        return relativePath.indexOf('/') < 0 && ClassNames.isClassfilePath(relativePath)
+                && !"module-info.class".equals(relativePath);
+    }
+
+    /**
      * Scan for package matches within module.
      *
      * @param log
@@ -178,9 +197,6 @@ final class ClasspathElementModule extends ClasspathElement {
 
         final var moduleName = moduleReference.descriptor().name();
         final var subLog = log == null ? null : log(classpathElementIdx, "Scanning module " + moduleName, log);
-
-        // Determine whether this is a modular jar
-        final var isModularJar = getModuleName() != null;
 
         try {
             // Let the virtual filesystem enumerate the module, and decide here which of the entries it offers are
@@ -214,7 +230,7 @@ final class ClasspathElementModule extends ClasspathElement {
                         return true;
                     }
 
-                    if (isIgnoredDefaultPackageClassfile(isModularJar, relativePath)) {
+                    if (isDefaultPackageClassfile(relativePath)) {
                         return true;
                     }
 
@@ -280,27 +296,14 @@ final class ClasspathElementModule extends ClasspathElement {
     }
 
     /**
-     * Get the module name from the module reference or the module descriptor.
+     * Get the module name from the module descriptor. A module descriptor always has a name, since the module
+     * system rejects a descriptor with an empty name.
      *
-     * @return the module name, or null if the module does not have a name.
+     * @return the module name.
      */
     @Override
-    public @Nullable String getModuleName() {
-        var moduleName = moduleReference.descriptor().name();
-        if (moduleName.isEmpty()) {
-            moduleName = moduleNameFromModuleDescriptor;
-        }
-        return moduleName == null || moduleName.isEmpty() ? null : moduleName;
-    }
-
-    /**
-     * Get the module name from the module reference or the module descriptor.
-     *
-     * @return the module name, or the empty string if the module does not have a name.
-     */
-    private String getModuleNameOrEmpty() {
-        final var moduleName = getModuleName();
-        return moduleName == null ? "" : moduleName;
+    public String getModuleName() {
+        return moduleReference.descriptor().name();
     }
 
     @Override
@@ -361,7 +364,7 @@ final class ClasspathElementModule extends ClasspathElement {
         if (!(obj instanceof final ClasspathElementModule other)) {
             return false;
         }
-        return this.getModuleNameOrEmpty().equals(other.getModuleNameOrEmpty());
+        return this.getModuleName().equals(other.getModuleName());
     }
 
     /**
@@ -371,6 +374,6 @@ final class ClasspathElementModule extends ClasspathElement {
      */
     @Override
     public int hashCode() {
-        return getModuleNameOrEmpty().hashCode();
+        return getModuleName().hashCode();
     }
 }
