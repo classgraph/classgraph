@@ -64,6 +64,12 @@ class PhysicalZipFile {
     NestedJarHandler nestedJarHandler;
 
     /**
+     * The number of bytes that the deflated jarfiles nested within this zipfile may still inflate to: this
+     * zipfile's own, if it is a toplevel zipfile, or else that of the zipfile it was inflated out of.
+     */
+    final NestedJarInflationAllowance nestedJarInflationAllowance;
+
+    /**
      * Construct a {@link PhysicalZipFile} from a file on disk.
      *
      * @param file
@@ -81,6 +87,7 @@ class PhysicalZipFile {
         this.file = file;
         this.pathStr = FastPathResolver.resolve(FileUtils.currDirPath(), file.getPath());
         this.slice = new FileSlice(file, nestedJarHandler, log);
+        this.nestedJarInflationAllowance = new NestedJarInflationAllowance(pathStr, slice.sliceLength);
     }
 
     /**
@@ -101,6 +108,7 @@ class PhysicalZipFile {
         this.path = path;
         this.pathStr = FastPathResolver.resolve(FileUtils.currDirPath(), path.toString());
         this.slice = new PathSlice(path, nestedJarHandler);
+        this.nestedJarInflationAllowance = new NestedJarInflationAllowance(pathStr, slice.sliceLength);
     }
 
     /**
@@ -124,6 +132,7 @@ class PhysicalZipFile {
         this.pathStr = pathStr;
         this.slice = new ArraySlice(arr, /* isDeflatedZipEntry = */ false, /* inflatedSizeHint = */ 0L,
                 nestedJarHandler);
+        this.nestedJarInflationAllowance = new NestedJarInflationAllowance(pathStr, slice.sliceLength);
     }
 
     /**
@@ -137,6 +146,9 @@ class PhysicalZipFile {
      * @param pathStr
      *            the source URL the InputStream was opened from, or the zip entry path of this entry in the parent
      *            zipfile
+     * @param inflatedOutOf
+     *            for a deflated nested jarfile, the allowance of the zipfile it is inflated out of, which
+     *            inputStream takes each byte read from it from, and which this zipfile shares; else null.
      * @param nestedJarHandler
      *            the nested jar handler
      * @param log
@@ -145,7 +157,8 @@ class PhysicalZipFile {
      *             if an I/O exception occurs.
      */
     PhysicalZipFile(final InputStream inputStream, final long inputStreamLengthHint, final String pathStr,
-            final NestedJarHandler nestedJarHandler, final LogNode log) throws IOException {
+            final NestedJarInflationAllowance inflatedOutOf, final NestedJarHandler nestedJarHandler,
+            final LogNode log) throws IOException {
         this.nestedJarHandler = nestedJarHandler;
         this.pathStr = pathStr;
         // Try downloading the InputStream to a byte array. If this succeeds, this will result in an ArraySlice.
@@ -153,6 +166,8 @@ class PhysicalZipFile {
         this.slice = nestedJarHandler.readAllBytesWithSpilloverToDisk(inputStream, /* tempFileBaseName = */ pathStr,
                 inputStreamLengthHint, log);
         this.file = this.slice instanceof FileSlice ? ((FileSlice) this.slice).file : null;
+        this.nestedJarInflationAllowance = inflatedOutOf != null ? inflatedOutOf
+                : new NestedJarInflationAllowance(pathStr, slice.sliceLength);
     }
 
     /**

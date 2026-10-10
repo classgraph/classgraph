@@ -133,13 +133,19 @@ public class NestedJarHandler {
                 }
 
                 // Read the InputStream for the child zip entry to a RAM buffer, or spill to
-                // disk if it's too large. (The uncompressed size is a length rather than a
-                // hint that may have to fit in an array: an entry too long to buffer in RAM
-                // is spilled straight to disk, which needs the real length rather than -1.
-                // The size cannot be negative, since an entry with a negative size is dropped
-                // while the central directory is read.)
-                final PhysicalZipFile physicalZipFile = new PhysicalZipFile(childZipEntry.getSlice().open(),
-                        childZipEntry.uncompressedSize, childZipEntry.entryName, NestedJarHandler.this, log);
+                // disk if it's too large. Each byte inflated is taken from the allowance shared
+                // by every jarfile nested within the same toplevel zipfile, so that a small
+                // crafted jarfile cannot inflate to fill the heap or the disk. (The declared
+                // uncompressed size is only a hint, since the inflated stream is read to its end
+                // whatever its length: it decides whether to inflate to RAM or straight to disk,
+                // and the initial buffer size. The size cannot be negative, since an entry with
+                // a negative size is dropped while the central directory is read.)
+                final NestedJarInflationAllowance allowance = //
+                        childZipEntry.parentLogicalZipFile.physicalZipFile.nestedJarInflationAllowance;
+                final PhysicalZipFile physicalZipFile = new PhysicalZipFile(
+                        allowance.limit(childZipEntry.getSlice().open(), childZipEntry.getPath()),
+                        childZipEntry.uncompressedSize, childZipEntry.entryName, /* inflatedOutOf = */ allowance,
+                        NestedJarHandler.this, log);
 
                 // Create a new logical slice of the extracted inner zipfile
                 childZipEntrySlice = new ZipFileSlice(physicalZipFile, childZipEntry);
@@ -775,7 +781,7 @@ public class NestedJarHandler {
                     // Fetch the jar contents from the URL's InputStream. If it doesn't fit in RAM,
                     // spill over to disk.
                     final PhysicalZipFile physicalZipFile = new PhysicalZipFile(inputStream, contentLengthHint,
-                            jarURL, this, subLog);
+                            jarURL, /* inflatedOutOf = */ null, this, subLog);
                     if (subLog != null) {
                         subLog.addElapsedTime();
                         subLog.log("***** Note that it is time-consuming to scan jars at non-\"file:\" URLs, "
