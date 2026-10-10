@@ -72,12 +72,12 @@ public abstract sealed class TypeSignature extends HierarchicalTypeSignature
      *
      * <p>
      * A type variable is left unchanged if it cannot be resolved: if the context class is not a subclass or
-     * subinterface of the class declaring the type variable, if the supertype is used in raw form, if the type
-     * variable is shadowed by a type parameter of the method that declares this type, or if the type argument is a
-     * wildcard that has no expressible equivalent outside type argument position ({@code "?"} or
-     * {@code "? super X"} -- an upper-bounded wildcard {@code "? extends X"} is substituted as {@code X}). In type
-     * argument position, wildcards are substituted verbatim, so {@code List<T>} with
-     * {@code T := "? extends Number"} resolves to {@code List<? extends Number>}.
+     * subinterface of the class declaring the type variable, if the supertype, or any supertype between it and the
+     * context class, is used in raw form, if the type variable is shadowed by a type parameter of the method that
+     * declares this type, or if the type argument is a wildcard that has no expressible equivalent outside type
+     * argument position ({@code "?"} or {@code "? super X"} -- an upper-bounded wildcard {@code "? extends X"} is
+     * substituted as {@code X}). In type argument position, wildcards are substituted verbatim, so {@code List<T>}
+     * with {@code T := "? extends Number"} resolves to {@code List<? extends Number>}.
      *
      * <p>
      * Type variables are matched by the class that declares them together with their name, and bindings are
@@ -153,10 +153,17 @@ public abstract sealed class TypeSignature extends HierarchicalTypeSignature
         final var classSignature = classInfo.getTypeSignatureIfParseable();
         if (classSignature == null) {
             // The class has no generic signature, or one that does not parse, so it supplies no type arguments --
-            // but a class further up the hierarchy may still be generic, so keep walking
-            addSubstitutions(classInfo.superclassIncludingExternal(), substitutions, visited);
-            for (final ClassInfo interfaceInfo : classInfo.allSuperinterfacesIncludingExternal()) {
-                addSubstitutions(interfaceInfo, substitutions, visited);
+            // but a class further up the hierarchy may still be generic, so keep walking through each direct
+            // supertype that is not generic. A generic direct supertype is used in raw form, which erases every
+            // binding above it (JLS 4.8), so the walk stops there.
+            final var superclassInfo = classInfo.superclassIncludingExternal();
+            if (!isGeneric(superclassInfo)) {
+                addSubstitutions(superclassInfo, substitutions, visited);
+            }
+            for (final ClassInfo interfaceInfo : classInfo.allSuperinterfacesIncludingExternal().directOnly()) {
+                if (!isGeneric(interfaceInfo)) {
+                    addSubstitutions(interfaceInfo, substitutions, visited);
+                }
             }
             return;
         }
@@ -196,7 +203,27 @@ public abstract sealed class TypeSignature extends HierarchicalTypeSignature
             addTypeArgumentSubstitutions(supertypeSignature, classNameBuf.toString(), suffixTypeArguments.get(i),
                     substitutions);
         }
-        addSubstitutions(supertypeSignature.getClassInfo(), substitutions, visited);
+        final var supertypeClassInfo = supertypeSignature.getClassInfo();
+        final var lastLevelTypeArguments = suffixes.isEmpty() ? supertypeSignature.getTypeArguments()
+                : suffixTypeArguments.get(suffixes.size() - 1);
+        if (lastLevelTypeArguments.isEmpty() && isGeneric(supertypeClassInfo)) {
+            // The supertype is used in raw form, which erases every binding above it (JLS 4.8)
+            return;
+        }
+        addSubstitutions(supertypeClassInfo, substitutions, visited);
+    }
+
+    /**
+     * Check whether a class declares type parameters.
+     *
+     * @param classInfo
+     *            the class, or null.
+     * @return true if the class is non-null and has a parseable generic signature that declares at least one type
+     *         parameter.
+     */
+    private static boolean isGeneric(final @Nullable ClassInfo classInfo) {
+        final var classSignature = classInfo == null ? null : classInfo.getTypeSignatureIfParseable();
+        return classSignature != null && !classSignature.getTypeParameters().isEmpty();
     }
 
     /**
