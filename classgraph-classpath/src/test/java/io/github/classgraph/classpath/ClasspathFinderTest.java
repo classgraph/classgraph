@@ -946,6 +946,73 @@ public class ClasspathFinderTest {
     }
 
     /**
+     * The jarfiles in a lib dir of a jarfile are nested jarfiles, so they are left out once nested jarfiles are
+     * disabled, and only the jarfile that contains them is reported.
+     */
+    @Test
+    public void libDirJarsWithinAJarAreNotAddedWhenNestedJarsAreDisabled(@TempDir final Path tempDir)
+            throws IOException {
+        final var innerJar = writeJarWithEntry(tempDir.resolve("inner.jar"), "resource.txt");
+        final var outerJar = tempDir.resolve("outer.jar").toFile();
+        try (var outputStream = Files.newOutputStream(outerJar.toPath());
+                var zipOutputStream = new ZipOutputStream(outputStream)) {
+            zipOutputStream.putNextEntry(new ZipEntry("lib/inner.jar"));
+            zipOutputStream.write(Files.readAllBytes(innerJar.toPath()));
+            zipOutputStream.closeEntry();
+        }
+        final var classLoader = new URLClassLoader(new URL[] { outerJar.toURI().toURL() }, /* parent = */ null);
+        try (var classpath = new ClasspathFinder().enableClassLoaders(classLoader)
+                .registerClassLoaderHandler(libDirHandler("lib/")).find()) {
+            assertThat(classpath.getLocations()).containsExactly(location(outerJar),
+                    location(outerJar) + "!/lib/inner.jar");
+        }
+        try (var classpath = new ClasspathFinder().enableClassLoaders(classLoader)
+                .registerClassLoaderHandler(libDirHandler("lib/")).disableNestedJarScanning().find()) {
+            assertThat(classpath.getLocations()).containsExactly(location(outerJar));
+        }
+    }
+
+    /**
+     * Disabling multi-release versions makes the virtual filesystem that the result hands out report each version
+     * of a resource under the path it is stored under.
+     */
+    @Test
+    public void multiReleaseVersionsCanBeDisabled(@TempDir final Path tempDir) throws IOException {
+        final var jar = tempDir.resolve("multi-release.jar").toFile();
+        final var manifest = new Manifest();
+        manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
+        manifest.getMainAttributes().putValue("Multi-Release", "true");
+        try (var outputStream = Files.newOutputStream(jar.toPath());
+                var jarOutputStream = new JarOutputStream(outputStream, manifest)) {
+            jarOutputStream.putNextEntry(new ZipEntry("resource.txt"));
+            jarOutputStream.closeEntry();
+            jarOutputStream.putNextEntry(new ZipEntry("META-INF/versions/9/resource.txt"));
+            jarOutputStream.closeEntry();
+        }
+        try (var classpath = new ClasspathFinder().enableClasspathEntries((Object) jar).find()) {
+            assertThat(classpath.getVfs().open(location(jar)).getEntries()).extracting(VfsEntry::getPathFromRoot)
+                    .contains("resource.txt").doesNotContain("META-INF/versions/9/resource.txt");
+        }
+        try (var classpath = new ClasspathFinder().enableClasspathEntries((Object) jar)
+                .disableMultiReleaseVersions().find()) {
+            assertThat(classpath.getVfs().open(location(jar)).getEntries()).extracting(VfsEntry::getPathFromRoot)
+                    .contains("resource.txt", "META-INF/versions/9/resource.txt");
+        }
+    }
+
+    /**
+     * The limit on how much of a jarfile is held in RAM is passed to the virtual filesystem the result hands out.
+     */
+    @Test
+    public void theMaxBufferedJarRAMSizeIsPassedToTheVfs() {
+        try (var classpath = new ClasspathFinder().enableClasspath().setMaxBufferedJarRAMSize(12345).find()) {
+            assertThat(classpath.getVfs().getVfsSpec().getMaxBufferedJarRAMSize()).isEqualTo(12345);
+        }
+        assertThatThrownBy(() -> new ClasspathFinder().setMaxBufferedJarRAMSize(-1))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    /**
      * A {@link ClassLoaderHandler} for {@link URLClassLoader} that declares the given lib dirs, so that a test can
      * exercise a lib dir without needing a real classloader that has one.
      *
