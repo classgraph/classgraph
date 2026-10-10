@@ -72,6 +72,28 @@ abstract sealed class AcceptReject {
     }
 
     /**
+     * Create a copy of another set of accept and reject criteria, which can then be changed without changing the
+     * original. The compiled patterns are shared, since a {@link Pattern} is immutable.
+     *
+     * @param other
+     *            The criteria to copy.
+     */
+    protected AcceptReject(final AcceptReject other) {
+        this.separatorChar = other.separatorChar;
+        acceptGlobs.addAll(other.acceptGlobs);
+        acceptPatterns.addAll(other.acceptPatterns);
+        rejectGlobs.addAll(other.rejectGlobs);
+        rejectPatterns.addAll(other.rejectPatterns);
+    }
+
+    /**
+     * Copy these criteria.
+     *
+     * @return a copy of these criteria, of the same class, which can be changed without changing this object.
+     */
+    public abstract AcceptReject copy();
+
+    /**
      * Convert a glob to a regexp {@link Pattern}, where {@code '*'} matches zero or more characters within a single
      * package or path segment, i.e. does not span {@link #separatorChar}, {@code "**"} matches zero or more whole
      * segments, and {@code '?'} matches exactly one character other than {@link #separatorChar}. Any number of
@@ -312,6 +334,23 @@ abstract sealed class AcceptReject {
             super(separatorChar);
         }
 
+        /**
+         * Create a copy of another set of prefix accept and reject criteria.
+         *
+         * @param other
+         *            The criteria to copy.
+         */
+        protected AcceptRejectPrefix(final AcceptRejectPrefix other) {
+            super(other);
+            acceptPrefixes.addAll(other.acceptPrefixes);
+            rejectPrefixes.addAll(other.rejectPrefixes);
+        }
+
+        @Override
+        public AcceptRejectPrefix copy() {
+            return new AcceptRejectPrefix(this);
+        }
+
         @Override
         public void addToAccept(final String str) {
             if (containsWildcard(str)) {
@@ -428,6 +467,29 @@ abstract sealed class AcceptReject {
             this.accept = newLiteralSet();
             this.reject = newLiteralSet();
             this.acceptAncestors = newLiteralSet();
+        }
+
+        /**
+         * Create a copy of another set of whole-string accept and reject criteria.
+         *
+         * @param other
+         *            The criteria to copy.
+         */
+        protected AcceptRejectWholeString(final AcceptRejectWholeString other) {
+            super(other);
+            this.ignoreCase = other.ignoreCase;
+            this.accept = newLiteralSet();
+            this.accept.addAll(other.accept);
+            this.reject = newLiteralSet();
+            this.reject.addAll(other.reject);
+            this.acceptAncestors = newLiteralSet();
+            this.acceptAncestors.addAll(other.acceptAncestors);
+            this.acceptAncestorPatterns.addAll(other.acceptAncestorPatterns);
+        }
+
+        @Override
+        public AcceptRejectWholeString copy() {
+            return new AcceptRejectWholeString(this);
         }
 
         /**
@@ -549,6 +611,21 @@ abstract sealed class AcceptReject {
          */
         public AcceptRejectLeafname(final char separatorChar) {
             super(separatorChar, /* ignoreCase = */ true);
+        }
+
+        /**
+         * Create a copy of another set of leafname accept and reject criteria.
+         *
+         * @param other
+         *            The criteria to copy.
+         */
+        protected AcceptRejectLeafname(final AcceptRejectLeafname other) {
+            super(other);
+        }
+
+        @Override
+        public AcceptRejectLeafname copy() {
+            return new AcceptRejectLeafname(this);
         }
 
         @Override

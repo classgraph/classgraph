@@ -132,6 +132,33 @@ public class ClasspathSpec {
         // Intentionally empty
     }
 
+    /**
+     * Create a copy of another set of settings.
+     *
+     * @param other
+     *            The settings to copy.
+     */
+    private ClasspathSpec(final ClasspathSpec other) {
+        scanSystemModules = other.scanSystemModules;
+        scanNonSystemModules = other.scanNonSystemModules;
+        allowedURLSchemes.addAll(other.allowedURLSchemes);
+        classpathElementPathFilters.addAll(other.classpathElementPathFilters);
+        classpathElementURLFilters.addAll(other.classpathElementURLFilters);
+        ignoreParentClassLoaders = other.ignoreParentClassLoaders;
+        classLoaderHandlers.addAll(other.classLoaderHandlers);
+        ignoreParentModuleLayers = other.ignoreParentModuleLayers;
+    }
+
+    /**
+     * Copy these settings.
+     *
+     * @return a copy of these settings, which can be changed without changing this object. The filters and the
+     *         {@link ClassLoaderHandler} instances themselves are shared, not copied.
+     */
+    public ClasspathSpec copy() {
+        return new ClasspathSpec(this);
+    }
+
     // -----------------------------------------------------------------------------------------------------------
 
     /**

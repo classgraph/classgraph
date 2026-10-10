@@ -1613,7 +1613,10 @@ public final class ClassGraph {
         // on a worker thread could deadlock (#933) and to find the caller's classloaders and module layers
         final var callStackInfo = CallStackInfo.read();
         try {
-            return new Scanner(performScan, callStackInfo, scanSpec, scanSourceSpec, executorService,
+            // Scan with a copy of the ScanSpec, since the ScanResult keeps it and reads it after the scan: configuring
+            // this ClassGraph further for another scan must not change the answers of a ScanResult already returned.
+            // The ScanSourceSpec is not copied, since only the Scanner's constructor reads it.
+            return new Scanner(performScan, callStackInfo, scanSpec.copy(), scanSourceSpec, executorService,
                     numTasksWithoutDeadlockHazard(callStackInfo, numParallelTasks, topLevelLog), topLevelLog)
                     .call();
 

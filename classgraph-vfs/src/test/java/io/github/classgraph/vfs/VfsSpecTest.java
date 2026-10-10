@@ -74,6 +74,35 @@ public class VfsSpecTest {
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
+    /** A copy has every setting of the original, and changing either one does not change the other. */
+    @Test
+    public void aCopyIsIndependentOfTheOriginal() {
+        final var original = new VfsSpec().disableNestedJars().disableMultiReleaseVersions()
+                .setMaxBufferedJarRAMSize(1024).denyURLScheme("https");
+        final var copy = original.copy();
+        assertThat(copy).isNotSameAs(original).hasToString(original.toString());
+
+        copy.enableNestedJars().enableMultiReleaseVersions().setMaxBufferedJarRAMSize(2048).allowURLScheme("https")
+                .denyURLScheme("ftp");
+        assertThat(original.isNestedJarsEnabled()).isFalse();
+        assertThat(original.isMultiReleaseVersionsEnabled()).isFalse();
+        assertThat(original.getMaxBufferedJarRAMSize()).isEqualTo(1024);
+        assertThat(original.getDeniedURLSchemes()).containsExactly("https");
+
+        original.denyURLScheme("s3");
+        assertThat(copy.getDeniedURLSchemes()).containsExactly("ftp");
+    }
+
+    /** The settings that a {@link Vfs} holds cannot be changed, but a copy of them can. */
+    @Test
+    public void aCopyOfTheSettingsOfAVfsCanBeChanged() {
+        final var vfsCopy = new VfsSpec(new VfsSpec().disableNestedJars());
+        final var copy = vfsCopy.copy();
+        copy.enableNestedJars();
+        assertThat(copy.isNestedJarsEnabled()).isTrue();
+        assertThat(vfsCopy.isNestedJarsEnabled()).isFalse();
+    }
+
     /** The settings are described in the verbose log. */
     @Test
     public void theSettingsAreDescribed() {
@@ -113,8 +142,10 @@ public class VfsSpecTest {
     public void theSpecAVfsHoldsCannotBeChanged() {
         try (var vfs = new Vfs()) {
             final var copy = vfs.getVfsSpec();
-            final var mutators = Arrays.stream(VfsSpec.class.getMethods()).filter(
-                    method -> !Modifier.isStatic(method.getModifiers()) && method.getReturnType() == VfsSpec.class)
+            // copy() also returns a VfsSpec, but it changes nothing
+            final var mutators = Arrays.stream(VfsSpec.class.getMethods())
+                    .filter(method -> !Modifier.isStatic(method.getModifiers())
+                            && method.getReturnType() == VfsSpec.class && !method.getName().equals("copy"))
                     .toList();
             assertThat(mutators).extracting(Method::getName).contains("enableNestedJars", "disableNestedJars",
                     "enableMultiReleaseVersions", "disableMultiReleaseVersions", "denyURLScheme", "allowURLScheme",
