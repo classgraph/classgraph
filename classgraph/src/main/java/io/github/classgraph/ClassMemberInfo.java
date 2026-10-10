@@ -36,8 +36,13 @@ import org.jspecify.annotations.Nullable;
 /**
  * Holds metadata about class members of a class encountered during a scan. All values are taken directly out of the
  * classfile for the class.
+ *
+ * <p>
+ * Every class member is a {@link FieldInfo} or a {@link MethodInfo}. The class is sealed, so a pattern switch over
+ * a {@link ClassMemberInfo} that has a case for each of them needs no default case.
  */
-public abstract class ClassMemberInfo extends ScanResultObject implements HasName, HasAnnotations {
+public abstract sealed class ClassMemberInfo extends ScanResultObject implements HasName, HasAnnotations
+        permits FieldInfo, MethodInfo {
     /** The name of the class that declares this member. */
     String declaringClassName;
 

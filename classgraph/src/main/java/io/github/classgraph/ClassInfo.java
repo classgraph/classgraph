@@ -86,7 +86,8 @@ import org.jspecify.annotations.Nullable;
  * reading as though it extended {@link Object}. Call {@link #getSuperclass()}, {@link #getDirectSuperinterfaces()}
  * and {@link #getDirectAnnotations()} for the filtered view.
  */
-public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>, HasName, HasAnnotations {
+public sealed class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>, HasName, HasAnnotations
+        permits ArrayClassInfo {
     /** The name of the class. */
     String name;
 
