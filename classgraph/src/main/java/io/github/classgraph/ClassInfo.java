@@ -1534,12 +1534,20 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     }
 
     /**
-     * Checks if is the class is an {@link Enum}.
+     * Checks if this class is an {@link Enum} type, as {@link Class#isEnum()} does: the class must have the
+     * {@code ACC_ENUM} flag, and its direct superclass must be {@link Enum}. The anonymous class that holds the
+     * body of an enum constant (for example {@code Op$1} for the constant {@code PLUS { ... }} of an enum
+     * {@code Op}) also has the {@code ACC_ENUM} flag, but is a subclass of the enum, not an enum type, so this
+     * returns false for it.
      *
-     * @return true if this class is an {@link Enum}.
+     * @return true if this class is an {@link Enum} type.
      */
     public boolean isEnum() {
-        return (modifiers & 0x4000) != 0;
+        if ((modifiers & 0x4000) == 0) {
+            return false;
+        }
+        final var superclass = superclassIncludingExternal();
+        return superclass != null && "java.lang.Enum".equals(superclass.getName());
     }
 
     /**

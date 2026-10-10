@@ -247,8 +247,10 @@ public final class MethodInfo extends ClassMemberInfo implements Comparable<Meth
         if ("<init>".equals(name)) {
             final var declaringClassInfo = getClassInfo();
             if (declaringClassInfo != null) {
-                if (declaringClassInfo.isEnum()) {
-                    // enum constructors have two leading synthetic params: (String name, int ordinal)
+                if ((declaringClassInfo.getModifiers() & 0x4000) != 0) {
+                    // enum constructors have two leading synthetic params: (String name, int ordinal). Test the
+                    // ACC_ENUM flag rather than isEnum(), since the constructor of the anonymous class that holds
+                    // the body of an enum constant also takes these two params, but isEnum() is false for that class.
                     return 2;
                 } else if (declaringClassInfo.isNestedClass() && !declaringClassInfo.isStatic()) {
                     // The constructor of an inner class takes its enclosing instance as a leading parameter, typed

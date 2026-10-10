@@ -1,6 +1,7 @@
 package io.github.classgraph.features;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.junit.jupiter.api.Test;
 
@@ -32,6 +33,24 @@ public class EnumTest {
     /** An enum whose constants are not declared in alphabetical order. */
     private enum UnsortedEnum {
         ZEBRA, APPLE, MANGO
+    }
+
+    /** An enum whose constants have bodies, so that javac compiles each body to an anonymous subclass. */
+    private enum EnumWithConstantBodies {
+        PLUS {
+            @Override
+            int apply(final int a, final int b) {
+                return a + b;
+            }
+        },
+        MINUS {
+            @Override
+            int apply(final int a, final int b) {
+                return a - b;
+            }
+        };
+
+        abstract int apply(int a, int b);
     }
 
     /** Test regular enum */
@@ -83,6 +102,34 @@ public class EnumTest {
             // visible here because ignoreFieldVisibility() was called)
             assertThat(myEnum.getDeclaredFieldInfo().getNames()).containsExactly("$VALUES", "APPLE", "MANGO",
                     "ZEBRA");
+        }
+    }
+
+    /**
+     * The anonymous class that holds the body of an enum constant has the ACC_ENUM flag, but is not an enum type,
+     * as {@link Class#isEnum()} reports.
+     */
+    @Test
+    public void enumConstantBodyClassIsNotAnEnum() throws Exception {
+        final var enumName = EnumWithConstantBodies.class.getName();
+        final var bodyClass = EnumWithConstantBodies.PLUS.getClass();
+        assertThat(bodyClass.getName()).isEqualTo(enumName + "$1");
+        assertThat(bodyClass.isEnum()).isFalse();
+        try (var scanResult = new ClassGraph().enableClasspath()
+                .acceptClasses(enumName, enumName + "$1", enumName + "$2").enableClassInfo().enableFieldInfo()
+                .ignoreClassVisibility().scan()) {
+            assertThat(scanResult.getAllClasses().getNames()).containsExactlyInAnyOrder(enumName, enumName + "$1",
+                    enumName + "$2");
+            assertThat(scanResult.getAllEnums().getNames()).containsExactly(enumName);
+            assertThat(scanResult.getAllClasses().getEnums().getNames()).containsExactly(enumName);
+            final var enumInfo = scanResult.getClassInfo(enumName);
+            assertThat(enumInfo.isEnum()).isTrue();
+            assertThat(enumInfo.getEnumConstants().getNames()).containsExactly("PLUS", "MINUS");
+            final var bodyClassInfo = scanResult.getClassInfo(bodyClass.getName());
+            assertThat(bodyClassInfo.isEnum()).isFalse();
+            assertThatThrownBy(bodyClassInfo::getEnumConstants).isInstanceOf(IllegalStateException.class);
+            assertThat(bodyClassInfo.toString())
+                    .isEqualTo("final class " + bodyClass.getName() + " extends " + enumName);
         }
     }
 }
