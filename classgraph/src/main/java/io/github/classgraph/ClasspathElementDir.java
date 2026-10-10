@@ -55,12 +55,6 @@ final class ClasspathElementDir extends ClasspathElement {
     private final Vfs vfs;
 
     /**
-     * The root whose manifest describes this classpath element, or null until {@link #open} has been called (or if
-     * it could not be opened).
-     */
-    private @Nullable VfsRoot manifestRoot;
-
-    /**
      * A directory classpath element.
      *
      * @param workUnit
@@ -94,7 +88,7 @@ final class ClasspathElementDir extends ClasspathElement {
             // Schedule the child classpath elements in the order the classloader would look in them, since the
             // classpath order determines which of two copies of the same class masks the other
             final var root = vfs.open(classpathEltPath);
-            this.manifestRoot = openManifestRoot(root);
+            readModuleNameFromManifest(root, log);
             final var childScheduler = new ChildClasspathElementScheduler(workQueue, classpathEltPath);
 
             // A package root within the directory is a classpath element in its own right. It comes first, because
@@ -407,10 +401,28 @@ final class ClasspathElementDir extends ClasspathElement {
         return getDeclaredModuleName();
     }
 
-    @Override
-    @Nullable
-    VfsRoot getManifestRoot() {
-        return manifestRoot;
+    /**
+     * Read the automatic module name that the manifest describing this classpath element declares, if any. This is
+     * read for a directory as well as for a jarfile, so that a jarfile exploded into a directory declares the same
+     * module name that the jarfile it was exploded from declares. A manifest that cannot be read is logged, and the
+     * directory is still scanned.
+     *
+     * @param root
+     *            the directory, as a root of the virtual filesystem.
+     * @param log
+     *            the log, or null to skip logging.
+     */
+    private void readModuleNameFromManifest(final VfsRoot root, final @Nullable LogNode log) {
+        final var manifestRoot = openManifestRoot(root);
+        if (manifestRoot != null) {
+            try {
+                moduleNameFromManifestFile = manifestRoot.getModuleName();
+            } catch (final IOException e) {
+                if (log != null) {
+                    log(classpathElementIdx, "Could not read the manifest of " + classpathEltPath + " : " + e, log);
+                }
+            }
+        }
     }
 
     /**

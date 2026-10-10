@@ -273,6 +273,10 @@ final class ClasspathElementZip extends ClasspathElement {
             // declares a different layout is skipped rather than scanned as if it held nothing
             checkSpringBootLayout(root, "Spring-Boot-Classes", "classes", "BOOT-INF/classes", "WEB-INF/classes");
             checkSpringBootLayout(root, "Spring-Boot-Lib", "lib jars", "BOOT-INF/lib", "WEB-INF/lib");
+
+            // Read the explicitly declared automatic module name, if present. An ArchiveRoot opened at a package
+            // root reports the manifest of the whole jarfile, which is the manifest that declares the name
+            moduleNameFromManifestFile = root.getModuleName();
         } catch (final IOException | IllegalArgumentException e) {
             if (log != null) {
                 log.log("Could not open jarfile " + rawPath + " : " + e);
@@ -568,13 +572,6 @@ final class ClasspathElementZip extends ClasspathElement {
             derivedAutomaticModuleName = AutomaticModuleName.derive(zipFilePath);
         }
         return derivedAutomaticModuleName.isEmpty() ? null : derivedAutomaticModuleName;
-    }
-
-    @Override
-    @Nullable
-    VfsRoot getManifestRoot() {
-        // An ArchiveRoot opened at a package root already reports the manifest of the whole jarfile
-        return vfsRoot;
     }
 
     /**

@@ -50,7 +50,6 @@ import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.path.FileUtils;
 import io.github.classgraph.base.internal.path.PathSyntax;
 import io.github.classgraph.vfs.Vfs;
-import io.github.classgraph.vfs.VfsRoot;
 import io.github.classgraph.vfs.VfsSpec;
 import org.jspecify.annotations.Nullable;
 
@@ -182,7 +181,10 @@ abstract sealed class ClasspathElement implements Comparable<ClasspathElement>
 
     /**
      * The name of the module from the {@code Automatic-Module-Name} manifest attribute, if one is present in the
-     * root of the classpath element.
+     * manifest that describes the classpath element. Set by {@link #open}. For a classpath element opened at a
+     * package root, the manifest is the one at the root of the jarfile or directory that the package root lies
+     * within -- a Spring Boot jar's {@code Automatic-Module-Name} is declared in the manifest of the jarfile, not
+     * in anything under {@code "BOOT-INF/classes/"}.
      */
     @Nullable
     String moduleNameFromManifestFile;
@@ -838,21 +840,6 @@ abstract sealed class ClasspathElement implements Comparable<ClasspathElement>
      * @return the module name
      */
     abstract @Nullable String getModuleName();
-
-    /**
-     * Get the root of the virtual filesystem whose manifest describes this classpath element. For a classpath
-     * element opened at a package root, this is the container that the package root lies within, since it is the
-     * manifest at the root of a jarfile that describes the jarfile as a whole -- a Spring Boot jar's
-     * {@code Automatic-Module-Name} is declared in the manifest of the jarfile, not in anything under
-     * {@code "BOOT-INF/classes/"}.
-     *
-     * @return the root, or null if this classpath element is not read through the virtual filesystem, or has not
-     *         been opened, or could not be opened.
-     */
-    @Nullable
-    VfsRoot getManifestRoot() {
-        return null;
-    }
 
     /**
      * Get the module name that this classpath element declares, either by its {@code module-info.class} module
