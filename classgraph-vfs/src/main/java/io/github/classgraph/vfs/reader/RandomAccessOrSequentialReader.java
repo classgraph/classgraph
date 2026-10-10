@@ -38,6 +38,7 @@ import java.util.Arrays;
 
 import io.github.classgraph.base.internal.utils.StringUtils;
 import io.github.classgraph.vfs.VfsEntry;
+import io.github.classgraph.vfs.internal.InputStreamUtils;
 import io.github.classgraph.vfs.internal.slice.Slice;
 import org.jspecify.annotations.Nullable;
 
@@ -487,23 +488,12 @@ public final class RandomAccessOrSequentialReader implements RandomAccessReader,
                 // Nothing has been read yet, so there is nothing that growing could copy, and no reason to probe
                 grow(targetArrUsed);
             }
-            final var numRead = inputStream.read(arr, arrUsed, arr.length - arrUsed);
+            // The buffer has room, so the read returns at least one byte, or -1 at the end of the stream, even from a
+            // stream that returns zero from a read (see readAtLeastOne)
+            final var numRead = InputStreamUtils.readAtLeastOne(inputStream, arr, arrUsed, arr.length - arrUsed);
             if (numRead < 0) {
                 eof = true;
                 break;
-            }
-            if (numRead == 0) {
-                // The stream transferred nothing into a buffer that has room, which InputStream#read should never
-                // do, but some streams do, at their end or before it. Taking zero for the end would truncate the
-                // content, and reading again could loop forever, so ask for a single byte, which InputStream#read()
-                // can only answer with a byte or the end of the stream, as Slice#fromInputStream does
-                final var nextByte = inputStream.read();
-                if (nextByte < 0) {
-                    eof = true;
-                    break;
-                }
-                arr[arrUsed++] = (byte) nextByte;
-                continue;
             }
             arrUsed += numRead;
         }
