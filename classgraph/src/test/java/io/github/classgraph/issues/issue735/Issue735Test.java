@@ -118,6 +118,52 @@ public class Issue735Test {
     abstract static class BoundRaw implements Generic {
     }
 
+    /**
+     * Extends PassesThrough in raw form, so has no generic signature, and supplies no type argument for Generic's
+     * T, even though PassesThrough itself does.
+     */
+    @SuppressWarnings("rawtypes")
+    abstract static class RawThroughPassesThrough extends PassesThrough {
+    }
+
+    /** Like {@link RawThroughPassesThrough}, but has a generic signature of its own. */
+    @SuppressWarnings("rawtypes")
+    abstract static class GenericRawThroughPassesThrough<X> extends PassesThrough {
+        X field;
+    }
+
+    /** A generic class that binds Generic's T to String, regardless of its own type parameter. */
+    abstract static class GenericBoundToString<U> implements Generic<String> {
+        U field;
+    }
+
+    /** Extends GenericBoundToString in raw form, so the binding of Generic's T to String is erased. */
+    @SuppressWarnings("rawtypes")
+    abstract static class RawThroughGenericBoundToString extends GenericBoundToString {
+    }
+
+    /** A non-generic interface that binds Generic's T to String. */
+    interface InterfaceBoundToString extends Generic<String> {
+    }
+
+    /** A generic class that implements a non-generic interface binding Generic's T to String. */
+    abstract static class GenericImplementingInterfaceBoundToString<U> implements InterfaceBoundToString {
+        U field;
+    }
+
+    /**
+     * Extends GenericImplementingInterfaceBoundToString in raw form, so the binding of Generic's T to String is
+     * erased, even though it is made by a non-generic interface.
+     */
+    @SuppressWarnings("rawtypes")
+    abstract static class RawThroughGenericImplementingInterfaceBoundToString
+            extends GenericImplementingInterfaceBoundToString {
+    }
+
+    /** Extends a non-generic class, so has no generic signature, but inherits that class' binding. */
+    abstract static class NonGenericSubclassOfBoundToString extends BoundToString {
+    }
+
     /** Binds GenericField's T to Long. */
     abstract static class FieldBoundToLong extends GenericField<Long> {
     }
@@ -408,6 +454,31 @@ public class Issue735Test {
     @Test
     void rawSupertypeLeavesTypeVariableUnresolved() {
         assertThat(resolvedResultType("getT", BoundRaw.class)).isEqualTo("T");
+    }
+
+    /**
+     * A generic supertype used in raw form erases every binding above it (JLS 4.8), so a type variable bound above
+     * it is left unresolved, rather than resolved to the raw supertype's own type variable or to a binding that the
+     * compiler erases.
+     */
+    @Test
+    void rawSupertypeAboveTheContextClassLeavesTypeVariableUnresolved() {
+        assertThat(List.of(resolvedResultType("getT", RawThroughPassesThrough.class),
+                resolvedResultType("getT", GenericRawThroughPassesThrough.class),
+                resolvedResultType("getT", RawThroughGenericBoundToString.class),
+                resolvedResultType("getT", RawThroughGenericImplementingInterfaceBoundToString.class)))
+                .containsExactly("T", "T", "T", "T");
+        // Resolved against the generic classes themselves, their bindings still apply
+        assertThat(resolvedResultType("getT", GenericBoundToString.class)).isEqualTo("java.lang.String");
+        assertThat(resolvedResultType("getT", GenericImplementingInterfaceBoundToString.class))
+                .isEqualTo("java.lang.String");
+    }
+
+    /** A non-generic superclass is not a raw type, so the walk continues through it. */
+    @Test
+    void nonGenericSuperclassPassesBindingsThrough() {
+        assertThat(resolvedResultType("getT", NonGenericSubclassOfBoundToString.class))
+                .isEqualTo("java.lang.String");
     }
 
     /**
