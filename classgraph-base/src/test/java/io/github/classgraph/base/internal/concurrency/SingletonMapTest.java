@@ -111,6 +111,68 @@ public class SingletonMapTest {
     }
 
     /**
+     * A remembered failure keeps its cause: a later call for the same key does not call the factory again, and
+     * throws a {@link NewInstanceException} whose cause is the exception the factory threw the first time.
+     */
+    @Test
+    public void aRememberedFailureKeepsItsCause() {
+        final var cause = new IllegalArgumentException("could not open");
+        final var map = new TestMap(key -> {
+            throw cause;
+        });
+        assertThatThrownBy(() -> map.get("theKey")).isInstanceOf(NewInstanceException.class).hasCause(cause);
+        assertThatThrownBy(() -> map.get("theKey")).isInstanceOf(NewInstanceException.class).cause()
+                .isSameAs(cause);
+        assertThat(map.numNewInstanceCalls).hasValue(1);
+    }
+
+    /**
+     * A thread waiting for a value whose creation failed in another thread is told why it failed: it gets a
+     * {@link NewInstanceException} whose cause is the exception the factory threw.
+     */
+    @Test
+    public void aWaiterOnAFailedCreationSeesItsCause() throws Exception {
+        final var cause = new IllegalArgumentException("could not open");
+        final var creatorInNewInstance = new CountDownLatch(1);
+        final var letCreatorFail = new CountDownLatch(1);
+        final var map = new TestMap(key -> {
+            // Hold the creation open until the waiter is waiting on it, then fail it
+            creatorInNewInstance.countDown();
+            letCreatorFail.await();
+            throw cause;
+        });
+
+        final var creator = new Thread(() -> {
+            try {
+                map.get("theKey");
+            } catch (final Exception expected) {
+                // The creator is expected to fail with NewInstanceException
+            }
+        });
+        creator.start();
+        assertThat(creatorInNewInstance.await(5, TimeUnit.SECONDS)).isTrue();
+
+        final AtomicReference<Object> waiterResult = new AtomicReference<>();
+        final var waiter = new Thread(() -> {
+            try {
+                waiterResult.set(map.get("theKey"));
+            } catch (final Exception e) {
+                waiterResult.set(e);
+            }
+        });
+        waiter.start();
+        // Give the waiter time to block on the creator's unfinished value, then fail the creation
+        Thread.sleep(100);
+        letCreatorFail.countDown();
+
+        creator.join(5000);
+        waiter.join(5000);
+        assertThat(waiterResult.get()).isInstanceOf(NewInstanceException.class);
+        assertThat(((Throwable) waiterResult.get()).getCause()).isSameAs(cause);
+        assertThat(map.numNewInstanceCalls).hasValue(1);
+    }
+
+    /**
      * An {@link InterruptedException} thrown by the factory is propagated as itself rather than wrapped in a
      * {@link NewInstanceException}, and the interrupt status is restored, so that a cancelled scan is still seen as
      * cancelled rather than as a failed instantiation.
@@ -274,22 +336,69 @@ public class SingletonMapTest {
     }
 
     /**
-     * {@code discard()} takes the singleton for a key out of the map without waiting, so that a later lookup
-     * rebuilds it. This is how a closed object leaves the cache that holds it, so that the cache does not keep
-     * handing out an instance that can no longer be used.
+     * {@code discardFailed()} leaves alone a creation that another thread is still running, so a caller forgetting
+     * an earlier failure late does not make the same value be built twice.
      */
     @Test
-    public void discardAllowsTheValueToBeRebuilt() throws Exception {
-        final var map = new TestMap(key -> new StringBuilder(key).toString());
-        final var first = map.get("a");
+    public void discardFailedLeavesACreationInProgressAlone() throws Exception {
+        final var creatorInNewInstance = new CountDownLatch(1);
+        final var letCreatorFinish = new CountDownLatch(1);
+        final var map = new TestMap(key -> {
+            if (creatorInNewInstance.getCount() > 0) {
+                creatorInNewInstance.countDown();
+                letCreatorFinish.await();
+            }
+            return new StringBuilder(key).toString();
+        });
 
-        map.map.discard("a");
-        final var second = map.get("a");
-        assertThat(second).isEqualTo(first).isNotSameAs(first);
+        final AtomicReference<Object> creatorResult = new AtomicReference<>();
+        final var creator = new Thread(() -> {
+            try {
+                creatorResult.set(map.get("theKey"));
+            } catch (final Exception e) {
+                creatorResult.set(e);
+            }
+        });
+        creator.start();
+        assertThat(creatorInNewInstance.await(5, TimeUnit.SECONDS)).isTrue();
+
+        map.map.discardFailed("theKey");
+        letCreatorFinish.countDown();
+        creator.join(5000);
+
+        assertThat(map.get("theKey")).isSameAs(creatorResult.get());
+        assertThat(map.numNewInstanceCalls).hasValue(1);
+    }
+
+    /**
+     * {@code discardFailed()} forgets a failure, so that a later lookup tries the creation again, but leaves a
+     * value that was created alone.
+     */
+    @Test
+    public void discardFailedLetsAFailedKeyBeRetried() throws Exception {
+        final var map = new TestMap(key -> {
+            if ("bad".equals(key)) {
+                throw new IllegalArgumentException("could not open");
+            }
+            return new StringBuilder(key).toString();
+        });
+        assertThatThrownBy(() -> map.get("bad")).isInstanceOf(NewInstanceException.class);
+        map.map.discardFailed("bad");
+        assertThatThrownBy(() -> map.get("bad")).isInstanceOf(NewInstanceException.class);
         assertThat(map.numNewInstanceCalls).hasValue(2);
 
-        // Discarding a key that is not in the map is allowed, so a close path can call it unconditionally
-        map.map.discard("notInTheMap");
+        // A factory that returned null is a failure too
+        assertThatThrownBy(() -> map.map.get("null", () -> null)).isInstanceOf(NullSingletonException.class);
+        map.map.discardFailed("null");
+        assertThat(map.map.get("null", () -> "value")).isEqualTo("value");
+
+        final var first = map.get("a");
+        map.map.discardFailed("a");
+        assertThat(map.get("a")).isSameAs(first);
+        assertThat(map.numNewInstanceCalls).hasValue(3);
+
+        // Discarding a key that is not in the map is allowed
+        map.map.discardFailed("notInTheMap");
     }
 
     /** {@code completedValues()} reports the values that were created, skipping a key whose creation failed. */

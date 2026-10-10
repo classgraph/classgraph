@@ -315,7 +315,7 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
                 // path away with the first failure, so a path that failed once could never be opened again through
                 // this Vfs -- not after whatever stopped it has been put right, and not by another route that
                 // reaches the same thing without the step that failed
-                rootsByPath.discard(key);
+                rootsByPath.discardFailed(key);
                 // Chain the cause, as well as naming it in the message -- otherwise the reason the path could not
                 // be opened is not reachable from the stack trace
                 final var cause = e.getCause() == null ? e : e.getCause();
