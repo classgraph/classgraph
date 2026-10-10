@@ -30,6 +30,7 @@ package io.github.classgraph.classpath.internal.classloaderhandler;
 
 import io.github.classgraph.base.ClassGraphLog;
 import io.github.classgraph.base.internal.reflection.ReflectionUtils;
+import io.github.classgraph.classpath.ClassLoaderHandler;
 import io.github.classgraph.classpath.ClassLoaderOrder;
 import io.github.classgraph.classpath.ClasspathOrder;
 import org.jspecify.annotations.Nullable;
@@ -37,7 +38,7 @@ import org.jspecify.annotations.Nullable;
 /**
  * Extract classpath entries from the Eclipse Equinox ContextFinder ClassLoader.
  */
-class EquinoxContextFinderClassLoaderHandler implements OSGiClassLoaderHandler {
+class EquinoxContextFinderClassLoaderHandler implements ClassLoaderHandler {
     /** Constructor. */
     EquinoxContextFinderClassLoaderHandler() {
     }

@@ -32,6 +32,7 @@ import java.lang.reflect.Array;
 
 import io.github.classgraph.base.ClassGraphLog;
 import io.github.classgraph.base.internal.reflection.ReflectionUtils;
+import io.github.classgraph.classpath.ClassLoaderHandler;
 import io.github.classgraph.classpath.ClassLoaderOrder;
 import io.github.classgraph.classpath.ClasspathOrder;
 import org.jspecify.annotations.Nullable;
@@ -39,7 +40,7 @@ import org.jspecify.annotations.Nullable;
 /**
  * Extract classpath entries from the Eclipse Equinox ClassLoader.
  */
-class EquinoxClassLoaderHandler implements OSGiClassLoaderHandler {
+class EquinoxClassLoaderHandler implements ClassLoaderHandler {
     /** Constructor. */
     EquinoxClassLoaderHandler() {
     }
@@ -69,7 +70,7 @@ class EquinoxClassLoaderHandler implements OSGiClassLoaderHandler {
         if (manager == null) {
             manager = ReflectionUtils.getFieldVal(false, classLoader, "manager");
         }
-        OSGiClassLoaderHandler.addClasspathManagerEntries(manager, classLoader, classpathOrder, log);
+        EquinoxClasspathManagerReader.addClasspathManagerEntries(manager, classLoader, classpathOrder, log);
 
         // Only read system bundles once per scan (all bundles should give the same results for this).
         if (classpathOrder.claimOncePerScan("system-bundles")) {

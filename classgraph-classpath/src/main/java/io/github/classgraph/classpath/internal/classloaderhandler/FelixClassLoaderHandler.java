@@ -35,6 +35,7 @@ import java.util.Set;
 
 import io.github.classgraph.base.ClassGraphLog;
 import io.github.classgraph.base.internal.reflection.ReflectionUtils;
+import io.github.classgraph.classpath.ClassLoaderHandler;
 import io.github.classgraph.classpath.ClassLoaderOrder;
 import io.github.classgraph.classpath.ClasspathOrder;
 import org.jspecify.annotations.Nullable;
@@ -45,7 +46,7 @@ import org.jspecify.annotations.Nullable;
  *
  * @author elrufaie
  */
-class FelixClassLoaderHandler implements OSGiClassLoaderHandler {
+class FelixClassLoaderHandler implements ClassLoaderHandler {
     /** Constructor. */
     FelixClassLoaderHandler() {
     }
