@@ -304,8 +304,7 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      * @throws InterruptedException
      *             if the thread was interrupted.
      */
-    private VfsRoot openThroughCache(final String key,
-            final SingletonMap.NewInstanceFactory<VfsRoot, IOException> factory)
+    private VfsRoot openThroughCache(final String key, final SingletonMap.NewInstanceFactory<VfsRoot> factory)
             throws IOException, InterruptedException {
         for (;;) {
             final VfsRoot root;

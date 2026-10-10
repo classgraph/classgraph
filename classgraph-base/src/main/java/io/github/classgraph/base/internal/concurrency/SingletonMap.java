@@ -137,22 +137,22 @@ public class SingletonMap<K, V> {
      *
      * @param <V>
      *            The value type.
-     * @param <E>
-     *            The exception type that may be thrown while creating the value.
      */
     @FunctionalInterface
-    public interface NewInstanceFactory<V, E extends Exception> {
+    public interface NewInstanceFactory<V> {
         /**
          * Create the value.
          *
          * @return The value, which should not be null.
-         * @throws E
-         *             if the value could not be created.
          * @throws InterruptedException
-         *             if the thread was interrupted while creating the value.
+         *             if the thread was interrupted while creating the value. {@link SingletonMap#get} rethrows
+         *             this as itself.
+         * @throws Exception
+         *             if the value could not be created. {@link SingletonMap#get} wraps this in a
+         *             {@link NewInstanceException}.
          */
         @Nullable
-        V newInstance() throws E, InterruptedException;
+        V newInstance() throws Exception;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -243,7 +243,7 @@ public class SingletonMap<K, V> {
      * @throws NewInstanceException
      *             if the factory threw an exception on this call.
      */
-    public V get(final K key, final NewInstanceFactory<V, ?> newInstanceFactory)
+    public V get(final K key, final NewInstanceFactory<V> newInstanceFactory)
             throws IOException, InterruptedException, NullSingletonException, NewInstanceException {
         while (true) {
             checkNotClosed();
