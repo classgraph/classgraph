@@ -180,6 +180,9 @@ class Classfile {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    // The constant pool is only read while the classfile is parsed, so these fields are reset to 0 and
+    // NO_CONSTANT_POOL_ENTRIES once the classfile has been read.
+
     /** The number of constant pool entries plus one. */
     private int cpCount;
 
@@ -194,6 +197,9 @@ class Classfile {
      * entry holding its string (for a NameAndType entry, its name), or -1 for any other entry.
      */
     private int[] indirectStringRefs;
+
+    /** An empty array, assigned to the constant pool arrays once the classfile has been read. */
+    private static final int[] NO_CONSTANT_POOL_ENTRIES = {};
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -2381,7 +2387,15 @@ class Classfile {
             // Read class attributes
             readClassAttributes();
 
+            // Release the reader and the constant pool, since nothing reads them after this point. A parsed
+            // classfile waits in a queue until every classfile of the scan has been parsed, and only then is
+            // linked, so keeping them would hold the constant pool of every class in the scan at the same time.
+            // With cpCount set to 0, any later constant pool access fails the range check.
             reader = null;
+            cpCount = 0;
+            entryOffset = NO_CONSTANT_POOL_ENTRIES;
+            entryTag = NO_CONSTANT_POOL_ENTRIES;
+            indirectStringRefs = NO_CONSTANT_POOL_ENTRIES;
         }
 
         // Write class info to log
