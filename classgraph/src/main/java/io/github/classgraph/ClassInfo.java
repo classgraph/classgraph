@@ -767,7 +767,8 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     }
 
     /**
-     * Add field info.
+     * Add field info. Called once per class, from {@code Classfile#linkClassInfo}, after {@link #addScannedClass},
+     * which rejects a second classfile for the same class.
      *
      * @param fieldInfoList
      *            the field info list
@@ -780,38 +781,28 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
             addFieldOrMethodAnnotationInfo(fi.annotationInfo, /* isField = */ true, fi.getModifiers(),
                     classNameToClassInfo);
         }
-        if (this.enumConstants == null) {
-            // The enum constants of an enum are written into the classfile in declaration order, which is their
-            // ordinal order, so record them before the fields are sorted by name, since sorting loses that order
-            List<FieldInfo> enumConstantList = null;
-            for (final FieldInfo fi : fieldInfoList) {
-                if (fi.isEnum()) {
-                    if (enumConstantList == null) {
-                        enumConstantList = new ArrayList<>();
-                    }
-                    enumConstantList.add(fi);
+        // The enum constants of an enum are written into the classfile in declaration order, which is their ordinal
+        // order, so record them before the fields are sorted by name, since sorting loses that order
+        List<FieldInfo> enumConstantList = null;
+        for (final FieldInfo fi : fieldInfoList) {
+            if (fi.isEnum()) {
+                if (enumConstantList == null) {
+                    enumConstantList = new ArrayList<>();
                 }
-            }
-            if (enumConstantList != null) {
-                this.enumConstants = new FieldInfoList(enumConstantList);
+                enumConstantList.add(fi);
             }
         }
-        // The order of the fields in a classfile is not specified, so sort them by name. If this class has already
-        // been given a list of fields (which happens only if the class was read from more than one classfile), the
-        // two lists have to be merged, since a FieldInfoList cannot be added to.
-        final List<FieldInfo> allFieldInfo;
-        if (this.fieldInfo == null) {
-            allFieldInfo = fieldInfoList;
-        } else {
-            allFieldInfo = new ArrayList<>(this.fieldInfo);
-            allFieldInfo.addAll(fieldInfoList);
+        if (enumConstantList != null) {
+            this.enumConstants = new FieldInfoList(enumConstantList);
         }
-        CollectionUtils.sortIfNotEmpty(allFieldInfo);
-        this.fieldInfo = new FieldInfoList(allFieldInfo);
+        // The order of the fields in a classfile is not specified, so sort them by name
+        CollectionUtils.sortIfNotEmpty(fieldInfoList);
+        this.fieldInfo = new FieldInfoList(fieldInfoList);
     }
 
     /**
-     * Add method info.
+     * Add method info. Called once per class, from {@code Classfile#linkClassInfo}, after {@link #addScannedClass},
+     * which rejects a second classfile for the same class.
      *
      * @param methodInfoList
      *            the method info list
@@ -845,18 +836,9 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
                 }
             }
         }
-        // The order of the methods in a classfile is not specified, so sort them by name. If this class has already
-        // been given a list of methods (which happens only if the class was read from more than one classfile), the
-        // two lists have to be merged, since a MethodInfoList cannot be added to.
-        final List<MethodInfo> allMethodInfo;
-        if (this.methodInfo == null) {
-            allMethodInfo = methodInfoList;
-        } else {
-            allMethodInfo = new ArrayList<>(this.methodInfo);
-            allMethodInfo.addAll(methodInfoList);
-        }
-        CollectionUtils.sortIfNotEmpty(allMethodInfo);
-        this.methodInfo = new MethodInfoList(allMethodInfo);
+        // The order of the methods in a classfile is not specified, so sort them by name
+        CollectionUtils.sortIfNotEmpty(methodInfoList);
+        this.methodInfo = new MethodInfoList(methodInfoList);
     }
 
     /**
@@ -870,8 +852,9 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     }
 
     /**
-     * Add annotation default values. (Only called in the case of annotation class definitions, when the annotation
-     * has default parameter values.)
+     * Add annotation default values. Called only for an annotation class that has default parameter values, and
+     * then once, from {@code Classfile#linkClassInfo}, after {@link #addScannedClass}, which rejects a second
+     * classfile for the same class.
      *
      * @param paramNamesAndValues
      *            the default param names and values, if this is an annotation
@@ -879,15 +862,8 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     void addAnnotationParamDefaultValues(final List<AnnotationParameterValue> paramNamesAndValues) {
         setIsAnnotation(true);
         // The order of the annotation elements in a classfile is not specified, so sort them by name
-        final List<AnnotationParameterValue> allParamNamesAndValues;
-        if (this.annotationDefaultParamValues == null) {
-            allParamNamesAndValues = paramNamesAndValues;
-        } else {
-            allParamNamesAndValues = new ArrayList<>(this.annotationDefaultParamValues);
-            allParamNamesAndValues.addAll(paramNamesAndValues);
-        }
-        CollectionUtils.sortIfNotEmpty(allParamNamesAndValues);
-        this.annotationDefaultParamValues = new AnnotationParameterValueList(allParamNamesAndValues);
+        CollectionUtils.sortIfNotEmpty(paramNamesAndValues);
+        this.annotationDefaultParamValues = new AnnotationParameterValueList(paramNamesAndValues);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -4039,17 +4015,14 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Add names of classes referenced by this class.
+     * Add names of classes referenced by this class. Called once per class, from {@code Classfile#linkClassInfo},
+     * after {@link #addScannedClass}, which rejects a second classfile for the same class.
      *
      * @param refdClassNames
      *            the referenced class names
      */
     void addReferencedClassNames(final Set<String> refdClassNames) {
-        if (this.referencedClassNames == null) {
-            this.referencedClassNames = refdClassNames;
-        } else {
-            this.referencedClassNames.addAll(refdClassNames);
-        }
+        this.referencedClassNames = refdClassNames;
     }
 
     /**
