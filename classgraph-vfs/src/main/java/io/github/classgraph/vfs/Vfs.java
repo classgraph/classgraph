@@ -197,6 +197,8 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      * @hidden
      */
     public Vfs(final VfsSpec vfsSpec, final InterruptionChecker interruptionChecker) {
+        Assert.notNull(vfsSpec, "vfsSpec");
+        Assert.notNull(interruptionChecker, "interruptionChecker");
         this.vfsSpec = new VfsSpec(vfsSpec);
         this.interruptionChecker = interruptionChecker;
     }
@@ -900,6 +902,7 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      *            the root to remove from the cache.
      */
     public void evict(final VfsRoot root) {
+        Assert.notNull(root, "root");
         if (!closed.get()) {
             // A root can be cached under more than one key, e.g. under both the path it was opened from and the
             // canonical path of the file that turned out to back it
