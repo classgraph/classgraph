@@ -350,10 +350,20 @@ final class ClasspathElementZip extends ClasspathElement {
      * @return true if this jarfile should be scanned
      */
     private boolean isAcceptedAndNotRejected() {
-        for (final String nestedJarPathComponent : zipFilePath.split("!/")) {
-            if (!nestedJarPathComponent.isEmpty()
-                    && !scanSpec.jarAcceptReject.isAcceptedAndNotRejected(nestedJarPathComponent)) {
-                return false;
+        // Find the separators the way the virtual filesystem found them when it opened the path. A "!/" before the
+        // outermost jarfile belongs to a directory name, as in "/work/build!/lib.jar", so the outermost separator
+        // is found by testing the filesystem. Within the outermost jarfile, the virtual filesystem joins each
+        // nested jarfile's path to its parent's with "!/", so there every "!/" is a separator (#903).
+        final var outermostSepIdx = PathSyntax.indexOfNestedJarSeparator(zipFilePath);
+        if (!scanSpec.jarAcceptReject.isAcceptedAndNotRejected(
+                outermostSepIdx < 0 ? zipFilePath : zipFilePath.substring(0, outermostSepIdx))) {
+            return false;
+        }
+        if (outermostSepIdx >= 0) {
+            for (final String nestedJarPath : zipFilePath.substring(outermostSepIdx + 1).split("!/")) {
+                if (!nestedJarPath.isEmpty() && !scanSpec.jarAcceptReject.isAcceptedAndNotRejected(nestedJarPath)) {
+                    return false;
+                }
             }
         }
         return true;

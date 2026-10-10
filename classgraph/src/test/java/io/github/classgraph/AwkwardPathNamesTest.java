@@ -6,10 +6,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
 import java.util.stream.Stream;
 
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -134,6 +136,84 @@ public class AwkwardPathNamesTest {
             // The jarfile's part of the URL, given back to ClassGraph, names the same jarfile
             final var uriStr = resource.getURI().toString();
             assertThatScanFindsTheClass(uriStr.substring(0, uriStr.lastIndexOf("!/") + 2));
+        }
+    }
+
+    /**
+     * A jarfile, and a jarfile nested within one, below a directory whose name ends in '!'. The jar accept and
+     * reject criteria are matched against the name of each jarfile in the path, and those names were found by
+     * splitting the path at every {@code "!/"}, so the directory name was taken for the name of an enclosing
+     * jarfile: accepting the jarfile by its own name skipped it, and rejecting the directory's name rejected it.
+     *
+     * @param tempDir
+     *            a temporary directory to build in.
+     * @throws IOException
+     *             if the jarfiles could not be built.
+     */
+    @Test
+    public void jarBelowADirectoryEndingInBangIsMatchedByItsOwnName(@TempDir final Path tempDir)
+            throws IOException {
+        final var jar = makeJar(tempDir, "ends-with-bang!");
+        for (final String classpathElement : List.of(jar.toString(), jar.toUri().toString())) {
+            assertThatScanFindsTheClass(classpathElement, "probe.jar", null);
+            assertThatScanFindsTheClass(classpathElement, null, "ends-with-bang");
+            assertThat(scanWithJarFilter(classpathElement, null, "probe.jar")).isEmpty();
+        }
+
+        // The same, for a jarfile nested within a jarfile below the directory
+        final var outerJar = jar.resolveSibling("outer.jar");
+        try (var jarOut = new JarOutputStream(Files.newOutputStream(outerJar))) {
+            jarOut.putNextEntry(new JarEntry("lib/inner.jar"));
+            jarOut.write(Files.readAllBytes(jar));
+            jarOut.closeEntry();
+        }
+        final var nestedJar = outerJar + "!/lib/inner.jar";
+        assertThatScanFindsTheClass(nestedJar, "outer.jar,inner.jar", null);
+        assertThatScanFindsTheClass(nestedJar, null, "ends-with-bang");
+        assertThat(scanWithJarFilter(nestedJar, "outer.jar", null)).isEmpty();
+        assertThat(scanWithJarFilter(nestedJar, null, "inner.jar")).isEmpty();
+    }
+
+    /**
+     * Scan the given classpath element with the given jar accept and reject criteria, and assert that the probe
+     * class was found in it.
+     *
+     * @param classpathElement
+     *            the classpath element to scan.
+     * @param acceptJars
+     *            the comma-separated names of the jarfiles to accept, or null to accept all jarfiles.
+     * @param rejectJars
+     *            the comma-separated names of the jarfiles to reject, or null to reject none.
+     */
+    private static void assertThatScanFindsTheClass(final String classpathElement,
+            final @Nullable String acceptJars, final @Nullable String rejectJars) {
+        assertThat(scanWithJarFilter(classpathElement, acceptJars, rejectJars))
+                .as("scanning %s, accepting %s, rejecting %s", classpathElement, acceptJars, rejectJars)
+                .containsExactly(CLASS_NAME);
+    }
+
+    /**
+     * Scan the given classpath element with the given jar accept and reject criteria.
+     *
+     * @param classpathElement
+     *            the classpath element to scan.
+     * @param acceptJars
+     *            the comma-separated names of the jarfiles to accept, or null to accept all jarfiles.
+     * @param rejectJars
+     *            the comma-separated names of the jarfiles to reject, or null to reject none.
+     * @return the names of the classes found.
+     */
+    private static List<String> scanWithJarFilter(final String classpathElement, final @Nullable String acceptJars,
+            final @Nullable String rejectJars) {
+        final var classGraph = new ClassGraph().enableClasspathEntries(classpathElement).enableClassInfo();
+        if (acceptJars != null) {
+            classGraph.acceptJars(acceptJars.split(","));
+        }
+        if (rejectJars != null) {
+            classGraph.rejectJars(rejectJars.split(","));
+        }
+        try (var scanResult = classGraph.scan()) {
+            return scanResult.getAllClasses().getNames();
         }
     }
 
