@@ -412,8 +412,9 @@ public final class GraphVizDotFile {
             buf.append("<td align='right' valign='top'>");
 
             // Field annotations
+            final var fieldAnnotations = directAnnotations(scanResult, fi::getAllAnnotationInfo);
             if (options.showAnnotations) {
-                for (final AnnotationInfo ai : directAnnotations(scanResult, fi::getAllAnnotationInfo)) {
+                for (final AnnotationInfo ai : fieldAnnotations) {
                     appendSpaceIfNeeded(buf);
                     htmlEncode(annotationToString(ai, options), buf);
                 }
@@ -425,10 +426,11 @@ public final class GraphVizDotFile {
                 buf.append(fi.getModifiersString());
             }
 
-            // Field type
+            // Field type -- without any field annotation that the compiler also recorded as a type annotation, which
+            // is either shown above or hidden with the other field annotations
             appendSpaceIfNeeded(buf);
             final var typeSig = fi.getTypeSignatureOrTypeDescriptor();
-            htmlEncode(options.useSimpleNames ? typeSig.toStringWithSimpleNames() : typeSig.toString(), buf);
+            htmlEncode(typeSig.toString(options.useSimpleNames, fieldAnnotations), buf);
             buf.append("</td>");
 
             // Field name
@@ -543,8 +545,9 @@ public final class GraphVizDotFile {
             // Parameter annotations -- a row is wrapped before an annotation rather than after it, so that the last
             // annotation of a parameter stays on the same row as the parameter's type
             final var param = paramInfo.get(i);
+            final var paramAnnotations = directAnnotations(scanResult, param::getAllAnnotationInfo);
             if (options.showAnnotations) {
-                for (final AnnotationInfo ai : directAnnotations(scanResult, param::getAllAnnotationInfo)) {
+                for (final AnnotationInfo ai : paramAnnotations) {
                     if (wrapPos > WRAP_WIDTH) {
                         buf.append("</td></tr><tr><td></td><td></td><td align='left' valign='top'>");
                         wrapPos = 0;
@@ -556,11 +559,10 @@ public final class GraphVizDotFile {
                 }
             }
 
-            // Parameter type
+            // Parameter type -- without the parameter annotations, as for a field type
             appendSpaceIfNeeded(buf);
             final var paramTypeSig = Objects.requireNonNull(param.getTypeSignatureOrTypeDescriptor());
-            final var paramTypeStr = options.useSimpleNames ? paramTypeSig.toStringWithSimpleNames()
-                    : paramTypeSig.toString();
+            final var paramTypeStr = paramTypeSig.toString(options.useSimpleNames, paramAnnotations);
             htmlEncode(paramTypeStr, buf);
             wrapPos += paramTypeStr.length();
 
@@ -609,8 +611,9 @@ public final class GraphVizDotFile {
 
             // Method annotations
             buf.append("<td align='right' valign='top'>");
+            final var methodAnnotations = directAnnotations(scanResult, mi::getAllAnnotationInfo);
             if (options.showAnnotations) {
-                appendMethodAnnotations(directAnnotations(scanResult, mi::getAllAnnotationInfo), options, buf);
+                appendMethodAnnotations(methodAnnotations, options, buf);
             }
 
             // Method modifiers
@@ -624,10 +627,9 @@ public final class GraphVizDotFile {
             if (isConstructor) {
                 buf.append("<b>&lt;constructor&gt;</b>");
             } else {
+                // Without the method annotations, as for a field type
                 final var resultTypeSig = mi.getTypeSignatureOrTypeDescriptor().getResultType();
-                htmlEncode(
-                        options.useSimpleNames ? resultTypeSig.toStringWithSimpleNames() : resultTypeSig.toString(),
-                        buf);
+                htmlEncode(resultTypeSig.toString(options.useSimpleNames, methodAnnotations), buf);
             }
             buf.append("</td>");
 

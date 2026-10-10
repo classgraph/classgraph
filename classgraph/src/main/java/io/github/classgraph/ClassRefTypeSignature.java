@@ -30,6 +30,7 @@ package io.github.classgraph;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -500,16 +501,52 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /**
+     * Find the type annotations to leave out when rendering this class reference. The compiler records a
+     * declaration annotation that is also a type annotation on the outermost part of the class reference that can
+     * be annotated: the base class, or for a static nested class such as {@code Map.Entry}, the nested class, since
+     * the enclosing class of a static nested class cannot be annotated. So the first occurrence of each excluded
+     * annotation, searching from the base class inward, is the one to leave out; the same annotation written again
+     * on a part further in is kept.
+     *
+     * @param annotationsToExclude
+     *            the annotations to exclude
+     * @return the excluded type annotations of this class reference, compared by identity
+     */
+    private Set<AnnotationInfo> findExcludedTypeAnnotations(final List<AnnotationInfo> annotationsToExclude) {
+        final Set<AnnotationInfo> excluded = Collections.newSetFromMap(new IdentityHashMap<>());
+        final var typeAnnotationList = typeAnnotations;
+        final var suffixTypeAnnotationLists = suffixTypeAnnotations;
+        for (final AnnotationInfo annotationToExclude : annotationsToExclude) {
+            final var idx = typeAnnotationList == null ? -1 : typeAnnotationList.indexOf(annotationToExclude);
+            if (typeAnnotationList != null && idx >= 0) {
+                excluded.add(typeAnnotationList.get(idx));
+            } else if (suffixTypeAnnotationLists != null) {
+                for (final List<AnnotationInfo> suffixTypeAnnotationList : suffixTypeAnnotationLists) {
+                    final var suffixIdx = suffixTypeAnnotationList.indexOf(annotationToExclude);
+                    if (suffixIdx >= 0) {
+                        excluded.add(suffixTypeAnnotationList.get(suffixIdx));
+                        break;
+                    }
+                }
+            }
+        }
+        return excluded;
+    }
+
     @Override
     protected void toStringInternal(final boolean useSimpleNames,
             final @Nullable List<AnnotationInfo> annotationsToExclude, final StringBuilder buf) {
+        final Set<AnnotationInfo> excluded = annotationsToExclude == null || annotationsToExclude.isEmpty()
+                ? Set.of()
+                : findExcludedTypeAnnotations(annotationsToExclude);
         // Only render the base class if not using simple names, or if there are no suffixes
         if (!useSimpleNames || suffixes.isEmpty()) {
             // Append type annotations
             final var typeAnnotationList = typeAnnotations;
             if (typeAnnotationList != null) {
                 for (final AnnotationInfo annotationInfo : typeAnnotationList) {
-                    if (annotationsToExclude == null || !annotationsToExclude.contains(annotationInfo)) {
+                    if (!excluded.contains(annotationInfo)) {
                         annotationInfo.toString(useSimpleNames, buf);
                         buf.append(' ');
                     }
@@ -541,8 +578,10 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
                 // Append type annotations for this suffix
                 if (typeAnnotations != null && !typeAnnotations.isEmpty()) {
                     for (final AnnotationInfo annotationInfo : typeAnnotations) {
-                        annotationInfo.toString(useSimpleNames, buf);
-                        buf.append(' ');
+                        if (!excluded.contains(annotationInfo)) {
+                            annotationInfo.toString(useSimpleNames, buf);
+                            buf.append(' ');
+                        }
                     }
                 }
                 // Append suffix name

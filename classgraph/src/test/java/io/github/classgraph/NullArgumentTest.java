@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.lang.annotation.Annotation;
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 
@@ -179,6 +180,7 @@ class NullArgumentTest {
         final var typeSignature = scanResult.getClassInfo(ClassInfoList.class.getName()).getMethodInfo("exclude")
                 .get(0).getParameterInfo().get(0).getTypeSignatureOrTypeDescriptor();
         rejectsNull(() -> typeSignature.resolveTypeVariables(null));
+        rejectsNull(() -> typeSignature.toString(true, (Collection<AnnotationInfo>) null));
     }
 
     /**

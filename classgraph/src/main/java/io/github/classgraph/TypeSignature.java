@@ -28,6 +28,7 @@
  */
 package io.github.classgraph;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -360,6 +361,40 @@ public abstract sealed class TypeSignature extends HierarchicalTypeSignature
     static String toTypeSignatureStr(final TypeSignature typeSignature) {
         final StringBuilder buf = new StringBuilder();
         toTypeSignatureStr(typeSignature, buf);
+        return buf.toString();
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Render this type as {@link #toString()} or {@link #toStringWithSimpleNames()} does, but leave out the given
+     * annotations where they are written on the type itself.
+     *
+     * <p>
+     * An annotation whose {@link java.lang.annotation.Target @Target} includes
+     * {@link java.lang.annotation.ElementType#TYPE_USE TYPE_USE} as well as a declaration kind, such as
+     * {@link java.lang.annotation.ElementType#FIELD FIELD}, is recorded by the compiler both on the declaration and
+     * on the declared type. Passing the annotations of a field, method or method parameter here renders its type
+     * without repeating them, which is how {@link FieldInfo}, {@link MethodInfo} and {@link MethodParameterInfo}
+     * show such an annotation once. An annotation is left out only where the compiler records that copy: on the
+     * type as a whole, or for an array type on its element type, or for a static nested class such as
+     * {@code Map.Entry} on the nested class. An annotation written inside the type, for example on a type argument
+     * as in {@code List<@NonNull String>}, is part of the type and is kept.
+     *
+     * @param useSimpleNames
+     *            if true, use simple class names, as {@link #toStringWithSimpleNames()} does; if false, use fully
+     *            qualified class names, as {@link #toString()} does.
+     * @param annotationsToExclude
+     *            the annotations to leave out, usually the annotations of the field, method or method parameter
+     *            that this is the type of.
+     * @return this type as a string, without the excluded annotations.
+     * @throws NullPointerException
+     *             if {@code annotationsToExclude} is null or contains null.
+     */
+    public String toString(final boolean useSimpleNames, final Collection<AnnotationInfo> annotationsToExclude) {
+        Assert.notNull(annotationsToExclude, "annotationsToExclude");
+        final var buf = new StringBuilder();
+        toStringInternal(useSimpleNames, List.copyOf(annotationsToExclude), buf);
         return buf.toString();
     }
 
