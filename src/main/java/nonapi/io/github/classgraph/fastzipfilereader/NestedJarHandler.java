@@ -249,9 +249,9 @@ public class NestedJarHandler {
                         String childPath = nestedJarPath.substring(lastPlingIdx + 1);
                         // childPath begins with the '/' of the "!/" separator, so strip it,
                         // along with any trailing '/' and any "." or ".." segments, to leave the
-                        // entry name relative to the root of the parent jarfile
-                        childPath = FileUtils.sanitizeEntryPath(childPath, /* removeInitialSlash = */ true,
-                                /* removeFinalSlash = */ true);
+                        // entry name relative to the root of the parent jarfile. Any '!' in it is part of an
+                        // entry name, since the separator before it is the innermost one
+                        childPath = FileUtils.sanitizeRelativePath(childPath, /* removeFinalSlash = */ true);
 
                         // Recursively remove one '!' section at a time, back towards the beginning of
                         // the URL or

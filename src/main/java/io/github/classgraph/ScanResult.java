@@ -608,8 +608,7 @@ public final class ScanResult implements Closeable {
         if (closed.get()) {
             throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
         }
-        final String path = FileUtils.sanitizeEntryPath(resourcePath, /* removeInitialSlash = */ true,
-                /* removeFinalSlash = */ true);
+        final String path = FileUtils.sanitizeRelativePath(resourcePath, /* removeFinalSlash = */ true);
         ResourceList matchingResources = null;
         if (getResourcesWithPathCallCount.incrementAndGet() > 3) {
             // If numerous calls are made, produce and cache a single HashMap for O(1)
@@ -650,8 +649,7 @@ public final class ScanResult implements Closeable {
         if (closed.get()) {
             throw new IllegalArgumentException("Cannot use a ScanResult after it has been closed");
         }
-        final String path = FileUtils.sanitizeEntryPath(resourcePath, /* removeInitialSlash = */ true,
-                /* removeFinalSlash = */ true);
+        final String path = FileUtils.sanitizeRelativePath(resourcePath, /* removeFinalSlash = */ true);
         // ClasspathElement#getResource(String) ignores the accept and reject criteria, since it is also how the
         // class graph is extended upwards through classes that were not accepted, so reject is applied here
         if (scanSpec.resourcePathIsRejected(path)) {

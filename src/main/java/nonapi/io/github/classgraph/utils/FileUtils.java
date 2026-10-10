@@ -145,10 +145,13 @@ public final class FileUtils {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Sanitize relative paths against "zip slip" vulnerability, by removing path segments if ".." is found in the
-     * URL, but without allowing navigation above the path hierarchy root. Treats each "!" character as a new path
-     * hierarchy root. Also removes "." and empty path segments ("//").
-     * 
+     * Sanitize a path on the host against "zip slip" vulnerability, by removing path segments if ".." is found in
+     * the URL, but without allowing navigation above the path hierarchy root. Each nested jar separator '!' starts
+     * a new path hierarchy root; which '!' characters are separators is decided by testing the filesystem (see
+     * {@link JarUtils#indexOfNestedJarSeparator(String)}). Also removes "." and empty path segments ("//"). To
+     * sanitize a path within a directory or archive, where '!' is always an ordinary character, use
+     * {@link #sanitizeRelativePath(String, boolean)}.
+     *
      * @param path
      *            The path to sanitize.
      * @param removeInitialSlash
@@ -164,9 +167,12 @@ public final class FileUtils {
     }
 
     /**
-     * Sanitize relative paths against "zip slip" vulnerability, by removing path segments if ".." is found in the
-     * URL, but without allowing navigation above the path hierarchy root. Treats each "!" character as a new path
-     * hierarchy root. Also removes "." and empty path segments ("//").
+     * Sanitize a path on the host against "zip slip" vulnerability, by removing path segments if ".." is found in
+     * the URL, but without allowing navigation above the path hierarchy root. Each nested jar separator '!' starts
+     * a new path hierarchy root; which '!' characters are separators is decided by testing the filesystem (see
+     * {@link JarUtils#indexOfNestedJarSeparator(String)}). Also removes "." and empty path segments ("//"). To
+     * sanitize a path within a directory or archive, where '!' is always an ordinary character, use
+     * {@link #sanitizeRelativePath(String, boolean)}.
      *
      * @param path
      *            The path to sanitize.
@@ -195,7 +201,52 @@ public final class FileUtils {
         // A '!' is only a nested jar separator if the path before it names an existing jarfile -- it is
         // otherwise a legal filename character, and must not be treated as a path hierarchy root (#903)
         final int nestedJarSepIdx = JarUtils.indexOfNestedJarSeparator(path);
+        return sanitize(path, nestedJarSepIdx, removeInitialSlash, removeFinalSlash,
+                collapseParentSegmentsInFirstSection);
+    }
 
+    /**
+     * Sanitize a path relative to the root of a directory or archive, such as a zip entry name or a resource path,
+     * against "zip slip" vulnerability: drop {@code "."} and empty path segments ("//"), remove the preceding
+     * segment for each {@code ".."} segment without allowing navigation above the root, and remove any initial '/'
+     * character(s).
+     *
+     * <p>
+     * Unlike {@link #sanitizeEntryPath(String, boolean, boolean)}, this treats every '!' as an ordinary character,
+     * since a path within a root is not a path on the host, and so contains no nested jar separator. The filesystem
+     * is never read.
+     *
+     * @param relativePath
+     *            The path to sanitize.
+     * @param removeFinalSlash
+     *            If true, remove any '/' character(s) from the end of the returned path.
+     * @return The sanitized path.
+     */
+    public static String sanitizeRelativePath(final String relativePath, final boolean removeFinalSlash) {
+        if (relativePath.isEmpty()) {
+            return "";
+        }
+        return sanitize(relativePath, /* nestedJarSepIdx = */ -1, /* removeInitialSlash = */ true,
+                removeFinalSlash, /* collapseParentSegmentsInFirstSection = */ true);
+    }
+
+    /**
+     * Sanitize a non-empty path, given the index of its outermost nested jar separator.
+     *
+     * @param path
+     *            The path to sanitize.
+     * @param nestedJarSepIdx
+     *            The index of the outermost nested jar separator '!' in the path, or -1 if there is none.
+     * @param removeInitialSlash
+     *            If true, remove any '/' character(s) from the beginning of the returned path.
+     * @param removeFinalSlash
+     *            If true, remove any '/' character(s) from the end of the returned path.
+     * @param collapseParentSegmentsInFirstSection
+     *            If false, a ".." segment before the first nested jar separator is left in the path.
+     * @return The sanitized path.
+     */
+    private static String sanitize(final String path, final int nestedJarSepIdx, final boolean removeInitialSlash,
+            final boolean removeFinalSlash, final boolean collapseParentSegmentsInFirstSection) {
         // Find all '/' and nested jar separator '!' character positions, which split a path into segments.
         // This scan reads the path via charAt() rather than copying it into a char[], since the common case is
         // that nothing needs sanitizing, and the copy would then be pure overhead.
