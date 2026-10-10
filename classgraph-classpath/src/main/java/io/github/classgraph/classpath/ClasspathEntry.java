@@ -211,11 +211,13 @@ public abstract sealed class ClasspathEntry {
 
     /**
      * Returns the directory prefixes that should be looked for within this classpath element and stripped if
-     * present, because a classloader of this type can place the root of the package hierarchy below them, for
-     * example {@code "BOOT-INF/classes/"} for a Spring Boot jar. These are the layouts that the classloader could
-     * have used, not the ones this classpath element actually uses, so a prefix is listed whether or not the
+     * present, because a classloader of this type can place the root of the package hierarchy below them, as
+     * declared by its {@link ClassLoaderHandler#getPackageRootPrefixes()}, for example {@code "WEB-INF/classes/"}
+     * for a classloader that loads a webapp straight from its WAR file. These are the layouts that the classloader
+     * could have used, not the ones this classpath element actually uses, so a prefix is listed whether or not the
      * element contains a directory with that name. The list is empty for a classloader whose classpath elements
-     * always have their classes at the root, and never contains the empty string.
+     * always have their classes at the root, which is every classloader that ClassGraph has a built-in handler for,
+     * and never contains the empty string.
      *
      * @return the package root prefixes, as an unmodifiable list.
      */
@@ -225,11 +227,12 @@ public abstract sealed class ClasspathEntry {
 
     /**
      * Returns the lib dirs whose jarfiles are added to the classpath if they are present within this classpath
-     * element, because a classloader of this type loads from them without listing them as classpath elements, for
-     * example {@code "BOOT-INF/lib/"} for a Spring Boot jar. These are the lib dirs the classloader could load
-     * from, not the ones this classpath element actually has, so a lib dir is listed whether or not the element
-     * contains a directory with that name. The list is empty for a classloader that lists every jarfile it loads
-     * from, and never contains the empty string.
+     * element, because a classloader of this type loads from them without listing them as classpath elements, as
+     * declared by its {@link ClassLoaderHandler#getLibDirPrefixes()}, for example {@code "lib/"} and
+     * {@code "main/"} for the classloader of a One-JAR executable jarfile. These are the lib dirs the classloader
+     * could load from, not the ones this classpath element actually has, so a lib dir is listed whether or not the
+     * element contains a directory with that name. The list is empty for a classloader that lists every jarfile it
+     * loads from, and never contains the empty string.
      *
      * @return the lib dir prefixes, as an unmodifiable list.
      */
@@ -417,9 +420,10 @@ public abstract sealed class ClasspathEntry {
 
         /**
          * Returns this classpath element as a {@link Path}. It may be in a filesystem other than the default one,
-         * in which case opening the {@link Path} is what reaches it: the {@link #getLocation()} of such an element
-         * is its {@link Path#toUri()} form, which reaches the same element only if that filesystem's provider is
-         * installed and the filesystem is still open, and only if the {@link Vfs} has not denied its URL scheme.
+         * in which case opening the {@link Path} is what reaches it, and the {@link #getLocation()} of the element
+         * only names it: a path in a zip filesystem is named in the {@code outer.zip!/dir} form, and a path in any
+         * other filesystem by a URI string. Neither is necessarily equal to the {@link Path#toUri()} form of the
+         * path.
          *
          * @return the path.
          */

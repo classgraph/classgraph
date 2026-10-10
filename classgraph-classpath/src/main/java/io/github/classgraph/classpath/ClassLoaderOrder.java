@@ -43,7 +43,8 @@ import org.jspecify.annotations.Nullable;
  * duplicated class wins.
  *
  * <p>
- * This is not implemented outside ClassGraph.
+ * ClassGraph provides the only implementation of this interface, and passes it to a {@link ClassLoaderHandler}. It
+ * is not meant to be implemented outside ClassGraph, and methods may be added to it in later releases.
  */
 public interface ClassLoaderOrder {
     /**

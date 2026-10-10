@@ -384,7 +384,7 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
         var pathElementStrWithoutSuffix = pathElementStrResolved;
         var hasSuffix = false;
         for (final String packageRootPrefix : currPackageRootPrefixes) {
-            // Convert package root prefix to a suffix, e.g. "BOOT-INF/classes/" -> "!/BOOT-INF/classes"
+            // Convert package root prefix to a suffix, e.g. "WEB-INF/classes/" -> "!/WEB-INF/classes"
             final var suffix = "!/" + packageRootPrefix.substring(0, packageRootPrefix.length() - 1);
             if (pathElementStrResolved.endsWith(suffix)) {
                 // Strip off automatic package root suffix
