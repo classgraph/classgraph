@@ -261,14 +261,29 @@ public final class LogicalZipFile {
                     + zipEntry.uncompressedSize);
         }
 
-        // Read the InputStream for the entry to a RAM buffer, or spill it to disk if it is too large.
+        // Read the InputStream for the entry to a RAM buffer, or spill it to disk if it is too large. Each byte
+        // inflated is taken from the allowance shared by every jarfile nested within the same toplevel zipfile,
+        // so that a small crafted jarfile cannot inflate to fill the heap or the disk.
         // (The stream is opened here, so it is closed here -- PhysicalZipFile does not close what it reads.)
-        final PhysicalZipFile inflatedZipFile;
-        try (InputStream inflatedInputStream = zipEntry.getSlice().open()) {
-            // The uncompressed size is a length rather than a hint that may have to fit in an array: an entry too
-            // long to buffer in RAM is spilled straight to disk, which needs the real length rather than -1
+        final var allowance = physicalZipFile.nestedJarInflationAllowance;
+        PhysicalZipFile inflatedZipFile = null;
+        final var inflatedInputStream = allowance.limit(zipEntry.getSlice().open(),
+                getPath() + "!/" + zipEntry.entryName);
+        try (inflatedInputStream) {
+            // The declared uncompressed size is only a hint, since the inflated stream is read to its end whatever
+            // its length: it decides whether to inflate to RAM or straight to disk, and the initial buffer size
             inflatedZipFile = new PhysicalZipFile(inflatedInputStream, zipEntry.uncompressedSize,
-                    zipEntry.entryName, vfs, log);
+                    zipEntry.entryName, /* inflatedOutOf = */ allowance, vfs, log);
+        } catch (final IOException | RuntimeException | Error e) {
+            if (inflatedZipFile != null) {
+                // Closing the stream failed after the jarfile was inflated: release it, which gives back what it
+                // took of the allowance
+                inflatedZipFile.releaseUnreachable(e);
+            } else {
+                // Nothing that was inflated was kept, so give it all back
+                allowance.giveBack(inflatedInputStream.getBytesTaken());
+            }
+            throw e;
         }
 
         try {

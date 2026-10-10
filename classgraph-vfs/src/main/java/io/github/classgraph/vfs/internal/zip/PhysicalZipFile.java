@@ -33,6 +33,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.channels.FileChannel;
 import java.nio.file.Path;
+import java.util.concurrent.atomic.AtomicLong;
 
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.path.FastPathResolver;
@@ -66,6 +67,18 @@ public final class PhysicalZipFile {
     final Slice slice;
 
     /**
+     * The number of bytes that the deflated jarfiles nested within this zipfile may still inflate to: this
+     * zipfile's own, if it is a toplevel zipfile, or else that of the zipfile it was inflated out of.
+     */
+    final NestedJarInflationAllowance nestedJarInflationAllowance;
+
+    /**
+     * The number of bytes to give back to {@link #nestedJarInflationAllowance} when this zipfile is closed: its
+     * length, if it was inflated out of another zipfile, or else zero. Set to zero once given back.
+     */
+    private final AtomicLong bytesToGiveBack;
+
+    /**
      * Construct a {@link PhysicalZipFile} from a file on disk.
      *
      * @param file
@@ -82,6 +95,8 @@ public final class PhysicalZipFile {
         this.file = file;
         this.pathStr = FastPathResolver.resolve(FileUtils.currDirPath(), file.getPath());
         this.slice = new PathSlice(file, vfs, log);
+        this.nestedJarInflationAllowance = new NestedJarInflationAllowance(pathStr, slice.sliceLength);
+        this.bytesToGiveBack = new AtomicLong();
     }
 
     /**
@@ -101,6 +116,8 @@ public final class PhysicalZipFile {
         this.file = null;
         this.pathStr = FileUtils.pathStr(path);
         this.slice = new PathSlice(path, vfs, log);
+        this.nestedJarInflationAllowance = new NestedJarInflationAllowance(pathStr, slice.sliceLength);
+        this.bytesToGiveBack = new AtomicLong();
     }
 
     /**
@@ -123,6 +140,34 @@ public final class PhysicalZipFile {
      */
     PhysicalZipFile(final InputStream inputStream, final long inputStreamLengthHint, final String pathStr,
             final Vfs vfs, final @Nullable LogNode log) throws IOException {
+        this(inputStream, inputStreamLengthHint, pathStr, /* inflatedOutOf = */ null, vfs, log);
+    }
+
+    /**
+     * Construct a {@link PhysicalZipFile} by reading from the {@link InputStream} to an array in RAM, or spill to
+     * disk if the {@link InputStream} is too long.
+     *
+     * @param inputStream
+     *            the input stream. Read to its end, but not closed -- the caller retains ownership of it.
+     * @param inputStreamLengthHint
+     *            the number of bytes to read from inputStream, or -1 if unknown.
+     * @param pathStr
+     *            the source URL the InputStream was opened from, or the zip entry path of this entry in the parent
+     *            zipfile
+     * @param inflatedOutOf
+     *            for a deflated nested jarfile, the allowance of the zipfile it is inflated out of, which
+     *            inputStream has taken each byte read from it from, and which this zipfile shares, and gives its
+     *            length back to when it is closed; else null.
+     * @param vfs
+     *            the {@link Vfs} that is opening this jarfile
+     * @param log
+     *            the log node, or null to skip logging
+     * @throws IOException
+     *             if an I/O exception occurs.
+     */
+    PhysicalZipFile(final InputStream inputStream, final long inputStreamLengthHint, final String pathStr,
+            final @Nullable NestedJarInflationAllowance inflatedOutOf, final Vfs vfs, final @Nullable LogNode log)
+            throws IOException {
         this.path = null;
         this.pathStr = pathStr;
         // Try downloading the InputStream to a byte array. If this succeeds, this will result in an ArraySlice. If
@@ -130,19 +175,28 @@ public final class PhysicalZipFile {
         this.slice = Slice.fromInputStream(inputStream, /* tempFileBaseName = */ pathStr, inputStreamLengthHint,
                 vfs, log);
         this.file = this.slice instanceof final PathSlice pathSlice ? pathSlice.getFile() : null;
+        if (inflatedOutOf == null) {
+            this.nestedJarInflationAllowance = new NestedJarInflationAllowance(pathStr, slice.sliceLength);
+            this.bytesToGiveBack = new AtomicLong();
+        } else {
+            this.nestedJarInflationAllowance = inflatedOutOf;
+            this.bytesToGiveBack = new AtomicLong(slice.sliceLength);
+        }
     }
 
     /**
      * Release this zipfile: close the slice it is read through, releasing the file handle and the memory mapping
-     * behind it, and delete the temporary file it was extracted to, if it was extracted to one. Called by the root
-     * that owns this zipfile -- the one it was opened for, handed it in a {@link JarOpener.OpenedJar} -- when that
-     * root is closed. Nothing else closes it: the jarfiles that read through it, including any stored nested
-     * jarfile read in place as a byte range of it, do not own it.
+     * behind it, and delete the temporary file it was extracted to, if it was extracted to one. A zipfile inflated
+     * out of another gives its length back to {@link #nestedJarInflationAllowance}, once. Called by the root that
+     * owns this zipfile -- the one it was opened for, handed it in a {@link JarOpener.OpenedJar} -- when that root
+     * is closed. Nothing else closes it: the jarfiles that read through it, including any stored nested jarfile
+     * read in place as a byte range of it, do not own it.
      *
      * @throws IOException
      *             if the slice could not be closed.
      */
     public void close() throws IOException {
+        nestedJarInflationAllowance.giveBack(bytesToGiveBack.getAndSet(0L));
         slice.close();
     }
 
