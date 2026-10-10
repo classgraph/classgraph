@@ -194,35 +194,6 @@ public final class ReflectionUtils {
     }
 
     /**
-     * Get the value of the named field in the given class or any of its superclasses. If an exception is thrown
-     * while trying to read the field value, and throwException is true, then IllegalArgumentException is thrown
-     * wrapping the cause, otherwise this will return null. If passed a null class reference, returns null unless
-     * throwException is true, then throws IllegalArgumentException.
-     *
-     * @param throwException
-     *            If true, throw an exception if the field value could not be read.
-     * @param cls
-     *            The class.
-     * @param fieldName
-     *            The field name.
-     *
-     * @return The field value.
-     * @throws IllegalArgumentException
-     *             If the field value could not be read.
-     */
-    public static @Nullable Object getStaticFieldVal(final boolean throwException, final @Nullable Class<?> cls,
-            final @Nullable String fieldName) throws IllegalArgumentException {
-        if (cls == null || fieldName == null) {
-            return fail(throwException, "Unexpected null argument", null);
-        }
-        try {
-            return REFLECTION_DRIVER.getStaticField(REFLECTION_DRIVER.findStaticField(cls, fieldName));
-        } catch (final Throwable e) {
-            return fail(throwException, "Can't read field " + cls.getName() + "." + fieldName, e);
-        }
-    }
-
-    /**
      * Invoke the named method in the given object or its superclasses. If an exception is thrown while trying to
      * call the method, and throwException is true, then IllegalArgumentException is thrown wrapping the cause,
      * otherwise this will return null. If passed a null object, returns null unless throwException is true, then

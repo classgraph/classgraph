@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.io.File;
+import java.util.List;
 import java.util.Set;
 
 import org.junit.jupiter.api.Test;
@@ -18,7 +19,7 @@ public class PathListTest {
     public void pathSeparatorInPathElementSurvivesRoundTrip() {
         assumeTrue(File.pathSeparatorChar == ':', "Path separators can only be escaped when the separator is ':'");
 
-        final var joined = PathList.join("/a/b", "/weird:name/c", "/d");
+        final var joined = PathList.join(List.of("/a/b", "/weird:name/c", "/d"));
         assertThat(joined).isEqualTo("/a/b:/weird\\:name/c:/d");
 
         assertThat(PathList.split(joined, ':', null)).containsExactly("/a/b", "/weird:name/c", "/d");
@@ -29,7 +30,7 @@ public class PathListTest {
     public void ordinaryPathElementsSurviveRoundTrip() {
         assumeTrue(File.pathSeparatorChar == ':', "Path separators can only be escaped when the separator is ':'");
 
-        final var joined = PathList.join("/a/b", "/c", "/d");
+        final var joined = PathList.join(List.of("/a/b", "/c", "/d"));
         assertThat(joined).isEqualTo("/a/b:/c:/d");
         assertThat(PathList.split(joined, ':', null)).containsExactly("/a/b", "/c", "/d");
     }
