@@ -15,6 +15,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -97,6 +98,106 @@ public class ClasspathFinderTest {
     }
 
     /**
+     * A collection or array among the classpath elements is expanded into its own elements, to any depth, rather
+     * than read by its {@code toString()}, which names no classpath element.
+     */
+    @Test
+    public void nestedCollectionsAndArraysAreExpanded(@TempDir final Path tempDir) throws IOException {
+        final var a = writeJarWithManifest(tempDir.resolve("a.jar"));
+        final var b = writeJarWithManifest(tempDir.resolve("b.jar"));
+        final var expected = List.of(location(a), location(b));
+        try (var classpath = new ClasspathFinder().enableClasspathEntries(List.of(a), b).find()) {
+            assertThat(classpath.getLocations()).isEqualTo(expected);
+        }
+        try (var classpath = new ClasspathFinder().enableClasspathEntries(List.of(a), List.of(b)).find()) {
+            assertThat(classpath.getLocations()).isEqualTo(expected);
+        }
+        try (var classpath = new ClasspathFinder().enableClasspathEntries(new Object[] { new File[] { a } }, b)
+                .find()) {
+            assertThat(classpath.getLocations()).isEqualTo(expected);
+        }
+        try (var classpath = new ClasspathFinder().enableClasspathEntries(List.of(List.of(a), b.toPath())).find()) {
+            assertThat(classpath.getLocations()).isEqualTo(expected);
+        }
+        // An Iterable whose toString() names none of its elements, like a build tool's file collection
+        final Iterable<File> files = () -> List.of(a).iterator();
+        try (var classpath = new ClasspathFinder().enableClasspathEntries(files, b).find()) {
+            assertThat(classpath.getLocations()).isEqualTo(expected);
+        }
+        // A String inside a collection is one classpath element, as it is outside one, and is not split
+        final var c = writeJarWithManifest(tempDir.resolve("c" + File.pathSeparator + "d.jar"));
+        try (var classpath = new ClasspathFinder().enableClasspathEntries(List.of(List.of(c.toString()))).find()) {
+            assertThat(classpath.getLocations()).containsExactly(location(c));
+        }
+    }
+
+    /**
+     * A collection that contains itself, directly or through another collection, contributes each classpath element
+     * it contains, rather than overflowing the stack.
+     */
+    @Test
+    public void aCollectionThatContainsItselfIsExpandedOnce(@TempDir final Path tempDir) throws IOException {
+        final var a = writeJarWithManifest(tempDir.resolve("a.jar"));
+        final var b = writeJarWithManifest(tempDir.resolve("b.jar"));
+        final List<Object> self = new ArrayList<>();
+        self.add(self);
+        self.add(a);
+        try (var classpath = new ClasspathFinder().enableClasspathEntries(self).find()) {
+            assertThat(classpath.getLocations()).containsExactly(location(a));
+        }
+        final List<Object> first = new ArrayList<>();
+        final List<Object> second = new ArrayList<>();
+        first.add(second);
+        first.add(a);
+        second.add(first);
+        second.add(b);
+        try (var classpath = new ClasspathFinder().enableClasspathEntries(first).find()) {
+            assertThat(classpath.getLocations()).containsExactly(location(b), location(a));
+        }
+    }
+
+    /**
+     * An {@link Iterable} that is not a collection and yields itself, as an Ant {@code Resource} does, is one
+     * classpath element, read by its {@code toString()}, rather than a collection that holds nothing.
+     */
+    @Test
+    public void anIterableThatYieldsItselfIsOneClasspathElement(@TempDir final Path tempDir) throws IOException {
+        final var a = writeJarWithManifest(tempDir.resolve("a.jar"));
+        final var b = writeJarWithManifest(tempDir.resolve("b.jar"));
+        final var expected = List.of(location(a), location(b));
+        try (var classpath = new ClasspathFinder().enableClasspathEntries(new SelfIterable(a)).find()) {
+            assertThat(classpath.getLocations()).containsExactly(location(a));
+        }
+        try (var classpath = new ClasspathFinder().enableClasspathEntries(new SelfIterable(a), b).find()) {
+            assertThat(classpath.getLocations()).isEqualTo(expected);
+        }
+        // Like an Ant Path, which yields one Resource per classpath element
+        try (var classpath = new ClasspathFinder()
+                .enableClasspathEntries(List.of(new SelfIterable(a), new SelfIterable(b))).find()) {
+            assertThat(classpath.getLocations()).isEqualTo(expected);
+        }
+    }
+
+    /**
+     * An {@link Iterable} that yields only itself, as an Ant {@code Resource} does, and whose {@code toString()} is
+     * the path of a file.
+     *
+     * @param file
+     *            the file.
+     */
+    private record SelfIterable(File file) implements Iterable<Object> {
+        @Override
+        public Iterator<Object> iterator() {
+            return List.<Object> of(this).iterator();
+        }
+
+        @Override
+        public String toString() {
+            return file.toString();
+        }
+    }
+
+    /**
      * The classpath entry {@code "*"} adds the jarfiles in the current directory even when {@code user.dir} cannot
      * be read, which leaves the current directory path empty. This has to run in a child JVM, since the current
      * directory is read only once per JVM.
@@ -132,6 +233,11 @@ public class ClasspathFinderTest {
         assertThatThrownBy(() -> new ClasspathFinder().enableClasspathEntries(new Object[0]))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> new ClasspathFinder().enableClasspathEntries(List.of()))
+                .isInstanceOf(IllegalArgumentException.class);
+        // Nested collections and arrays that hold no classpath element are empty too
+        assertThatThrownBy(() -> new ClasspathFinder().enableClasspathEntries(List.of(List.of())))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new ClasspathFinder().enableClasspathEntries(new Object[] { new File[0] }))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> new ClasspathFinder().enableClassLoaders())
                 .isInstanceOf(IllegalArgumentException.class);
@@ -251,8 +357,14 @@ public class ClasspathFinderTest {
     /** A classloader is passed to {@code enableClassLoaders}, not to {@code enableClasspathEntries}. */
     @Test
     public void aClassLoaderIsNotAClasspathElement() {
-        assertThatThrownBy(() -> new ClasspathFinder()
-                .enableClasspathEntries((Object) ClasspathFinderTest.class.getClassLoader()))
+        final var classLoader = ClasspathFinderTest.class.getClassLoader();
+        assertThatThrownBy(() -> new ClasspathFinder().enableClasspathEntries((Object) classLoader))
+                .isInstanceOf(IllegalArgumentException.class);
+        // Nor is a classloader inside a collection or array
+        assertThatThrownBy(() -> new ClasspathFinder().enableClasspathEntries(List.of(List.of(classLoader))))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(
+                () -> new ClasspathFinder().enableClasspathEntries((Object) new ClassLoader[] { classLoader }))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 

@@ -280,6 +280,13 @@ public final class ClasspathFinder {
      * Search the given classpath, with the elements separated by {@link java.io.File#pathSeparatorChar}. No
      * classloader is asked for it, so nothing else is searched unless it is enabled as well.
      *
+     * <p>
+     * This is the only overload that splits a classpath string. To search a classpath string together with other
+     * classpath elements, chain the calls, e.g.
+     * {@code enableClasspathEntries(System.getProperty("java.class.path")).enableClasspathEntries(extraJar)}.
+     * Passing both in one call, as {@code enableClasspathEntries(classpath, extraJar)}, calls
+     * {@link #enableClasspathEntries(Object...)} instead, which takes the whole string as one classpath element.
+     *
      * @param classpath
      *            the classpath to search, with elements separated by {@link java.io.File#pathSeparatorChar}.
      * @return this (for method chaining).
@@ -297,17 +304,24 @@ public final class ClasspathFinder {
      * is enabled as well.
      *
      * <p>
-     * Each element is one classpath entry, and is not split on {@link java.io.File#pathSeparatorChar} -- pass the
-     * {@link String} overload for a path that needs splitting. Elements may be of any type whose
-     * {@link Object#toString()} is a classpath element location, e.g. {@link String}, {@link java.io.File} or
-     * {@link Path}.
+     * Each element that is a {@link String}, {@link java.io.File}, {@link Path}, {@link java.net.URL} or
+     * {@link java.net.URI} is one classpath element, and a {@link String} is not split on
+     * {@link java.io.File#pathSeparatorChar}. An element that is any other {@link Iterable}, or an array of
+     * objects, is replaced by its own elements, to any depth. An element of any other type is read by its
+     * {@link Object#toString()}.
+     *
+     * <p>
+     * So {@code enableClasspathEntries(classpath, extraJar)} takes the whole classpath string as one classpath
+     * element. To search a classpath string together with other classpath elements, pass the string to
+     * {@link #enableClasspathEntries(String)}, which splits it, and chain the calls, e.g.
+     * {@code enableClasspathEntries(System.getProperty("java.class.path")).enableClasspathEntries(extraJar)}.
      *
      * @param classpathElements
-     *            the classpath elements to search, one entry per element.
+     *            the classpath elements to search.
      * @return this (for method chaining).
      * @throws IllegalArgumentException
-     *             if {@code classpathElements} is empty, or if any element is a {@link ClassLoader} (pass those to
-     *             {@link #enableClassLoaders(ClassLoader...)} instead).
+     *             if {@code classpathElements} holds no classpath element, or holds a {@link ClassLoader} (pass
+     *             those to {@link #enableClassLoaders(ClassLoader...)} instead).
      */
     public ClasspathFinder enableClasspathEntries(final Object... classpathElements) {
         Assert.notNullElements(classpathElements, "classpathElements");
@@ -320,35 +334,28 @@ public final class ClasspathFinder {
      * is enabled as well.
      *
      * <p>
-     * Each element is one classpath entry, and is not split on {@link java.io.File#pathSeparatorChar} -- pass the
-     * {@link String} overload for a path that needs splitting. Elements may be of any type whose
-     * {@link Object#toString()} is a classpath element location, e.g. {@link String}, {@link java.io.File} or
-     * {@link Path}.
+     * Each element that is a {@link String}, {@link java.io.File}, {@link Path}, {@link java.net.URL} or
+     * {@link java.net.URI} is one classpath element, and a {@link String} is not split on
+     * {@link java.io.File#pathSeparatorChar} (pass a classpath string to {@link #enableClasspathEntries(String)}).
+     * An element that is any other {@link Iterable}, or an array of objects, is replaced by its own elements, to
+     * any depth. An element of any other type is read by its {@link Object#toString()}.
      *
      * <p>
-     * A single {@link Path} is treated as one classpath entry, not as a sequence of its name elements.
+     * A single {@link Path} is treated as one classpath element, not as a sequence of its name elements.
      *
      * @param classpathElements
-     *            the classpath elements to search, one entry per element.
+     *            the classpath elements to search.
      * @return this (for method chaining).
      * @throws IllegalArgumentException
-     *             if {@code classpathElements} is empty, or if any element is a {@link ClassLoader} (pass those to
-     *             {@link #enableClassLoaders(ClassLoader...)} instead).
+     *             if {@code classpathElements} holds no classpath element, or holds a {@link ClassLoader} (pass
+     *             those to {@link #enableClassLoaders(ClassLoader...)} instead).
      */
     public ClasspathFinder enableClasspathEntries(final Iterable<?> classpathElements) {
         Assert.notNull(classpathElements, "classpathElements");
-        if (classpathElements instanceof Path) {
-            // A Path is an Iterable of its own name elements, so passing a single Path binds to this overload
-            // rather than to the Object... overload. The name elements of a path are never classpath entries in
-            // their own right, so a Path is added as a single classpath entry.
-            scanSourceSpec.enableClasspathEntries(List.of(classpathElements));
-            return this;
-        }
-        final List<Object> classpathElementList = new ArrayList<>();
-        for (final Object classpathElement : classpathElements) {
-            classpathElementList.add(classpathElement);
-        }
-        scanSourceSpec.enableClasspathEntries(classpathElementList);
+        // A Path is an Iterable of its own name elements, so a single Path is passed to this overload rather than
+        // to the Object... one. The Iterable is handed over as one element, which keeps a Path as one classpath
+        // element and replaces any other Iterable by its elements
+        scanSourceSpec.enableClasspathEntries(List.of(classpathElements));
         return this;
     }
 

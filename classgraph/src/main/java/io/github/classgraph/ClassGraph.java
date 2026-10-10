@@ -33,9 +33,7 @@ import java.io.InputStream;
 import java.lang.module.ModuleReference;
 import java.net.URI;
 import java.net.URL;
-import java.nio.file.Path;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CancellationException;
@@ -542,11 +540,18 @@ public final class ClassGraph {
      * Scan the given classpath, with path elements separated by {@link java.io.File#pathSeparatorChar}. No
      * ClassLoader is asked for it, so nothing else is scanned unless it is enabled as well.
      *
+     * <p>
+     * This is the only overload that splits a classpath string. To scan a classpath string together with other
+     * classpath entries, chain the calls, e.g.
+     * {@code enableClasspathEntries(System.getProperty("java.class.path")).enableClasspathEntries(extraJar)}.
+     * Passing both in one call, as {@code enableClasspathEntries(classpath, extraJar)}, calls
+     * {@link #enableClasspathEntries(Object...)} instead, which takes the whole string as one classpath entry.
+     *
      * @param classpath
      *            The classpath to scan, with path elements separated by {@link java.io.File#pathSeparatorChar}.
      * @return this (for method chaining).
      * @throws IllegalArgumentException
-     *             if {@code classpath} is empty.
+     *             if {@code classpath} holds no classpath entry, e.g. if it is empty.
      */
     public ClassGraph enableClasspathEntries(final String classpath) {
         Assert.notNull(classpath, "classpath");
@@ -559,34 +564,29 @@ public final class ClassGraph {
      * enabled as well.
      *
      * <p>
-     * Works for Iterables of any type whose toString() method resolves to a classpath element string, e.g. String,
-     * File or Path. Each element is one classpath entry, and is not split on {@link java.io.File#pathSeparatorChar}
-     * -- pass the {@link String} overload for a path that needs splitting.
+     * Each element that is a {@link String}, {@link java.io.File}, {@link java.nio.file.Path}, {@link java.net.URL}
+     * or {@link java.net.URI} is one classpath entry, and a {@link String} is not split on
+     * {@link java.io.File#pathSeparatorChar} (pass a classpath string to {@link #enableClasspathEntries(String)}).
+     * An element that is any other {@link Iterable}, or an array of objects, is replaced by its own elements, to
+     * any depth. An element of any other type is read by its {@code toString()}.
      *
      * <p>
-     * A single {@link Path} is treated as one classpath entry, not as a sequence of its name elements.
+     * A single {@link java.nio.file.Path} is treated as one classpath entry, not as a sequence of its name
+     * elements.
      *
      * @param classpathElements
-     *            The classpath entries to scan, one entry per element.
+     *            The classpath entries to scan.
      * @return this (for method chaining).
      * @throws IllegalArgumentException
-     *             if {@code classpathElements} is empty, or if any element is a {@link ClassLoader} (pass those to
-     *             {@link #enableClassLoaders(ClassLoader...)} instead).
+     *             if {@code classpathElements} holds no classpath entry, or holds a {@link ClassLoader} (pass those
+     *             to {@link #enableClassLoaders(ClassLoader...)} instead).
      */
     public ClassGraph enableClasspathEntries(final Iterable<?> classpathElements) {
         Assert.notNull(classpathElements, "classpathElements");
-        if (classpathElements instanceof Path) {
-            // A Path is an Iterable of its own name elements, so passing a single Path binds to this overload
-            // rather than to the Object... overload. The name elements of a path are never classpath entries in
-            // their own right, so a Path is added as a single classpath entry.
-            scanSourceSpec.enableClasspathEntries(List.of(classpathElements));
-            return this;
-        }
-        final List<Object> classpathElementList = new ArrayList<>();
-        for (final Object classpathElement : classpathElements) {
-            classpathElementList.add(classpathElement);
-        }
-        scanSourceSpec.enableClasspathEntries(classpathElementList);
+        // A Path is an Iterable of its own name elements, so a single Path is passed to this overload rather than
+        // to the Object... one. The Iterable is handed over as one element, which keeps a Path as one classpath
+        // entry and replaces any other Iterable by its elements
+        scanSourceSpec.enableClasspathEntries(List.of(classpathElements));
         return this;
     }
 
@@ -595,16 +595,24 @@ public final class ClassGraph {
      * enabled as well.
      *
      * <p>
-     * Works for arrays of any member type whose toString() method resolves to a classpath element string, e.g.
-     * String, File or Path. Each element is one classpath entry, and is not split on
-     * {@link java.io.File#pathSeparatorChar} -- pass the {@link String} overload for a path that needs splitting.
+     * Each element that is a {@link String}, {@link java.io.File}, {@link java.nio.file.Path}, {@link java.net.URL}
+     * or {@link java.net.URI} is one classpath entry, and a {@link String} is not split on
+     * {@link java.io.File#pathSeparatorChar}. An element that is any other {@link Iterable}, or an array of
+     * objects, is replaced by its own elements, to any depth. An element of any other type is read by its
+     * {@code toString()}.
+     *
+     * <p>
+     * So {@code enableClasspathEntries(classpath, extraJar)} takes the whole classpath string as one classpath
+     * entry. To scan a classpath string together with other classpath entries, pass the string to
+     * {@link #enableClasspathEntries(String)}, which splits it, and chain the calls, e.g.
+     * {@code enableClasspathEntries(System.getProperty("java.class.path")).enableClasspathEntries(extraJar)}.
      *
      * @param classpathElements
-     *            The classpath entries to scan, one entry per element.
+     *            The classpath entries to scan.
      * @return this (for method chaining).
      * @throws IllegalArgumentException
-     *             if {@code classpathElements} is empty, or if any element is a {@link ClassLoader} (pass those to
-     *             {@link #enableClassLoaders(ClassLoader...)} instead).
+     *             if {@code classpathElements} holds no classpath entry, or holds a {@link ClassLoader} (pass those
+     *             to {@link #enableClassLoaders(ClassLoader...)} instead).
      */
     public ClassGraph enableClasspathEntries(final Object... classpathElements) {
         Assert.notNullElements(classpathElements, "classpathElements");
