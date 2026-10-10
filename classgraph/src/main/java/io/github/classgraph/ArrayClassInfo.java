@@ -76,14 +76,13 @@ public final class ArrayClassInfo extends ClassInfo {
     ArrayClassInfo(final ArrayTypeSignature arrayTypeSignature) {
         super(arrayTypeSignature.getClassName(), /* modifiers = */ 0, /* resource = */ null);
         this.arrayTypeSignature = arrayTypeSignature;
-        // Pre-load fields from element type
-        getElementClassInfo();
     }
 
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Get the raw type signature string of the array class, e.g. "[[I" for "int[][]".
+     * Get the raw type signature string of the array class, e.g. "[[I" for "int[][]". The array class is erased, so
+     * this has no type arguments, e.g. it is "[Ljava/util/List;" for {@code List<String>[]}.
      *
      * @return The raw type signature string of the array class.
      */
@@ -104,7 +103,10 @@ public final class ArrayClassInfo extends ClassInfo {
     }
 
     /**
-     * Get the type signature of the array class, e.g. the {@link ArrayTypeSignature} for {@code "int[][]"}.
+     * Get the type signature of the array class, e.g. the {@link ArrayTypeSignature} for {@code "int[][]"}. The
+     * array class is erased, so this has no type arguments or type annotations, e.g. it is the type signature of
+     * {@code java.util.List[]} for {@code List<String>[]}. The type arguments and type annotations of an array type
+     * are on the {@link ArrayTypeSignature} that {@link ArrayTypeSignature#getArrayClassInfo()} was called on.
      *
      * @return The array type signature of the class.
      */
@@ -113,7 +115,8 @@ public final class ArrayClassInfo extends ClassInfo {
     }
 
     /**
-     * Get the type signature of the array elements.
+     * Get the type signature of the array elements. The array class is erased, so this has no type arguments or
+     * type annotations, e.g. it is the type signature of {@code java.util.List} for {@code List<String>[]}.
      *
      * @return The type signature of the array elements.
      */
@@ -140,10 +143,14 @@ public final class ArrayClassInfo extends ClassInfo {
      */
     public @Nullable ClassInfo getElementClassInfo() {
         var elementInfo = elementClassInfo;
-        if (elementInfo == null) {
-            final var elementTypeSignature = arrayTypeSignature.getElementTypeSignature();
-            if (!(elementTypeSignature instanceof BaseTypeSignature)) {
-                elementClassInfo = elementInfo = elementTypeSignature.getClassInfo();
+        final var scanRes = scanResult;
+        if (elementInfo == null && scanRes != null) {
+            if (!(arrayTypeSignature.getElementTypeSignature() instanceof BaseTypeSignature)) {
+                // Look the element class up by name, since the class info of a type variable element type would be
+                // the class that the type variable is used in
+                final var name = getName();
+                elementClassInfo = elementInfo = scanRes.classNameToClassInfo
+                        .get(name.substring(0, name.length() - 2 * getNumDimensions()));
                 if (elementInfo != null) {
                     // Copy over relevant fields from array element ClassInfo
                     this.classpathElement = elementInfo.classpathElement;
@@ -156,5 +163,13 @@ public final class ArrayClassInfo extends ClassInfo {
             }
         }
         return elementInfo;
+    }
+
+    @Override
+    void setScanResult(final @Nullable ScanResult scanResult) {
+        super.setScanResult(scanResult);
+        arrayTypeSignature.setScanResult(scanResult);
+        // Pre-load fields from element type
+        getElementClassInfo();
     }
 }

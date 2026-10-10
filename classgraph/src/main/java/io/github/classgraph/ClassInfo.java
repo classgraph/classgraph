@@ -468,41 +468,7 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
                 classInfo = new ClassInfo(canonicalClassName, /* classModifiers = */ 0,
                         /* classfileResource = */ null);
             } else {
-                final StringBuilder arrayTypeSigStrBuf = new StringBuilder();
-                for (var i = 0; i < numArrayDims; i++) {
-                    arrayTypeSigStrBuf.append('[');
-                }
-                TypeSignature elementTypeSignature;
-                final var baseTypeChar = BaseTypeSignature.getTypeChar(baseClassName);
-                if (baseTypeChar != '\0') {
-                    // Element type is a base (primitive) type
-                    arrayTypeSigStrBuf.append(baseTypeChar);
-                    elementTypeSignature = new BaseTypeSignature(baseTypeChar);
-                } else {
-                    // Element type is not a base (primitive) type -- create a type signature for element type
-                    final var eltTypeSigStr = "L" + baseClassName.replace('.', '/') + ";";
-                    arrayTypeSigStrBuf.append(eltTypeSigStr);
-                    // The element type is parsed, so that a nested class name is split into the same parts as in a
-                    // type signature read from a classfile. A class name that the signature grammar cannot express
-                    // is referred to by its whole name instead: JVMS 4.2.1 allows '<', '>' and ':' in a class
-                    // name, but they end an identifier in a type signature.
-                    ClassRefTypeSignature classRefTypeSignature;
-                    try {
-                        final var parser = new TypeSignatureParser(eltTypeSigStr);
-                        classRefTypeSignature = ClassRefTypeSignature.parse(parser,
-                                // No type variables to resolve for generic types
-                                /* definingClassName = */ null);
-                        if (parser.hasMore()) {
-                            classRefTypeSignature = null;
-                        }
-                    } catch (final TypeSignatureParseException _) {
-                        classRefTypeSignature = null;
-                    }
-                    elementTypeSignature = classRefTypeSignature != null ? classRefTypeSignature
-                            : new ClassRefTypeSignature(baseClassName);
-                }
-                classInfo = new ArrayClassInfo(
-                        new ArrayTypeSignature(elementTypeSignature, numArrayDims, arrayTypeSigStrBuf.toString()));
+                classInfo = new ArrayClassInfo(ArrayTypeSignature.erased(baseClassName, numArrayDims));
             }
             final var added = classNameToNewClassInfo.putIfAbsent(canonicalClassName, classInfo);
             if (added != null) {
