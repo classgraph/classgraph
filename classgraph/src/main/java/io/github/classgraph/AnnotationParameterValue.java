@@ -111,8 +111,14 @@ public final class AnnotationParameterValue extends ScanResultObject
      *         <li>{@link AnnotationInfo}, for nested annotations
      *         </ul>
      *         An empty array is returned as an {@link Object}[] array if the annotation class was not scanned,
-     *         since its element type cannot then be known. An array is copied each time it is returned, as
-     *         {@link java.lang.annotation.Annotation} does, so changing it does not change this parameter value.
+     *         since its element type cannot then be known. An array is also returned as an {@link Object}[] array
+     *         if the annotation class does not declare a one-dimensional array type for this parameter, or if its
+     *         elements cannot be stored in an array of the declared element type, even by a widening conversion
+     *         such as int to long. This happens when the annotation class was changed after the annotated class was
+     *         compiled (the JDK reports such a value as an
+     *         {@link java.lang.annotation.AnnotationTypeMismatchException} when it is read). An array is copied
+     *         each time it is returned, as {@link java.lang.annotation.Annotation} does, so changing it does not
+     *         change this parameter value.
      */
     public @Nullable Object getValue() {
         final var val = value;
@@ -217,7 +223,10 @@ public final class AnnotationParameterValue extends ScanResultObject
     /**
      * Replace an Object[] array of boxed primitive values or strings with an array of the primitive type or a
      * String[] array. The element type is read from the parameter's method in the annotation class, if the
-     * annotation class was scanned, and is otherwise worked out from the elements.
+     * annotation class was scanned, and is otherwise worked out from the elements. If the annotation class does not
+     * declare a one-dimensional array type for the parameter, or an element cannot be stored in an array of the
+     * declared element type (by {@link Array#set}, which applies a widening conversion such as int to long), the
+     * Object[] array is kept.
      *
      * <p>
      * Two threads can convert the same value at once. The value is read only once, since the other thread may
@@ -241,20 +250,20 @@ public final class AnnotationParameterValue extends ScanResultObject
                 }
             }
             final var eltTypeName = getArrayValueTypeName(arrayValue, annotationClassInfo);
-            final var eltType = ARRAY_ELEMENT_TYPES.get(eltTypeName);
+            final var eltType = eltTypeName == null ? null : ARRAY_ELEMENT_TYPES.get(eltTypeName);
             if (eltType != null) {
                 // The array holds boxed values of a primitive type, or strings -- convert it to an array of that
                 // element type
                 final var typedArray = Array.newInstance(eltType, arrayValue.length);
-                for (var i = 0; i < arrayValue.length; i++) {
-                    final var elt = arrayValue[i];
-                    if (elt == null && eltType.isPrimitive()) {
-                        throw new IllegalArgumentException("Illegal null value for array of element type "
-                                + eltTypeName + " in parameter " + name + " of annotation class "
-                                + (annotationClassInfo == null ? "<class outside accept>"
-                                        : annotationClassInfo.getName()));
+                try {
+                    for (var i = 0; i < arrayValue.length; i++) {
+                        Array.set(typedArray, i, arrayValue[i]);
                     }
-                    Array.set(typedArray, i, elt);
+                } catch (final IllegalArgumentException e) {
+                    // An element cannot be stored in an array of the element type, for example because the annotation class was
+                    // recompiled with another element type after the annotated class was compiled. Like the
+                    // JDK, which reports a type mismatch only when this value is read, keep the Object[] array
+                    return;
                 }
                 value = typedArray;
             }
@@ -268,30 +277,29 @@ public final class AnnotationParameterValue extends ScanResultObject
      *            the array-typed annotation parameter value
      * @param annotationClassInfo
      *            the annotation class, or null if the annotation class was not scanned
-     * @return the name of the array element type.
+     * @return the name of the array element type, or null if the annotation class does not declare a
+     *         one-dimensional array type for this parameter, so that the array cannot be converted.
      */
-    private String getArrayValueTypeName(final Object[] arrayValue, final @Nullable ClassInfo annotationClassInfo) {
+    private @Nullable String getArrayValueTypeName(final Object[] arrayValue,
+            final @Nullable ClassInfo annotationClassInfo) {
         // Find the method in the annotation class with the same name as the annotation parameter.
         final var annotationMethodList = annotationClassInfo == null || annotationClassInfo.methodInfo == null
                 ? null
                 : annotationClassInfo.methodInfo.get(name);
         if (annotationClassInfo != null && annotationMethodList != null && !annotationMethodList.isEmpty()) {
+            // The annotation class may have been recompiled after the annotated class was compiled, so that the
+            // parameter no longer has a one-dimensional array type, or the annotation class may not be valid
+            // (javac cannot write two methods with the same name in an annotation class). The JDK reports such a
+            // value as a type mismatch only when it is read, so leave the value unconverted.
             if (annotationMethodList.size() > 1) {
-                // There should only be one method with a given name in an annotation
-                throw new IllegalArgumentException("Duplicated annotation parameter method " + name + "()"
-                        + " in annotation class " + annotationClassInfo.getName());
+                return null;
             }
             // Get the result type of the method with the same name as the annotation parameter
             final var annotationMethodResultTypeSig = annotationMethodList.get(0).getTypeSignatureOrTypeDescriptor()
                     .getResultType();
-            // The result type has to be an array type
-            if (!(annotationMethodResultTypeSig instanceof final ArrayTypeSignature arrayTypeSig)) {
-                throw new IllegalArgumentException(
-                        "Annotation parameter " + name + " in annotation class " + annotationClassInfo.getName()
-                                + " holds an array, but does not have an array type signature");
-            }
-            if (arrayTypeSig.getNumDimensions() != 1) {
-                throw new IllegalArgumentException("Annotations only support 1-dimensional arrays");
+            if (!(annotationMethodResultTypeSig instanceof final ArrayTypeSignature arrayTypeSig)
+                    || arrayTypeSig.getNumDimensions() != 1) {
+                return null;
             }
             final var elementTypeSig = arrayTypeSig.getElementTypeSignature();
             // TODO: once ClassGraph's minimum supported JDK version is 21 or later, make this a pattern switch

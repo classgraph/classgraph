@@ -267,13 +267,15 @@ public final class ScanResult implements AutoCloseable {
                     if (!metaAnnotation.getName().equals("java.lang.annotation.Repeatable")) {
                         continue;
                     }
-                    final var vals = metaAnnotation.getParameterValues();
-                    if (!vals.isEmpty()) {
-                        final var val = vals.getValue("value");
-                        if (val instanceof final AnnotationClassRef classRef) {
-                            final var repeatableAnnotationName = classRef.getName();
-                            if (repeatableAnnotationName != null) {
-                                allRepeatableAnnotationNames.add(repeatableAnnotationName);
+                    // A value that is not a class reference (an annotation classfile that javac did not write) is
+                    // ignored, as is a class reference whose type descriptor does not parse
+                    if (metaAnnotation.getParameterValues()
+                            .getValue("value") instanceof final AnnotationClassRef classRef) {
+                        try {
+                            allRepeatableAnnotationNames.add(classRef.getName());
+                        } catch (final IllegalArgumentException e) {
+                            if (topLevelLog != null) {
+                                topLevelLog.log("Ignoring malformed @Repeatable on " + classInfo.getName(), e);
                             }
                         }
                     }
