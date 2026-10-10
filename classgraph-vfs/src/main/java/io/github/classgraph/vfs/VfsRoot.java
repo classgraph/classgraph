@@ -223,6 +223,22 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
     public abstract URI resolveURI(String pathWithinRoot);
 
     /**
+     * Returns the {@link URI} of a path within this root, as {@link #resolveURI(String)} does, but without asking
+     * whether anything is stored there, so that a directory or a missing name can be named even within a module.
+     * This is what {@link VfsPath#toUri()} names a path that has no entry by.
+     *
+     * @param pathWithinRoot
+     *            the path, relative to this root, with {@code '/'} as the separator, or the empty string for the
+     *            top of the root.
+     * @return the {@link URI} of the path.
+     * @throws IllegalStateException
+     *             if the {@link URI} could not be formed.
+     */
+    URI uriOfPath(final String pathWithinRoot) {
+        return resolveURI(pathWithinRoot);
+    }
+
+    /**
      * Returns the {@link URL} of this root.
      *
      * @return the {@link URL} of the root.

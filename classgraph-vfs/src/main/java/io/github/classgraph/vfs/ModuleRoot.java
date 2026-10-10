@@ -33,6 +33,7 @@ import java.io.IOException;
 import java.lang.module.ModuleReader;
 import java.lang.module.ModuleReference;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.file.FileSystemNotFoundException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -42,6 +43,7 @@ import java.util.List;
 
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.path.FileUtils;
+import io.github.classgraph.base.internal.path.URLPaths;
 import io.github.classgraph.vfs.internal.module.ModuleReaderUtils;
 import io.github.classgraph.vfs.internal.recycler.Recycler;
 import org.jspecify.annotations.Nullable;
@@ -135,6 +137,36 @@ public final class ModuleRoot extends VfsRoot {
         } catch (final IOException e) {
             throw new IllegalStateException(
                     "Could not form URI for " + getPath() + "/" + pathWithinRoot + " : " + e, e);
+        }
+    }
+
+    @Override
+    URI uriOfPath(final String pathWithinRoot) {
+        // The module will only name a resource it contains, so a directory or a missing name is named here, the way
+        // the module names its resources
+        final var moduleDir = getNioPath();
+        if (moduleDir != null && Files.isDirectory(moduleDir)) {
+            // A module that was exploded into a directory is read from that directory, so a name within it is named
+            // the way a name within a directory root is, rather than as an entry of a jarfile that does not exist
+            return URLPaths.toURI(moduleDir.resolve(pathWithinRoot));
+        }
+        final var rootURIStr = getURI().toString();
+        final var entryPath = URLPaths.encodePath(pathWithinRoot);
+        final String uriStr;
+        if (rootURIStr.startsWith("jrt:")) {
+            // A module of the running JDK names its resources below its own "jrt:/<module>" location
+            uriStr = pathWithinRoot.isEmpty() ? rootURIStr
+                    : rootURIStr + (rootURIStr.endsWith("/") ? "" : "/") + entryPath;
+        } else {
+            // A module packaged as a jarfile names its resources within the jarfile
+            uriStr = (rootURIStr.startsWith("jar:") ? "" : "jar:") + rootURIStr + "!/" + entryPath;
+        }
+        try {
+            // Built directly rather than through URLPaths#toURI(String), since the module's location is already a
+            // URI, which normalizing a second time would re-encode
+            return new URI(uriStr);
+        } catch (final URISyntaxException e) {
+            throw new IllegalStateException("Could not form URI for " + uriStr + " : " + e, e);
         }
     }
 

@@ -34,7 +34,6 @@ import java.net.URI;
 import java.nio.file.ClosedFileSystemException;
 import java.nio.file.FileStore;
 import java.nio.file.FileSystem;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
 import java.nio.file.WatchService;
@@ -54,7 +53,6 @@ import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
 import io.github.classgraph.base.internal.path.PathSyntax;
-import io.github.classgraph.base.internal.path.URLPaths;
 import io.github.classgraph.base.internal.utils.Assert;
 import org.jspecify.annotations.Nullable;
 
@@ -289,34 +287,27 @@ final class VfsFileSystem extends FileSystem {
      */
     URI uriOf(final VfsPath path) {
         final var name = path.entryName();
-        if (name.isEmpty()) {
-            return root.getURI();
-        }
-        try {
-            final var entry = entry(name);
-            if (entry != null) {
-                return entry.getURI();
+        if (!name.isEmpty()) {
+            try {
+                final var entry = entry(name);
+                if (entry != null) {
+                    return entry.getURI();
+                }
+            } catch (final IOException e) {
+                throw new IOError(e);
             }
-        } catch (final IOException e) {
-            throw new IOError(e);
         }
-        // The path names a directory, or something this filesystem does not contain, so there is no VfsEntry to
-        // ask -- form the URI the same way an entry would
+        // The path is the root directory, another directory, or something this filesystem does not contain, so
+        // there is no VfsEntry to ask -- have the root name it the way it names its entries. The root directory of
+        // a view of a package root is the package root, not the top of the jarfile.
         final var packageRoot = root.getPackageRoot();
-        final var entryPath = URLPaths.encodePath(packageRoot.isEmpty() ? name : packageRoot + "/" + name);
-        final var rootURIStr = root.getURI().toString();
-        // A module that was exploded into a directory is read from that directory, so a name within it is named the
-        // way a name within a directory root is, rather than as an entry of a jarfile that does not exist. Only a
-        // module is asked, since a directory root is already known to be one and an archive root never is.
-        final var moduleDir = root instanceof ModuleRoot ? root.getNioPath() : null;
-        final String uriStr;
-        if (root instanceof DirRoot || rootURIStr.startsWith("jrt:")
-                || (moduleDir != null && Files.isDirectory(moduleDir))) {
-            uriStr = rootURIStr + (rootURIStr.endsWith("/") ? "" : "/") + entryPath;
-        } else {
-            uriStr = (rootURIStr.startsWith("jar:") ? "" : "jar:") + rootURIStr + "!/" + entryPath;
-        }
-        return URI.create(uriStr);
+        final var uri = root
+                .uriOfPath(packageRoot.isEmpty() ? name : name.isEmpty() ? packageRoot : packageRoot + "/" + name);
+        // The default filesystem ends the URI of a directory with '/', but a directory is named here without one,
+        // as it is within a jarfile, so that the URI does not depend on whether the name is a directory. The root
+        // directory is left as the root names it, since the top of a jarfile, "jar:...!/", has to keep its '/'.
+        final var uriStr = uri.toString();
+        return name.isEmpty() || !uriStr.endsWith("/") ? uri : URI.create(uriStr.substring(0, uriStr.length() - 1));
     }
 
     // -------------------------------------------------------------------------------------------------------------
