@@ -3,6 +3,8 @@ package io.github.classgraph;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.util.Map;
+
 import org.junit.jupiter.api.Test;
 
 /**
@@ -36,6 +38,38 @@ public class ArrayTypeSignatureTest {
     public void arrayTypeWith20000DimensionsDoesNotParse() {
         assertThatThrownBy(() -> TypeSignature.parse("[".repeat(20000) + "I", /* definingClassName = */ null))
                 .isInstanceOf(TypeSignatureParseException.class);
+    }
+
+    /**
+     * An array type substituted for the element type of an array type adds its dimensions, but a type variable is
+     * left unsubstituted if the result would have more than 255 dimensions.
+     *
+     * @throws TypeSignatureParseException
+     *             if a type signature does not parse
+     */
+    @Test
+    public void substitutionGivesAnArrayTypeWithAtMost255Dimensions() throws TypeSignatureParseException {
+        final var arrayOfT = TypeSignature.parse("[".repeat(200) + "TT;", "p.C");
+        final var key = TypeSignature.substitutionKey("p.C", "T");
+        final var substituted = arrayOfT.substituteTypeVariables(Map.of(key, typeArgument("[".repeat(55) + "I")));
+        assertThat(((ArrayTypeSignature) substituted).getNumDimensions()).isEqualTo(255);
+        assertThat(((ArrayTypeSignature) substituted).getElementTypeSignature().toString()).isEqualTo("int");
+        assertThat(arrayOfT.substituteTypeVariables(Map.of(key, typeArgument("[".repeat(56) + "I"))))
+                .isSameAs(arrayOfT);
+    }
+
+    /**
+     * Parse a type argument.
+     *
+     * @param typeArgumentStr
+     *            the type argument, in type signature format.
+     * @return the type argument.
+     * @throws TypeSignatureParseException
+     *             if the type argument does not parse
+     */
+    private static TypeArgument typeArgument(final String typeArgumentStr) throws TypeSignatureParseException {
+        return ((ClassRefTypeSignature) TypeSignature.parse("Ljava/util/List<" + typeArgumentStr + ">;",
+                /* definingClassName = */ null)).getTypeArguments().get(0);
     }
 
     /** The type signature of an erased array class can have at most 255 dimensions. */

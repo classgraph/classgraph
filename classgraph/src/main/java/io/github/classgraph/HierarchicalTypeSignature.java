@@ -75,6 +75,36 @@ public abstract sealed class HierarchicalTypeSignature extends ScanResultObject
         typeAnnotationList.add(annotationInfo);
     }
 
+    /**
+     * Give this type signature, which type variable substitution has just built to replace another one, a copy of
+     * the type annotations of the type signature it replaces.
+     *
+     * @param source
+     *            the type signature that this type signature replaces.
+     */
+    void copyTypeAnnotationsFrom(final HierarchicalTypeSignature source) {
+        final var sourceTypeAnnotations = source.typeAnnotations;
+        typeAnnotations = sourceTypeAnnotations == null ? null : new ArrayList<>(sourceTypeAnnotations);
+        typeAnnotationInfoRef = null;
+    }
+
+    /**
+     * Put type annotations before the type annotations of this type signature, which type variable substitution has
+     * just built.
+     *
+     * @param annotations
+     *            the type annotations to put first.
+     */
+    void prependTypeAnnotations(final List<AnnotationInfo> annotations) {
+        final List<AnnotationInfo> typeAnnotationList = new ArrayList<>(annotations);
+        final var ownTypeAnnotations = typeAnnotations;
+        if (ownTypeAnnotations != null) {
+            typeAnnotationList.addAll(ownTypeAnnotations);
+        }
+        typeAnnotations = typeAnnotationList;
+        typeAnnotationInfoRef = null;
+    }
+
     @Override
     void setScanResult(final @Nullable ScanResult scanResult) {
         super.setScanResult(scanResult);
