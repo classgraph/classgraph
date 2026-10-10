@@ -40,6 +40,7 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.Permission;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -55,7 +56,8 @@ import org.junit.jupiter.api.io.TempDir;
  * <p>
  * Every assertion in here holds on every operating system, whether or not its filesystem is case-insensitive: a
  * lookup by exact name is not answered by a differently-cased name anywhere, and a lookup that ignores case is
- * answered by one everywhere.
+ * answered by one everywhere. The one filesystem these tests do not hold on is a case-insensitive one mounted on
+ * Linux, which {@link VfsRoot#getEntry(String)} documents as the exception; no test runs on one.
  */
 public class VfsEntryLookupCaseTest {
     /** The name a file is stored under, in the case it is stored in. */
@@ -271,14 +273,107 @@ public class VfsEntryLookupCaseTest {
     }
 
     /**
+     * A symbolic link whose name differs from the name of the file or directory it points at only in case is found
+     * by its own name, as a walk reports it and as a classloader finds it. Its real path differs from the name it
+     * was reached through only in case, which is also what a case-insensitive filesystem reports for a
+     * differently-cased name, so the case check has to tell the two apart. A case-insensitive filesystem cannot
+     * hold both names, so there this test is skipped.
+     *
+     * @param tempDir
+     *            a temporary directory to build in.
+     * @throws IOException
+     *             if the directory could not be built or read.
+     */
+    @Test
+    public void aSymbolicLinkWhoseNameDiffersFromItsTargetOnlyInCaseIsFound(@TempDir final Path tempDir)
+            throws IOException {
+        final var dir = makeDir(tempDir.resolve("dir"), STORED_NAME, "Alias.txt");
+        try {
+            // A link to a file, and a link to a directory, each in the same directory as its target
+            Files.createSymbolicLink(dir.resolve("alias.txt"), Path.of("Alias.txt"));
+            Files.createSymbolicLink(dir.resolve("com"), Path.of("Com"));
+        } catch (final IOException | UnsupportedOperationException e) {
+            assumeTrue(false, "Case-only symbolic links are not supported here: " + e);
+            return;
+        }
+        try (var vfs = new Vfs()) {
+            final var root = vfs.open(dir.toString());
+            assertThat(root.getEntries()).extracting(VfsEntry::getPathFromRoot).contains("alias.txt");
+            for (final var name : new String[] { "alias.txt", "Alias.txt", "com/Xyz/Widget.txt", STORED_NAME }) {
+                final var entry = root.getEntry(name);
+                assertThat(entry).as(name).isNotNull();
+                assertThat(Objects.requireNonNull(entry).getPathFromRoot()).isEqualTo(name);
+                assertThat(new String(entry.load(), StandardCharsets.UTF_8)).as(name).isEqualTo(CONTENT);
+            }
+            // A name that no file and no link is stored under is still not found
+            assertThat(root.getEntry("com/xyz/widget.txt")).isNull();
+            assertThat(root.getEntry("ALIAS.txt")).isNull();
+        }
+    }
+
+    /**
+     * A directory that a SecurityManager will not let be listed is treated as any other directory that cannot be
+     * listed: a name whose real name differs from it only in case is taken to be a folded one, and is not found,
+     * rather than the lookup failing with a {@link SecurityException}. A SecurityManager can only be installed on
+     * JDK 17, so this test is skipped on later JDKs.
+     *
+     * @param tempDir
+     *            a temporary directory to build in.
+     * @throws IOException
+     *             if the directory could not be built or read.
+     */
+    @Test
+    @SuppressWarnings("removal")
+    public void aDirectoryThatASecurityManagerWillNotListIsTreatedAsUnlisted(@TempDir final Path tempDir)
+            throws IOException {
+        final var dir = makeDir(tempDir.resolve("dir"), "Alias.txt");
+        try {
+            Files.createSymbolicLink(dir.resolve("alias.txt"), Path.of("Alias.txt"));
+        } catch (final IOException | UnsupportedOperationException e) {
+            assumeTrue(false, "Case-only symbolic links are not supported here: " + e);
+            return;
+        }
+        try (var vfs = new Vfs()) {
+            final var root = vfs.open(dir.toString());
+            // The directory of the root, spelled as the root lists it
+            final var deniedPath = Objects.requireNonNull(root.getNioPath()).toString();
+            final var denyingSecurityManager = new SecurityManager() {
+                @Override
+                public void checkPermission(final Permission perm) {
+                    // Allow everything else, including removing this SecurityManager again
+                }
+
+                @Override
+                public void checkRead(final String file) {
+                    if (file.equals(deniedPath)) {
+                        throw new SecurityException("Read access denied: " + file);
+                    }
+                }
+            };
+            try {
+                System.setSecurityManager(denyingSecurityManager);
+            } catch (final UnsupportedOperationException e) {
+                assumeTrue(false, "Cannot install a SecurityManager");
+            }
+            try {
+                assertThat(root.getEntry("alias.txt")).isNull();
+                assertThat(root.getEntry("Alias.txt")).isNotNull();
+            } finally {
+                System.setSecurityManager(null);
+            }
+        }
+    }
+
+    /**
      * A module exploded into a directory that is reached through a symbolic link answers a lookup the same way a
      * directory root over the same directory does. The case check compares the real path of the file with the
      * directory, so it has to be given the real path of the directory too.
      *
      * <p>
-     * A case-sensitive filesystem has no case folding, so the case-only symbolic link {@code alias.txt ->
-     * Alias.txt} stands in for it: its real path differs from the name it was reached through only in case, which
-     * is what a case-insensitive filesystem reports for a differently-cased name.
+     * Only a case-insensitive filesystem tells a module root that does that from one that does not, through
+     * {@link #DIFFERENTLY_CASED_NAME}. On a case-sensitive filesystem, the case-only symbolic link {@code alias.txt
+     * -> Alias.txt} still takes the case check down the path that tells a link from a folded name, and has to be
+     * found by both roots.
      *
      * @param tempDir
      *            a temporary directory to build in.
@@ -304,6 +399,7 @@ public class VfsEntryLookupCaseTest {
                 assertThat(moduleRoot.getEntry(name) == null).as(name).isEqualTo(dirRoot.getEntry(name) == null);
             }
             assertThat(moduleRoot.getEntry(STORED_NAME)).isNotNull();
+            assertThat(moduleRoot.getEntry("alias.txt")).isNotNull();
         }
     }
 
