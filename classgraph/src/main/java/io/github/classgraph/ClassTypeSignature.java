@@ -108,24 +108,14 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
         super();
         this.classInfo = classInfo;
         this.typeParameters = List.of();
-        ClassRefTypeSignature superclassSignature = null;
-        try {
-            superclassSignature = superclass == null ? null
-                    : (ClassRefTypeSignature) TypeSignature
-                            .parse("L" + superclass.getName().replace('.', '/') + ";", classInfo.getName());
-        } catch (final TypeSignatureParseException e) {
-            // Silently fail (should not happen)
-        }
-        this.superclassSignature = superclassSignature;
+        this.superclassSignature = superclass == null ? null
+                : ClassRefTypeSignature.ofClassName(superclass.getName(), classInfo.getName());
+        // There must be exactly one superinterface signature per interface, in order, since class type annotations
+        // index into this list by their position in the classfile's interfaces[]
         this.superinterfaceSignatures = interfaces.isEmpty() ? List.of() : new ArrayList<>(interfaces.size());
         for (final ClassInfo iface : interfaces) {
-            try {
-                final var ifaceSignature = (ClassRefTypeSignature) TypeSignature
-                        .parse("L" + iface.getName().replace('.', '/') + ";", classInfo.getName());
-                this.superinterfaceSignatures.add(ifaceSignature);
-            } catch (final TypeSignatureParseException e) {
-                // Silently fail (should not happen)
-            }
+            this.superinterfaceSignatures
+                    .add(ClassRefTypeSignature.ofClassName(iface.getName(), classInfo.getName()));
         }
         this.throwsSignatures = List.of();
     }

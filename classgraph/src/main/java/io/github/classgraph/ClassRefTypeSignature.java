@@ -97,6 +97,30 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
         this(className, List.of(), List.of(), List.of());
     }
 
+    /**
+     * Create a class reference with no type arguments for a class name, splitting it into a base class name and
+     * suffixes as a type signature would.
+     *
+     * @param className
+     *            The class name, with '.' between package segments.
+     * @param definingClassName
+     *            The name of the defining class (for resolving type variables).
+     * @return The class reference. If the name cannot be written as a class reference in a type signature (e.g. it
+     *         contains ':', which the JVM allows in a class name), it is the whole name as the base class name,
+     *         with no suffixes.
+     */
+    static ClassRefTypeSignature ofClassName(final String className, final @Nullable String definingClassName) {
+        try {
+            if (TypeSignature.parse("L" + className.replace('.', '/') + ";",
+                    definingClassName) instanceof final ClassRefTypeSignature classRefTypeSignature) {
+                return classRefTypeSignature;
+            }
+        } catch (final TypeSignatureParseException e) {
+            // The name cannot be written as a class reference in a type signature
+        }
+        return new ClassRefTypeSignature(className);
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**
@@ -563,7 +587,7 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
                 throw new TypeSignatureParseException(parser, "Could not parse identifier token");
             }
             var className = parser.currToken();
-            final var typeArguments = TypeArgument.parseList(parser, definingClassName);
+            var typeArguments = TypeArgument.parseList(parser, definingClassName);
             List<String> suffixes;
             List<List<TypeArgument>> suffixTypeArguments;
             if (parser.peek() == '.' || parser.peek() == '$') {
@@ -581,11 +605,28 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
                         suffixTypeArguments.add(TypeArgument.parseList(parser, definingClassName));
                     } else if (separator == '$') {
                         // A '$' that is not followed by a name is part of the preceding name, as in "$$", or in a
-                        // name that ends in '$' (which Scala uses for the class of an object, e.g. "Outer$Inner$")
+                        // name that ends in '$' (which Scala uses for the class of an object, e.g. "Outer$Inner$").
+                        // Type arguments may follow such a name, as in "Box$<Ljava/lang/String;>".
+                        final var typeArgumentsAfterDollar = TypeArgument.parseList(parser, definingClassName);
                         if (suffixes.isEmpty()) {
                             className += '$';
+                            if (!typeArgumentsAfterDollar.isEmpty()) {
+                                if (!typeArguments.isEmpty()) {
+                                    throw new TypeSignatureParseException(parser,
+                                            "Type arguments both before and after '$'");
+                                }
+                                typeArguments = typeArgumentsAfterDollar;
+                            }
                         } else {
-                            suffixes.set(suffixes.size() - 1, suffixes.get(suffixes.size() - 1) + '$');
+                            final var last = suffixes.size() - 1;
+                            suffixes.set(last, suffixes.get(last) + '$');
+                            if (!typeArgumentsAfterDollar.isEmpty()) {
+                                if (!suffixTypeArguments.get(last).isEmpty()) {
+                                    throw new TypeSignatureParseException(parser,
+                                            "Type arguments both before and after '$'");
+                                }
+                                suffixTypeArguments.set(last, typeArgumentsAfterDollar);
+                            }
                         }
                     } else {
                         throw new TypeSignatureParseException(parser, "Missing class name after '.'");

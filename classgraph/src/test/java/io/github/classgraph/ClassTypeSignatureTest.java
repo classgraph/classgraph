@@ -3,12 +3,18 @@ package io.github.classgraph;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
+import java.io.File;
+import java.io.IOException;
 import java.io.Serial;
 import java.io.Serializable;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.file.Files;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 /**
  * {@link ClassTypeSignature} is the generic type signature of a class declaration: its type parameters, its
@@ -110,6 +116,94 @@ public class ClassTypeSignatureTest {
             // A class that does have a type signature returns it in preference to the type descriptor
             final var sub = classInfo(scanResult, Sub.class);
             assertThat(sub.getTypeSignatureOrTypeDescriptor()).isSameAs(sub.getTypeSignature());
+        }
+    }
+
+    /**
+     * Generate a class {@code Impl} with no {@code Signature} attribute, whose superclass {@code Base:x} and first
+     * interface {@code I:x} have names that the JVM accepts but that cannot be written as a class reference in a
+     * type signature, since ':' ends a name there. The second interface is {@code I2}. The superclass and the first
+     * interface have the type annotation {@code @TA}.
+     *
+     * @return the bytes of the classfile.
+     * @throws IOException
+     *             if the classfile could not be written.
+     */
+    private static byte[] unparseableSupertypeNamesClassfileBytes() throws IOException {
+        final var byteArrayOutputStream = new ByteArrayOutputStream();
+        try (var out = new DataOutputStream(byteArrayOutputStream)) {
+            out.writeInt(0xCAFEBABE);
+            out.writeShort(0); // Minor version
+            out.writeShort(52); // Major version (Java 8)
+
+            out.writeShort(11); // Constant pool count (one greater than the number of entries)
+            // #1, #3, #5, #7: the names of this class, the superclass and the two interfaces
+            // #2, #4, #6, #8: class refs to them
+            final var names = new String[] { "Impl", "Base:x", "I:x", "I2" };
+            for (var i = 0; i < names.length; i++) {
+                out.writeByte(1);
+                out.writeUTF(names[i]);
+                out.writeByte(7);
+                out.writeShort(2 * i + 1);
+            }
+            // #9
+            out.writeByte(1);
+            out.writeUTF("RuntimeVisibleTypeAnnotations");
+            // #10
+            out.writeByte(1);
+            out.writeUTF("LTA;");
+
+            out.writeShort(0x0021); // ACC_PUBLIC | ACC_SUPER
+            out.writeShort(2); // this_class
+            out.writeShort(4); // super_class
+            out.writeShort(2); // Number of interfaces
+            out.writeShort(6);
+            out.writeShort(8);
+            out.writeShort(0); // Number of fields
+            out.writeShort(0); // Number of methods
+
+            out.writeShort(1); // Number of attributes
+            out.writeShort(9); // "RuntimeVisibleTypeAnnotations"
+            out.writeInt(2 + 2 * 8);
+            out.writeShort(2); // num_annotations
+            for (final int supertypeIndex : new int[] { 0xFFFF, 0 }) {
+                out.writeByte(0x10); // target_type: type in extends or implements clause
+                out.writeShort(supertypeIndex); // 65535 for the superclass, else an index into interfaces[]
+                out.writeByte(0); // type_path: path_length
+                out.writeShort(10); // type_index: "LTA;"
+                out.writeShort(0); // num_element_value_pairs
+            }
+        }
+        return byteArrayOutputStream.toByteArray();
+    }
+
+    /**
+     * The synthetic type descriptor has the superclass and one superinterface signature for each interface, in
+     * classfile order, even for supertype names that cannot be parsed as a class reference, so that a type
+     * annotation on a supertype stays on the supertype it was written for.
+     *
+     * @param tempDir
+     *            the directory to write the classfile to
+     * @throws IOException
+     *             if the classfile could not be written
+     */
+    @Test
+    public void theSyntheticTypeDescriptorKeepsEverySupertype(@TempDir final File tempDir) throws IOException {
+        Files.write(new File(tempDir, "Impl.class").toPath(), unparseableSupertypeNamesClassfileBytes());
+        try (var scanResult = new ClassGraph().enableClassInfo().enableAnnotationInfo()
+                .enableClasspathEntries(tempDir).scan()) {
+            final var typeDescriptor = scanResult.getClassInfo("Impl").getTypeDescriptor();
+            final var superclassSignature = typeDescriptor.getSuperclassSignature();
+            assertThat(superclassSignature).isNotNull();
+            assertThat(superclassSignature.getFullyQualifiedClassName()).isEqualTo("Base:x");
+            assertThat(superclassSignature.getTypeAnnotationInfo()).extracting(AnnotationInfo::getName)
+                    .containsExactly("TA");
+            final var superinterfaceSignatures = typeDescriptor.getSuperinterfaceSignatures();
+            assertThat(superinterfaceSignatures).extracting(ClassRefTypeSignature::getFullyQualifiedClassName)
+                    .containsExactly("I:x", "I2");
+            assertThat(superinterfaceSignatures.get(0).getTypeAnnotationInfo()).extracting(AnnotationInfo::getName)
+                    .containsExactly("TA");
+            assertThat(superinterfaceSignatures.get(1).getTypeAnnotationInfo()).isEmpty();
         }
     }
 
