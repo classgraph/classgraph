@@ -140,9 +140,11 @@ public interface ClasspathOrder {
      * only reads them from the first Equinox classloader it is given in each scan.
      *
      * @param key
-     *            a name for the piece of work, unique within the handler that claims it.
-     * @return true the first time this method is called with a given key during a scan, false every time
-     *         thereafter.
+     *            a name for the piece of work, unique within the handler that claims it. Handlers of different
+     *            classes have separate sets of keys, so they cannot claim each other's work, while all instances of
+     *            one handler class share one set of keys.
+     * @return true the first time a handler of a given class calls this method with a given key during a scan,
+     *         false every time thereafter.
      */
     boolean claimOncePerScan(String key);
 }

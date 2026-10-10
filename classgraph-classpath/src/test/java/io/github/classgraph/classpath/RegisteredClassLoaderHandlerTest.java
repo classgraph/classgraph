@@ -451,6 +451,49 @@ public class RegisteredClassLoaderHandlerTest {
     }
 
     /**
+     * A {@link ClassLoaderHandler} for {@link UnknownClassLoader} that adds one fixed classpath entry of its own,
+     * but only the first time it claims the key "system-bundles" in a scan.
+     */
+    private static class ClaimingHandler extends FixedEntryHandler {
+        /**
+         * Constructor.
+         *
+         * @param classpathEntry
+         *            the one classpath entry this handler adds.
+         */
+        ClaimingHandler(final Path classpathEntry) {
+            super(UnknownClassLoader.class, classpathEntry);
+        }
+
+        @Override
+        public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
+                final @Nullable ClassGraphLog log) {
+            if (classpathOrder.claimOncePerScan("system-bundles")) {
+                super.findClasspathOrder(classLoader, classpathOrder, log);
+            }
+        }
+    }
+
+    /**
+     * Two handlers of different classes that claim the same key each get their own claim, since a key only has to
+     * be unique within the handler that claims it. Otherwise the first handler to run would silently stop the other
+     * one from adding its classpath entries.
+     */
+    @Test
+    public void twoHandlersMayClaimTheSameKey(@TempDir final Path tempDir) throws Exception {
+        final var dirA = classesDir(tempDir, "a");
+        final var dirB = classesDir(tempDir, "b");
+        final var classLoader = new UnknownClassLoader(classesDir(tempDir, "unknown").toString());
+
+        assertThat(find(new ClasspathFinder().enableClassLoaders(classLoader)
+                .registerClassLoaderHandler(new ClaimingHandler(dirA) {
+                    // A class of its own
+                }).registerClassLoaderHandler(new ClaimingHandler(dirB) {
+                    // A class of its own
+                }))).containsExactly(dirA, dirB);
+    }
+
+    /**
      * A handler whose {@code canHandle} throws is treated as not handling the classloader, so the classloaders it
      * is offered are still read by the other handlers.
      */

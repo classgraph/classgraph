@@ -82,8 +82,29 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
      */
     private List<String> currLibDirPrefixes = ClassLoaderHandler.NO_LIB_DIR_PREFIXES;
 
-    /** The keys that {@link #claimOncePerScan(String)} has already been called with. */
-    private final Set<String> claimedOncePerScan = new HashSet<>();
+    /**
+     * The class of the {@code ClassLoaderHandler} whose {@code findClasspathOrder} method is currently being
+     * called, or null if classpath entries are not currently being obtained from a {@code ClassLoaderHandler}.
+     */
+    private @Nullable Class<?> currHandlerClass;
+
+    /**
+     * A key claimed through {@link #claimOncePerScan(String)}, with the class of the handler that claimed it.
+     *
+     * @param handlerClass
+     *            the class of the handler that claimed the key, or {@link ClasspathOrderBuilder} for a claim made
+     *            outside any handler.
+     * @param key
+     *            the key.
+     */
+    private record Claim(Class<?> handlerClass, String key) {
+    }
+
+    /**
+     * The keys that {@link #claimOncePerScan(String)} has already been called with. A key is kept with the class of
+     * the handler that claimed it, since a key only has to be unique within that handler.
+     */
+    private final Set<Claim> claimedOncePerScan = new HashSet<>();
 
     /**
      * A classpath element and the string form of the {@link ClassLoader} it was obtained from.
@@ -131,7 +152,8 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
 
     @Override
     public synchronized boolean claimOncePerScan(final String key) {
-        return claimedOncePerScan.add(key);
+        return claimedOncePerScan
+                .add(new Claim(currHandlerClass == null ? ClasspathOrderBuilder.class : currHandlerClass, key));
     }
 
     /**
@@ -174,6 +196,18 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
     void setLibDirPrefixes(final @Nullable List<String> libDirPrefixes, final @Nullable ClassGraphLog log) {
         this.currLibDirPrefixes = libDirPrefixes == null ? ClassLoaderHandler.NO_LIB_DIR_PREFIXES
                 : normalizePrefixes(libDirPrefixes, log);
+    }
+
+    /**
+     * Set the class of the handler whose claims {@link #claimOncePerScan(String)} records. Called before and after
+     * invoking the {@code findClasspathOrder} method of a {@code ClassLoaderHandler}, so that each handler class
+     * has its own set of keys.
+     *
+     * @param handlerClass
+     *            the class of the handler, or null if no handler is running.
+     */
+    void setCurrentHandlerClass(final @Nullable Class<?> handlerClass) {
+        this.currHandlerClass = handlerClass;
     }
 
     /**
