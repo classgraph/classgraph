@@ -155,6 +155,6 @@ final class URLClassPathReader {
                 }
             }
         }
-        classpathOrder.addClasspathEntries(openedUrls, classLoader, log);
+        classpathOrder.addClasspathEntry(openedUrls, classLoader, log);
     }
 }

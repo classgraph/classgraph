@@ -205,7 +205,7 @@ public class ClassLoaderProbe {
                 : log.log("Adding the classpath entries given by the caller: " + classpathEntries);
         // No classloader is recorded for an entry the caller named: the caller named a location to read, not a
         // classloader to read it through, and a scan that was never asked to look at a classloader must not pin one
-        classpathOrder.addClasspathEntries(classpathEntries, /* classLoader = */ null, subLog);
+        classpathOrder.addClasspathEntry(classpathEntries, /* classLoader = */ null, subLog);
         if (subLog != null) {
             subLog.log("WARNING: when the classpath entries are given directly, there is no guarantee that the "
                     + "classes found by classpath scanning will be the same as the classes loaded by the "
