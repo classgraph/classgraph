@@ -50,6 +50,14 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
     /** The zip entry path. */
     public final String entryName;
 
+    /**
+     * True if {@link #entryName} is exactly the name stored in the central directory, so that
+     * {@link java.util.jar.JarFile}, which looks entries up by the name they are stored under, finds the entry
+     * under it; false if sanitizing changed the name, or if an Info-ZIP Unicode path extra field, which
+     * {@link java.util.jar.JarFile} ignores, replaced it with a different name.
+     */
+    final boolean nameIsVerbatim;
+
     /** True if the zip entry is deflated; false if the zip entry is stored. */
     final boolean isDeflated;
 
@@ -117,6 +125,10 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
      *            The offset of the LOC header for this entry within the parent logical zipfile.
      * @param entryName
      *            The name of the entry.
+     * @param nameIsVerbatim
+     *            True if the name of the entry is exactly the name stored in the central directory; false if
+     *            sanitizing changed it, or if an Info-ZIP Unicode path extra field replaced it with a different
+     *            name.
      * @param isDeflated
      *            True if the entry is deflated; false if the entry is stored.
      * @param compressedSize
@@ -136,15 +148,18 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
      * @param multiReleaseVersionsEnabled
      *            If true, strip any "META-INF/versions/{versionInt}/" prefix from the entry name, so that the
      *            versioned entries can mask the entries they override; if false, leave multi-release entry names
-     *            unchanged, so that every version of an entry is reported separately.
+     *            unchanged, so that every version of an entry is reported separately. The prefix is only stripped
+     *            if {@code nameIsVerbatim} is true too, since the JVM only reads an entry as a versioned entry if
+     *            the name it is stored under begins with the prefix.
      */
     FastZipEntry(final LogicalZipFile parentLogicalZipFile, final long locHeaderPos, final String entryName,
-            final boolean isDeflated, final long compressedSize, final long uncompressedSize,
-            final long lastModifiedTimeMillis, final int lastModifiedTimeMSDOS, final int lastModifiedDateMSDOS,
-            final int fileAttributes, final boolean multiReleaseVersionsEnabled) {
+            final boolean nameIsVerbatim, final boolean isDeflated, final long compressedSize,
+            final long uncompressedSize, final long lastModifiedTimeMillis, final int lastModifiedTimeMSDOS,
+            final int lastModifiedDateMSDOS, final int fileAttributes, final boolean multiReleaseVersionsEnabled) {
         this.parentLogicalZipFile = parentLogicalZipFile;
         this.locHeaderPos = locHeaderPos;
         this.entryName = entryName;
+        this.nameIsVerbatim = nameIsVerbatim;
         this.isDeflated = isDeflated;
         this.compressedSize = compressedSize;
         this.uncompressedSize = !isDeflated && uncompressedSize < 0 ? compressedSize : uncompressedSize;
@@ -153,10 +168,13 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
         this.lastModifiedDateMSDOS = lastModifiedDateMSDOS;
         this.fileAttributes = fileAttributes;
 
-        // Get multi-release jar version number, and strip any version prefix
+        // Get multi-release jar version number, and strip any version prefix. An entry whose name is not the name
+        // it is stored under has no version: the JVM looks a versioned entry up under the exact name
+        // "META-INF/versions/{versionInt}/<name>", so it never finds one stored as, for example,
+        // "META-INF/versions/{versionInt}/./<name>", and never lets it mask the base entry
         var entryVersion = 8;
         var entryNameWithoutVersionPrefix = entryName;
-        if (entryName.startsWith(LogicalZipFile.MULTI_RELEASE_PATH_PREFIX)
+        if (nameIsVerbatim && entryName.startsWith(LogicalZipFile.MULTI_RELEASE_PATH_PREFIX)
                 && entryName.length() > LogicalZipFile.MULTI_RELEASE_PATH_PREFIX.length() + 1) {
             // This is a multi-release jar path
             final var nextSlashIdx = entryName.indexOf('/', LogicalZipFile.MULTI_RELEASE_PATH_PREFIX.length());
@@ -219,9 +237,9 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
      * @return a copy of this entry whose unversioned name is the name it is stored under.
      */
     FastZipEntry withVersionPrefixUnresolved() {
-        return new FastZipEntry(parentLogicalZipFile, locHeaderPos, entryName, isDeflated, compressedSize,
-                uncompressedSize, lastModifiedTimeMillis, lastModifiedTimeMSDOS, lastModifiedDateMSDOS,
-                fileAttributes, /* multiReleaseVersionsEnabled = */ false);
+        return new FastZipEntry(parentLogicalZipFile, locHeaderPos, entryName, nameIsVerbatim, isDeflated,
+                compressedSize, uncompressedSize, lastModifiedTimeMillis, lastModifiedTimeMSDOS,
+                lastModifiedDateMSDOS, fileAttributes, /* multiReleaseVersionsEnabled = */ false);
     }
 
     // -------------------------------------------------------------------------------------------------------------

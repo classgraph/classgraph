@@ -37,10 +37,13 @@ import java.nio.file.Path;
 import java.util.Objects;
 import java.util.jar.JarFile;
 import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 import java.util.zip.ZipOutputStream;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 /**
  * Reads jarfiles that hold two entries with the same name. {@link ZipOutputStream} will not write such a jarfile,
@@ -205,6 +208,91 @@ public class DuplicateZipEntryTest {
         }
         try (var vfs = new Vfs()) {
             assertThat(vfs.open(jar.toString()).getManifestEntry("Class-Path")).isEqualTo("second.jar");
+        }
+    }
+
+    /**
+     * A later entry whose stored name only becomes the name of an earlier entry once it is sanitized does not
+     * replace that entry, since {@link JarFile} looks entries up by the name they are stored under, so a
+     * classloader never finds the later entry under the earlier entry's name.
+     *
+     * @param placeholderName
+     *            the name the later entry is written under, which has the same length as {@code storedName}.
+     * @param storedName
+     *            the name the later entry is stored under, which sanitizes to {@code "a.txt"}.
+     * @param tempDir
+     *            a temporary directory to build in.
+     * @throws IOException
+     *             if the jarfile could not be built or read.
+     */
+    @ParameterizedTest
+    @CsvSource({ "b/a.txt, ./a.txt", "ba.txt, /a.txt", "b/cc/a.txt, b/../a.txt" })
+    public void aLaterEntryWhoseNameIsOnlyTheSameOnceSanitizedDoesNotReplaceTheEntry(final String placeholderName,
+            final String storedName, @TempDir final Path tempDir) throws IOException {
+        final var jar = tempDir.resolve("dup.jar");
+        writeJar(jar, new String[] { placeholderName, storedName }, "a.txt", "first", placeholderName, "second");
+        try (var jarFile = new JarFile(jar.toFile())) {
+            assertThat(new String(jarFile.getInputStream(jarFile.getEntry("a.txt")).readAllBytes(),
+                    StandardCharsets.UTF_8)).isEqualTo("first");
+        }
+        try (var vfs = new Vfs()) {
+            final var root = vfs.open(jar.toString());
+            assertThat(new String(Objects.requireNonNull(root.getEntry("a.txt")).load(), StandardCharsets.UTF_8))
+                    .isEqualTo("first");
+        }
+    }
+
+    /**
+     * In a multi-release jarfile, an entry whose stored name only begins with {@code "META-INF/versions/9/"} once
+     * it is sanitized does not mask the base entry, since {@link JarFile} looks a versioned entry up under the
+     * exact name {@code "META-INF/versions/9/<name>"}.
+     *
+     * @param tempDir
+     *            a temporary directory to build in.
+     * @throws IOException
+     *             if the jarfile could not be built or read.
+     */
+    @Test
+    public void anEntryWhoseNameIsOnlyVersionedOnceSanitizedDoesNotMaskTheBaseEntry(@TempDir final Path tempDir)
+            throws IOException {
+        final var jar = tempDir.resolve("mr.jar");
+        writeJar(jar, new String[] { "META-INF/versions/9/x/Foo.txt", "META-INF/versions/9/./Foo.txt" }, //
+                JarFile.MANIFEST_NAME, "Manifest-Version: 1.0\r\nMulti-Release: true\r\n\r\n", //
+                "Foo.txt", "base", //
+                "META-INF/versions/9/x/Foo.txt", "v9");
+        try (var jarFile = new JarFile(jar.toFile(), true, ZipFile.OPEN_READ, Runtime.version())) {
+            assertThat(new String(jarFile.getInputStream(jarFile.getEntry("Foo.txt")).readAllBytes(),
+                    StandardCharsets.UTF_8)).isEqualTo("base");
+        }
+        try (var vfs = new Vfs()) {
+            final var root = vfs.open(jar.toString());
+            assertThat(new String(Objects.requireNonNull(root.getEntry("Foo.txt")).load(), StandardCharsets.UTF_8))
+                    .isEqualTo("base");
+        }
+    }
+
+    /**
+     * A later entry whose stored name only becomes {@code "META-INF/MANIFEST.MF"} once it is sanitized is not the
+     * manifest, since it is not the entry {@link JarFile#getManifest()} reads.
+     *
+     * @param tempDir
+     *            a temporary directory to build in.
+     * @throws IOException
+     *             if the jarfile could not be built or read.
+     */
+    @Test
+    public void anEntryWhoseNameIsOnlyTheManifestNameOnceSanitizedIsNotTheManifest(@TempDir final Path tempDir)
+            throws IOException {
+        final var jar = tempDir.resolve("dup.jar");
+        writeJar(jar, new String[] { "x/" + JarFile.MANIFEST_NAME, "./" + JarFile.MANIFEST_NAME }, //
+                JarFile.MANIFEST_NAME, "Manifest-Version: 1.0\r\nImplementation-Title: real\r\n\r\n", //
+                "x/" + JarFile.MANIFEST_NAME, "Manifest-Version: 1.0\r\nImplementation-Title: decoy\r\n\r\n");
+        try (var jarFile = new JarFile(jar.toFile())) {
+            assertThat(jarFile.getManifest().getMainAttributes().getValue("Implementation-Title"))
+                    .isEqualTo("real");
+        }
+        try (var vfs = new Vfs()) {
+            assertThat(vfs.open(jar.toString()).getManifestEntry("Implementation-Title")).isEqualTo("real");
         }
     }
 }

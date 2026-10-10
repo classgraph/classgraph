@@ -6,8 +6,11 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
+import java.util.jar.JarFile;
 import java.util.zip.CRC32;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -161,5 +164,92 @@ public class UnicodePathExtraFieldTest {
         assertThat(entryNamesReadBack(tempDir, "stale-unicode-path.jar",
                 new String[][] { { LEGACY_NAME, UNICODE_NAME, "testpkg/some-other-name.txt" } }))
                 .containsExactly(LEGACY_NAME);
+    }
+
+    /**
+     * {@link JarFile} ignores the Unicode path extra field, and finds an entry only under the name in its central
+     * directory record. So a later entry that the extra field renames to the name of an earlier entry does not
+     * replace that entry, as it would if the two were stored under the same name: a classloader still reads the
+     * earlier one.
+     */
+    @Test
+    public void anEntryRenamedToTheNameOfAnotherEntryDoesNotReplaceIt(@TempDir final File tempDir)
+            throws Exception {
+        final var jar = new File(tempDir, "renamed-onto-another.jar");
+        try (var fileOut = new FileOutputStream(jar); var zipOut = new ZipOutputStream(fileOut)) {
+            zipOut.putNextEntry(new ZipEntry("a.txt"));
+            zipOut.write("first".getBytes(StandardCharsets.UTF_8));
+            zipOut.closeEntry();
+            final var renamedEntry = new ZipEntry("b.txt");
+            renamedEntry.setExtra(makeUnicodePathExtraField("b.txt", "a.txt"));
+            zipOut.putNextEntry(renamedEntry);
+            zipOut.write("second".getBytes(StandardCharsets.UTF_8));
+            zipOut.closeEntry();
+        }
+        try (var jarFile = new JarFile(jar)) {
+            assertThat(new String(jarFile.getInputStream(jarFile.getEntry("a.txt")).readAllBytes(),
+                    StandardCharsets.UTF_8)).isEqualTo("first");
+        }
+
+        final var vfs = new Vfs(new VfsSpec(), new InterruptionChecker());
+        try {
+            final var entry = Objects
+                    .requireNonNull(JarOpener.openJarFile(jar, vfs, /* log = */ null).zipFile().findEntry("a.txt"));
+            try (var in = entry.getSlice().open()) {
+                assertThat(new String(in.readAllBytes(), StandardCharsets.UTF_8)).isEqualTo("first");
+            }
+        } finally {
+            // The jarfile must not be left open, otherwise the temporary directory cannot be deleted on Windows
+            vfs.close(/* log = */ null);
+        }
+    }
+
+    /**
+     * Info-ZIP writes a Unicode path extra field holding the same name as the central directory record. Such an
+     * entry is found by {@link JarFile} under that name, so, as the later of two entries with the same name, it
+     * replaces the earlier one, as it does when a classloader reads the jarfile.
+     */
+    @Test
+    public void anEntryWhoseUnicodePathFieldRepeatsItsNameReplacesAnEarlierEntryWithThatName(
+            @TempDir final File tempDir) throws Exception {
+        final var name = "testpkg/ä.txt";
+        // A name of the same length in UTF-8, which the earlier entry is written under and then renamed from,
+        // since ZipOutputStream will not write two entries with the same name
+        final var placeholderName = "testpkg/å.txt";
+        final var jar = new File(tempDir, "same-name.jar");
+        try (var fileOut = new FileOutputStream(jar); var zipOut = new ZipOutputStream(fileOut)) {
+            zipOut.putNextEntry(new ZipEntry(placeholderName));
+            zipOut.write("first".getBytes(StandardCharsets.UTF_8));
+            zipOut.closeEntry();
+            final var laterEntry = new ZipEntry(name);
+            laterEntry.setExtra(makeUnicodePathExtraField(name, name));
+            zipOut.putNextEntry(laterEntry);
+            zipOut.write("second".getBytes(StandardCharsets.UTF_8));
+            zipOut.closeEntry();
+        }
+        // The placeholder name occurs only in the earlier entry's local file header and central directory record,
+        // and no checksum covers either, so renaming it in place makes a valid jarfile
+        final var content = new String(Files.readAllBytes(jar.toPath()), StandardCharsets.ISO_8859_1);
+        final var placeholderBytes = new String(placeholderName.getBytes(StandardCharsets.UTF_8),
+                StandardCharsets.ISO_8859_1);
+        final var nameBytes = new String(name.getBytes(StandardCharsets.UTF_8), StandardCharsets.ISO_8859_1);
+        Files.write(jar.toPath(),
+                content.replace(placeholderBytes, nameBytes).getBytes(StandardCharsets.ISO_8859_1));
+        try (var jarFile = new JarFile(jar)) {
+            assertThat(new String(jarFile.getInputStream(jarFile.getEntry(name)).readAllBytes(),
+                    StandardCharsets.UTF_8)).isEqualTo("second");
+        }
+
+        final var vfs = new Vfs(new VfsSpec(), new InterruptionChecker());
+        try {
+            final var entry = Objects
+                    .requireNonNull(JarOpener.openJarFile(jar, vfs, /* log = */ null).zipFile().findEntry(name));
+            try (var in = entry.getSlice().open()) {
+                assertThat(new String(in.readAllBytes(), StandardCharsets.UTF_8)).isEqualTo("second");
+            }
+        } finally {
+            // The jarfile must not be left open, otherwise the temporary directory cannot be deleted on Windows
+            vfs.close(/* log = */ null);
+        }
     }
 }

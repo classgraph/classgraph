@@ -1060,7 +1060,11 @@ public final class LogicalZipFile {
             return null;
         }
 
-        return new FastZipEntry(this, locHeaderPos, entryFields.entryNameSanitized, isDeflated,
+        // JarFile looks an entry up by the name stored in the central directory, and ignores the Unicode path
+        // extra field, so it finds this entry under its name only if neither sanitizing nor that field changed it.
+        // Info-ZIP writes that field even when it holds the stored name, which leaves the name unchanged
+        final var nameIsVerbatim = entryFields.entryNameSanitized.equals(entryName);
+        return new FastZipEntry(this, locHeaderPos, entryFields.entryNameSanitized, nameIsVerbatim, isDeflated,
                 entryFields.compressedSize, entryFields.uncompressedSize, entryFields.lastModifiedMillis,
                 lastModifiedTimeMSDOS, lastModifiedDateMSDOS, fileAttributes, multiReleaseVersionsEnabled);
     }
@@ -1128,8 +1132,10 @@ public final class LogicalZipFile {
                 // (it matches both "META-INF/" and "MANIFEST.MF" a character at a time with the case bit masked
                 // off), so a differently-cased name is remembered as a fallback rather than the zipfile being
                 // reported as having no manifest at all. The last entry with either name wins, the same way the
-                // last of two entries with the same name is the one JarFile reads
-                if (MANIFEST_PATH.equalsIgnoreCase(entry.entryName)) {
+                // last of two entries with the same name is the one JarFile reads. JarFile matches the name an
+                // entry is stored under, so an entry whose name only becomes the manifest's name once it is
+                // sanitized, or once a Unicode path extra field replaces it, is not the manifest
+                if (entry.nameIsVerbatim && MANIFEST_PATH.equalsIgnoreCase(entry.entryName)) {
                     if (MANIFEST_PATH.equals(entry.entryName)) {
                         manifestZipEntry = entry;
                     } else {
@@ -1142,23 +1148,48 @@ public final class LogicalZipFile {
     }
 
     /**
-     * Of two or more entries with the same name, keep only the last one, since that is the one that JarFile, and so
-     * a classloader, finds. The entry that is kept stays at its own position in the central directory.
+     * Of two or more entries with the same name, keep only the one that JarFile, and so a classloader, finds under
+     * that name. The entry that is kept stays at its own position in the central directory.
+     *
+     * <p>
+     * JarFile finds the last entry stored under the name. An entry whose name is not the name it is stored under
+     * (because sanitizing changed it, as with {@code "./a.txt"} or {@code "/a.txt"}, or because a Unicode path
+     * extra field supplied it) is never found under its name by JarFile, so it does not replace an entry stored
+     * under that exact name, wherever it is in the central directory. Of entries none of which is stored under the
+     * name, the last one is kept, so that a name that exists only after sanitizing still names an entry.
      *
      * @param entries
      *            the entries, in the order of the central directory
      * @param log
      *            the log node, or null to skip logging
-     * @return the entries without the earlier of any two with the same name, or {@code entries} itself if no two
-     *         have the same name
+     * @return the entries with only the kept entry of each name, or {@code entries} itself if no two have the same
+     *         name
      */
     private static List<FastZipEntry> dropDuplicateEntries(final List<FastZipEntry> entries,
             final @Nullable LogNode log) {
+        // The names under which some entry is stored verbatim, which is only needed if some entry is not
+        Set<String> verbatimNames = null;
+        for (final FastZipEntry entry : entries) {
+            if (!entry.nameIsVerbatim) {
+                verbatimNames = new HashSet<>(entries.size() * 2);
+                for (final FastZipEntry otherEntry : entries) {
+                    if (otherEntry.nameIsVerbatim) {
+                        verbatimNames.add(otherEntry.entryName);
+                    }
+                }
+                break;
+            }
+        }
         final Set<String> namesSeen = new HashSet<>(entries.size() * 2);
         final List<FastZipEntry> lastOfEachName = new ArrayList<>(entries.size());
         for (var i = entries.size() - 1; i >= 0; i--) {
             final var entry = entries.get(i);
-            if (namesSeen.add(entry.entryName)) {
+            if (verbatimNames != null && !entry.nameIsVerbatim && verbatimNames.contains(entry.entryName)) {
+                if (log != null) {
+                    log.log("Ignoring an entry whose name, once sanitized or replaced by its Unicode path extra "
+                            + "field, is the name another entry is stored under: " + entry.entryName);
+                }
+            } else if (namesSeen.add(entry.entryName)) {
                 lastOfEachName.add(entry);
             } else if (log != null) {
                 log.log("Ignoring an earlier entry with the same name as a later one: " + entry.entryName);
