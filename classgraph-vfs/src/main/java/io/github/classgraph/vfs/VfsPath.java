@@ -292,6 +292,18 @@ public final class VfsPath implements Path {
         return new VfsPath(fileSystem, absolute, resolved);
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>
+     * Both paths are normalized first, as the default filesystem does, so a {@code "."} or {@code ".."} segment is
+     * not counted as a directory to climb out of. The empty path gives the other path unchanged.
+     *
+     * @throws IllegalArgumentException
+     *             if one path is absolute and the other is relative, or if the normalized base path still has a
+     *             {@code ".."} segment after the segments the two paths share, since no relative path then leads to
+     *             the other path.
+     */
     @Override
     public Path relativize(final Path other) {
         final var otherPath = check(other);
@@ -299,8 +311,11 @@ public final class VfsPath implements Path {
             throw new IllegalArgumentException("Cannot relativize " + other + " against " + this
                     + " : one is absolute and the other is relative");
         }
-        final var from = nameElements();
-        final var to = otherPath.nameElements();
+        if (isEmptyPath()) {
+            return otherPath;
+        }
+        final var from = ((VfsPath) normalize()).nameElements();
+        final var to = ((VfsPath) otherPath.normalize()).nameElements();
         var commonLength = 0;
         while (commonLength < from.length && commonLength < to.length
                 && from[commonLength].equals(to[commonLength])) {
@@ -308,6 +323,10 @@ public final class VfsPath implements Path {
         }
         final List<String> relative = new ArrayList<>();
         for (var i = commonLength; i < from.length; i++) {
+            if ("..".equals(from[i])) {
+                // The base climbs above where it began, to a directory whose name it does not know
+                throw new IllegalArgumentException("Cannot relativize " + other + " against " + this);
+            }
             relative.add("..");
         }
         relative.addAll(Arrays.asList(to).subList(commonLength, to.length));

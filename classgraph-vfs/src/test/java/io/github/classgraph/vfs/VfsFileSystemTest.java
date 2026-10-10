@@ -634,6 +634,107 @@ public class VfsFileSystemTest {
     }
 
     /**
+     * {@link Path#relativize(Path)} normalizes both paths first, so a {@code "."} or {@code ".."} segment does not
+     * count as a directory to climb out of, and it fails when the base climbs above where it began, since no
+     * relative path then leads to the other path.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the root could not be read.
+     */
+    @Test
+    public void relativizeNormalizesBothPaths(@TempDir final Path tempDir) throws IOException {
+        final var jarFile = tempDir.resolve("library.jar").toFile();
+        writeJar(jarFile);
+
+        try (var vfs = new Vfs()) {
+            final var fileSystem = vfs.open(jarFile).asFileSystem();
+            // Each row is a base, another path, and the result of relativizing the other path against the base
+            final String[][] cases = { //
+                    { "a/./b", "a/c", "../c" }, //
+                    { "a/b/..", "a/c", "c" }, //
+                    { "/a/b/../c", "/a/c/x", "x" }, //
+                    { "/a/./b", "/a/b/c", "c" }, //
+                    { "/..", "/a", "a" }, //
+                    { "a/..", "a", "a" }, //
+                    { "a/b/c/..", "a/b/..", ".." }, //
+                    { "../a", "../b", "../b" }, //
+                    { "a/b", "a/./b", "" }, //
+                    // The empty base gives the other path unchanged, as the default filesystem does
+                    { "", "a/../b", "a/../b" }, //
+            };
+            for (final var testCase : cases) {
+                final var base = fileSystem.getPath(testCase[0]);
+                final var other = fileSystem.getPath(testCase[1]);
+                final var relative = base.relativize(other);
+                assertThat(relative.toString()).as(testCase[0] + " -> " + testCase[1]).isEqualTo(testCase[2]);
+                assertThat(base.resolve(relative).normalize()).as(testCase[0] + " -> " + testCase[1])
+                        .isEqualTo(other.normalize());
+            }
+            // A base that climbs above where it began has no relative path to the other path
+            for (final var base : List.of("..", "../..", "a/../..")) {
+                assertThatThrownBy(() -> fileSystem.getPath(base).relativize(fileSystem.getPath("a"))).as(base)
+                        .isInstanceOf(IllegalArgumentException.class);
+            }
+            assertThatThrownBy(() -> fileSystem.getPath("../..").relativize(fileSystem.getPath("..")))
+                    .isInstanceOf(IllegalArgumentException.class);
+        }
+    }
+
+    /**
+     * {@link Path#relativize(Path)} gives the same names as the default filesystem's, or fails as it does, for
+     * every pair of a set of paths with {@code "."} and {@code ".."} segments. The paths are spelled with
+     * {@code '/'}, so this is only checked where the default filesystem spells them that way.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the root could not be read.
+     */
+    @Test
+    public void relativizeMatchesTheDefaultFilesystem(@TempDir final Path tempDir) throws IOException {
+        assumeTrue(File.separatorChar == '/', "the default filesystem does not spell paths with '/'");
+        final var jarFile = tempDir.resolve("library.jar").toFile();
+        writeJar(jarFile);
+
+        final var relativePaths = List.of("", ".", "..", "a", "b", "a/b", "b/a", "a/./b", "./a", "a/..", "a/../b",
+                "a/b/..", "a/b/c/../..", "../a", "../..", "../../a", "../a/..");
+        final List<String> absolutePaths = new ArrayList<>();
+        absolutePaths.add("/");
+        for (final var relativePath : relativePaths) {
+            if (!relativePath.isEmpty()) {
+                absolutePaths.add("/" + relativePath);
+            }
+        }
+        try (var vfs = new Vfs()) {
+            final var fileSystem = vfs.open(jarFile).asFileSystem();
+            final var defaultFileSystem = tempDir.getFileSystem();
+            for (final var paths : List.of(relativePaths, absolutePaths)) {
+                for (final var base : paths) {
+                    for (final var other : paths) {
+                        final var description = base + " -> " + other;
+                        final var vfsBase = fileSystem.getPath(base);
+                        final var vfsOther = fileSystem.getPath(other);
+                        final Path expected;
+                        try {
+                            expected = defaultFileSystem.getPath(base).relativize(defaultFileSystem.getPath(other));
+                        } catch (final IllegalArgumentException e) {
+                            assertThatThrownBy(() -> vfsBase.relativize(vfsOther)).as(description)
+                                    .isInstanceOf(IllegalArgumentException.class);
+                            continue;
+                        }
+                        final var relative = vfsBase.relativize(vfsOther);
+                        assertThat(relative.toString()).as(description).isEqualTo(expected.toString());
+                        assertThat(vfsBase.resolve(relative).normalize()).as(description)
+                                .isEqualTo(vfsOther.normalize());
+                    }
+                }
+            }
+        }
+    }
+
+    /**
      * {@link Path#compareTo(Path)} returns zero only for a path that is equal, so that a sorted collection does not
      * silently drop the path of another view of the same root.
      *
