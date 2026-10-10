@@ -39,10 +39,11 @@ import io.github.classgraph.vfs.Vfs;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Opens jarfiles, however they are named -- by a canonical {@link File}, by a URL, by a {@link Path} in a
- * non-default filesystem, from an {@link InputStream}, or as an entry nested within an already-opened jarfile --
- * and hands back the {@link LogicalZipFile} for each. This is the doorway between the root layer, which caches and
- * owns the opened roots, and the zipfile layer, whose constructors are not visible outside this package.
+ * Opens toplevel jarfiles, however they are named -- by a canonical {@link File}, by a URL, by a {@link Path} in a
+ * non-default filesystem, or from an {@link InputStream} -- and hands back the {@link LogicalZipFile} for each.
+ * This is the doorway between the root layer, which caches and owns the opened roots, and the zipfile layer, whose
+ * constructors are not visible outside this package. A jarfile nested within an opened jarfile is opened by
+ * {@link LogicalZipFile#openNestedJar(FastZipEntry, LogNode)} on the jarfile that holds it.
  *
  * <p>
  * Nothing here is cached: a jarfile is opened once per call, and the caller decides what is shared. Each open hands
@@ -200,75 +201,5 @@ public final class JarOpener {
             physicalZipFile.releaseUnreachable(e);
             throw e;
         }
-    }
-
-    /**
-     * Open a jarfile nested within an already-opened jarfile. The nested jarfile is read in place, as a byte range
-     * of the enclosing jarfile, if it is stored, or inflated to RAM or to a temporary file if it is deflated.
-     *
-     * @param zipEntry
-     *            the entry that holds the nested jarfile, found with {@link #findEntry(LogicalZipFile, String)}.
-     * @param log
-     *            the log node, or null to skip logging.
-     * @return the nested jarfile, with the physical zipfile it was inflated to if it was deflated, which the caller
-     *         owns -- or with nothing to own if it was stored, since it is then read in place through the enclosing
-     *         jarfile's physical zipfile.
-     * @throws IOException
-     *             if the nested jarfile could not be opened or read.
-     */
-    public static OpenedJar openNestedJar(final FastZipEntry zipEntry, final @Nullable LogNode log)
-            throws IOException {
-        return zipEntry.parentLogicalZipFile.openNestedJar(zipEntry, log);
-    }
-
-    /**
-     * Find a non-directory zip entry with a given name. {@link LogicalZipFile} discards directory entries ending
-     * with a slash when it reads the central directory of a zipfile, so only file entries can be matched.
-     *
-     * <p>
-     * N.B. this performs an O(N) search, because the number of classpath elements containing {@code '!'} sections
-     * is assumed to be small relative to the total number of entries in all jarfiles (i.e. building a map from
-     * entry path to entry for every jarfile would generally be more expensive than performing this linear search,
-     * and unless the classpath is enormous, the overall time performance will not tend towards O(N^2)).
-     *
-     * @param logicalZipFile
-     *            the zipfile to search
-     * @param entryName
-     *            the entry name to search for
-     * @return the matching {@link FastZipEntry}, or null if there is no entry with that name
-     */
-    public static @Nullable FastZipEntry findEntry(final LogicalZipFile logicalZipFile, final String entryName) {
-        for (final FastZipEntry entry : logicalZipFile.getEntries()) {
-            // Match the unversioned name, since that is the name the entry is served under -- an entry stored only
-            // under "META-INF/versions/N/" is named without that prefix once multi-release versions are resolved.
-            // The unversioned name is the same as the stored name for an entry that is not versioned, and for every
-            // entry when multi-release versions are not resolved
-            if (entry.entryNameUnversioned.equals(entryName)) {
-                return entry;
-            }
-        }
-        return null;
-    }
-
-    /**
-     * Test whether any entry of a zipfile is within a given directory, i.e. whether the directory path is a prefix
-     * of any entry name.
-     *
-     * @param logicalZipFile
-     *            the zipfile to search
-     * @param dirPath
-     *            the directory path, without a trailing slash
-     * @return true if at least one entry is within the directory
-     */
-    public static boolean hasEntriesUnderDir(final LogicalZipFile logicalZipFile, final String dirPath) {
-        final var dirPathPrefix = dirPath + "/";
-        for (final FastZipEntry entry : logicalZipFile.getEntries()) {
-            // Match the unversioned name, for the same reason as findEntry(LogicalZipFile, String): a package root
-            // that exists only under "META-INF/versions/N/" is a package root of the jarfile all the same
-            if (entry.entryNameUnversioned.startsWith(dirPathPrefix)) {
-                return true;
-            }
-        }
-        return false;
     }
 }

@@ -606,9 +606,9 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
         if (!canonicalChildKey.equals(resolvedPath)) {
             return recordPathKey(resolvedPath, openReentrant(canonicalChildKey, outerLog));
         }
-        final var childZipEntry = JarOpener.findEntry(containerZipFile, childPath);
+        final var childZipEntry = containerZipFile.findEntry(childPath);
         if (childZipEntry == null) {
-            if (JarOpener.hasEntriesUnderDir(containerZipFile, childPath)) {
+            if (containerZipFile.hasEntriesUnderDir(childPath)) {
                 // The path names a directory within the jarfile rather than a nested jarfile, so it is a package
                 // root: the same jarfile, reporting only the entries under that directory
                 if (logNode != null && !childPath.isEmpty()) {
@@ -624,7 +624,7 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
             throw new IOException("Nested jars are disabled -- cannot open nested jar " + resolvedPath);
         }
         return recordPathKey(resolvedPath, adoptWithin(container,
-                new ArchiveRoot(this, container, JarOpener.openNestedJar(childZipEntry, logNode))));
+                new ArchiveRoot(this, container, containerZipFile.openNestedJar(childZipEntry, logNode))));
     }
 
     /**
