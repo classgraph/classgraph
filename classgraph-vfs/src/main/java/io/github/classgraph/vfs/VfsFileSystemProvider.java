@@ -28,9 +28,9 @@
  */
 package io.github.classgraph.vfs;
 
-import java.io.IOError;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.channels.FileChannel;
@@ -1043,10 +1043,15 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
         final var attrs = attributesOf(check(path));
         final var names = "*".equals(requested) ? ATTRIBUTE_NAMES : List.of(requested.split(","));
         final Map<String, Object> selected = new LinkedHashMap<>();
-        for (final var name : names) {
-            // Only the attributes that were asked for are read, because reading the size of a module entry means
-            // reading the whole entry
-            selected.put(name, attributeOf(attrs, name));
+        try {
+            for (final var name : names) {
+                // Only the attributes that were asked for are read, because reading the size of a module entry
+                // means reading the whole entry
+                selected.put(name, attributeOf(attrs, name));
+            }
+        } catch (final UncheckedIOException e) {
+            // The size of a module entry could not be read. This method can throw the IOException itself.
+            throw e.getCause();
         }
         return selected;
     }
@@ -1152,6 +1157,20 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
             return false;
         }
 
+        /**
+         * Returns the size of the file.
+         *
+         * <p>
+         * A module entry does not know its length, so it is read in full to find it, each time this is called,
+         * which needs its root to be open.
+         *
+         * @return the size of the file in bytes, or 0 for a directory.
+         * @throws UncheckedIOException
+         *             if the size of a module entry could not be read, because the entry could not be read or its
+         *             root was closed. This is an exception, not an {@link java.io.IOError}, so that a handler for
+         *             exceptions catches it: {@link java.nio.file.Files#size(Path)} calls this method directly, and
+         *             passes on whatever it throws.
+         */
         @Override
         public long size() {
             if (entry == null) {
@@ -1167,7 +1186,7 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
                 final var byteBuffer = content.getByteBuffer();
                 return byteBuffer == null ? 0L : byteBuffer.remaining();
             } catch (final IOException e) {
-                throw new IOError(e);
+                throw new UncheckedIOException(e);
             }
         }
 
