@@ -665,14 +665,12 @@ class Scanner implements Callable<ScanResult> {
      * {@link ClasspathElementDir} or {@link ClasspathElementZip} -- {@link ClasspathElementModule} is handled
      * separately).
      *
-     * @param allClasspathEltsOut
-     *            on exit, the set of all classpath elements
      * @param toplevelClasspathEltsOut
      *            on exit, the toplevel classpath elements
      * @return the work unit processor
      */
     private WorkUnitProcessor<ClasspathEntryWorkUnit> newClasspathEntryWorkUnitProcessor(
-            final Set<ClasspathElement> allClasspathEltsOut, final Set<ClasspathElement> toplevelClasspathEltsOut) {
+            final Set<ClasspathElement> toplevelClasspathEltsOut) {
         return (workUnit, workQueue, log) -> {
             try {
                 // Normalize the classpath entry object, and update it in the work unit
@@ -689,8 +687,6 @@ class Scanner implements Callable<ScanResult> {
                             final ClasspathElement classpathElt = isJar
                                     ? new ClasspathElementZip(workUnit, vfs, scanSpec)
                                     : new ClasspathElementDir(workUnit, vfs, scanSpec);
-
-                            allClasspathEltsOut.add(classpathElt);
 
                             // Run open() on the ClasspathElement
                             final LogNode subLog = log == null ? null
@@ -1199,11 +1195,10 @@ class Scanner implements Callable<ScanResult> {
         // In parallel, create a ClasspathElement singleton for each classpath element, then call open() on each
         // ClasspathElement object, which in the case of jarfiles will cause LogicalZipFile instances to be created
         // for each (possibly nested) jarfile, then will read the manifest file and zip entries.
-        final Set<ClasspathElement> allClasspathElts = Collections.newSetFromMap(new ConcurrentHashMap<>());
         final Set<ClasspathElement> toplevelClasspathElts = Collections.newSetFromMap(new ConcurrentHashMap<>());
         processWorkUnits(rawClasspathEntryWorkUnits,
                 topLevelLog == null ? null : topLevelLog.log("Opening classpath elements"),
-                newClasspathEntryWorkUnitProcessor(allClasspathElts, toplevelClasspathElts));
+                newClasspathEntryWorkUnitProcessor(toplevelClasspathElts));
 
         // Determine total ordering of classpath elements, inserting jars referenced in manifest Class-Path entries
         // in-place into the ordering, if they haven't been listed earlier in the classpath already.
