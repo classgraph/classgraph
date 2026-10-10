@@ -100,7 +100,7 @@ public class Issue420Test {
             Files.createDirectories(memFsDirPath);
             final var memFsFilePath = memFs.getPath(memFsDirPath + "/" + className + ".class");
             final var memFsCopyOfClassFile = Files.copy(jarPath, memFsFilePath);
-            assertThat(Files.exists(memFsCopyOfClassFile));
+            assertThat(memFsCopyOfClassFile).exists();
             final var memFsDirToScanURL = memFs.getPath(dirToScan).toUri().toURL();
             try (var childClassLoader = new URLClassLoader(new URL[] { memFsDirToScanURL },
                     getClass().getClassLoader())) {
