@@ -221,10 +221,11 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     private @Nullable ClassInfoList referencedClasses;
 
     /**
-     * Set to true once any Object[] arrays of boxed types in annotationDefaultParamValues have been lazily
-     * converted to primitive arrays.
+     * Set to true once any Object[] arrays of boxed values or strings in annotationDefaultParamValues have been
+     * lazily converted to arrays of their element type. Volatile, so that a thread that sees this flag set also
+     * sees the converted values.
      */
-    boolean annotationDefaultParamValuesHasBeenConvertedToPrimitive;
+    volatile boolean annotationDefaultParamValuesHasBeenConvertedToPrimitive;
 
     /** The set of classes related to this one. */
     private Map<RelType, Set<ClassInfo>> relatedClasses;
@@ -2746,17 +2747,25 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
         if (!isAnnotation()) {
             throw new IllegalStateException("Class is not an annotation: " + getName());
         }
-        synchronized (this) {
-            if (annotationDefaultParamValues == null) {
-                return AnnotationParameterValueList.EMPTY_LIST;
-            }
-            if (!annotationDefaultParamValuesHasBeenConvertedToPrimitive) {
-                AnnotationParameterValueList.convertWrapperArraysToPrimitiveArrays(annotationDefaultParamValues,
-                        this);
-                annotationDefaultParamValuesHasBeenConvertedToPrimitive = true;
-            }
-            return annotationDefaultParamValues;
+        final var defaultParamValues = getConvertedAnnotationDefaultParamValues();
+        return defaultParamValues == null ? AnnotationParameterValueList.EMPTY_LIST : defaultParamValues;
+    }
+
+    /**
+     * Get the default parameter values for this annotation, first converting any Object[] arrays of boxed values or
+     * strings to arrays of their element type. No lock is taken: two threads may convert the values at once, which
+     * gives the same result as converting them once.
+     *
+     * @return the default parameter values, or null if none.
+     */
+    @Nullable
+    AnnotationParameterValueList getConvertedAnnotationDefaultParamValues() {
+        final var defaultParamValues = annotationDefaultParamValues;
+        if (defaultParamValues != null && !annotationDefaultParamValuesHasBeenConvertedToPrimitive) {
+            AnnotationParameterValueList.convertWrapperArraysToPrimitiveArrays(defaultParamValues, this);
+            annotationDefaultParamValuesHasBeenConvertedToPrimitive = true;
         }
+        return defaultParamValues;
     }
 
     /**

@@ -33,7 +33,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 
 import io.github.classgraph.base.LogNode;
@@ -50,13 +49,17 @@ public final class AnnotationInfo extends ScanResultObject implements Comparable
     private @Nullable AnnotationParameterValueList annotationParamValues;
 
     /**
-     * Set to true once any Object[] arrays of boxed types in annotationParamValues have been lazily converted to
-     * primitive arrays.
+     * Set to true once any Object[] arrays of boxed values or strings in annotationParamValues have been lazily
+     * converted to arrays of their element type. Volatile, so that a thread that sees this flag set also sees the
+     * converted values.
      */
-    private boolean annotationParamValuesHasBeenConvertedToPrimitive;
+    private volatile boolean annotationParamValuesHasBeenConvertedToPrimitive;
 
-    /** The annotation param values with defaults. */
-    private @Nullable AnnotationParameterValueList annotationParamValuesWithDefaults;
+    /**
+     * The annotation param values with defaults, or null if not yet built. Two threads may build the list at once,
+     * and each stores an equal list. Volatile, so that a thread that reads the list also sees its contents.
+     */
+    private volatile @Nullable AnnotationParameterValueList annotationParamValuesWithDefaults;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -140,16 +143,11 @@ public final class AnnotationInfo extends ScanResultObject implements Comparable
             // annotation class, which was not scanned
             return paramValues == null ? AnnotationParameterValueList.EMPTY_LIST : paramValues;
         }
-        if (annotationParamValuesWithDefaults == null) {
-            if (classInfo.annotationDefaultParamValues != null
-                    && !classInfo.annotationDefaultParamValuesHasBeenConvertedToPrimitive) {
-                AnnotationParameterValueList
-                        .convertWrapperArraysToPrimitiveArrays(classInfo.annotationDefaultParamValues, classInfo);
-                classInfo.annotationDefaultParamValuesHasBeenConvertedToPrimitive = true;
-            }
-
+        // Read the field only once, since another thread may set it between two reads
+        var paramValuesWithDefaults = annotationParamValuesWithDefaults;
+        if (paramValuesWithDefaults == null) {
             // Check if one or both of the defaults and the values in this annotation instance are null (empty)
-            final var defaultParamValues = classInfo.annotationDefaultParamValues;
+            final var defaultParamValues = classInfo.getConvertedAnnotationDefaultParamValues();
             if (defaultParamValues == null) {
                 return paramValues == null ? AnnotationParameterValueList.EMPTY_LIST : paramValues;
             } else if (paramValues == null) {
@@ -193,9 +191,10 @@ public final class AnnotationInfo extends ScanResultObject implements Comparable
                 }
             }
             // The methods of a class are sorted by name, so the parameter values are already in name order
-            annotationParamValuesWithDefaults = new AnnotationParameterValueList(withDefaults);
+            paramValuesWithDefaults = new AnnotationParameterValueList(withDefaults);
+            annotationParamValuesWithDefaults = paramValuesWithDefaults;
         }
-        return Objects.requireNonNull(annotationParamValuesWithDefaults);
+        return paramValuesWithDefaults;
     }
 
     /**

@@ -61,8 +61,12 @@ public final class AnnotationParameterValue extends ScanResultObject
     /** The parameter name. */
     private final String name;
 
-    /** The parameter value. */
-    private @Nullable Object value;
+    /**
+     * The parameter value. An Object[] array of boxed values or strings is replaced by a converted array when the
+     * value is first read, which two threads may do at once. Volatile, so that a thread that reads the converted
+     * array also sees its elements.
+     */
+    private volatile @Nullable Object value;
 
     /**
      * Constructor.
@@ -215,15 +219,21 @@ public final class AnnotationParameterValue extends ScanResultObject
      * String[] array. The element type is read from the parameter's method in the annotation class, if the
      * annotation class was scanned, and is otherwise worked out from the elements.
      *
+     * <p>
+     * Two threads can convert the same value at once. The value is read only once, since the other thread may
+     * replace it between two reads. Each thread then converts the same Object[] array, which is never changed, and
+     * stores an array with the same contents, so it does not matter which thread stores its array last.
+     *
      * @param annotationClassInfo
      *            the annotation class, or null if the annotation class was not scanned
      */
     void convertWrapperArraysToPrimitiveArrays(final @Nullable ClassInfo annotationClassInfo) {
-        if (value instanceof final AnnotationInfo annotationInfo) {
+        final var val = value;
+        if (val instanceof final AnnotationInfo annotationInfo) {
             // Recursively convert boxed arrays in nested annotations
             annotationInfo.convertWrapperArraysToPrimitiveArrays();
-        } else if (value != null && value.getClass() == Object[].class) {
-            final var arrayValue = (Object[]) value;
+        } else if (val != null && val.getClass() == Object[].class) {
+            final var arrayValue = (Object[]) val;
             for (final Object elt : arrayValue) {
                 if (elt instanceof final AnnotationInfo eltAnnotationInfo) {
                     // Recurse
