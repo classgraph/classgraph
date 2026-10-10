@@ -98,6 +98,33 @@ public class ClasspathOrderTest {
         assertThat(new ClasspathOrderBuilder(classpathSpec).claimOncePerScan("system-bundles")).isTrue();
     }
 
+    /** A handler class, for {@link #claimsByDifferentHandlerClassesDoNotInterfere()}. */
+    private static class HandlerA {
+    }
+
+    /** Another handler class, for {@link #claimsByDifferentHandlerClassesDoNotInterfere()}. */
+    private static class HandlerB {
+    }
+
+    /**
+     * A key only has to be unique within the handler that claims it, so a handler that happens to choose the same
+     * key as another handler, such as the built-in Equinox handler's "system-bundles", still gets its own claim.
+     */
+    @Test
+    public void claimsByDifferentHandlerClassesDoNotInterfere() {
+        classpathOrder.setCurrentHandlerClass(HandlerA.class);
+        assertThat(classpathOrder.claimOncePerScan("system-bundles")).isTrue();
+        classpathOrder.setCurrentHandlerClass(HandlerB.class);
+        assertThat(classpathOrder.claimOncePerScan("system-bundles")).isTrue();
+        assertThat(classpathOrder.claimOncePerScan("system-bundles")).isFalse();
+        classpathOrder.setCurrentHandlerClass(HandlerA.class);
+        assertThat(classpathOrder.claimOncePerScan("system-bundles")).isFalse();
+        // Outside any handler, claims are kept apart from every handler's claims
+        classpathOrder.setCurrentHandlerClass(null);
+        assertThat(classpathOrder.claimOncePerScan("system-bundles")).isTrue();
+        assertThat(classpathOrder.claimOncePerScan("system-bundles")).isFalse();
+    }
+
     /**
      * A null or empty classpath entry is not added. An empty entry used to be resolved against the current
      * directory before the emptiness check was applied, which turned it into the current directory and scanned the

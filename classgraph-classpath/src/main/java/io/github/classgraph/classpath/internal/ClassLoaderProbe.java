@@ -273,6 +273,7 @@ public class ClassLoaderProbe {
                                 classloaderHandlerLog);
                         classpathOrder.setLibDirPrefixes(classLoaderHandler.getLibDirPrefixes(),
                                 classloaderHandlerLog);
+                        classpathOrder.setCurrentHandlerClass(classLoaderHandler.getClass());
                         classLoaderHandler.findClasspathOrder(classLoader, classpathOrder, classloaderHandlerLog);
                     } catch (final RuntimeException | LinkageError e) {
                         // One failing handler, for example one that meets a container version whose internals
@@ -286,6 +287,7 @@ public class ClassLoaderProbe {
                     } finally {
                         classpathOrder.setPackageRootPrefixes(null, null);
                         classpathOrder.setLibDirPrefixes(null, null);
+                        classpathOrder.setCurrentHandlerClass(null);
                     }
                 }
             }
