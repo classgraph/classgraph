@@ -41,6 +41,13 @@ import org.jspecify.annotations.Nullable;
  * {@code ArrayTypeSignature} production of the signature grammar in section 4.7.9.1 of the JVM Specification.
  */
 public final class ArrayTypeSignature extends ReferenceTypeSignature {
+    /**
+     * The maximum number of dimensions of an array type (JVMS 4.3.2 and 4.4.1). The nested dimensions of an array
+     * type signature are built, hashed and compared by recursion, one call per dimension, so this limit also bounds
+     * the depth of that recursion.
+     */
+    static final int MAX_DIMENSIONS = 255;
+
     /** The raw type signature string for the array type. */
     private final String typeSignatureStr;
 
@@ -225,8 +232,13 @@ public final class ArrayTypeSignature extends ReferenceTypeSignature {
      * @param numDims
      *            the number of array dimensions.
      * @return the type signature of the erased array class.
+     * @throws IllegalArgumentException
+     *             if {@code numDims} is greater than {@link #MAX_DIMENSIONS}.
      */
     static ArrayTypeSignature erased(final String elementClassName, final int numDims) {
+        if (numDims > MAX_DIMENSIONS) {
+            throw new IllegalArgumentException("Array type has more than " + MAX_DIMENSIONS + " dimensions");
+        }
         final StringBuilder arrayTypeSigStrBuf = new StringBuilder();
         for (var i = 0; i < numDims; i++) {
             arrayTypeSigStrBuf.append('[');
@@ -434,6 +446,10 @@ public final class ArrayTypeSignature extends ReferenceTypeSignature {
         while (parser.peek() == '[') {
             numArrayDims++;
             parser.next();
+        }
+        if (numArrayDims > MAX_DIMENSIONS) {
+            throw new TypeSignatureParseException(parser,
+                    "Array type has more than " + MAX_DIMENSIONS + " dimensions");
         }
         if (numArrayDims > 0) {
             final var elementTypeSignature = TypeSignature.parse(parser, definingClassName);

@@ -846,7 +846,39 @@ class Classfile {
      */
     private @Nullable String getConstantPoolClassName(final int cpIdx)
             throws ClassfileFormatException, IOException {
-        return getConstantPoolClassString(cpIdx, /* stripLSemicolon = */ false);
+        return checkArrayDimensions(getConstantPoolClassString(cpIdx, /* stripLSemicolon = */ false));
+    }
+
+    /**
+     * Check that a class name does not name an array type with more than {@link ArrayTypeSignature#MAX_DIMENSIONS}
+     * dimensions, counting both a leading '[' (e.g. "[[I") and a trailing "[]" (e.g. "int[][]") as a dimension,
+     * since {@link ClassInfo#getOrCreateClassInfo(String, Map)} counts both. The JVM never creates such an array
+     * class, but it does not check a class name that it does not resolve.
+     *
+     * @param className
+     *            the class name, or null
+     * @return {@code className}
+     * @throws ClassfileFormatException
+     *             If the class name names an array type with too many dimensions.
+     */
+    private static @Nullable String checkArrayDimensions(final @Nullable String className)
+            throws ClassfileFormatException {
+        if (className != null) {
+            var numDims = 0;
+            for (var i = 0; i < className.length() && className.charAt(i) == '['; i++) {
+                numDims++;
+            }
+            for (var end = className.length(); end >= 2 && className.charAt(end - 2) == '['
+                    && className.charAt(end - 1) == ']'; end -= 2) {
+                numDims++;
+            }
+            if (numDims > ArrayTypeSignature.MAX_DIMENSIONS) {
+                // N.B. the class name can be 64kB long, so it is not put in the message
+                throw new ClassfileFormatException(
+                        "Class name has more than " + ArrayTypeSignature.MAX_DIMENSIONS + " array dimensions");
+            }
+        }
+        return className;
     }
 
     /**
@@ -864,7 +896,7 @@ class Classfile {
      */
     private @Nullable String getConstantPoolClassDescriptor(final int cpIdx)
             throws ClassfileFormatException, IOException {
-        return getConstantPoolClassString(cpIdx, /* stripLSemicolon = */ true);
+        return checkArrayDimensions(getConstantPoolClassString(cpIdx, /* stripLSemicolon = */ true));
     }
 
     /**
@@ -1601,7 +1633,17 @@ class Classfile {
     private void addClassNamesFromClassRefs(final List<Integer> classRefCpIdxs, final Set<String> refdClassNames,
             final @Nullable LogNode log) throws IOException {
         for (final int cpIdx : classRefCpIdxs) {
-            final var refdClassName = getConstantPoolClassString(cpIdx, /* stripLSemicolon = */ false);
+            final String refdClassName;
+            try {
+                refdClassName = getConstantPoolClassName(cpIdx);
+            } catch (final ClassfileFormatException e) {
+                // An array class with too many dimensions names no class that can exist, so it records no
+                // dependency, and as below, one malformed reference must not cause the whole class to be dropped
+                if (log != null) {
+                    log.log("Skipping class reference: " + e.getMessage());
+                }
+                continue;
+            }
             if (refdClassName != null) {
                 if (refdClassName.startsWith("[")) {
                     // An array class, e.g. "[Ljava.lang.String;" or "[I". Its name is an array field descriptor,
@@ -1994,7 +2036,10 @@ class Classfile {
                 thrownExceptionNames = new String[exceptionCount];
                 for (var j = 0; j < exceptionCount; j++) {
                     final var cpIdx = reader().readUnsignedShort();
-                    thrownExceptionNames[j] = requireConstantPoolString(getConstantPoolClassName(cpIdx),
+                    // A thrown exception class is only looked up by name, never created, so its name is not checked
+                    // for too many array dimensions, since that check would drop the whole class
+                    thrownExceptionNames[j] = requireConstantPoolString(
+                            getConstantPoolClassString(cpIdx, /* stripLSemicolon = */ false),
                             "thrown exception class name");
                 }
             } else if (constantPoolStringEquals(attributeNameCpIdx, "Code")) {
