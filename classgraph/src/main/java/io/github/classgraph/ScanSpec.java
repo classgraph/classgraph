@@ -52,54 +52,53 @@ import org.jspecify.annotations.Nullable;
  */
 class ScanSpec {
     /** How the classpath and the module path are found. */
-    public final ClasspathSpec classpathSpec = new ClasspathSpec();
+    public final ClasspathSpec classpathSpec;
 
     /** How jarfiles are read. */
-    public final VfsSpec vfsSpec = new VfsSpec();
+    public final VfsSpec vfsSpec;
 
     // -------------------------------------------------------------------------------------------------------------
 
     /** Package accept/reject criteria (with separator '.'). */
-    public final AcceptRejectWholeString packageAcceptReject = new AcceptRejectWholeString('.');
+    public final AcceptRejectWholeString packageAcceptReject;
 
     /**
      * Package prefix accept/reject criteria, for recursive scanning (with separator '.', ending in '.').
      */
-    public final AcceptRejectPrefix packagePrefixAcceptReject = new AcceptRejectPrefix('.');
+    public final AcceptRejectPrefix packagePrefixAcceptReject;
 
     /** Path accept/reject criteria (with separator '/'). */
-    public final AcceptRejectWholeString pathAcceptReject = new AcceptRejectWholeString('/');
+    public final AcceptRejectWholeString pathAcceptReject;
 
     /**
      * Path prefix accept/reject criteria, for recursive scanning (with separator '/', ending in '/').
      */
-    public final AcceptRejectPrefix pathPrefixAcceptReject = new AcceptRejectPrefix('/');
+    public final AcceptRejectPrefix pathPrefixAcceptReject;
 
     /**
      * Class accept/reject criteria (fully-qualified class names, with separator '.').
      */
-    public final AcceptRejectWholeString classAcceptReject = new AcceptRejectWholeString('.');
+    public final AcceptRejectWholeString classAcceptReject;
 
     /**
      * Classfile accept/reject criteria (path to classfiles, with separator '/', ending in ".class").
      */
-    public final AcceptRejectWholeString classfilePathAcceptReject = new AcceptRejectWholeString('/');
+    public final AcceptRejectWholeString classfilePathAcceptReject;
 
     /** Package containing accepted/rejected classes (with separator '.'). */
-    public final AcceptRejectWholeString classPackageAcceptReject = new AcceptRejectWholeString('.');
+    public final AcceptRejectWholeString classPackageAcceptReject;
 
     /** Path to accepted/rejected classes (with separator '/'). */
-    public final AcceptRejectWholeString classPackagePathAcceptReject = new AcceptRejectWholeString('/');
+    public final AcceptRejectWholeString classPackagePathAcceptReject;
 
     /** Jar accept/reject criteria (leafname only, ending in ".jar"). */
-    public final AcceptRejectLeafname jarAcceptReject = new AcceptRejectLeafname('/');
+    public final AcceptRejectLeafname jarAcceptReject;
 
     /** Classpath element resource path accept/reject criteria. */
-    public final AcceptRejectWholeString classpathElementResourcePathAcceptReject = //
-            new AcceptRejectWholeString('/');
+    public final AcceptRejectWholeString classpathElementResourcePathAcceptReject;
 
     /** Module accept/reject criteria (with separator '.'). */
-    public final AcceptRejectWholeString moduleAcceptReject = new AcceptRejectWholeString('.');
+    public final AcceptRejectWholeString moduleAcceptReject;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -200,7 +199,66 @@ class ScanSpec {
 
     /** Constructor. */
     public ScanSpec() {
-        // Intentionally empty
+        classpathSpec = new ClasspathSpec();
+        vfsSpec = new VfsSpec();
+        packageAcceptReject = new AcceptRejectWholeString('.');
+        packagePrefixAcceptReject = new AcceptRejectPrefix('.');
+        pathAcceptReject = new AcceptRejectWholeString('/');
+        pathPrefixAcceptReject = new AcceptRejectPrefix('/');
+        classAcceptReject = new AcceptRejectWholeString('.');
+        classfilePathAcceptReject = new AcceptRejectWholeString('/');
+        classPackageAcceptReject = new AcceptRejectWholeString('.');
+        classPackagePathAcceptReject = new AcceptRejectWholeString('/');
+        jarAcceptReject = new AcceptRejectLeafname('/');
+        classpathElementResourcePathAcceptReject = new AcceptRejectWholeString('/');
+        moduleAcceptReject = new AcceptRejectWholeString('.');
+    }
+
+    /**
+     * Create a copy of another scanning specification.
+     *
+     * @param other
+     *            The scanning specification to copy.
+     */
+    private ScanSpec(final ScanSpec other) {
+        classpathSpec = other.classpathSpec.copy();
+        vfsSpec = other.vfsSpec.copy();
+        packageAcceptReject = other.packageAcceptReject.copy();
+        packagePrefixAcceptReject = other.packagePrefixAcceptReject.copy();
+        pathAcceptReject = other.pathAcceptReject.copy();
+        pathPrefixAcceptReject = other.pathPrefixAcceptReject.copy();
+        classAcceptReject = other.classAcceptReject.copy();
+        classfilePathAcceptReject = other.classfilePathAcceptReject.copy();
+        classPackageAcceptReject = other.classPackageAcceptReject.copy();
+        classPackagePathAcceptReject = other.classPackagePathAcceptReject.copy();
+        jarAcceptReject = other.jarAcceptReject.copy();
+        classpathElementResourcePathAcceptReject = other.classpathElementResourcePathAcceptReject.copy();
+        moduleAcceptReject = other.moduleAcceptReject.copy();
+        scanJars = other.scanJars;
+        scanDirs = other.scanDirs;
+        enableSystemJars = other.enableSystemJars;
+        enableClassInfo = other.enableClassInfo;
+        enableFieldInfo = other.enableFieldInfo;
+        enableMethodInfo = other.enableMethodInfo;
+        enableAnnotationInfo = other.enableAnnotationInfo;
+        enableStaticFinalFieldConstantInitializerValues = other.enableStaticFinalFieldConstantInitializerValues;
+        enableInterClassDependencies = other.enableInterClassDependencies;
+        enableExternalClasses = other.enableExternalClasses;
+        ignoreClassVisibility = other.ignoreClassVisibility;
+        ignoreFieldVisibility = other.ignoreFieldVisibility;
+        ignoreMethodVisibility = other.ignoreMethodVisibility;
+        disableRuntimeInvisibleAnnotations = other.disableRuntimeInvisibleAnnotations;
+        workerTimeout = other.workerTimeout;
+    }
+
+    /**
+     * Copy this scanning specification, so that a scan, and the {@link ScanResult} it produces, keep the settings
+     * they were started with if the {@link ClassGraph} that holds this object is configured further.
+     *
+     * @return a copy of this scanning specification, which can be changed without changing this object.
+     */
+    ScanSpec copy() {
+        return new ScanSpec(this);
     }
 
     // -------------------------------------------------------------------------------------------------------------

@@ -491,6 +491,78 @@ public class AcceptRejectTest {
         }
     }
 
+    /** Copying a set of criteria. */
+    @Nested
+    class Copy {
+        /** A prefix copy matches what the original matches, and adding to the copy does not change the original. */
+        @Test
+        public void aPrefixCopyIsIndependentOfTheOriginal() {
+            final var original = new AcceptRejectPrefix('.');
+            original.addToAccept("com.a.");
+            original.addToAccept("com.*.impl.");
+            original.addToReject("com.a.internal.");
+            original.addToReject("com.*.gen.");
+            final AcceptRejectPrefix copy = original.copy();
+            assertThat(copy).isNotSameAs(original).hasToString(original.toString());
+            assertThat(copy.isAcceptedAndNotRejected("com.a.b")).isTrue();
+            assertThat(copy.isAcceptedAndNotRejected("com.x.impl.y")).isTrue();
+            assertThat(copy.isRejected("com.a.internal.z")).isTrue();
+            assertThat(copy.isRejected("com.x.gen.y")).isTrue();
+            assertThat(copy.isAccepted("org.a")).isFalse();
+
+            copy.addToAccept("org.");
+            copy.addToReject("com.b.*.");
+            assertThat(original.isAccepted("org.a")).isFalse();
+            assertThat(original.isRejected("com.b.c.d")).isFalse();
+            assertThat(original).hasToString("acceptPrefixes: [\"com.a.\"]; acceptGlobs: [\"com.*.impl.\"]; "
+                    + "rejectPrefixes: [\"com.a.internal.\"]; rejectGlobs: [\"com.*.gen.\"]");
+        }
+
+        /**
+         * A whole-string copy matches what the original matches, including the ancestors of accepted strings, and
+         * adding to the copy does not change the original.
+         */
+        @Test
+        public void aWholeStringCopyIsIndependentOfTheOriginal() {
+            final var original = new AcceptRejectWholeString('/');
+            original.addToAccept("com/a/");
+            original.addToAccept("eu/*/domain/");
+            original.addToReject("com/a/internal/");
+            final AcceptRejectWholeString copy = original.copy();
+            assertThat(copy).isNotSameAs(original).hasToString(original.toString());
+            assertThat(copy.isAccepted("com/a/")).isTrue();
+            assertThat(copy.isAccepted("eu/core/domain/")).isTrue();
+            assertThat(copy.acceptHasPrefix("com/")).isTrue();
+            assertThat(copy.acceptHasPrefix("eu/core/")).isTrue();
+            assertThat(copy.isRejected("com/a/internal/")).isTrue();
+
+            copy.addToAccept("org/x/");
+            copy.addToAccept("net/*/y/");
+            copy.addToReject("com/a/");
+            assertThat(original.isAccepted("org/x/")).isFalse();
+            assertThat(original.acceptHasPrefix("org/")).isFalse();
+            assertThat(original.acceptHasPrefix("net/z/")).isFalse();
+            assertThat(original.isRejected("com/a/")).isFalse();
+        }
+
+        /** A leafname copy is still a leafname criterion, matched ignoring case, and is independent. */
+        @Test
+        public void aLeafnameCopyIsIndependentOfTheOriginal() {
+            final var original = new AcceptRejectLeafname('/');
+            original.addToAccept("MyLib.jar");
+            original.addToReject("BadLib-*.jar");
+            final AcceptRejectLeafname copy = original.copy();
+            assertThat(copy).isNotSameAs(original).hasToString(original.toString());
+            assertThat(copy.isAccepted("/path/to/mylib.jar")).isTrue();
+            assertThat(copy.isRejected("/path/to/BADLIB-1.jar")).isTrue();
+
+            copy.addToAccept("Other.jar");
+            copy.addToReject("MyLib.jar");
+            assertThat(original.isAccepted("other.jar")).isFalse();
+            assertThat(original.isRejected("mylib.jar")).isFalse();
+        }
+    }
+
     /** The criteria are printed as their accepts and rejects, so that a scan's log shows what it was given. */
     @Test
     public void theCriteriaArePrintedAsTheirAcceptsAndRejects() {

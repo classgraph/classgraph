@@ -124,6 +124,22 @@ public final class VfsSpec {
         }
     }
 
+    /**
+     * Copy these settings. Unlike the copy that a {@link Vfs} holds, the returned copy can be changed, even when
+     * this object is the copy that a {@link Vfs} holds.
+     *
+     * @return a copy of these settings, which can be changed without changing this object.
+     */
+    public VfsSpec copy() {
+        final var copy = new VfsSpec();
+        copy.nestedJarsEnabled = nestedJarsEnabled;
+        copy.multiReleaseVersionsEnabled = multiReleaseVersionsEnabled;
+        // An unmodifiable set, so it can be shared
+        copy.deniedURLSchemes = deniedURLSchemes;
+        copy.maxBufferedJarRAMSize = maxBufferedJarRAMSize;
+        return copy;
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**
