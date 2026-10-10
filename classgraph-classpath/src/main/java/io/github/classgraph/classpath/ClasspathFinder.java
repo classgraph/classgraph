@@ -78,7 +78,10 @@ public final class ClasspathFinder {
     /** Everything except the places that classpath elements and modules are looked for. */
     private final ClasspathSpec classpathSpec = new ClasspathSpec();
 
-    /** How the jarfiles on the classpath are read, in order to find the classpath elements they declare. */
+    /**
+     * How the jarfiles on the classpath are read, both in order to find the classpath elements they declare and
+     * through the {@link Vfs} that the result hands out.
+     */
     private final VfsSpec vfsSpec = new VfsSpec();
 
     /**
@@ -188,6 +191,61 @@ public final class ClasspathFinder {
      */
     public ClasspathFinder denyURLScheme(final String scheme) {
         vfsSpec.denyURLScheme(scheme);
+        return this;
+    }
+
+    /**
+     * Do not open jarfiles nested within other jarfiles. The jarfiles in the lib dirs of a jarfile (for example
+     * {@code BOOT-INF/lib/} in a Spring Boot jar, or {@code WEB-INF/lib/} in a war file) are then left out of the
+     * result, while the jarfiles in the lib dirs of a directory are still found.
+     *
+     * <p>
+     * Unlike {@link #disableMultiReleaseVersions()} and {@link #setMaxBufferedJarRAMSize(int)}, this changes which
+     * classpath elements {@link #find()} returns.
+     *
+     * @return this (for method chaining).
+     */
+    public ClasspathFinder disableNestedJarScanning() {
+        vfsSpec.disableNestedJars();
+        return this;
+    }
+
+    /**
+     * Do not honor the multi-release versioning of a jarfile: the {@link Vfs} that the result hands out through
+     * {@link Classpath#getVfs()} reports every version of a multi-release resource under the literal
+     * {@code META-INF/versions/<N>/} path it is stored under, rather than serving just the one version the running
+     * JVM would use, which is the default.
+     *
+     * <p>
+     * This changes only how the jarfiles are read, not which classpath elements {@link #find()} returns.
+     *
+     * @return this (for method chaining).
+     */
+    public ClasspathFinder disableMultiReleaseVersions() {
+        vfsSpec.disableMultiReleaseVersions();
+        return this;
+    }
+
+    /**
+     * Set the maximum number of bytes of a jarfile that is held in RAM, before the rest is spilled to a temporary
+     * file on disk. This only applies to jarfiles that cannot be read in place: a nested jarfile that is stored
+     * deflated (i.e. compressed) within its enclosing jarfile, a jarfile downloaded from a URL, and a jarfile read
+     * from an {@link java.io.InputStream} through {@link Classpath#getVfs()}. It applies both to the jarfiles that
+     * {@link #find()} opens and to those opened through {@link Classpath#getVfs()}.
+     *
+     * <p>
+     * Default: 64MB, i.e. writing to disk is avoided wherever possible. This changes only how the jarfiles are
+     * read, not which classpath elements {@link #find()} returns.
+     *
+     * @param maxBufferedJarRAMSize
+     *            the maximum number of bytes to hold in RAM per jarfile. This is the limit per jarfile, not for the
+     *            whole classpath.
+     * @return this (for method chaining).
+     * @throws IllegalArgumentException
+     *             if {@code maxBufferedJarRAMSize} is negative.
+     */
+    public ClasspathFinder setMaxBufferedJarRAMSize(final int maxBufferedJarRAMSize) {
+        vfsSpec.setMaxBufferedJarRAMSize(maxBufferedJarRAMSize);
         return this;
     }
 
