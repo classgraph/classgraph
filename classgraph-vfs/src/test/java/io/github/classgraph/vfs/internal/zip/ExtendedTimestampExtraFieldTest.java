@@ -7,6 +7,9 @@ import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.zip.CRC32;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
+import java.util.zip.ZipOutputStream;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -22,7 +25,7 @@ import io.github.classgraph.vfs.Vfs;
  * modified time always fell back to the MS-DOS timestamp, which has a resolution of only two seconds.
  *
  * <p>
- * The zipfiles here are written byte by byte rather than with {@link java.util.zip.ZipOutputStream}, because
+ * Most of the zipfiles here are written byte by byte rather than with {@link ZipOutputStream}, because
  * {@code ZipOutputStream} drops any extended timestamp extra field it is handed and writes its own.
  */
 public class ExtendedTimestampExtraFieldTest {
@@ -211,5 +214,56 @@ public class ExtendedTimestampExtraFieldTest {
     public void infoZipUnixExtraFieldIsRead(@TempDir final File tempDir) throws Exception {
         assertThat(lastModifiedTimeReadBack(tempDir, "info-zip-unix.jar",
                 makeInfoZipUnixExtraField(ACCESS_TIME, MODIFICATION_TIME))).isEqualTo(MODIFICATION_TIME * 1000L);
+    }
+
+    /**
+     * An extended timestamp of exactly the Unix epoch is a time like any other, and must not be replaced by the
+     * MS-DOS timestamp (1 Jan 1980 in these zipfiles).
+     */
+    @Test
+    public void extendedTimestampOfTheEpochIsKept(@TempDir final File tempDir) throws Exception {
+        assertThat(lastModifiedTimeReadBack(tempDir, "extended-timestamp-epoch.jar",
+                makeExtendedTimestampExtraField(0))).isEqualTo(0L);
+    }
+
+    /**
+     * An Info-ZIP Unix modification time of exactly the Unix epoch must not be replaced by the MS-DOS timestamp.
+     */
+    @Test
+    public void infoZipUnixTimeOfTheEpochIsKept(@TempDir final File tempDir) throws Exception {
+        assertThat(lastModifiedTimeReadBack(tempDir, "info-zip-unix-epoch.jar",
+                makeInfoZipUnixExtraField(ACCESS_TIME, 0))).isEqualTo(0L);
+    }
+
+    /**
+     * {@link ZipOutputStream} writes an entry whose time is set to the Unix epoch with the MS-DOS date 1 Jan 1980
+     * and an extended timestamp of 0, since the MS-DOS format cannot hold a time before 1980. The time read back
+     * must be the one {@link ZipFile} reads back.
+     */
+    @Test
+    public void epochTimeWrittenByZipOutputStreamMatchesZipFile(@TempDir final File tempDir) throws Exception {
+        final var jarFile = new File(tempDir, "zip-output-stream-epoch.jar");
+        try (var zipOut = new ZipOutputStream(Files.newOutputStream(jarFile.toPath()))) {
+            final var entry = new ZipEntry(ENTRY_NAME);
+            entry.setTime(0L);
+            zipOut.putNextEntry(entry);
+            zipOut.write(CONTENTS);
+            zipOut.closeEntry();
+        }
+        final long jdkTime;
+        try (var zipFile = new ZipFile(jarFile)) {
+            jdkTime = zipFile.getEntry(ENTRY_NAME).getTime();
+        }
+        assertThat(jdkTime).isEqualTo(0L);
+
+        final var vfs = new Vfs(new VfsSpec(), new InterruptionChecker());
+        try {
+            final var entries = JarOpener.openJarFile(jarFile, vfs, /* log = */ null).zipFile().getEntries();
+            assertThat(entries).hasSize(1);
+            assertThat(entries.get(0).getLastModifiedMillis()).isEqualTo(jdkTime);
+        } finally {
+            // The jarfile must not be left open, otherwise the temporary directory cannot be deleted on Windows
+            vfs.close(/* log = */ null);
+        }
     }
 }

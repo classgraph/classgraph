@@ -68,20 +68,21 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
     public final long uncompressedSize;
 
     /**
-     * The last modified millis since the epoch, or 0L if it is unknown. Volatile, since it caches the conversion of
-     * the MSDOS date and time, and the entries of a zipfile are shared between the threads reading it: a long field
-     * that is not volatile may be written in two halves, so a thread that read a value another thread was caching
-     * could read half of one value and half of another.
+     * The last modified millis since the epoch, or 0L if it is unknown or not yet converted from the MSDOS date and
+     * time (0L is also the value of a time of exactly the epoch, which an extra field can give). Volatile, since it
+     * caches the conversion of the MSDOS date and time, and the entries of a zipfile are shared between the threads
+     * reading it: a long field that is not volatile may be written in two halves, so a thread that read a value
+     * another thread was caching could read half of one value and half of another.
      */
     private volatile long lastModifiedTimeMillis;
 
     /**
-     * The last modified time in MSDOS format, if {@link FastZipEntry#lastModifiedTimeMillis} is 0L.
+     * The last modified time in MSDOS format, or 0 if an extra field of the entry gave the last modified time.
      */
     private final int lastModifiedTimeMSDOS;
 
     /**
-     * The last modified date in MSDOS format, if {@link FastZipEntry#lastModifiedTimeMillis} is 0L.
+     * The last modified date in MSDOS format, or 0 if an extra field of the entry gave the last modified time.
      */
     private final int lastModifiedDateMSDOS;
 
@@ -136,12 +137,12 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
      * @param uncompressedSize
      *            The uncompressed size of the entry.
      * @param lastModifiedTimeMillis
-     *            The last modified date/time in millis since the epoch, or 0L if unknown (in which case, the MSDOS
-     *            time and date fields will be provided).
+     *            The last modified date/time in millis since the epoch, as given by an extra field, or 0L if no
+     *            extra field gave it (in which case, the MSDOS time and date fields will be provided).
      * @param lastModifiedTimeMSDOS
-     *            The last modified date, in MSDOS format, if lastModifiedMillis is 0L.
+     *            The last modified time, in MSDOS format, or 0 if an extra field gave lastModifiedTimeMillis.
      * @param lastModifiedDateMSDOS
-     *            The last modified date, in MSDOS format, if lastModifiedMillis is 0L.
+     *            The last modified date, in MSDOS format, or 0 if an extra field gave lastModifiedTimeMillis.
      * @param fileAttributes
      *            The high 16 bits of the external file attributes of the zip entry, which is the Unix mode of the
      *            entry if the zipfile was written on a Unix-like system, or 0 if it was not.
@@ -300,7 +301,8 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
      */
     public long getLastModifiedMillis() {
         var lastModifiedMillis = lastModifiedTimeMillis;
-        // If lastModifiedTimeMillis is zero, but there is an MSDOS date and time available
+        // If lastModifiedTimeMillis is zero, but there is an MSDOS date and time available (which is only the case
+        // if no extra field gave the time)
         if (lastModifiedMillis == 0L && (lastModifiedDateMSDOS != 0 || lastModifiedTimeMSDOS != 0)) {
             // Convert from MS-DOS Date & Time Format to Epoch millis
             final var lastModifiedSecond = (lastModifiedTimeMSDOS & 0b11111) * 2;
