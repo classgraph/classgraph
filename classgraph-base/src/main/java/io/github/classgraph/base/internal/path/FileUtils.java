@@ -357,8 +357,9 @@ public final class FileUtils {
 
     /**
      * Read the {@link BasicFileAttributes} of a {@link Path}. If the attributes cannot be read, returns a
-     * best-effort implementation backed by the {@link File} API, which throws {@link UnsupportedOperationException}
-     * from the accessors it cannot support.
+     * best-effort implementation backed by the {@link File} API, which returns the defaults that
+     * {@link BasicFileAttributes} specifies for the values it cannot read: the epoch for the creation time, the
+     * last-modified time for the last-access time, and null for the file key.
      *
      * @param path
      *            A {@link Path}.
@@ -388,7 +389,8 @@ public final class FileUtils {
 
                 @Override
                 public FileTime lastAccessTime() {
-                    throw new UnsupportedOperationException();
+                    // BasicFileAttributes allows the last-modified time as the default when this is unsupported
+                    return lastModifiedTime();
                 }
 
                 @Override
@@ -434,8 +436,9 @@ public final class FileUtils {
                 }
 
                 @Override
-                public Object fileKey() {
-                    throw new UnsupportedOperationException();
+                public @Nullable Object fileKey() {
+                    // BasicFileAttributes specifies null when no file key is available
+                    return null;
                 }
             };
         }
