@@ -95,8 +95,9 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
      * is nested in, and return the type parameter with the same name (e.g. "T extends com.xyz.Cls").
      *
      * <p>
-     * A type variable declared by a method that a local or anonymous class is declared in is not found, since the
-     * classfile does not record which overload of the method that is.
+     * The search stops at a local or anonymous class, so a type variable declared by the method or constructor that
+     * such a class is declared in, or by a class enclosing it, is not found. (The classfile records the name and
+     * descriptor of that method, but ClassGraph does not look up its type parameters, or whether it is static.)
      *
      * @return the type parameter (e.g. "T extends com.xyz.Cls", or simply "T" if the type parameter does not have
      *         any bounds). If no type parameter of the same name is found, an unbounded type parameter with just
@@ -120,9 +121,11 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
             if (containingClassInfo == null) {
                 throw new IllegalStateException("Could not find ClassInfo object for " + definingClassName);
             }
-            // The enclosing classes are listed innermost first. Only an inner member class can use the type
-            // variables of the class it is declared in, and a class that was not read may declare the name too, so
-            // stop at a static, local or anonymous class, and at a class that was not read.
+            // The enclosing classes are listed innermost first. A static member class cannot use the type variables
+            // of the classes it is nested in. A local or anonymous class can, unless it is declared in a static
+            // method, but javac does not mark such a class static, and the type parameters of its enclosing method
+            // (which may shadow those of the outer class) are not looked up. A class that was not read may declare
+            // the name too. So stop at a static, local or anonymous class, and at a class that was not read.
             final var enclosingClasses = containingClassInfo.enclosingClassesIncludingExternal();
             var classInfo = containingClassInfo;
             for (var i = 0;; i++) {
