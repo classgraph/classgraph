@@ -25,6 +25,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import io.github.classgraph.ClassGraph;
+import io.github.classgraph.ClassInfo;
 import io.github.classgraph.FieldInfo;
 import io.github.classgraph.MethodInfo;
 import io.github.classgraph.MethodParameterInfo;
@@ -1108,7 +1109,7 @@ public class GraphVizDotFileTest {
             final var classGraph = GraphVizDotFile.generate(externalScanResult,
                     user.union(user.get(0).getClassDependencies()));
             final var dependencyGraph = GraphVizDotFile.generateFromInterClassDependencies(externalScanResult, user,
-                    new GraphVizDotFileOptions().includeExternalClasses());
+                    new GraphVizDotFileOptions().showUnlistedDependencies());
             for (final var dotFile : List.of(classGraph, dependencyGraph)) {
                 assertThat(node(dotFile, Supplier.class.getName())).contains(HEADER_ROW + "interface</font>");
                 assertThat(node(dotFile, Map.class.getName())).doesNotContain(HEADER_ROW)
@@ -1119,23 +1120,25 @@ public class GraphVizDotFileTest {
     }
 
     /**
-     * A class that a graphed class depends upon, but that is not itself in the list of classes to graph, is only
-     * given a node of its own if the graph is asked to include external classes.
+     * A class that a graphed class depends upon, but that is not itself in the list of classes to graph, is given a
+     * node of its own by default, whether or not the scan enabled external classes, and can be left out. Leaving it
+     * out never removes a class that is in the list, external or not.
      */
     @Test
-    public void externalClassesCanBeShownOrHiddenInTheDependencyGraph() {
+    public void unlistedDependenciesCanBeShownOrHidden() {
         final var derivedOnly = scanResult.getAllClasses()
                 .filter(ci -> Derived.class.getName().equals(ci.getName()));
         final var baseNode = '"' + FIXTURE + "Base\"[";
+        final var edgeToBase = '"' + Derived.class.getName() + "\" -> \"" + FIXTURE + "Base\"";
 
+        // Base is accepted, so it is a dependency of Derived although the scan did not enable external classes
+        assertThat(GraphVizDotFile.generateFromInterClassDependencies(scanResult, derivedOnly)).contains(baseNode,
+                edgeToBase);
         assertThat(GraphVizDotFile.generateFromInterClassDependencies(scanResult, derivedOnly,
-                new GraphVizDotFileOptions().includeExternalClasses())).contains(baseNode);
+                new GraphVizDotFileOptions().showUnlistedDependencies())).contains(baseNode, edgeToBase);
         assertThat(GraphVizDotFile.generateFromInterClassDependencies(scanResult, derivedOnly,
-                new GraphVizDotFileOptions().excludeExternalClasses())).doesNotContain(baseNode);
+                new GraphVizDotFileOptions().hideUnlistedDependencies())).doesNotContain(baseNode, edgeToBase);
 
-        // With no instruction either way, the graph follows the scan, which did not enable external classes
-        assertThat(GraphVizDotFile.generateFromInterClassDependencies(scanResult, derivedOnly))
-                .doesNotContain(baseNode);
         try (var withExternalClasses = scanFixture().enableClassInfo().enableFieldInfo().enableMethodInfo()
                 .enableAnnotationInfo().enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility()
                 .ignoreFieldVisibility().ignoreMethodVisibility().enableInterClassDependencies()
@@ -1143,6 +1146,14 @@ public class GraphVizDotFileTest {
             assertThat(GraphVizDotFile.generateFromInterClassDependencies(withExternalClasses,
                     withExternalClasses.getAllClasses().filter(ci -> Derived.class.getName().equals(ci.getName()))))
                     .contains(baseNode);
+            // The external classes that getAllClasses() returns are in the list, so they are still drawn
+            final var allClasses = withExternalClasses.getAllClasses();
+            assertThat(allClasses.filter(ClassInfo::isExternalClass)).isNotEmpty();
+            final var hidden = GraphVizDotFile.generateFromInterClassDependencies(withExternalClasses, allClasses,
+                    new GraphVizDotFileOptions().hideUnlistedDependencies());
+            for (final var ci : allClasses) {
+                assertThat(hidden).contains('"' + ci.getName() + "\"[");
+            }
         }
     }
 

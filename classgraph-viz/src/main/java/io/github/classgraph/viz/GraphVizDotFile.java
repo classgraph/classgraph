@@ -1203,8 +1203,8 @@ public final class GraphVizDotFile {
      * @param classes
      *            the classes whose dependencies should be plotted in the graph.
      * @param options
-     *            the graph options. Only the layout size and the external-class setting have any effect on this
-     *            graph.
+     *            the graph options. Only the layout size and the unlisted-dependency setting have any effect on
+     *            this graph.
      * @return the GraphViz file contents.
      * @throws IllegalStateException
      *             if {@link ClassGraph#enableInterClassDependencies()} was not called before scanning (since there
@@ -1219,18 +1219,12 @@ public final class GraphVizDotFile {
             throw new IllegalStateException("Please call ClassGraph#enableInterClassDependencies() before #scan()");
         }
 
-        // The graph shows external classes if the options ask for them, or, if the options say nothing either way,
-        // if they were enabled in the scan
-        final var includeExternalClasses = options.includeExternalClasses != null ? options.includeExternalClasses
-                : scanResult.isExternalClassesEnabled();
-
         final var buf = new StringBuilder(1024 * 1024);
         appendDotFileHeader(options, buf);
 
-        // Sorted, so that the nodes are written in the same order as the class graph writes them, in class name
-        // order rather than in hash order
+        // Sorted by class name, so that the output does not depend on hash order
         final Set<ClassInfo> allVisibleNodes = new TreeSet<>(classes);
-        if (includeExternalClasses) {
+        if (options.showUnlistedDependencies) {
             for (final ClassInfo ci : classes) {
                 allVisibleNodes.addAll(ci.getClassDependencies());
             }
@@ -1249,8 +1243,8 @@ public final class GraphVizDotFile {
         buf.append('\n');
         for (final ClassInfo ci : classes) {
             for (final ClassInfo dep : ci.getClassDependencies()) {
-                // An edge is only drawn if the dependency has a node of its own -- when external classes are
-                // included, every dependency was given a node above, so every edge is drawn
+                // An edge is only drawn if the dependency has a node of its own -- when unlisted dependencies are
+                // shown, every dependency was given a node above, so every edge is drawn
                 if (allVisibleNodes.contains(dep)) {
                     // class --> dep
                     appendEdge(ci.getName(), dep.getName(), "[arrowsize=2.5]", buf);
@@ -1293,8 +1287,8 @@ public final class GraphVizDotFile {
      * @param file
      *            the file to save the GraphViz .dot file to.
      * @param options
-     *            the graph options. Only the layout size and the external-class setting have any effect on this
-     *            graph.
+     *            the graph options. Only the layout size and the unlisted-dependency setting have any effect on
+     *            this graph.
      * @return the file that was written (for method chaining).
      * @throws IOException
      *             if the file could not be saved.

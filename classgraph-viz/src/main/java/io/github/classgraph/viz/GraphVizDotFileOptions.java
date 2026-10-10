@@ -31,7 +31,6 @@ package io.github.classgraph.viz;
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ClassInfoList;
 import io.github.classgraph.ScanResult;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Options for the GraphViz .dot file generators in {@link GraphVizDotFile}. A freshly constructed instance holds
@@ -48,8 +47,8 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>
  * {@link GraphVizDotFile#generateFromInterClassDependencies(ScanResult, ClassInfoList, GraphVizDotFileOptions)}
- * draws a different graph, and reads only {@link #setLayoutSize(float, float)}, {@link #includeExternalClasses()}
- * and {@link #excludeExternalClasses()} -- the options that show or hide the contents of a class node have no
+ * draws a different graph, and reads only {@link #setLayoutSize(float, float)}, {@link #showUnlistedDependencies()}
+ * and {@link #hideUnlistedDependencies()} -- the options that show or hide the contents of a class node have no
  * effect on it.
  */
 public final class GraphVizDotFileOptions {
@@ -87,11 +86,10 @@ public final class GraphVizDotFileOptions {
     boolean useSimpleNames = true;
 
     /**
-     * Whether to show external classes in the inter-class dependency graph, or null to follow the scan's own
-     * {@link ClassGraph#enableExternalClasses()} setting.
+     * Whether the inter-class dependency graph also shows the classes that the listed classes depend on but that
+     * are not in the list.
      */
-    @Nullable
-    Boolean includeExternalClasses;
+    boolean showUnlistedDependencies = true;
 
     /** Construct a set of GraphViz .dot file options, with every option at its default. */
     public GraphVizDotFileOptions() {
@@ -288,26 +286,30 @@ public final class GraphVizDotFileOptions {
     }
 
     /**
-     * Show "external classes" (non-accepted classes) in the inter-class dependency graph. This has an effect only
-     * if {@link ClassGraph#enableExternalClasses()} was called before scanning. By default the graph follows that
-     * setting.
+     * In the inter-class dependency graph, also give a node to each class that a listed class depends on but that
+     * is not in the list of classes to graph, so that every dependency edge of the listed classes is drawn. (This
+     * is the default.)
+     *
+     * <p>
+     * An external class (see {@link io.github.classgraph.ClassInfo#isExternalClass()}) is a dependency only if
+     * {@link ClassGraph#enableExternalClasses()} was called before scanning. To leave the external classes out of
+     * the graph, leave them out of the list of classes to graph, and call {@link #hideUnlistedDependencies()}.
      *
      * @return this {@link GraphVizDotFileOptions}, for method chaining.
      */
-    public GraphVizDotFileOptions includeExternalClasses() {
-        includeExternalClasses = Boolean.TRUE;
+    public GraphVizDotFileOptions showUnlistedDependencies() {
+        showUnlistedDependencies = true;
         return this;
     }
 
     /**
-     * Do not show "external classes" (non-accepted classes) in the inter-class dependency graph, even if
-     * {@link ClassGraph#enableExternalClasses()} was called before scanning. By default the graph follows that
-     * setting.
+     * In the inter-class dependency graph, draw only the classes in the list of classes to graph, and only the
+     * dependency edges between them. (By default, the classes that the listed classes depend on are drawn too.)
      *
      * @return this {@link GraphVizDotFileOptions}, for method chaining.
      */
-    public GraphVizDotFileOptions excludeExternalClasses() {
-        includeExternalClasses = Boolean.FALSE;
+    public GraphVizDotFileOptions hideUnlistedDependencies() {
+        showUnlistedDependencies = false;
         return this;
     }
 }
