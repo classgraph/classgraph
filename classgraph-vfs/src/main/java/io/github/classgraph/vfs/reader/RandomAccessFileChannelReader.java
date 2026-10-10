@@ -194,19 +194,11 @@ public final class RandomAccessFileChannelReader implements RandomAccessReader {
     @Override
     public int read(final long srcOffset, final ByteBuffer dstBuf, final int dstBufStart, final int numBytes)
             throws IOException {
-        final var dstRoom = ReaderBounds.numBytesFree(dstBuf.limit(), dstBufStart);
+        final var dstRoom = ReaderBounds.numBytesFree(srcOffset, dstBuf, dstBufStart, numBytes);
         if (numBytes == 0 || dstRoom == 0) {
             return 0;
         }
-        if (dstBuf.isReadOnly()) {
-            // FileChannel rejects a read-only destination with an IllegalArgumentException, so check it here, to
-            // report it with the IOException that every other RandomAccessReader reports it with
-            throw new IOException("The destination buffer is read-only");
-        }
         try {
-            if (srcOffset < 0L || numBytes < 0) {
-                throw new IOException("Read index out of bounds");
-            }
             // A bulk read stops at the end of the slice and reports how far it got, rather than throwing, since a
             // caller copying the content out does not necessarily know how long it is
             final var numBytesInSlice = (int) Math.max(Math.min(numBytes, sliceLength - srcOffset), 0L);
@@ -250,7 +242,10 @@ public final class RandomAccessFileChannelReader implements RandomAccessReader {
                         continue;
                     }
                     if (numBytesReadThisCall <= 0) {
-                        // -1 => end of file; 0 => the destination buffer has no space left
+                        // -1 => end of file, which here means the file is shorter than its slice. A FileChannel is
+                        // always in blocking mode, and the window above always leaves room while this loop runs, so
+                        // ReadableByteChannel#read guarantees that at least one byte is read, and a FileChannel that
+                        // keeps to its contract never returns 0 here
                         break;
                     }
                     numBytesRead += numBytesReadThisCall;

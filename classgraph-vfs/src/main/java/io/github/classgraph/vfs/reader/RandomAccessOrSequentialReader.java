@@ -602,18 +602,15 @@ public final class RandomAccessOrSequentialReader implements RandomAccessReader,
      * at the end of the content, since a bulk read stops at the end of the content and reports how far it got.
      *
      * @param srcOffset
-     *            the offset the read starts at.
+     *            the offset the read starts at, which the caller has checked is not negative.
      * @param numBytes
-     *            the maximum number of bytes to be read.
+     *            the maximum number of bytes to be read, which the caller has checked is not negative.
      * @return the number of bytes that can be read at {@code srcOffset}, which is zero at or past the end of the
      *         content.
      * @throws IOException
-     *             if the offset or the number of bytes is negative, or if the bytes could not be read.
+     *             if the bytes could not be read.
      */
     private int bufferForBulkRead(final long srcOffset, final int numBytes) throws IOException {
-        if (srcOffset < 0L || numBytes < 0) {
-            throw new IOException("Read index out of bounds");
-        }
         if (srcOffset > maxBufferSize) {
             // Nothing can be buffered at an offset past the largest buffer, so this read cannot be served either
             // way -- but content that ends before the offset is at its end there, which a bulk read reports by
@@ -641,7 +638,7 @@ public final class RandomAccessOrSequentialReader implements RandomAccessReader,
     @Override
     public int read(final long srcOffset, final byte[] dstArr, final int dstArrStart, final int numBytes)
             throws IOException {
-        final var dstRoom = ReaderBounds.numBytesFree(dstArr.length, dstArrStart);
+        final var dstRoom = ReaderBounds.numBytesFree(srcOffset, dstArr.length, dstArrStart, numBytes);
         if (numBytes == 0 || dstRoom == 0) {
             return 0;
         }
@@ -665,15 +662,9 @@ public final class RandomAccessOrSequentialReader implements RandomAccessReader,
     @Override
     public int read(final long srcOffset, final ByteBuffer dstBuf, final int dstBufStart, final int numBytes)
             throws IOException {
-        final var dstRoom = ReaderBounds.numBytesFree(dstBuf.limit(), dstBufStart);
+        final var dstRoom = ReaderBounds.numBytesFree(srcOffset, dstBuf, dstBufStart, numBytes);
         if (numBytes == 0 || dstRoom == 0) {
             return 0;
-        }
-        if (dstBuf.isReadOnly()) {
-            // Checked here rather than left to the put below, so that every RandomAccessReader reports a
-            // read-only destination the same way -- the file channel reader cannot catch it, since FileChannel
-            // rejects a read-only destination with an IllegalArgumentException of its own
-            throw new IOException("The destination buffer is read-only");
         }
         final var idx = (int) srcOffset;
         // Buffer only as much as the destination can take, as in the byte array overload

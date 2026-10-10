@@ -135,17 +135,13 @@ public final class RandomAccessArrayReader implements RandomAccessReader {
      * down to what is left of the slice.
      *
      * @param srcOffset
-     *            the offset to read from, relative to the start of the slice.
+     *            the offset to read from, relative to the start of the slice, which the caller has checked is not
+     *            negative.
      * @param numBytes
-     *            the number of bytes asked for.
+     *            the number of bytes asked for, which the caller has checked is not negative.
      * @return the number of bytes that can be read, which is zero at or past the end of the slice.
-     * @throws IOException
-     *             if the offset or the number of bytes is negative.
      */
-    private int numBytesAvailable(final long srcOffset, final int numBytes) throws IOException {
-        if (srcOffset < 0L || numBytes < 0) {
-            throw new IOException("Read index out of bounds");
-        }
+    private int numBytesAvailable(final long srcOffset, final int numBytes) {
         // A bulk read stops at the end of the slice and reports how far it got, rather than throwing, since a
         // caller copying the content out does not necessarily know how long it is
         return (int) Math.max(Math.min(numBytes, sliceLength - srcOffset), 0L);
@@ -154,7 +150,7 @@ public final class RandomAccessArrayReader implements RandomAccessReader {
     @Override
     public int read(final long srcOffset, final byte[] dstArr, final int dstArrStart, final int numBytes)
             throws IOException {
-        final var dstRoom = ReaderBounds.numBytesFree(dstArr.length, dstArrStart);
+        final var dstRoom = ReaderBounds.numBytesFree(srcOffset, dstArr.length, dstArrStart, numBytes);
         if (numBytes == 0 || dstRoom == 0) {
             return 0;
         }
@@ -177,15 +173,9 @@ public final class RandomAccessArrayReader implements RandomAccessReader {
     @Override
     public int read(final long srcOffset, final ByteBuffer dstBuf, final int dstBufStart, final int numBytes)
             throws IOException {
-        final var dstRoom = ReaderBounds.numBytesFree(dstBuf.limit(), dstBufStart);
+        final var dstRoom = ReaderBounds.numBytesFree(srcOffset, dstBuf, dstBufStart, numBytes);
         if (numBytes == 0 || dstRoom == 0) {
             return 0;
-        }
-        if (dstBuf.isReadOnly()) {
-            // Checked here rather than left to the put below, so that every RandomAccessReader reports a
-            // read-only destination the same way -- the file channel reader cannot catch it, since FileChannel
-            // rejects a read-only destination with an IllegalArgumentException of its own
-            throw new IOException("The destination buffer is read-only");
         }
         final var numBytesInSlice = numBytesAvailable(srcOffset, numBytes);
         if (numBytesInSlice == 0) {

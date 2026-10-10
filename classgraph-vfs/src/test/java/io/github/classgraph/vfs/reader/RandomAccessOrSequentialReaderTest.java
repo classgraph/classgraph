@@ -1137,6 +1137,37 @@ public class RandomAccessOrSequentialReaderTest {
             final var dstBuf = ByteBuffer.allocate(PATTERN.length).asReadOnlyBuffer();
             assertThatThrownBy(() -> reader.read(0, dstBuf, 0, PATTERN.length)).isInstanceOf(IOException.class)
                     .hasMessage("The destination buffer is read-only");
+            // Also when the read would copy nothing
+            assertThatThrownBy(() -> reader.read(0, dstBuf, 0, 0)).isInstanceOf(IOException.class)
+                    .hasMessage("The destination buffer is read-only");
+            assertThatThrownBy(() -> reader.read(0, dstBuf, dstBuf.limit(), PATTERN.length))
+                    .isInstanceOf(IOException.class).hasMessage("The destination buffer is read-only");
+        }
+    }
+
+    /**
+     * A negative source offset or number of bytes is rejected even when the read would copy nothing, because the
+     * number of bytes is zero or the destination is full, the same way the three addressable readers reject it.
+     *
+     * @throws IOException
+     *             if the content could not be read.
+     */
+    @Test
+    public void aNegativeOffsetOrLengthIsRejectedEvenWhenNothingWouldBeCopied() throws IOException {
+        try (var reader = new RandomAccessOrSequentialReader(new ByteArrayInputStream(PATTERN))) {
+            final var dstArr = new byte[4];
+            final var dstBuf = ByteBuffer.allocate(4);
+            assertThatThrownBy(() -> reader.read(-1, dstArr, 0, 0)).isInstanceOf(IOException.class)
+                    .hasMessageContaining("out of bounds");
+            assertThatThrownBy(() -> reader.read(-1, dstBuf, 0, 0)).isInstanceOf(IOException.class)
+                    .hasMessageContaining("out of bounds");
+            assertThatThrownBy(() -> reader.read(0, dstArr, dstArr.length, -1)).isInstanceOf(IOException.class)
+                    .hasMessageContaining("out of bounds");
+            assertThatThrownBy(() -> reader.read(0, dstBuf, dstBuf.limit(), -1)).isInstanceOf(IOException.class)
+                    .hasMessageContaining("out of bounds");
+            // A read of zero bytes at a valid offset still returns zero
+            assertThat(reader.read(0, dstArr, 0, 0)).isZero();
+            assertThat(reader.read(0, dstBuf, 0, 0)).isZero();
         }
     }
 }
