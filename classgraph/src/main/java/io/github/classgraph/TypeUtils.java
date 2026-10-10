@@ -48,25 +48,35 @@ final class TypeUtils {
      * @param parser
      *            The parser.
      * @param stopAtDollarSign
-     *            If true, stop parsing when the first '$' is hit.
+     *            If true, stop parsing when the first '$' is hit (except as allowed by
+     *            {@code dollarAtSegmentStartIsPartOfName}).
+     * @param dollarAtSegmentStartIsPartOfName
+     *            If true, a run of '$' characters at the start of the identifier, or right after a '/', is part of
+     *            the name even if {@code stopAtDollarSign} is true. Such a '$' has no name before it in the same
+     *            package segment, so it cannot separate a nested class name from the name of its enclosing class.
      * @param stopAtDot
      *            If true, stop parsing when the first '.' is hit.
      * @return true if at least one identifier character was parsed.
      */
     public static boolean getIdentifierToken(final TypeSignatureParser parser, final boolean stopAtDollarSign,
-            final boolean stopAtDot) {
+            final boolean dollarAtSegmentStartIsPartOfName, final boolean stopAtDot) {
         var consumedChar = false;
+        var atSegmentStart = dollarAtSegmentStartIsPartOfName;
         while (parser.hasMore()) {
             final var c = parser.peek();
             if (c == '/') {
                 parser.appendToToken('.');
                 parser.next();
                 consumedChar = true;
-            } else if (c != ';' && c != '[' && c != '<' && c != '>' && c != ':' && (!stopAtDollarSign || c != '$')
-                    && (!stopAtDot || c != '.')) {
+                atSegmentStart = dollarAtSegmentStartIsPartOfName;
+            } else if (c != ';' && c != '[' && c != '<' && c != '>' && c != ':'
+                    && (!stopAtDollarSign || c != '$' || atSegmentStart) && (!stopAtDot || c != '.')) {
                 parser.appendToToken(c);
                 parser.next();
                 consumedChar = true;
+                if (c != '$') {
+                    atSegmentStart = false;
+                }
             } else {
                 break;
             }

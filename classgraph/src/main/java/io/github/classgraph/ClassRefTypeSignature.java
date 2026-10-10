@@ -486,7 +486,10 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
             final @Nullable String definingClassName) throws TypeSignatureParseException {
         if (parser.peek() == 'L') {
             parser.next();
-            if (!TypeUtils.getIdentifierToken(parser, /* stopAtDollarSign = */ true, /* stopAtDot = */ true)) {
+            // A '$' at the start of the class name or of a package segment has no name before it, so it is part of
+            // the name (e.g. "$Foo", or AutoValue's "p/$AutoValue_Foo"), not a nested class separator
+            if (!TypeUtils.getIdentifierToken(parser, /* stopAtDollarSign = */ true,
+                    /* dollarAtSegmentStartIsPartOfName = */ true, /* stopAtDot = */ true)) {
                 throw new TypeSignatureParseException(parser, "Could not parse identifier token");
             }
             var className = parser.currToken();
@@ -503,7 +506,7 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
                     // once an enclosing class has type arguments, the whole simple name of the nested class
                     // follows, and a '$' in it is part of that name (e.g. "Outer<TT;>.Inner$Name").
                     if (TypeUtils.getIdentifierToken(parser, /* stopAtDollarSign = */ separator == '$',
-                            /* stopAtDot = */ true)) {
+                            /* dollarAtSegmentStartIsPartOfName = */ false, /* stopAtDot = */ true)) {
                         suffixes.add(parser.currToken());
                         suffixTypeArguments.add(TypeArgument.parseList(parser, definingClassName));
                     } else if (separator == '$') {

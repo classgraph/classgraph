@@ -76,4 +76,73 @@ public class ClassRefTypeSignatureTest {
         assertThat(sig.getSuffixes()).containsExactly("$Inner");
         assertThat(sig.getFullyQualifiedClassName()).isEqualTo("p.Outer$$Inner");
     }
+
+    /**
+     * A '$' at the start of a class name has no enclosing class name before it, so it is part of the name, as in a
+     * class in the default package named {@code $Foo}.
+     */
+    @Test
+    public void aClassNameCanStartWithADollarSign() throws TypeSignatureParseException {
+        final var sig = parse("L$Foo;");
+        assertThat(sig.getBaseClassName()).isEqualTo("$Foo");
+        assertThat(sig.getSuffixes()).isEmpty();
+        assertThat(sig.getFullyQualifiedClassName()).isEqualTo("$Foo");
+        assertThat(sig).hasToString("$Foo");
+    }
+
+    /**
+     * A '$' at the start of the simple name after a package is part of the name, as in AutoValue's generated class
+     * names ({@code $AutoValue_Foo} and {@code $$AutoValue_Foo}).
+     */
+    @Test
+    public void aSimpleNameAfterAPackageCanStartWithDollarSigns() throws TypeSignatureParseException {
+        final var sig = parse("Lp/$A;");
+        assertThat(sig.getBaseClassName()).isEqualTo("p.$A");
+        assertThat(sig.getSuffixes()).isEmpty();
+        assertThat(sig.toStringWithSimpleNames()).isEqualTo("$A");
+        final var sig2 = parse("Lp/$$A;");
+        assertThat(sig2.getBaseClassName()).isEqualTo("p.$$A");
+        assertThat(sig2.getSuffixes()).isEmpty();
+        final var sig3 = parse("Lp/$q/B;");
+        assertThat(sig3.getBaseClassName()).isEqualTo("p.$q.B");
+        assertThat(sig3.getSuffixes()).isEmpty();
+    }
+
+    /** The type arguments of a class whose simple name starts with '$' belong to the base class. */
+    @Test
+    public void typeArgumentsOfANameStartingWithADollarSignAreKept() throws TypeSignatureParseException {
+        final var sig = parse("Lp/$Cons<TA;>;");
+        assertThat(sig.getBaseClassName()).isEqualTo("p.$Cons");
+        assertThat(sig.getTypeArguments()).extracting(Object::toString).containsExactly("A");
+        assertThat(sig.getSuffixes()).isEmpty();
+        assertThat(sig.toStringWithSimpleNames()).isEqualTo("$Cons<A>");
+    }
+
+    /** A '$' after the first character of a name that starts with '$' still separates a nested class name. */
+    @Test
+    public void aNestedClassOfANameStartingWithADollarSignIsASuffix() throws TypeSignatureParseException {
+        final var sig = parse("L$Foo$Inner;");
+        assertThat(sig.getBaseClassName()).isEqualTo("$Foo");
+        assertThat(sig.getSuffixes()).containsExactly("Inner");
+        assertThat(sig.getFullyQualifiedClassName()).isEqualTo("$Foo$Inner");
+    }
+
+    /** The simple name of a class keeps the '$' characters at the start of the name. */
+    @Test
+    public void theSimpleNameKeepsALeadingDollarSign() {
+        assertThat(ClassInfo.getSimpleName("$Foo")).isEqualTo("$Foo");
+        assertThat(ClassInfo.getSimpleName("p.$$A")).isEqualTo("$$A");
+        assertThat(ClassInfo.getSimpleName("p.$Foo$Inner")).isEqualTo("Inner");
+        assertThat(ClassInfo.getSimpleName("p.A$$B")).isEqualTo("B");
+        assertThat(ClassInfo.getSimpleName("p.A")).isEqualTo("A");
+        assertThat(ClassInfo.getSimpleName("A")).isEqualTo("A");
+    }
+
+    /** A "$$" after the start of a name still splits as before: the first '$' joins the preceding name. */
+    @Test
+    public void aDoubleDollarSignInsideANameSplitsAsBefore() throws TypeSignatureParseException {
+        final var sig = parse("Lp/A$$B;");
+        assertThat(sig.getBaseClassName()).isEqualTo("p.A$");
+        assertThat(sig.getSuffixes()).containsExactly("B");
+    }
 }
