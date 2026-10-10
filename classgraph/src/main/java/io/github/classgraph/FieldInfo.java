@@ -316,7 +316,8 @@ public final class FieldInfo extends ClassMemberInfo implements Comparable<Field
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Use class name and field name for equals().
+     * Use class name, field name and type descriptor for equals(). A classfile may declare two fields with the same
+     * name if their types differ (javac never does this, but obfuscators do), and those are two different fields.
      *
      * @param obj
      *            the object to compare to
@@ -330,21 +331,22 @@ public final class FieldInfo extends ClassMemberInfo implements Comparable<Field
         if (!(obj instanceof final FieldInfo other)) {
             return false;
         }
-        return declaringClassName.equals(other.declaringClassName) && name.equals(other.name);
+        return declaringClassName.equals(other.declaringClassName)
+                && typeDescriptorStr.equals(other.typeDescriptorStr) && name.equals(other.name);
     }
 
     /**
-     * Use hash code of class name and field name.
+     * Use hash code of class name, field name and type descriptor.
      *
      * @return the hashcode
      */
     @Override
     public int hashCode() {
-        return name.hashCode() + declaringClassName.hashCode() * 11;
+        return name.hashCode() + typeDescriptorStr.hashCode() * 11 + declaringClassName.hashCode() * 57;
     }
 
     /**
-     * Sort in order of class name then field name.
+     * Sort in order of class name, field name, then type descriptor.
      *
      * @param other
      *            the other FieldInfo object to compare to.
@@ -352,11 +354,15 @@ public final class FieldInfo extends ClassMemberInfo implements Comparable<Field
      */
     @Override
     public int compareTo(final FieldInfo other) {
-        final var diff = declaringClassName.compareTo(other.declaringClassName);
-        if (diff != 0) {
-            return diff;
+        final var diff0 = declaringClassName.compareTo(other.declaringClassName);
+        if (diff0 != 0) {
+            return diff0;
         }
-        return name.compareTo(other.name);
+        final var diff1 = name.compareTo(other.name);
+        if (diff1 != 0) {
+            return diff1;
+        }
+        return typeDescriptorStr.compareTo(other.typeDescriptorStr);
     }
 
     // -------------------------------------------------------------------------------------------------------------

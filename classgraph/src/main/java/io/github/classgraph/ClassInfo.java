@@ -797,7 +797,7 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
         if (enumConstantList != null) {
             this.enumConstants = new FieldInfoList(enumConstantList);
         }
-        // The order of the fields in a classfile is not specified, so sort them by name
+        // The order of the fields in a classfile is not specified, so sort them by name, then by type descriptor
         CollectionUtils.sortIfNotEmpty(fieldInfoList);
         this.fieldInfo = new FieldInfoList(fieldInfoList);
     }
@@ -3488,9 +3488,10 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
 
     /**
      * Returns information on all visible fields declared by this class, or by its superclasses or superinterfaces.
-     * A field hides any field of the same name in a supertype that is searched after it. The supertypes are
-     * searched in the order that the JVM resolves a field reference in: a class's superinterfaces before its
-     * superclass. See also:
+     * A field hides any field of the same name in a supertype that is searched after it, whatever the types of the
+     * two fields. The supertypes are searched in the order that the JVM resolves a field reference in: a class's
+     * superinterfaces before its superclass. Two fields of the same name declared by one class (which a classfile
+     * may contain if their types differ) do not hide each other, and both are returned. See also:
      *
      * <ul>
      * <li>{@link #getFieldInfo(String)}
@@ -3515,14 +3516,18 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
         scanResult().scanSpec.checkFieldInfoEnabled();
         // Implement field overriding
         final List<FieldInfo> fieldInfoList = new ArrayList<>();
-        final Set<String> fieldNameSet = new HashSet<>();
+        final Set<String> hidingFieldNames = new HashSet<>();
         for (final ClassInfo ci : getFieldOverrideOrder()) {
-            for (final FieldInfo fi : ci.getDeclaredFieldInfo()) {
-                // If field has not been overridden by field of same name
-                if (fieldNameSet.add(fi.getName())) {
-                    // Add field to output order
+            final var declaredFieldInfo = ci.getDeclaredFieldInfo();
+            for (final FieldInfo fi : declaredFieldInfo) {
+                // A field is hidden by a field of the same name in a class earlier in the override order, but not by
+                // a field of its own class: a class may declare two fields of the same name with different types
+                if (!hidingFieldNames.contains(fi.getName())) {
                     fieldInfoList.add(fi);
                 }
+            }
+            for (final FieldInfo fi : declaredFieldInfo) {
+                hidingFieldNames.add(fi.getName());
             }
         }
         // Field override order is meaningful, so don't sort the merged list
@@ -3548,7 +3553,10 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     }
 
     /**
-     * Returns information on the named field declared by the class, but not by its superclasses. See also:
+     * Returns information on the named field declared by the class, but not by its superclasses. A classfile may
+     * declare two fields of the same name if their types differ (javac never does this, but obfuscators do); this
+     * method then returns the one whose type descriptor sorts first, which is the first of them in
+     * {@link #getDeclaredFieldInfo()}. See also:
      *
      * <ul>
      * <li>{@link #getFieldInfo(String)}
@@ -3588,7 +3596,9 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     /**
      * Returns information on the named field declared by this class, or by its superclasses or superinterfaces,
      * searched in the order that the JVM resolves a field reference in: a class's superinterfaces before its
-     * superclass. See also:
+     * superclass. If the first class that declares a field of this name declares more than one (with different
+     * types), the one whose type descriptor sorts first is returned, as {@link #getDeclaredFieldInfo(String)}
+     * returns it. See also:
      *
      * <ul>
      * <li>{@link #getDeclaredFieldInfo(String)}
