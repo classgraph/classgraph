@@ -82,44 +82,42 @@ final class ClassNames {
     }
 
     /**
-     * Check whether the directories that a classfile is stored in can be the packages that declare the class.
+     * Check whether a classfile is to be scanned: whether its path, without the {@code ".class"} extension, is a
+     * class name in internal form, and the classfile is not beneath {@code "META-INF/"}. A classfile that is not
+     * scanned is still listed as a resource, since it is still a file of the classpath element.
      *
      * <p>
-     * The path of a classfile has to be the name of the class it declares, in path form, so every directory of that
-     * path has to be a valid package name segment: a Java identifier. A classfile stored beneath a directory that
-     * is not one cannot be loaded from where it is stored, whatever it holds, so it is not scanned as a classfile.
-     * It is still listed as a resource, since it is still a file of the classpath element.
+     * A class name in internal form is a sequence of segments separated by {@code '/'}, none of them empty, and
+     * none of them containing {@code '.'}, {@code ';'} or {@code '['} (JVMS 4.2.1). These are the JVM's rules, not
+     * the Java language's: the JVM loads a class in a package such as {@code "my-pkg"} or {@code "1pkg"}, which is
+     * not a Java identifier. A path that breaks these rules holds no class the JVM can load from there, and a
+     * {@code '.'} in it would give the same class name as a different path: {@code "x.Y.class"} and
+     * {@code "x/Y.class"} both give {@code "x.Y"}, and the scan would then find two classfiles for one class.
      *
      * <p>
-     * This is what keeps the versioned copies of a multi-release jarfile from being scanned when
-     * {@code disableMultiReleaseVersions()} reports each of them under the {@code "META-INF/versions/<N>/"} path it
-     * is stored under: neither {@code "META-INF"} (a hyphen is not a Java identifier character) nor {@code "<N>"}
-     * (a Java identifier cannot start with a digit) can be a package name segment, which is exactly why the JVM
-     * itself ignores those paths when it is not resolving multi-release versions.
+     * {@code "META-INF/"} holds the metadata of a jarfile, not its packages. In particular, when
+     * {@code disableMultiReleaseVersions()} is set, the versioned copies of the classfiles of a multi-release
+     * jarfile are reported under the {@code "META-INF/versions/<N>/"} paths they are stored under. They are not
+     * scanned, so that each class is scanned once, from the base copy at its unversioned path.
      *
      * @param classfilePath
-     *            the path of a classfile, with {@code '/'} as the separator.
-     * @return true if every directory of the path can be a package name segment.
+     *            the path of a classfile, as accepted by {@link #isClassfilePath(String)}, with {@code '/'} as the
+     *            separator.
+     * @return true if the classfile is to be scanned.
      */
-    static boolean classfilePathHasValidPackage(final String classfilePath) {
-        final var lastSlashIdx = classfilePath.lastIndexOf('/');
-        var segStart = 0;
-        while (segStart < lastSlashIdx) {
-            final var segEnd = classfilePath.indexOf('/', segStart);
-            if (segEnd == segStart) {
-                // An empty directory name is not a package name segment
+    static boolean isScannableClassfilePath(final String classfilePath) {
+        if (classfilePath.startsWith("META-INF/")) {
+            return false;
+        }
+        final var classNameEnd = classfilePath.length() - CLASSFILE_EXTENSION_LENGTH;
+        for (var i = 0; i < classNameEnd; i++) {
+            final var c = classfilePath.charAt(i);
+            // A '/' at the start of the path, or right after another '/', ends an empty segment
+            if (c == '.' || c == ';' || c == '[' || c == '/' && (i == 0 || classfilePath.charAt(i - 1) == '/')) {
                 return false;
             }
-            for (var i = segStart; i < segEnd;) {
-                final var codePoint = classfilePath.codePointAt(i);
-                if (!(i == segStart ? Character.isJavaIdentifierStart(codePoint)
-                        : Character.isJavaIdentifierPart(codePoint))) {
-                    return false;
-                }
-                i += Character.charCount(codePoint);
-            }
-            segStart = segEnd + 1;
         }
+        // isClassfilePath already rejects a path whose file name is empty, i.e. one ending in "/.class"
         return true;
     }
 

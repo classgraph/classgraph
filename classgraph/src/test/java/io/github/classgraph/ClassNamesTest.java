@@ -74,29 +74,42 @@ public class ClassNamesTest {
     }
 
     /**
-     * The directories a classfile is stored in have to be able to be the packages that declare the class, so each
-     * of them has to be a Java identifier.
+     * A classfile is scanned only if its path, without the extension, is a class name in internal form that the JVM
+     * accepts (JVMS 4.2.1), and it is not beneath {@code META-INF/}.
      */
     @Test
-    public void theDirectoriesOfAClassfilePathHaveToBeAbleToBePackageNames() {
-        assertThat(ClassNames.classfilePathHasValidPackage("com/xyz/Widget.class")).isTrue();
-        // A classfile in the unnamed package has no directories to check
-        assertThat(ClassNames.classfilePathHasValidPackage("Widget.class")).isTrue();
-        // Only the directories are checked, not the name of the classfile itself, which is checked against the
-        // class name that the classfile declares
-        assertThat(ClassNames.classfilePathHasValidPackage("com/xyz/Widget-2.class")).isTrue();
-        // '$' and '_' are Java identifier characters, and a digit is legal after the first character
-        assertThat(ClassNames.classfilePathHasValidPackage("com/xyz$1/_pkg2/Widget.class")).isTrue();
+    public void aClassfileIsScannedOnlyIfItsPathIsAValidClassName() {
+        assertThat(ClassNames.isScannableClassfilePath("com/xyz/Widget.class")).isTrue();
+        assertThat(ClassNames.isScannableClassfilePath("Widget.class")).isTrue();
+        assertThat(ClassNames.isScannableClassfilePath("com/xyz/Widget.CLASS")).isTrue();
+        assertThat(ClassNames.isScannableClassfilePath("package-info.class")).isTrue();
+        assertThat(ClassNames.isScannableClassfilePath("com/xyz/package-info.class")).isTrue();
+        assertThat(ClassNames.isScannableClassfilePath("com/xyz$1/_pkg2/Widget.class")).isTrue();
+        // The JVM accepts names that are not Java identifiers: only '.', ';', '[' and '/' are excluded from the
+        // segments of a class name
+        assertThat(ClassNames.isScannableClassfilePath("com/xyz/Widget-2.class")).isTrue();
+        assertThat(ClassNames.isScannableClassfilePath("com/x-yz/Widget.class")).isTrue();
+        assertThat(ClassNames.isScannableClassfilePath("1pkg/Widget.class")).isTrue();
+        assertThat(ClassNames.isScannableClassfilePath("versions/9/mrj/Cls.class")).isTrue();
 
-        // The versioned copies of a multi-release jarfile are stored where no class could be loaded from: a hyphen
-        // is not a Java identifier character, and a Java identifier cannot start with a digit
-        assertThat(ClassNames.classfilePathHasValidPackage("META-INF/versions/9/mrj/Cls.class")).isFalse();
-        assertThat(ClassNames.classfilePathHasValidPackage("versions/9/mrj/Cls.class")).isFalse();
-        assertThat(ClassNames.classfilePathHasValidPackage("com/x-yz/Widget.class")).isFalse();
+        // A '.', ';' or '[' anywhere in the path gives a name that no class can have. A '.' would also give the
+        // same class name as a different path: "x.Y.class" and "x/Y.class" both give "x.Y"
+        assertThat(ClassNames.isScannableClassfilePath("x.Y.class")).isFalse();
+        assertThat(ClassNames.isScannableClassfilePath("com/ex/Foo.C.class")).isFalse();
+        assertThat(ClassNames.isScannableClassfilePath("a/b.c/X.class")).isFalse();
+        assertThat(ClassNames.isScannableClassfilePath("a/b;c/X.class")).isFalse();
+        assertThat(ClassNames.isScannableClassfilePath("a/b/X;.class")).isFalse();
+        assertThat(ClassNames.isScannableClassfilePath("a/[b/X.class")).isFalse();
 
-        // An empty directory name is not a package name segment
-        assertThat(ClassNames.classfilePathHasValidPackage("com//xyz/Widget.class")).isFalse();
-        assertThat(ClassNames.classfilePathHasValidPackage("/com/xyz/Widget.class")).isFalse();
+        // An empty segment is not part of a class name
+        assertThat(ClassNames.isScannableClassfilePath("com//xyz/Widget.class")).isFalse();
+        assertThat(ClassNames.isScannableClassfilePath("/com/xyz/Widget.class")).isFalse();
+
+        // META-INF holds metadata, including the versioned copies of the classfiles of a multi-release jarfile,
+        // which are scanned under their unversioned paths
+        assertThat(ClassNames.isScannableClassfilePath("META-INF/versions/9/mrj/Cls.class")).isFalse();
+        assertThat(ClassNames.isScannableClassfilePath("META-INF/versions/9/module-info.class")).isFalse();
+        assertThat(ClassNames.isScannableClassfilePath("META-INF/foo/X.class")).isFalse();
     }
 
     /** A package name converts to the path of the directory that holds its classes. */

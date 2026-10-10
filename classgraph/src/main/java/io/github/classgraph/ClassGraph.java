@@ -1452,9 +1452,8 @@ public final class ClassGraph {
      *
      * <p>
      * Classfile scanning still works, and reports the same classes that a JVM too old to know about multi-release
-     * jarfiles would load: the versioned copies are stored beneath {@code META-INF/versions/<N>/}, and neither
-     * {@code META-INF} nor {@code <N>} can be a package name, so a classfile stored beneath one of them is not at a
-     * path any class could be loaded from, and is listed as a resource without being scanned as a classfile.
+     * jarfiles would load: the versioned copies are stored beneath {@code META-INF/versions/<N>/}, and a classfile
+     * stored beneath {@code META-INF/} is listed as a resource without being scanned as a classfile.
      *
      * @return this (for method chaining).
      */

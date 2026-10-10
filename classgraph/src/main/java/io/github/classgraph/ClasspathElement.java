@@ -703,10 +703,10 @@ abstract sealed class ClasspathElement implements Comparable<ClasspathElement>
             final boolean isClassfileOnly, final @Nullable LogNode log) {
         final var path = resource.getPath();
         final var isClassFile = ClassNames.isClassfilePath(path);
-        // A classfile is only scheduled for scanning if classfile scanning is enabled, the classfile is stored where
-        // the class it declares could be loaded from, and the classfile is not specifically rejected
+        // A classfile is only scheduled for scanning if classfile scanning is enabled, its path is a class name in
+        // internal form and is not beneath META-INF, and the classfile is not specifically rejected
         final var addedAsClassfile = isClassFile && scanSpec.enableClassInfo
-                && ClassNames.classfilePathHasValidPackage(path)
+                && ClassNames.isScannableClassfilePath(path)
                 && !scanSpec.classfilePathAcceptReject.isRejected(ClassNames.withLowerCaseClassfileExtension(path));
         if (addedAsClassfile) {
             acceptedClassfileResources.add(resource);
