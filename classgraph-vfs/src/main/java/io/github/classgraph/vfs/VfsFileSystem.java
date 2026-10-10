@@ -100,8 +100,9 @@ final class VfsFileSystem extends FileSystem {
      * whose contents it holds, so the directories are synthesized from the entry names.
      *
      * @param entriesByName
-     *            every entry of the root, keyed by name. Where two entries share a name, the first wins, which is
-     *            the same rule {@link VfsRoot#getEntry(String)} uses.
+     *            every entry of the root whose name is canonical, keyed by name. {@link VfsRoot#getEntries()}
+     *            reports each name only once (for a jarfile, the last entry of that name in its central directory,
+     *            which is the one {@link VfsRoot#getEntry(String)} returns).
      * @param childNamesByDir
      *            the sorted simple names of the children of each directory, keyed by directory name. The root
      *            directory is the empty string, and other directory names have no trailing {@code '/'}.
@@ -187,8 +188,11 @@ final class VfsFileSystem extends FileSystem {
             childNames.put("", new TreeSet<>());
             for (final var entry : root.getEntries()) {
                 final var name = entry.getPathFromRoot();
-                if (name.isEmpty() || entriesByName.putIfAbsent(name, entry) != null) {
-                    // Where two entries share a name, the first one wins
+                // A name that is not canonical cannot be looked up, since a path is normalized before it is looked
+                // up, and indexing one would list a directory named "." or "..", which a walk descends into without
+                // end, as each listing of it normalizes back to the same directory. getEntries() reports each name
+                // only once, so putIfAbsent only guards against a root that reported a name twice
+                if (!VfsRoot.isCanonicalEntryName(name) || entriesByName.putIfAbsent(name, entry) != null) {
                     continue;
                 }
                 // Add this entry to its parent directory, then that directory to its own parent, and so on up to

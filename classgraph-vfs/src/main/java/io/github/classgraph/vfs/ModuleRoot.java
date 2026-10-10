@@ -341,9 +341,21 @@ public final class ModuleRoot extends VfsRoot {
         for (final var resourcePath : resourcePaths) {
             // "Whether the stream of elements includes names corresponding to directories in the module is
             // module reader specific" -- a directory can only be told apart from a resource by its trailing '/'
-            if (!resourcePath.endsWith("/")) {
-                entriesTmp.add(new ModuleEntry(this, resourcePath));
+            if (resourcePath.endsWith("/")) {
+                continue;
             }
+            // A module reader reports a modular jarfile's entry names exactly as they are stored. A name with a
+            // leading '/', a repeated separator, or a "." or ".." section in it is not one any path can be looked up
+            // by, and "../x" would name a file outside the module wherever the name is used to form a path, so the
+            // entry is left out. An archive root rewrites such a name instead, but a module reader can only open an
+            // entry by the name it is stored under
+            if (!isCanonicalEntryName(resourcePath)) {
+                if (log != null) {
+                    log.log("Skipping module resource with a non-canonical name: " + resourcePath);
+                }
+                continue;
+            }
+            entriesTmp.add(new ModuleEntry(this, resourcePath));
         }
         return Collections.unmodifiableList(entriesTmp);
     }
@@ -362,6 +374,11 @@ public final class ModuleRoot extends VfsRoot {
     VfsEntry getEntryImpl(final String name) throws IOException {
         // A name ending in '/' names a directory, which is not an entry, as listEntries() also decides
         if (name.isEmpty() || name.endsWith("/")) {
+            return null;
+        }
+        // A module reader finds a modular jarfile's entry by the name it is stored under, even one with a "." or ".."
+        // section in it, which listEntries leaves out, so such a name has to be turned away here
+        if (!isCanonicalEntryName(name)) {
             return null;
         }
         final var recycler = moduleReaderRecycler();
