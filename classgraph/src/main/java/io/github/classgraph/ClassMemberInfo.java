@@ -214,9 +214,12 @@ public abstract sealed class ClassMemberInfo extends ScanResultObject implements
      * Returns the parsed type descriptor for the class member, which will not include type parameters. If you need
      * generic type parameters, call {@link #getTypeSignature()} instead.
      *
-     * @return The parsed type descriptor string for the class member.
+     * @return The parsed type descriptor for the class member.
+     * @throws IllegalArgumentException
+     *             if the class member type descriptor cannot be parsed (this should only be thrown in the case of
+     *             classfile corruption).
      */
-    public abstract @Nullable HierarchicalTypeSignature getTypeDescriptor();
+    public abstract HierarchicalTypeSignature getTypeDescriptor();
 
     /**
      * Returns the type descriptor string for the class member, which will not include type parameters. If you need
@@ -254,13 +257,13 @@ public abstract sealed class ClassMemberInfo extends ScanResultObject implements
 
     /**
      * Returns the type signature for the class member, possibly including type parameters. If the type signature is
-     * null, indicating that no type signature information is available for this class member, returns the type
-     * descriptor instead.
+     * null, indicating that no type signature information is available for this class member, or if the type
+     * signature cannot be parsed, returns the type descriptor instead.
      *
      * @return The parsed type signature for the class member, or if not available, the parsed type descriptor for
      *         the class member.
      */
-    public abstract @Nullable HierarchicalTypeSignature getTypeSignatureOrTypeDescriptor();
+    public abstract HierarchicalTypeSignature getTypeSignatureOrTypeDescriptor();
 
     /**
      * Returns the type signature string for the class member, possibly including type parameters. If the type

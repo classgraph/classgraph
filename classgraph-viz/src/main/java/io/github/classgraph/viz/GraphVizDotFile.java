@@ -404,7 +404,7 @@ public final class GraphVizDotFile {
 
             // Field type
             appendSpaceIfNeeded(buf);
-            final var typeSig = Objects.requireNonNull(fi.getTypeSignatureOrTypeDescriptor());
+            final var typeSig = fi.getTypeSignatureOrTypeDescriptor();
             htmlEncode(options.useSimpleNames ? typeSig.toStringWithSimpleNames() : typeSig.toString(), buf);
             buf.append("</td>");
 

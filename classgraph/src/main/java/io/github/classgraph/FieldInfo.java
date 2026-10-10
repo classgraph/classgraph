@@ -32,7 +32,6 @@ import java.lang.annotation.Repeatable;
 import java.lang.reflect.Modifier;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 
 import io.github.classgraph.ClassInfo.RelType;
@@ -128,14 +127,14 @@ public final class FieldInfo extends ClassMemberInfo implements Comparable<Field
      * Returns the parsed type descriptor for the field, which will not include type parameters. If you need generic
      * type parameters, call {@link #getTypeSignature()} instead.
      *
-     * @return The parsed type descriptor string for the field.
+     * @return The parsed type descriptor for the field.
+     * @throws IllegalArgumentException
+     *             if the field type descriptor cannot be parsed (this should only be thrown in the case of
+     *             classfile corruption).
      */
     @Override
-    public @Nullable TypeSignature getTypeDescriptor() {
+    public TypeSignature getTypeDescriptor() {
         synchronized (this) {
-            if (typeDescriptorStr == null) {
-                return null;
-            }
             if (typeDescriptor == null) {
                 try {
                     typeDescriptor = TypeSignature.parse(typeDescriptorStr, declaringClassName);
@@ -200,14 +199,14 @@ public final class FieldInfo extends ClassMemberInfo implements Comparable<Field
 
     /**
      * Returns the type signature for the field, possibly including type parameters. If the type signature is null,
-     * indicating that no type signature information is available for this field, returns the type descriptor
-     * instead.
+     * indicating that no type signature information is available for this field, or if the type signature cannot be
+     * parsed, returns the type descriptor instead.
      *
      * @return The parsed type signature for the field, or if not available, the parsed type descriptor for the
      *         field.
      */
     @Override
-    public @Nullable TypeSignature getTypeSignatureOrTypeDescriptor() {
+    public TypeSignature getTypeSignatureOrTypeDescriptor() {
         TypeSignature typeSig = null;
         try {
             typeSig = getTypeSignature();
@@ -300,10 +299,7 @@ public final class FieldInfo extends ClassMemberInfo implements Comparable<Field
             }
         }
         try {
-            final var fieldDesc = getTypeDescriptor();
-            if (fieldDesc != null) {
-                fieldDesc.findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
-            }
+            getTypeDescriptor().findReferencedClassInfo(classNameToClassInfo, refdClassInfo, log);
         } catch (final IllegalArgumentException e) {
             if (log != null) {
                 log.log("Illegal type descriptor for field " + getClassName() + "." + getName() + ": "
@@ -397,8 +393,7 @@ public final class FieldInfo extends ClassMemberInfo implements Comparable<Field
         if (!buf.isEmpty() && buf.charAt(buf.length() - 1) != ' ' && buf.charAt(buf.length() - 1) != '(') {
             buf.append(' ');
         }
-        final var typeSig = getTypeSignatureOrTypeDescriptor();
-        Objects.requireNonNull(typeSig).toStringInternal(useSimpleNames,
+        getTypeSignatureOrTypeDescriptor().toStringInternal(useSimpleNames,
                 /* annotationsToExclude = */ annotationInfo, buf);
 
         buf.append(' ');
