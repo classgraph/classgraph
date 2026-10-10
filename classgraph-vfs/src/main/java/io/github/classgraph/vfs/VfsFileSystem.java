@@ -323,7 +323,7 @@ final class VfsFileSystem extends FileSystem {
 
     @Override
     public VfsFileSystemProvider provider() {
-        return VfsFileSystemProvider.INSTANCE;
+        return VfsFileSystemProvider.instance();
     }
 
     /**
