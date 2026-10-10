@@ -61,10 +61,16 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
     /** True if the zip entry is deflated; false if the zip entry is stored. */
     final boolean isDeflated;
 
-    /** The compressed size of the zip entry, in bytes. */
+    /**
+     * The compressed size of the zip entry, in bytes. Never negative, since an entry whose central directory gives
+     * a negative size is skipped.
+     */
     public final long compressedSize;
 
-    /** The uncompressed size of the zip entry, in bytes. */
+    /**
+     * The uncompressed size of the zip entry, in bytes. Never negative, since an entry whose central directory
+     * gives a negative size is skipped.
+     */
     public final long uncompressedSize;
 
     /**
@@ -163,7 +169,7 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
         this.nameIsVerbatim = nameIsVerbatim;
         this.isDeflated = isDeflated;
         this.compressedSize = compressedSize;
-        this.uncompressedSize = !isDeflated && uncompressedSize < 0 ? compressedSize : uncompressedSize;
+        this.uncompressedSize = uncompressedSize;
         this.lastModifiedTimeMillis = lastModifiedTimeMillis;
         this.lastModifiedTimeMSDOS = lastModifiedTimeMSDOS;
         this.lastModifiedDateMSDOS = lastModifiedDateMSDOS;
