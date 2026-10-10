@@ -38,6 +38,9 @@ public class TypeAnnotationScanResultTest {
         /** A field with a primitive type that carries a type annotation. */
         public @Level int primitiveField;
 
+        /** A field whose type carries a type annotation on a nested class suffix of a class reference. */
+        public GenericOuter<String>.@Level Inner suffixField;
+
         /**
          * A method with an annotated explicit receiver parameter.
          *
@@ -50,6 +53,19 @@ public class TypeAnnotationScanResultTest {
 
     /** A class whose enclosed classes give a nested class reference with more than one suffix. */
     public static class Outer {
+        /** A non-static inner class. */
+        public class Inner {
+        }
+    }
+
+    /**
+     * A generic class with an inner class, so that a reference to the inner class has a suffix that can carry a
+     * type annotation.
+     *
+     * @param <T>
+     *            an unused type parameter.
+     */
+    public static class GenericOuter<T> {
         /** A non-static inner class. */
         public class Inner {
         }
@@ -118,6 +134,12 @@ public class TypeAnnotationScanResultTest {
             final var primitiveTypeAnnotations = primitiveType.getTypeAnnotationInfo();
             assertThat(primitiveTypeAnnotations).isNotNull();
             assertDefaultValueIsVisible(primitiveTypeAnnotations.get(0));
+
+            final var suffixType = (ClassRefTypeSignature) classInfo.getFieldInfo("suffixField")
+                    .getTypeSignatureOrTypeDescriptor();
+            final var suffixTypeAnnotations = suffixType.getSuffixTypeAnnotationInfo();
+            assertThat(suffixTypeAnnotations).isNotEmpty();
+            assertDefaultValueIsVisible(suffixTypeAnnotations.get(suffixTypeAnnotations.size() - 1).get(0));
 
             final MethodTypeSignature methodType = classInfo.getMethodInfo("method").get(0)
                     .getTypeSignatureOrTypeDescriptor();

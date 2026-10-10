@@ -3,6 +3,10 @@ package io.github.classgraph;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
@@ -11,6 +15,9 @@ import org.junit.jupiter.api.Test;
  * A '$' in a class reference usually separates the name of a nested class from the name of its enclosing class, but
  * it can also be part of a name: Scala names the class of an {@code object} by appending '$' to the object's name,
  * and synthetic classes can contain "$$".
+ *
+ * <p>
+ * Also tests the type annotations on the suffixes (nested classes) of a class reference.
  */
 public class ClassRefTypeSignatureTest {
     /**
@@ -144,5 +151,63 @@ public class ClassRefTypeSignatureTest {
         final var sig = parse("Lp/A$$B;");
         assertThat(sig.getBaseClassName()).isEqualTo("p.A$");
         assertThat(sig.getSuffixes()).containsExactly("B");
+    }
+
+    /** A type annotation for a use of a type variable. */
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.TYPE_USE)
+    public @interface UseSite {
+    }
+
+    /**
+     * A generic class with an inner class, so that a reference to the inner class has a suffix.
+     *
+     * @param <T>
+     *            an unused type parameter.
+     */
+    public static class GenericOuter<T> {
+        /** A non-static inner class. */
+        public class Inner {
+        }
+    }
+
+    /**
+     * A class with an annotated use of a type variable, and a field whose type has a suffix.
+     *
+     * @param <T>
+     *            the type variable.
+     */
+    public static class Holder<T> {
+        /** An annotated use of a type variable. */
+        public @UseSite T useSite;
+
+        /** A field whose type is a reference to an inner class of a generic class. */
+        public GenericOuter<String>.Inner nested;
+    }
+
+    /**
+     * Substituting a nested class type for an annotated type variable puts the type annotation on the innermost
+     * nested class of a new type signature. The annotation is shared with the type variable's type signature, so it
+     * must keep its ScanResult; the new type signature has none yet.
+     */
+    @Test
+    public void prependingASuffixTypeAnnotationKeepsItsScanResult() {
+        try (var scanResult = new ClassGraph().enableClasspath()
+                .acceptClasses(Holder.class.getName(), GenericOuter.class.getName(), UseSite.class.getName())
+                .enableClassInfo().enableFieldInfo().enableAnnotationInfo().scan()) {
+            final var holder = scanResult.getClassInfo(Holder.class.getName());
+            final var useSite = (TypeVariableSignature) holder.getFieldInfo("useSite")
+                    .getTypeSignatureOrTypeDescriptor();
+            final var annotationInfo = useSite.getTypeAnnotationInfo().get(0);
+            final var nested = (ClassRefTypeSignature) holder.getFieldInfo("nested")
+                    .getTypeSignatureOrTypeDescriptor();
+
+            final var prepended = nested.withTypeAnnotationsPrepended(List.of(annotationInfo));
+
+            assertThat(prepended.getSuffixes()).last().isEqualTo("Inner");
+            final var suffixTypeAnnotations = prepended.getSuffixTypeAnnotationInfo();
+            assertThat(suffixTypeAnnotations.get(suffixTypeAnnotations.size() - 1)).containsExactly(annotationInfo);
+            assertThat(annotationInfo.scanResult).isSameAs(scanResult);
+        }
     }
 }

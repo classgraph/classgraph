@@ -4,6 +4,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 import java.io.IOException;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 import java.time.DayOfWeek;
 import java.util.List;
 import java.util.Map;
@@ -69,6 +73,19 @@ public class MethodTypeSignatureTest {
         public void plain() {
             // Does nothing
         }
+
+        /**
+         * A method with an annotated explicit receiver parameter, and otherwise the same type as {@link #plain()}.
+         */
+        public void annotatedReceiver(@Receiver Methods this) {
+            // Does nothing
+        }
+    }
+
+    /** A type annotation for an explicit receiver parameter. */
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.TYPE_USE)
+    public @interface Receiver {
     }
 
     /**
@@ -237,7 +254,10 @@ public class MethodTypeSignatureTest {
                 .isThrownBy(() -> MethodTypeSignature.parse("<init>", /* definingClassName = */ null));
     }
 
-    /** Method type signatures are equal if their type parameters, parameter types, result and throws are equal. */
+    /**
+     * Method type signatures are equal if their type parameters, parameter types, result, throws and receiver type
+     * annotations are equal.
+     */
     @Test
     public void signaturesAreComparedByTypeParametersParameterTypesResultAndThrows() {
         try (var scanResult = scanFixture(); var scanResult2 = scanFixture()) {
@@ -248,6 +268,24 @@ public class MethodTypeSignatureTest {
             final var otherTypeSig = typeSignature(scanResult, "throwsATypeVariable");
             assertThat(typeSig).isEqualTo(typeSig).isNotEqualTo(otherTypeSig).isNotEqualTo(null)
                     .isNotEqualTo(typeSig.toString());
+        }
+    }
+
+    /**
+     * Two method types that differ only in a type annotation on the explicit receiver parameter are not equal, just
+     * as two that differ only in a type annotation on another parameter are not.
+     */
+    @Test
+    public void signaturesThatDifferOnlyInAReceiverTypeAnnotationAreNotEqual() {
+        try (var scanResult = scanFixture()) {
+            final var plain = methodInfo(scanResult, "plain").getTypeSignatureOrTypeDescriptor();
+            final var annotatedReceiver = methodInfo(scanResult, "annotatedReceiver")
+                    .getTypeSignatureOrTypeDescriptor();
+            assertThat(annotatedReceiver.getReceiverTypeAnnotationInfo().getNames())
+                    .containsExactly(Receiver.class.getName());
+            assertThat(plain.getReceiverTypeAnnotationInfo()).isEmpty();
+            assertThat(annotatedReceiver).isNotEqualTo(plain);
+            assertThat(plain).isNotEqualTo(annotatedReceiver);
         }
     }
 
