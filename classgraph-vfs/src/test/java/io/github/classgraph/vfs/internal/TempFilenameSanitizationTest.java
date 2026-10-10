@@ -29,8 +29,17 @@
 package io.github.classgraph.vfs.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermission;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 /**
  * Tests that a temporary file can be created for a nested jar whose entry name contains characters that are legal
@@ -72,6 +81,102 @@ class TempFilenameSanitizationTest {
             assertThat(tempFile.getName()).endsWith("é.jar");
         } finally {
             assertThat(TempFile.delete(tempFile)).isTrue();
+        }
+    }
+
+    /**
+     * A temporary file holds the content of a jar that may be private, such as a nested jar inflated out of a jar
+     * that only its owner can read, or a jar downloaded from an authenticated repository. It is created in the
+     * shared temporary directory, so only its owner may read it, whatever the umask.
+     */
+    @Test
+    void aTempFileIsReadableOnlyByItsOwner() throws Exception {
+        assumeTrue(FileSystems.getDefault().supportedFileAttributeViews().contains("posix"),
+                "The default filesystem does not support POSIX file permissions");
+        final var tempFile = TempFile.create("BOOT-INF/lib/private.jar");
+        try {
+            assertThat(Files.getPosixFilePermissions(tempFile.toPath()))
+                    .containsExactlyInAnyOrder(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE);
+        } finally {
+            assertThat(TempFile.delete(tempFile)).isTrue();
+        }
+    }
+
+    /**
+     * A zip entry name can hold a surrogate that is not part of a pair, which no filesystem can encode, so it is
+     * replaced. A surrogate pair is a valid character, and is kept.
+     */
+    @Test
+    void anUnpairedSurrogateInEntryNameIsReplaced() throws Exception {
+        final var tempFile = TempFile.create("BOOT-INF/lib/x\uD800y\uDFFFz😀.jar");
+        try {
+            assertThat(tempFile).exists();
+            assertThat(tempFile.getName()).endsWith("x_y_z😀.jar");
+        } finally {
+            assertThat(TempFile.delete(tempFile)).isTrue();
+        }
+    }
+
+    /**
+     * Run in a child JVM: create and delete a temporary file for a nested jar with a non-ASCII name, and print the
+     * encoding that filenames are stored in, then the name of the temporary file.
+     */
+    static final class CreateNonAsciiTempFile {
+        /** Not instantiable. */
+        private CreateNonAsciiTempFile() {
+        }
+
+        /**
+         * Entry point.
+         *
+         * @param args
+         *            ignored.
+         * @throws IOException
+         *             if the temporary file could not be created.
+         */
+        public static void main(final String[] args) throws IOException {
+            final var tempFile = TempFile.create("BOOT-INF/lib/café.jar");
+            System.out.println(System.getProperty("sun.jnu.encoding"));
+            System.out.println(tempFile.getName());
+            if (!TempFile.delete(tempFile)) {
+                throw new IOException("Could not delete " + tempFile);
+            }
+        }
+    }
+
+    /**
+     * A JVM started under the C locale on Linux stores filenames in ASCII, so it cannot name a file after a nested
+     * jar with a non-ASCII name. The non-ASCII characters are replaced instead.
+     *
+     * @param tempDir
+     *            the temporary directory of the child JVM.
+     * @throws Exception
+     *             if the child JVM could not be run.
+     */
+    @Test
+    void aNonAsciiEntryNameIsReplacedWhenFilenamesAreAscii(@TempDir final Path tempDir) throws Exception {
+        assumeTrue(System.getProperty("os.name").startsWith("Linux"), "The C locale is only tested on Linux");
+        final var processBuilder = new ProcessBuilder(
+                Path.of(System.getProperty("java.home"), "bin", "java").toString(), "-Djava.io.tmpdir=" + tempDir,
+                "-cp", System.getProperty("java.class.path"), CreateNonAsciiTempFile.class.getName())
+                .redirectErrorStream(true);
+        processBuilder.environment().keySet().removeIf(name -> name.startsWith("LC_"));
+        processBuilder.environment().put("LC_ALL", "C");
+        processBuilder.environment().put("LANG", "C");
+        final var process = processBuilder.start();
+        final String output;
+        try (var inputStream = process.getInputStream()) {
+            output = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+        }
+        assertThat(process.waitFor()).as("Child JVM output:%n%s", output).isZero();
+        // Read the last two lines, since the JVM may print a notice such as "Picked up JAVA_TOOL_OPTIONS" first
+        final var outputLines = output.lines().toList();
+        assertThat(outputLines).as("Child JVM output:%n%s", output).hasSizeGreaterThanOrEqualTo(2);
+        assumeTrue(!outputLines.get(outputLines.size() - 2).equals("UTF-8"),
+                "The C locale stores filenames in UTF-8 here");
+        assertThat(outputLines.get(outputLines.size() - 1)).endsWith("caf_.jar");
+        try (var tempFiles = Files.list(tempDir)) {
+            assertThat(tempFiles).isEmpty();
         }
     }
 }
