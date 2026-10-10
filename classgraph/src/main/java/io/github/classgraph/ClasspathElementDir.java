@@ -172,12 +172,15 @@ final class ClasspathElementDir extends ClasspathElement {
      *
      * @param relativePath
      *            The relative path of the {@link Resource} to return.
-     * @return The {@link Resource} for the given relative path, or null if relativePath does not exist in this
-     *         classpath element.
+     * @return A new {@link Resource} for the given relative path, or null if relativePath does not exist in this
+     *         classpath element, or is a path that the scan skips.
      */
     @Override
     @Nullable
     Resource getResource(final String relativePath) {
+        if (isSkippedPath(relativePath)) {
+            return null;
+        }
         try {
             final var entry = vfs.open(classpathEltPath).getEntry(relativePath);
             return entry == null ? null : newResource(entry);

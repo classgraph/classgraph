@@ -717,10 +717,15 @@ public final class ScanResult implements AutoCloseable {
     /**
      * Get the list of all resources found in any classpath element, <i>whether in accepted packages or not (as long
      * as the resource is not rejected)</i>, that have the given path, relative to the package root of the classpath
-     * element. May match several resources, up to one per classpath element. Note that this may not return a
-     * non-accepted resource, particularly when scanning directory classpath elements, because recursive scanning
-     * terminates once there are no possible accepted resources below a given directory. However, resources in
-     * ancestral directories of accepted directories can be found using this method.
+     * element. May match several resources, up to one per classpath element. A path that the scan skips whatever
+     * the accept criteria are is not found: a path within a multi-release versioned section that the scan ignores,
+     * and a path within a directory that is also on the classpath as a classpath element of its own, whose files
+     * are found by their path relative to that classpath element instead.
+     *
+     * <p>
+     * Each call returns new {@link Resource} objects, which are not the ones that {@link #getAllResources()} and
+     * {@link #getResourcesWithPath(String)} return, so a resource found here can be opened while the accepted
+     * resource with the same path is open. Close each resource found here when done with it.
      *
      * <p>
      * The path is matched exactly, including the case of every character, on every operating system and for every
