@@ -321,7 +321,8 @@ public final class ModuleRoot extends VfsRoot {
     @Override
     @Nullable
     VfsEntry getEntryImpl(final String name) throws IOException {
-        if (name.isEmpty()) {
+        // A name ending in '/' names a directory, which is not an entry, as listEntries() also decides
+        if (name.isEmpty() || name.endsWith("/")) {
             return null;
         }
         final var recycler = moduleReaderRecycler();
