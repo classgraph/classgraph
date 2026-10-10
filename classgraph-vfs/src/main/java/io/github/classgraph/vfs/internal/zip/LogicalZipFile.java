@@ -91,14 +91,11 @@ public final class LogicalZipFile {
      */
     public final Slice slice;
 
-    /** The zipfile entries, which are only changed while the central directory is being read. */
-    private List<FastZipEntry> entries;
-
-    /** If true, this is a multi-release jar. */
-    private boolean isMultiReleaseJar;
+    /** The zipfile entries, as an unmodifiable list. */
+    private final List<FastZipEntry> entries;
 
     /** The main section of the manifest file, or null if the zipfile has no manifest file. */
-    private @Nullable Map<String, String> manifest;
+    private final @Nullable Map<String, String> manifest;
 
     /** If true, multi-release version prefixes are stripped from resource names, and mask the base entry. */
     private final boolean multiReleaseVersionsEnabled;
@@ -152,7 +149,9 @@ public final class LogicalZipFile {
         this.slice = slice;
         this.vfs = vfs;
         this.multiReleaseVersionsEnabled = multiReleaseVersionsEnabled;
-        readCentralDirectory(vfs, log);
+        final var contents = readCentralDirectory(log);
+        this.entries = contents.entries();
+        this.manifest = contents.manifest();
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -290,20 +289,14 @@ public final class LogicalZipFile {
      *
      * @param manifestZipEntry
      *            the manifest zip entry
+     * @return the main section of the manifest, keyed case-insensitively by attribute name.
      * @throws IOException
      *             if the manifest could not be read.
      */
-    private void parseManifest(final FastZipEntry manifestZipEntry) throws IOException {
-        final Map<String, String> manifestMap;
+    private static Map<String, String> parseManifest(final FastZipEntry manifestZipEntry) throws IOException {
         try (final InputStream manifestInputStream = manifestZipEntry.getSlice().open()) {
-            manifestMap = ManifestParser.parse(manifestInputStream);
+            return ManifestParser.parse(manifestInputStream);
         }
-        manifest = manifestMap;
-
-        // A multi-release jar holds version-specific entries under "META-INF/versions/<version>/", and those
-        // entries mask their unversioned counterparts, so this has to be read while the zipfile is being parsed
-        // rather than left to the caller: it determines the name of every entry of the zipfile.
-        isMultiReleaseJar = "true".equalsIgnoreCase(manifestMap.get(MULTI_RELEASE_KEY));
     }
 
     /**
@@ -461,14 +454,12 @@ public final class LogicalZipFile {
      *
      * @param reader
      *            a reader for the whole zipfile slice
-     * @param vfs
-     *            the {@link Vfs} that is opening this jarfile
      * @return the position of the End Of Central Directory record within the zipfile slice
      * @throws IOException
      *             If an I/O exception occurs, or the record could not be found.
      */
     @SuppressWarnings("resource")
-    private long findEndOfCentralDirectoryPos(final RandomAccessReader reader, final Vfs vfs) throws IOException {
+    private long findEndOfCentralDirectoryPos(final RandomAccessReader reader) throws IOException {
         // The zipfile comment is arbitrary bytes, and the entry data before it is arbitrary bytes too, so a
         // position that merely holds the EOCD signature is not necessarily the EOCD record. The real record is the
         // one whose 22-byte header plus its declared comment length reaches exactly the end of the slice, so
@@ -641,15 +632,13 @@ public final class LogicalZipFile {
      *            a reader for the whole zipfile slice
      * @param cen
      *            the central directory
-     * @param vfs
-     *            the {@link Vfs} that is opening this jarfile
      * @return the reader
      * @throws IOException
      *             If an I/O exception occurs.
      */
     @SuppressWarnings("resource")
     private RandomAccessReader openCentralDirectoryReader(final RandomAccessReader reader,
-            final CentralDirectory cen, final Vfs vfs) throws IOException {
+            final CentralDirectory cen) throws IOException {
         // Read entries into a byte array, if central directory is smaller than 2GB. If central directory is larger
         // than 2GB, need to read each entry field directly from the zipfile, through a RandomAccessReader over a
         // slice of this zipfile's slice.
@@ -1077,12 +1066,14 @@ public final class LogicalZipFile {
     }
 
     /**
-     * Read the entries of the central directory into {@link #entries}, which must already have been allocated.
+     * Read the entries of the central directory, and append them to a list.
      *
      * @param cenReader
      *            a reader for the central directory
      * @param cen
      *            the central directory
+     * @param entries
+     *            the list to append the entries to
      * @param log
      *            the log node, or null to skip logging
      * @return the entry for the manifest file, or null if the zipfile does not have one.
@@ -1090,7 +1081,7 @@ public final class LogicalZipFile {
      *             If an I/O exception occurs, or an entry is invalid.
      */
     private @Nullable FastZipEntry readEntries(final RandomAccessReader cenReader, final CentralDirectory cen,
-            final @Nullable LogNode log) throws IOException {
+            final List<FastZipEntry> entries, final @Nullable LogNode log) throws IOException {
         FastZipEntry manifestZipEntry = null;
         FastZipEntry caseFoldedManifestZipEntry = null;
         var entSize = 0;
@@ -1154,10 +1145,15 @@ public final class LogicalZipFile {
      * Of two or more entries with the same name, keep only the last one, since that is the one that JarFile, and so
      * a classloader, finds. The entry that is kept stays at its own position in the central directory.
      *
+     * @param entries
+     *            the entries, in the order of the central directory
      * @param log
      *            the log node, or null to skip logging
+     * @return the entries without the earlier of any two with the same name, or {@code entries} itself if no two
+     *         have the same name
      */
-    private void dropDuplicateEntries(final @Nullable LogNode log) {
+    private static List<FastZipEntry> dropDuplicateEntries(final List<FastZipEntry> entries,
+            final @Nullable LogNode log) {
         final Set<String> namesSeen = new HashSet<>(entries.size() * 2);
         final List<FastZipEntry> lastOfEachName = new ArrayList<>(entries.size());
         for (var i = entries.size() - 1; i >= 0; i--) {
@@ -1168,20 +1164,25 @@ public final class LogicalZipFile {
                 log.log("Ignoring an earlier entry with the same name as a later one: " + entry.entryName);
             }
         }
-        if (lastOfEachName.size() < entries.size()) {
-            Collections.reverse(lastOfEachName);
-            entries = lastOfEachName;
+        if (lastOfEachName.size() == entries.size()) {
+            return entries;
         }
+        Collections.reverse(lastOfEachName);
+        return lastOfEachName;
     }
 
     /**
      * For a multi-release jar, drop any older or non-versioned entries that are masked by the most recent
      * version-specific entry.
      *
+     * @param entries
+     *            the entries, in the order of the central directory
      * @param log
      *            the log node, or null to skip logging
+     * @return the entries that are not masked, in the order of the central directory
      */
-    private void maskMultiReleaseEntries(final @Nullable LogNode log) {
+    private static List<FastZipEntry> maskMultiReleaseEntries(final List<FastZipEntry> entries,
+            final @Nullable LogNode log) {
         if (log != null) {
             // Find all the unique multirelease versions within the jar
             final Set<Integer> versionsFound = new HashSet<>();
@@ -1216,7 +1217,7 @@ public final class LogicalZipFile {
                 unversionedZipEntriesMasked.add(entry);
             }
         }
-        entries = unversionedZipEntriesMasked;
+        return unversionedZipEntriesMasked;
     }
 
     /**
@@ -1230,10 +1231,12 @@ public final class LogicalZipFile {
      * once the manifest has been parsed, which cannot happen until the central directory has been read, so the
      * version prefix is resolved for every entry as it is read and put back here.
      *
+     * @param entries
+     *            the entries, each of which is replaced in place if its version prefix is put back
      * @param log
      *            the log node, or null to skip logging
      */
-    private void unresolveVersionPrefixes(final @Nullable LogNode log) {
+    private static void unresolveVersionPrefixes(final List<FastZipEntry> entries, final @Nullable LogNode log) {
         for (var i = 0; i < entries.size(); i++) {
             final var entry = entries.get(i);
             if (!entry.entryNameUnversioned.equals(entry.entryName)) {
@@ -1247,26 +1250,36 @@ public final class LogicalZipFile {
     }
 
     /**
+     * What is read from the central directory of a zipfile.
+     *
+     * @param entries
+     *            the entries, as an unmodifiable list, in the order of the central directory
+     * @param manifest
+     *            the main section of the manifest file, or null if the zipfile has no manifest file
+     */
+    private record CentralDirectoryContents(List<FastZipEntry> entries, @Nullable Map<String, String> manifest) {
+    }
+
+    /**
      * Read the central directory of the zipfile.
      *
-     * @param vfs
-     *            the {@link Vfs} that is opening this jarfile
      * @param log
      *            the log node, or null to skip logging
+     * @return the entries and the manifest of the zipfile
      * @throws IOException
      *             If an I/O exception occurs.
      */
     @SuppressWarnings("resource")
-    private void readCentralDirectory(final Vfs vfs, final @Nullable LogNode log) throws IOException {
+    private CentralDirectoryContents readCentralDirectory(final @Nullable LogNode log) throws IOException {
         if (slice.sliceLength < 22) {
             throw new IOException("Zipfile too short to have a central directory");
         }
         final var reader = slice.randomAccessReader();
 
         // Locate the central directory
-        final var eocdPos = findEndOfCentralDirectoryPos(reader, vfs);
+        final var eocdPos = findEndOfCentralDirectoryPos(reader);
         final var cen = readEndOfCentralDirectory(reader, eocdPos);
-        final var cenReader = openCentralDirectoryReader(reader, cen, vfs);
+        final var cenReader = openCentralDirectoryReader(reader, cen);
 
         // numEnt is -1 if the End Of Central Directory record and its Zip64 counterpart were inconsistent
         final var numEnt = cen.numEnt() == -1L ? countCentralDirectoryEntries(cenReader, cen.cenSize())
@@ -1286,23 +1299,26 @@ public final class LogicalZipFile {
         }
 
         // Enumerate entries
-        entries = new ArrayList<>((int) numEnt);
-        final var manifestZipEntry = readEntries(cenReader, cen, log);
-        dropDuplicateEntries(log);
+        final List<FastZipEntry> rawEntries = new ArrayList<>((int) numEnt);
+        final var manifestZipEntry = readEntries(cenReader, cen, rawEntries, log);
+        var entries = dropDuplicateEntries(rawEntries, log);
 
         // Parse manifest file, if present
-        if (manifestZipEntry != null) {
-            parseManifest(manifestZipEntry);
-        }
+        final var manifest = manifestZipEntry == null ? null : parseManifest(manifestZipEntry);
 
         if (multiReleaseVersionsEnabled) {
+            // A multi-release jar holds version-specific entries under "META-INF/versions/<version>/", and those
+            // entries mask their unversioned counterparts, so this has to be read while the zipfile is being parsed
+            // rather than left to the caller: it determines the name of every entry of the zipfile.
+            final var isMultiReleaseJar = manifest != null
+                    && "true".equalsIgnoreCase(manifest.get(MULTI_RELEASE_KEY));
             if (isMultiReleaseJar) {
-                maskMultiReleaseEntries(log);
+                entries = maskMultiReleaseEntries(entries, log);
             } else {
-                unresolveVersionPrefixes(log);
+                unresolveVersionPrefixes(entries, log);
             }
         }
-        entries = Collections.unmodifiableList(entries);
+        return new CentralDirectoryContents(Collections.unmodifiableList(entries), manifest);
     }
 
     // -------------------------------------------------------------------------------------------------------------
