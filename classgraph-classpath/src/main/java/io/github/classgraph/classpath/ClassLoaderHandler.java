@@ -146,10 +146,17 @@ public interface ClassLoaderHandler {
     /**
      * Find the {@link ClassLoader} delegation order for a {@link ClassLoader}.
      *
+     * <p>
+     * The handler places the classloader with {@link ClassLoaderOrder#add(ClassLoader, ClassGraphLog)} at the point
+     * where the classloader searches its own classpath: after
+     * {@link ClassLoaderOrder#delegateToParent(ClassLoader, ClassGraphLog)} for its parent if the classloader is
+     * parent-first, or before it if the classloader is parent-last. If no handler places the classloader, it is
+     * placed after every classloader its handlers delegated to.
+     *
      * @param classLoader
      *            the {@link ClassLoader} to find the order for.
      * @param classLoaderOrder
-     *            a {@link ClassLoaderOrder} object to update.
+     *            the {@link ClassLoaderOrder} to place the classloader and the classloaders it delegates to in.
      * @param log
      *            the log node, or null to skip logging
      */

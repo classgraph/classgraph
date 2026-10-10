@@ -234,7 +234,8 @@ public class MyClassLoaderHandler implements ClassLoaderHandler {
     @Override
     public void findClassLoaderOrder(ClassLoader classLoader, ClassLoaderOrder classLoaderOrder,
             ClassGraphLog log) {
-        // Search this classloader before its parent (i.e. this one is parent-last)
+        // Search this classloader before its parent (i.e. this one is parent-last).
+        // For a parent-first classloader, call delegateToParent first and add second.
         classLoaderOrder.add(classLoader, log);
         classLoaderOrder.delegateToParent(classLoader.getParent(), log);
     }

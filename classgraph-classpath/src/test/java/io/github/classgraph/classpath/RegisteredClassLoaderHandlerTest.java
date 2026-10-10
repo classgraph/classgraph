@@ -34,7 +34,19 @@ public class RegisteredClassLoaderHandlerTest {
         UnknownClassLoader(final String classpathEntry) {
             // Use the bootstrap classloader as the parent, so that the classpath of the classloader that loaded
             // this test does not end up in the result
-            super(null);
+            this(classpathEntry, null);
+        }
+
+        /**
+         * Constructor.
+         *
+         * @param classpathEntry
+         *            the one classpath entry this classloader loads from.
+         * @param parent
+         *            the parent classloader, or null for the bootstrap classloader.
+         */
+        UnknownClassLoader(final String classpathEntry, final @Nullable ClassLoader parent) {
+            super(parent);
             this.classpathEntry = classpathEntry;
         }
     }
@@ -303,6 +315,29 @@ public class RegisteredClassLoaderHandlerTest {
             assertThat(classpath.getEntries().get(1).getPackageRootPrefixes()).containsExactly("p1/");
             assertThat(classpath.getEntries().get(1).getLibDirPrefixes()).containsExactly("l1/");
         }
+    }
+
+    /**
+     * A handler that delegates to the parent but never places its own classloader with
+     * {@link ClassLoaderOrder#add(ClassLoader, ClassGraphLog)} must not make that classloader's classpath entries
+     * vanish. The classloader is placed after the classloaders it delegated to.
+     */
+    @Test
+    public void aClassLoaderThatItsHandlerNeverAddsIsStillRead(@TempDir final Path tempDir) throws Exception {
+        final var parentDir = classesDir(tempDir, "parent");
+        final var childDir = classesDir(tempDir, "child");
+        final var parent = new URLClassLoader(new URL[] { parentDir.toUri().toURL() }, /* parent = */ null);
+        final var child = new UnknownClassLoader(childDir.toString(), parent);
+        final var handler = new UnknownClassLoaderHandler() {
+            @Override
+            public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
+                    final @Nullable ClassGraphLog log) {
+                classLoaderOrder.delegateToParent(classLoader.getParent(), log);
+            }
+        };
+
+        assertThat(find(new ClasspathFinder().enableClassLoaders(child).registerClassLoaderHandler(handler)))
+                .containsExactly(parentDir, childDir);
     }
 
     /**
