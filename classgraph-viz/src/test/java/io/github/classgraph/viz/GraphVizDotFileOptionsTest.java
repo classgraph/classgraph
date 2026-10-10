@@ -95,7 +95,8 @@ public class GraphVizDotFileOptionsTest {
 
     /**
      * Generate the inter-class dependency graph for the fixture classes. External classes are enabled in the scan,
-     * so that the options that include or exclude them have something to include or exclude.
+     * so that the fixture classes depend on classes, such as {@code java.lang.annotation.Retention}, that are not
+     * in the list, and the options that show or hide those have something to show or hide.
      *
      * @param options
      *            the graph options.
@@ -223,23 +224,27 @@ public class GraphVizDotFileOptionsTest {
         assertThat(classGraph(options.setLayoutSize(10.5f, 8.0f).showFields().showFieldTypeDependencyEdges()
                 .showMethods().showMethodTypeDependencyEdges().showAnnotations().showAnnotationDependencyEdges()
                 .useSimpleNames())).isEqualTo(defaults);
+
+        final var dependencyGraphDefaults = dependencyGraph(new GraphVizDotFileOptions());
+        final var dependencyGraphOptions = new GraphVizDotFileOptions().hideUnlistedDependencies();
+        assertThat(dependencyGraph(dependencyGraphOptions)).isNotEqualTo(dependencyGraphDefaults);
+        assertThat(dependencyGraph(dependencyGraphOptions.showUnlistedDependencies()))
+                .isEqualTo(dependencyGraphDefaults);
     }
 
     /**
-     * The dependency graph shows the classes that the graphed classes depend on, and whether the classes that were
-     * not themselves scanned are shown can be switched either way.
+     * The dependency graph shows the classes that the graphed classes depend on but that are not in the list of
+     * classes to graph by default, and this can be switched either way.
      */
     @Test
-    public void externalClassesCanBeShownOrHiddenInTheDependencyGraph() {
+    public void unlistedDependenciesCanBeShownOrHiddenInTheDependencyGraph() {
         // The external class java.lang.annotation.Retention is a dependency of the fixture annotation classes,
         // which are annotated with it
-        assertThat(dependencyGraph(new GraphVizDotFileOptions().includeExternalClasses()))
-                .contains("\"java.lang.annotation.Retention\"[shape=");
-        assertThat(dependencyGraph(new GraphVizDotFileOptions().excludeExternalClasses()))
-                .doesNotContain("java.lang.annotation.Retention");
-        // The graph follows the scan's own setting if neither option was chosen -- external classes were enabled in
-        // the scan, so they are shown
         assertThat(dependencyGraph(new GraphVizDotFileOptions()))
                 .contains("\"java.lang.annotation.Retention\"[shape=");
+        assertThat(dependencyGraph(new GraphVizDotFileOptions().showUnlistedDependencies()))
+                .contains("\"java.lang.annotation.Retention\"[shape=");
+        assertThat(dependencyGraph(new GraphVizDotFileOptions().hideUnlistedDependencies()))
+                .doesNotContain("java.lang.annotation.Retention");
     }
 }

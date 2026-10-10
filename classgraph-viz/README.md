@@ -85,8 +85,9 @@ try (ScanResult scanResult = new ClassGraph().enableNonSystemModules().enableCla
 }
 ```
 
-By default this graph includes external classes if the scan enabled them, and excludes them
-otherwise; `includeExternalClasses()` and `excludeExternalClasses()` decide it explicitly.
+By default this graph also draws each class that a listed class depends on, even if it is not in
+the list; `hideUnlistedDependencies()` draws only the listed classes. External classes (see
+`ClassInfo.isExternalClass()`) are dependencies only if the scan called `enableExternalClasses()`.
 
 ### Cut the graph down
 
