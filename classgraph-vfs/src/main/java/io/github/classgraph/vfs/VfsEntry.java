@@ -40,6 +40,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermission;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.github.classgraph.base.internal.path.PathSyntax;
 import io.github.classgraph.base.internal.utils.Assert;
@@ -269,9 +270,9 @@ public abstract sealed class VfsEntry permits ArchiveEntry, DirEntry, ModuleEntr
      * owns the returned stream and must close it.
      *
      * <p>
-     * Once the root this entry came from, or the {@link Vfs} that opened that root, is closed, every further read
-     * of the stream throws {@link IOException}. The close does not close the stream, so the caller must still close
-     * it.
+     * Closing the root this entry came from, or the {@link Vfs} that opened that root, closes the stream if the
+     * caller has not closed it yet, releasing the file handle or other resources it holds, and every further read
+     * of the stream throws {@link IOException}. Closing the stream after that does nothing.
      *
      * @return the content of the entry, as a stream.
      * @throws IOException
@@ -279,10 +280,12 @@ public abstract sealed class VfsEntry permits ArchiveEntry, DirEntry, ModuleEntr
      *             closed.
      */
     public final InputStream open() throws IOException {
-        getRoot().checkNotClosed(getPath());
+        final var root = getRoot();
+        root.checkNotClosed(getPath());
         final var inputStream = openUnchecked();
+        final RootCheckedInputStream rootCheckedInputStream;
         try {
-            return new RootCheckedInputStream(this, inputStream);
+            rootCheckedInputStream = new RootCheckedInputStream(this, inputStream);
         } catch (final RuntimeException | Error e) {
             // The caller never sees the stream if this throws, so nothing else would close it
             try {
@@ -292,6 +295,14 @@ public abstract sealed class VfsEntry permits ArchiveEntry, DirEntry, ModuleEntr
             }
             throw e;
         }
+        // From here the wrapper owns the stream, so a failure to track it is reported by closing the wrapper. A
+        // stream on a file in a directory, or on a resource of a module that is a directory, holds a file handle of
+        // its own that nothing else the root closes would release
+        if (!root.trackOpenHandle(rootCheckedInputStream)) {
+            rootCheckedInputStream.close();
+            throw new IOException("Cannot read " + getPath() + " after the root has been closed");
+        }
+        return rootCheckedInputStream;
     }
 
     /**
@@ -310,7 +321,8 @@ public abstract sealed class VfsEntry permits ArchiveEntry, DirEntry, ModuleEntr
      * {@link Vfs} that opened that root, are still open, so that closing either one stops a stream it handed out,
      * whatever kind of root it is. Without the check, a stream on a file in a directory, on a jarfile held in
      * memory, or on a module resource would keep reading after the close, since none of those reads anything the
-     * root releases.
+     * root releases. The root also tracks this stream, and closes it as it closes if the caller has not, which
+     * takes it out of the root's tracking again.
      */
     private static final class RootCheckedInputStream extends InputStream {
         /** The entry being read. */
@@ -318,6 +330,12 @@ public abstract sealed class VfsEntry permits ArchiveEntry, DirEntry, ModuleEntr
 
         /** The stream that the entry opened. */
         private final InputStream inputStream;
+
+        /**
+         * True once {@link #close()} has been called, so that the stream the entry opened is closed only once, even
+         * if the caller closes this stream while the root is closing it.
+         */
+        private final AtomicBoolean closed = new AtomicBoolean();
 
         /**
          * Constructor.
@@ -390,7 +408,14 @@ public abstract sealed class VfsEntry permits ArchiveEntry, DirEntry, ModuleEntr
 
         @Override
         public void close() throws IOException {
-            inputStream.close();
+            if (closed.getAndSet(true)) {
+                return;
+            }
+            try {
+                inputStream.close();
+            } finally {
+                entry.getRoot().untrackOpenHandle(this);
+            }
         }
     }
 
@@ -399,9 +424,10 @@ public abstract sealed class VfsEntry permits ArchiveEntry, DirEntry, ModuleEntr
      * caller owns the returned channel and must close it.
      *
      * <p>
-     * Once the root this entry came from, or the {@link Vfs} that opened that root, is closed, every further read
-     * of the channel throws {@link IOException}. The close does not close the channel, so the caller must still
-     * close it.
+     * Closing the root this entry came from, or the {@link Vfs} that opened that root, closes the stream the
+     * channel reads from if the caller has not closed the channel yet, releasing the file handle or other resources
+     * it holds, and every further read of the channel throws {@link IOException}. The channel itself still reports
+     * that it is open until the caller closes it.
      *
      * @return the content of the entry, as a channel.
      * @throws IOException

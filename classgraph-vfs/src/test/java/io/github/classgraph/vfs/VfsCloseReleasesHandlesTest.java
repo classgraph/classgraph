@@ -1,20 +1,29 @@
 package io.github.classgraph.vfs;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatIOException;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.management.ManagementFactory;
+import java.lang.module.ModuleFinder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
 import java.util.zip.CRC32;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
+import javax.tools.ToolProvider;
+
 import com.sun.management.UnixOperatingSystemMXBean;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
@@ -163,5 +172,99 @@ public class VfsCloseReleasesHandlesTest {
         // Each cycle opens at least four files, so a leak of even one handle per cycle would show up well above the
         // slack allowed here for whatever else the JVM opened in the background while the cycles ran
         assertThat(numOpenFileHandles()).isLessThanOrEqualTo(numOpenAtStart + 4L);
+    }
+
+    /**
+     * The number of file descriptors this process has open on the given file, counted from the links in
+     * {@code /proc/self/fd}, which exist only on Linux.
+     *
+     * @param file
+     *            the file.
+     * @return the number of file descriptors open on the file.
+     * @throws IOException
+     *             if {@code /proc/self/fd} could not be listed.
+     */
+    private static long numFileHandlesOpenOn(final Path file) throws IOException {
+        final var realFile = file.toRealPath();
+        var numHandles = 0L;
+        try (var fileDescriptors = Files.newDirectoryStream(PROC_SELF_FD.toPath())) {
+            for (final var fileDescriptor : fileDescriptors) {
+                try {
+                    if (Files.readSymbolicLink(fileDescriptor).equals(realFile)) {
+                        numHandles++;
+                    }
+                } catch (final IOException e) {
+                    // The descriptor was closed after the directory was listed, or is the one listing it
+                }
+            }
+        }
+        return numHandles;
+    }
+
+    /**
+     * Open a stream on an entry, read one byte of it, and leave it open.
+     *
+     * @param entry
+     *            the entry.
+     * @return the open stream.
+     * @throws IOException
+     *             if the entry could not be read.
+     */
+    private static InputStream openAndReadOneByte(final VfsEntry entry) throws IOException {
+        final var inputStream = entry.open();
+        assertThat(inputStream.read()).isEqualTo('w');
+        return inputStream;
+    }
+
+    /**
+     * A stream that the caller left open on a file in a directory, or on a resource of a module that is a
+     * directory, holds a file handle of its own, which closing the virtual filesystem closes, so that the caller
+     * leaving one open does not leak the handle until the garbage collector finds the stream.
+     *
+     * @param tempDir
+     *            a temporary directory to write the directory and the module to.
+     * @throws IOException
+     *             if a file could not be written or read.
+     */
+    @Test
+    @EnabledOnOs(OS.LINUX)
+    public void closingAVfsClosesTheStreamsTheCallerLeftOpen(@TempDir final Path tempDir) throws IOException {
+        final var dir = tempDir.resolve("dir");
+        final var dirFile = dir.resolve("com/xyz/widget.txt");
+        Files.createDirectories(dirFile.getParent());
+        Files.writeString(dirFile, "widget");
+
+        // A module that is a directory rather than a jarfile, which the JDK's ModuleReader reads each resource of
+        // through a file stream of its own, so that closing the reader does not close the streams it opened
+        final var srcDir = tempDir.resolve("src");
+        Files.createDirectories(srcDir);
+        final var moduleInfoSrc = srcDir.resolve("module-info.java");
+        Files.writeString(moduleInfoSrc, "module com.xyz.exploded {}\n");
+        final var moduleDir = tempDir.resolve("module");
+        final var compiler = ToolProvider.getSystemJavaCompiler();
+        assertThat(compiler).as("the tests must be run on a JDK, not a JRE").isNotNull();
+        assertThat(compiler.run(/* in = */ null, /* out = */ null, /* err = */ null, "-d", moduleDir.toString(),
+                moduleInfoSrc.toString())).as("javac exit code").isZero();
+        final var moduleFile = moduleDir.resolve("com/xyz/widget.txt");
+        Files.createDirectories(moduleFile.getParent());
+        Files.writeString(moduleFile, "widget");
+        final var moduleReference = ModuleFinder.of(moduleDir).find("com.xyz.exploded").orElseThrow();
+
+        final InputStream dirInputStream;
+        final InputStream moduleInputStream;
+        try (var vfs = new Vfs()) {
+            dirInputStream = openAndReadOneByte(vfs.open(dir).getEntry("com/xyz/widget.txt"));
+            moduleInputStream = openAndReadOneByte(vfs.open(moduleReference).getEntry("com/xyz/widget.txt"));
+            assertThat(List.of(numFileHandlesOpenOn(dirFile), numFileHandlesOpenOn(moduleFile)))
+                    .as("handles open on the directory file and the module file").containsExactly(1L, 1L);
+        }
+
+        assertThat(List.of(numFileHandlesOpenOn(dirFile), numFileHandlesOpenOn(moduleFile)))
+                .as("handles open on the directory file and the module file").containsExactly(0L, 0L);
+        assertThatIOException().isThrownBy(dirInputStream::read);
+        assertThatIOException().isThrownBy(moduleInputStream::read);
+        // The caller closing a stream that the close of the virtual filesystem already closed is not an error
+        dirInputStream.close();
+        moduleInputStream.close();
     }
 }

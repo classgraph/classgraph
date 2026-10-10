@@ -1021,10 +1021,11 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
 
     /**
      * The closeable things this root has handed out that the caller has not closed yet -- the
-     * {@link CloseableByteBuffer}s read from it, and the {@link java.nio.channels.SeekableByteChannel}s opened over
-     * its entries. Closing this root closes them, so that one that is a view of a memory mapping stops holding that
-     * mapping open and the file can be unmapped as this root closes rather than whenever the caller gets round to
-     * it. Guarded by its own monitor, together with {@link #openHandlesClosed}.
+     * {@link CloseableByteBuffer}s read from it, the {@link InputStream}s from {@link VfsEntry#open()}, and the
+     * {@link java.nio.channels.SeekableByteChannel}s opened over its entries. Closing this root closes them, so
+     * that one that is a view of a memory mapping stops holding that mapping open and the file can be unmapped as
+     * this root closes rather than whenever the caller gets round to it, and so that a stream that holds a file
+     * handle of its own releases it. Guarded by its own monitor, together with {@link #openHandlesClosed}.
      */
     private final Set<AutoCloseable> openHandles = Collections.newSetFromMap(new IdentityHashMap<>());
 
@@ -1035,7 +1036,7 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
      * Record something this root has just handed out, so that closing this root closes it if the caller has not.
      *
      * @param handle
-     *            the buffer or channel.
+     *            the buffer, stream or channel.
      * @return true if it was recorded, or false if this root has already closed what it handed out, in which case
      *         the caller must close this one itself, since nothing else will.
      */
@@ -1054,7 +1055,7 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
      * accumulate it here for as long as this root is open.
      *
      * @param handle
-     *            the buffer or channel.
+     *            the buffer, stream or channel.
      */
     void untrackOpenHandle(final AutoCloseable handle) {
         synchronized (openHandles) {
@@ -1079,7 +1080,7 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
             openHandles.clear();
         }
         if (!handlesToClose.isEmpty() && log != null) {
-            log.log("Closing " + handlesToClose.size() + " buffer(s) or channel(s) that were opened on "
+            log.log("Closing " + handlesToClose.size() + " buffer(s), stream(s) or channel(s) that were opened on "
                     + reportedPath() + " and not closed by the caller");
         }
         for (final var handle : handlesToClose) {
@@ -1105,18 +1106,19 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
      * {@link ClosedFileSystemException}.
      *
      * <p>
-     * Every {@link CloseableByteBuffer} this root handed out, and every channel opened over one of its entries
+     * Every {@link CloseableByteBuffer} this root handed out, every stream from {@link VfsEntry#open()} (and so
+     * every stream opened through the {@link FileSystem} view), and every channel opened over one of its entries
      * through the {@link FileSystem} view, is closed by this if the caller has not closed it, as the step before
-     * the root releases what it owns -- so that nothing the caller left open can hold a memory mapping open past
-     * this close, and every file this root mapped is unmapped, and every temporary file it created deleted, before
-     * this returns. A {@link java.nio.ByteBuffer} reference taken from such a wrapper before the close is not
-     * revoked by it, and reading through one afterwards is undefined; see
+     * the root releases what it owns -- so that nothing the caller left open can hold a memory mapping or a file
+     * handle open past this close, and every file this root mapped is unmapped, and every temporary file it created
+     * deleted, before this returns. A {@link java.nio.ByteBuffer} reference taken from such a wrapper before the
+     * close is not revoked by it, and reading through one afterwards is undefined; see
      * {@link CloseableByteBuffer#getByteBuffer()}.
      *
      * <p>
-     * A stream or channel from {@link VfsEntry#open()} or {@link VfsEntry#openChannel()}, or a stream opened
-     * through the {@link FileSystem} view, is not closed by this: every further read of it throws
-     * {@link IOException}, but the caller must still close it.
+     * A channel from {@link VfsEntry#openChannel()} reads one of those streams, so this closes the stream, and
+     * every further read of the channel throws {@link IOException}, but the channel still reports that it is open
+     * until the caller closes it.
      *
      * <p>
      * There is rarely a reason to call this by hand, since {@link Vfs#close()} closes every root the {@link Vfs}
