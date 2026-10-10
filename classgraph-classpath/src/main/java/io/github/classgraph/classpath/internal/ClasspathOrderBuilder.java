@@ -41,6 +41,7 @@ import java.nio.file.InvalidPathException;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
@@ -62,7 +63,7 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
     /** The scan spec. */
     private final ClasspathSpec classpathSpec;
 
-    /** The {@link Entry#location} of every classpath element found so far, which is what deduplicates them. */
+    /** The {@link Entry#location()} of every classpath element found so far, which is what deduplicates them. */
     private final Set<String> classpathEntryUniqueLocations = new HashSet<>();
 
     /** The classpath elements found so far, in classpath order. */
@@ -87,80 +88,35 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
 
     /**
      * A classpath element and the string form of the {@link ClassLoader} it was obtained from.
+     *
+     * @param classpathEntryObj
+     *            the classpath entry object (a {@link String} path, {@link File}, {@link Path}, {@link URL} or
+     *            {@link URI}).
+     * @param location
+     *            the location of the classpath element: the canonical path of a directory or jarfile of a
+     *            filesystem, with {@code '/'} as the separator on every platform, or the URL or URI of anything
+     *            that is not reached through a filesystem. This is the form the classpath element is reported in,
+     *            and the form it is deduplicated by, so a file reached through two different paths is reported
+     *            once, under the name it is stored under. It is kept alongside the classpath entry object because
+     *            the object's {@link Object#toString()} is not in that form: the {@link Path} of a local file
+     *            spells the path with the platform's separator, so on Windows it uses backslashes, and a
+     *            {@link URI} keeps its scheme.
+     * @param classLoaderName
+     *            the string form of the classloader the classpath element was obtained from, or null if unknown.
+     *            Only the string is kept, not the classloader itself, so that finding the classpath does not keep a
+     *            classloader alive.
+     * @param packageRootPrefixes
+     *            the automatic package root prefixes to look for within this classpath element, as declared by the
+     *            {@code ClassLoaderHandler} that found it.
+     * @param libDirPrefixes
+     *            the lib dirs whose jarfiles should be added to the classpath, within this classpath element, as
+     *            declared by the {@code ClassLoaderHandler} that found it.
      */
-    public static class Entry {
-        /**
-         * The classpath entry object (a {@link String} path, {@link File}, {@link Path}, {@link URL} or
-         * {@link URI}).
-         */
-        public final Object classpathEntryObj;
-
-        /**
-         * The location of the classpath element: the canonical path of a directory or jarfile of a filesystem, with
-         * {@code '/'} as the separator on every platform, or the URL or URI of anything that is not reached through
-         * a filesystem. This is the form the classpath element is reported in, and the form it is deduplicated by,
-         * so a file reached through two different paths is reported once, under the name it is stored under. It is
-         * kept alongside the classpath entry object because the object's {@link Object#toString()} is not in that
-         * form: the {@link Path} of a local file spells the path with the platform's separator, so on Windows it
-         * uses backslashes, and a {@link URI} keeps its scheme.
-         */
-        public final String location;
-
-        /**
-         * The string form of the classloader the classpath element was obtained from, or null if unknown. Only the
-         * string is kept, not the classloader itself, so that finding the classpath does not keep a classloader
-         * alive.
-         */
-        private final @Nullable String classLoaderStr;
-
-        /**
-         * The automatic package root prefixes to look for within this classpath element, as declared by the
-         * {@code ClassLoaderHandler} that found it.
-         */
-        public final List<String> packageRootPrefixes;
-
-        /**
-         * The lib dirs whose jarfiles should be added to the classpath, within this classpath element, as declared
-         * by the {@code ClassLoaderHandler} that found it.
-         */
-        public final List<String> libDirPrefixes;
-
-        /**
-         * Constructor.
-         *
-         * @param classpathEntryObj
-         *            the classpath entry object (a {@link String} path, {@link File}, {@link Path}, {@link URL} or
-         *            {@link URI}).
-         * @param location
-         *            the location of the classpath element.
-         * @param classLoader
-         *            the classloader the classpath element was obtained from.
-         * @param packageRootPrefixes
-         *            the automatic package root prefixes to look for within this classpath element.
-         * @param libDirPrefixes
-         *            the lib dirs whose jarfiles should be added to the classpath, within this classpath element.
-         */
-        public Entry(final Object classpathEntryObj, final String location, final @Nullable ClassLoader classLoader,
-                final List<String> packageRootPrefixes, final List<String> libDirPrefixes) {
-            this.classpathEntryObj = classpathEntryObj;
-            this.location = location;
-            this.classLoaderStr = Objects.toString(classLoader, null);
-            this.packageRootPrefixes = packageRootPrefixes;
-            this.libDirPrefixes = libDirPrefixes;
-        }
-
-        /**
-         * Get the string form of the classloader the classpath element was obtained from.
-         *
-         * @return the string form of the classloader, or null if it was unknown.
-         */
-        public @Nullable String getClassLoaderString() {
-            return classLoaderStr;
-        }
-
+    public record Entry(Object classpathEntryObj, String location, @Nullable String classLoaderName,
+            List<String> packageRootPrefixes, List<String> libDirPrefixes) {
         @Override
         public String toString() {
-            return classpathEntryObj + " [" + classLoaderStr + "]";
+            return classpathEntryObj + " [" + classLoaderName + "]";
         }
     }
 
@@ -182,19 +138,10 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
     /**
      * Get the order of classpath elements, uniquified and in order.
      *
-     * @return the classpath order.
+     * @return the classpath order, as an unmodifiable view.
      */
     public List<Entry> getOrder() {
-        return order;
-    }
-
-    /**
-     * Get the location of every classpath element found so far. See {@link Entry#location}.
-     *
-     * @return the classpath element locations.
-     */
-    public Set<String> getClasspathEntryUniqueLocations() {
-        return classpathEntryUniqueLocations;
+        return Collections.unmodifiableList(order);
     }
 
     /**
@@ -477,8 +424,8 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
         }
         // Record the classpath element in the classpath order, keeping the object in the form it was found in, so
         // that the filesystem of a Path, and the form a File or URI was found in, are not lost
-        order.add(new Entry(isPathObject ? pathElementWithoutSuffix : location, location, classLoader,
-                currPackageRootPrefixes, currLibDirPrefixes));
+        order.add(new Entry(isPathObject ? pathElementWithoutSuffix : location, location,
+                Objects.toString(classLoader, null), currPackageRootPrefixes, currLibDirPrefixes));
         if (log != null) {
             log.log("Found classpath element: " + describe(pathElementStr, location));
         }

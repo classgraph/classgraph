@@ -214,13 +214,13 @@ class Scanner implements Callable<ScanResult> {
             // references it holds) can be discarded now that the classpath has been found
             this.rawClasspathEntryWorkUnits = new ArrayList<>();
             for (final var rawClasspathEntry : classLoaderProbe.getClasspathOrder().getOrder()) {
-                rawClasspathEntryWorkUnits.add(new ClasspathEntryWorkUnit(rawClasspathEntry.classpathEntryObj,
-                        rawClasspathEntry.getClassLoaderString(), /* parentClasspathElement = */ null,
+                rawClasspathEntryWorkUnits.add(new ClasspathEntryWorkUnit(rawClasspathEntry.classpathEntryObj(),
+                        rawClasspathEntry.classLoaderName(), /* parentClasspathElement = */ null,
                         // classpathElementIdxWithinParent is the original classpath index, for toplevel classpath
                         // elements
                         /* classpathElementIdxWithinParent = */ rawClasspathEntryWorkUnits.size(),
-                        /* packageRootPrefix = */ "", rawClasspathEntry.packageRootPrefixes,
-                        rawClasspathEntry.libDirPrefixes));
+                        /* packageRootPrefix = */ "", rawClasspathEntry.packageRootPrefixes(),
+                        rawClasspathEntry.libDirPrefixes()));
             }
         } catch (final Throwable e) {
             vfs.close();

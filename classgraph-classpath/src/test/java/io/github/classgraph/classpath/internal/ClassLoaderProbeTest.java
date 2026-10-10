@@ -112,8 +112,8 @@ public class ClassLoaderProbeTest {
      */
     private static Set<Path> resolvedPaths(final ClassLoaderProbe classLoaderProbe) {
         final Set<Path> paths = new TreeSet<>();
-        for (final String path : classLoaderProbe.getClasspathOrder().getClasspathEntryUniqueLocations()) {
-            paths.add(Path.of(path));
+        for (final var entry : classLoaderProbe.getClasspathOrder().getOrder()) {
+            paths.add(Path.of(entry.location()));
         }
         return paths;
     }

@@ -33,7 +33,6 @@ import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
 
 import io.github.classgraph.base.ClassGraphLog;
@@ -59,8 +58,7 @@ public class ClassLoaderOrderBuilder implements ClassLoaderOrder {
      * keep only one of them (see the note on {@link #added}). Nothing is added twice, since {@link #added} guards
      * that.
      */
-    private final List<Entry<ClassLoader, List<ClassLoaderHandler>>> classLoaderOrder = //
-            new ArrayList<>();
+    private final List<HandledClassLoader> classLoaderOrder = new ArrayList<>();
 
     /**
      * The set of all {@link ClassLoader} instances that have been added to the order so far, so that classloaders
@@ -92,6 +90,17 @@ public class ClassLoaderOrderBuilder implements ClassLoaderOrder {
     private final Map<ClassLoader, List<ClassLoaderHandler>> classLoaderHandlers = //
             new IdentityHashMap<>();
 
+    /**
+     * A {@link ClassLoader} in the order, with the handlers to run for it.
+     *
+     * @param classLoader
+     *            the classloader.
+     * @param handlers
+     *            the {@link ClassLoaderHandler} instances to run for the classloader, in the order to run them.
+     */
+    public record HandledClassLoader(ClassLoader classLoader, List<ClassLoaderHandler> handlers) {
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**
@@ -109,17 +118,17 @@ public class ClassLoaderOrderBuilder implements ClassLoaderOrder {
      *
      * @return a copy of the {@link ClassLoader} order, with the handlers to run for each classloader.
      */
-    public List<Entry<ClassLoader, List<ClassLoaderHandler>>> getClassLoaderOrder() {
-        return new ArrayList<>(classLoaderOrder);
+    public List<HandledClassLoader> getClassLoaderOrder() {
+        return List.copyOf(classLoaderOrder);
     }
 
     /**
      * Get every classloader that was reached as the parent of another.
      *
-     * @return the parent classloaders.
+     * @return the parent classloaders, as an unmodifiable view.
      */
     public Set<ClassLoader> getAllParentClassLoaders() {
-        return allParentClassLoaders;
+        return Collections.unmodifiableSet(allParentClassLoaders);
     }
 
     /**
@@ -255,7 +264,7 @@ public class ClassLoaderOrderBuilder implements ClassLoaderOrder {
             return;
         }
         if (added.add(classLoader)) {
-            classLoaderOrder.add(Map.entry(classLoader, getClassLoaderHandlers(classLoader, log)));
+            classLoaderOrder.add(new HandledClassLoader(classLoader, getClassLoaderHandlers(classLoader, log)));
         }
     }
 
