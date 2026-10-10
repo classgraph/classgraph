@@ -80,6 +80,17 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
         this.suffixTypeArguments = suffixTypeArguments;
     }
 
+    /**
+     * Constructor for a reference to a class by its whole name, with no type arguments or suffixes.
+     *
+     * @param className
+     *            The class name.
+     */
+    ClassRefTypeSignature(final String className) {
+        this(className, Collections.<TypeArgument> emptyList(), Collections.<String> emptyList(),
+                Collections.<List<TypeArgument>> emptyList());
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**

@@ -368,8 +368,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *            the map from class name to class info
      * @return the {@link ClassInfo} object.
      * @throws IllegalArgumentException
-     *             if the class name names an array type whose element type has no type signature, or that has more
-     *             than {@link ArrayTypeSignature#MAX_DIMENSIONS} dimensions.
+     *             if the class name names an array type that has more than
+     *             {@link ArrayTypeSignature#MAX_DIMENSIONS} dimensions.
      */
     static ClassInfo getOrCreateClassInfo(final String className,
             final Map<String, ClassInfo> classNameToClassInfo) {
@@ -423,18 +423,24 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                     // Element type is not a base (primitive) type -- create a type signature for element type
                     final String eltTypeSigStr = "L" + baseClassName.replace('.', '/') + ";";
                     arrayTypeSigStrBuf.append(eltTypeSigStr);
+                    // The element type is parsed, so that a nested class name is split into the same parts as in
+                    // a type signature read from a classfile. A class name that the signature grammar cannot
+                    // express is referred to by its whole name instead: JVMS 4.2.1 allows '<', '>' and ':' in a
+                    // class name, but they end an identifier in a type signature.
+                    ClassRefTypeSignature classRefTypeSignature;
                     try {
-                        elementTypeSignature = ClassRefTypeSignature.parse(new Parser(eltTypeSigStr),
+                        final Parser parser = new Parser(eltTypeSigStr);
+                        classRefTypeSignature = ClassRefTypeSignature.parse(parser,
                                 // No type variables to resolve for generic types
                                 /* definingClassName = */ null);
-                        if (elementTypeSignature == null) {
-                            throw new IllegalArgumentException(
-                                    "Could not form array base type signature for class " + baseClassName);
+                        if (parser.hasMore()) {
+                            classRefTypeSignature = null;
                         }
                     } catch (final ParseException e) {
-                        throw new IllegalArgumentException(
-                                "Could not form array base type signature for class " + baseClassName, e);
+                        classRefTypeSignature = null;
                     }
+                    elementTypeSignature = classRefTypeSignature != null ? classRefTypeSignature
+                            : new ClassRefTypeSignature(baseClassName);
                 }
                 classInfo = new ArrayClassInfo(
                         new ArrayTypeSignature(elementTypeSignature, numArrayDims, arrayTypeSigStrBuf.toString()));

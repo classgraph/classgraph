@@ -1509,6 +1509,11 @@ class Classfile {
         final int superclassNameCpIdx = reader.readUnsignedShort();
         if (superclassNameCpIdx > 0) {
             superclassName = getConstantPoolClassName(superclassNameCpIdx);
+            // The JVM refuses to load a class whose superclass is an array class (JVMS 4.1)
+            if (superclassName != null && superclassName.startsWith("[")) {
+                throw new ClassfileFormatException(
+                        "Class " + className + " has an array class as its superclass: " + superclassName);
+            }
         }
     }
 
@@ -1519,12 +1524,19 @@ class Classfile {
      *
      * @throws IOException
      *             if an I/O exception occurs.
+     * @throws ClassfileFormatException
+     *             if an interface is an array class.
      */
-    private void readInterfaces() throws IOException {
+    private void readInterfaces() throws IOException, ClassfileFormatException {
         // Interfaces
         final int interfaceCount = reader.readUnsignedShort();
         for (int i = 0; i < interfaceCount; i++) {
             final String interfaceName = getConstantPoolClassName(reader.readUnsignedShort());
+            // The JVM refuses to load a class that names an array class as an interface (JVMS 4.1)
+            if (interfaceName != null && interfaceName.startsWith("[")) {
+                throw new ClassfileFormatException(
+                        "Class " + className + " has an array class as an interface: " + interfaceName);
+            }
             if (implementedInterfaces == null) {
                 implementedInterfaces = new ArrayList<>();
             }
@@ -2174,6 +2186,18 @@ class Classfile {
                             // Invalid according to spec
                             throw new ClassfileFormatException("Inner and outer class name cannot be the same");
                         }
+                        // An array class cannot be a nested or an enclosing class (JVMS 4.7.6). The JVM refuses
+                        // to load a class whose entry names an array as the outer class, but not one whose entry
+                        // names an array as the inner class. That entry is ignored, so it does not change the
+                        // class info of the array class, which other classes share.
+                        if (outerClassName.startsWith("[")) {
+                            throw new ClassfileFormatException("Class " + className
+                                    + " has an InnerClasses entry whose outer class is an array class: "
+                                    + outerClassName);
+                        }
+                        if (innerClassName.startsWith("[")) {
+                            continue;
+                        }
                         // Record types have a Lookup inner class for bootstrap methods in JDK 14 -- drop this
                         if (!("java.lang.invoke.MethodHandles$Lookup".equals(innerClassName)
                                 && "java.lang.invoke.MethodHandles".equals(outerClassName))) {
@@ -2195,6 +2219,11 @@ class Classfile {
                 hasEnclosingMethodAttribute = true;
                 final String innermostEnclosingClassName = getConstantPoolClassName(reader.readUnsignedShort());
                 final int enclosingMethodCpIdx = reader.readUnsignedShort();
+                // An array class cannot enclose a class (JVMS 4.7.7). The JVM loads a class whose EnclosingMethod
+                // attribute names one, so only the enclosing class and method are ignored.
+                if (innermostEnclosingClassName != null && innermostEnclosingClassName.startsWith("[")) {
+                    continue;
+                }
                 // A method_index of 0 means the class is declared in an initializer (a static or instance
                 // initializer block, or a field initializer) rather than in a method or constructor (JVMS 4.7.7).
                 // The classfile does not say which initializer, so no defining method name is recorded.
