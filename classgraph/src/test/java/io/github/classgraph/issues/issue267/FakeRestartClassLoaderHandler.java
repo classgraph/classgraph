@@ -62,7 +62,7 @@ public class FakeRestartClassLoaderHandler implements ClassLoaderHandler {
             final @Nullable ClassGraphLog log) {
         // Add self first, then delegate to parent
         classLoaderOrder.add(classLoader, log);
-        classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true, log);
+        classLoaderOrder.delegateToParent(classLoader.getParent(), log);
     }
 
     @Override

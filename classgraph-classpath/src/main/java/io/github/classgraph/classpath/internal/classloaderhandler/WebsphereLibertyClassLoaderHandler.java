@@ -88,7 +88,7 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
         if (delegates instanceof final Iterable<?> delegateList) {
             for (final Object delegate : delegateList) {
                 if (delegate instanceof final ClassLoader delegateClassLoader) {
-                    classLoaderOrder.delegateTo(delegateClassLoader, /* isParent = */ false, log);
+                    classLoaderOrder.delegateToPeer(delegateClassLoader, log);
                 }
             }
         }
@@ -97,7 +97,7 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
     @Override
     public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
             final @Nullable ClassGraphLog log) {
-        classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true, log);
+        classLoaderOrder.delegateToParent(classLoader.getParent(), log);
         // An AppClassLoader holds the classloaders of the libraries it delegates to, split by the precedence
         // configured for each library: "beforeApp" libraries are searched before the application's own classpath,
         // "afterApp" libraries after it

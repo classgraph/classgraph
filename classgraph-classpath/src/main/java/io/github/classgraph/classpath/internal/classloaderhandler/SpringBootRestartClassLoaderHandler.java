@@ -60,7 +60,7 @@ class SpringBootRestartClassLoaderHandler extends URLClassLoaderHandler {
         classLoaderOrder.add(classLoader, log);
 
         // ... and its parent is delegated to afterwards, so that the parent is searched last
-        classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true, log);
+        classLoaderOrder.delegateToParent(classLoader.getParent(), log);
     }
 
     // findClasspathOrder() is inherited from URLClassLoaderHandler, since RestartClassLoader extends

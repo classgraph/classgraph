@@ -236,7 +236,7 @@ public class MyClassLoaderHandler implements ClassLoaderHandler {
             ClassGraphLog log) {
         // Search this classloader before its parent (i.e. this one is parent-last)
         classLoaderOrder.add(classLoader, log);
-        classLoaderOrder.delegateTo(classLoader.getParent(), /* isParent = */ true, log);
+        classLoaderOrder.delegateToParent(classLoader.getParent(), log);
     }
 
     @Override
@@ -248,6 +248,11 @@ public class MyClassLoaderHandler implements ClassLoaderHandler {
     }
 }
 ```
+
+Use `delegateToParent` for the classloader's parent, and for any other classloader it treats as
+one, so that `ignoreParentClassLoaders()` leaves it out. Use `delegateToPeer` for a classloader that
+is consulted but is not an ancestor, such as one in a list of library classloaders, so that
+`ignoreParentClassLoaders()` keeps it.
 
 The `log` handed to each method is null unless verbose logging is switched on, which it is not by
 default. Pass it straight through to the methods that take one, as above -- every one of them

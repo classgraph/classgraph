@@ -37,9 +37,13 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+
+import io.github.classgraph.base.ClassGraphLog;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Tests that a classloader and the classloaders it delegates to are placed in the classpath in the order that the
@@ -155,5 +159,135 @@ public class ClassLoaderDelegationOrderTest {
                 var classpath = new ClasspathFinder().enableClassLoaders(child).find()) {
             assertThat(classpath.getLocations()).containsExactly(location(parentDir), location(childDir));
         }
+    }
+
+    /** How {@link ForwardingHandler} reaches the classloader that a {@link ForwardingClassLoader} forwards to. */
+    enum Reach {
+        /** With {@link ClassLoaderOrder#delegateToParent(ClassLoader, ClassGraphLog)}. */
+        PARENT,
+        /** With {@link ClassLoaderOrder#delegateToPeer(ClassLoader, ClassGraphLog)}. */
+        PEER,
+        /** With {@link ClassLoaderOrder#delegateToPeer(ClassLoader, ClassGraphLog)}, then as a parent. */
+        PEER_THEN_PARENT
+    }
+
+    /** A classloader with no parent that also searches another classloader, which is not its parent. */
+    static class ForwardingClassLoader extends URLClassLoader {
+        /** The classloader that this classloader forwards to. */
+        final ClassLoader target;
+
+        ForwardingClassLoader(final URL[] urls, final ClassLoader target) {
+            super(urls, /* parent = */ null);
+            this.target = target;
+        }
+    }
+
+    /** A {@link ClassLoaderHandler} for {@link ForwardingClassLoader}. */
+    static class ForwardingHandler implements ClassLoaderHandler {
+        /** How the classloader that is forwarded to is reached. */
+        private final Reach reach;
+
+        ForwardingHandler(final Reach reach) {
+            this.reach = reach;
+        }
+
+        @Override
+        public boolean canHandle(final Class<?> classLoaderClass, final @Nullable ClassGraphLog log) {
+            return classLoaderClass == ForwardingClassLoader.class;
+        }
+
+        @Override
+        public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
+                final @Nullable ClassGraphLog log) {
+            final var target = ((ForwardingClassLoader) classLoader).target;
+            if (reach != Reach.PARENT) {
+                classLoaderOrder.delegateToPeer(target, log);
+            }
+            if (reach != Reach.PEER) {
+                classLoaderOrder.delegateToParent(target, log);
+            }
+            classLoaderOrder.add(classLoader, log);
+        }
+
+        @Override
+        public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
+                final @Nullable ClassGraphLog log) {
+            for (final URL url : ((URLClassLoader) classLoader).getURLs()) {
+                classpathOrder.addClasspathEntry(url.toString(), classLoader, log);
+            }
+        }
+    }
+
+    /**
+     * Find the classpath of a {@link ForwardingClassLoader} with {@link ClasspathFinder#ignoreParentClassLoaders()}
+     * set.
+     *
+     * @param tempDir
+     *            a temporary directory to create the classpath elements in
+     * @param reach
+     *            how the handler reaches the classloader that is forwarded to
+     * @return the classpath element locations, with the forwarded-to classloader's directory named "target" and the
+     *         forwarding classloader's own directory named "forwarding"
+     * @throws IOException
+     *             if the classpath elements could not be created
+     */
+    private static List<String> findWithParentClassLoadersIgnored(final Path tempDir, final Reach reach)
+            throws IOException {
+        final var targetDir = Files.createDirectory(tempDir.resolve("target"));
+        final var forwardingDir = Files.createDirectory(tempDir.resolve("forwarding"));
+        try (var target = new URLClassLoader(new URL[] { targetDir.toUri().toURL() }, /* parent = */ null);
+                var forwarding = new ForwardingClassLoader(new URL[] { forwardingDir.toUri().toURL() }, target);
+                var classpath = new ClasspathFinder().registerClassLoaderHandler(new ForwardingHandler(reach))
+                        .enableClassLoaders(forwarding).ignoreParentClassLoaders().find()) {
+            return classpath.getLocations();
+        }
+    }
+
+    /**
+     * {@link ClasspathFinder#ignoreParentClassLoaders()} leaves out a classloader that a handler reaches with
+     * {@link ClassLoaderOrder#delegateToParent(ClassLoader, ClassGraphLog)}.
+     *
+     * @param tempDir
+     *            a temporary directory to create the classpath elements in
+     * @throws IOException
+     *             if the classpath elements could not be created
+     */
+    @Test
+    public void ignoringParentClassLoadersLeavesOutAClassLoaderReachedAsAParent(@TempDir final Path tempDir)
+            throws IOException {
+        assertThat(findWithParentClassLoadersIgnored(tempDir, Reach.PARENT))
+                .containsExactly(location(tempDir.resolve("forwarding")));
+    }
+
+    /**
+     * {@link ClasspathFinder#ignoreParentClassLoaders()} keeps a classloader that a handler reaches with
+     * {@link ClassLoaderOrder#delegateToPeer(ClassLoader, ClassGraphLog)}.
+     *
+     * @param tempDir
+     *            a temporary directory to create the classpath elements in
+     * @throws IOException
+     *             if the classpath elements could not be created
+     */
+    @Test
+    public void ignoringParentClassLoadersKeepsAClassLoaderReachedAsAPeer(@TempDir final Path tempDir)
+            throws IOException {
+        assertThat(findWithParentClassLoadersIgnored(tempDir, Reach.PEER))
+                .containsExactly(location(tempDir.resolve("target")), location(tempDir.resolve("forwarding")));
+    }
+
+    /**
+     * A classloader that is reached both as a peer and as a parent counts as a parent, so
+     * {@link ClasspathFinder#ignoreParentClassLoaders()} leaves it out.
+     *
+     * @param tempDir
+     *            a temporary directory to create the classpath elements in
+     * @throws IOException
+     *             if the classpath elements could not be created
+     */
+    @Test
+    public void ignoringParentClassLoadersLeavesOutAClassLoaderReachedAsBothAPeerAndAParent(
+            @TempDir final Path tempDir) throws IOException {
+        assertThat(findWithParentClassLoadersIgnored(tempDir, Reach.PEER_THEN_PARENT))
+                .containsExactly(location(tempDir.resolve("forwarding")));
     }
 }

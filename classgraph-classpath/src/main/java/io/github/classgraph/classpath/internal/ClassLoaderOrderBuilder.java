@@ -260,6 +260,33 @@ public class ClassLoaderOrderBuilder implements ClassLoaderOrder {
     }
 
     /**
+     * Recursively delegate to a parent {@link ClassLoader}, and record it as a parent.
+     *
+     * @param parent
+     *            the parent class loader, or null (ignored)
+     * @param log
+     *            the log node, or null to skip logging
+     */
+    @Override
+    public void delegateToParent(final @Nullable ClassLoader parent, final @Nullable ClassGraphLog log) {
+        delegateTo(parent, /* isParent = */ true, log);
+    }
+
+    /**
+     * Recursively delegate to a {@link ClassLoader} that is not a parent, without recording it as a parent. The
+     * classloaders that a classloader source names are reached this way too.
+     *
+     * @param classLoader
+     *            the class loader, or null (ignored)
+     * @param log
+     *            the log node, or null to skip logging
+     */
+    @Override
+    public void delegateToPeer(final @Nullable ClassLoader classLoader, final @Nullable ClassGraphLog log) {
+        delegateTo(classLoader, /* isParent = */ false, log);
+    }
+
+    /**
      * Recursively delegate to another {@link ClassLoader}.
      *
      * <p>
@@ -272,12 +299,12 @@ public class ClassLoaderOrderBuilder implements ClassLoaderOrder {
      * @param classLoader
      *            the class loader, or null (ignored)
      * @param isParent
-     *            true if this is a parent of another classloader
+     *            true to record the classloader as a parent, whose classpath elements
+     *            {@code ClasspathFinder#ignoreParentClassLoaders()} leaves out
      * @param log
      *            the log node, or null to skip logging
      */
-    @Override
-    public void delegateTo(final @Nullable ClassLoader classLoader, final boolean isParent,
+    private void delegateTo(final @Nullable ClassLoader classLoader, final boolean isParent,
             final @Nullable ClassGraphLog log) {
         if (classLoader == null) {
             return;

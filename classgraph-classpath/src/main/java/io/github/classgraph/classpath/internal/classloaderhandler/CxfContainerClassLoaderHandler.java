@@ -57,11 +57,11 @@ class CxfContainerClassLoaderHandler implements ClassLoaderHandler {
         final var cxfUtil = ReflectionUtils
                 .classForNameOrNull("org.apache.openejb.server.cxf.transport.util.CxfUtil", classLoader);
         if (cxfUtil != null) {
-            classLoaderOrder.delegateTo(cxfUtil.getClassLoader(), /* isParent = */ true, log);
+            classLoaderOrder.delegateToParent(cxfUtil.getClassLoader(), log);
         }
         // tccl = TomcatClassLoader
-        classLoaderOrder.delegateTo((ClassLoader) ReflectionUtils.invokeMethod(false, classLoader, "tccl"),
-                /* isParent = */ false, log);
+        classLoaderOrder.delegateToPeer((ClassLoader) ReflectionUtils.invokeMethod(false, classLoader, "tccl"),
+                log);
         // This classloader doesn't actually load any classes, but add it to the order to improve logging
         classLoaderOrder.add(classLoader, log);
     }
