@@ -284,9 +284,13 @@ public final class ResourceList extends UnmodifiableList<Resource> implements Au
     }
 
     /**
-     * Fetch the content of each {@link Resource} in this {@link ResourceList} as a byte array, pass the byte array
-     * to the given {@link ByteArrayConsumer}, then close the underlying InputStream or release the underlying
-     * ByteBuffer by calling {@link Resource#close()}.
+     * Fetch the content of each {@link Resource} in this {@link ResourceList} as a byte array by calling
+     * {@link Resource#load()}, which closes the resource before it returns, then pass the byte array to the given
+     * {@link ByteArrayConsumer}.
+     *
+     * <p>
+     * A resource that is already open cannot be loaded, so this method throws {@link IllegalStateException} when it
+     * reaches one. That resource is left open, so whatever opened it can still use it.
      *
      * @param byteArrayConsumer
      *            The {@link ByteArrayConsumer}.
@@ -297,9 +301,10 @@ public final class ResourceList extends UnmodifiableList<Resource> implements Au
     public ResourceList forEachByteArray(final ByteArrayConsumer byteArrayConsumer) throws IOException {
         Assert.notNull(byteArrayConsumer, "byteArrayConsumer");
         for (final Resource resource : this) {
-            try (resource) {
-                byteArrayConsumer.accept(resource, resource.load());
-            }
+            // load() has closed the resource by the time it returns, so there is nothing left here to close.
+            // Closing the resource anyway would close it for whoever has it open, if load() threw because the
+            // resource was already open, or if the consumer reopened it.
+            byteArrayConsumer.accept(resource, resource.load());
         }
         return this;
     }
@@ -315,7 +320,7 @@ public final class ResourceList extends UnmodifiableList<Resource> implements Au
     public ResourceList forEachByteArrayIgnoringIOException(final ByteArrayConsumer byteArrayConsumer) {
         Assert.notNull(byteArrayConsumer, "byteArrayConsumer");
         for (final Resource resource : this) {
-            try (resource) {
+            try {
                 byteArrayConsumer.accept(resource, resource.load());
             } catch (final IOException _) {
                 // Ignore
@@ -349,6 +354,10 @@ public final class ResourceList extends UnmodifiableList<Resource> implements Au
      * {@link InputStream} to the given {@link InputStreamConsumer}, then close the {@link InputStream} after the
      * {@link InputStreamConsumer} returns, by calling {@link Resource#close()}.
      *
+     * <p>
+     * A resource that is already open cannot be opened again, so this method throws {@link IllegalStateException}
+     * when it reaches one. That resource is left open, so whatever opened it can still use it.
+     *
      * @param inputStreamConsumer
      *            The {@link InputStreamConsumer}.
      * @return this (for method chaining).
@@ -358,8 +367,11 @@ public final class ResourceList extends UnmodifiableList<Resource> implements Au
     public ResourceList forEachInputStream(final InputStreamConsumer inputStreamConsumer) throws IOException {
         Assert.notNull(inputStreamConsumer, "inputStreamConsumer");
         for (final Resource resource : this) {
+            // Open the resource before the try block, so that it is only closed if this method opened it. If open()
+            // throws, the resource is either open for someone else, or open() has left it closed.
+            final var inputStream = resource.open();
             try (resource) {
-                inputStreamConsumer.accept(resource, resource.open());
+                inputStreamConsumer.accept(resource, inputStream);
             }
         }
         return this;
@@ -376,8 +388,11 @@ public final class ResourceList extends UnmodifiableList<Resource> implements Au
     public ResourceList forEachInputStreamIgnoringIOException(final InputStreamConsumer inputStreamConsumer) {
         Assert.notNull(inputStreamConsumer, "inputStreamConsumer");
         for (final Resource resource : this) {
-            try (resource) {
-                inputStreamConsumer.accept(resource, resource.open());
+            try {
+                final var inputStream = resource.open();
+                try (resource) {
+                    inputStreamConsumer.accept(resource, inputStream);
+                }
             } catch (final IOException _) {
                 // Ignore
             }
@@ -410,6 +425,10 @@ public final class ResourceList extends UnmodifiableList<Resource> implements Au
      * to the given {@link ByteBufferConsumer}, then release the {@link ByteBuffer} after the
      * {@link ByteBufferConsumer} returns, by calling {@link Resource#close()}.
      *
+     * <p>
+     * A resource that is already open cannot be read, so this method throws {@link IllegalStateException} when it
+     * reaches one. That resource is left open, so whatever opened it can still use it.
+     *
      * @param byteBufferConsumer
      *            The {@link ByteBufferConsumer}.
      * @return this (for method chaining).
@@ -419,10 +438,13 @@ public final class ResourceList extends UnmodifiableList<Resource> implements Au
     public ResourceList forEachByteBuffer(final ByteBufferConsumer byteBufferConsumer) throws IOException {
         Assert.notNull(byteBufferConsumer, "byteBufferConsumer");
         for (final Resource resource : this) {
+            // Read the resource before the try block, so that it is only closed if this method opened it. If read()
+            // throws, the resource is either open for someone else, or read() has left it closed.
+            final var closeableByteBuffer = resource.read();
             try (resource) {
                 // The buffer is only valid until the resource is closed, which is why the consumer is called with
                 // the plain ByteBuffer rather than something it could close early
-                byteBufferConsumer.accept(resource, Objects.requireNonNull(resource.read().getByteBuffer()));
+                byteBufferConsumer.accept(resource, Objects.requireNonNull(closeableByteBuffer.getByteBuffer()));
             }
         }
         return this;
@@ -439,8 +461,12 @@ public final class ResourceList extends UnmodifiableList<Resource> implements Au
     public ResourceList forEachByteBufferIgnoringIOException(final ByteBufferConsumer byteBufferConsumer) {
         Assert.notNull(byteBufferConsumer, "byteBufferConsumer");
         for (final Resource resource : this) {
-            try (resource) {
-                byteBufferConsumer.accept(resource, Objects.requireNonNull(resource.read().getByteBuffer()));
+            try {
+                final var closeableByteBuffer = resource.read();
+                try (resource) {
+                    byteBufferConsumer.accept(resource,
+                            Objects.requireNonNull(closeableByteBuffer.getByteBuffer()));
+                }
             } catch (final IOException _) {
                 // Ignore
             }
