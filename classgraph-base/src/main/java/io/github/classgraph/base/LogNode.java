@@ -59,11 +59,13 @@ import org.jspecify.annotations.Nullable;
  * out why something was or was not found, and is not a stable format to parse.
  */
 public final class LogNode implements ClassGraphLog {
-    // Mitigate log4j2 vulnerability (CVE-2021-44228), in case log4j is added to the classpath as the logger
+    // Turn off log4j2 message lookups (CVE-2021-44228) for log4j 2.10-2.14.1 if ClassGraph's java.util.logging
+    // output is routed to log4j. This only takes effect if LogNode is initialized (verbose or realtime logging)
+    // before log4j initializes, and it never overrides a value the application has set for this system property.
     // https://blog.cloudflare.com/inside-the-log4j2-vulnerability-cve-2021-44228/
     static {
         try {
-            System.getProperties().setProperty("log4j2.formatMsgNoLookups", "true");
+            System.getProperties().putIfAbsent("log4j2.formatMsgNoLookups", "true");
         } catch (final SecurityException e) {
             // Ignore -- if the system properties cannot be read or written, the mitigation cannot be applied, but
             // this must not throw ExceptionInInitializerError, which would make LogNode unusable

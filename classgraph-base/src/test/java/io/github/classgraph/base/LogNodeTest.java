@@ -3,6 +3,8 @@ package io.github.classgraph.base;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Handler;
@@ -253,6 +255,46 @@ public class LogNodeTest {
         });
         assertThat(logged).hasSize(5).noneMatch(message -> message.contains("not logged in realtime"));
         assertThat(logged.get(4)).contains("logged in realtime");
+    }
+
+    /**
+     * Initialize a fresh copy of the {@link LogNode} class, in a classloader of its own, so that its static
+     * initializer runs again.
+     *
+     * @throws Exception
+     *             if the class could not be loaded.
+     */
+    private static void initializeFreshLogNodeClass() throws Exception {
+        try (var loader = new URLClassLoader(
+                new URL[] { LogNode.class.getProtectionDomain().getCodeSource().getLocation() },
+                ClassLoader.getPlatformClassLoader())) {
+            Class.forName(LogNode.class.getName(), true, loader);
+        }
+    }
+
+    /**
+     * Initializing {@link LogNode} turns off log4j2 message lookups if the application has not set the property,
+     * but never overrides a value that the application has set.
+     */
+    @Test
+    public void anApplicationsLookupSettingIsKept() throws Exception {
+        final var property = "log4j2.formatMsgNoLookups";
+        final var savedValue = System.getProperty(property);
+        try {
+            System.setProperty(property, "false");
+            initializeFreshLogNodeClass();
+            assertThat(System.getProperty(property)).isEqualTo("false");
+
+            System.clearProperty(property);
+            initializeFreshLogNodeClass();
+            assertThat(System.getProperty(property)).isEqualTo("true");
+        } finally {
+            if (savedValue == null) {
+                System.clearProperty(property);
+            } else {
+                System.setProperty(property, savedValue);
+            }
+        }
     }
 
     /** The log is safe to add to from many threads at once, and no entry is lost or overwritten. */
