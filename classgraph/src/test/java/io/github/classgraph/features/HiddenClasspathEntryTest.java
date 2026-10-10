@@ -214,4 +214,65 @@ class HiddenClasspathEntryTest {
             }
         }
     }
+
+    /**
+     * A classpath entry that a classloader's {@code URLClassPath} holds only in its internal fields is still found
+     * and scanned after the classloader has opened it, when it is no longer listed as unopened.
+     *
+     * @param tempDir
+     *            the temp dir.
+     * @throws Exception
+     *             if the test jar could not be created.
+     */
+    @Test
+    void openedUnlistedEntryIsScanned(@TempDir final File tempDir) throws Exception {
+        final var unlistedJarFile = buildResourceJar(tempDir, "unlisted.jar");
+        try (var classLoader = new URLClassLoader(new URL[0], /* parent = */ null)) {
+            assumeTrue(addUnlistedURL(classLoader, unlistedJarFile.toURI().toURL()),
+                    "Could not reach the URLClassPath internals");
+            // Looking up the resource opens the jar, which moves it out of the unopened entries
+            assertThat(classLoader.getResource(RESOURCE_PATH)).isNotNull();
+            assertThat(classLoader.getURLs()).isEmpty();
+            try (var scanResult = new ClassGraph().enableClassLoaders(classLoader).acceptPaths(RESOURCE_DIR)
+                    .scan()) {
+                assertThat(scanResult.getResourcesWithPath(RESOURCE_PATH)).isNotEmpty();
+            }
+        }
+    }
+
+    /**
+     * An opened classpath directory whose name contains the path separator character is read as one entry, not
+     * split into two at that character. Splitting {@code app:v2} on Linux, or {@code app;v2} on Windows, would add
+     * the unrelated sibling directory {@code app}, which the classloader does not load from.
+     *
+     * @param tempDir
+     *            the temp dir.
+     * @throws Exception
+     *             if the test files could not be created.
+     */
+    @Test
+    void openedDirWhoseNameContainsThePathSeparatorDoesNotAddItsSibling(@TempDir final File tempDir)
+            throws Exception {
+        final var dir = new File(tempDir, "app" + File.pathSeparator + "v2");
+        final var siblingDir = new File(tempDir, "app");
+        final var innerPath = RESOURCE_DIR + "/inner.txt";
+        final var siblingPath = RESOURCE_DIR + "/sibling.txt";
+        Files.createDirectories(new File(dir, RESOURCE_DIR).toPath());
+        Files.createDirectories(new File(siblingDir, RESOURCE_DIR).toPath());
+        Files.writeString(new File(dir, innerPath).toPath(), "inner");
+        Files.writeString(new File(siblingDir, siblingPath).toPath(), "sibling");
+        try (var classLoader = new URLClassLoader(new URL[] { dir.toURI().toURL() }, /* parent = */ null)) {
+            final var ucp = ReflectionUtils.getFieldVal(false, classLoader, "ucp");
+            assumeTrue(ucp != null && ReflectionUtils.getFieldVal(false, ucp, "loaders") != null,
+                    "Could not reach the URLClassPath internals");
+            // Looking up a resource opens the directory
+            assertThat(classLoader.getResource(innerPath)).isNotNull();
+            assertThat(classLoader.getResource(siblingPath)).isNull();
+            try (var scanResult = new ClassGraph().enableClassLoaders(classLoader).acceptPaths(RESOURCE_DIR)
+                    .scan()) {
+                assertThat(scanResult.getResourcesWithPath(innerPath)).isNotEmpty();
+                assertThat(scanResult.getResourcesWithPath(siblingPath)).isEmpty();
+            }
+        }
+    }
 }

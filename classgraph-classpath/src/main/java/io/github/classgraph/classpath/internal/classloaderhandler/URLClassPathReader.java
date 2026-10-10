@@ -28,10 +28,10 @@
  */
 package io.github.classgraph.classpath.internal.classloaderhandler;
 
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 
 import io.github.classgraph.base.ClassGraphLog;
 import io.github.classgraph.base.internal.reflection.ReflectionUtils;
@@ -52,21 +52,24 @@ import org.jspecify.annotations.Nullable;
  * <li>{@code unopenedUrls} holds the entries of {@code path} that have not been opened yet, and additionally the
  * entries expanded from the {@code Class-Path} manifest attribute of jars that have been opened. Those expansions
  * are never added to {@code path}.
- * <li>{@code lmap} is keyed by the entries that have been opened, including the {@code Class-Path} expansions,
- * which are removed from {@code unopenedUrls} as they are opened.
+ * <li>{@code loaders} holds a loader for each entry that has been opened, in search order, including the
+ * {@code Class-Path} expansions, which are removed from {@code unopenedUrls} as they are opened. Each loader's
+ * {@code getBaseURL()} method returns the URL of its entry. (The {@code lmap} field holds the same loaders, but it
+ * is keyed by Strings rather than URLs, and is a hash map, so it is not in search order.)
  * </ul>
  *
  * <p>
  * A {@code Class-Path} expansion is therefore listed in {@code unopenedUrls} before it is opened and in
- * {@code lmap} afterwards, and in {@code path} at no point, so all three have to be read to see everything.
+ * {@code loaders} afterwards, and in {@code path} at no point, so all three have to be read to see everything.
  * (ClassGraph expands the {@code Class-Path} manifest attribute itself, so in practice these expansions are
  * duplicates of entries it already has -- they are read so that nothing is missed if a {@code URLClassPath} is
  * given entries by some other route.)
  *
  * <p>
  * The two fields that no public API exposes can only be read if the {@code jdk.internal.loader} package is open,
- * which it is not by default, so in practice these entries are only found if Narcissus is on the classpath or is a
- * resolved module.
+ * and, for a {@link java.net.URLClassLoader}, whose {@code ucp} field is declared in {@code java.net}, only if that
+ * package is open too. Neither is open by default, so in practice these entries are only found if Narcissus is on
+ * the classpath or is a resolved module.
  */
 final class URLClassPathReader {
     /** The name of the class whose fields are read here. */
@@ -114,7 +117,7 @@ final class URLClassPathReader {
 
     /**
      * Add the classpath entries of a {@code URLClassPath} that its {@code getURLs()} method does not return, i.e.
-     * those held only in the {@code unopenedUrls} and {@code lmap} fields.
+     * those held only in the {@code unopenedUrls} and {@code loaders} fields.
      *
      * @param ucp
      *            the {@code URLClassPath}, as returned by {@link #getUcp(ClassLoader)}.
@@ -138,14 +141,20 @@ final class URLClassPathReader {
             classpathOrder.addClasspathEntryObject(unopenedUrlsCopy, classLoader, log);
         }
 
-        // The JDK adds to this map while holding the URLClassPath's own monitor, so hold that too. (These two
-        // monitors are never held at the same time here, so there is no lock ordering to get wrong.)
-        final List<Object> openedUrls = new ArrayList<>();
+        // The JDK adds to this list while holding the URLClassPath's own monitor, so hold that too. (These two
+        // monitors are never held at the same time here, so there is no lock ordering to get wrong.) Read each
+        // loader's base URL, rather than the String keys of the lmap field: those keys are not URLs, and passing a
+        // String to addClasspathEntryObject would split it at every path separator character in the path.
+        final List<URL> openedUrls = new ArrayList<>();
         synchronized (ucp) {
-            if (ReflectionUtils.getFieldVal(false, ucp, "lmap") instanceof final Map<?, ?> lmap) {
-                openedUrls.addAll(lmap.keySet());
+            if (ReflectionUtils.getFieldVal(false, ucp, "loaders") instanceof final List<?> loaders) {
+                for (final Object loader : loaders) {
+                    if (ReflectionUtils.invokeMethod(false, loader, "getBaseURL") instanceof final URL baseUrl) {
+                        openedUrls.add(baseUrl);
+                    }
+                }
             }
         }
-        classpathOrder.addClasspathEntryObject(openedUrls, classLoader, log);
+        classpathOrder.addClasspathEntries(openedUrls, classLoader, log);
     }
 }
