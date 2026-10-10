@@ -84,7 +84,7 @@ public class ClassTypeSignatureTest {
             assertThat(typeSig.getClassName()).isEqualTo(Sub.class.getName());
 
             // Only Scala class signatures have a throws suffix
-            assertThat(typeSig.getThrowsSignatures()).isNull();
+            assertThat(typeSig.getThrowsSignatures()).isEmpty();
         }
     }
 
@@ -101,7 +101,7 @@ public class ClassTypeSignatureTest {
             assertThat(typeDescriptor.getSuperclassSignature()).hasToString("java.lang.Object");
             assertThat(typeDescriptor.getSuperinterfaceSignatures()).extracting(Object::toString)
                     .containsExactly("java.lang.Cloneable");
-            assertThat(typeDescriptor.getThrowsSignatures()).isNull();
+            assertThat(typeDescriptor.getThrowsSignatures()).isEmpty();
 
             // The type descriptor is cached, and is what getTypeSignatureOrTypeDescriptor() falls back to
             assertThat(nonGeneric.getTypeDescriptor()).isSameAs(typeDescriptor);
@@ -221,6 +221,20 @@ public class ClassTypeSignatureTest {
             final var typeSig = ClassTypeSignature.parse("<T:Ljava/lang/Throwable;>Ljava/lang/Object;^TT;",
                     classInfo(scanResult, Sub.class));
             assertThat(typeSig.getThrowsSignatures()).extracting(Object::toString).containsExactly("T");
+        }
+    }
+
+    /** A throws suffix may name several types, which are kept in the order they appear in. */
+    // #495
+    @Test
+    public void aThrowsSuffixMayNameSeveralTypes() throws TypeSignatureParseException {
+        try (var scanResult = scanFixture()) {
+            final var typeSig = ClassTypeSignature.parse(
+                    "<E:Ljava/lang/Exception;>Ljava/lang/Object;^TE;^Ljava/io/IOException;",
+                    classInfo(scanResult, Sub.class));
+            assertThat(typeSig.getThrowsSignatures()).extracting(Object::toString).containsExactly("E",
+                    "java.io.IOException");
+            assertThat(typeSig.toString()).startsWith("@throws(E) @throws(java.io.IOException) ");
         }
     }
 }

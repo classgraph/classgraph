@@ -312,26 +312,8 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
         if (resultType == null) {
             throw new TypeSignatureParseException(parser, "Missing method result type signature");
         }
-        final List<ClassRefOrTypeVariableSignature> throwsSignatures;
-        if (parser.peek() == '^') {
-            throwsSignatures = new ArrayList<>();
-            while (parser.peek() == '^') {
-                parser.expect('^');
-                final var classTypeSignature = ClassRefTypeSignature.parse(parser, definingClassName);
-                if (classTypeSignature != null) {
-                    throwsSignatures.add(classTypeSignature);
-                } else {
-                    final var typeVariableSignature = TypeVariableSignature.parse(parser, definingClassName);
-                    if (typeVariableSignature != null) {
-                        throwsSignatures.add(typeVariableSignature);
-                    } else {
-                        throw new TypeSignatureParseException(parser, "Missing type variable signature");
-                    }
-                }
-            }
-        } else {
-            throwsSignatures = List.of();
-        }
+        final var throwsSignatures = ClassRefOrTypeVariableSignature.parseThrowsSignatures(parser,
+                definingClassName);
         if (parser.hasMore()) {
             throw new TypeSignatureParseException(parser, "Extra characters at end of type descriptor");
         }
