@@ -258,7 +258,7 @@ public final class GraphVizDotFile {
 
     /**
      * Append the start of the HTML label of a class node: the shape and color of the node's box, and the class'
-     * modifiers, package name and simple name.
+     * modifiers and kind, its package name, and its name relative to the package.
      *
      * @param ci
      *            the class info
@@ -279,22 +279,36 @@ public final class GraphVizDotFile {
         buf.append('<');
         buf.append("<table border='0' cellborder='0' cellspacing='1'>");
 
-        // Class modifiers
-        buf.append("<tr><td><font point-size='12'>").append(ci.getModifiersString()).append(' ')
-                .append(ci.isEnum() ? "enum"
-                        : ci.isAnnotation() ? "@interface" : ci.isInterface() ? "interface" : "class")
-                .append("</font></td></tr>");
+        // Class modifiers and kind. The classfile of a placeholder class was never read, so it is only known to be
+        // an annotation, interface or enum if a scanned class referred to it as one; otherwise its kind is unknown,
+        // rather than "class".
+        final var modifiersAndKind = new StringBuilder(ci.getModifiersString());
+        final var kind = ci.isAnnotation() ? "@interface"
+                : ci.isInterface() ? "interface"
+                        : ci.isEnum() ? "enum" : ci.isRecord() ? "record" : ci.getResource() != null ? "class" : "";
+        if (!kind.isEmpty()) {
+            if (!modifiersAndKind.isEmpty()) {
+                modifiersAndKind.append(' ');
+            }
+            modifiersAndKind.append(kind);
+        }
+        // GraphViz rejects an empty <font> element
+        if (!modifiersAndKind.isEmpty()) {
+            buf.append("<tr><td><font point-size='12'>").append(modifiersAndKind).append("</font></td></tr>");
+        }
 
         // Package name
-        if (ci.getName().contains(".")) {
+        final var packageName = ci.getPackageName();
+        if (!packageName.isEmpty()) {
             buf.append("<tr><td><font point-size='14'><b>");
-            htmlEncode(ci.getPackageName() + packageNameSuffix, buf);
+            htmlEncode(packageName + packageNameSuffix, buf);
             buf.append("</b></font></td></tr>");
         }
 
-        // Class name
+        // Class name, relative to the package, so that two nested classes with the same simple name get different
+        // labels
         buf.append("<tr><td><font point-size='20'><b>");
-        htmlEncode(ci.getSimpleName(), buf);
+        htmlEncode(packageName.isEmpty() ? ci.getName() : ci.getName().substring(packageName.length() + 1), buf);
         buf.append("</b></font></td></tr>");
     }
 

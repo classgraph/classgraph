@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
@@ -345,7 +346,7 @@ public class GraphVizDotFileTest {
         assertThat(dotFile).doesNotContain("ANNOTATIONS", "FIELDS", "METHODS", "arrowhead=dot", "arrowhead=odot",
                 "arrowtail=obox", "arrowtail=box");
         // The class nodes and the edges to the supertypes are still there
-        assertThat(dotFile).contains("<b>Derived</b>",
+        assertThat(dotFile).contains("<b>GraphVizDotFileTest$Derived</b>",
                 "\"" + FIXTURE + "Derived\" -> \"" + FIXTURE + "Base\" [arrowsize=2.5]");
     }
 
@@ -353,7 +354,8 @@ public class GraphVizDotFileTest {
     @Test
     public void aClassNodeListsOnlyWhatTheScanCollected() {
         try (var classInfoOnly = scanFixture().enableClassInfo().scan()) {
-            assertThat(graph(classInfoOnly, new GraphVizDotFileOptions())).contains("<b>Derived</b>")
+            assertThat(graph(classInfoOnly, new GraphVizDotFileOptions()))
+                    .contains("<b>GraphVizDotFileTest$Derived</b>")
                     .doesNotContain("ANNOTATIONS", "FIELDS", "METHODS");
         }
     }
@@ -970,6 +972,149 @@ public class GraphVizDotFileTest {
             final var dependencyGraph = GraphVizDotFile.generateFromInterClassDependencies(regScanResult,
                     regScanResult.getAllClasses());
             assertThat(dependencyGraph).doesNotContain("<b></b>").contains("Reg$</b>");
+        }
+    }
+
+    /** A class with a nested class whose simple name is the same as that of a nested class of {@link A2}. */
+    public static class A1 {
+        /** A nested class with the same simple name as {@link A2.Builder}. */
+        public static class Builder {
+        }
+    }
+
+    /** A class with a nested class whose simple name is the same as that of a nested class of {@link A1}. */
+    public static class A2 {
+        /** A nested class with the same simple name as {@link A1.Builder}. */
+        public static class Builder {
+        }
+    }
+
+    /**
+     * A record, which is labeled as a record.
+     *
+     * @param x
+     *            the x coordinate.
+     * @param y
+     *            the y coordinate.
+     */
+    public record Point(int x, int y) {
+    }
+
+    /** An inner class with no modifiers. */
+    class PlainInner {
+    }
+
+    /** A class that refers to two classes outside the scan, an interface it implements and the type of a field. */
+    public static class ExternalUser implements Supplier<String> {
+        /** A field whose type is an interface that no scanned class implements. */
+        public Map<String, String> map;
+
+        @Override
+        public String get() {
+            return "";
+        }
+    }
+
+    /** The start of the row of a class node that holds the modifiers and the kind of the class. */
+    private static final String HEADER_ROW = "<tr><td><font point-size='12'>";
+
+    /**
+     * Get the line of a graph that defines the node of a class.
+     *
+     * @param dotFile
+     *            the graph.
+     * @param className
+     *            the name of the class.
+     * @return the line that defines the node.
+     */
+    private static String node(final String dotFile, final String className) {
+        final var start = "\"" + className + "\"[";
+        return dotFile.lines().filter(line -> line.startsWith(start)).findFirst()
+                .orElseThrow(() -> new AssertionError("No node for " + className + " in:\n" + dotFile));
+    }
+
+    /**
+     * A class node is labeled with the name of the class relative to its package, so that two nested classes with
+     * the same simple name do not get the same label, and so that a nested class does not look like a top-level
+     * class of the package.
+     */
+    @Test
+    public void nestedClassesAreLabeledWithTheirNameRelativeToTheirPackage() {
+        try (var nestedScanResult = new ClassGraph().enableClasspath().acceptClasses(A1.class.getName(),
+                A1.Builder.class.getName(), A2.class.getName(), A2.Builder.class.getName()).enableClassInfo()
+                .enableInterClassDependencies().scan()) {
+            final var classGraph = graph(nestedScanResult, new GraphVizDotFileOptions());
+            final var dependencyGraph = GraphVizDotFile.generateFromInterClassDependencies(nestedScanResult,
+                    nestedScanResult.getAllClasses());
+            for (final var dotFile : List.of(classGraph, dependencyGraph)) {
+                assertThat(node(dotFile, FIXTURE + "A1$Builder")).contains("<b>GraphVizDotFileTest$A1$Builder</b>");
+                assertThat(node(dotFile, FIXTURE + "A2$Builder")).contains("<b>GraphVizDotFileTest$A2$Builder</b>");
+            }
+        }
+    }
+
+    /**
+     * The first row of a class node gives the modifiers and the kind of the class, with no space before or after
+     * them, and a class with no modifiers is labeled with its kind alone.
+     */
+    @Test
+    public void theHeaderGivesTheModifiersAndTheKindOfTheClass() {
+        try (var kindScanResult = new ClassGraph().enableClasspath()
+                .acceptClasses(Point.class.getName(), PlainInner.class.getName(), Marker.class.getName(),
+                        Location.class.getName(), Color.class.getName())
+                .enableClassInfo().ignoreClassVisibility().enableInterClassDependencies().scan()) {
+            final var point = kindScanResult.getClassInfo(Point.class.getName());
+            final var plainInner = kindScanResult.getClassInfo(PlainInner.class.getName());
+            assertThat(point.isRecord()).isTrue();
+            assertThat(plainInner.getModifiersString()).isEmpty();
+
+            final var classGraph = graph(kindScanResult, new GraphVizDotFileOptions());
+            final var dependencyGraph = GraphVizDotFile.generateFromInterClassDependencies(kindScanResult,
+                    kindScanResult.getAllClasses());
+            for (final var dotFile : List.of(classGraph, dependencyGraph)) {
+                assertThat(node(dotFile, Point.class.getName()))
+                        .contains(HEADER_ROW + point.getModifiersString() + " record</font>");
+                assertThat(node(dotFile, PlainInner.class.getName())).contains(HEADER_ROW + "class</font>");
+                assertThat(node(dotFile, Marker.class.getName())).contains(" interface</font>");
+                assertThat(node(dotFile, Location.class.getName())).contains(" @interface</font>");
+                assertThat(node(dotFile, Color.class.getName())).contains(" enum</font>");
+                assertThat(dotFile).doesNotContain(HEADER_ROW + " ", " </font>");
+            }
+        }
+    }
+
+    /**
+     * A class that was referred to but not scanned is labeled with its kind only if the reference showed what kind
+     * of class it is: an implemented interface is an interface, but the type of a field could be a class or an
+     * interface. A header row that would be empty is left out, since GraphViz rejects an empty {@code <font>}
+     * element.
+     */
+    @Test
+    public void aClassThatWasNotScannedIsOnlyLabeledWithAKindThatIsKnown() {
+        // Supplier is rejected, since otherwise the scan would read its classfile, as the classfile of an interface
+        // that an accepted class implements
+        try (var externalScanResult = new ClassGraph().enableClasspath().acceptClasses(ExternalUser.class.getName())
+                .rejectClasses(Supplier.class.getName()).enableClassInfo().enableFieldInfo()
+                .enableInterClassDependencies().enableExternalClasses().scan()) {
+            final var supplier = externalScanResult.getClassInfo(Supplier.class.getName());
+            final var map = externalScanResult.getClassInfo(Map.class.getName());
+            assertThat(supplier.getResource()).isNull();
+            assertThat(supplier.isInterface()).isTrue();
+            assertThat(map.getResource()).isNull();
+            assertThat(map.isInterface()).isFalse();
+
+            final var user = externalScanResult.getAllClasses()
+                    .filter(ci -> ExternalUser.class.getName().equals(ci.getName()));
+            final var classGraph = GraphVizDotFile.generate(externalScanResult,
+                    user.union(user.get(0).getClassDependencies()));
+            final var dependencyGraph = GraphVizDotFile.generateFromInterClassDependencies(externalScanResult, user,
+                    new GraphVizDotFileOptions().includeExternalClasses());
+            for (final var dotFile : List.of(classGraph, dependencyGraph)) {
+                assertThat(node(dotFile, Supplier.class.getName())).contains(HEADER_ROW + "interface</font>");
+                assertThat(node(dotFile, Map.class.getName())).doesNotContain(HEADER_ROW)
+                        .doesNotContain("class</font>");
+                assertThat(dotFile).doesNotContain("<font point-size='12'></font>");
+            }
         }
     }
 
