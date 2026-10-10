@@ -28,7 +28,6 @@
  */
 package io.github.classgraph.vfs.internal.slice;
 
-import java.io.IOException;
 import java.util.Arrays;
 
 import io.github.classgraph.vfs.Vfs;
@@ -49,17 +48,11 @@ public final class ArraySlice extends Slice {
      *            the offset of the sub-slice within the parent slice
      * @param length
      *            the length of the sub-slice
-     * @param isDeflatedZipEntry
-     *            true if this is a deflated zip entry
-     * @param inflatedLengthHint
-     *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 if this is not a deflated
-     *            zip entry.
      * @param vfs
      *            the {@link Vfs} that opened this slice
      */
-    private ArraySlice(final ArraySlice parentSlice, final long offset, final long length,
-            final boolean isDeflatedZipEntry, final long inflatedLengthHint, final Vfs vfs) {
-        super(parentSlice, offset, length, isDeflatedZipEntry, inflatedLengthHint, vfs);
+    private ArraySlice(final ArraySlice parentSlice, final long offset, final long length, final Vfs vfs) {
+        super(parentSlice, offset, length, vfs);
         this.arr = parentSlice.arr;
     }
 
@@ -68,17 +61,11 @@ public final class ArraySlice extends Slice {
      *
      * @param arr
      *            the array containing the slice.
-     * @param isDeflatedZipEntry
-     *            true if this is a deflated zip entry
-     * @param inflatedLengthHint
-     *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 if this is not a deflated
-     *            zip entry.
      * @param vfs
      *            the {@link Vfs} that opened this slice
      */
-    public ArraySlice(final byte[] arr, final boolean isDeflatedZipEntry, final long inflatedLengthHint,
-            final Vfs vfs) {
-        super(arr.length, isDeflatedZipEntry, inflatedLengthHint, vfs);
+    public ArraySlice(final byte[] arr, final Vfs vfs) {
+        super(arr.length, vfs);
         this.arr = arr;
     }
 
@@ -89,46 +76,29 @@ public final class ArraySlice extends Slice {
      *            the offset relative to the start of this slice to use as the start of the sub-slice.
      * @param length
      *            the length of the sub-slice.
-     * @param isDeflatedZipEntry
-     *            true if the sub-slice is a deflated zip entry
-     * @param inflatedLengthHint
-     *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 if this is not a deflated
-     *            zip entry.
      * @return the slice
      */
     @Override
-    public Slice slice(final long offset, final long length, final boolean isDeflatedZipEntry,
-            final long inflatedLengthHint) {
-        if (this.isDeflatedZipEntry) {
-            throw new IllegalArgumentException("Cannot slice a deflated zip entry");
-        }
-        return new ArraySlice(this, offset, length, isDeflatedZipEntry, inflatedLengthHint, vfs);
+    public Slice slice(final long offset, final long length) {
+        return new ArraySlice(this, offset, length, vfs);
     }
 
     /**
      * Load the slice as a byte array.
      *
      * <p>
-     * When the slice covers the whole of the backing array and the entry is not deflated, the backing array itself
-     * is returned rather than a copy, so a caller that writes to the returned array changes what every later read
-     * of the same slice sees.
+     * When the slice covers the whole of the backing array, the backing array itself is returned rather than a
+     * copy, so a caller that writes to the returned array changes what every later read of the same slice sees.
      *
      * @return the content of the slice
-     * @throws IOException
-     *             if the slice could not be read.
      */
     @Override
-    public byte[] load() throws IOException {
-        if (isDeflatedZipEntry) {
-            // Inflate into RAM if deflated
-            try (var inputStream = open()) {
-                return Slice.readAllBytesAsArray(inputStream, inflatedLengthHint);
-            }
-        } else if (sliceStartPos == 0L && sliceLength == arr.length) {
-            // Fast path -- return whole array, if the array is the whole slice and is not deflated
+    public byte[] load() {
+        if (sliceStartPos == 0L && sliceLength == arr.length) {
+            // Fast path -- return whole array, if the array is the whole slice
             return arr;
         } else {
-            // Copy range of array, if it is a slice and it is not deflated
+            // Copy range of array, if it is a slice
             return Arrays.copyOfRange(arr, (int) sliceStartPos, (int) (sliceStartPos + sliceLength));
         }
     }

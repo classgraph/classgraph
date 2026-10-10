@@ -29,11 +29,14 @@
 package io.github.classgraph.vfs.internal.zip;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.ByteBuffer;
 import java.util.Calendar;
 import java.util.Locale;
 import java.util.TimeZone;
 
 import io.github.classgraph.base.internal.utils.VersionFinder;
+import io.github.classgraph.vfs.internal.recycler.RecycledInflaterInputStream;
 import io.github.classgraph.vfs.internal.slice.Slice;
 import org.jspecify.annotations.Nullable;
 
@@ -59,7 +62,7 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
     final boolean nameIsVerbatim;
 
     /** True if the zip entry is deflated; false if the zip entry is stored. */
-    final boolean isDeflated;
+    public final boolean isDeflated;
 
     /**
      * The compressed size of the zip entry, in bytes. Never negative, since an entry whose central directory gives
@@ -101,7 +104,7 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
 
     /**
      * The {@link Slice} for the zip entry's raw data (which can be either stored or deflated), or null until
-     * {@link #getSlice()} is first called. Volatile, so that a {@link Slice} created by one thread is safely
+     * {@link #getRawSlice()} is first called. Volatile, so that a {@link Slice} created by one thread is safely
      * published to any other thread that reads this field (two threads racing to initialize this field each end up
      * with an equivalent {@link Slice}, which is harmless, since a sub-slice does not own any resources).
      */
@@ -252,14 +255,20 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Lazily get zip entry slice -- this is deferred until zip entry data needs to be read, in order to avoid
-     * randomly seeking within zipfile for every entry as the central directory is read.
+     * Lazily get the slice of the zipfile that holds the entry's stored bytes -- this is deferred until zip entry
+     * data needs to be read, in order to avoid randomly seeking within zipfile for every entry as the central
+     * directory is read.
      *
-     * @return the {@link Slice} covering the entry's raw data, which is still deflated if the entry is deflated.
+     * <p>
+     * The slice holds the bytes as they are stored in the zipfile, which are still compressed if the entry is
+     * deflated ({@link #isDeflated}). Use {@link #open()}, {@link #load()} or {@link #read()} to read the content
+     * of the entry.
+     *
+     * @return the {@link Slice} covering the entry's stored bytes.
      * @throws IOException
      *             If an I/O exception occurs.
      */
-    public Slice getSlice() throws IOException {
+    public Slice getRawSlice() throws IOException {
         var slice = this.slice;
         if (slice == null) {
             final var randomAccessReader = parentLogicalZipFile.slice.randomAccessReader();
@@ -281,11 +290,67 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
                 throw new IOException("Unexpected EOF when trying to read zip entry data: " + entryName);
             }
 
-            // Create a new Slice that wraps just the data of the zip entry, and mark whether it is deflated
-            this.slice = slice = parentLogicalZipFile.slice.slice(dataStartPos, compressedSize, isDeflated,
-                    uncompressedSize);
+            // Create a new Slice that wraps just the data of the zip entry
+            this.slice = slice = parentLogicalZipFile.slice.slice(dataStartPos, compressedSize);
         }
         return slice;
+    }
+
+    /**
+     * Open the content of the entry as an {@link InputStream}, inflating it if the entry is deflated.
+     *
+     * @return the input stream, which the caller must close.
+     * @throws IOException
+     *             if the entry could not be opened, or if the {@link io.github.classgraph.vfs.Vfs} that opened its
+     *             zipfile has been closed.
+     */
+    public InputStream open() throws IOException {
+        final var rawInputStream = getRawSlice().open();
+        if (!isDeflated) {
+            return rawInputStream;
+        }
+        final var vfs = parentLogicalZipFile.vfs;
+        try {
+            if (vfs.isClosed()) {
+                throw new IOException("Cannot read from a jarfile after the Vfs backing it has been closed. "
+                        + "This happens if the object that owns the jarfile was closed (e.g. by leaving the "
+                        + "try-with-resources block it was opened in) before the entry was read or the class was "
+                        + "loaded");
+            }
+            return new RecycledInflaterInputStream(rawInputStream, vfs.inflaterRecycler());
+        } catch (final IOException | RuntimeException | Error e) {
+            // The caller never sees a stream if this throws, so the raw stream has to be closed here
+            try {
+                rawInputStream.close();
+            } catch (final IOException e2) {
+                e.addSuppressed(e2);
+            }
+            throw e;
+        }
+    }
+
+    /**
+     * Load the content of the entry as a byte array, inflating it if the entry is deflated.
+     *
+     * @return the content of the entry.
+     * @throws IOException
+     *             if the entry could not be read.
+     */
+    public byte[] load() throws IOException {
+        // Slice.readAllBytesAsArray closes the stream
+        return isDeflated ? Slice.readAllBytesAsArray(open(), uncompressedSize) : getRawSlice().load();
+    }
+
+    /**
+     * Read the content of the entry into a read-only {@link ByteBuffer}, inflating it if the entry is deflated.
+     *
+     * @return the content of the entry.
+     * @throws IOException
+     *             if the entry could not be read.
+     */
+    public ByteBuffer read() throws IOException {
+        // There is no ByteBuffer that inflates its content on demand, so a deflated entry is inflated into an array
+        return isDeflated ? ByteBuffer.wrap(load()).asReadOnlyBuffer() : getRawSlice().read();
     }
 
     // -------------------------------------------------------------------------------------------------------------

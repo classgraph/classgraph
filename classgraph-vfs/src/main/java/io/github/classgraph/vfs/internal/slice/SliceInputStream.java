@@ -37,8 +37,8 @@ import io.github.classgraph.vfs.reader.RandomAccessReader;
 import org.jspecify.annotations.Nullable;
 
 /**
- * An {@link InputStream} that reads the raw (still-deflated, if the slice is a deflated zip entry) bytes of a
- * {@link Slice}, in order, through the slice's {@link RandomAccessReader}.
+ * An {@link InputStream} that reads the bytes of a {@link Slice}, in order, through the slice's
+ * {@link RandomAccessReader}.
  */
 class SliceInputStream extends InputStream {
     /** The slice being read. */

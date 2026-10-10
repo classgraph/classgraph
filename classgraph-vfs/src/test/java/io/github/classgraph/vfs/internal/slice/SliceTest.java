@@ -103,8 +103,7 @@ public class SliceTest {
             assertThat(first).isNotEqualTo(second);
             // A slice is equal to itself, and to a slice of the same range of the same file
             assertThat(first).isEqualTo(first);
-            assertThat(first.slice(0, 4, /* isDeflatedZipEntry = */ false, /* inflatedLengthHint = */ 0L))
-                    .isEqualTo(first.slice(0, 4, /* isDeflatedZipEntry = */ false, /* inflatedLengthHint = */ 0L));
+            assertThat(first.slice(0, 4)).isEqualTo(first.slice(0, 4));
         }
     }
 
@@ -122,9 +121,7 @@ public class SliceTest {
         final var vfs = vfs();
         try (var first = new PathSlice(writeFile(tempDir, "first.bin"), vfs, /* log = */ null);
                 var second = new PathSlice(writeFile(tempDir, "second.bin"), vfs, /* log = */ null)) {
-            assertThat(first.slice(2, 4, /* isDeflatedZipEntry = */ false, /* inflatedLengthHint = */ 0L))
-                    .isNotEqualTo(
-                            second.slice(2, 4, /* isDeflatedZipEntry = */ false, /* inflatedLengthHint = */ 0L));
+            assertThat(first.slice(2, 4)).isNotEqualTo(second.slice(2, 4));
         }
     }
 

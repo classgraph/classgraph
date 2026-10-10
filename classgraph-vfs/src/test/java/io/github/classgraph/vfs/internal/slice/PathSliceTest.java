@@ -85,8 +85,7 @@ public class PathSliceTest {
         final var vfs = vfs();
         final var slice = new PathSlice(file, vfs, /* log = */ null);
         try {
-            final var subSlice = slice.slice(10, 5, /* isDeflatedZipEntry = */ false,
-                    /* inflatedLengthHint = */ 0L);
+            final var subSlice = slice.slice(10, 5);
             assertThat(subSlice.loadAsString()).isEqualTo("abcde");
             final var reader = subSlice.randomAccessReader();
             assertThat(reader.readString(0, 5)).isEqualTo("abcde");
@@ -109,8 +108,7 @@ public class PathSliceTest {
         final var vfs = vfs();
         final var slice = new PathSlice(file, vfs, /* log = */ null);
         try {
-            final var buf = slice.slice(10, 5, /* isDeflatedZipEntry = */ false, /* inflatedLengthHint = */ 0L)
-                    .read();
+            final var buf = slice.slice(10, 5).read();
             assertThat(buf.position()).isZero();
             assertThat(buf.capacity()).isEqualTo(5);
             assertThat(buf.remaining()).isEqualTo(5);
@@ -217,7 +215,7 @@ public class PathSliceTest {
         final var file = writeTestFile(tempDir);
         final var vfs = vfs();
         final var slice = new PathSlice(file, vfs, /* log = */ null);
-        final var subSlice = slice.slice(10, 5, /* isDeflatedZipEntry = */ false, /* inflatedLengthHint = */ 0L);
+        final var subSlice = slice.slice(10, 5);
         final var reader = subSlice.randomAccessReader();
         assertThat(reader.readString(0, 5)).isEqualTo("abcde");
 
@@ -250,7 +248,7 @@ public class PathSliceTest {
         final var file = writeTestFile(tempDir);
         final var vfs = vfs();
         final var slice = new PathSlice(file, vfs, /* log = */ null);
-        final var subSlice = slice.slice(10, 5, /* isDeflatedZipEntry = */ false, /* inflatedLengthHint = */ 0L);
+        final var subSlice = slice.slice(10, 5);
         assertThat(subSlice.loadAsString()).isEqualTo("abcde");
 
         final var backingByteBuffer = PathSlice.class.getDeclaredField("backingByteBuffer");
@@ -357,8 +355,7 @@ public class PathSliceTest {
     public void aResourceSliceIsNotMemoryMapped(@TempDir final Path tempDir) throws IOException {
         final var file = writeTestFile(tempDir);
         final var vfs = vfs();
-        final var slice = new PathSlice(file, vfs, /* checkAccess = */ false, /* memoryMapWholeFile = */ false,
-                /* log = */ null);
+        final var slice = PathSlice.forDirEntry(file, vfs);
         try {
             assertThat(slice.read().isDirect()).isFalse();
             assertThat(slice.load()).isEqualTo(CONTENT);

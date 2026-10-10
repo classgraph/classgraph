@@ -43,13 +43,17 @@ import io.github.classgraph.base.LogNode;
 import io.github.classgraph.vfs.Vfs;
 import io.github.classgraph.vfs.internal.InputStreamUtils;
 import io.github.classgraph.vfs.internal.TempFile;
-import io.github.classgraph.vfs.internal.recycler.RecycledInflaterInputStream;
 import io.github.classgraph.vfs.reader.RandomAccessReader;
 import org.jspecify.annotations.Nullable;
 
 /**
  * A slice of a file ({@link PathSlice}) or of a byte array ({@link ArraySlice}). The content of an
  * {@link InputStream} is read into one or the other by {@link #fromInputStream}.
+ *
+ * <p>
+ * A slice is a range of bytes, and gives the same bytes whichever way it is read. It does not decode what it holds:
+ * the slice of a deflated zip entry holds the entry's compressed bytes, and the entry is inflated by
+ * {@code FastZipEntry}.
  *
  * <p>
  * A {@link Slice} may be shared between threads -- a zipfile's slice is read concurrently by all the threads
@@ -82,16 +86,6 @@ public abstract class Slice implements AutoCloseable {
     /** The length of the slice. Never negative -- the constructor rejects a negative length. */
     public final long sliceLength;
 
-    /**
-     * If true, the slice is a deflated zip entry, and needs to be inflated to access the content.
-     */
-    public final boolean isDeflatedZipEntry;
-
-    /**
-     * If the slice is a deflated zip entry, this is the expected uncompressed length, or -1L if unknown.
-     */
-    public final long inflatedLengthHint;
-
     /** The cached hashCode. */
     private int hashCode;
 
@@ -104,22 +98,14 @@ public abstract class Slice implements AutoCloseable {
      *            the offset of the sub-slice within the parent slice
      * @param length
      *            the length of the sub-slice
-     * @param isDeflatedZipEntry
-     *            true if this is a deflated zip entry
-     * @param inflatedLengthHint
-     *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 if this is not a deflated
-     *            zip entry.
      * @param vfs
      *            the {@link Vfs} that opened this slice
      */
-    protected Slice(final @Nullable Slice parentSlice, final long offset, final long length,
-            final boolean isDeflatedZipEntry, final long inflatedLengthHint, final Vfs vfs) {
+    protected Slice(final @Nullable Slice parentSlice, final long offset, final long length, final Vfs vfs) {
         this.parentSlice = parentSlice;
         final var parentSliceStartPos = parentSlice == null ? 0L : parentSlice.sliceStartPos;
         this.sliceStartPos = parentSliceStartPos + offset;
         this.sliceLength = length;
-        this.isDeflatedZipEntry = isDeflatedZipEntry;
-        this.inflatedLengthHint = inflatedLengthHint;
         this.vfs = vfs;
 
         if (offset < 0L || sliceStartPos < 0L) {
@@ -143,17 +129,11 @@ public abstract class Slice implements AutoCloseable {
      *
      * @param length
      *            the length
-     * @param isDeflatedZipEntry
-     *            true if this is a deflated zip entry
-     * @param inflatedLengthHint
-     *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 if this is not a deflated
-     *            zip entry.
      * @param vfs
      *            the {@link Vfs} that opened this slice
      */
-    protected Slice(final long length, final boolean isDeflatedZipEntry, final long inflatedLengthHint,
-            final Vfs vfs) {
-        this(/* parentSlice = */ null, 0L, length, isDeflatedZipEntry, inflatedLengthHint, vfs);
+    protected Slice(final long length, final Vfs vfs) {
+        this(/* parentSlice = */ null, 0L, length, vfs);
     }
 
     // ---------------------------------------------------------------------------------------------------------
@@ -194,8 +174,7 @@ public abstract class Slice implements AutoCloseable {
         // array, unless it turns out to be longer than maxBufferedJarRAMSize after all
         final var prefix = readUpTo(inputStream, inputStreamLengthHint, maxBufferedJarRAMSize);
         if (prefix.overflowByte() < 0) {
-            return new ArraySlice(prefix.bytes(), /* isDeflatedZipEntry = */ false, /* inflatedLengthHint = */ 0L,
-                    vfs);
+            return new ArraySlice(prefix.bytes(), vfs);
         }
         // The buffer is not allowed to grow any further, so the rest of the stream goes to disk, after what has
         // already been read from it
@@ -372,21 +351,16 @@ public abstract class Slice implements AutoCloseable {
      *            The offset to start slicing from, relative to this parent slice's start position.
      * @param length
      *            The length of the slice.
-     * @param isDeflatedZipEntry
-     *            true if this is a deflated zip entry
-     * @param inflatedLengthHint
-     *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 if this is not a deflated
-     *            zip entry.
      * @return The child slice.
      */
-    public abstract Slice slice(long offset, long length, boolean isDeflatedZipEntry, long inflatedLengthHint);
+    public abstract Slice slice(long offset, long length);
 
     /**
      * Open this {@link Slice} as an {@link InputStream}.
      *
      * @return the input stream
      * @throws IOException
-     *             if an inflater cannot be created for this {@link Slice}.
+     *             if this slice has been closed.
      */
     public InputStream open() throws IOException {
         return open(null);
@@ -400,29 +374,17 @@ public abstract class Slice implements AutoCloseable {
      *            none.
      * @return the input stream
      * @throws IOException
-     *             if an inflater cannot be created for this {@link Slice}.
+     *             if this slice has been closed, in which case resourceToClose is closed too.
      */
     public InputStream open(final @Nullable AutoCloseable resourceToClose) throws IOException {
-        InputStream rawInputStream = null;
         try {
-            rawInputStream = new SliceInputStream(this, resourceToClose);
-            if (!isDeflatedZipEntry) {
-                return rawInputStream;
-            }
-            if (vfs.isClosed()) {
-                throw new IOException("Cannot read from a jarfile after the Vfs backing it has been closed. "
-                        + "This happens if the object that owns the jarfile was closed (e.g. by leaving the "
-                        + "try-with-resources block it was opened in) before the entry was read or the class was "
-                        + "loaded");
-            }
-            return new RecycledInflaterInputStream(rawInputStream, vfs.inflaterRecycler());
+            return new SliceInputStream(this, resourceToClose);
         } catch (final IOException | RuntimeException | Error e) {
-            // The caller never sees a stream if this throws, so whatever was opened has to be closed here, and with
-            // it resourceToClose, which the caller has already handed over
-            final AutoCloseable toClose = rawInputStream == null ? resourceToClose : rawInputStream;
-            if (toClose != null) {
+            // The caller never sees a stream if this throws, so resourceToClose, which the caller has already
+            // handed over, has to be closed here
+            if (resourceToClose != null) {
                 try {
-                    toClose.close();
+                    resourceToClose.close();
                 } catch (final Exception e2) {
                     e.addSuppressed(e2);
                 }
@@ -467,8 +429,8 @@ public abstract class Slice implements AutoCloseable {
     public abstract byte[] load() throws IOException;
 
     /**
-     * Read an {@link InputStream} to its end, into a byte array, for a {@link #load()} implementation that has no
-     * faster way to reach the content of its slice than to stream it.
+     * Read an {@link InputStream} to its end, into a byte array, for content that can only be reached by streaming
+     * it, such as a deflated zip entry, which has to be inflated.
      *
      * @param inputStream
      *            The {@link InputStream}. Closed by this method.
@@ -478,12 +440,12 @@ public abstract class Slice implements AutoCloseable {
      * @throws IOException
      *             If the contents could not be read.
      */
-    static byte[] readAllBytesAsArray(final InputStream inputStream, final long uncompressedLengthHint)
+    public static byte[] readAllBytesAsArray(final InputStream inputStream, final long uncompressedLengthHint)
             throws IOException {
-        if (uncompressedLengthHint > MAX_BUFFER_SIZE) {
-            throw new IOException("InputStream is too large to read");
-        }
         try (inputStream) {
+            if (uncompressedLengthHint > MAX_BUFFER_SIZE) {
+                throw new IOException("InputStream is too large to read");
+            }
             final var prefix = readUpTo(inputStream, uncompressedLengthHint, MAX_BUFFER_SIZE);
             if (prefix.overflowByte() >= 0) {
                 throw new IOException("InputStream too large to read into array");

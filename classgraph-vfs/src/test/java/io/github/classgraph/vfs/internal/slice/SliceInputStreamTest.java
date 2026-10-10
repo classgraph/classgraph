@@ -31,7 +31,7 @@ public class SliceInputStreamTest {
      */
     private static Slice slice() {
         final var vfs = new Vfs(new VfsSpec(), new InterruptionChecker());
-        return new ArraySlice(CONTENT, /* isDeflatedZipEntry = */ false, /* inflatedLengthHint = */ 0L, vfs);
+        return new ArraySlice(CONTENT, vfs);
     }
 
     /**
@@ -46,8 +46,7 @@ public class SliceInputStreamTest {
     @Test
     public void everyReadStopsOnceTheSessionIsClosed() throws IOException {
         final var vfs = new Vfs(new VfsSpec(), new InterruptionChecker());
-        final var slice = new ArraySlice(CONTENT, /* isDeflatedZipEntry = */ false, /* inflatedLengthHint = */ 0L,
-                vfs);
+        final var slice = new ArraySlice(CONTENT, vfs);
         try (var inputStream = slice.open()) {
             assertThat(inputStream.read()).isEqualTo(CONTENT[0] & 0xff);
             inputStream.mark(CONTENT.length);
@@ -211,7 +210,7 @@ public class SliceInputStreamTest {
      */
     @Test
     public void aStreamOverASubSliceReadsOnlyTheBytesOfTheSubSlice() throws IOException {
-        final var subSlice = slice().slice(4, 3, /* isDeflatedZipEntry = */ false, /* inflatedLengthHint = */ 0L);
+        final var subSlice = slice().slice(4, 3);
         try (var inputStream = subSlice.open()) {
             assertThat(inputStream.available()).isEqualTo(3);
             final var buf = new byte[CONTENT.length];

@@ -196,17 +196,11 @@ public final class PathSlice extends Slice {
      *            the offset of the sub-slice within the parent slice
      * @param length
      *            the length of the sub-slice
-     * @param isDeflatedZipEntry
-     *            true if this is a deflated zip entry
-     * @param inflatedLengthHint
-     *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 if this is not a deflated
-     *            zip entry.
      * @param vfs
      *            the {@link Vfs} that opened this slice
      */
-    private PathSlice(final PathSlice parentSlice, final long offset, final long length,
-            final boolean isDeflatedZipEntry, final long inflatedLengthHint, final Vfs vfs) {
-        super(parentSlice, offset, length, isDeflatedZipEntry, inflatedLengthHint, vfs);
+    private PathSlice(final PathSlice parentSlice, final long offset, final long length, final Vfs vfs) {
+        super(parentSlice, offset, length, vfs);
 
         this.path = parentSlice.path;
         this.file = parentSlice.file;
@@ -341,7 +335,7 @@ public final class PathSlice extends Slice {
     private PathSlice(final OpenedChannel openedChannel, final @Nullable Path path, final @Nullable File file,
             final String pathStr, final Vfs vfs, final boolean memoryMapWholeFile, final boolean isTempFile,
             final @Nullable LogNode log) {
-        super(openedChannel.fileLength(), /* isDeflatedZipEntry = */ false, /* inflatedLengthHint = */ 0L, vfs);
+        super(openedChannel.fileLength(), vfs);
 
         this.path = path;
         this.file = file;
@@ -384,27 +378,21 @@ public final class PathSlice extends Slice {
     }
 
     /**
-     * Constructor for toplevel file slice.
+     * Open a toplevel slice of a file in a directory, to read it once and then close it. The file is not checked
+     * before it is opened, since the caller has already found it, and it is not memory-mapped, since mapping and
+     * unmapping a file that is read once costs more than reading it.
      *
      * @param path
-     *            the path
+     *            the path of the file
      * @param vfs
      *            the {@link Vfs} that opened this slice
-     * @param checkAccess
-     *            if true, check that the path is a readable regular file before opening it
-     * @param memoryMapWholeFile
-     *            if true, and files are memory-mapped on this platform, memory-map the whole file. Only pass true
-     *            for a file that is read many times at random offsets, such as a zipfile -- for a file that is read
-     *            once and then closed, mapping and unmapping the file costs more than reading it.
-     * @param log
-     *            the log node, or null to skip logging
+     * @return the slice over the file, which the caller owns and must close.
      * @throws IOException
      *             if the file cannot be opened.
      */
-    public PathSlice(final Path path, final Vfs vfs, final boolean checkAccess, final boolean memoryMapWholeFile,
-            final @Nullable LogNode log) throws IOException {
-        this(path, /* file = */ null, path.toString(), vfs, checkAccess, memoryMapWholeFile,
-                /* isTempFile = */ false, log);
+    public static PathSlice forDirEntry(final Path path, final Vfs vfs) throws IOException {
+        return new PathSlice(path, /* file = */ null, path.toString(), vfs, /* checkAccess = */ false,
+                /* memoryMapWholeFile = */ false, /* isTempFile = */ false, /* log = */ null);
     }
 
     /**
@@ -476,7 +464,8 @@ public final class PathSlice extends Slice {
      *             if the file cannot be opened.
      */
     public PathSlice(final Path path, final Vfs vfs, final @Nullable LogNode log) throws IOException {
-        this(path, vfs, /* checkAccess = */ true, /* memoryMapWholeFile = */ true, log);
+        this(path, /* file = */ null, path.toString(), vfs, /* checkAccess = */ true,
+                /* memoryMapWholeFile = */ true, /* isTempFile = */ false, log);
     }
 
     /**
@@ -486,20 +475,11 @@ public final class PathSlice extends Slice {
      *            the offset of the sub-slice within the parent slice
      * @param length
      *            the length of the sub-slice
-     * @param isDeflatedZipEntry
-     *            true if this is a deflated zip entry
-     * @param inflatedLengthHint
-     *            the uncompressed size of a deflated zip entry, or -1 if unknown, or 0 if this is not a deflated
-     *            zip entry.
      * @return the slice
      */
     @Override
-    public Slice slice(final long offset, final long length, final boolean isDeflatedZipEntry,
-            final long inflatedLengthHint) {
-        if (this.isDeflatedZipEntry) {
-            throw new IllegalArgumentException("Cannot slice a deflated zip entry");
-        }
-        return new PathSlice(this, offset, length, isDeflatedZipEntry, inflatedLengthHint, vfs);
+    public Slice slice(final long offset, final long length) {
+        return new PathSlice(this, offset, length, vfs);
     }
 
     /**
@@ -543,27 +523,17 @@ public final class PathSlice extends Slice {
      */
     @Override
     public byte[] load() throws IOException {
-        if (isDeflatedZipEntry) {
-            // Inflate into RAM if deflated
-            if (inflatedLengthHint > Slice.MAX_BUFFER_SIZE) {
-                throw new IOException("Uncompressed size is larger than 2GB");
-            }
-            try (var inputStream = open()) {
-                return Slice.readAllBytesAsArray(inputStream, inflatedLengthHint);
-            }
-        } else {
-            // Copy from either the memory mapping or the FileChannel to a byte array
-            if (sliceLength > Slice.MAX_BUFFER_SIZE) {
-                throw new IOException("File is larger than 2GB");
-            }
-            final var reader = randomAccessReader();
-            final var content = new byte[(int) sliceLength];
-            if (reader.read(0, content, 0, content.length) < content.length) {
-                // Should not happen
-                throw new IOException("File is truncated");
-            }
-            return content;
+        // Copy from either the memory mapping or the FileChannel to a byte array
+        if (sliceLength > Slice.MAX_BUFFER_SIZE) {
+            throw new IOException("File is larger than 2GB");
         }
+        final var reader = randomAccessReader();
+        final var content = new byte[(int) sliceLength];
+        if (reader.read(0, content, 0, content.length) < content.length) {
+            // Should not happen
+            throw new IOException("File is truncated");
+        }
+        return content;
     }
 
     @Override
@@ -582,8 +552,8 @@ public final class PathSlice extends Slice {
     }
 
     /**
-     * Read the slice into a {@link ByteBuffer}. If the file is memory-mapped and the slice is not deflated, the
-     * buffer is a read-only view of the mapping, and nothing is copied.
+     * Read the slice into a {@link ByteBuffer}. If the file is memory-mapped, the buffer is a read-only view of the
+     * mapping, and nothing is copied.
      *
      * @return the byte buffer
      * @throws IOException
@@ -594,9 +564,8 @@ public final class PathSlice extends Slice {
         // Read the field into a local, so that a close running concurrently cannot null it between the check and
         // the use
         final var mappedByteBuffer = topLevelPathSlice.backingByteBuffer;
-        if (isDeflatedZipEntry || mappedByteBuffer == null) {
-            // Inflate the entry into a byte array if it is deflated (there is no ByteBuffer that inflates its
-            // content on demand), or else copy it from the FileChannel into one, and wrap the array
+        if (mappedByteBuffer == null) {
+            // Copy the slice from the FileChannel into a byte array, and wrap the array
             return super.read();
         } else {
             // PathSlice is backed with the memory mapping of the whole file, which covers the whole file even for a

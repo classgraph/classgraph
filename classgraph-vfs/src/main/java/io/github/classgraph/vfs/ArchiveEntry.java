@@ -126,7 +126,7 @@ final class ArchiveEntry extends VfsEntry {
     @Override
     InputStream openUnchecked() throws IOException {
         getRoot().checkNotClosed(getPath());
-        return zipEntry.getSlice().open();
+        return zipEntry.open();
     }
 
     @Override
@@ -138,11 +138,10 @@ final class ArchiveEntry extends VfsEntry {
         // wrapper
         // #939
         final var root = getRoot();
-        final var slice = zipEntry.getSlice();
-        final var releaseMappingView = slice.acquireMappingView();
+        final var releaseMappingView = zipEntry.getRawSlice().acquireMappingView();
         final CloseableByteBuffer buffer;
         try {
-            buffer = new CloseableByteBuffer(slice.read(), releaseMappingView, root);
+            buffer = new CloseableByteBuffer(zipEntry.read(), releaseMappingView, root);
         } catch (final IOException | RuntimeException | Error e) {
             // The caller never sees the buffer if this throws, so nothing else would release the view
             releaseMappingView.run();
@@ -160,8 +159,7 @@ final class ArchiveEntry extends VfsEntry {
     @Override
     RandomAccessContent openRandomAccess() throws IOException {
         getRoot().checkNotClosed(getPath());
-        final var slice = zipEntry.getSlice();
-        if (slice.isDeflatedZipEntry) {
+        if (zipEntry.isDeflated) {
             // The content has to be inflated from the beginning to reach any given offset, so it is inflated only
             // as far as the furthest offset that is read, and what has been inflated so far is buffered
             final var reader = new RandomAccessOrSequentialReader(this);
@@ -170,6 +168,7 @@ final class ArchiveEntry extends VfsEntry {
         // The slice of a zip entry owns no resources of its own, but if the zipfile is memory-mapped, the reader
         // reads that mapping, so the mapping has to be held open until the caller has finished with the reader
         // #939
+        final var slice = zipEntry.getRawSlice();
         final var releaseMappingView = slice.acquireMappingView();
         try {
             return new RandomAccessContent(slice.randomAccessReader(), releaseMappingView);
@@ -183,6 +182,6 @@ final class ArchiveEntry extends VfsEntry {
     @Override
     public byte[] load() throws IOException {
         getRoot().checkNotClosed(getPath());
-        return zipEntry.getSlice().load();
+        return zipEntry.load();
     }
 }
