@@ -315,9 +315,9 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
      *
      * <p>
      * This orders the entries of a single zipfile, which is the only way entries are ever sorted. It ignores which
-     * zipfile an entry belongs to, whereas {@link #equals(Object)} does not, so a sorted set or map must not be
-     * given the entries of more than one zipfile: identically named entries of two zipfiles compare equal, and the
-     * second of them would be dropped as a duplicate.
+     * zipfile an entry belongs to, so a sorted set or map must not be given the entries of more than one zipfile:
+     * identically named entries of two zipfiles compare equal, and the second of them would be dropped as a
+     * duplicate. The ordering is not consistent with equals, which is object identity.
      *
      * @param o
      *            the object to compare to
@@ -340,22 +340,6 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
         // Of two entries with the same name, the later one in the zipfile sorts first, so that it masks the earlier
         // one: JarFile, and so a classloader, finds the last of them
         return Long.compare(o.locHeaderPos, locHeaderPos);
-    }
-
-    @Override
-    public int hashCode() {
-        return parentLogicalZipFile.hashCode() ^ version ^ entryName.hashCode() ^ (int) locHeaderPos;
-    }
-
-    @Override
-    public boolean equals(final @Nullable Object obj) {
-        if (this == obj) {
-            return true;
-        }
-        if (!(obj instanceof final FastZipEntry other)) {
-            return false;
-        }
-        return this.parentLogicalZipFile.equals(other.parentLogicalZipFile) && this.compareTo(other) == 0;
     }
 
     @Override
