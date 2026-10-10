@@ -68,6 +68,38 @@ public class ClassRefTypeSignatureTest {
         assertThat(sig).hasToString("p.A$$B");
     }
 
+    /** A class name that ends in '$' can be followed by type arguments, as in {@code Box$<String>}. */
+    @Test
+    public void typeArgumentsCanFollowATrailingDollarSign() throws TypeSignatureParseException {
+        final var sig = parse("Lp1/Box$<Ljava/lang/String;>;");
+        assertThat(sig.getBaseClassName()).isEqualTo("p1.Box$");
+        assertThat(sig.getTypeArguments()).extracting(Object::toString).containsExactly("java.lang.String");
+        assertThat(sig.getSuffixes()).isEmpty();
+        assertThat(sig).hasToString("p1.Box$<java.lang.String>");
+
+        final var nested = parse("Lp1/Outer$Box$<Ljava/lang/Integer;>;");
+        assertThat(nested.getBaseClassName()).isEqualTo("p1.Outer");
+        assertThat(nested.getTypeArguments()).isEmpty();
+        assertThat(nested.getSuffixes()).containsExactly("Box$");
+        assertThat(nested.getSuffixTypeArguments()).hasSize(1);
+        assertThat(nested.getSuffixTypeArguments().get(0)).extracting(Object::toString)
+                .containsExactly("java.lang.Integer");
+        assertThat(nested).hasToString("p1.Outer$Box$<java.lang.Integer>");
+
+        final var doubleDollar = parse("Lp1/Box$$<Ljava/lang/String;>;");
+        assertThat(doubleDollar.getBaseClassName()).isEqualTo("p1.Box$$");
+        assertThat(doubleDollar.getTypeArguments()).extracting(Object::toString)
+                .containsExactly("java.lang.String");
+    }
+
+    /** A name cannot have two lists of type arguments, one before and one after a trailing '$'. */
+    @Test
+    public void typeArgumentsBeforeAndAfterATrailingDollarSignAreAParseError() {
+        assertThatExceptionOfType(TypeSignatureParseException.class).isThrownBy(() -> parse("Lp1/Box<TT;>$<TU;>;"));
+        assertThatExceptionOfType(TypeSignatureParseException.class)
+                .isThrownBy(() -> parse("Lp1/Outer$Box<TT;>$<TU;>;"));
+    }
+
     /** A '.' must be followed by the name of a nested class. */
     @Test
     public void aDotWithoutANameIsAParseError() {
