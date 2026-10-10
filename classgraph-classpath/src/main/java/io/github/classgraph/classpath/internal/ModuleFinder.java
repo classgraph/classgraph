@@ -52,10 +52,10 @@ public class ModuleFinder {
             .<ModuleReference, String> comparing(moduleReference -> moduleReference.descriptor().name())
             .thenComparing(moduleReference -> moduleReference.location().map(URI::toString).orElse(""));
 
-    /** The system modules. */
+    /** The system modules, whether or not they are going to be scanned. */
     private final List<ModuleReference> systemModuleReferences;
 
-    /** The non-system modules. */
+    /** The non-system modules, whether or not they are going to be scanned. */
     private final List<ModuleReference> nonSystemModuleReferences;
 
     // -------------------------------------------------------------------------------------------------------------
@@ -63,16 +63,17 @@ public class ModuleFinder {
     /**
      * Get the system modules. All visible system modules are listed, whether or not they are going to be scanned.
      *
-     * @return The system modules, or an empty list if none were found.
+     * @return The system modules, as an unmodifiable list, or an empty list if none were found.
      */
     public List<ModuleReference> getSystemModuleReferences() {
         return systemModuleReferences;
     }
 
     /**
-     * Get the non-system modules.
+     * Get the non-system modules. All visible non-system modules are listed, whether or not they are going to be
+     * scanned.
      *
-     * @return The non-system modules, or an empty list if none were found.
+     * @return The non-system modules, as an unmodifiable list, or an empty list if none were found.
      */
     public List<ModuleReference> getNonSystemModuleReferences() {
         return nonSystemModuleReferences;
@@ -265,19 +266,22 @@ public class ModuleFinder {
         final var allModuleReferences = findModuleReferences(layers, classpathSpec);
 
         // Split modules into system modules and non-system modules
-        systemModuleReferences = new ArrayList<>();
-        nonSystemModuleReferences = new ArrayList<>();
+        final List<ModuleReference> systemModules = new ArrayList<>();
+        final List<ModuleReference> nonSystemModules = new ArrayList<>();
         final var systemModuleFinder = java.lang.module.ModuleFinder.ofSystem();
         for (final ModuleReference moduleReference : allModuleReferences) {
+            // Both kinds of module are listed whether or not they are going to be scanned, since the classfile of a
+            // class in a module that is not being scanned may still be read, in order to complete the class graph
+            // above an accepted class (#902). Classpath and Scanner drop or skip the kinds that were not enabled.
             if (isSystemModule(moduleReference, systemModuleFinder)) {
-                // System modules are listed whether or not they are going to be scanned, since the classfile of
-                // a class in a system module that is not being scanned may still be read, in order to complete
-                // the class graph above an accepted class (#902)
-                systemModuleReferences.add(moduleReference);
-            } else if (scanNonSystemModules) {
-                nonSystemModuleReferences.add(moduleReference);
+                systemModules.add(moduleReference);
+            } else {
+                nonSystemModules.add(moduleReference);
             }
         }
+        systemModuleReferences = List.copyOf(systemModules);
+        nonSystemModuleReferences = List.copyOf(nonSystemModules);
+
         // Log any identified modules
         if (log != null) {
             if (scanSystemModules) {

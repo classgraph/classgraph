@@ -73,6 +73,10 @@ public class ClasspathSpec {
      * If true, scan the non-system modules found in the module layers that are searched.
      *
      * <p>
+     * {@link ModuleFinder} lists the non-system modules of the module layers it searches whether or not this is
+     * true, for the same reason as it lists the system modules whether or not {@link #scanSystemModules} is true.
+     *
+     * <p>
      * There are no corresponding settings for jarfiles and directories: the classpath finder always reports every
      * classpath element it finds, and it is the scanner that decides whether to open a given element. The module
      * path is different, because it has to be enumerated through a separate API, which can be skipped entirely.
