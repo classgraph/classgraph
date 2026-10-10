@@ -1446,10 +1446,10 @@ public class VfsTest {
     }
 
     /**
-     * A root of a closed {@link Vfs} hands out nothing that still reads from storage. Its container root is built
-     * on demand, so it would otherwise manufacture a fresh working view of the whole jarfile after the storage
-     * behind it was released, and its manifest is cached the first time it is read, so it would keep answering out
-     * of a cache warmed while the {@link Vfs} was open.
+     * A root of a closed {@link Vfs} reports itself as closed, even from a method that could answer without reading
+     * storage. Its container root is set when it is opened, so it would otherwise hand back the root of the whole
+     * jarfile, which was closed along with the {@link Vfs}, and its manifest is cached the first time it is read,
+     * so it would keep answering out of a cache warmed while the {@link Vfs} was open.
      *
      * @param tempDir
      *            a temporary directory to write the jarfile into.
@@ -1463,7 +1463,7 @@ public class VfsTest {
 
         final var vfs = new Vfs();
         final var root = vfs.open(jarFile.getPath() + "!/BOOT-INF/classes");
-        // Warm both caches while the Vfs is still open
+        // Both answer while the Vfs is still open, and the manifest is cached from then on
         assertThat(root.getContainerRoot().getPackageRoot()).isEmpty();
         assertThat(root.getManifest()).containsEntry("Automatic-Module-Name", "com.xyz.widget");
 

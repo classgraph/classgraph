@@ -17,7 +17,7 @@ import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
 
-/** The public API of the package names only types that a caller outside the package can use. */
+/** The public API of the package: which types it names, and how those types are declared. */
 public class PublicApiTypesTest {
     /**
      * Returns whether code outside the package can name a type.
@@ -93,5 +93,28 @@ public class PublicApiTypesTest {
             }
         }
         assertThat(violations).isEmpty();
+    }
+
+    /**
+     * {@link VfsRoot} and {@link VfsEntry} are both sealed, each over the three kinds of root or entry a
+     * {@link Vfs} opens, so the API itself states that a root or entry is always one of those three.
+     */
+    @Test
+    public void vfsRootAndVfsEntryAreSealedOverTheirThreeKinds() {
+        assertThat(VfsRoot.class.isSealed()).as("VfsRoot is sealed").isTrue();
+        assertThat(VfsRoot.class.getPermittedSubclasses()).containsExactlyInAnyOrder(ArchiveRoot.class,
+                DirRoot.class, ModuleRoot.class);
+        assertThat(VfsEntry.class.isSealed()).as("VfsEntry is sealed").isTrue();
+        assertThat(VfsEntry.class.getPermittedSubclasses()).containsExactlyInAnyOrder(ArchiveEntry.class,
+                DirEntry.class, ModuleEntry.class);
+    }
+
+    /**
+     * The container root of a jarfile's root is the root of the whole jarfile, so {@link ArchiveRoot} declares it
+     * as an {@link ArchiveRoot}, and a caller needs no cast to use it as one.
+     */
+    @Test
+    public void anArchiveRootDeclaresItsContainerRootAsAnArchiveRoot() throws NoSuchMethodException {
+        assertThat(ArchiveRoot.class.getMethod("getContainerRoot").getReturnType()).isEqualTo(ArchiveRoot.class);
     }
 }
