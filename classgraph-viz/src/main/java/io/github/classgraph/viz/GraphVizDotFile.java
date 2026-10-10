@@ -52,6 +52,7 @@ import io.github.classgraph.ClassRefTypeSignature;
 import io.github.classgraph.FieldInfo;
 import io.github.classgraph.MethodInfo;
 import io.github.classgraph.MethodParameterInfo;
+import io.github.classgraph.MethodTypeSignature;
 import io.github.classgraph.ReferenceTypeSignature;
 import io.github.classgraph.ScanResult;
 import io.github.classgraph.TypeArgument;
@@ -417,9 +418,17 @@ public final class GraphVizDotFile {
 
             // Field type -- without any field annotation that the compiler also recorded as a type annotation, which
             // is either shown above or hidden with the other field annotations
-            appendSpaceIfNeeded(buf);
-            final var typeSig = fi.getTypeSignatureOrTypeDescriptor();
-            htmlEncode(typeSig.toString(options.useSimpleNames, fieldAnnotations), buf);
+            TypeSignature typeSig = null;
+            try {
+                typeSig = fi.getTypeSignatureOrTypeDescriptor();
+            } catch (final IllegalArgumentException e) {
+                // Only a classfile that the JVM rejects has a type descriptor that does not parse. A field with no
+                // type signature then has no type to show
+            }
+            if (typeSig != null) {
+                appendSpaceIfNeeded(buf);
+                htmlEncode(typeSig.toString(options.useSimpleNames, fieldAnnotations), buf);
+            }
             buf.append("</td>");
 
             // Field name
@@ -451,7 +460,7 @@ public final class GraphVizDotFile {
             if (mi.isSynthetic() || mi.isBridge() || "<clinit>".equals(name)
                     || "hashCode".equals(name) && numParam == 0 || "toString".equals(name) && numParam == 0
                     || "equals".equals(name) && numParam == 1
-                            && "boolean (java.lang.Object)".equals(mi.getTypeDescriptor().toString())) {
+                            && "(Ljava/lang/Object;)Z".equals(mi.getTypeDescriptorString())) {
                 methodInfoSorted.remove(i);
             }
         }
@@ -621,9 +630,17 @@ public final class GraphVizDotFile {
                 buf.append(mi.getModifiersString());
             }
 
+            MethodTypeSignature methodType = null;
+            try {
+                methodType = mi.getTypeSignatureOrTypeDescriptor();
+            } catch (final IllegalArgumentException e) {
+                // Only a classfile that the JVM rejects has a type descriptor that does not parse. A method with no
+                // type signature then has no type parameters or return type to show
+            }
+
             // Method type parameters -- a constructor can have them too
-            final var methodType = mi.getTypeSignatureOrTypeDescriptor();
-            final var typeParameters = methodType.getTypeParameters();
+            final List<TypeParameter> typeParameters = methodType == null ? List.of()
+                    : methodType.getTypeParameters();
             if (!typeParameters.isEmpty()) {
                 final var typeParametersStr = new StringBuilder("<");
                 for (var i = 0; i < typeParameters.size(); i++) {
@@ -640,11 +657,12 @@ public final class GraphVizDotFile {
             }
 
             // Method return type -- constructors have none
-            appendSpaceIfNeeded(buf);
             if (isConstructor) {
+                appendSpaceIfNeeded(buf);
                 buf.append("<b>&lt;constructor&gt;</b>");
-            } else {
+            } else if (methodType != null) {
                 // Without the method annotations, as for a field type
+                appendSpaceIfNeeded(buf);
                 final var resultTypeSig = methodType.getResultType();
                 htmlEncode(resultTypeSig.toString(options.useSimpleNames, methodAnnotations), buf);
             }

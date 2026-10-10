@@ -868,6 +868,30 @@ public class GraphVizDotFileTest {
         }
     }
 
+    /** A class that overrides {@link Object#equals(Object)} with a type annotation on the parameter type. */
+    public static class AnnotatedEquals {
+        @Override
+        public boolean equals(final @Element Object obj) {
+            return obj == this;
+        }
+
+        @Override
+        public int hashCode() {
+            return 0;
+        }
+    }
+
+    /** The {@code equals} method of a class is left out of its node even if its parameter type is annotated. */
+    @Test
+    public void equalsWithAnAnnotatedParameterTypeIsLeftOut() {
+        try (var equalsScanResult = new ClassGraph().enableClasspath()
+                .acceptClasses(AnnotatedEquals.class.getName()).enableClassInfo().enableMethodInfo()
+                .enableAnnotationInfo().scan()) {
+            assertThat(node(graph(equalsScanResult, new GraphVizDotFileOptions()), AnnotatedEquals.class.getName()))
+                    .doesNotContain("<b>equals</b>");
+        }
+    }
+
     /** A class with generic methods, a generic constructor and variadic methods. */
     public static class GenericMethods {
         /**
@@ -964,7 +988,7 @@ public class GraphVizDotFileTest {
      * @throws IOException
      *             if the classfile could not be written.
      */
-    private static void writeUntypedParameterClassfile(final Path dir) throws IOException {
+    static void writeUntypedParameterClassfile(final Path dir) throws IOException {
         final var untyped = new ByteArrayOutputStream();
         try (var out = new DataOutputStream(untyped)) {
             out.writeInt(0xCAFEBABE);
@@ -1074,16 +1098,17 @@ public class GraphVizDotFileTest {
 
     /**
      * Write a class {@code Target} with no members, and an abstract class {@code BrokenTypeDescriptors} with the
-     * fields {@code typed} and {@code untyped} and the methods {@code typed()} and {@code untyped()}, all of which
-     * have a type descriptor that does not parse. Only the members named {@code typed} have a type signature, which
-     * names {@code Target}. The JVM rejects such a classfile, but ClassGraph can still scan it.
+     * fields {@code typed} and {@code untyped} and the methods {@code typed()}, {@code untyped()} and
+     * {@code equals(Object)}, all of which have a type descriptor that does not parse. Only the members named
+     * {@code typed} and the method {@code equals} have a type signature. The type signatures of the members named
+     * {@code typed} name {@code Target}. The JVM rejects such a classfile, but ClassGraph can still scan it.
      *
      * @param dir
      *            the directory to write the classfiles to.
      * @throws IOException
      *             if a classfile could not be written.
      */
-    private static void writeBrokenTypeDescriptorClassfiles(final Path dir) throws IOException {
+    static void writeBrokenTypeDescriptorClassfiles(final Path dir) throws IOException {
         final var target = new ByteArrayOutputStream();
         try (var out = new DataOutputStream(target)) {
             out.writeInt(0xCAFEBABE);
@@ -1117,7 +1142,7 @@ public class GraphVizDotFileTest {
             out.writeInt(0xCAFEBABE);
             out.writeShort(0); // Minor version
             out.writeShort(52); // Major version (Java 8)
-            out.writeShort(12); // Constant pool count (one greater than the number of entries)
+            out.writeShort(15); // Constant pool count (one greater than the number of entries)
             // #1
             out.writeByte(1);
             out.writeUTF("BrokenTypeDescriptors");
@@ -1151,6 +1176,15 @@ public class GraphVizDotFileTest {
             // #11
             out.writeByte(1);
             out.writeUTF("()LTarget;");
+            // #12
+            out.writeByte(1);
+            out.writeUTF("equals");
+            // #13
+            out.writeByte(1);
+            out.writeUTF("(Ljava/lang/Object)Z"); // A method type descriptor, without the ';' of its parameter type
+            // #14
+            out.writeByte(1);
+            out.writeUTF("(Ljava/lang/Object;)Z");
 
             out.writeShort(0x0421); // ACC_PUBLIC | ACC_SUPER | ACC_ABSTRACT
             out.writeShort(2); // this_class
@@ -1172,7 +1206,7 @@ public class GraphVizDotFileTest {
             out.writeShort(8);
             out.writeShort(0); // attributes_count
 
-            out.writeShort(2); // Number of methods
+            out.writeShort(3); // Number of methods
             // public abstract Target typed(), with a type signature
             out.writeShort(0x0401);
             out.writeShort(6);
@@ -1186,6 +1220,14 @@ public class GraphVizDotFileTest {
             out.writeShort(7);
             out.writeShort(10);
             out.writeShort(0); // attributes_count
+            // public abstract boolean equals(Object), with a type signature, which gives it one parameter
+            out.writeShort(0x0401);
+            out.writeShort(12);
+            out.writeShort(13);
+            out.writeShort(1); // attributes_count
+            out.writeShort(5); // "Signature"
+            out.writeInt(2);
+            out.writeShort(14);
 
             out.writeShort(0); // Number of attributes
         }
@@ -1212,11 +1254,38 @@ public class GraphVizDotFileTest {
             assertThatThrownBy(() -> brokenClass.getMethodInfo("typed").get(0).getTypeDescriptor())
                     .isInstanceOf(IllegalArgumentException.class);
 
-            // The member rows are hidden, since a row is drawn from the type descriptor of a member with no type
-            // signature
-            assertThat(graph(brokenScanResult, new GraphVizDotFileOptions().hideFields().hideMethods())).contains(
+            assertThat(graph(brokenScanResult, new GraphVizDotFileOptions())).contains(
                     "\"Target\" -> \"BrokenTypeDescriptors\"" + FIELD_TYPE_EDGE,
                     "\"Target\" -> \"BrokenTypeDescriptors\"" + METHOD_TYPE_EDGE);
+        }
+    }
+
+    /**
+     * A member whose type descriptor does not parse, and that has no type signature, is shown with its name but no
+     * type, and does not make the graph fail. A member with a type signature is shown with the type in its type
+     * signature.
+     *
+     * @param tempDir
+     *            the directory to write the classfiles to.
+     * @throws IOException
+     *             if a classfile could not be written.
+     */
+    @Test
+    public void membersWhoseTypeDoesNotParseAreShownWithoutAType(@TempDir final Path tempDir) throws IOException {
+        writeBrokenTypeDescriptorClassfiles(tempDir);
+        try (var brokenScanResult = new ClassGraph().enableClasspathEntries(tempDir).enableClassInfo()
+                .enableFieldInfo().enableMethodInfo().scan()) {
+            final var broken = node(graph(brokenScanResult, new GraphVizDotFileOptions()), "BrokenTypeDescriptors");
+            assertThat(broken).contains(
+                    "<td align='right' valign='top'>Target</td><td align='left' valign='top'><b>typed</b></td>",
+                    "<td align='right' valign='top'></td><td align='left' valign='top'><b>untyped</b></td>",
+                    "<td align='right' valign='top'>Target</td><td align='left' valign='top'><b>typed</b>&nbsp;</td>"
+                            + "<td align='left' valign='top'>()</td>",
+                    "<td align='right' valign='top'></td><td align='left' valign='top'><b>untyped</b>&nbsp;</td>"
+                            + "<td align='left' valign='top'>()</td>",
+                    // Not left out as a method of Object, since its type descriptor is not that of Object.equals
+                    "<td align='right' valign='top'>boolean</td><td align='left' valign='top'><b>equals</b>&nbsp;"
+                            + "</td><td align='left' valign='top'>(Object)</td>");
         }
     }
 
@@ -1546,7 +1615,7 @@ public class GraphVizDotFileTest {
      * @throws IOException
      *             if the classfile could not be written.
      */
-    private static void writeHostileClassfile(final Path dir) throws IOException {
+    static void writeHostileClassfile(final Path dir) throws IOException {
         final var hostile = new ByteArrayOutputStream();
         try (var out = new DataOutputStream(hostile)) {
             out.writeInt(0xCAFEBABE);
