@@ -151,12 +151,9 @@ public class RecycledInflaterInputStream extends InputStream {
      */
     private int readInflated(final byte[] outBuf, final int off, final int len) throws IOException {
         checkNotClosed();
-        if (len < 0) {
-            throw new IllegalArgumentException("len cannot be negative");
-        }
         // Check the destination range before anything is read, as InputStream#read(byte[], int, int) requires.
-        // (This also means a null outBuf is rejected here, so that the only thing that can throw
-        // NullPointerException below is the Inflater.)
+        // (This also means a negative len throws IndexOutOfBoundsException, and a null outBuf is rejected here, so
+        // that the only thing that can throw NullPointerException below is the Inflater.)
         Objects.checkFromIndexSize(off, len, outBuf.length);
         if (len == 0) {
             return 0;

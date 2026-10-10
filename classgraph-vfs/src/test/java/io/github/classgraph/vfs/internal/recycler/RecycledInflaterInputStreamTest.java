@@ -247,14 +247,19 @@ class RecycledInflaterInputStreamTest {
         }
     }
 
-    /** A negative length or skip distance is a programming error, not something to silently ignore. */
+    /**
+     * A negative length or skip distance is a programming error, not something to silently ignore. A negative read
+     * length throws IndexOutOfBoundsException, as InputStream#read(byte[], int, int) specifies and as a stored
+     * entry's stream and the JDK's inflater stream do; a negative skip distance throws IllegalArgumentException, as
+     * java.util.zip.InflaterInputStream#skip does.
+     */
     @Test
     void negativeLengthsAreRejected() throws IOException {
         try (var recycler = inflaterRecycler();
                 var inflaterInputStream = new RecycledInflaterInputStream(
                         new ByteArrayInputStream(deflate(rawBytes())), recycler)) {
             assertThatThrownBy(() -> inflaterInputStream.read(new byte[16], 0, -1))
-                    .isInstanceOf(IllegalArgumentException.class);
+                    .isInstanceOf(IndexOutOfBoundsException.class);
             assertThatThrownBy(() -> inflaterInputStream.skip(-1)).isInstanceOf(IllegalArgumentException.class);
             // Reading zero bytes reads zero bytes, rather than reporting the end of the stream
             assertThat(inflaterInputStream.read(new byte[16], 0, 0)).isZero();
