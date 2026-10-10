@@ -47,13 +47,14 @@ import org.jspecify.annotations.Nullable;
  * is not the byte order of the machine either.
  *
  * <p>
- * The buffer may be a memory mapping of a file that the {@code Vfs} releases when it is closed, which can happen
- * while this reader is being read from. Reading a released file fails with an {@link IOException}, the same
- * documented way as reading from a closed {@link java.nio.channels.FileChannel}, whichever way the JDK unmaps the
- * file: on JDK 22 and later the arena that mapped it is closed, and reading the buffer afterwards throws
+ * The buffer may be a view of storage that can be released while this reader is in use, such as a memory mapping of
+ * a file that is then released. Reading released storage fails with an {@link IOException}, the same documented way
+ * as reading from a closed {@link java.nio.channels.FileChannel}, whichever way the JDK releases it: on JDK 22 and
+ * later the storage belongs to an arena, and once the arena is closed, reading the buffer throws
  * {@link IllegalStateException}, which is translated here; below JDK 22 the address range is simply freed, and
- * reading the buffer afterwards would read memory that is no longer mapped, so this reader is given a check to ask
- * whether the file is still there before it reads.
+ * reading the buffer afterwards would read memory that is no longer mapped. So a check passed to
+ * {@link #RandomAccessByteBufferReader(ByteBuffer, long, long, ByteOrder, BooleanSupplier)} is asked before each
+ * read whether the storage has been released.
  */
 public final class RandomAccessByteBufferReader implements RandomAccessReader {
     /** The byte buffer. */
@@ -66,8 +67,8 @@ public final class RandomAccessByteBufferReader implements RandomAccessReader {
     private final int sliceLength;
 
     /**
-     * Whether the file this reader's buffer is a view of has been released, or null if the buffer is not a view of
-     * anything that can be released while this reader is alive.
+     * Whether the storage this reader's buffer is a view of has been released, or null if the buffer is not a view
+     * of anything that can be released while this reader is alive.
      */
     private final @Nullable BooleanSupplier isReleased;
 
@@ -86,27 +87,6 @@ public final class RandomAccessByteBufferReader implements RandomAccessReader {
     public RandomAccessByteBufferReader(final ByteBuffer byteBuffer, final long sliceStartPos,
             final long sliceLength) {
         this(byteBuffer, sliceStartPos, sliceLength, ByteOrder.LITTLE_ENDIAN, /* isReleased = */ null);
-    }
-
-    /**
-     * Constructor for slicing a byte buffer that is a view of a file that can be released, reading in little endian
-     * order, as the zipfile format requires.
-     *
-     * @param byteBuffer
-     *            the buffer to read. Its position, limit and byte order are ignored.
-     * @param sliceStartPos
-     *            the index within the buffer at which the content starts.
-     * @param sliceLength
-     *            the number of bytes of content.
-     * @param isReleased
-     *            whether the file the buffer is a view of has been released, or null if it cannot be released while
-     *            this reader is alive
-     * @throws IndexOutOfBoundsException
-     *             if the slice is not within the buffer's capacity.
-     */
-    public RandomAccessByteBufferReader(final ByteBuffer byteBuffer, final long sliceStartPos,
-            final long sliceLength, final @Nullable BooleanSupplier isReleased) {
-        this(byteBuffer, sliceStartPos, sliceLength, ByteOrder.LITTLE_ENDIAN, isReleased);
     }
 
     /**
@@ -130,7 +110,7 @@ public final class RandomAccessByteBufferReader implements RandomAccessReader {
     }
 
     /**
-     * Constructor for slicing a byte buffer that is a view of a file that can be released, reading in a given byte
+     * Constructor for slicing a byte buffer that is a view of storage that can be released, reading in a given byte
      * order.
      *
      * @param byteBuffer
@@ -143,8 +123,9 @@ public final class RandomAccessByteBufferReader implements RandomAccessReader {
      *            the byte order to read multi-byte values in. Pass {@link ByteOrder#nativeOrder()} for content
      *            written in the byte order of the machine this is running on.
      * @param isReleased
-     *            whether the file the buffer is a view of has been released, or null if it cannot be released while
-     *            this reader is alive
+     *            whether the storage the buffer is a view of has been released, which is asked before each read, so
+     *            that a read after the release throws {@link IOException}; or null if the storage cannot be
+     *            released while this reader is in use.
      * @throws IndexOutOfBoundsException
      *             if the slice is not within the buffer's capacity.
      */
@@ -160,8 +141,10 @@ public final class RandomAccessByteBufferReader implements RandomAccessReader {
         this.byteBuffer.order(byteOrder);
         this.sliceStartPos = (int) sliceStartPos;
         this.sliceLength = (int) sliceLength;
-        this.byteBuffer.position(this.sliceStartPos);
+        // The limit is set first, since the duplicate has the caller's limit, which may be below sliceStartPos, and
+        // a position past the limit is rejected. Setting the limit moves the position back to it if it was past it.
         this.byteBuffer.limit(this.sliceStartPos + this.sliceLength);
+        this.byteBuffer.position(this.sliceStartPos);
     }
 
     @Override
@@ -282,7 +265,9 @@ public final class RandomAccessByteBufferReader implements RandomAccessReader {
             // the caller asked for too much -- without the cause there is no record of which index was rejected
             throw new IOException("Read index out of bounds", e);
         } catch (final IllegalStateException e) {
-            throw unmapped(e);
+            // Either buffer can be a view of a closed arena, and the exception does not say which
+            throw new IOException("Cannot read a file that has been unmapped by closing what it was read through,"
+                    + " or write into a destination buffer whose memory has been freed", e);
         }
     }
 

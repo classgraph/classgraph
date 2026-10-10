@@ -33,6 +33,7 @@ import java.io.IOException;
 import java.io.InterruptedIOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.InvalidPathException;
@@ -510,7 +511,7 @@ public final class PathSlice extends Slice {
             // slice's closed flag to check before each read: reading a file that has been unmapped is not merely
             // wrong, it reads memory that is no longer there
             return new RandomAccessByteBufferReader(mappedByteBuffer, sliceStartPos, sliceLength,
-                    topLevelPathSlice.isClosed::get);
+                    ByteOrder.LITTLE_ENDIAN, topLevelPathSlice.isClosed::get);
         }
     }
 
