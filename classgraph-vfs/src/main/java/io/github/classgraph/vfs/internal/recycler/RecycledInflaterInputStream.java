@@ -58,6 +58,14 @@ public class RecycledInflaterInputStream extends InputStream {
     private final AtomicBoolean closed = new AtomicBoolean();
 
     /**
+     * Held while the inflater is in use, by every read method, and by {@link #close()} while it hands the inflater
+     * back to the recycler. A close from another thread therefore waits for a read in progress to return, rather
+     * than handing back an inflater that the read is still using, which the recycler could then give to another
+     * stream.
+     */
+    private final Object lock = new Object();
+
+    /**
      * True once the end of rawInputStream has been reached, and the dummy byte required by the "nowrap" option has
      * been handed to the inflater.
      */
@@ -107,20 +115,41 @@ public class RecycledInflaterInputStream extends InputStream {
 
     @Override
     public int read() throws IOException {
-        checkNotClosed();
-        if (inflater.finished()) {
-            return -1;
-        }
-        final var numInflatedBytesRead = read(singleByteBuf, 0, 1);
-        if (numInflatedBytesRead < 0) {
-            return -1;
-        } else {
-            return singleByteBuf[0] & 0xff;
+        synchronized (lock) {
+            checkNotClosed();
+            if (inflater.finished()) {
+                return -1;
+            }
+            final var numInflatedBytesRead = read(singleByteBuf, 0, 1);
+            if (numInflatedBytesRead < 0) {
+                return -1;
+            } else {
+                return singleByteBuf[0] & 0xff;
+            }
         }
     }
 
     @Override
     public int read(final byte[] outBuf, final int off, final int len) throws IOException {
+        synchronized (lock) {
+            return readInflated(outBuf, off, len);
+        }
+    }
+
+    /**
+     * Inflate up to {@code len} bytes into {@code outBuf}. The caller must hold {@link #lock}.
+     *
+     * @param outBuf
+     *            the destination buffer
+     * @param off
+     *            the offset in the destination buffer to start writing at
+     * @param len
+     *            the maximum number of bytes to inflate
+     * @return the number of bytes inflated, or -1 at the end of the stream
+     * @throws IOException
+     *             if this stream has been closed, or the deflated data could not be read or is invalid
+     */
+    private int readInflated(final byte[] outBuf, final int off, final int len) throws IOException {
         checkNotClosed();
         if (len < 0) {
             throw new IllegalArgumentException("len cannot be negative");
@@ -190,34 +219,38 @@ public class RecycledInflaterInputStream extends InputStream {
 
     @Override
     public long skip(final long numToSkip) throws IOException {
-        checkNotClosed();
-        if (numToSkip < 0) {
-            throw new IllegalArgumentException("numToSkip cannot be negative");
-        } else if (numToSkip == 0 || inflater.finished()) {
-            // (InputStream#skip returns 0 at the end of the stream, it does not return -1)
-            return 0;
-        }
-        // (Use a separate destination buffer -- buf is the inflater's input buffer, see above)
-        final var skipBuf = new byte[(int) Math.min(numToSkip, INFLATE_BUF_SIZE)];
-        var totBytesSkipped = 0L;
-        while (totBytesSkipped < numToSkip) {
-            final var readLen = (int) Math.min(numToSkip - totBytesSkipped, skipBuf.length);
-            final var numBytesRead = read(skipBuf, 0, readLen);
-            if (numBytesRead > 0) {
-                totBytesSkipped += numBytesRead;
-            } else {
-                break;
+        synchronized (lock) {
+            checkNotClosed();
+            if (numToSkip < 0) {
+                throw new IllegalArgumentException("numToSkip cannot be negative");
+            } else if (numToSkip == 0 || inflater.finished()) {
+                // (InputStream#skip returns 0 at the end of the stream, it does not return -1)
+                return 0;
             }
+            // (Use a separate destination buffer -- buf is the inflater's input buffer, see above)
+            final var skipBuf = new byte[(int) Math.min(numToSkip, INFLATE_BUF_SIZE)];
+            var totBytesSkipped = 0L;
+            while (totBytesSkipped < numToSkip) {
+                final var readLen = (int) Math.min(numToSkip - totBytesSkipped, skipBuf.length);
+                final var numBytesRead = readInflated(skipBuf, 0, readLen);
+                if (numBytesRead > 0) {
+                    totBytesSkipped += numBytesRead;
+                } else {
+                    break;
+                }
+            }
+            return totBytesSkipped;
         }
-        return totBytesSkipped;
     }
 
     @Override
     public int available() throws IOException {
-        checkNotClosed();
-        // How many inflated bytes can be read without blocking is not known, so return 1 until the end of the
-        // entry, and 0 afterwards, as InflaterInputStream does
-        return inflater.finished() ? 0 : 1;
+        synchronized (lock) {
+            checkNotClosed();
+            // How many inflated bytes can be read without blocking is not known, so return 1 until the end of the
+            // entry, and 0 afterwards, as InflaterInputStream does
+            return inflater.finished() ? 0 : 1;
+        }
     }
 
     /**
@@ -242,13 +275,19 @@ public class RecycledInflaterInputStream extends InputStream {
     @Override
     public void close() {
         if (!closed.getAndSet(true)) {
+            // The raw stream is closed before the lock is taken. A raw stream that throws once closed, as a
+            // SliceInputStream does, then stops a read in progress on another thread at its next read of the raw
+            // stream, rather than letting it go on to inflate everything it asked for while this close waits
             try {
                 rawInputStream.close();
             } catch (final Exception _) {
                 // Ignore
             }
-            // Reset and recycle inflater instance
-            inflaterRecycler.recycle(recyclableInflater);
+            // Reset and recycle the inflater only once no read is using it. A read that starts after this sees
+            // that the stream is closed, and does not touch the inflater
+            synchronized (lock) {
+                inflaterRecycler.recycle(recyclableInflater);
+            }
         }
     }
 }
