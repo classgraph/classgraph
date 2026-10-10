@@ -32,7 +32,13 @@ import java.io.IOError;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
+import java.util.IdentityHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.PriorityQueue;
+import java.util.Queue;
+import java.util.Set;
 
 import io.github.classgraph.base.ClassGraphLog;
 import io.github.classgraph.base.internal.reflection.ReflectionUtils;
@@ -225,14 +231,73 @@ class QuarkusClassLoaderHandler implements ClassLoaderHandler {
                 "resourceDirectoryMap") instanceof final Map<?, ?> resourceDirectoryMap)) {
             return;
         }
+        // Each value lists the jars that serve one resource directory, in classpath order, and the classloader
+        // loads a class from the first jar listed for its package that contains it. The map is a HashMap in Quarkus, and the full
+        // jar order is not kept, so iterating the map does not give the classpath order. Instead, merge the
+        // per-directory orders with a topological sort: a jar comes after every jar listed before it for some
+        // directory, and ties go to the jar seen first. This puts any two jars that serve the same directory, and
+        // so can hold the same class, in the order the classloader uses.
+        final Map<Object, Integer> jarIndex = new IdentityHashMap<>();
+        final List<Object> jars = new ArrayList<>();
+        final List<Set<Integer>> successors = new ArrayList<>();
         for (final Object value : resourceDirectoryMap.values()) {
             if (!(value instanceof final Object[] elementArray)) {
                 continue;
             }
+            int prevIndex = -1;
             for (final Object element : elementArray) {
-                if (element != null && classIsOrExtendsOrImplements(element.getClass(), JAR_RESOURCE)) {
-                    classpathOrder.addClasspathEntry(ReflectionUtils.getFieldVal(false, element, "jarPath"),
-                            classLoader, log);
+                if (element == null || !classIsOrExtendsOrImplements(element.getClass(), JAR_RESOURCE)) {
+                    continue;
+                }
+                Integer index = jarIndex.get(element);
+                if (index == null) {
+                    index = jars.size();
+                    jarIndex.put(element, index);
+                    jars.add(element);
+                    successors.add(new HashSet<>());
+                }
+                if (prevIndex >= 0 && prevIndex != index) {
+                    successors.get(prevIndex).add(index);
+                }
+                prevIndex = index;
+            }
+        }
+        final int[] inDegree = new int[jars.size()];
+        for (final Set<Integer> jarSuccessors : successors) {
+            for (final int successor : jarSuccessors) {
+                inDegree[successor]++;
+            }
+        }
+        final Queue<Integer> ready = new PriorityQueue<>();
+        for (int i = 0; i < inDegree.length; i++) {
+            if (inDegree[i] == 0) {
+                ready.add(i);
+            }
+        }
+        final boolean[] added = new boolean[jars.size()];
+        int firstNotAdded = 0;
+        while (true) {
+            Integer next = ready.poll();
+            if (next == null) {
+                // Either every jar has been added, or the remaining jars are ordered in a cycle, which Quarkus
+                // does not produce. Break a cycle at the jar seen first, rather than leaving its jars out.
+                while (firstNotAdded < added.length && added[firstNotAdded]) {
+                    firstNotAdded++;
+                }
+                if (firstNotAdded == added.length) {
+                    break;
+                }
+                next = firstNotAdded;
+            }
+            if (added[next]) {
+                continue;
+            }
+            added[next] = true;
+            classpathOrder.addClasspathEntry(ReflectionUtils.getFieldVal(false, jars.get(next), "jarPath"),
+                    classLoader, log);
+            for (final int successor : successors.get(next)) {
+                if (--inDegree[successor] == 0) {
+                    ready.add(successor);
                 }
             }
         }

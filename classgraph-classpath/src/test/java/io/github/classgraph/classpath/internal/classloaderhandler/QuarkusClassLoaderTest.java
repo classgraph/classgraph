@@ -197,6 +197,55 @@ public class QuarkusClassLoaderTest {
     }
 
     /**
+     * A fast jar's classloader lists, for each resource directory, the jars that serve it in classpath order, and
+     * loads a class from the first of them. It keeps these lists in a map whose iteration order has nothing to do
+     * with the classpath order, so a jar seen first while iterating the map is not necessarily earlier on the
+     * classpath. Two jars that serve the same directory must be on the classpath in the order that directory lists
+     * them, or the scan would report a class from a different jar than the one the application loads it from.
+     *
+     * @param tempDir
+     *            a temporary directory to create the application in.
+     * @throws IOException
+     *             if the application could not be created.
+     */
+    @Test
+    public void theJarOrderOfEachResourceDirectoryIsKept(@TempDir final Path tempDir) throws IOException {
+        final var aJar = Files.createFile(tempDir.resolve("a.jar"));
+        final var bJar = Files.createFile(tempDir.resolve("b.jar"));
+        final var cJar = Files.createFile(tempDir.resolve("c.jar"));
+        final var a = new JarResource(aJar);
+        final var b = new JarResource(bJar);
+        final var c = new JarResource(cJar);
+        final var classLoader = new RunnerClassLoader().serving("META-INF/resources", c).serving("org/acme", a, b)
+                .serving("org/acme/util", b, c);
+        assertThat(locations(classLoader)).containsExactly(location(aJar), location(bJar), location(cJar));
+    }
+
+    /**
+     * If the resource directories of a fast jar list their jars in conflicting orders, which Quarkus does not do,
+     * every jar is still on the classpath.
+     *
+     * @param tempDir
+     *            a temporary directory to create the application in.
+     * @throws IOException
+     *             if the application could not be created.
+     */
+    @Test
+    public void everyJarIsOnTheClasspathEvenIfResourceDirectoriesDisagreeOnTheirOrder(@TempDir final Path tempDir)
+            throws IOException {
+        final var aJar = Files.createFile(tempDir.resolve("a.jar"));
+        final var bJar = Files.createFile(tempDir.resolve("b.jar"));
+        final var cJar = Files.createFile(tempDir.resolve("c.jar"));
+        final var a = new JarResource(aJar);
+        final var b = new JarResource(bJar);
+        final var c = new JarResource(cJar);
+        final var classLoader = new RunnerClassLoader().serving("org/acme", a, b).serving("org/acme/util", b, a)
+                .serving("org/other", c);
+        assertThat(locations(classLoader)).containsExactlyInAnyOrder(location(aJar), location(bJar),
+                location(cJar));
+    }
+
+    /**
      * A subclass of a fast jar's resource is read the same way as the resource it extends.
      *
      * @param tempDir
