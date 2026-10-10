@@ -116,8 +116,8 @@ final class JarURLDownloader {
      *            the log node, or null to skip logging
      * @return the jar, as a {@link PhysicalZipFile}.
      * @throws IOException
-     *             If the jar could not be read, the jar URL is malformed, a redirect could not be followed, or the
-     *             temporary file could not be created or written.
+     *             If the jar could not be read, the jar URL is malformed, the URL's scheme has been denied, a
+     *             redirect could not be followed, or the temporary file could not be created or written.
      */
     // new URL(String) is deprecated from JDK 20, but it accepts URLs that new URI(String) rejects (such as one
     // containing a space), so it is still tried first
@@ -138,7 +138,14 @@ final class JarURLDownloader {
             }
         }
 
+        // JarOpener has already checked the text before the first ':', but that need not be the scheme the URL
+        // uses: new URL(String) skips a leading "url:" in any case, so "url:mailto:x@y" is a "mailto:" URL. Check
+        // the scheme that is actually opened, before anything is opened through it.
         final var scheme = url.getProtocol();
+        final var lowercaseScheme = scheme.toLowerCase(Locale.ROOT);
+        if (vfs.getVfsSpec().getDeniedURLSchemes().contains(lowercaseScheme)) {
+            throw new IOException("Fetching a jarfile over \"" + lowercaseScheme + ":\" is not allowed: " + jarURL);
+        }
         if (!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme)) {
             // Check if this URL is backed by a filesystem -- if it is, don't download a copy of the file over the
             // URL; instead, access the filesystem directly

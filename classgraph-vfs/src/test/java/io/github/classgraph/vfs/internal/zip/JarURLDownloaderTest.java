@@ -370,6 +370,23 @@ public class JarURLDownloaderTest {
     }
 
     /**
+     * A denied scheme is refused however the URL is spelled. {@code new URL(String)} skips a leading
+     * {@code "url:"}, in any case, before it reads the scheme, so the scheme that is checked has to be the one the
+     * parsed URL uses, not the text before the first colon.
+     */
+    @Test
+    public void aDeniedSchemeIsRefusedBehindAUrlPrefix() {
+        try (var jrtDeniedVfs = new Vfs(new VfsSpec().denyURLScheme("jrt"))) {
+            for (final var url : new String[] { "jrt:/java.base/java/lang/Object.class",
+                    "url:jrt:/java.base/java/lang/Object.class", "URL:jrt:/java.base/java/lang/Object.class",
+                    "jar:url:jrt:/java.base/java/lang/Object.class" }) {
+                assertThatThrownBy(() -> jrtDeniedVfs.open(url)).as(url).isInstanceOf(IOException.class)
+                        .hasMessageContaining("Fetching a jarfile over \"jrt:\" is not allowed");
+            }
+        }
+    }
+
+    /**
      * A redirect to a URL that is not http or https is refused, so that a remote server cannot point the scan at a
      * local file.
      *
