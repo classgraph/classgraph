@@ -125,8 +125,6 @@ public class ClassLoaderFinder {
         // Find classloaders for classes on callstack, in case any were missed. The call stack is read innermost
         // frame first, so the immediate caller's classloader is preferred over the classloader of the code that
         // called it -- Class.forName(className) resolves against the classloader of its immediate caller.
-        // (CallStackInfo#read falls back to naming just its own classloader, rather than throwing, if the stack
-        // cannot be read.)
         classLoadersUnique.addAll(callStackInfo.getClassLoaders());
 
         // Order the classloaders so that a classloader is always ahead of its own ancestors, and otherwise keep the
