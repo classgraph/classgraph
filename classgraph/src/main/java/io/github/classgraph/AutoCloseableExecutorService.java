@@ -28,92 +28,39 @@
  */
 package io.github.classgraph;
 
-import java.util.concurrent.CancellationException;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
-import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
-import org.jspecify.annotations.Nullable;
-
-/** A ThreadPoolExecutor that can be used in a try-with-resources block. */
+/**
+ * A ThreadPoolExecutor that can be used in a try-with-resources block.
+ *
+ * <p>
+ * A task that fails is not reported here: the only tasks submitted to this executor are the workers of a
+ * {@link WorkQueue}, and {@link WorkQueue#close()} waits for each worker that started and records its failure or
+ * timeout in the interruption checker of the scan. That is also how a failure is reported when the caller supplies
+ * its own {@link java.util.concurrent.ExecutorService}.
+ */
 class AutoCloseableExecutorService extends ThreadPoolExecutor {
-    /** The {@link InterruptionChecker}. */
-    public final InterruptionChecker interruptionChecker = new InterruptionChecker();
-
-    /** The maximum number of nanoseconds to wait for a task to finish. */
-    private final long workerTimeoutNanos;
-
     /**
-     * How long {@link #close()} waits for the worker threads to terminate.
+     * How long {@link #close()} waits, after {@link #shutdown()}, for the tasks that are still running to finish,
+     * before {@link #shutdownNow()} interrupts them.
      *
      * <p>
-     * This is deliberately not {@link #workerTimeoutNanos}: the work queue already waited that long for its
-     * workers, and only got as far as closing the executor once they had all finished or the wait had timed out.
-     * This is just a grace period for the threads to unwind before they are interrupted.
+     * This is a grace period for the worker threads to unwind, not a worker timeout: by the time the executor is
+     * closed, {@link WorkQueue#close()} has already waited up to the scan's worker timeout for each of its workers.
      */
     private static final long TERMINATION_TIMEOUT_MILLIS = 2500;
-
-    /**
-     * A ThreadPoolExecutor that can be used in a try-with-resources block, using the default worker timeout.
-     *
-     * @param numThreads
-     *            The number of threads to allocate.
-     */
-    public AutoCloseableExecutorService(final int numThreads) {
-        this(numThreads, ClassGraph.DEFAULT_WORKER_TIMEOUT.toNanos());
-    }
 
     /**
      * A ThreadPoolExecutor that can be used in a try-with-resources block.
      *
      * @param numThreads
      *            The number of threads to allocate.
-     * @param workerTimeoutNanos
-     *            The maximum number of nanoseconds to wait for a task to finish, or {@link Long#MAX_VALUE} to wait
-     *            indefinitely.
      */
-    public AutoCloseableExecutorService(final int numThreads, final long workerTimeoutNanos) {
+    public AutoCloseableExecutorService(final int numThreads) {
         super(numThreads, numThreads, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>(),
                 new SimpleThreadFactory("ClassGraph-worker-", true));
-        this.workerTimeoutNanos = workerTimeoutNanos;
-    }
-
-    /**
-     * Catch exceptions from both submit() and execute(), and record them in the {@link InterruptionChecker}, so
-     * that the other threads stop at their next {@link InterruptionChecker#check()}, which throws the recorded
-     * exception.
-     *
-     * @param runnable
-     *            the Runnable
-     * @param throwable
-     *            the Throwable, or null if the task completed normally or was run by submit()
-     */
-    @Override
-    protected void afterExecute(final Runnable runnable, final @Nullable Throwable throwable) {
-        super.afterExecute(runnable, throwable);
-        if (throwable != null) {
-            // execute() was called and an uncaught exception or error was thrown. Wrap the throwable in an
-            // ExecutionException (execute() does not do this)
-            interruptionChecker.setExecutionException(new ExecutionException("Uncaught exception", throwable));
-        } else if (/* throwable == null && */ runnable instanceof final Future<?> future) {
-            // submit() was called, so throwable is not set
-            try {
-                // This call will not block, since execution has finished. The timeout is applied anyway, so that
-                // a task that has somehow not finished cannot hang the worker thread that ran it.
-                future.get(workerTimeoutNanos, TimeUnit.NANOSECONDS);
-            } catch (CancellationException | InterruptedException | TimeoutException _) {
-                // If this thread was cancelled, interrupted or timed out, interrupt other threads
-                interruptionChecker.interrupt();
-            } catch (final ExecutionException e) {
-                // Record the exception that was thrown by the thread. A failure is not an interruption, so the
-                // other threads are not interrupted: the thread that reads the result would be left interrupted
-                interruptionChecker.setExecutionException(e);
-            }
-        }
     }
 
     /** Shut down thread pool on close(). */
@@ -126,10 +73,15 @@ class AutoCloseableExecutorService extends ThreadPoolExecutor {
             // Await termination of any running tasks
             terminated = awaitTermination(TERMINATION_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
         } catch (final InterruptedException _) {
-            interruptionChecker.interrupt();
+            // Restore the interrupt status that throwing InterruptedException cleared, so that the caller still
+            // sees the interruption. terminated is still false, so the tasks that are still running are
+            // interrupted below. Nothing is recorded in the scan's interruption checker: the scan has already
+            // ended, and the ScanResult it returned keeps that checker, so marking it would make closing the
+            // ScanResult interrupt whichever thread closes it
+            Thread.currentThread().interrupt();
         }
         if (!terminated) {
-            // Interrupt all the threads to terminate them, if awaitTermination() timed out
+            // Interrupt all the threads to terminate them, if awaitTermination() timed out or was interrupted
             shutdownNow();
         }
     }

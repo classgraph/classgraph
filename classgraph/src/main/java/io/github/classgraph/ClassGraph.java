@@ -1686,7 +1686,7 @@ public final class ClassGraph {
      */
     public ScanResult scan(final int numThreads) {
         checkNumParallelTasks(numThreads);
-        try (var executorService = new AutoCloseableExecutorService(numThreads, scanSpec.getWorkerTimeoutNanos())) {
+        try (var executorService = new AutoCloseableExecutorService(numThreads)) {
             return scan(executorService, numThreads);
         }
     }
@@ -1739,8 +1739,8 @@ public final class ClassGraph {
      *             if a config option was enabled without the config option that reads it.
      */
     public List<File> getClasspathFiles() {
-        try (var executorService = new AutoCloseableExecutorService(DEFAULT_NUM_WORKER_THREADS,
-                scanSpec.getWorkerTimeoutNanos()); var scanResult = getClasspathScanResult(executorService)) {
+        try (var executorService = new AutoCloseableExecutorService(DEFAULT_NUM_WORKER_THREADS);
+                var scanResult = getClasspathScanResult(executorService)) {
             return scanResult.getClasspathFiles();
         }
     }
@@ -1779,8 +1779,8 @@ public final class ClassGraph {
      *             if a config option was enabled without the config option that reads it.
      */
     public List<URI> getClasspathURIs() {
-        try (var executorService = new AutoCloseableExecutorService(DEFAULT_NUM_WORKER_THREADS,
-                scanSpec.getWorkerTimeoutNanos()); var scanResult = getClasspathScanResult(executorService)) {
+        try (var executorService = new AutoCloseableExecutorService(DEFAULT_NUM_WORKER_THREADS);
+                var scanResult = getClasspathScanResult(executorService)) {
             return scanResult.getClasspathURIs();
         }
     }
@@ -1798,8 +1798,8 @@ public final class ClassGraph {
      *             if a config option was enabled without the config option that reads it.
      */
     public List<URL> getClasspathURLs() {
-        try (var executorService = new AutoCloseableExecutorService(DEFAULT_NUM_WORKER_THREADS,
-                scanSpec.getWorkerTimeoutNanos()); var scanResult = getClasspathScanResult(executorService)) {
+        try (var executorService = new AutoCloseableExecutorService(DEFAULT_NUM_WORKER_THREADS);
+                var scanResult = getClasspathScanResult(executorService)) {
             return scanResult.getClasspathURLs();
         }
     }
@@ -1817,8 +1817,8 @@ public final class ClassGraph {
      *             if a config option was enabled without the config option that reads it.
      */
     public List<ModuleReference> getModuleReferences() {
-        try (var executorService = new AutoCloseableExecutorService(DEFAULT_NUM_WORKER_THREADS,
-                scanSpec.getWorkerTimeoutNanos()); var scanResult = getClasspathScanResult(executorService)) {
+        try (var executorService = new AutoCloseableExecutorService(DEFAULT_NUM_WORKER_THREADS);
+                var scanResult = getClasspathScanResult(executorService)) {
             return scanResult.getModuleReferences();
         }
     }

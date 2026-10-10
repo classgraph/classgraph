@@ -2,21 +2,19 @@ package io.github.classgraph;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
-import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 /** Tests for {@link AutoCloseableExecutorService}. */
 public class AutoCloseableExecutorServiceTest {
     /**
-     * Clear the interrupt status of the test thread, since checking the interruption checker after a task was
-     * interrupted interrupts the thread that checks it, and the test threads are reused.
+     * Clear the interrupt status of the test thread, which a test interrupts in order to close the executor service
+     * on an interrupted thread, since the test threads are reused.
      */
     @AfterEach
     public void clearInterruptStatus() {
@@ -50,97 +48,47 @@ public class AutoCloseableExecutorServiceTest {
     }
 
     /**
-     * An exception thrown by a submitted task is recorded, so that the thread that started the work sees it even
-     * though nothing calls get() on the task's future.
+     * Closing the executor service on an interrupted thread keeps that thread interrupted and interrupts the tasks
+     * that are still running, but does not mark the scan that ran on the executor service as interrupted.
+     * {@link ClassGraph#scan(int)} closes the executor service after the scan has returned its {@link ScanResult},
+     * so a caller that is interrupted just as the scan finishes closes the executor service on an interrupted
+     * thread. The scan result keeps the interruption checker of the scan, and closing the scan result interrupts
+     * the thread that closes it if that checker is marked as interrupted.
+     *
+     * @throws Exception
+     *             if the test thread was interrupted while waiting.
      */
     @Test
-    public void anExceptionThrownByASubmittedTaskIsRecorded() {
-        final var cause = new IllegalStateException("the reason");
-        final AutoCloseableExecutorService executorService;
-        try (var closeableExecutorService = new AutoCloseableExecutorService(1)) {
-            executorService = closeableExecutorService;
-            executorService.submit(() -> {
-                throw cause;
-            });
-        }
-        // The executor service is closed, so every task has finished
-        assertThat(executorService.interruptionChecker.getExecutionException()).isNotNull();
-        assertThat(InterruptionChecker.getCause(executorService.interruptionChecker.getExecutionException()))
-                .isSameAs(cause);
-        // A failure is not an interruption: the recorded exception is enough to stop the other threads, since
-        // check() throws it
-        assertThat(executorService.interruptionChecker.checkAndReturn()).isFalse();
-    }
-
-    /**
-     * An exception thrown by an executed task is recorded too, even though execute() reports it in a different way
-     * from submit().
-     */
-    @Test
-    public void anExceptionThrownByAnExecutedTaskIsRecorded() {
-        final var cause = new IllegalStateException("the reason");
-        final AutoCloseableExecutorService executorService;
-        try (var closeableExecutorService = new AutoCloseableExecutorService(1)) {
-            executorService = closeableExecutorService;
-            executorService.execute(() -> {
-                throw cause;
-            });
-        }
-        final var executionException = executorService.interruptionChecker.getExecutionException();
-        assertThat(executionException).isNotNull().hasMessage("Uncaught exception");
-        assertThat(InterruptionChecker.getCause(executionException)).isSameAs(cause);
-        assertThat(executorService.interruptionChecker.checkAndReturn()).isFalse();
-    }
-
-    /** A cancelled task interrupts the other threads, so that the whole scan stops rather than hanging. */
-    @Test
-    public void aCancelledTaskInterruptsTheOtherThreads() throws InterruptedException {
+    public void closingOnAnInterruptedThreadDoesNotMarkTheScanAsInterrupted() throws Exception {
         final var taskStarted = new CountDownLatch(1);
-        final var releaseTask = new CountDownLatch(1);
-        final AutoCloseableExecutorService executorService;
-        try (var closeableExecutorService = new AutoCloseableExecutorService(1)) {
-            executorService = closeableExecutorService;
-            final var future = executorService.submit(() -> {
+        final var taskWasInterrupted = new CountDownLatch(1);
+        final ScanResult scanResult;
+        try (var executorService = new AutoCloseableExecutorService(2)) {
+            scanResult = new ClassGraph().enableClasspath().acceptPackages("io.github.classgraph.issues.issue933")
+                    .scan(executorService, 2);
+            // A task that is still running when the executor service is closed, so that close() has to wait for it
+            executorService.submit(() -> {
                 taskStarted.countDown();
                 try {
-                    releaseTask.await();
+                    new CountDownLatch(1).await();
                 } catch (final InterruptedException _) {
-                    Thread.currentThread().interrupt();
+                    taskWasInterrupted.countDown();
                 }
             });
             assertThat(taskStarted.await(10, TimeUnit.SECONDS)).isTrue();
-            future.cancel(/* mayInterruptIfRunning = */ true);
+            Thread.currentThread().interrupt();
         }
-        // The task was cancelled rather than throwing, so there is nothing to report but the interruption
-        assertThat(executorService.interruptionChecker.checkAndReturn()).isTrue();
-        assertThat(executorService.interruptionChecker.getExecutionException()).isNull();
-    }
+        // Thread.interrupted() both reports and clears the status
+        assertThat(Thread.interrupted()).isTrue();
+        assertThat(taskWasInterrupted.await(10, TimeUnit.SECONDS)).isTrue();
 
-    /**
-     * A task that was interrupted was cancelled, not broken, so it is reported as an interruption rather than as an
-     * exception, however it ended. A scan worker throws {@link InterruptedException} when the scan is cancelled,
-     * and recording that as the scan's failure would report a cancelled scan as a failed one.
-     */
-    @Test
-    public void anInterruptedTaskIsReportedAsAnInterruption() {
-        final AutoCloseableExecutorService executorService;
-        try (var closeableExecutorService = new AutoCloseableExecutorService(1)) {
-            executorService = closeableExecutorService;
-            executorService.submit((Callable<Void>) () -> {
-                throw new InterruptedException();
-            });
-        }
-        // The executor service is closed, so every task has finished
-        assertThat(executorService.interruptionChecker.getExecutionException()).isNull();
-        assertThat(executorService.interruptionChecker.checkAndReturn()).isTrue();
-    }
-
-    /** Every executor service has its own interruption checker, so that one failed scan cannot stop another. */
-    @Test
-    public void eachExecutorServiceHasItsOwnInterruptionChecker() {
-        try (var first = new AutoCloseableExecutorService(1); var second = new AutoCloseableExecutorService(1)) {
-            first.interruptionChecker.setExecutionException(new ExecutionException(new IllegalStateException()));
-            assertThat(second.interruptionChecker.getExecutionException()).isNull();
-        }
+        final var closingThreadWasInterrupted = new AtomicBoolean();
+        final var closingThread = new Thread(() -> {
+            scanResult.close();
+            closingThreadWasInterrupted.set(Thread.currentThread().isInterrupted());
+        });
+        closingThread.start();
+        closingThread.join();
+        assertThat(closingThreadWasInterrupted).isFalse();
     }
 }
