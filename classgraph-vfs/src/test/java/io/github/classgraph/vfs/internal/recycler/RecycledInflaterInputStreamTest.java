@@ -36,6 +36,11 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.List;
+import java.util.Random;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.zip.Deflater;
 
 import org.junit.jupiter.api.Test;
@@ -273,6 +278,88 @@ class RecycledInflaterInputStreamTest {
             assertThatThrownBy(() -> inflaterInputStream.read(new byte[16], 0, 16)).isInstanceOf(IOException.class);
             assertThatThrownBy(() -> inflaterInputStream.skip(1)).isInstanceOf(IOException.class);
             assertThatThrownBy(inflaterInputStream::available).isInstanceOf(IOException.class);
+        }
+    }
+
+    /**
+     * Closing a stream from another thread while a read is in progress must not hand the
+     * {@link java.util.zip.Inflater} back to the recycler until that read has returned. Otherwise the next stream
+     * to acquire an inflater gets the one the read is still using, and the two streams corrupt each other's output.
+     */
+    @Test
+    @Timeout(value = 60, threadMode = ThreadMode.SEPARATE_THREAD)
+    void closingWhileAReadIsInFlightWaitsForTheReadBeforeRecycling() throws Exception {
+        // Random bytes do not compress, so the deflated stream is longer than one staging buffer, and inflating
+        // the first read's worth needs a second read of the raw stream
+        final var rawBytes = new byte[65536];
+        new Random(1).nextBytes(rawBytes);
+        final var deflatedBytes = deflate(rawBytes);
+
+        final var enteredSecondRawRead = new CountDownLatch(1);
+        final var releaseSecondRawRead = new CountDownLatch(1);
+        final var rawInputStream = new ByteArrayInputStream(deflatedBytes) {
+            private int numReads;
+
+            @Override
+            public synchronized int read(final byte[] b, final int off, final int len) {
+                if (++numReads == 2) {
+                    enteredSecondRawRead.countDown();
+                    try {
+                        releaseSecondRawRead.await();
+                    } catch (final InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                }
+                return super.read(b, off, len);
+            }
+        };
+
+        final var createdInstances = new CopyOnWriteArrayList<RecyclableInflater>();
+        try (var recycler = new Recycler<RecyclableInflater, RuntimeException>() {
+            @Override
+            public RecyclableInflater newInstance() {
+                final var instance = new RecyclableInflater();
+                createdInstances.add(instance);
+                return instance;
+            }
+        }) {
+            final var inflaterInputStream = new RecycledInflaterInputStream(rawInputStream, recycler);
+            final var streamInflater = createdInstances.get(0);
+
+            final var readBuf = new byte[32768];
+            final AtomicReference<Object> readResult = new AtomicReference<>();
+            final var reader = new Thread(() -> {
+                try {
+                    readResult.set(inflaterInputStream.read(readBuf, 0, readBuf.length));
+                } catch (final IOException e) {
+                    readResult.set(e);
+                }
+            });
+            reader.start();
+            final var closer = new Thread(inflaterInputStream::close);
+            final RecyclableInflater acquiredDuringRead;
+            try {
+                enteredSecondRawRead.await();
+                closer.start();
+                closer.join(500);
+                acquiredDuringRead = recycler.acquire();
+                assertThat(acquiredDuringRead).as("the inflater of the read in progress is not handed out again")
+                        .isNotSameAs(streamInflater);
+                recycler.recycle(acquiredDuringRead);
+                assertThat(closer.isAlive()).as("close() waits for the read in progress").isTrue();
+            } finally {
+                // Let the read finish even if an assertion failed, so that no thread is left blocked
+                releaseSecondRawRead.countDown();
+            }
+            reader.join();
+            closer.join();
+            // Closing a ByteArrayInputStream does not stop it from being read, so the read in progress finishes,
+            // and its inflater was not reset under it, so what it read is correct
+            assertThat(readResult.get()).isEqualTo(readBuf.length);
+            assertThat(readBuf).isEqualTo(Arrays.copyOf(rawBytes, readBuf.length));
+            // Once the read has returned, close() hands the stream's inflater back to the recycler
+            assertThat(List.of(recycler.acquire(), recycler.acquire())).containsExactlyInAnyOrder(streamInflater,
+                    acquiredDuringRead);
         }
     }
 }
