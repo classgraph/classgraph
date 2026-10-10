@@ -2629,7 +2629,8 @@ class Classfile {
                 throw new ClassfileFormatException("Classfile does not have correct magic number");
             }
 
-            // Read classfile minor and major version
+            // Read classfile minor and major version. The version is deliberately not checked, so that classes
+            // compiled for a newer JDK than the one running the scan can still be scanned.
             minorVersion = reader().readUnsignedShort();
             majorVersion = reader().readUnsignedShort();
 
