@@ -309,11 +309,21 @@ public class ClasspathFinder {
                         // Record the package roots that this ClassLoaderHandler's classpath elements can have,
                         // so that only the package roots that are applicable to each classpath element are
                         // looked for and stripped when it is scanned (#929)
-                        classpathOrder
-                                .setPackageRootPrefixes(classLoaderHandlerRegistryEntry.getPackageRootPrefixes());
                         try {
+                            classpathOrder.setPackageRootPrefixes(
+                                    classLoaderHandlerRegistryEntry.getPackageRootPrefixes());
                             classLoaderHandlerRegistryEntry.findClasspathOrder(classLoader, classpathOrder,
                                     scanSpec, classloaderHandlerLog);
+                        } catch (final RuntimeException | LinkageError e) {
+                            // One failing handler, for example one that meets a container version whose
+                            // internals have changed, must not stop every other classloader from being read.
+                            // The classpath entries the handler added before it failed are kept.
+                            if (classloaderHandlerLog != null) {
+                                classloaderHandlerLog.log("ClassLoaderHandler "
+                                        + classLoaderHandlerRegistryEntry.getHandlerName()
+                                        + " failed on classloader " + classLoader.getClass().getName()
+                                        + ", so it is skipped", e);
+                            }
                         } finally {
                             classpathOrder.setPackageRootPrefixes(null);
                         }

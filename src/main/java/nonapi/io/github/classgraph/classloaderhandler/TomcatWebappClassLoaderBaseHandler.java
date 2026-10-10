@@ -70,8 +70,14 @@ class TomcatWebappClassLoaderBaseHandler implements ClassLoaderHandler {
      */
     private static boolean isParentFirst(final ClassLoader classLoader, final ReflectionUtils reflectionUtils) {
         final Object delegateObject = reflectionUtils.getFieldVal(false, classLoader, "delegate");
-        if (delegateObject != null) {
-            return (boolean) delegateObject;
+        if (delegateObject instanceof Boolean) {
+            return (Boolean) delegateObject;
+        }
+        // A subclass can declare a field of its own named "delegate" that hides Catalina's boolean field from the
+        // lookup by name, so ask Catalina's public getter instead
+        final Object getDelegateResult = reflectionUtils.invokeMethod(false, classLoader, "getDelegate");
+        if (getDelegateResult instanceof Boolean) {
+            return (Boolean) getDelegateResult;
         }
         // Assume parent-first delegation order
         return true;

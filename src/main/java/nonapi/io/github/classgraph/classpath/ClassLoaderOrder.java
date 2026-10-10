@@ -125,7 +125,7 @@ public class ClassLoaderOrder {
         final List<ClassLoaderHandlerRegistryEntry> ents = new ArrayList<>();
         boolean matched = false;
         for (final ClassLoaderHandlerRegistryEntry ent : ClassLoaderHandlerRegistry.CLASS_LOADER_HANDLERS) {
-            if (ent.canHandle(classLoader.getClass(), log)) {
+            if (canHandle(ent, classLoader.getClass(), log)) {
                 // This ClassLoaderHandler can handle the ClassLoader class, or one of its superclasses
                 ents.add(ent);
                 matched = true;
@@ -135,6 +135,31 @@ public class ClassLoaderOrder {
             ents.add(ClassLoaderHandlerRegistry.FALLBACK_HANDLER);
         }
         return ents;
+    }
+
+    /**
+     * Check whether a ClassLoaderHandler can handle a given {@link ClassLoader} class, treating a handler that
+     * throws as one that cannot, so that one failing handler does not stop every classloader from being read.
+     *
+     * @param ent
+     *            the registry entry of the handler.
+     * @param classLoaderClass
+     *            the {@link ClassLoader} class.
+     * @param log
+     *            the log.
+     * @return true if the handler can handle the class.
+     */
+    private static boolean canHandle(final ClassLoaderHandlerRegistryEntry ent, final Class<?> classLoaderClass,
+            final LogNode log) {
+        try {
+            return ent.canHandle(classLoaderClass, log);
+        } catch (final RuntimeException | LinkageError e) {
+            if (log != null) {
+                log.log("ClassLoaderHandler " + ent.getHandlerName() + " failed when asked whether it can handle "
+                        + classLoaderClass.getName() + ", so it is taken not to handle it", e);
+            }
+            return false;
+        }
     }
 
     /**
@@ -163,7 +188,8 @@ public class ClassLoaderOrder {
      * {@link #add(ClassLoader, LogNode)} either before or after it delegates to the classloader's parent,
      * according to whether the classloader resolves classes parent-first or parent-last. That is what puts the
      * classpath elements in the order that classes are resolved in, which is the order that class masking
-     * depends on.
+     * depends on. If a handler throws, it is skipped, and the classloader is placed after the classloaders the
+     * handler had already delegated to, unless it was already placed.
      *
      * @param classLoader
      *            the class loader
@@ -186,9 +212,25 @@ public class ClassLoaderOrder {
         if (delegatedTo.add(classLoader)) {
             // Recurse to get delegation order
             // (note: may be wrong if multiple ClassLoaderHandlers can handle this classloader)
+            boolean handlerFailed = false;
             for (final ClassLoaderHandlerRegistryEntry entry : getClassLoaderHandlerRegistryEntries(classLoader,
                     /* Don't log twice -- also logged by the add method */ null)) {
-                entry.findClassLoaderOrder(classLoader, this, log);
+                try {
+                    entry.findClassLoaderOrder(classLoader, this, log);
+                } catch (final RuntimeException | LinkageError e) {
+                    // One failing handler, for example one that meets a container version whose internals have
+                    // changed, must not stop every other classloader from being read
+                    if (log != null) {
+                        log.log("ClassLoaderHandler " + entry.getHandlerName() + " failed on classloader "
+                                + classLoader.getClass().getName() + ", so it is skipped", e);
+                    }
+                    handlerFailed = true;
+                }
+            }
+            if (handlerFailed) {
+                // A handler that failed before placing the classloader would leave its classpath unread, so place
+                // it after everything its handlers delegated to. This does nothing if a handler already placed it.
+                add(classLoader, log);
             }
         }
     }

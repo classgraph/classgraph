@@ -42,6 +42,16 @@ import nonapi.io.github.classgraph.utils.LogNode;
  * single instance is shared across all scans.
  *
  * <p>
+ * If a method of a handler throws a {@link RuntimeException} or a {@link LinkageError}, the exception is logged and
+ * the scan goes on without that handler's help for that classloader, so a handler that fails does not stop the
+ * other classloaders from being read. A handler whose {@link #canHandle(Class, LogNode)} throws is taken not to
+ * handle the class. If {@link #findClassLoaderOrder(ClassLoader, ClassLoaderOrder, LogNode)} throws, the
+ * classloader is placed after the classloaders the handler had already delegated to, unless it was already
+ * placed. If {@link #getPackageRootPrefixes()} or
+ * {@link #findClasspathOrder(ClassLoader, ClasspathOrder, ScanSpec, LogNode)} throws, the classpath entries the
+ * handler added for the classloader before the exception are kept.
+ *
+ * <p>
  * If you create a custom ClassLoaderHandler, please consider submitting it to the ClassGraph open source project.
  */
 interface ClassLoaderHandler {

@@ -365,6 +365,61 @@ public class TomcatWebappClassLoaderTest {
     }
 
     /**
+     * A subclass of the webapp classloader that declares a field of its own named {@code delegate}, which hides
+     * Catalina's {@code boolean delegate} field from a lookup by name.
+     */
+    private static class DelegatingWebappClassLoader extends WebappClassLoaderBase {
+        /**
+         * The classloader this classloader forwards some lookups to, which is not a {@link Boolean}. It is only
+         * read by reflection.
+         */
+        @SuppressWarnings("unused")
+        final ClassLoader delegate;
+
+        /**
+         * Constructor.
+         *
+         * @param resources
+         *            the {@code WebResourceRoot} of the webapp.
+         * @param parent
+         *            the parent classloader, which is also the classloader that lookups are forwarded to.
+         */
+        DelegatingWebappClassLoader(final Object resources, final ClassLoader parent) {
+            super(resources, parent);
+            this.delegate = parent;
+        }
+    }
+
+    /**
+     * When a subclass of the webapp classloader declares a {@code delegate} field that is not a {@link Boolean},
+     * the delegation order is read from Catalina's {@code getDelegate()} method instead.
+     *
+     * @param tempDir
+     *            a temporary directory to create the webapp in.
+     * @throws IOException
+     *             if the webapp could not be created.
+     */
+    @Test
+    public void aDelegateFieldThatIsNotABooleanIsReadThroughGetDelegate(@TempDir final Path tempDir)
+            throws IOException {
+        final Path sharedDir = Files.createDirectories(tempDir.resolve("shared"));
+        final Path webappDir = tempDir.resolve("webapp");
+        final Path classesDir = Files.createDirectories(webappDir.resolve("WEB-INF/classes"));
+        final StandardRoot root = new StandardRoot()
+                .addResourceSets(new DirResourceSet("/", webappDir.toString(), "/"));
+        try (URLClassLoader parent = new URLClassLoader(new URL[] { sharedDir.toUri().toURL() },
+                /* parent = */ null)) {
+            final DelegatingWebappClassLoader parentFirst = new DelegatingWebappClassLoader(root, parent);
+            ((WebappClassLoaderBase) parentFirst).delegate = true;
+            assertThat(locations(parentFirst)).containsExactly(location(sharedDir), location(classesDir));
+
+            final DelegatingWebappClassLoader parentLast = new DelegatingWebappClassLoader(root, parent);
+            ((WebappClassLoaderBase) parentLast).delegate = false;
+            assertThat(locations(parentLast)).containsExactly(location(classesDir), location(sharedDir));
+        }
+    }
+
+    /**
      * {@code WebappClassLoaderBase} extends {@link URLClassLoader}, so it can load from URLs that no
      * {@code WebResourceSet} of the webapp serves. Those URLs are on the classpath as well as the resource sets.
      *
