@@ -15,6 +15,7 @@ import java.lang.module.ModuleReader;
 import java.lang.module.ModuleReference;
 import java.lang.ref.WeakReference;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.FileChannel;
@@ -40,6 +41,7 @@ import java.nio.file.attribute.FileAttribute;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
@@ -55,8 +57,11 @@ import java.util.zip.CRC32;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+
+import io.github.classgraph.base.internal.path.FastPathResolver;
 
 /** Tests the read-only {@link FileSystem} view of a {@link VfsRoot}. */
 public class VfsFileSystemTest {
@@ -1704,6 +1709,43 @@ public class VfsFileSystemTest {
                     .isInstanceOf(IllegalArgumentException.class);
             assertThatThrownBy(() -> Files.readAttributes(path, "posix:permissions"))
                     .isInstanceOf(UnsupportedOperationException.class);
+        }
+    }
+
+    /**
+     * No attribute of a file hands out its entry, its root or the {@link Vfs} behind them. A filesystem created by
+     * the provider owns its {@link Vfs}, and the filesystem is the only reference the caller is given to it, so
+     * code that reads attributes, such as a file visitor that keeps {@link BasicFileAttributes#fileKey()} to detect
+     * cycles, must not be able to reach the {@link Vfs} and close it behind the filesystem's back.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the roots could not be read.
+     * @throws URISyntaxException
+     *             if the path of the jarfile could not be written as a URI.
+     */
+    @Test
+    public void noFileAttributeLeadsBackToTheVfs(@TempDir final Path tempDir)
+            throws IOException, URISyntaxException {
+        final var jarFile = tempDir.resolve("library.jar").toFile();
+        writeJar(jarFile);
+        final var jarUri = new URI(VfsFileSystemProvider.SCHEME,
+                FastPathResolver.normalizePath(jarFile.getPath(), /* percentDecode = */ false),
+                /* fragment = */ null);
+
+        final var provider = new VfsFileSystemProvider();
+        try (var vfs = new Vfs();
+                var ownedJar = provider.newFileSystem(jarUri, Map.of());
+                var ownedDir = provider.newFileSystem(tempDir, Map.of())) {
+            final var files = List.of(ownedJar.getPath("/root.txt"), ownedDir.getPath("/library.jar"),
+                    vfs.open(jarFile).asFileSystem().getPath("/com/xyz/Widget.class"));
+            for (final var file : files) {
+                final List<@Nullable Object> values = new ArrayList<>(Files.readAttributes(file, "*").values());
+                values.add(Files.readAttributes(file, BasicFileAttributes.class).fileKey());
+                assertThat(values).as("attributes of %s", file).filteredOn(Objects::nonNull).noneMatch(
+                        value -> value instanceof VfsEntry || value instanceof VfsRoot || value instanceof Vfs);
+            }
         }
     }
 

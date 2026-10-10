@@ -374,11 +374,11 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
         var registered = false;
         try {
             register(fileSystem, requestedPath);
-            // The root can be closed without closing this filesystem, since BasicFileAttributes#fileKey returns a
-            // VfsEntry, whose root and Vfs are public. That must not leave a dead filesystem registered, which
-            // getFileSystem would return, and which would make every newFileSystem at this path throw until the
-            // dead filesystem was closed. This removes only the registration: the filesystem's own close still
-            // closes the Vfs it owns
+            // No public method of the filesystem hands out its root or Vfs, but code that reaches them anyway, such
+            // as by reflection, can close them without closing this filesystem. That must not leave a dead
+            // filesystem registered, which getFileSystem would return, and which would make every newFileSystem at
+            // this path throw until the dead filesystem was closed. This removes only the registration: the
+            // filesystem's own close still closes the Vfs it owns
             root.addUnregistration(() -> unregister(fileSystem, requestedPath));
             registered = true;
             return fileSystem;
@@ -1081,7 +1081,10 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
 
         @Override
         public @Nullable Object fileKey() {
-            return entry;
+            // No key, as zipfs reports, and as a directory here already reports. The entry would hand out its root
+            // and the Vfs behind it, which a filesystem created by the provider owns and keeps from the caller. A
+            // key can be added later without breaking callers, since the contract already allows null.
+            return null;
         }
     }
 

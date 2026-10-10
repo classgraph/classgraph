@@ -22,7 +22,6 @@ import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.ProviderNotFoundException;
-import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.spi.FileSystemProvider;
 import java.util.List;
 import java.util.Map;
@@ -142,17 +141,16 @@ public class VfsFileSystemProviderUriTest {
     }
 
     /**
-     * The root of the filesystem of a file, reached the way code outside this package can reach it: the
-     * {@link BasicFileAttributes#fileKey()} of a file is its {@link VfsEntry}, whose root is public.
+     * The root of the filesystem of a file. No public method hands out the root of a filesystem that the provider
+     * created, so this reaches it through the package-private accessors, as code that reaches it by reflection
+     * would.
      *
      * @param file
      *            a file of a {@code "cgvfs:"} filesystem.
      * @return the root of that filesystem.
-     * @throws IOException
-     *             if the attributes of the file could not be read.
      */
-    private static VfsRoot rootOf(final Path file) throws IOException {
-        return ((VfsEntry) Files.readAttributes(file, BasicFileAttributes.class).fileKey()).getRoot();
+    private static VfsRoot rootOf(final Path file) {
+        return ((VfsPath) file).vfsFileSystem().getRoot();
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -341,10 +339,10 @@ public class VfsFileSystemProviderUriTest {
 
     /**
      * Closing the root of a filesystem created from a URI, or the {@link Vfs} behind it, from outside the
-     * filesystem -- both are reachable through {@link BasicFileAttributes#fileKey()} -- frees the name just as
-     * closing the filesystem does: the closed filesystem is no longer found by URI, and the path can be opened
-     * again. Closing the dead filesystem afterwards still closes the {@link Vfs} it owns, and leaves the new
-     * filesystem at that path registered.
+     * filesystem -- which no public method allows, but reflection does -- frees the name just as closing the
+     * filesystem does: the closed filesystem is no longer found by URI, and the path can be opened again. Closing
+     * the dead filesystem afterwards still closes the {@link Vfs} it owns, and leaves the new filesystem at that
+     * path registered.
      *
      * @param tempDir
      *            a temporary directory.
@@ -672,9 +670,8 @@ public class VfsFileSystemProviderUriTest {
 
     /**
      * A filesystem created by the provider, from a URI or from a {@link Path}, is the view that its root hands out,
-     * so code that reaches the root through {@link BasicFileAttributes#fileKey()} and asks it for its filesystem
-     * gets the filesystem the caller holds rather than a second view whose paths would not be equal to the
-     * caller's.
+     * so code that reaches the root from the filesystem and asks it for its filesystem gets the filesystem the
+     * caller holds rather than a second view whose paths would not be equal to the caller's.
      *
      * @param tempDir
      *            a temporary directory.
