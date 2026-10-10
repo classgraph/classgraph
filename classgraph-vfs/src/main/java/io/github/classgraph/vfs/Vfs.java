@@ -401,10 +401,12 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
 
     /**
      * Record a root that was just built within a container root -- a package root view of the container's jarfile,
-     * or the root of a jarfile nested within it -- as open. The child registered itself with the container when it
-     * was built, so that closing the container closes the child; if the container was closed while the child was
-     * being built, the registration may have come too late for the container's close to see, so the child is closed
-     * here instead, and the caller -- always a build running under
+     * or the root of a jarfile nested within it -- as open, and add it to the container's children, so that closing
+     * the container closes the child. The child joins the container's children only here, once it is fully built,
+     * so that a container closed by another thread while the child was being built cannot close a child whose
+     * fields are not yet set -- such a close would release nothing of what the child goes on to own. If the
+     * container was closed before the child was added, the container's close may not have seen it, so the child is
+     * closed here instead, and the caller -- always a build running under
      * {@link #openThroughCache(String, SingletonMap.NewInstanceFactory)} -- then sees a closed root, discards it,
      * and retries or turns its caller away. The closed root is returned rather than an exception being thrown, so
      * that the caller retries against the container's replacement and gets a live root back: a race with a close of
@@ -418,6 +420,9 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      */
     private ArchiveRoot adoptWithin(final ArchiveRoot container, final ArchiveRoot child) {
         adopt(child);
+        // Added before the closed check, the order VfsRoot.close reverses: it marks the container closed before it
+        // snapshots the children, so either the snapshot holds the child or the check below sees the close
+        container.addChild(child);
         if (container.isClosed()) {
             child.close();
         }
