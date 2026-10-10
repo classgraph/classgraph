@@ -3,6 +3,7 @@ package io.github.classgraph;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.assertj.core.api.Assertions.assertThatIOException;
+import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -10,11 +11,14 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.TreeMap;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 /**
  * {@link ResourceList} is the list of {@link Resource} objects returned by a scan, and provides the bulk content
@@ -85,7 +89,7 @@ public class ResourceListTest {
         }
     }
 
-    /** Each resource is passed to the consumer as a byte array, and closed afterwards. */
+    /** Each resource is passed to the consumer as a byte array, after it has been loaded and closed. */
     @Test
     public void everyResourceIsPassedToTheConsumerAsAByteArray() throws IOException {
         try (var scanResult = scanFixtureDir()) {
@@ -160,6 +164,111 @@ public class ResourceListTest {
                 visited.add(resource.getPath());
             })).isSameAs(resources);
             assertThat(visited).containsExactlyInAnyOrder("a.txt", "c.txt");
+        }
+    }
+
+    /** A call of one of the {@code forEach*} helpers on a {@link ResourceList}. */
+    @FunctionalInterface
+    private interface ForEachCall {
+        /**
+         * Run the helper on the list, with a consumer that does nothing.
+         *
+         * @param resources
+         *            the list to run the helper on.
+         * @throws IOException
+         *             if the helper throws it.
+         */
+        void run(ResourceList resources) throws IOException;
+    }
+
+    /** The {@code forEach*} helpers, each called with a consumer that does nothing. */
+    enum ForEachHelper {
+        /** {@link ResourceList#forEachByteArray(ResourceList.ByteArrayConsumer)}. */
+        BYTE_ARRAY(resources -> resources.forEachByteArray((resource, byteArray) -> {
+        })),
+        /** {@link ResourceList#forEachByteArrayIgnoringIOException(ResourceList.ByteArrayConsumer)}. */
+        BYTE_ARRAY_IGNORING_IO_EXCEPTION(
+                resources -> resources.forEachByteArrayIgnoringIOException((resource, byteArray) -> {
+                })),
+        /** {@link ResourceList#forEachInputStream(ResourceList.InputStreamConsumer)}. */
+        INPUT_STREAM(resources -> resources.forEachInputStream((resource, inputStream) -> {
+        })),
+        /** {@link ResourceList#forEachInputStreamIgnoringIOException(ResourceList.InputStreamConsumer)}. */
+        INPUT_STREAM_IGNORING_IO_EXCEPTION(
+                resources -> resources.forEachInputStreamIgnoringIOException((resource, inputStream) -> {
+                })),
+        /** {@link ResourceList#forEachByteBuffer(ResourceList.ByteBufferConsumer)}. */
+        BYTE_BUFFER(resources -> resources.forEachByteBuffer((resource, byteBuffer) -> {
+        })),
+        /** {@link ResourceList#forEachByteBufferIgnoringIOException(ResourceList.ByteBufferConsumer)}. */
+        BYTE_BUFFER_IGNORING_IO_EXCEPTION(
+                resources -> resources.forEachByteBufferIgnoringIOException((resource, byteBuffer) -> {
+                }));
+
+        /** The call of the helper. */
+        private final ForEachCall call;
+
+        /**
+         * Constructor.
+         *
+         * @param call
+         *            the call of the helper.
+         */
+        ForEachHelper(final ForEachCall call) {
+            this.call = call;
+        }
+    }
+
+    /**
+     * A helper that cannot open a resource because the caller already has it open as an {@link java.io.InputStream}
+     * throws, and leaves the caller's stream open.
+     *
+     * @param helper
+     *            the helper to run.
+     * @throws IOException
+     *             if the resource could not be opened or read.
+     */
+    @ParameterizedTest
+    @EnumSource(ForEachHelper.class)
+    public void aHelperDoesNotCloseAStreamTheCallerHasOpen(final ForEachHelper helper) throws IOException {
+        try (var scanResult = scanFixtureDir()) {
+            final var resource = scanResult.getAllResources().get("c.txt").get(0);
+            try (var heldStream = resource.open()) {
+                assertThatIllegalStateException()
+                        .isThrownBy(() -> helper.call.run(new ResourceList(List.of(resource))))
+                        .withMessageStartingWith("Resource is already open");
+                // The caller's stream is still open, and the resource still counts as open
+                assertThat(new String(heldStream.readAllBytes(), StandardCharsets.UTF_8))
+                        .isEqualTo(contentOf("c.txt"));
+                assertThatIllegalStateException().isThrownBy(resource::load);
+            }
+        }
+    }
+
+    /**
+     * A helper that cannot open a resource because the caller already has it open as a buffer throws, and leaves
+     * the caller's buffer open.
+     *
+     * @param helper
+     *            the helper to run.
+     * @throws IOException
+     *             if the resource could not be read.
+     */
+    @ParameterizedTest
+    @EnumSource(ForEachHelper.class)
+    public void aHelperDoesNotReleaseABufferTheCallerHasOpen(final ForEachHelper helper) throws IOException {
+        try (var scanResult = scanFixtureDir()) {
+            final var resource = scanResult.getAllResources().get("c.txt").get(0);
+            try (var heldBuffer = resource.read()) {
+                assertThatIllegalStateException()
+                        .isThrownBy(() -> helper.call.run(new ResourceList(List.of(resource))))
+                        .withMessageStartingWith("Resource is already open");
+                // The caller's buffer has not been released, and the resource still counts as open
+                final var byteBuffer = heldBuffer.getByteBuffer();
+                assertThat(byteBuffer).isNotNull();
+                assertThat(Objects.requireNonNull(byteBuffer).remaining()).isEqualTo(contentOf("c.txt").length());
+                assertThatIllegalStateException().isThrownBy(resource::load);
+            }
         }
     }
 
