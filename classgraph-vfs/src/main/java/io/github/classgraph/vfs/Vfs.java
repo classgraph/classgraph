@@ -49,6 +49,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.zip.Inflater;
 
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
@@ -59,7 +60,7 @@ import io.github.classgraph.base.internal.path.FastPathResolver;
 import io.github.classgraph.base.internal.path.FileUtils;
 import io.github.classgraph.base.internal.path.PathSyntax;
 import io.github.classgraph.base.internal.utils.Assert;
-import io.github.classgraph.vfs.internal.recycler.RecyclableInflater;
+import io.github.classgraph.vfs.internal.recycler.RecycledInflaterInputStream;
 import io.github.classgraph.vfs.internal.recycler.Recycler;
 import io.github.classgraph.vfs.internal.zip.JarOpener;
 import org.jspecify.annotations.Nullable;
@@ -130,12 +131,8 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      * rather than one per root, since an inflater is borrowed for the length of a single read and carries nothing
      * of the jarfile it was used on, so the roots pool them best between them. Force-closed by {@link #close()}.
      */
-    private final Recycler<RecyclableInflater, RuntimeException> inflaterRecycler = new Recycler<>() {
-        @Override
-        public RecyclableInflater newInstance() {
-            return new RecyclableInflater();
-        }
-    };
+    private final Recycler<Inflater, RuntimeException> inflaterRecycler = RecycledInflaterInputStream
+            .newInflaterRecycler();
 
     /**
      * The roots that have been opened from a path, keyed by every path that names each -- the path as it was
@@ -977,7 +974,7 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      * @return the inflater pool.
      * @hidden
      */
-    public Recycler<RecyclableInflater, RuntimeException> inflaterRecycler() {
+    public Recycler<Inflater, RuntimeException> inflaterRecycler() {
         return inflaterRecycler;
     }
 

@@ -73,7 +73,7 @@ public class RecycleOnClose<T, E extends Exception> implements AutoCloseable {
     }
 
     /**
-     * Recycle an instance. Calls {@link Resettable#reset()} if the instance implements {@link Resettable}.
+     * Recycle an instance, with {@link Recycler#recycle(Object)}.
      *
      * <p>
      * Closing an already-closed wrapper has no effect. (Recycling the same instance twice would put it in the pool

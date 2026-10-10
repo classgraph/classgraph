@@ -72,6 +72,32 @@ public abstract class Recycler<T, E extends Exception> implements AutoCloseable 
     public abstract T newInstance() throws E;
 
     /**
+     * Reset an instance that is being handed back to the pool, so that it does not carry over any state to its next
+     * user. Not called for an instance that is closed rather than pooled. The default does nothing.
+     *
+     * @param instance
+     *            the instance to reset.
+     */
+    protected void resetInstance(final T instance) {
+        // Nothing to reset by default
+    }
+
+    /**
+     * Close an instance that is being discarded. The default calls {@link AutoCloseable#close()} if the instance is
+     * {@link AutoCloseable}, and otherwise does nothing. Any exception thrown is ignored.
+     *
+     * @param instance
+     *            the instance to close.
+     * @throws Exception
+     *             if closing the instance failed.
+     */
+    protected void closeInstance(final T instance) throws Exception {
+        if (instance instanceof final AutoCloseable closeable) {
+            closeable.close();
+        }
+    }
+
+    /**
      * Acquire an object instance of type T, either by reusing a previously recycled instance if possible, or if
      * there are no currently-unused instances, by allocating a new instance.
      *
@@ -100,8 +126,8 @@ public abstract class Recycler<T, E extends Exception> implements AutoCloseable 
     }
 
     /**
-     * Acquire a Recyclable wrapper around an object instance, which can be used to recycle object instances at the
-     * end of a try-with-resources block.
+     * Acquire a {@link RecycleOnClose} wrapper around an object instance, which can be used to recycle object
+     * instances at the end of a try-with-resources block.
      *
      * @return Either a new or a recycled object instance.
      * @throws E
@@ -112,8 +138,8 @@ public abstract class Recycler<T, E extends Exception> implements AutoCloseable 
     }
 
     /**
-     * Recycle an object for reuse by a subsequent call to {@link #acquire()}. If the object is an instance of
-     * {@link Resettable}, then {@link Resettable#reset()} will be called on the instance before recycling it.
+     * Recycle an object for reuse by a subsequent call to {@link #acquire()}, calling
+     * {@link #resetInstance(Object)} on it first.
      *
      * <p>
      * After {@link #forceClose()} has been called, this method closes the instance instead of pooling it, and never
@@ -134,16 +160,14 @@ public abstract class Recycler<T, E extends Exception> implements AutoCloseable 
                 if (wasInUse) {
                     // The force-close did not see this instance, either because it was acquired afterwards, or
                     // because this call won the race to remove it, so nothing else is going to close it
-                    closeInstance(instance);
+                    closeQuietly(instance);
                 }
                 return;
             }
             if (!wasInUse) {
                 throw new IllegalArgumentException("Tried to recycle an instance that was not in use");
             }
-            if (instance instanceof final Resettable resettable) {
-                resettable.reset();
-            }
+            resetInstance(instance);
             unusedInstances.add(instance);
             if (forceClosed) {
                 // A force-close that began after the check above may already have drained the pool, and would then
@@ -154,41 +178,37 @@ public abstract class Recycler<T, E extends Exception> implements AutoCloseable 
     }
 
     /**
-     * Close an instance, if it is {@link AutoCloseable}, ignoring any exception thrown while closing it.
+     * Close an instance with {@link #closeInstance(Object)}, ignoring any exception thrown while closing it.
      *
      * @param instance
      *            the instance to close.
      */
-    private void closeInstance(final T instance) {
-        if (instance instanceof final AutoCloseable closeable) {
-            try {
-                closeable.close();
-            } catch (final Exception e) {
-                // Ignore
-            }
+    private void closeQuietly(final T instance) {
+        try {
+            closeInstance(instance);
+        } catch (final Exception e) {
+            // Ignore
         }
     }
 
     /**
-     * Free all unused instances. Calls {@link AutoCloseable#close()} on any unused instances that implement
-     * {@link AutoCloseable}.
+     * Free all unused instances, calling {@link #closeInstance(Object)} on each of them.
      *
      * <p>
      * The {@link Recycler} may continue to be used to acquire new instances after calling this close method, and
      * then this close method may be called again in future, i.e. the effect of calling this method is to simply
-     * clear out the recycler of unused instances, closing any {@link AutoCloseable} instances.
+     * clear out the recycler of unused instances, closing each of them.
      */
     @Override
     public void close() {
         for (T unusedInstance; (unusedInstance = unusedInstances.poll()) != null;) {
-            closeInstance(unusedInstance);
+            closeQuietly(unusedInstance);
         }
     }
 
     /**
      * Force-close this {@link Recycler}, by forcibly moving any instances that have been acquired but not yet
-     * recycled into the unused instances list, then calling {@link #close()} to close any {@link AutoCloseable}
-     * instances and discard all instances.
+     * recycled into the unused instances list, then calling {@link #close()} to close and discard all instances.
      *
      * <p>
      * Unlike {@link #close()}, this is terminal: an instance handed back to {@link #recycle(Object)} afterwards is
