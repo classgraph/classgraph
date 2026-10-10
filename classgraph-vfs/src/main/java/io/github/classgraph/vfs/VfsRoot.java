@@ -37,7 +37,9 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
 import java.nio.file.ClosedFileSystemException;
+import java.nio.file.DirectoryIteratorException;
 import java.nio.file.FileSystem;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -507,10 +509,12 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
      * name this method finds is a name a classloader will also find. Windows and macOS have case-insensitive
      * filesystems, and a lookup that such a filesystem answered by folding the case of the name is rejected here,
      * rather than returning an entry under a name that is not the one it is stored under. Use
-     * {@link #getEntryCaseInsensitive(String)} to match the name case-insensitively instead. A name that reaches a
-     * file through a symbolic link is the one exception: following the link changes the path by more than the case
-     * of its characters, which is the only thing that tells a folded name from a followed link, so on a
-     * case-insensitive filesystem such a name can still be found in a case it is not stored in.
+     * {@link #getEntryCaseInsensitive(String)} to match the name case-insensitively instead. A symbolic link is
+     * found by its own name, even if that name differs from the name of the file it points at only in case. The one
+     * exception is a case-insensitive filesystem mounted on Linux, such as a directory with the casefold attribute
+     * on ext4, f2fs or tmpfs, or a vfat, exFAT or CIFS mount: there the real path of a file is spelled the way it
+     * was looked up rather than the way it is stored, which leaves nothing to tell a folded name by, so such a
+     * filesystem can still find a name in a case it is not stored in.
      *
      * <p>
      * The name also has to be written the way the entries of a root are named -- relative to the package root, with
@@ -547,7 +551,13 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
     /**
      * Returns whether a filesystem found a file under a path that differs from the path it was looked up by only in
      * the case of its characters, which is how a case-insensitive filesystem answers a lookup for a name whose case
-     * does not match the name the file is stored under.
+     * does not match the name the file is stored under. A symbolic link whose name differs from the name of its
+     * target only in case is not such a match, since its directory lists it under the name it was looked up by.
+     *
+     * <p>
+     * This relies on the real path of a file being spelled the way the file is stored, as it is on Windows and
+     * macOS. A case-insensitive filesystem mounted on Linux spells the real path the way it was looked up, so there
+     * this method returns false for a folded name.
      *
      * @param dir
      *            the directory the lookup was made within, canonicalized. A directory spelled through a symbolic
@@ -569,13 +579,55 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
         }
         // The real path also has symbolic links resolved and, on Windows, 8.3 short names expanded, and either of
         // those can make it differ from the path it was reached through by more than the case of its characters, so
-        // a difference of case alone is what tells a case-folded match from a link that was followed. The two names
-        // are compared as strings, since Path#equals ignores the case of a path on Windows, which is the very
-        // difference being looked for. The directory is left out of the comparison, since it is spelled the way
-        // this root was opened at it, which is not always the way it is spelled on disk
-        final var realName = dir.relativize(realPath).toString();
-        final var name = dir.relativize(path).toString();
-        return !realName.equals(name) && realName.equalsIgnoreCase(name);
+        // a difference of case alone is what marks a possible case-folded match. The two names are compared as
+        // strings, since Path#equals ignores the case of a path on Windows, which is the very difference being
+        // looked for. The directory is left out of the comparison, since it is spelled the way this root was opened
+        // at it, which is not always the way it is spelled on disk
+        final var realRelativePath = dir.relativize(realPath);
+        final var relativePath = dir.relativize(path);
+        final var realName = realRelativePath.toString();
+        final var name = relativePath.toString();
+        if (realName.equals(name) || !realName.equalsIgnoreCase(name)) {
+            return false;
+        }
+        // A symbolic link whose name differs from the name of its target only in case, such as alias.txt ->
+        // Alias.txt, gives the same difference without any folding. What tells the two apart is whether each
+        // differently-cased segment is listed in its directory exactly as it was looked up: a link is listed
+        // under its own name, whereas a folded name is not listed at all. The listing is compared with
+        // String#equals rather than filtered by a glob, since the glob of the Windows filesystem ignores case. The
+        // two names differ only in case, so they have the same segments
+        for (int i = 0; i < relativePath.getNameCount(); i++) {
+            final var segment = relativePath.getName(i).toString();
+            if (!segment.equals(realRelativePath.getName(i).toString())
+                    && !isListedExactly(i == 0 ? dir : dir.resolve(relativePath.subpath(0, i)), segment)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Returns whether a directory lists a file or subdirectory under exactly the given name, including its case.
+     *
+     * @param parentDir
+     *            the directory.
+     * @param fileName
+     *            the name.
+     * @return true if the directory lists the name exactly, or false if it does not, or if it cannot be listed.
+     */
+    private static boolean isListedExactly(final Path parentDir, final String fileName) {
+        try (var listing = Files.newDirectoryStream(parentDir)) {
+            for (final var file : listing) {
+                if (fileName.equals(file.getFileName().toString())) {
+                    return true;
+                }
+            }
+            return false;
+        } catch (final IOException | DirectoryIteratorException _) {
+            // A directory that can be searched but not read. Without a listing, a name that differs from its real
+            // name only in case is taken to be a folded one
+            return false;
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
