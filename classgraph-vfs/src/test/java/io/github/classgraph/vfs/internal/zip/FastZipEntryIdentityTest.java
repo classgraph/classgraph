@@ -64,10 +64,10 @@ public class FastZipEntryIdentityTest {
      */
     private static FastZipEntry entry(final LogicalZipFile parentLogicalZipFile, final String entryName,
             final long locHeaderPos) {
-        return new FastZipEntry(parentLogicalZipFile, locHeaderPos, entryName, /* isDeflated = */ false,
-                /* compressedSize = */ 8L, /* uncompressedSize = */ 8L, /* lastModifiedTimeMillis = */ 0L,
-                /* lastModifiedTimeMSDOS = */ 0, /* lastModifiedDateMSDOS = */ 0, /* fileAttributes = */ 0,
-                /* multiReleaseVersionsEnabled = */ true);
+        return new FastZipEntry(parentLogicalZipFile, locHeaderPos, entryName, /* nameIsVerbatim = */ true,
+                /* isDeflated = */ false, /* compressedSize = */ 8L, /* uncompressedSize = */ 8L,
+                /* lastModifiedTimeMillis = */ 0L, /* lastModifiedTimeMSDOS = */ 0, /* lastModifiedDateMSDOS = */ 0,
+                /* fileAttributes = */ 0, /* multiReleaseVersionsEnabled = */ true);
     }
 
     /**
