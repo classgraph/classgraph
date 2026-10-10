@@ -233,16 +233,48 @@ public final class ClasspathExpander {
         final var parentDir = PathSyntax
                 .getParentDirPath(separatorIdx < 0 ? containerPath : containerPath.substring(separatorIdx + 2));
         final var containerNioPath = pathOfRoot(container);
-        for (final String relativePath : classPath.split(" ")) {
+        // The JVM's own classloader treats the Class-Path entries of a jarfile named by a file: URL differently from
+        // those of a jarfile named by any other URL. Only a jarfile of the filesystem can name an entry by a URL,
+        // and only by a file: URL. A jarfile fetched from a URL can only name entries relative to the directory it
+        // was fetched from, so it cannot name a file of the filesystem. A jarfile nested inside another jarfile
+        // cannot name an entry by a URL either, but a path in it that starts with '/' names a path from the root of
+        // the jarfile that contains it, and a ".." in it stops at that root. (A jarfile in a filesystem other than
+        // the default one is named by a URL too, but it is a file of a filesystem, so it is treated as one.)
+        final var isFetchedFromURL = outerPath == null && containerNioPath == null
+                && URLPaths.startsWithURLScheme(containerPath);
+        final var mayNameAFileURL = outerPath == null && !isFetchedFromURL;
+        // Any whitespace separates the entries, as for the JVM's own classloader, not only a space
+        for (final String relativePath : classPath.split("[ \t\n\r\f]+")) {
             if (relativePath.isEmpty()) {
                 continue;
             }
+            final var hasURLScheme = URLPaths.startsWithURLScheme(relativePath);
+            if (hasURLScheme && !(mayNameAFileURL && relativePath.regionMatches(true, 0, "file:", 0, 5))) {
+                if (log != null) {
+                    log.log("Ignoring Class-Path entry " + relativePath + " of " + containerPath + ", since "
+                            + (mayNameAFileURL ? "the JVM ignores a URL with a scheme other than file:"
+                                    : isFetchedFromURL ? "a jarfile fetched from a URL cannot name a URL"
+                                            : "a jarfile nested inside another jarfile cannot name a URL"));
+                }
+                continue;
+            }
             // A Class-Path entry is a relative URL, so its percent encoding is decoded, as the JVM's own classloader
-            // decodes it -- a jarfile with a space in its name cannot be named any other way, since a space
-            // separates the entries. An entry with a URL scheme is decoded by the resolver where it names a file.
-            final var urlPath = URLPaths.startsWithURLScheme(relativePath) ? relativePath
-                    : FastPathResolver.decodePercentEncoding(relativePath);
+            // decodes it -- a jarfile with a space in its name cannot be named any other way, since whitespace
+            // separates the entries. A file: URL is decoded by the resolver.
+            final var urlPath = hasURLScheme ? relativePath : FastPathResolver.decodePercentEncoding(relativePath);
             final var resolved = FastPathResolver.resolve(parentDir, urlPath);
+            if (isFetchedFromURL && !resolved.startsWith(parentDir + "/")) {
+                // An absolute path, or a relative path that climbs above the directory the jarfile was fetched from.
+                // (The JVM resolves a path that starts with '/' against the root of the server, and follows it if it
+                // lies below the jarfile's directory. Such a path is ignored here instead, which never follows an
+                // entry that the JVM would not.)
+                if (log != null) {
+                    log.log("Ignoring Class-Path entry " + relativePath + " of " + containerPath
+                            + ", since a jarfile fetched from a URL can only name paths below the directory it was"
+                            + " fetched from");
+                }
+                continue;
+            }
             // If the classpath element is nested inside a jarfile, so is anything beside it
             final var location = outerPath == null ? resolved
                     : outerPath + (resolved.startsWith("/") ? "!" : "!/") + resolved;

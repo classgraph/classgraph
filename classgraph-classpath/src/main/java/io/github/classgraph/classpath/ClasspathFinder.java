@@ -152,6 +152,11 @@ public final class ClasspathFinder {
      * {@code ':'}-separated classpath string such as {@code java.class.path}, since the scheme's own {@code ':'}
      * would otherwise be read as a separator and split the path element in two.
      *
+     * <p>
+     * This does not apply to the entries of a jarfile's {@code Class-Path} manifest attribute. As for the JVM's own
+     * classloader, a jarfile in the filesystem can name a URL there only with the {@code file:} scheme, and any
+     * other jarfile cannot name a URL there at all, whatever schemes are allowed.
+     *
      * @param scheme
      *            the URL scheme, without the {@code ':'}, e.g. {@code "http"}.
      * @return this (for method chaining).

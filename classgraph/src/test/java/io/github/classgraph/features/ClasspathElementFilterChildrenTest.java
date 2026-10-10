@@ -31,11 +31,14 @@ package io.github.classgraph.features;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.jar.Attributes;
 import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
@@ -43,6 +46,8 @@ import java.util.zip.ZipEntry;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+
+import com.sun.net.httpserver.HttpServer;
 
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.Resource;
@@ -124,19 +129,72 @@ public class ClasspathElementFilterChildrenTest {
     }
 
     /**
-     * A URL filter is given a {@code Class-Path} manifest entry that is a URL as that URL, not as a file path, so a
-     * filter can reject it before anything connects to it.
+     * A URL filter is given a {@code Class-Path} manifest entry of a jarfile fetched from a URL as a URL, not as a
+     * file path, so a filter can reject it before anything connects to it.
      */
     @Test
     public void aURLFilterIsGivenAClassPathManifestEntryURLAsItIs(@TempDir final Path tempDir) throws IOException {
-        final var a = writeJar(tempDir.resolve("a.jar"), "a.txt", "http://example.invalid/remote.jar");
-        final List<String> seen = new ArrayList<>();
-        assertThat(scannedTextResources(
-                new ClassGraph().enableClasspathEntries(a.toFile()).filterClasspathElementsByURL(url -> {
-                    seen.add(url.toString());
-                    return !"example.invalid".equals(url.getHost());
-                }))).containsExactly("a.txt");
-        assertThat(seen).contains("http://example.invalid/remote.jar");
+        final var jarBytes = Files.readAllBytes(writeJar(tempDir.resolve("a.jar"), "a.txt", "remote.jar"));
+        final var remoteRequests = new AtomicInteger();
+        final var server = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0),
+                /* backlog = */ 1);
+        server.createContext("/", exchange -> {
+            if (exchange.getRequestURI().getPath().equals("/a.jar")) {
+                exchange.sendResponseHeaders(200, jarBytes.length);
+                try (var responseBody = exchange.getResponseBody()) {
+                    responseBody.write(jarBytes);
+                }
+            } else {
+                remoteRequests.incrementAndGet();
+                exchange.sendResponseHeaders(404, -1);
+                exchange.close();
+            }
+        });
+        server.start();
+        try {
+            final var serverURL = "http://" + server.getAddress().getHostString() + ":"
+                    + server.getAddress().getPort();
+            final List<String> seen = new ArrayList<>();
+            assertThat(scannedTextResources(new ClassGraph().allowURLScheme("http")
+                    .enableClasspathEntries((Object) (serverURL + "/a.jar")).filterClasspathElementsByURL(url -> {
+                        seen.add(url.toString());
+                        return !url.getPath().endsWith("/remote.jar");
+                    }))).containsExactly("a.txt");
+            assertThat(seen).contains(serverURL + "/remote.jar");
+            assertThat(remoteRequests.get()).isZero();
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    /**
+     * A {@code Class-Path} manifest entry of a jarfile in the filesystem that is a URL with a scheme other than
+     * {@code file:} is ignored, as the JVM's own classloader ignores it, so it is not fetched even when its scheme
+     * has been allowed for the classpath elements named directly.
+     */
+    @Test
+    public void aClassPathManifestEntryURLOfALocalJarIsNotFetched(@TempDir final Path tempDir) throws IOException {
+        final var requests = new AtomicInteger();
+        final var server = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0),
+                /* backlog = */ 1);
+        server.createContext("/", exchange -> {
+            requests.incrementAndGet();
+            exchange.sendResponseHeaders(404, -1);
+            exchange.close();
+        });
+        server.start();
+        try {
+            final var a = writeJar(tempDir.resolve("a.jar"), "a.txt",
+                    "http://" + server.getAddress().getHostString() + ":" + server.getAddress().getPort()
+                            + "/remote.jar b.jar");
+            writeJar(tempDir.resolve("b.jar"), "b.txt", null);
+            assertThat(scannedTextResources(
+                    new ClassGraph().allowURLScheme("http").enableClasspathEntries(a.toFile())))
+                    .containsExactly("a.txt", "b.txt");
+            assertThat(requests.get()).isZero();
+        } finally {
+            server.stop(0);
+        }
     }
 
     /**

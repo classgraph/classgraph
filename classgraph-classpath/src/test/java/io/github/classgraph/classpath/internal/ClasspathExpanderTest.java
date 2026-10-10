@@ -543,8 +543,8 @@ public class ClasspathExpanderTest {
 
     /**
      * A {@code Class-Path} manifest entry is a relative URL, as it is for the JVM's own classloader, so its percent
-     * encoding is decoded. This is the only way to name a jarfile with a space in its name, since a space separates
-     * the entries.
+     * encoding is decoded. This is the only way to name a jarfile with a space in its name, since whitespace
+     * separates the entries.
      *
      * @param tempDir
      *            the temporary directory to build the classpath element in
@@ -563,6 +563,81 @@ public class ClasspathExpanderTest {
             assertThat(locations(childEntries))
                     .containsExactly(jarPath.substring(0, jarPath.lastIndexOf('/')) + "/my lib.jar");
             assertThat(childEntries.get(0).path()).isEqualTo(canonical(tempDir).resolve("my lib.jar"));
+        }
+    }
+
+    /**
+     * The entries of a {@code Class-Path} manifest attribute are separated by any whitespace, as the JVM's own
+     * classloader separates them, not only by spaces.
+     *
+     * @param tempDir
+     *            the temporary directory to build the classpath element in
+     * @throws IOException
+     *             if the classpath element could not be created or read
+     */
+    @Test
+    public void classPathManifestEntriesAreSeparatedByAnyWhitespace(@TempDir final Path tempDir)
+            throws IOException {
+        final Path jar = createJar(tempDir, "app.jar",
+                entries(MANIFEST_NAME, manifest("Class-Path: a.jar\tb.jar\fc.jar \t d.jar")));
+        try (Vfs vfs = new Vfs()) {
+            assertThat(leafNames(ClasspathExpander.childEntries(vfs.open(jar), LIB_DIR_PREFIXES, true, null)))
+                    .containsExactly("a.jar", "b.jar", "c.jar", "d.jar");
+        }
+    }
+
+    /**
+     * A {@code Class-Path} manifest entry of a jarfile in the filesystem that is a URL with a scheme other than
+     * {@code file:} is ignored, as the JVM's own classloader ignores it, so it is neither reported nor fetched. A
+     * {@code file:} URL is resolved to the file it names.
+     *
+     * @param tempDir
+     *            the temporary directory to build the classpath element in
+     * @throws IOException
+     *             if the classpath element could not be created or read
+     */
+    @Test
+    public void classPathManifestEntriesWithAURLSchemeOtherThanFileAreIgnored(@TempDir final Path tempDir)
+            throws IOException {
+        final Path other = createJar(tempDir, "other.jar", entries());
+        final Path filed = createJar(tempDir, "filed.jar", entries());
+        final Path jar = createJar(tempDir, "app.jar",
+                entries(MANIFEST_NAME, manifest("Class-Path: http://127.0.0.1:1/remote.jar jar:" + other.toUri()
+                        + "!/ " + filed.toUri() + " custom:/x.jar rel.jar")));
+        try (Vfs vfs = new Vfs()) {
+            final VfsRoot root = vfs.open(jar);
+            final List<ChildEntry> childEntries = ClasspathExpander.childEntries(root, LIB_DIR_PREFIXES, true,
+                    null);
+            final String jarPath = root.getPath();
+            final String jarDir = jarPath.substring(0, jarPath.lastIndexOf('/'));
+            assertThat(locations(childEntries)).containsExactly(jarDir + "/filed.jar", jarDir + "/rel.jar");
+        }
+    }
+
+    /**
+     * A {@code Class-Path} manifest entry of a jarfile nested inside another jarfile can only name a path within
+     * the jarfile that contains it, so an entry that is a URL, even a {@code file:} URL, is ignored rather than
+     * being looked for as a path within that jarfile. An entry that starts with {@code '/'} names a path from the
+     * root of the jarfile that contains it.
+     *
+     * @param tempDir
+     *            the temporary directory to build the classpath element in
+     * @throws IOException
+     *             if the classpath element could not be created or read
+     */
+    @Test
+    public void aClassPathManifestEntryOfANestedJarfileThatIsAURLIsIgnored(@TempDir final Path tempDir)
+            throws IOException {
+        final Path abs = createJar(tempDir, "abs.jar", entries());
+        final Map<String, byte[]> outerEntries = entries();
+        outerEntries.put("lib/inner.jar", jarBytes(entries(MANIFEST_NAME,
+                manifest("Class-Path: " + abs.toUri() + " http://example.invalid/x.jar sib.jar /root.jar"))));
+        final Path jar = createJar(tempDir, "outer.jar", outerEntries);
+        try (Vfs vfs = new Vfs()) {
+            final VfsRoot root = vfs.open(jar + "!/lib/inner.jar");
+            final String outerPath = root.getPath().substring(0, root.getPath().indexOf("!/"));
+            assertThat(locations(ClasspathExpander.childEntries(root, LIB_DIR_PREFIXES, true, null)))
+                    .containsExactly(outerPath + "!/lib/sib.jar", outerPath + "!/root.jar");
         }
     }
 

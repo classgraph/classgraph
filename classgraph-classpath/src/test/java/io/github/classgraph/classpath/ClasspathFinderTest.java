@@ -17,6 +17,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import java.util.jar.Attributes;
 import java.util.jar.JarOutputStream;
@@ -960,6 +961,72 @@ public class ClasspathFinderTest {
             try (var classpath = new ClasspathFinder().allowURLScheme("http").denyURLScheme("http")
                     .enableClasspathEntries((Object) jarURL).find()) {
                 assertThat(classpath.getLocations()).containsExactly(jarURL);
+            }
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    /**
+     * A {@code Class-Path} manifest entry of a jarfile in the filesystem that is an {@code http:} URL is ignored,
+     * as the JVM's own classloader ignores it, so it is neither reported nor fetched, even when the {@code http}
+     * scheme has been allowed for the classpath elements named directly.
+     *
+     * @param tempDir
+     *            a temporary directory to build the jarfile in.
+     * @throws IOException
+     *             if the jarfile could not be built, or the server could not be started.
+     */
+    @Test
+    public void aClassPathManifestEntryURLOfALocalJarIsNotFetched(@TempDir final Path tempDir) throws IOException {
+        final var requests = new AtomicInteger();
+        final var server = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0),
+                /* backlog = */ 1);
+        server.createContext("/", exchange -> {
+            requests.incrementAndGet();
+            exchange.sendResponseHeaders(404, -1);
+            exchange.close();
+        });
+        server.start();
+        try {
+            final var remoteURL = "http://" + server.getAddress().getHostString() + ":"
+                    + server.getAddress().getPort() + "/remote.jar";
+            final var local = writeJarWithManifest(tempDir.resolve("local.jar"), "Class-Path",
+                    remoteURL + " declared.jar");
+            final var declared = writeJarWithManifest(tempDir.resolve("declared.jar"));
+            try (var classpath = new ClasspathFinder().allowURLScheme("http").enableClasspathEntries((Object) local)
+                    .find()) {
+                assertThat(classpath.getLocations()).containsExactly(location(local), location(declared));
+            }
+            assertThat(requests.get()).isZero();
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    /**
+     * A jarfile fetched from a URL can only name classpath elements relative to that URL in its {@code Class-Path}
+     * manifest attribute, as for the JVM's own classloader, so it cannot name a file of the local filesystem,
+     * either by a {@code file:} URL or by an absolute path.
+     *
+     * @param tempDir
+     *            a temporary directory to build the jarfiles in.
+     * @throws IOException
+     *             if the jarfiles could not be built, or the server could not be started.
+     */
+    @Test
+    public void aJarFetchedFromAURLCannotNameALocalFile(@TempDir final Path tempDir) throws IOException {
+        final var local = writeJarWithManifest(tempDir.resolve("local.jar"));
+        final var jarBytes = Files.readAllBytes(writeJarWithManifest(tempDir.resolve("served.jar"), "Class-Path",
+                "declared.jar " + local.toURI() + " " + local.toURI().getPath()).toPath());
+        final var server = serve("/served.jar", jarBytes);
+        try {
+            final var jarURL = "http://" + server.getAddress().getHostString() + ":" + server.getAddress().getPort()
+                    + "/served.jar";
+            try (var classpath = new ClasspathFinder().allowURLScheme("http")
+                    .enableClasspathEntries((Object) jarURL).find()) {
+                assertThat(classpath.getLocations()).containsExactly(jarURL,
+                        jarURL.replace("served.jar", "declared.jar"));
             }
         } finally {
             server.stop(0);
