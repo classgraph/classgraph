@@ -111,7 +111,9 @@ public final class CallStackInfo {
      *
      * @return the module layers, in innermost-frame-first order, as an unmodifiable set. A class in an unnamed
      *         module contributes no layer, since {@link Module#getLayer()} returns null for one: it was loaded from
-     *         the classpath of its classloader, which {@link #getClassLoaders()} covers.
+     *         the classpath of its classloader, which {@link #getClassLoaders()} covers. A class in a named module
+     *         that is in no layer, such as the dynamic module ({@code jdk.proxy1}, ...) that holds a
+     *         {@link java.lang.reflect.Proxy} class, contributes no layer either.
      */
     public Set<ModuleLayer> getModuleLayers() {
         return Collections.unmodifiableSet(moduleLayers);

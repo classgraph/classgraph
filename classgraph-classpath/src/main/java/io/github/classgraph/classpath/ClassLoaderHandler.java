@@ -174,10 +174,10 @@ public interface ClassLoaderHandler {
     void findClasspathOrder(ClassLoader classLoader, ClasspathOrder classpathOrder, @Nullable ClassGraphLog log);
 
     /**
-     * The dirs within a classpath element (e.g. {@code "WEB-INF/classes/"}) that this classloader loads classes
-     * from without listing them as classpath elements of their own. Each of these dirs found within a classpath
-     * element obtained from this classloader is scanned as a package root, i.e. the prefix is stripped from the
-     * paths of the classfiles beneath it.
+     * The dirs within a classpath element (e.g. {@code "WEB-INF/classes/"}, for a classloader that loads a webapp
+     * straight from its WAR file) that this classloader loads classes from without listing them as classpath
+     * elements of their own. Each of these dirs found within a classpath element obtained from this classloader is
+     * scanned as a package root, i.e. the prefix is stripped from the paths of the classfiles beneath it.
      *
      * <p>
      * The default is {@link #NO_PACKAGE_ROOT_PREFIXES}, since a classloader normally loads classes only from the
@@ -202,10 +202,10 @@ public interface ClassLoaderHandler {
     }
 
     /**
-     * The dirs within a classpath element (e.g. {@code "WEB-INF/lib/"}) whose jarfiles this classloader adds to the
-     * classpath without listing them as classpath elements of their own. The jarfiles found in these dirs within a
-     * classpath element obtained from this classloader are added to the classpath after the classpath element that
-     * contains them.
+     * The dirs within a classpath element (e.g. {@code "WEB-INF/lib/"}, for a classloader that loads a webapp
+     * straight from its WAR file) whose jarfiles this classloader adds to the classpath without listing them as
+     * classpath elements of their own. The jarfiles found in these dirs within a classpath element obtained from
+     * this classloader are added to the classpath after the classpath element that contains them.
      *
      * <p>
      * The default is {@link #NO_LIB_DIR_PREFIXES}, since a classloader normally loads from the jarfiles it was

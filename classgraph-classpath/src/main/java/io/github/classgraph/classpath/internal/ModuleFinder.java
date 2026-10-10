@@ -212,7 +212,8 @@ public class ModuleFinder {
     /**
      * Find the module layers of the classes on the callstack, and the boot layer. A class in an unnamed module is
      * in no layer: it was loaded from the classpath of its classloader, which is searched as a classpath source,
-     * not as a module source.
+     * not as a module source. A class in a dynamic module, such as the module that holds a
+     * {@link java.lang.reflect.Proxy} class, is in no layer either.
      *
      * @param callStackInfo
      *            the call stack info
