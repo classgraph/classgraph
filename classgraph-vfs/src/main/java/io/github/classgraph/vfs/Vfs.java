@@ -801,13 +801,8 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
         Assert.notNull(name, "name");
         checkNotClosed(name);
         final var logNode = log == null ? null : log.log("Reading " + name + " from an InputStream");
-        try {
-            return discardIfClosed(name, adopt(new ArchiveRoot(this, /* container = */ null, JarOpener
-                    .openJarFromInputStream(inputStream, /* inputStreamLengthHint = */ -1L, name, this, logNode))));
-        } catch (final InterruptedException e) {
-            interruptionChecker.interrupt();
-            throw new IOException("Interrupted while reading " + name, e);
-        }
+        return discardIfClosed(name, adopt(new ArchiveRoot(this, /* container = */ null, JarOpener
+                .openJarFromInputStream(inputStream, /* inputStreamLengthHint = */ -1L, name, this, logNode))));
     }
 
     /**
@@ -831,14 +826,9 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
         Assert.notNull(name, "name");
         checkNotClosed(name);
         final var logNode = log == null ? null : log.log("Reading " + name + " from a byte array");
-        try {
-            return discardIfClosed(name,
-                    adopt(new ArchiveRoot(this, /* container = */ null, JarOpener.openJarFromInputStream(
-                            new ByteArrayInputStream(jarBytes), jarBytes.length, name, this, logNode))));
-        } catch (final InterruptedException e) {
-            interruptionChecker.interrupt();
-            throw new IOException("Interrupted while reading " + name, e);
-        }
+        return discardIfClosed(name,
+                adopt(new ArchiveRoot(this, /* container = */ null, JarOpener.openJarFromInputStream(
+                        new ByteArrayInputStream(jarBytes), jarBytes.length, name, this, logNode))));
     }
 
     // -------------------------------------------------------------------------------------------------------------

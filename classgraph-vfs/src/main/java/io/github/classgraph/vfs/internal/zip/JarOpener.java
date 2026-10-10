@@ -83,11 +83,9 @@ public final class JarOpener {
      * @return the jarfile, with the physical zipfile that was opened to read it, which the caller owns.
      * @throws IOException
      *             if the jarfile could not be opened or read.
-     * @throws InterruptedException
-     *             if the thread was interrupted.
      */
     public static OpenedJar openJarFile(final File canonicalFile, final Vfs vfs, final @Nullable LogNode log)
-            throws IOException, InterruptedException {
+            throws IOException {
         return readCentralDirectory(new PhysicalZipFile(canonicalFile, vfs, log), log);
     }
 
@@ -103,11 +101,9 @@ public final class JarOpener {
      * @return the jarfile, with the physical zipfile it was downloaded to, which the caller owns.
      * @throws IOException
      *             if the URL's scheme has been denied, or the jarfile could not be downloaded or read.
-     * @throws InterruptedException
-     *             if the thread was interrupted.
      */
     public static OpenedJar openJarFromURL(final String url, final Vfs vfs, final @Nullable LogNode log)
-            throws IOException, InterruptedException {
+            throws IOException {
         // URL schemes are case-insensitive, and are denied in lowercase, so the scheme has to be lowercased
         // before it is looked up -- otherwise "HTTP://host/x.jar" is fetched even though "http" was denied
         final var scheme = url.substring(0, url.indexOf(':')).toLowerCase(Locale.ROOT);
@@ -136,11 +132,9 @@ public final class JarOpener {
      * @return the jarfile, with the physical zipfile that was opened to read it, which the caller owns.
      * @throws IOException
      *             if the jarfile could not be opened or read.
-     * @throws InterruptedException
-     *             if the thread was interrupted.
      */
     public static OpenedJar openJarFromPath(final Path path, final Vfs vfs, final @Nullable LogNode log)
-            throws IOException, InterruptedException {
+            throws IOException {
         return readCentralDirectory(new PhysicalZipFile(path, vfs, log), log);
     }
 
@@ -163,12 +157,9 @@ public final class JarOpener {
      * @return the jarfile, with the physical zipfile it was read to, which the caller owns.
      * @throws IOException
      *             if the jarfile could not be read.
-     * @throws InterruptedException
-     *             if the thread was interrupted.
      */
     public static OpenedJar openJarFromInputStream(final InputStream inputStream, final long inputStreamLengthHint,
-            final String name, final Vfs vfs, final @Nullable LogNode log)
-            throws IOException, InterruptedException {
+            final String name, final Vfs vfs, final @Nullable LogNode log) throws IOException {
         // The physical zipfile is created here rather than fetched from a cache, so nothing else can reach it, and
         // two streams read under the same name stay two separate jarfiles even though the two physical zipfiles
         // wrapping them compare equal
@@ -186,14 +177,12 @@ public final class JarOpener {
      * @return the jarfile, with the physical zipfile, which the caller owns.
      * @throws IOException
      *             if the central directory could not be read.
-     * @throws InterruptedException
-     *             if the thread was interrupted.
      */
     private static OpenedJar readCentralDirectory(final PhysicalZipFile physicalZipFile,
-            final @Nullable LogNode log) throws IOException, InterruptedException {
+            final @Nullable LogNode log) throws IOException {
         try {
             return new OpenedJar(physicalZipFile.getLogicalZipFile(log), physicalZipFile);
-        } catch (final IOException | InterruptedException | RuntimeException | Error e) {
+        } catch (final IOException | RuntimeException | Error e) {
             // The caller gets the exception rather than the zipfile, so nothing would ever reach what was just
             // opened
             physicalZipFile.releaseUnreachable(e);
@@ -214,11 +203,9 @@ public final class JarOpener {
      *         jarfile's physical zipfile.
      * @throws IOException
      *             if the nested jarfile could not be opened or read.
-     * @throws InterruptedException
-     *             if the thread was interrupted.
      */
     public static OpenedJar openNestedJar(final FastZipEntry zipEntry, final @Nullable LogNode log)
-            throws IOException, InterruptedException {
+            throws IOException {
         return zipEntry.parentLogicalZipFile.openNestedJar(zipEntry, log);
     }
 

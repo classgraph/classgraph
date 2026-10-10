@@ -110,11 +110,9 @@ public class LogicalZipFile extends ZipFileSlice {
      *            if true, multi-release version prefixes are stripped from resource names
      * @throws IOException
      *             If an I/O exception occurs.
-     * @throws InterruptedException
-     *             if the thread was interrupted.
      */
     LogicalZipFile(final ZipFileSlice zipFileSlice, final Vfs vfs, final @Nullable LogNode log,
-            final boolean multiReleaseVersionsEnabled) throws IOException, InterruptedException {
+            final boolean multiReleaseVersionsEnabled) throws IOException {
         super(zipFileSlice);
         this.vfs = vfs;
         this.multiReleaseVersionsEnabled = multiReleaseVersionsEnabled;
@@ -137,11 +135,8 @@ public class LogicalZipFile extends ZipFileSlice {
      *         whatever owns this jarfile, so nothing is handed over to own for one.
      * @throws IOException
      *             if the nested jarfile could not be opened.
-     * @throws InterruptedException
-     *             if the thread was interrupted.
      */
-    JarOpener.OpenedJar openNestedJar(final FastZipEntry zipEntry, final @Nullable LogNode log)
-            throws IOException, InterruptedException {
+    JarOpener.OpenedJar openNestedJar(final FastZipEntry zipEntry, final @Nullable LogNode log) throws IOException {
         if (!zipEntry.isDeflated) {
             // The entry holds a stored nested zipfile, so it can be read in place, as a byte range of this zipfile.
             // Hopefully nested zipfiles are stored, not deflated, as this is the fast path.
@@ -170,7 +165,7 @@ public class LogicalZipFile extends ZipFileSlice {
         try {
             return new JarOpener.OpenedJar(new LogicalZipFile(new ZipFileSlice(inflatedZipFile, zipEntry), vfs, log,
                     multiReleaseVersionsEnabled), inflatedZipFile);
-        } catch (final IOException | InterruptedException | RuntimeException | Error e) {
+        } catch (final IOException | RuntimeException | Error e) {
             // The caller gets the exception rather than the zipfile, so nothing would ever reach what was just
             // inflated
             inflatedZipFile.releaseUnreachable(e);
@@ -187,10 +182,8 @@ public class LogicalZipFile extends ZipFileSlice {
      *            the manifest zip entry
      * @throws IOException
      *             if the manifest could not be read.
-     * @throws InterruptedException
-     *             If the thread was interrupted.
      */
-    private void parseManifest(final FastZipEntry manifestZipEntry) throws IOException, InterruptedException {
+    private void parseManifest(final FastZipEntry manifestZipEntry) throws IOException {
         final Map<String, String> manifestMap;
         try (final InputStream manifestInputStream = manifestZipEntry.getSlice().open()) {
             manifestMap = ManifestParser.parse(manifestInputStream);
@@ -316,12 +309,9 @@ public class LogicalZipFile extends ZipFileSlice {
      * @return the position of the End Of Central Directory record within the zipfile slice
      * @throws IOException
      *             If an I/O exception occurs, or the record could not be found.
-     * @throws InterruptedException
-     *             if the thread was interrupted.
      */
     @SuppressWarnings("resource")
-    private long findEndOfCentralDirectoryPos(final RandomAccessReader reader, final Vfs vfs)
-            throws IOException, InterruptedException {
+    private long findEndOfCentralDirectoryPos(final RandomAccessReader reader, final Vfs vfs) throws IOException {
         // The zipfile comment is arbitrary bytes, and the entry data before it is arbitrary bytes too, so a
         // position that merely holds the EOCD signature is not necessarily the EOCD record. The real record is the
         // one whose 22-byte header plus its declared comment length reaches exactly the end of the slice, so
@@ -1107,12 +1097,9 @@ public class LogicalZipFile extends ZipFileSlice {
      *            the log node, or null to skip logging
      * @throws IOException
      *             If an I/O exception occurs.
-     * @throws InterruptedException
-     *             if the thread was interrupted.
      */
     @SuppressWarnings("resource")
-    private void readCentralDirectory(final Vfs vfs, final @Nullable LogNode log)
-            throws IOException, InterruptedException {
+    private void readCentralDirectory(final Vfs vfs, final @Nullable LogNode log) throws IOException {
         if (slice.sliceLength < 22) {
             throw new IOException("Zipfile too short to have a central directory");
         }

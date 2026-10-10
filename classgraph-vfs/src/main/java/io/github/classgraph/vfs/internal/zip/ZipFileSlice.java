@@ -93,10 +93,8 @@ public class ZipFileSlice {
      *            the zip entry
      * @throws IOException
      *             If an I/O exception occurs.
-     * @throws InterruptedException
-     *             If the thread was interrupted.
      */
-    ZipFileSlice(final FastZipEntry zipEntry) throws IOException, InterruptedException {
+    ZipFileSlice(final FastZipEntry zipEntry) throws IOException {
         this.parentZipFileSlice = zipEntry.parentLogicalZipFile;
         // Read in place, through the physical zipfile of the jarfile that encloses this one
         this.physicalZipFile = zipEntry.parentLogicalZipFile.physicalZipFile;
