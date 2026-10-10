@@ -143,10 +143,12 @@ public final class GraphVizDotFileOptions {
      *
      * <p>
      * Each class, interface or annotation is joined by one edge to each class named in the type of any of its
-     * fields, including in type arguments and array element types, if that class has a node in the graph. Type
-     * variables are not resolved, but the erased type of each field is read as well, so a field of type {@code E},
-     * where {@code E extends Entity}, is joined to {@code Entity}. The annotations on a field are not part of its
-     * type (see {@link #showAnnotationDependencyEdges()}). A class is not joined to itself.
+     * fields, including in type arguments and array element types, if that class has a node in the graph. The
+     * fields that are not listed in a class node -- {@code serialVersionUID}, and the fields that the compiler
+     * generated, such as {@code this$0} -- are skipped. Type variables are not resolved, but the erased type of
+     * each field is read as well, so a field of type {@code E}, where {@code E extends Entity}, is joined to
+     * {@code Entity}. The annotations on a field are not part of its type (see
+     * {@link #showAnnotationDependencyEdges()}). A class is not joined to itself.
      *
      * @return this {@link GraphVizDotFileOptions}, for method chaining.
      */
@@ -194,11 +196,13 @@ public final class GraphVizDotFileOptions {
      * <p>
      * Each class, interface or annotation is joined by one edge to each class named in those types of any of its
      * methods and constructors, including in type arguments and array element types, if that class has a node in
-     * the graph. The methods that are not listed in a class node -- {@code hashCode()}, {@code toString()} and
-     * {@code equals(Object)} -- are skipped. Type variables are not resolved, but the erased types of each method
-     * are read as well, so a method returning {@code E}, where {@code E extends Entity}, is joined to
-     * {@code Entity}. The exceptions a method throws, and the annotations on a method and on its parameters, are
-     * not among its types (see {@link #showAnnotationDependencyEdges()}). A class is not joined to itself.
+     * the graph. The methods and parameters that are not listed in a class node -- {@code hashCode()},
+     * {@code toString()}, {@code equals(Object)}, and the methods and parameters that the compiler generated, such
+     * as bridge methods and the name and ordinal parameters of an enum constructor -- are skipped. Type variables
+     * are not resolved, but the erased types of each method are read as well, so a method returning {@code E},
+     * where {@code E extends Entity}, is joined to {@code Entity}. The exceptions a method throws, and the
+     * annotations on a method and on its parameters, are not among its types (see
+     * {@link #showAnnotationDependencyEdges()}). A class is not joined to itself.
      *
      * @return this {@link GraphVizDotFileOptions}, for method chaining.
      */

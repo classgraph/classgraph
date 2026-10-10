@@ -103,7 +103,7 @@ public final class GraphVizDotFile {
     }
 
     /**
-     * Encode HTML-unsafe characters as HTML entities. Control characters and Unicode whitespace, including
+     * Encode HTML-unsafe characters as HTML entities. Characters below U+0020 and Unicode whitespace, including
      * newlines, become a plain space, since a label is laid out by GraphViz as a single line of text unless it is
      * broken up by table cells. The exception is U+00A0 (no-break space), which is written as {@code &nbsp;}. The
      * other characters that XML 1.0 does not allow in text, which are lone surrogates, U+FFFE and U+FFFF, are
