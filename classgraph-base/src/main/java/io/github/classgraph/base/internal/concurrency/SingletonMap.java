@@ -96,10 +96,7 @@ public class SingletonMap<K, V> {
 
     // -------------------------------------------------------------------------------------------------------------
 
-    /**
-     * Thrown when the factory that creates a value returns null, or when an earlier call failed to create the
-     * value.
-     */
+    /** Thrown when the factory that creates a value returns null, on this call or an earlier one. */
     public static class NullSingletonException extends Exception {
         /** serialVersionUID. */
         @Serial
@@ -174,12 +171,49 @@ public class SingletonMap<K, V> {
         /** The value, or null if it could not be created. */
         private volatile @Nullable V singleton;
 
+        /** The exception the factory threw, or null if it did not throw (or has not finished yet). */
+        private volatile @Nullable Throwable failure;
+
         /** Counted down once the value has been set. */
         private final CountDownLatch initialized = new CountDownLatch(1);
 
         /** Create a holder whose value has not been set yet. */
         SingletonHolder() {
             // Empty
+        }
+
+        /**
+         * Record that the factory threw, and release the threads waiting for the value. The exception is recorded
+         * before the waiters are released, so that every waiter sees it.
+         *
+         * @param t
+         *            the exception the factory threw.
+         * @throws IllegalStateException
+         *             if the value was already set.
+         */
+        void fail(final Throwable t) {
+            this.failure = t;
+            set(null);
+        }
+
+        /**
+         * Get the exception the factory threw.
+         *
+         * @return the exception the factory threw, or null if it did not throw, or has not finished yet.
+         */
+        @Nullable
+        Throwable failure() {
+            return failure;
+        }
+
+        /**
+         * Whether the creation of the value has finished, and no value was created.
+         *
+         * @return true if the creation has finished and no value was created; false if a value was created, or if
+         *         the creation has not finished yet.
+         */
+        boolean failed() {
+            return initialized.getCount() == 0 && singleton == null;
         }
 
         /**
@@ -229,11 +263,12 @@ public class SingletonMap<K, V> {
      * thread is creating it, wait for that thread's value.
      *
      * <p>
-     * A failure to create the value is remembered, so that a later call for the same key throws
-     * {@link NullSingletonException} rather than trying again. An interruption is not remembered, since it means
-     * the creating thread was cancelled, not that the key is bad, so a later call tries again. Nor is a
-     * {@link VirtualMachineError} such as {@link OutOfMemoryError}, since it means the JVM is in trouble, not that
-     * the key is bad; it is rethrown as itself, not wrapped in a {@link NewInstanceException}.
+     * A failure to create the value is remembered, so that a later call for the same key throws the same kind of
+     * exception, with the same cause, rather than trying again; {@link #discardFailed(Object)} forgets it. An
+     * interruption is not remembered, since it means the creating thread was cancelled, not that the key is bad, so
+     * a later call tries again. Nor is a {@link VirtualMachineError} such as {@link OutOfMemoryError}, since it
+     * means the JVM is in trouble, not that the key is bad; it is rethrown as itself, not wrapped in a
+     * {@link NewInstanceException}.
      *
      * @param key
      *            The key.
@@ -246,10 +281,10 @@ public class SingletonMap<K, V> {
      *             if the thread was interrupted while creating the value, or while waiting for another thread to
      *             create it.
      * @throws NullSingletonException
-     *             if the factory returned null, on this call or an earlier one, or threw an exception on an earlier
-     *             call.
+     *             if the factory returned null, on this call or an earlier one.
      * @throws NewInstanceException
-     *             if the factory threw an exception on this call.
+     *             if the factory threw an exception, on this call or an earlier one; its cause is the exception the
+     *             factory threw.
      */
     public V get(final K key, final NewInstanceFactory<V> newInstanceFactory)
             throws IOException, InterruptedException, NullSingletonException, NewInstanceException {
@@ -268,6 +303,10 @@ public class SingletonMap<K, V> {
                 // holder out of the map, since neither means that the key is bad. Tell the two apart by whether
                 // the holder is still in the map, and retry the abandoned creation.
                 if (map.get(key) == singletonHolder) {
+                    final var failure = singletonHolder.failure();
+                    if (failure != null) {
+                        throw new NewInstanceException(key, failure);
+                    }
                     throw new NullSingletonException(key);
                 }
             } else {
@@ -307,10 +346,10 @@ public class SingletonMap<K, V> {
                         newSingletonHolder.set(null);
                         throw vmError;
                     }
-                    // Any other failure is remembered: the holder stays in the map holding null, so that later
-                    // calls for the same key throw NullSingletonException instead of retrying a creation that
-                    // already failed
-                    newSingletonHolder.set(null);
+                    // Any other failure is remembered, with its cause: the holder stays in the map holding null,
+                    // so that later calls for the same key, and threads waiting for this creation, throw
+                    // NewInstanceException with the same cause instead of retrying a creation that already failed
+                    newSingletonHolder.fail(t);
                     throw new NewInstanceException(key, t);
                 }
                 newSingletonHolder.set(instance);
@@ -363,23 +402,22 @@ public class SingletonMap<K, V> {
     }
 
     /**
-     * Discard the singleton for a given key, if there is one, so that a later lookup for the key rebuilds the value
-     * rather than getting the discarded instance. This is how a closed object leaves the cache that holds it. Does
-     * not wait for a value that another thread is still creating, so it can be called from a close path that must
-     * not block; a discarded in-flight creation still completes for the thread creating it, but the value is no
-     * longer in the map.
+     * Forget a remembered failure for a key, so that a later lookup for the key tries the creation again. The key
+     * is removed only if its creation has finished and failed: a creation that another thread is still running, and
+     * a value that was created, are left alone, so a caller that forgets a failure late cannot make the same value
+     * be built twice. Never blocks.
      *
      * @param key
-     *            the key
+     *            the key.
      */
-    public void discard(final K key) {
-        map.remove(key);
+    public void discardFailed(final K key) {
+        map.computeIfPresent(key, (_, holder) -> holder.failed() ? null : holder);
     }
 
     /**
      * Discard the singleton for a given key, but only if the map still holds the given value for it. This is how a
      * closed object leaves a cache that may since have been given a fresh value for the same key: the fresh value
-     * is left alone. Like {@link #discard(Object)}, never blocks, so it can be called from a close path.
+     * is left alone. Never blocks, so it can be called from a close path.
      *
      * @param key
      *            the key.
