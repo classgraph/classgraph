@@ -177,8 +177,13 @@ public class SliceTest {
         // wrong, so the buffered bytes have to be written to the temporary file ahead of the rest of the stream
         final var understatedSession = vfs(/* maxBufferedJarRAMSize = */ CONTENT.length / 2);
         try {
-            assertThat(sliceOfContent(understatedSession, /* inputStreamLengthHint = */ CONTENT.length / 2))
-                    .isInstanceOf(PathSlice.class);
+            final var slice = sliceOfContent(understatedSession, /* inputStreamLengthHint = */ CONTENT.length / 2);
+            assertThat(slice).isInstanceOf(PathSlice.class);
+            // The caller owns the slice, so closing the Vfs would not close it or delete its temporary file
+            final var tempFile = ((PathSlice) slice).getFile();
+            assertThat(tempFile).isNotNull().exists();
+            slice.close();
+            assertThat(tempFile).doesNotExist();
         } finally {
             understatedSession.close(/* log = */ null);
         }
@@ -369,6 +374,10 @@ public class SliceTest {
                     /* inputStreamLengthHint = */ CONTENT.length, vfs, /* log = */ null);
             assertThat(slice).isInstanceOf(PathSlice.class);
             assertThat(slice.load()).containsExactly(CONTENT);
+            final var tempFile = ((PathSlice) slice).getFile();
+            assertThat(tempFile).isNotNull().exists();
+            slice.close();
+            assertThat(tempFile).doesNotExist();
         } finally {
             vfs.close(/* log = */ null);
         }
