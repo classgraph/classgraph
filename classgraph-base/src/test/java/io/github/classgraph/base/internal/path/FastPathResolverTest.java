@@ -312,6 +312,22 @@ public class FastPathResolverTest {
     }
 
     /**
+     * An {@code os.name} of {@code "Darwin"} names macOS, not Windows, even though {@code "darwin"} contains
+     * {@code "win"}, so a doubled leading slash is not kept as a UNC prefix.
+     *
+     * @throws Exception
+     *             if the copy of the resolver could not be loaded.
+     */
+    @Test
+    public void darwinIsClassifiedAsMacOS() throws Exception {
+        assumeTrue(canSimulateLinux, "the resolver cannot be made to believe it is running on macOS on Windows");
+        final var resolveAsDarwinMethod = loadResolverForOS("Darwin", "MacOSX");
+        assertThat(resolveAsLinux("/base", "//server/share/x.jar")).isEqualTo("/server/share/x.jar");
+        assertThat(invokeResolve(resolveAsDarwinMethod, "/base", "//server/share/x.jar"))
+                .isEqualTo("/server/share/x.jar");
+    }
+
+    /**
      * On Windows the {@code "localhost"} authority of a {@code "file:"} URL is kept, so that it becomes a UNC path
      * -- which is both what {@link java.nio.file.Path#of(java.net.URI)} produces there and what RFC 8089 appendix
      * B.3 specifies.
