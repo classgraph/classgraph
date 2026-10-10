@@ -117,11 +117,9 @@ class UnscannedModules {
      *            the log node, or null to skip logging
      * @return a work unit for scanning the classfile, or null if the class is not in any of the modules that are
      *         not being scanned
-     * @throws InterruptedException
-     *             if the thread was interrupted while opening a module
      */
     synchronized @Nullable ClassfileScanWorkUnit findClassfile(final String className, final String classfilePath,
-            final @Nullable LogNode log) throws InterruptedException {
+            final @Nullable LogNode log) {
         if (unscannedModules.isEmpty()) {
             return null;
         }
@@ -179,11 +177,9 @@ class UnscannedModules {
      * @param log
      *            the log node, or null to skip logging
      * @return the classpath element for the module
-     * @throws InterruptedException
-     *             if the thread was interrupted while opening the module
      */
     private ClasspathElementModule classpathElementForModule(final ModuleReference moduleReference,
-            final @Nullable LogNode log) throws InterruptedException {
+            final @Nullable LogNode log) {
         var classpathElement = moduleToClasspathElement.get(moduleReference);
         if (classpathElement == null) {
             classpathElement = new ClasspathElementModule(moduleReference, vfs,

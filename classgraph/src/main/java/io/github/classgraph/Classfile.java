@@ -304,11 +304,9 @@ class Classfile {
      *            the relationship type
      * @param log
      *            the log node, or null to skip logging
-     * @throws InterruptedException
-     *             if the thread was interrupted
      */
     private void scheduleScanningIfExternalClass(final @Nullable String className, final String relationship,
-            final @Nullable LogNode log) throws InterruptedException {
+            final @Nullable LogNode log) {
         // Don't extend scanning upwards to Object -- it has no superclass, interfaces or annotations, so scanning
         // it adds nothing to the class graph (the superclass link to Object is recorded from the class name alone,
         // without needing to scan Object itself)
@@ -362,11 +360,8 @@ class Classfile {
      *            the log node, or null to skip logging
      * @return the classfile resource and the classpath element it was found in, or null if the classfile was not
      *         found.
-     * @throws InterruptedException
-     *             if the thread was interrupted
      */
-    private @Nullable ClassfileLocation findClassfile(final String className, final @Nullable LogNode log)
-            throws InterruptedException {
+    private @Nullable ClassfileLocation findClassfile(final String className, final @Nullable LogNode log) {
         // Search for the named class' classfile among classpath elements, in classpath order (this is O(N) for each
         // class, but there shouldn't be too many cases of extending scanning upwards)
         final var classfilePath = ClassNames.classNameToClassfilePath(className);
@@ -411,11 +406,9 @@ class Classfile {
      *            null.
      * @param log
      *            the log node, or null to skip logging
-     * @throws InterruptedException
-     *             if the thread was interrupted
      */
     private void extendScanningUpwardsFromAnnotationParameterValues(final @Nullable Object annotationParamVal,
-            final @Nullable LogNode log) throws InterruptedException {
+            final @Nullable LogNode log) {
         if (annotationParamVal == null) {
             // Should not be possible -- ignore
         } else if (annotationParamVal instanceof final AnnotationInfo annotationInfo) {
@@ -444,10 +437,8 @@ class Classfile {
      *
      * @param log
      *            the log node, or null to skip logging
-     * @throws InterruptedException
-     *             if the thread was interrupted
      */
-    private void extendScanningUpwards(final @Nullable LogNode log) throws InterruptedException {
+    private void extendScanningUpwards(final @Nullable LogNode log) {
         // Check superclass
         if (superclassName != null) {
             scheduleScanningIfExternalClass(superclassName, "superclass", log);
@@ -506,11 +497,8 @@ class Classfile {
      *            the method
      * @param log
      *            the log node, or null to skip logging
-     * @throws InterruptedException
-     *             if the thread was interrupted
      */
-    private void extendScanningUpwardsFromMethod(final MethodInfo methodInfo, final @Nullable LogNode log)
-            throws InterruptedException {
+    private void extendScanningUpwardsFromMethod(final MethodInfo methodInfo, final @Nullable LogNode log) {
         if (methodInfo.annotationInfo != null) {
             for (final AnnotationInfo methodAnnotationInfo : methodInfo.annotationInfo) {
                 scheduleScanningIfExternalClass(methodAnnotationInfo.getName(), "method annotation", log);
@@ -2429,8 +2417,6 @@ class Classfile {
      * @throws SkipClassException
      *             if the classfile needs to be skipped (e.g. the class is non-public, and ignoreClassVisibility is
      *             false)
-     * @throws InterruptedException
-     *             if the thread was interrupted
      */
     Classfile(final ClasspathElement classpathElement, final List<ClasspathElement> classpathOrder,
             final UnscannedModules unscannedModules, final Set<String> acceptedClassNamesFound,
@@ -2438,7 +2424,7 @@ class Classfile {
             final Resource classfileResource, final boolean isExternalClass,
             final ConcurrentHashMap<String, String> stringInternMap,
             final WorkQueue<ClassfileScanWorkUnit> workQueue, final ScanSpec scanSpec, final @Nullable LogNode log)
-            throws IOException, ClassfileFormatException, SkipClassException, InterruptedException {
+            throws IOException, ClassfileFormatException, SkipClassException {
         this.classpathElement = classpathElement;
         this.classpathOrder = classpathOrder;
         this.unscannedModules = unscannedModules;

@@ -721,11 +721,8 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      *            the work queue
      * @param log
      *            the log node, or null to skip logging
-     * @throws InterruptedException
-     *             if the thread was interrupted while trying to open the classpath element.
      */
-    abstract void open(final WorkQueue<ClasspathEntryWorkUnit> workQueue, final @Nullable LogNode log)
-            throws InterruptedException;
+    abstract void open(final WorkQueue<ClasspathEntryWorkUnit> workQueue, final @Nullable LogNode log);
 
     /**
      * Scan paths in the classpath element for accept/reject criteria, creating Resource objects for accepted and
