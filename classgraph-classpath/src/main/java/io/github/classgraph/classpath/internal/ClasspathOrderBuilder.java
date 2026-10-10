@@ -147,26 +147,83 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
     /**
      * Set the automatic package root prefixes to record for subsequently-added classpath entries. Called before and
      * after invoking the {@code findClasspathOrder} method of a {@code ClassLoaderHandler}, so that each classpath
-     * entry records the package roots of the classloader it was obtained from.
+     * entry records the package roots of the classloader it was obtained from. The prefixes are normalized and
+     * copied, as {@link #normalizePrefixes(List, ClassGraphLog)} describes.
      *
      * @param packageRootPrefixes
      *            the package root prefixes, or null to reset to no prefixes at all.
+     * @param log
+     *            the log node, or null to skip logging
      */
-    public void setPackageRootPrefixes(final @Nullable List<String> packageRootPrefixes) {
+    void setPackageRootPrefixes(final @Nullable List<String> packageRootPrefixes,
+            final @Nullable ClassGraphLog log) {
         this.currPackageRootPrefixes = packageRootPrefixes == null ? ClassLoaderHandler.NO_PACKAGE_ROOT_PREFIXES
-                : packageRootPrefixes;
+                : normalizePrefixes(packageRootPrefixes, log);
     }
 
     /**
      * Set the lib dirs to record for subsequently-added classpath entries. Called before and after invoking the
      * {@code findClasspathOrder} method of a {@code ClassLoaderHandler}, so that each classpath entry records the
-     * lib dirs of the classloader it was obtained from.
+     * lib dirs of the classloader it was obtained from. The prefixes are normalized and copied, as
+     * {@link #normalizePrefixes(List, ClassGraphLog)} describes.
      *
      * @param libDirPrefixes
      *            the lib dir prefixes, or null to reset to no lib dirs at all.
+     * @param log
+     *            the log node, or null to skip logging
      */
-    public void setLibDirPrefixes(final @Nullable List<String> libDirPrefixes) {
-        this.currLibDirPrefixes = libDirPrefixes == null ? ClassLoaderHandler.NO_LIB_DIR_PREFIXES : libDirPrefixes;
+    void setLibDirPrefixes(final @Nullable List<String> libDirPrefixes, final @Nullable ClassGraphLog log) {
+        this.currLibDirPrefixes = libDirPrefixes == null ? ClassLoaderHandler.NO_LIB_DIR_PREFIXES
+                : normalizePrefixes(libDirPrefixes, log);
+    }
+
+    /**
+     * Normalize the package root or lib dir prefixes that a {@code ClassLoaderHandler} declared into the form the
+     * rest of ClassGraph relies on: a relative path, with {@code '/'} as the separator and no empty, {@code "."} or
+     * {@code ".."} segments, ending in {@code '/'}. A backslash is read as a separator, and leading slashes are
+     * removed. A null prefix, and a prefix that names no dir once normalized (such as {@code ""} or {@code "/"}),
+     * is dropped, as is a prefix that duplicates an earlier one. Each change is logged.
+     *
+     * <p>
+     * The result is an immutable copy, so it does not change if the handler later changes the list it handed over.
+     * A list that is already immutable and in normal form is returned unchanged.
+     *
+     * @param prefixes
+     *            the prefixes the handler declared.
+     * @param log
+     *            the log node, or null to skip logging
+     * @return the normalized prefixes, as an immutable list.
+     */
+    static List<String> normalizePrefixes(final List<String> prefixes, final @Nullable ClassGraphLog log) {
+        final List<String> normalizedPrefixes = new ArrayList<>(prefixes.size());
+        var changed = false;
+        for (final String prefix : prefixes) {
+            final var sanitized = prefix == null ? ""
+                    : PathSyntax.sanitizeRelativePath(prefix.replace('\\', '/'), /* removeFinalSlash = */ true);
+            final var normalizedPrefix = sanitized.isEmpty() ? "" : sanitized + "/";
+            if (normalizedPrefix.isEmpty()) {
+                changed = true;
+                if (log != null) {
+                    log.log("Ignoring prefix that names no dir: " + (prefix == null ? null : "\"" + prefix + "\""));
+                }
+            } else if (normalizedPrefixes.contains(normalizedPrefix)) {
+                changed = true;
+                if (log != null) {
+                    log.log("Ignoring duplicate prefix: \"" + prefix + "\"");
+                }
+            } else {
+                if (!normalizedPrefix.equals(prefix)) {
+                    changed = true;
+                    if (log != null) {
+                        log.log("Normalized prefix \"" + prefix + "\" to \"" + normalizedPrefix + "\"");
+                    }
+                }
+                normalizedPrefixes.add(normalizedPrefix);
+            }
+        }
+        // List.copyOf returns a list that is already immutable unchanged, so a handler that declares its prefixes
+        // with List.of in normal form costs nothing here
+        return List.copyOf(changed ? normalizedPrefixes : prefixes);
     }
 
     /**

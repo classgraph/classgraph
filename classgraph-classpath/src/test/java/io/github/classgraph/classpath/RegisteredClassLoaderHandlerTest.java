@@ -12,6 +12,8 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.jspecify.annotations.Nullable;
 
 import io.github.classgraph.base.ClassGraphLog;
@@ -190,8 +192,122 @@ public class RegisteredClassLoaderHandlerTest {
     }
 
     /**
+     * A handler for {@link UnknownClassLoader} that declares the given package root and lib dir prefixes.
+     *
+     * @param packageRootPrefixes
+     *            the package root prefixes to declare.
+     * @param libDirPrefixes
+     *            the lib dir prefixes to declare.
+     * @return the handler.
+     */
+    private static ClassLoaderHandler handlerWithPrefixes(final List<String> packageRootPrefixes,
+            final List<String> libDirPrefixes) {
+        return new UnknownClassLoaderHandler() {
+            @Override
+            public List<String> getPackageRootPrefixes() {
+                return packageRootPrefixes;
+            }
+
+            @Override
+            public List<String> getLibDirPrefixes() {
+                return libDirPrefixes;
+            }
+        };
+    }
+
+    /**
+     * A prefix a handler declares is taken in the form ClassGraph uses, a relative path ending in a slash, however
+     * the handler spells it. So a classpath entry that names the package root inside a classpath element is still
+     * recognized as that package root, and the package root is stripped from it, rather than the entry being
+     * dropped.
+     *
+     * @param prefix
+     *            a spelling of the package root prefix {@code "classes/"}.
+     */
+    @ParameterizedTest
+    @ValueSource(strings = { "classes/", "classes", "/classes/", "classes//", "\\classes\\", "//classes" })
+    public void aPrefixIsTakenInCanonicalForm(final String prefix, @TempDir final Path tempDir) throws Exception {
+        final var dir = classesDir(tempDir, "d");
+        Files.createDirectories(dir.resolve("classes/pkg"));
+        final var handler = handlerWithPrefixes(List.of(prefix), List.of(prefix.replace("classes", "lib")));
+
+        try (var classpath = new ClasspathFinder().enableClassLoaders(new UnknownClassLoader(dir + "!/classes"))
+                .registerClassLoaderHandler(handler).find()) {
+            assertThat(classpath.getLocations().stream().map(Path::of)).containsExactly(dir);
+            assertThat(classpath.getEntries().get(0).getPackageRootPrefixes()).containsExactly("classes/");
+            assertThat(classpath.getEntries().get(0).getLibDirPrefixes()).containsExactly("lib/");
+        }
+    }
+
+    /**
+     * A prefix that names no dir at all, the empty string or a path made only of slashes, is dropped. It is not the
+     * root of the classpath element: that is scanned anyway, and as a lib dir it would add every jarfile at the top
+     * level of the classpath element.
+     *
+     * @param prefix
+     *            a prefix that names no dir.
+     */
+    @ParameterizedTest
+    @ValueSource(strings = { "", "/", "//", "\\" })
+    public void aPrefixThatNamesNoDirIsDropped(final String prefix, @TempDir final Path tempDir) throws Exception {
+        final var dir = classesDir(tempDir, "d");
+        final var handler = handlerWithPrefixes(List.of(prefix), List.of(prefix));
+
+        try (var classpath = new ClasspathFinder().enableClassLoaders(new UnknownClassLoader(dir.toString()))
+                .registerClassLoaderHandler(handler).find()) {
+            assertThat(classpath.getLocations().stream().map(Path::of)).containsExactly(dir);
+            assertThat(classpath.getEntries().get(0).getPackageRootPrefixes()).isEmpty();
+            assertThat(classpath.getEntries().get(0).getLibDirPrefixes()).isEmpty();
+        }
+    }
+
+    /**
+     * The prefixes a handler hands over are copied when its classpath entries are found, so each classpath entry
+     * keeps the prefixes that were declared for it, even when the handler hands over one list that it refills for
+     * each classloader.
+     */
+    @Test
+    public void aRefilledPrefixListDoesNotChangeTheEntriesAlreadyFound(@TempDir final Path tempDir)
+            throws Exception {
+        final var dirA = classesDir(tempDir, "a");
+        final var dirB = classesDir(tempDir, "b");
+        final List<String> packageRootPrefixes = new ArrayList<>();
+        final List<String> libDirPrefixes = new ArrayList<>();
+        final var handler = new UnknownClassLoaderHandler() {
+            /** The number of times the package root prefixes have been asked for. */
+            private int packageRootCalls;
+
+            /** The number of times the lib dir prefixes have been asked for. */
+            private int libDirCalls;
+
+            @Override
+            public List<String> getPackageRootPrefixes() {
+                packageRootPrefixes.clear();
+                packageRootPrefixes.add("p" + packageRootCalls++ + "/");
+                return packageRootPrefixes;
+            }
+
+            @Override
+            public List<String> getLibDirPrefixes() {
+                libDirPrefixes.clear();
+                libDirPrefixes.add("l" + libDirCalls++ + "/");
+                return libDirPrefixes;
+            }
+        };
+
+        try (var classpath = new ClasspathFinder().enableClassLoaders(new UnknownClassLoader(dirA.toString()),
+                new UnknownClassLoader(dirB.toString())).registerClassLoaderHandler(handler).find()) {
+            assertThat(classpath.getLocations().stream().map(Path::of)).containsExactly(dirA, dirB);
+            assertThat(classpath.getEntries().get(0).getPackageRootPrefixes()).containsExactly("p0/");
+            assertThat(classpath.getEntries().get(0).getLibDirPrefixes()).containsExactly("l0/");
+            assertThat(classpath.getEntries().get(1).getPackageRootPrefixes()).containsExactly("p1/");
+            assertThat(classpath.getEntries().get(1).getLibDirPrefixes()).containsExactly("l1/");
+        }
+    }
+
+    /**
      * A handler builds its prefix lists itself, so the lists it hands over are copied rather than kept. Otherwise a
-     * handler that refilled one list per classloader would silently change the prefixes of every classpath entry
+     * handler that changed a list after handing it over would silently change the prefixes of every classpath entry
      * already found, including the values their {@link ClasspathEntry#equals(Object)} and
      * {@link ClasspathEntry#hashCode()} are computed from.
      */

@@ -12,6 +12,7 @@ import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
@@ -164,7 +165,7 @@ public class ClasspathOrderTest {
     @Test
     public void automaticPackageRootSuffixesAreStripped(@TempDir final Path tempDir) throws IOException {
         final var jar = createFile(tempDir.resolve("x.jar"));
-        classpathOrder.setPackageRootPrefixes(List.of("BOOT-INF/classes/"));
+        classpathOrder.setPackageRootPrefixes(List.of("BOOT-INF/classes/"), null);
         assertThat(classpathOrder.addClasspathEntry(jar + "!/BOOT-INF/classes", null, null)).isTrue();
         // The same jar without the package root suffix is now a duplicate
         assertThat(classpathOrder.addClasspathEntry(jar, null, null)).isFalse();
@@ -182,7 +183,7 @@ public class ClasspathOrderTest {
     public void aUriEntryWhosePathNeedsQuotingIsNotDropped(@TempDir final Path tempDir) throws Exception {
         final var dir = Files.createDirectory(tempDir.resolve("lib dir"));
         final var jar = createFile(dir.resolve("x.jar"));
-        classpathOrder.setPackageRootPrefixes(List.of("BOOT-INF/classes/"));
+        classpathOrder.setPackageRootPrefixes(List.of("BOOT-INF/classes/"), null);
 
         final var uri = new URI(Path.of(jar).toUri() + "!/BOOT-INF/classes");
         assertThat(classpathOrder.addClasspathEntry(uri, null, null)).isTrue();
@@ -210,9 +211,9 @@ public class ClasspathOrderTest {
     @Test
     public void packageRootPrefixesAreRecordedOnEachEntry(@TempDir final Path tempDir) throws IOException {
         final var customPrefixes = List.of("custom/");
-        classpathOrder.setPackageRootPrefixes(customPrefixes);
+        classpathOrder.setPackageRootPrefixes(customPrefixes, null);
         classpathOrder.addClasspathEntry(createFile(tempDir.resolve("a.jar")), null, null);
-        classpathOrder.setPackageRootPrefixes(null);
+        classpathOrder.setPackageRootPrefixes(null, null);
         classpathOrder.addClasspathEntry(createFile(tempDir.resolve("b.jar")), null, null);
 
         assertThat(classpathOrder.getOrder()).hasSize(2);
@@ -220,7 +221,7 @@ public class ClasspathOrderTest {
         assertThat(classpathOrder.getOrder().get(1).packageRootPrefixes()).isEmpty();
         // The prefixes in force when the entry was added decide which suffix is stripped from it
         final var jar = createFile(tempDir.resolve("c.jar"));
-        classpathOrder.setPackageRootPrefixes(customPrefixes);
+        classpathOrder.setPackageRootPrefixes(customPrefixes, null);
         assertThat(classpathOrder.addClasspathEntry(jar + "!/custom", null, null)).isTrue();
         assertThat(entryObjects()).endsWith(jar);
     }
@@ -232,14 +233,41 @@ public class ClasspathOrderTest {
     @Test
     public void libDirPrefixesAreRecordedOnEachEntry(@TempDir final Path tempDir) throws IOException {
         final var customPrefixes = List.of("custom/lib/");
-        classpathOrder.setLibDirPrefixes(customPrefixes);
+        classpathOrder.setLibDirPrefixes(customPrefixes, null);
         classpathOrder.addClasspathEntry(createFile(tempDir.resolve("a.jar")), null, null);
-        classpathOrder.setLibDirPrefixes(null);
+        classpathOrder.setLibDirPrefixes(null, null);
         classpathOrder.addClasspathEntry(createFile(tempDir.resolve("b.jar")), null, null);
 
         assertThat(classpathOrder.getOrder()).hasSize(2);
         assertThat(classpathOrder.getOrder().get(0).libDirPrefixes()).isSameAs(customPrefixes);
         assertThat(classpathOrder.getOrder().get(1).libDirPrefixes()).isEmpty();
+    }
+
+    /**
+     * A prefix is brought into the form the rest of ClassGraph relies on, a relative path ending in a slash, and a
+     * null prefix, one that names no dir, and one that duplicates an earlier one are dropped.
+     */
+    @Test
+    public void prefixesAreNormalized() {
+        assertThat(ClasspathOrderBuilder.normalizePrefixes(
+                Arrays.asList("WEB-INF\\classes", "/a//b/", null, "", "/", "WEB-INF/classes/", "./c/../d", "../"),
+                null)).containsExactly("WEB-INF/classes/", "a/b/", "d/");
+    }
+
+    /**
+     * Prefixes that are already in normal form are kept in the same order, and an immutable list of them is
+     * returned unchanged, so the built-in handlers, which declare theirs with {@link List#of}, cost nothing. A list
+     * that can change is copied.
+     */
+    @Test
+    public void prefixesInNormalFormAreKept() {
+        final var prefixes = List.of("b/", "a/");
+        assertThat(ClasspathOrderBuilder.normalizePrefixes(prefixes, null)).isSameAs(prefixes);
+
+        final List<String> mutablePrefixes = new ArrayList<>(prefixes);
+        final var normalized = ClasspathOrderBuilder.normalizePrefixes(mutablePrefixes, null);
+        mutablePrefixes.clear();
+        assertThat(normalized).containsExactly("b/", "a/");
     }
 
     /** A directory with a "/*" suffix is expanded into one classpath entry per file in the directory. */
