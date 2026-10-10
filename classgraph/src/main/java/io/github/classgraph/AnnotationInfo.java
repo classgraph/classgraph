@@ -123,7 +123,7 @@ public final class AnnotationInfo extends ScanResultObject implements Comparable
      * @return The parameter values of this annotation, including any default parameter values inherited from the
      *         annotation class definition (if requested), or the empty list if none.
      */
-    AnnotationParameterValueList getParameterValues(final boolean includeDefaultValues) {
+    private AnnotationParameterValueList getParameterValues(final boolean includeDefaultValues) {
         final var paramValues = annotationParamValues;
         if (scanResult == null) {
             // Scanning has not finished, so the annotation class may not have been read yet -- return the values
@@ -138,56 +138,42 @@ public final class AnnotationInfo extends ScanResultObject implements Comparable
             AnnotationParameterValueList.convertWrapperArraysToPrimitiveArrays(paramValues, classInfo);
             annotationParamValuesHasBeenConvertedToPrimitive = true;
         }
-        if (!includeDefaultValues || classInfo == null) {
-            // Don't include defaults, or there are no defaults to include, since they are declared by the
-            // annotation class, which was not scanned
+        if (!includeDefaultValues || classInfo == null || !classInfo.isScannedClass) {
+            // Don't include defaults, or the annotation class was not scanned, so its elements and their default
+            // values are not known
             return paramValues == null ? AnnotationParameterValueList.EMPTY_LIST : paramValues;
         }
         // Read the field only once, since another thread may set it between two reads
         var paramValuesWithDefaults = annotationParamValuesWithDefaults;
         if (paramValuesWithDefaults == null) {
-            // Check if one or both of the defaults and the values in this annotation instance are null (empty)
+            // Overwrite defaults with the values given at the use site. The parameter values themselves are kept,
+            // rather than copied, since they have already been converted and given the ScanResult.
+            final Map<String, AnnotationParameterValue> allParamValues = new HashMap<>();
             final var defaultParamValues = classInfo.getConvertedAnnotationDefaultParamValues();
-            if (defaultParamValues == null) {
-                return paramValues == null ? AnnotationParameterValueList.EMPTY_LIST : paramValues;
-            } else if (paramValues == null) {
-                return defaultParamValues;
+            if (defaultParamValues != null) {
+                for (final AnnotationParameterValue defaultParamValue : defaultParamValues) {
+                    allParamValues.put(defaultParamValue.getName(), defaultParamValue);
+                }
+            }
+            if (paramValues != null) {
+                for (final AnnotationParameterValue annotationParamValue : paramValues) {
+                    allParamValues.put(annotationParamValue.getName(), annotationParamValue);
+                }
             }
 
-            // Overwrite defaults with non-defaults
-            final Map<String, Object> allParamValues = new HashMap<>();
-            for (final AnnotationParameterValue defaultParamValue : defaultParamValues) {
-                allParamValues.put(defaultParamValue.getName(), defaultParamValue.getValue());
-            }
-            for (final AnnotationParameterValue annotationParamValue : paramValues) {
-                allParamValues.put(annotationParamValue.getName(), annotationParamValue.getValue());
-            }
-
-            // Put annotation values in the same order as the annotation methods (there is one method for each
-            // annotation constant)
-            if (classInfo.methodInfo == null) {
-                // Should not happen (when classfile is read, methods are always read, whether or not
-                // scanSpec.enableMethodInfo is true)
-                throw new IllegalStateException("Could not find methods for annotation " + classInfo.getName());
-            }
+            // Keep only the values of the elements the annotation class declares, as the JDK does: a value given
+            // for an element that was removed from the annotation class after the use site was compiled is left
+            // out. Each element is a method of the annotation class. Only elements have values, so other methods,
+            // such as <clinit>, match no name, and an element may be named equals, since it takes no parameter.
+            // A scanned annotation class with no methods has a null methodInfo, and has no elements.
             final List<AnnotationParameterValue> withDefaults = new ArrayList<>();
-            for (final MethodInfo mi : classInfo.methodInfo) {
-                final var paramName = mi.getName();
-                switch (paramName) {
-                // None of these method names should be present in the @interface class itself, it should only
-                // contain methods for the annotation constants (but skip them anyway to be safe). These methods
-                // should only exist in concrete instances of the annotation.
-                case "<init>", "<clinit>", "hashCode", "equals", "toString", "annotationType" -> {
-                    // Skip
-                }
-                default -> {
-                    // Annotation constant
-                    final var paramValue = allParamValues.get(paramName);
-                    // Annotation values cannot be null (or absent, from either defaults or annotation instance)
+            if (classInfo.methodInfo != null) {
+                for (final MethodInfo mi : classInfo.methodInfo) {
+                    // Remove the value, so that it is listed only once if two methods have the same name
+                    final var paramValue = allParamValues.remove(mi.getName());
                     if (paramValue != null) {
-                        withDefaults.add(new AnnotationParameterValue(paramName, paramValue));
+                        withDefaults.add(paramValue);
                     }
-                }
                 }
             }
             // The methods of a class are sorted by name, so the parameter values are already in name order
