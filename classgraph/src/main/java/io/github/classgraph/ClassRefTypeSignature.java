@@ -187,8 +187,53 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
         if (substitutedTypeArguments == typeArguments && substitutedSuffixTypeArguments == null) {
             return this;
         }
-        return new ClassRefTypeSignature(className, substitutedTypeArguments, suffixes,
+        return copy(substitutedTypeArguments,
                 substitutedSuffixTypeArguments == null ? suffixTypeArguments : substitutedSuffixTypeArguments);
+    }
+
+    @Override
+    ClassRefTypeSignature withTypeAnnotationsPrepended(final List<AnnotationInfo> annotations) {
+        final var copy = copy(typeArguments, suffixTypeArguments);
+        if (suffixes.isEmpty()) {
+            copy.prependTypeAnnotations(annotations);
+        } else {
+            // A type annotation on the type as a whole is on the innermost nested class, as in "Map.@A Entry", and
+            // the type annotations of the base class apply only to the outermost class
+            final var lastSuffixIdx = suffixes.size() - 1;
+            final var copySuffixTypeAnnotations = copy.suffixTypeAnnotations;
+            if (copySuffixTypeAnnotations == null) {
+                for (final AnnotationInfo annotationInfo : annotations) {
+                    copy.addSuffixTypeAnnotation(lastSuffixIdx, annotationInfo);
+                }
+            } else {
+                copySuffixTypeAnnotations.get(lastSuffixIdx).addAll(0, annotations);
+            }
+        }
+        return copy;
+    }
+
+    /**
+     * Make a copy of this class reference with different type arguments, and with copies of its type annotations.
+     *
+     * @param newTypeArguments
+     *            the type arguments of the base class.
+     * @param newSuffixTypeArguments
+     *            the type arguments of the suffixes.
+     * @return the copy.
+     */
+    private ClassRefTypeSignature copy(final List<TypeArgument> newTypeArguments,
+            final List<List<TypeArgument>> newSuffixTypeArguments) {
+        final var copy = new ClassRefTypeSignature(className, newTypeArguments, suffixes, newSuffixTypeArguments);
+        copy.copyTypeAnnotationsFrom(this);
+        final var suffixAnnotations = suffixTypeAnnotations;
+        if (suffixAnnotations != null) {
+            final List<List<AnnotationInfo>> suffixAnnotationsCopy = new ArrayList<>(suffixAnnotations.size());
+            for (final List<AnnotationInfo> annotations : suffixAnnotations) {
+                suffixAnnotationsCopy.add(new ArrayList<>(annotations));
+            }
+            copy.suffixTypeAnnotations = suffixAnnotationsCopy;
+        }
+        return copy;
     }
 
     /**

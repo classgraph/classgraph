@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
@@ -470,6 +471,29 @@ public class TypeVariableSignatureTest {
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessage("Type variable should have empty typePath");
         }
+    }
+
+    /**
+     * A type annotation on a type variable in type argument position, such as the {@code @A} in {@code List<@A T>},
+     * is placed on the wildcard when the type variable is bound to a wildcard type argument, and the wildcard type
+     * argument that the type variable is bound to is not changed. (Java source code cannot bind a type variable of
+     * a supertype to a wildcard, so this is tested on parsed type signatures.)
+     *
+     * @throws TypeSignatureParseException
+     *             if a type signature does not parse
+     */
+    @Test
+    public void aTypeAnnotationOnATypeVariableBoundToAWildcardIsPlacedOnTheWildcard()
+            throws TypeSignatureParseException {
+        final var listOfT = (ClassRefTypeSignature) TypeSignature.parse("Ljava/util/List<TT;>;", GENERIC);
+        listOfT.getTypeArguments().get(0).getTypeSignature().addTypeAnnotation(new AnnotationInfo("p.A", null));
+        assertThat(listOfT.toString()).isEqualTo("java.util.List<@p.A T>");
+        final var wildcard = ((ClassRefTypeSignature) TypeSignature.parse("Ljava/util/List<+Ljava/lang/Number;>;",
+                /* definingClassName = */ null)).getTypeArguments().get(0);
+        final var substituted = listOfT
+                .substituteTypeVariables(Map.of(TypeSignature.substitutionKey(GENERIC, "T"), wildcard));
+        assertThat(substituted.toString()).isEqualTo("java.util.List<@p.A ? extends java.lang.Number>");
+        assertThat(wildcard.toString()).isEqualTo("? extends java.lang.Number");
     }
 
     /** Any classes referenced by a type variable are already referenced by its enclosing method or class. */

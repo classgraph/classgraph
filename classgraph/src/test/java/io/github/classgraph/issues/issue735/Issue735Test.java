@@ -3,6 +3,10 @@ package io.github.classgraph.issues.issue735;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 import java.util.List;
 import java.util.Map;
 
@@ -14,7 +18,9 @@ import io.github.classgraph.ArrayTypeSignature;
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ClassInfo;
 import io.github.classgraph.ClassRefTypeSignature;
+import io.github.classgraph.ReferenceTypeSignature;
 import io.github.classgraph.ScanResult;
+import io.github.classgraph.TypeSignature;
 
 public class Issue735Test {
     interface Base<T> {
@@ -182,6 +188,77 @@ public class Issue735Test {
 
     /** Binds Outer's O to Short. */
     static class OuterBound extends Outer<Short> {
+    }
+
+    /** Uses its type parameter as the element type of arrays. */
+    interface ArrayElement<E> {
+        E[] getArray();
+
+        E[][] getGrid();
+
+        List<E[]> getListOfArrays();
+    }
+
+    /** Binds ArrayElement's E to an array type. */
+    abstract static class ArrayElementBoundToStringArray implements ArrayElement<String[]> {
+    }
+
+    /** Binds ArrayElement's E to an array of a primitive type. */
+    abstract static class ArrayElementBoundToIntArray implements ArrayElement<int[]> {
+    }
+
+    /** Binds ArrayElement's E to an array of its own type parameter. */
+    abstract static class ArrayElementBoundToArrayOfTypeParameter<V> implements ArrayElement<V[]> {
+    }
+
+    /**
+     * Binds ArrayElementBoundToArrayOfTypeParameter's V to String, which must compose into a binding of
+     * ArrayElement's E to String[].
+     */
+    abstract static class ArrayElementBoundToStringArrayIndirectly
+            extends ArrayElementBoundToArrayOfTypeParameter<String> {
+    }
+
+    /** A type annotation. */
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.TYPE_USE)
+    @interface TA {
+    }
+
+    /** Has fields whose types carry a type annotation in each position that substitution rebuilds. */
+    static class Annotated<T> {
+        @TA
+        List<T> annotatedParameterizedType;
+
+        List<@TA T> annotatedTypeVariableInTypeArgument;
+
+        @TA
+        T annotatedTypeVariable;
+
+        T @TA [] annotatedArrayDimension;
+
+        @TA
+        T[] annotatedArrayElement;
+
+        Map.@TA Entry<T, String> annotatedNestedClass;
+
+        List<@TA ? extends T> annotatedWildcard;
+    }
+
+    /** Binds Annotated's T to String. */
+    static class AnnotatedBoundToString extends Annotated<String> {
+    }
+
+    /** Binds Annotated's T to an array type. */
+    static class AnnotatedBoundToStringArray extends Annotated<String[]> {
+    }
+
+    /** Binds Annotated's T to a nested class. */
+    static class AnnotatedBoundToNestedClass extends Annotated<Map.Entry<String, Integer>> {
+    }
+
+    /** Binds Annotated's T to its own type parameter. */
+    static class AnnotatedBoundToTypeParameter<W> extends Annotated<W> {
     }
 
     /** The scan result, shared by the resolution tests. */
@@ -504,6 +581,194 @@ public class Issue735Test {
                 .resolveTypeVariables(scanResult.getClassInfo(BoundToIntegerIndirectly.class.getName())).toString())
                 .isEqualTo("java.util.List<java.lang.Integer>");
         assertThat(resultType.toString()).isEqualTo("java.util.List<T>");
+    }
+
+    /**
+     * Get the declared result type of a method of {@link ArrayElement}, resolved against a context class.
+     *
+     * @param methodName
+     *            the name of the method of {@link ArrayElement}.
+     * @param contextClass
+     *            the class to resolve type variables against.
+     * @return the resolved result type.
+     */
+    private static TypeSignature resolvedArrayElementResultType(final String methodName,
+            final Class<?> contextClass) {
+        return scanResult.getClassInfo(ArrayElement.class.getName()).getMethodInfo(methodName).get(0)
+                .getTypeSignatureOrTypeDescriptor().getResultType()
+                .resolveTypeVariables(scanResult.getClassInfo(contextClass.getName()));
+    }
+
+    /**
+     * An array type substituted for the element type of an array type adds its dimensions to those of the array
+     * type, so {@code E[]} with {@code E := String[]} is {@code String[][]}, an array type whose element type is
+     * {@code String}.
+     */
+    @Test
+    void arrayTypeSubstitutedForArrayElementTypeAddsItsDimensions() {
+        final var array = (ArrayTypeSignature) resolvedArrayElementResultType("getArray",
+                ArrayElementBoundToStringArray.class);
+        assertThat(array.toString()).isEqualTo("java.lang.String[][]");
+        assertThat(array.getNumDimensions()).isEqualTo(2);
+        assertThat(array.getElementTypeSignature().toString()).isEqualTo("java.lang.String");
+        assertThat(array.getTypeSignatureString()).isEqualTo("[[Ljava/lang/String;");
+        assertThat(array.getArrayClassInfo().getName()).isEqualTo("java.lang.String[][]");
+
+        assertThat(resolvedArrayElementResultType("getGrid", ArrayElementBoundToIntArray.class).toString())
+                .isEqualTo("int[][][]");
+        assertThat(
+                resolvedArrayElementResultType("getListOfArrays", ArrayElementBoundToStringArray.class).toString())
+                .isEqualTo("java.util.List<java.lang.String[][]>");
+        assertThat(resolvedArrayElementResultType("getArray", ArrayElementBoundToStringArrayIndirectly.class)
+                .toString()).isEqualTo("java.lang.String[][]");
+    }
+
+    /** The rendering of {@link TA} in a type signature. */
+    private static final String AT_TA = "@" + TA.class.getName();
+
+    /**
+     * Get the type of a field of {@link Annotated}.
+     *
+     * @param fieldName
+     *            the name of the field.
+     * @return the type of the field.
+     */
+    private static TypeSignature annotatedFieldType(final String fieldName) {
+        return scanResult.getClassInfo(Annotated.class.getName()).getFieldInfo(fieldName)
+                .getTypeSignatureOrTypeDescriptor();
+    }
+
+    /**
+     * Get the type of a field of {@link Annotated}, resolved against a context class.
+     *
+     * @param fieldName
+     *            the name of the field.
+     * @param contextClass
+     *            the class to resolve type variables against.
+     * @return the resolved type of the field.
+     */
+    private static TypeSignature resolvedAnnotatedFieldType(final String fieldName, final Class<?> contextClass) {
+        return annotatedFieldType(fieldName).resolveTypeVariables(scanResult.getClassInfo(contextClass.getName()));
+    }
+
+    /**
+     * Get the type argument that a subclass of {@link Annotated} supplies for its type parameter.
+     *
+     * @param contextClass
+     *            the subclass.
+     * @return the type argument's type signature.
+     */
+    private static ReferenceTypeSignature superclassTypeArgument(final Class<?> contextClass) {
+        // Annotated is a nested class, so its type arguments are those of the last suffix
+        final var suffixTypeArguments = scanResult.getClassInfo(contextClass.getName()).getTypeSignature()
+                .getSuperclassSignature().getSuffixTypeArguments();
+        return suffixTypeArguments.get(suffixTypeArguments.size() - 1).get(0).getTypeSignature();
+    }
+
+    /** A type annotation on a type that substitution rebuilds stays where it was. */
+    @Test
+    void typeAnnotationsOnRebuiltTypesAreKept() {
+        assertThat(annotatedFieldType("annotatedParameterizedType").toString())
+                .isEqualTo(AT_TA + " java.util.List<T>");
+        final var parameterizedType = (ClassRefTypeSignature) resolvedAnnotatedFieldType(
+                "annotatedParameterizedType", AnnotatedBoundToString.class);
+        assertThat(parameterizedType.toString()).isEqualTo(AT_TA + " java.util.List<java.lang.String>");
+        assertThat(parameterizedType.getTypeAnnotationInfo().getNames()).containsExactly(TA.class.getName());
+
+        assertThat(annotatedFieldType("annotatedArrayDimension").toString()).isEqualTo("T " + AT_TA + " []");
+        final var arrayDimension = resolvedAnnotatedFieldType("annotatedArrayDimension",
+                AnnotatedBoundToString.class);
+        assertThat(arrayDimension.toString()).isEqualTo("java.lang.String " + AT_TA + " []");
+        assertThat(arrayDimension.getTypeAnnotationInfo().getNames()).containsExactly(TA.class.getName());
+
+        assertThat(annotatedFieldType("annotatedNestedClass").toString())
+                .isEqualTo("java.util.Map$" + AT_TA + " Entry<T, java.lang.String>");
+        final var nestedClass = (ClassRefTypeSignature) resolvedAnnotatedFieldType("annotatedNestedClass",
+                AnnotatedBoundToString.class);
+        assertThat(nestedClass.toString())
+                .isEqualTo("java.util.Map$" + AT_TA + " Entry<java.lang.String, java.lang.String>");
+        assertThat(nestedClass.getSuffixTypeAnnotationInfo().get(0).getNames()).containsExactly(TA.class.getName());
+
+        assertThat(annotatedFieldType("annotatedWildcard").toString())
+                .isEqualTo("java.util.List<" + AT_TA + " ? extends T>");
+        final var wildcard = (ClassRefTypeSignature) resolvedAnnotatedFieldType("annotatedWildcard",
+                AnnotatedBoundToString.class);
+        assertThat(wildcard.toString()).isEqualTo("java.util.List<" + AT_TA + " ? extends java.lang.String>");
+        assertThat(wildcard.getTypeArguments().get(0).getTypeAnnotationInfo().getNames())
+                .containsExactly(TA.class.getName());
+    }
+
+    /**
+     * A type annotation on a use of a type variable is placed on the type that replaces the type variable, without
+     * changing the type that the context class binds the type variable to.
+     */
+    @Test
+    void typeAnnotationsOnTypeVariablesArePlacedOnTheSubstitutedType() {
+        assertThat(annotatedFieldType("annotatedTypeVariable").toString()).isEqualTo(AT_TA + " T");
+        final var typeVariable = resolvedAnnotatedFieldType("annotatedTypeVariable", AnnotatedBoundToString.class);
+        assertThat(typeVariable.toString()).isEqualTo(AT_TA + " java.lang.String");
+        assertThat(typeVariable.getTypeAnnotationInfo().getNames()).containsExactly(TA.class.getName());
+
+        assertThat(annotatedFieldType("annotatedTypeVariableInTypeArgument").toString())
+                .isEqualTo("java.util.List<" + AT_TA + " T>");
+        final var typeArgument = (ClassRefTypeSignature) resolvedAnnotatedFieldType(
+                "annotatedTypeVariableInTypeArgument", AnnotatedBoundToString.class);
+        assertThat(typeArgument.toString()).isEqualTo("java.util.List<" + AT_TA + " java.lang.String>");
+        assertThat(typeArgument.getTypeArguments().get(0).getTypeSignature().getTypeAnnotationInfo().getNames())
+                .containsExactly(TA.class.getName());
+
+        assertThat(annotatedFieldType("annotatedArrayElement").toString()).isEqualTo(AT_TA + " T[]");
+        assertThat(resolvedAnnotatedFieldType("annotatedArrayElement", AnnotatedBoundToString.class).toString())
+                .isEqualTo(AT_TA + " java.lang.String[]");
+
+        // A type variable can be replaced by another type variable
+        assertThat(
+                resolvedAnnotatedFieldType("annotatedTypeVariable", AnnotatedBoundToTypeParameter.class).toString())
+                .isEqualTo(AT_TA + " W");
+        assertThat(resolvedAnnotatedFieldType("annotatedTypeVariableInTypeArgument",
+                AnnotatedBoundToTypeParameter.class).toString()).isEqualTo("java.util.List<" + AT_TA + " W>");
+
+        // The type annotation applies to the type as a whole, which for a nested class is the innermost class
+        final var nestedClass = (ClassRefTypeSignature) resolvedAnnotatedFieldType("annotatedTypeVariable",
+                AnnotatedBoundToNestedClass.class);
+        assertThat(nestedClass.toString())
+                .isEqualTo("java.util.Map$" + AT_TA + " Entry<java.lang.String, java.lang.Integer>");
+        assertThat(nestedClass.getTypeAnnotationInfo()).isEmpty();
+        assertThat(nestedClass.getSuffixTypeAnnotationInfo().get(0).getNames()).containsExactly(TA.class.getName());
+
+        // The type that the context class binds the type variable to is not changed
+        final var binding = (ClassRefTypeSignature) superclassTypeArgument(AnnotatedBoundToString.class);
+        assertThat(binding.toString()).isEqualTo("java.lang.String");
+        assertThat(binding.getTypeAnnotationInfo()).isEmpty();
+        final var nestedClassBinding = (ClassRefTypeSignature) superclassTypeArgument(
+                AnnotatedBoundToNestedClass.class);
+        assertThat(nestedClassBinding.getSuffixTypeAnnotationInfo().get(0)).isEmpty();
+        // Nor is the type signature that was resolved
+        assertThat(annotatedFieldType("annotatedTypeVariable").toString()).isEqualTo(AT_TA + " T");
+    }
+
+    /**
+     * When an array type is substituted for the element type of an array type, the type annotations of the
+     * dimensions of the array type are on the outer dimensions of the result, and those of the substituted array
+     * type are on the inner dimensions.
+     */
+    @Test
+    void typeAnnotationsOnMergedArrayDimensionsAreKept() {
+        // T @TA [] with T := String[] is an array of String[] whose own (outer) dimension is annotated
+        assertThat(
+                resolvedAnnotatedFieldType("annotatedArrayDimension", AnnotatedBoundToStringArray.class).toString())
+                .isEqualTo("java.lang.String " + AT_TA + " [][]");
+        // @TA T[] with T := String[] is an array of String @TA [], so the inner dimension is annotated
+        final var arrayElement = (ArrayTypeSignature) resolvedAnnotatedFieldType("annotatedArrayElement",
+                AnnotatedBoundToStringArray.class);
+        assertThat(arrayElement.toString()).isEqualTo("java.lang.String[] " + AT_TA + " []");
+        assertThat(arrayElement.getTypeAnnotationInfo()).isEmpty();
+        assertThat(arrayElement.getNestedType().getTypeAnnotationInfo().getNames())
+                .containsExactly(TA.class.getName());
+        // @TA T with T := String[] annotates the array type, giving String @TA []
+        assertThat(
+                resolvedAnnotatedFieldType("annotatedTypeVariable", AnnotatedBoundToStringArray.class).toString())
+                .isEqualTo("java.lang.String " + AT_TA + " []");
     }
 
     /** A null context class is rejected. */

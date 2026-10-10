@@ -88,6 +88,18 @@ public abstract sealed class TypeSignature extends HierarchicalTypeSignature
      * inner class inherits from its enclosing class is therefore not resolved, since the classfile records it as
      * declared by the inner class, which is not on that chain.
      *
+     * <p>
+     * An array type substituted for the element type of an array type adds its dimensions, so {@code E[]} with
+     * {@code E := String[]} resolves to {@code String[][]}. If the result would have more than 255 dimensions, the
+     * maximum the JVM allows, the type variable is left unchanged.
+     *
+     * <p>
+     * Type annotations are kept. A type annotation on a use of a type variable, such as the {@code @A} in
+     * {@code @A T} or {@code List<@A T>}, is placed on the type that replaces the type variable, before that type's
+     * own type annotations: on the innermost class of a nested class type (as in {@code Map.@A Entry}), on the
+     * outermost dimension of an array type, and on the wildcard of a wildcard type argument. The type signature
+     * that binds the type variable is not changed.
+     *
      * @param contextClass
      *            the class to resolve type variables against.
      * @return this type signature with any resolvable type variables substituted, or this type signature itself if

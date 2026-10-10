@@ -197,8 +197,24 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
         // Outside type argument position there is no way to express "?" or "? super X", so leave the type variable
         // unsubstituted in those cases; "? extends X" is substituted as its upper bound X
         final var typeSignature = typeArgument.getTypeSignature();
-        return typeSignature == null || typeArgument.getWildcard() == TypeArgument.Wildcard.ANY
-                || typeArgument.getWildcard() == TypeArgument.Wildcard.SUPER ? this : typeSignature;
+        if (typeSignature == null || typeArgument.getWildcard() == TypeArgument.Wildcard.ANY
+                || typeArgument.getWildcard() == TypeArgument.Wildcard.SUPER) {
+            return this;
+        }
+        // A type annotation on this use of the type variable, such as the "@A" in "@A T", is placed on the type
+        // that replaces the type variable
+        final var useSiteTypeAnnotations = typeAnnotations;
+        return useSiteTypeAnnotations == null || useSiteTypeAnnotations.isEmpty() ? typeSignature
+                : typeSignature.withTypeAnnotationsPrepended(useSiteTypeAnnotations);
+    }
+
+    @Override
+    TypeVariableSignature withTypeAnnotationsPrepended(final List<AnnotationInfo> annotations) {
+        final var copy = new TypeVariableSignature(name, definingClassName);
+        copy.methodTypeParameter = methodTypeParameter;
+        copy.copyTypeAnnotationsFrom(this);
+        copy.prependTypeAnnotations(annotations);
+        return copy;
     }
 
     // -------------------------------------------------------------------------------------------------------------

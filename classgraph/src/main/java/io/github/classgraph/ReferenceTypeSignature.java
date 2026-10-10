@@ -28,6 +28,8 @@
  */
 package io.github.classgraph;
 
+import java.util.List;
+
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -42,6 +44,19 @@ public abstract sealed class ReferenceTypeSignature extends TypeSignature
     ReferenceTypeSignature() {
         super();
     }
+
+    /**
+     * Make a copy of this type signature that has the given type annotations on the type as a whole, before any
+     * type annotations of its own. This is used to place a type annotation on a use of a type variable, such as the
+     * {@code @A} in {@code @A T}, on the type that replaces the type variable, without changing that type, which is
+     * shared with the type signature that binds the type variable.
+     *
+     * @param annotations
+     *            the type annotations to put first.
+     * @return the copy, which shares its type arguments, or the element type if it is an array type, with this type
+     *         signature.
+     */
+    abstract ReferenceTypeSignature withTypeAnnotationsPrepended(List<AnnotationInfo> annotations);
 
     /**
      * Parse a reference type signature.

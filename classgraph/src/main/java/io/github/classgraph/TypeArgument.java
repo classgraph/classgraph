@@ -120,16 +120,44 @@ public final class TypeArgument extends HierarchicalTypeSignature {
             // whole, so that a wildcard type argument keeps its wildcard, e.g. substituting T := "? extends Number"
             // into "List<T>" gives "List<? extends Number>"
             final var substitution = typeVariable.substitution(substitutions);
-            if (substitution != null) {
-                return substitution;
+            if (substitution == null) {
+                return this;
             }
-            return this;
+            // A type annotation on this use of the type variable, such as the "@A" in "List<@A T>", is placed on
+            // the type argument that replaces the type variable. (A type argument with no wildcard has no type
+            // annotations of its own: they are on its type signature.)
+            final var useSiteTypeAnnotations = typeVariable.typeAnnotations;
+            return useSiteTypeAnnotations == null || useSiteTypeAnnotations.isEmpty() ? substitution
+                    : substitution.withTypeAnnotationsPrepended(useSiteTypeAnnotations);
         }
         final var substitutedTypeSignature = typeSig.substituteTypeVariables(substitutions);
-        return substitutedTypeSignature != typeSig
-                && substitutedTypeSignature instanceof final ReferenceTypeSignature referenceTypeSignature
-                        ? new TypeArgument(wildcard, referenceTypeSignature)
-                        : this;
+        if (substitutedTypeSignature != typeSig
+                && substitutedTypeSignature instanceof final ReferenceTypeSignature referenceTypeSignature) {
+            final var substituted = new TypeArgument(wildcard, referenceTypeSignature);
+            substituted.copyTypeAnnotationsFrom(this);
+            return substituted;
+        }
+        return this;
+    }
+
+    /**
+     * Make a copy of this type argument that has the given type annotations on the type argument as a whole, before
+     * any type annotations of its own: on the wildcard, if this type argument is a wildcard, otherwise on its type
+     * signature.
+     *
+     * @param annotations
+     *            the type annotations to put first.
+     * @return the copy.
+     */
+    private TypeArgument withTypeAnnotationsPrepended(final List<AnnotationInfo> annotations) {
+        final var typeSig = typeSignature;
+        if (wildcard == Wildcard.NONE && typeSig != null) {
+            return new TypeArgument(wildcard, typeSig.withTypeAnnotationsPrepended(annotations));
+        }
+        final var copy = new TypeArgument(wildcard, typeSig);
+        copy.copyTypeAnnotationsFrom(this);
+        copy.prependTypeAnnotations(annotations);
+        return copy;
     }
 
     /**

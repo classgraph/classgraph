@@ -134,14 +134,65 @@ public final class ArrayTypeSignature extends ReferenceTypeSignature {
         if (substitutedElementTypeSignature == elementTypeSignature) {
             return this;
         }
-        // The array's own type signature string has to be rebuilt around the substituted element type
-        final var numDims = getNumDimensions();
-        final StringBuilder buf = new StringBuilder();
-        for (var i = 0; i < numDims; i++) {
-            buf.append('[');
+        var numDims = getNumDimensions();
+        var newElementTypeSignature = substitutedElementTypeSignature;
+        // The element type of an array type is never itself an array type, so an array type substituted for the
+        // element type adds its dimensions to this array's, e.g. E[] with E := String[] is String[][]
+        final var substitutedArray = substitutedElementTypeSignature instanceof final ArrayTypeSignature array
+                ? array
+                : null;
+        if (substitutedArray != null) {
+            numDims += substitutedArray.getNumDimensions();
+            if (numDims > MAX_DIMENSIONS) {
+                // There is no array type with this many dimensions, so leave the type variable unsubstituted
+                return this;
+            }
+            newElementTypeSignature = substitutedArray.getElementTypeSignature();
         }
-        buf.append(TypeSignature.toTypeSignatureStr(substitutedElementTypeSignature));
-        return new ArrayTypeSignature(substitutedElementTypeSignature, numDims, buf.toString());
+        // The array's own type signature string has to be rebuilt around the new element type
+        final var substituted = new ArrayTypeSignature(newElementTypeSignature, numDims,
+                "[".repeat(numDims) + TypeSignature.toTypeSignatureStr(newElementTypeSignature));
+        // This array's dimensions are the outer dimensions of the new array, and the dimensions of the substituted
+        // array, if any, are the inner dimensions
+        final var innerDimensions = copyDimensionTypeAnnotations(this, substituted);
+        if (substitutedArray != null) {
+            copyDimensionTypeAnnotations(substitutedArray, (ArrayTypeSignature) innerDimensions);
+        }
+        return substituted;
+    }
+
+    @Override
+    ArrayTypeSignature withTypeAnnotationsPrepended(final List<AnnotationInfo> annotations) {
+        final var copy = new ArrayTypeSignature(getElementTypeSignature(), getNumDimensions(), typeSignatureStr);
+        copyDimensionTypeAnnotations(this, copy);
+        // A type annotation on the array type as a whole is on its outermost dimension
+        copy.prependTypeAnnotations(annotations);
+        return copy;
+    }
+
+    /**
+     * Copy the type annotations of each dimension of an array type to the dimension in the same position of another
+     * array type, outermost first, which has at least as many dimensions.
+     *
+     * @param source
+     *            the array type to copy the type annotations from.
+     * @param destination
+     *            the array type to copy the type annotations to, which type variable substitution has just built.
+     * @return the nested type of the destination dimension that the innermost dimension of the source was copied
+     *         to.
+     */
+    private static TypeSignature copyDimensionTypeAnnotations(final ArrayTypeSignature source,
+            final ArrayTypeSignature destination) {
+        var sourceDimension = source;
+        var destinationDimension = destination;
+        for (;;) {
+            destinationDimension.copyTypeAnnotationsFrom(sourceDimension);
+            if (!(sourceDimension.nestedType instanceof final ArrayTypeSignature nextSourceDimension)) {
+                return destinationDimension.nestedType;
+            }
+            sourceDimension = nextSourceDimension;
+            destinationDimension = (ArrayTypeSignature) destinationDimension.nestedType;
+        }
     }
 
     /**
