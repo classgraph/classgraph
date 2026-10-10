@@ -28,6 +28,7 @@
  */
 package io.github.classgraph.classpath.internal.classloaderhandler;
 
+import java.io.File;
 import java.lang.reflect.Array;
 
 import io.github.classgraph.base.ClassGraphLog;
@@ -84,6 +85,8 @@ class EquinoxClassLoaderHandler implements ClassLoaderHandler {
             final var container = ReflectionUtils.getFieldVal(false, delegate, "container");
             // type Storage
             final var storage = ReflectionUtils.getFieldVal(false, container, "storage");
+            // type String -- the path of the install area's URL, e.g. "/opt/eclipse/"
+            final var installPath = ReflectionUtils.getFieldVal(false, storage, "installPath");
             // type ModuleContainer
             final var moduleContainer = ReflectionUtils.getFieldVal(false, storage, "moduleContainer");
             // type ModuleDatabase
@@ -109,7 +112,21 @@ class EquinoxClassLoaderHandler implements ClassLoaderHandler {
                     if (location != null) {
                         final var fileIdx = location.indexOf("file:");
                         if (fileIdx >= 0) {
-                            location = location.substring(fileIdx);
+                            // Equinox records a bundle in the install area by a path relative to the install area,
+                            // as in "initial@reference:file:plugins/x.jar" or "reference:file:plugins/x.jar", and
+                            // resolves a relative "reference:file:" path against the install area, not against the
+                            // current directory. An absolute path, or a location without "reference:" (the URL the
+                            // bundle was copied from), is left as it is. A path starting with '/' or '\' counts as
+                            // absolute even on Windows, where installPath itself has the form "/C:/eclipse/".
+                            final var path = location.substring(fileIdx + 5);
+                            if (location.startsWith("reference:", fileIdx - 10)
+                                    && installPath instanceof final String installPathStr && !path.startsWith("/")
+                                    && !path.startsWith("\\") && !new File(path).isAbsolute()) {
+                                location = "file:" + installPathStr + (installPathStr.endsWith("/") ? "" : "/")
+                                        + path;
+                            } else {
+                                location = location.substring(fileIdx);
+                            }
                             classpathOrder.addClasspathEntry(location, classLoader, log);
                         }
                     }
