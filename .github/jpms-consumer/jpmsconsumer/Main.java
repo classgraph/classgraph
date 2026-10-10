@@ -32,11 +32,22 @@ import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ClassInfo;
 import io.github.classgraph.Resource;
 import io.github.classgraph.ScanResult;
+import io.github.classgraph.base.ClassGraphLog;
+import io.github.classgraph.base.LogNode;
+import io.github.classgraph.classpath.ModulePathInfo;
+import io.github.classgraph.vfs.CloseableByteBuffer;
+import io.github.classgraph.vfs.VfsEntry;
+import io.github.classgraph.viz.GraphVizDotFile;
 
 /**
  * Scans from inside a module on the module path. The unit tests all run on the classpath, so without this the
  * module descriptors would only ever be checked by the compiler, and a wrong {@code requires} or {@code exports}
  * would not be found until someone put the published jars on a module path.
+ *
+ * <p>
+ * The module requires only {@code io.github.classgraph.viz}, and this class names a type from each of the five
+ * modules, so a {@code requires transitive} that is missing anywhere in the chain fails the compile with an error
+ * that names the package that cannot be read.
  */
 public final class Main {
     /** A nested class, so that the scan of this module has to find more than the one class. */
@@ -71,6 +82,16 @@ public final class Main {
      *             if a resource cannot be read.
      */
     public static void main(final String[] args) throws Exception {
+        // io.github.classgraph.base is read only through the requires transitive chain from viz
+        final LogNode log = new LogNode();
+        final ClassGraphLog child = log.log("logged from a module");
+        check("a log from the base module can be written",
+                child != null && log.toString().contains("logged from a module"));
+
+        // io.github.classgraph.classpath is read only through the requires transitive chain from viz
+        final ModulePathInfo modulePathInfo = new ClassGraph().getModulePathInfo();
+        check("the module path given on the command line is reported", !modulePathInfo.getModulePath().isEmpty());
+
         // Scanning this module requires the module path to be read, and the module to be opened to ClassGraph.
         // Nothing here is on the classpath, so it is enableNonSystemModules() that reaches it, not
         // enableClasspath().
@@ -82,6 +103,9 @@ public final class Main {
                     scanResult.getAllClasses().getNames().contains("jpmsconsumer.Main"));
             check("a nested class in the module is scanned",
                     scanResult.getClassInfo("jpmsconsumer.Main$Widget") != null);
+            // io.github.classgraph.viz is required directly, so this also resolves it as a module at runtime
+            check("the viz module draws the module's classes",
+                    GraphVizDotFile.generate(scanResult, scanResult.getAllClasses()).contains("Widget"));
         }
 
         // Resources have to be read out of the jars that are on the module path, not just classes.
@@ -91,6 +115,15 @@ public final class Main {
             check("a manifest is found on the module path", manifest != null);
             check("the manifest can be read",
                     manifest != null && manifest.loadAsString().startsWith("Manifest-Version"));
+            if (manifest != null) {
+                // io.github.classgraph.vfs is read only through the requires transitive chain from viz
+                final VfsEntry vfsEntry = manifest.getVfsEntry();
+                check("the manifest's VFS entry is reachable", vfsEntry.getLastSegment().equals("MANIFEST.MF"));
+                try (CloseableByteBuffer buffer = manifest.read()) {
+                    check("the manifest can be read as a buffer",
+                            buffer.getByteBuffer() != null && buffer.getByteBuffer().remaining() > 0);
+                }
+            }
         }
 
         // System modules are read out of the jrt filesystem, which is a different VFS root kind again.
