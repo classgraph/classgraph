@@ -283,8 +283,7 @@ public final class ClasspathExpander {
             if (relativePath.isEmpty() || ".".equals(relativePath)) {
                 continue;
             }
-            final var nameWithin = PathSyntax.sanitizeEntryPath(relativePath, /* removeInitialSlash = */ true,
-                    /* removeFinalSlash = */ true);
+            final var nameWithin = PathSyntax.sanitizeRelativePath(relativePath, /* removeFinalSlash = */ true);
             childEntries.add(new ChildEntry(ChildEntryOrigin.BUNDLE_CLASS_PATH_MANIFEST_ENTRY,
                     locationPrefix + nameWithin, resolveWithin(containerNioPath, nameWithin)));
         }

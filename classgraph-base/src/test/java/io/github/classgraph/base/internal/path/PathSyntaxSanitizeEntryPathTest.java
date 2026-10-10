@@ -2,12 +2,20 @@ package io.github.classgraph.base.internal.path;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.UUID;
+
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 /**
- * Tests for {@link PathSyntax#sanitizeEntryPath(String, boolean, boolean)}: {@code "."} and {@code ".."} segments
- * and empty segments must be normalized away, wherever they appear in the path -- including as the final segment,
- * where they are not followed by a separator.
+ * Tests for {@link PathSyntax#sanitizeEntryPath(String, boolean, boolean)} and
+ * {@link PathSyntax#sanitizeRelativePath(String, boolean)}: {@code "."} and {@code ".."} segments and empty
+ * segments must be normalized away, wherever they appear in the path -- including as the final segment, where they
+ * are not followed by a separator.
  */
 public class PathSyntaxSanitizeEntryPathTest {
     /**
@@ -54,12 +62,34 @@ public class PathSyntaxSanitizeEntryPathTest {
     }
 
     /**
-     * A nested jar separator {@code '!'} starts a new hierarchy root, which {@code ".."} may not escape.
+     * A nested jar separator {@code '!'} starts a new hierarchy root, which {@code ".."} may not escape. A '!' is
+     * only a separator if the path before it names an existing file (#903), so the jarfile has to exist.
+     *
+     * @param tempDir
+     *            a temporary directory to write the jarfile into
+     * @throws IOException
+     *             if the jarfile could not be written
      */
     @Test
-    public void dotDotCannotEscapePrecedingNestedJarSeparator() {
-        assertThat(sanitize("x.jar!/a/..")).isEqualTo("x.jar!");
-        assertThat(sanitize("x.jar!/a/b/..")).isEqualTo("x.jar!/a");
+    public void dotDotCannotEscapePrecedingNestedJarSeparator(@TempDir final Path tempDir) throws IOException {
+        final var jar = Files.write(tempDir.resolve("x.jar"), new byte[] { 'P', 'K' }).toString()
+                .replace(File.separatorChar, '/');
+        assertThat(sanitize(jar + "!/a/b/..")).isEqualTo(jar + "!/a");
+        assertThat(sanitize(jar + "!/a/../../../etc/passwd")).isEqualTo(jar + "!/etc/passwd");
+        // A section left empty is dropped together with the '!' before it; the result still names the jarfile
+        assertThat(sanitize(jar + "!/a/..")).isEqualTo(jar);
+    }
+
+    /**
+     * A '!' after a path that names no file is an ordinary filename character (#903), so {@code ".."} after it
+     * collapses the segment it is part of like any other.
+     */
+    @Test
+    public void aPlingAfterAPathThatIsNotAFileIsAnOrdinaryCharacter() {
+        final var jar = "no-such-file-" + UUID.randomUUID() + ".jar";
+        assertThat(sanitize(jar + "!/a/..")).isEqualTo(jar + "!");
+        assertThat(sanitize(jar + "!/a/b/..")).isEqualTo(jar + "!/a");
+        assertThat(sanitize(jar + "!/a/../../../etc/passwd")).isEqualTo("etc/passwd");
     }
 
     /**
@@ -73,7 +103,6 @@ public class PathSyntaxSanitizeEntryPathTest {
         assertThat(sanitize("a/b/../../../../c")).isEqualTo("c");
         assertThat(sanitize("a/../../../../../etc/passwd")).isEqualTo("etc/passwd");
         assertThat(sanitize("a/./../b/../../../c")).isEqualTo("c");
-        assertThat(sanitize("x.jar!/a/../../../etc/passwd")).isEqualTo("etc/passwd");
     }
 
     /**
@@ -106,5 +135,41 @@ public class PathSyntaxSanitizeEntryPathTest {
         assertThat(sanitize("a./b/")).isEqualTo("a./b/");
         assertThat(sanitize("foo.bar.")).isEqualTo("foo.bar.");
         assertThat(sanitize("a/b/")).isEqualTo("a/b/");
+    }
+
+    /**
+     * A path within a root is sanitized like any other path: {@code "."} and empty segments are dropped,
+     * {@code ".."} cannot climb above the root, and the initial {@code '/'} is removed.
+     */
+    @Test
+    public void relativePathIsSanitized() {
+        assertThat(PathSyntax.sanitizeRelativePath("/a/./b//c/../d", false)).isEqualTo("a/b/d");
+        assertThat(PathSyntax.sanitizeRelativePath("../../etc/passwd", false)).isEqualTo("etc/passwd");
+        assertThat(PathSyntax.sanitizeRelativePath("a/b/", false)).isEqualTo("a/b/");
+        assertThat(PathSyntax.sanitizeRelativePath("a/b/", true)).isEqualTo("a/b");
+        assertThat(PathSyntax.sanitizeRelativePath("", false)).isEmpty();
+    }
+
+    /**
+     * Within a root, every '!' is an ordinary character, whatever the path before it would name on the host, since
+     * a path within a root is not a host path.
+     *
+     * @param tempDir
+     *            a temporary directory holding a file that the part of the path before the '!' names
+     * @throws IOException
+     *             if the file could not be written
+     */
+    @Test
+    public void aPlingInARelativePathIsAnOrdinaryCharacter(@TempDir final Path tempDir) throws IOException {
+        assertThat(PathSyntax.sanitizeRelativePath("dir!name/./x.txt", false)).isEqualTo("dir!name/x.txt");
+        // Shaped like a URL, which a host path would read the first '!' of as a separator
+        assertThat(PathSyntax.sanitizeRelativePath("ab:c!d/./e.txt", false)).isEqualTo("ab:c!d/e.txt");
+        // The part before the '!' names an existing file, which a host path would read the '!' after as a separator
+        final var file = Files.write(tempDir.resolve("f"), new byte[] { 'P', 'K' }).toString()
+                .replace(File.separatorChar, '/');
+        assertThat(PathSyntax.sanitizeRelativePath(file + "!a/./b.txt", false))
+                .isEqualTo(file.replaceFirst("^/+", "") + "!a/b.txt");
+        assertThat(PathSyntax.sanitizeRelativePath(file + "!a/../b.txt", false))
+                .isEqualTo(file.substring(0, file.lastIndexOf('/') + 1).replaceFirst("^/+", "") + "b.txt");
     }
 }
