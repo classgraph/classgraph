@@ -66,18 +66,6 @@ public final class PhysicalZipFile {
     /** The {@link Slice} for the zipfile. */
     final Slice slice;
 
-    /** The {@link Vfs} that opened this zipfile, which its slice is read through. */
-    private final Vfs vfs;
-
-    /** The lock guarding {@link #logicalZipFile} and {@link #logicalZipFileFailure}. */
-    private final Object logicalZipFileLock = new Object();
-
-    /** The zipfile spanning the whole of this physical zipfile, or null if it has not been read yet. */
-    private @Nullable LogicalZipFile logicalZipFile;
-
-    /** The failure that stopped the central directory from being read, or null if it has not been tried or read. */
-    private @Nullable Throwable logicalZipFileFailure;
-
     /**
      * Construct a {@link PhysicalZipFile} from a file on disk.
      *
@@ -93,7 +81,6 @@ public final class PhysicalZipFile {
     PhysicalZipFile(final File file, final Vfs vfs, final @Nullable LogNode log) throws IOException {
         this.path = null;
         this.file = file;
-        this.vfs = vfs;
         this.pathStr = FastPathResolver.resolve(FileUtils.currDirPath(), file.getPath());
         this.slice = new PathSlice(file, vfs, log);
     }
@@ -113,7 +100,6 @@ public final class PhysicalZipFile {
     PhysicalZipFile(final Path path, final Vfs vfs, final @Nullable LogNode log) throws IOException {
         this.path = path;
         this.file = null;
-        this.vfs = vfs;
         this.pathStr = FileUtils.pathStr(path);
         this.slice = new PathSlice(path, vfs, log);
     }
@@ -140,52 +126,11 @@ public final class PhysicalZipFile {
             final Vfs vfs, final @Nullable LogNode log) throws IOException {
         this.path = null;
         this.pathStr = pathStr;
-        this.vfs = vfs;
         // Try downloading the InputStream to a byte array. If this succeeds, this will result in an ArraySlice. If
         // it fails, the InputStream will be spilled to disk, resulting in a PathSlice over the temporary file.
         this.slice = Slice.fromInputStream(inputStream, /* tempFileBaseName = */ pathStr, inputStreamLengthHint,
                 vfs, log);
         this.file = this.slice instanceof final PathSlice pathSlice ? pathSlice.getFile() : null;
-    }
-
-    /**
-     * Get the {@link LogicalZipFile} spanning the whole of this physical zipfile, reading its central directory if
-     * this is the first call. Every caller that reaches the same physical zipfile is handed the same instance, so
-     * the central directory is only read once, and a caller that arrives while another thread is still reading it
-     * blocks until that read finishes. A failed read is recorded and rethrown rather than tried again, since a
-     * zipfile whose central directory could not be read once will not read any better on a second attempt.
-     *
-     * @param log
-     *            the log node, or null to skip logging
-     * @return the {@link LogicalZipFile} spanning the whole of this physical zipfile.
-     * @throws IOException
-     *             if the central directory could not be read, or the {@link Vfs} has been closed.
-     */
-    LogicalZipFile getLogicalZipFile(final @Nullable LogNode log) throws IOException {
-        // The zipfile is only valid while the Vfs is open, so a lookup is turned away once it has been closed,
-        // rather than reading a central directory that nothing would ever release again
-        if (vfs.isClosed()) {
-            throw new IOException("Already closed");
-        }
-        synchronized (logicalZipFileLock) {
-            if (logicalZipFileFailure != null) {
-                throw new IOException(
-                        "Could not read the central directory of " + pathStr + " : " + logicalZipFileFailure,
-                        logicalZipFileFailure);
-            }
-            var zipFile = logicalZipFile;
-            if (zipFile == null) {
-                try {
-                    zipFile = new LogicalZipFile(new ZipFileSlice(this), vfs, log,
-                            vfs.getVfsSpec().isMultiReleaseVersionsEnabled());
-                } catch (final IOException | RuntimeException | Error e) {
-                    logicalZipFileFailure = e;
-                    throw e;
-                }
-                logicalZipFile = zipFile;
-            }
-            return zipFile;
-        }
     }
 
     /**
@@ -204,8 +149,9 @@ public final class PhysicalZipFile {
 
     /**
      * Release this zipfile, because nothing will ever be able to reach it: the operation that opened it failed.
-     * Without this, the file handle, memory mapping and temporary file behind it would be held until the
-     * {@link Vfs} is closed, even though nothing can read through them.
+     * Without this, the file handle, memory mapping and temporary file behind it would not be released even when
+     * the {@link Vfs} is closed, since the {@link Vfs} releases only what the roots it opened own, and no root owns
+     * this zipfile.
      *
      * @param failure
      *            the failure that stopped this zipfile from being handed over, for any failure to release it to be
