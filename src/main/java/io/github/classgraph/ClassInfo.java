@@ -166,10 +166,11 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     private ClassInfoList referencedClasses;
 
     /**
-     * Set to true once any Object[] arrays of boxed types in annotationDefaultParamValues have been lazily
-     * converted to primitive arrays.
+     * Set to true once any Object[] arrays of boxed values or strings in annotationDefaultParamValues have been
+     * lazily converted to arrays of their element type. Volatile, so that a thread that sees this flag set also
+     * sees the converted values.
      */
-    transient boolean annotationDefaultParamValuesHasBeenConvertedToPrimitive;
+    transient volatile boolean annotationDefaultParamValuesHasBeenConvertedToPrimitive;
 
     /** The set of classes related to this one. */
     private Map<RelType, Set<ClassInfo>> relatedClasses;
@@ -2332,16 +2333,24 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
         if (!isAnnotation()) {
             throw new IllegalArgumentException("Class is not an annotation: " + getName());
         }
-        synchronized (this) {
-            if (annotationDefaultParamValues == null) {
-                return AnnotationParameterValueList.EMPTY_LIST;
-            }
-            if (!annotationDefaultParamValuesHasBeenConvertedToPrimitive) {
-                annotationDefaultParamValues.convertWrapperArraysToPrimitiveArrays(this);
-                annotationDefaultParamValuesHasBeenConvertedToPrimitive = true;
-            }
-            return annotationDefaultParamValues;
+        final AnnotationParameterValueList defaultParamValues = getConvertedAnnotationDefaultParamValues();
+        return defaultParamValues == null ? AnnotationParameterValueList.EMPTY_LIST : defaultParamValues;
+    }
+
+    /**
+     * Get the default parameter values for this annotation, first converting any Object[] arrays of boxed values or
+     * strings to arrays of their element type. No lock is taken here: two threads may both start the conversion,
+     * and the conversion of each value is synchronized, so the second thread finds each value already converted.
+     *
+     * @return the default parameter values, or null if none.
+     */
+    AnnotationParameterValueList getConvertedAnnotationDefaultParamValues() {
+        final AnnotationParameterValueList defaultParamValues = annotationDefaultParamValues;
+        if (defaultParamValues != null && !annotationDefaultParamValuesHasBeenConvertedToPrimitive) {
+            defaultParamValues.convertWrapperArraysToPrimitiveArrays(this);
+            annotationDefaultParamValuesHasBeenConvertedToPrimitive = true;
         }
+        return defaultParamValues;
     }
 
     /**

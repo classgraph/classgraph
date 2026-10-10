@@ -364,12 +364,19 @@ class ObjectTypedValueWrapper extends ScanResultObject {
     /**
      * Replace Object[] arrays containing boxed types with primitive arrays.
      *
+     * <p>
+     * Two threads can read the same annotation parameter value for the first time at once, and both then convert
+     * it. The conversion writes several fields one after another, so it is synchronized: the second thread waits
+     * until the first has finished, and then finds the value already converted. A thread that has called this
+     * method also sees the converted value, since nothing changes it afterwards.
+     *
      * @param annotationClassInfo
      *            annotation class info
      * @param paramName
      *            the param name
      */
-    void convertWrapperArraysToPrimitiveArrays(final ClassInfo annotationClassInfo, final String paramName) {
+    synchronized void convertWrapperArraysToPrimitiveArrays(final ClassInfo annotationClassInfo,
+            final String paramName) {
         if (annotationInfo != null) {
             // Recursively convert primitive arrays in nested annotations
             annotationInfo.convertWrapperArraysToPrimitiveArrays();

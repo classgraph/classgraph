@@ -52,13 +52,17 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
     private AnnotationParameterValueList annotationParamValues;
 
     /**
-     * Set to true once any Object[] arrays of boxed types in annotationParamValues have been lazily converted to
-     * primitive arrays.
+     * Set to true once any Object[] arrays of boxed values or strings in annotationParamValues have been lazily
+     * converted to arrays of their element type. Volatile, so that a thread that sees this flag set also sees the
+     * converted values.
      */
-    private transient boolean annotationParamValuesHasBeenConvertedToPrimitive;
+    private transient volatile boolean annotationParamValuesHasBeenConvertedToPrimitive;
 
-    /** The annotation param values with defaults. */
-    private transient AnnotationParameterValueList annotationParamValuesWithDefaults;
+    /**
+     * The annotation param values with defaults, or null if not yet built. Two threads may build the list at once,
+     * and each stores an equal list. Volatile, so that a thread that reads the list also sees its contents.
+     */
+    private transient volatile AnnotationParameterValueList annotationParamValuesWithDefaults;
 
     /** Default constructor for deserialization. */
     AnnotationInfo() {
@@ -146,15 +150,12 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
             // annotation class, which was not scanned
             return annotationParamValues == null ? AnnotationParameterValueList.EMPTY_LIST : annotationParamValues;
         }
-        if (annotationParamValuesWithDefaults == null) {
-            if (classInfo.annotationDefaultParamValues != null
-                    && !classInfo.annotationDefaultParamValuesHasBeenConvertedToPrimitive) {
-                classInfo.annotationDefaultParamValues.convertWrapperArraysToPrimitiveArrays(classInfo);
-                classInfo.annotationDefaultParamValuesHasBeenConvertedToPrimitive = true;
-            }
-
+        // Read the field only once, since another thread may set it between two reads
+        AnnotationParameterValueList paramValuesWithDefaults = annotationParamValuesWithDefaults;
+        if (paramValuesWithDefaults == null) {
             // Check if one or both of the defaults and the values in this annotation instance are null (empty)
-            final AnnotationParameterValueList defaultParamValues = classInfo.annotationDefaultParamValues;
+            final AnnotationParameterValueList defaultParamValues = classInfo
+                    .getConvertedAnnotationDefaultParamValues();
             if (defaultParamValues == null && annotationParamValues == null) {
                 return AnnotationParameterValueList.EMPTY_LIST;
             } else if (defaultParamValues == null) {
@@ -179,7 +180,8 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
                 // scanSpec.enableMethodInfo is true)
                 throw new IllegalArgumentException("Could not find methods for annotation " + classInfo.getName());
             }
-            annotationParamValuesWithDefaults = new AnnotationParameterValueList();
+            // Build the list before storing it, so that another thread never sees it partly built
+            paramValuesWithDefaults = new AnnotationParameterValueList();
             for (final MethodInfo mi : classInfo.methodInfo) {
                 final String paramName = mi.getName();
                 switch (paramName) {
@@ -199,13 +201,14 @@ public class AnnotationInfo extends ScanResultObject implements Comparable<Annot
                     final Object paramValue = allParamValues.get(paramName);
                     // Annotation values cannot be null (or absent, from either defaults or annotation instance)
                     if (paramValue != null) {
-                        annotationParamValuesWithDefaults.add(new AnnotationParameterValue(paramName, paramValue));
+                        paramValuesWithDefaults.add(new AnnotationParameterValue(paramName, paramValue));
                     }
                     break;
                 }
             }
+            annotationParamValuesWithDefaults = paramValuesWithDefaults;
         }
-        return annotationParamValuesWithDefaults;
+        return paramValuesWithDefaults;
     }
 
     /**
