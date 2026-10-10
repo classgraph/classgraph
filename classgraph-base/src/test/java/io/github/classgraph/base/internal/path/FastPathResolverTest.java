@@ -403,6 +403,20 @@ public class FastPathResolverTest {
     }
 
     /**
+     * A {@code "jar:"} URL ending in {@code "!/"} names the root of the archive, so its trailing separator is
+     * stripped when the archive is remote, as it is when the archive is a local file. A remote archive cannot be
+     * tested for on the filesystem, so the scheme decides that its first '!' is a separator.
+     */
+    @Test
+    public void theTrailingSeparatorOfARemoteJarURLIsStripped() {
+        assertThat(FastPathResolver.resolve(null, "jar:http://h:1/x.jar!/")).isEqualTo("http://h:1/x.jar");
+        assertThat(FastPathResolver.resolve(null, "jar:https://h/x.jar!/")).isEqualTo("https://h/x.jar");
+        assertThat(FastPathResolver.resolve(null, "jar:s3://bucket/x.jar!/")).isEqualTo("s3://bucket/x.jar");
+        assertThat(FastPathResolver.resolve(null, "jar:http://h:1/x.jar!/lib/inner.jar!/"))
+                .isEqualTo("http://h:1/x.jar!/lib/inner.jar");
+    }
+
+    /**
      * A URL scheme must be at least two characters long, so that a Windows drive designation is never read as a
      * scheme. Single-letter schemes are unusable in practice for exactly that reason, so nothing is given up: off
      * Windows a path such as {@code "C:/a/b"} is an ordinary relative path, which will not exist, so the classpath
