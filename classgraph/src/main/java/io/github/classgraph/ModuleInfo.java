@@ -50,6 +50,12 @@ import org.jspecify.annotations.Nullable;
  * or, failing both, under the automatic module name that the module system would derive from its filename. Use
  * {@link #getModuleReference()} to tell the two cases apart: it is null for every name that came from a classpath
  * jar, and non-null only for a module that was actually resolved in a {@link ModuleLayer}.
+ *
+ * <p>
+ * There is one {@link ModuleInfo} for each classpath element that holds a module, so two classpath elements with
+ * the same module name (for example {@code foo-1.0.jar} and {@code foo-2.0.jar}, which both derive the name
+ * {@code foo}) each have their own {@link ModuleInfo}, with their own location. These compare as different, since
+ * modules are compared by name and then by location.
  */
 public final class ModuleInfo implements Comparable<ModuleInfo>, HasName, HasAnnotations {
     /** The name of the module. */
@@ -216,14 +222,20 @@ public final class ModuleInfo implements Comparable<ModuleInfo>, HasName, HasAnn
     }
 
     /**
-     * Get the {@link PackageInfo} object for the named package in this module, or null if the package was not found
-     * in this module.
+     * Get the {@link PackageInfo} object for the named package, if the package is in this module.
+     *
+     * <p>
+     * The {@link PackageInfo} object is shared by the whole scan: it is the object that
+     * {@link ScanResult#getPackageInfo(String)} returns. So if the package is split across modules (which is
+     * allowed on the traditional classpath, for example {@code javax.annotation} in two jars), its
+     * {@link PackageInfo#getClassInfo()} lists the package's classes in every module. To list only this module's
+     * classes in the package, call {@code getClassInfo().filter(ci -> ci.getPackageName().equals(packageName))}.
      *
      * @param packageName
      *            The package name, with {@code '.'} between package name segments, e.g. {@code "com.xyz"}. The root
      *            package is named {@code ""}.
-     * @return the {@link PackageInfo} object for the named package in this module, or null if the package was not
-     *         found in this module.
+     * @return the {@link PackageInfo} object for the named package, or null if no class or
+     *         {@code package-info.class} file in this module is in that package.
      */
     public @Nullable PackageInfo getPackageInfo(final String packageName) {
         Assert.notNull(packageName, "packageName");
@@ -232,7 +244,9 @@ public final class ModuleInfo implements Comparable<ModuleInfo>, HasName, HasAnn
     }
 
     /**
-     * Get the {@link PackageInfo} objects for all packages that are members of this module.
+     * Get the {@link PackageInfo} objects for all packages that are members of this module. Each
+     * {@link PackageInfo} covers its package across the whole scan, so for a package that is split across modules,
+     * see {@link #getPackageInfo(String)}.
      *
      * @return the list of {@link PackageInfo} objects for all packages that are members of this module.
      */

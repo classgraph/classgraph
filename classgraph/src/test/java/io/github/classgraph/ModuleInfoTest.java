@@ -10,8 +10,16 @@ import java.lang.module.ModuleReference;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.jar.Attributes;
+import java.util.jar.JarEntry;
+import java.util.jar.JarOutputStream;
+import java.util.jar.Manifest;
 
 import javax.tools.ToolProvider;
+
+import org.jspecify.annotations.Nullable;
 
 import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.BeforeAll;
@@ -286,6 +294,171 @@ public class ModuleInfoTest {
                 .acceptPackagesNonRecursive("javax.xml.parsers", "java.sql", "java.util.function").scan()) {
             assertThat(scanResult.getModuleInfo().getNames()).contains("java.base", "java.sql", "java.xml")
                     .isSorted();
+        }
+    }
+
+    /**
+     * Compile one empty public class for each of the given class names into {@code classesDir}.
+     *
+     * @param tempDir
+     *            the directory to write the sources to.
+     * @param classesDir
+     *            the directory to compile the classes into.
+     * @param classNames
+     *            the fully-qualified class names.
+     * @throws IOException
+     *             if the sources could not be written.
+     */
+    private static void compileClasses(final Path tempDir, final Path classesDir, final String... classNames)
+            throws IOException {
+        final List<String> args = new ArrayList<>(List.of("-d", classesDir.toString()));
+        for (final String className : classNames) {
+            final var lastDot = className.lastIndexOf('.');
+            final var src = tempDir.resolve("src").resolve(className.replace('.', '/') + ".java");
+            Files.createDirectories(src.getParent());
+            Files.writeString(src, "package " + className.substring(0, lastDot) + "; public class "
+                    + className.substring(lastDot + 1) + " {}\n");
+            args.add(src.toString());
+        }
+        final var exitCode = ToolProvider.getSystemJavaCompiler().run(/* in = */ null, /* out = */ null,
+                /* err = */ null, args.toArray(new String[0]));
+        assertThat(exitCode).as("javac exit code").isZero();
+    }
+
+    /**
+     * Write a jar holding the classfiles of the given classes, taken from {@code classesDir}.
+     *
+     * @param jar
+     *            the jar to write.
+     * @param automaticModuleName
+     *            the {@code Automatic-Module-Name} to put in the manifest, or null for no manifest.
+     * @param classesDir
+     *            the directory the classes were compiled into.
+     * @param classNames
+     *            the fully-qualified class names.
+     * @return the jar.
+     * @throws IOException
+     *             if the jar could not be written.
+     */
+    private static Path writeJar(final Path jar, final @Nullable String automaticModuleName, final Path classesDir,
+            final String... classNames) throws IOException {
+        final var manifest = new Manifest();
+        manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
+        if (automaticModuleName != null) {
+            manifest.getMainAttributes().putValue("Automatic-Module-Name", automaticModuleName);
+        }
+        try (var out = automaticModuleName == null ? new JarOutputStream(Files.newOutputStream(jar))
+                : new JarOutputStream(Files.newOutputStream(jar), manifest)) {
+            for (final String className : classNames) {
+                final var path = className.replace('.', '/') + ".class";
+                out.putNextEntry(new JarEntry(path));
+                out.write(Files.readAllBytes(classesDir.resolve(path)));
+                out.closeEntry();
+            }
+        }
+        return jar;
+    }
+
+    /**
+     * Two classpath jars whose names differ only in a version suffix derive the same automatic module name. Each is
+     * listed as a module of its own, located at its own jar, and looking the name up returns the first in classpath
+     * order, both from the {@link ScanResult} and from the module list, which is sorted by name. They used to be
+     * merged into one {@link ModuleInfo}, located at whichever jar's classfile was linked first, so a class from
+     * the other jar reported the wrong module location.
+     *
+     * @param tempDir
+     *            the temporary directory to build the jars in.
+     * @throws IOException
+     *             if the jars could not be built.
+     */
+    @Test
+    public void jarsWithTheSameDerivedModuleNameAreListedSeparately(@TempDir final Path tempDir)
+            throws IOException {
+        final var classesDir = tempDir.resolve("classes");
+        compileClasses(tempDir, classesDir, "q.C", "q.D", "q.E");
+        final var jar1 = writeJar(tempDir.resolve("foo-1.0.jar"), null, classesDir, "q.C");
+        final var jar2 = writeJar(tempDir.resolve("foo-2.0.jar"), null, classesDir, "q.D");
+        final var jar3 = writeJar(tempDir.resolve("aaa.jar"), null, classesDir, "q.E");
+        // foo-2.0.jar comes first on the classpath, and aaa.jar, whose name sorts first, comes last
+        try (var scanResult = new ClassGraph()
+                .enableClasspathEntries(jar2.toString(), jar1.toString(), jar3.toString()).enableClassInfo()
+                .acceptPackages("q").scan()) {
+            for (final String className : List.of("q.C", "q.D")) {
+                final var classInfo = scanResult.getClassInfo(className);
+                final var moduleInfo = classInfo.getModuleInfo();
+                assertThat(moduleInfo.getName()).isEqualTo("foo");
+                assertThat(moduleInfo.getLocationURI()).as(className).isEqualTo(classInfo.getClasspathElementURI());
+                assertThat(moduleInfo.getClassInfo().getNames()).containsExactly(className);
+            }
+            final var modules = scanResult.getModuleInfo();
+            assertThat(modules.getNames()).containsExactly("aaa", "foo", "foo");
+            final var firstFoo = scanResult.getClassInfo("q.D").getModuleInfo();
+            assertThat(scanResult.getModuleInfo("foo")).isSameAs(firstFoo);
+            assertThat(modules.get("foo")).isSameAs(firstFoo);
+        }
+    }
+
+    /**
+     * A classpath jar whose derived module name is the name of a system module is not merged into that module: its
+     * classes have a module with no {@link ModuleReference}, located at the jar, while looking the name up still
+     * returns the system module, which comes first in the scan order.
+     *
+     * @param tempDir
+     *            the temporary directory to build the jar in.
+     * @throws IOException
+     *             if the jar could not be built.
+     */
+    @Test
+    public void aClasspathJarIsNotMergedIntoTheSystemModuleOfTheSameName(@TempDir final Path tempDir)
+            throws IOException {
+        final var classesDir = tempDir.resolve("classes");
+        compileClasses(tempDir, classesDir, "q.Z");
+        final var jar = writeJar(tempDir.resolve("java.sql.jar"), null, classesDir, "q.Z");
+        try (var scanResult = new ClassGraph().enableSystemJars().enableSystemModules()
+                .enableClasspathEntries(jar.toString()).enableClassInfo()
+                .acceptPackagesNonRecursive("q", "java.sql").scan()) {
+            final var classInfo = scanResult.getClassInfo("q.Z");
+            final var jarModule = classInfo.getModuleInfo();
+            assertThat(jarModule.getName()).isEqualTo("java.sql");
+            assertThat(jarModule.getModuleReference()).isNull();
+            assertThat(jarModule.getLocationURI()).isEqualTo(classInfo.getClasspathElementURI());
+
+            final var systemModule = scanResult.getModuleInfo("java.sql");
+            assertThat(systemModule).isNotSameAs(jarModule);
+            assertThat(systemModule.getModuleReference()).isNotNull();
+            assertThat(systemModule.getClassInfo().getNames()).doesNotContain("q.Z");
+            assertThat(scanResult.getModuleInfo().filter(mi -> mi.getName().equals("java.sql"))).hasSize(2);
+            // The jar's location (file:) sorts before the system module's (jrt:), but the list still maps the name
+            // to the system module, the first in scan order
+            assertThat(scanResult.getModuleInfo().get("java.sql")).isSameAs(systemModule);
+        }
+    }
+
+    /**
+     * When a package is split across two modules, each module's {@link ModuleInfo#getPackageInfo(String)} returns
+     * the one {@link PackageInfo} that the whole scan shares for that package, so its classes are those of both
+     * modules, and the module's own classes in the package are found by filtering its class list.
+     *
+     * @param tempDir
+     *            the temporary directory to build the jars in.
+     * @throws IOException
+     *             if the jars could not be built.
+     */
+    @Test
+    public void aSplitPackageIsSharedByItsModules(@TempDir final Path tempDir) throws IOException {
+        final var classesDir = tempDir.resolve("classes");
+        compileClasses(tempDir, classesDir, "p.A", "p.B");
+        final var jarA = writeJar(tempDir.resolve("a.jar"), "mod.a", classesDir, "p.A");
+        final var jarB = writeJar(tempDir.resolve("b.jar"), "mod.b", classesDir, "p.B");
+        try (var scanResult = new ClassGraph().enableClasspathEntries(jarA.toString(), jarB.toString())
+                .enableClassInfo().acceptPackages("p").scan()) {
+            final var moduleA = scanResult.getModuleInfo("mod.a");
+            final var packageInfo = moduleA.getPackageInfo("p");
+            assertThat(packageInfo).isSameAs(scanResult.getPackageInfo("p"))
+                    .isSameAs(scanResult.getModuleInfo("mod.b").getPackageInfo("p"));
+            assertThat(packageInfo.getClassInfo().getNames()).containsExactly("p.A", "p.B");
+            assertThat(moduleA.getClassInfo().filter(ci -> ci.getPackageName().equals("p")).getNames())
+                    .containsExactly("p.A");
         }
     }
 

@@ -39,6 +39,7 @@ import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -100,7 +101,13 @@ public final class ScanResult implements AutoCloseable {
     /** The map from package name to {@link PackageInfo}. */
     private @Nullable Map<String, PackageInfo> packageNameToPackageInfo;
 
-    /** The map from module name to {@link ModuleInfo}. */
+    /**
+     * The {@link ModuleInfo} of every classpath element that holds a module, in scan order. Two classpath elements
+     * can have the same module name, so there can be more than one {@link ModuleInfo} with a given name.
+     */
+    private @Nullable List<ModuleInfo> moduleInfoInScanOrder;
+
+    /** The map from module name to the first {@link ModuleInfo} of that name in scan order. */
     private @Nullable Map<String, ModuleInfo> moduleNameToModuleInfo;
 
     /**
@@ -156,8 +163,24 @@ public final class ScanResult implements AutoCloseable {
     }
 
     /**
-     * Get the map from module name to {@link ModuleInfo}, for use in code paths that are only reachable before this
-     * {@link ScanResult} is closed.
+     * Get the {@link ModuleInfo} of every classpath element that holds a module, in scan order, for use in code
+     * paths that are only reachable before this {@link ScanResult} is closed.
+     *
+     * @return the {@link ModuleInfo} objects in scan order
+     * @throws IllegalStateException
+     *             if this {@link ScanResult} has been closed.
+     */
+    private List<ModuleInfo> moduleInfoInScanOrder() {
+        final var list = moduleInfoInScanOrder;
+        if (list == null) {
+            throw new IllegalStateException(CLOSED_MESSAGE);
+        }
+        return list;
+    }
+
+    /**
+     * Get the map from module name to the first {@link ModuleInfo} of that name in scan order, for use in code
+     * paths that are only reachable before this {@link ScanResult} is closed.
      *
      * @return the map from module name to {@link ModuleInfo}
      * @throws IllegalStateException
@@ -204,8 +227,8 @@ public final class ScanResult implements AutoCloseable {
      *            a map from class name to class info
      * @param packageNameToPackageInfo
      *            a map from package name to package info
-     * @param moduleNameToModuleInfo
-     *            a map from module name to module info
+     * @param moduleInfoInScanOrder
+     *            the module info of every classpath element that holds a module, in scan order
      * @param fileToLastModified
      *            a map from file to last modified time
      * @param vfs
@@ -215,8 +238,7 @@ public final class ScanResult implements AutoCloseable {
      */
     ScanResult(final ScanSpec scanSpec, final List<ClasspathElement> classpathOrder,
             final Map<String, ClassInfo> classNameToClassInfo,
-            final Map<String, PackageInfo> packageNameToPackageInfo,
-            final Map<String, ModuleInfo> moduleNameToModuleInfo,
+            final Map<String, PackageInfo> packageNameToPackageInfo, final List<ModuleInfo> moduleInfoInScanOrder,
             final @Nullable Map<File, Long> fileToLastModified, final Vfs vfs,
             final @Nullable LogNode topLevelLog) {
         this.scanSpec = scanSpec;
@@ -224,7 +246,13 @@ public final class ScanResult implements AutoCloseable {
         this.fileToLastModified = fileToLastModified;
         this.classNameToClassInfo = classNameToClassInfo;
         this.packageNameToPackageInfo = packageNameToPackageInfo;
-        this.moduleNameToModuleInfo = moduleNameToModuleInfo;
+        this.moduleInfoInScanOrder = moduleInfoInScanOrder;
+        // The first module of a given name wins, as it does when the module system resolves modules
+        final Map<String, ModuleInfo> nameToModule = new HashMap<>();
+        for (final ModuleInfo moduleInfo : moduleInfoInScanOrder) {
+            nameToModule.putIfAbsent(moduleInfo.getName(), moduleInfo);
+        }
+        this.moduleNameToModuleInfo = nameToModule;
         this.vfs = vfs;
         this.topLevelLog = topLevelLog;
 
@@ -304,7 +332,7 @@ public final class ScanResult implements AutoCloseable {
                 pkgInfo.setScanResult(this);
             }
 
-            for (final ModuleInfo moduleInfo : moduleNameToModuleInfo().values()) {
+            for (final ModuleInfo moduleInfo : moduleInfoInScanOrder()) {
                 moduleInfo.setScanResult(this);
             }
         }
@@ -891,11 +919,14 @@ public final class ScanResult implements AutoCloseable {
 
     /**
      * Get the {@link ModuleInfo} object for the named module, or null if no module of the requested name was found
-     * during the scan.
+     * during the scan. If more than one classpath element has this module name (for example {@code foo-1.0.jar} and
+     * {@code foo-2.0.jar}, which both derive the name {@code foo}), the first one in scan order is returned, as the
+     * module system would resolve it. Modules on the module path come before the traditional classpath in the scan
+     * order. Call {@link #getModuleInfo()} to list every module of the name.
      *
      * @param moduleName
      *            The module name, e.g. {@code "java.base"}.
-     * @return The {@link ModuleInfo} object for the named module, or null if the module was not found.
+     * @return The first {@link ModuleInfo} object with the module name, or null if the module was not found.
      * @throws IllegalStateException
      *             if this {@link ScanResult} has been closed, or if {@link ClassGraph#enableClassInfo()} was not
      *             called before scanning.
@@ -907,7 +938,10 @@ public final class ScanResult implements AutoCloseable {
     }
 
     /**
-     * Get all modules found during the scan.
+     * Get all modules found during the scan. There is one {@link ModuleInfo} for each classpath element that holds
+     * a module, so if two classpath elements have the same module name, the name is listed twice, once with the
+     * location of each. Modules of the same name are listed in scan order, so {@link ModuleInfoList#get(String)}
+     * returns the same {@link ModuleInfo} as {@link #getModuleInfo(String)}.
      *
      * @return A list of all modules found during the scan, sorted by module name, or the empty list if none.
      * @throws IllegalStateException
@@ -916,7 +950,10 @@ public final class ScanResult implements AutoCloseable {
      */
     public ModuleInfoList getModuleInfo() {
         checkClassInfoEnabled();
-        return new ModuleInfoList(moduleNameToModuleInfo().values());
+        // Copy the list, then sort it by name only. The sort is stable, so modules of the same name stay in scan order
+        final var sorted = new ArrayList<>(moduleInfoInScanOrder());
+        sorted.sort(Comparator.comparing(ModuleInfo::getName));
+        return new ModuleInfoList(sorted);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -1991,6 +2028,9 @@ public final class ScanResult implements AutoCloseable {
                     moduleNameToModuleInfo.clear();
                     moduleNameToModuleInfo = null;
                 }
+                // Drop the reference to the module list rather than clearing it, since the list is owned by the
+                // caller of the constructor (and is immutable for a ScanResult that only holds the classpath)
+                moduleInfoInScanOrder = null;
                 if (fileToLastModified != null) {
                     fileToLastModified.clear();
                     fileToLastModified = null;
