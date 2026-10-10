@@ -194,15 +194,16 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
     /**
      * Get a list of lists of type annotations for all nested suffixes of the class, one list per suffix.
      *
-     * @return The list of lists of type annotations for the suffixes (nested classes), one list per suffix, or null
-     *         if none.
+     * @return The list of lists of type annotations for the suffixes (nested classes), one list per suffix, with an
+     *         empty list for a suffix that has no type annotations. The result is empty if there are no suffixes.
      */
-    public @Nullable List<AnnotationInfoList> getSuffixTypeAnnotationInfo() {
+    public List<AnnotationInfoList> getSuffixTypeAnnotationInfo() {
         synchronized (this) {
             if (suffixTypeAnnotationInfoRef == null) {
                 final var typeAnnotations = suffixTypeAnnotations;
                 if (typeAnnotations == null) {
-                    return null;
+                    // Not cached, so that a type annotation added later is still seen
+                    return Collections.nCopies(suffixes.size(), AnnotationInfoList.EMPTY_LIST);
                 }
                 final List<AnnotationInfoList> suffixTypeAnnotationInfo = new ArrayList<>(typeAnnotations.size());
                 for (final List<AnnotationInfo> annotations : typeAnnotations) {

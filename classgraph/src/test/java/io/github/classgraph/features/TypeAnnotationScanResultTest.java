@@ -6,11 +6,13 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.AnnotationInfo;
 import io.github.classgraph.ClassGraph;
+import io.github.classgraph.ClassRefTypeSignature;
 import io.github.classgraph.MethodTypeSignature;
 
 /**
@@ -43,6 +45,56 @@ public class TypeAnnotationScanResultTest {
          */
         public String method(@Level Annotated this) {
             return "";
+        }
+    }
+
+    /** A class whose enclosed classes give a nested class reference with more than one suffix. */
+    public static class Outer {
+        /** A non-static inner class. */
+        public class Inner {
+        }
+    }
+
+    /** A class with no type annotations anywhere. */
+    public static class Unannotated {
+        /** A field of a plain class type. */
+        public String plain;
+
+        /** A field of a parameterized type. */
+        public List<String> parameterized;
+
+        /** A field whose type is a nested class reference. */
+        public Outer.Inner nested;
+
+        /** A method with no explicit receiver parameter. */
+        public void method() {
+            // Does nothing
+        }
+    }
+
+    /** The type annotation getters return empty lists, not null, when there are no type annotations. */
+    @Test
+    public void typeAnnotationGettersReturnEmptyListsWhenThereAreNone() {
+        try (var scanResult = new ClassGraph().enableClasspath().acceptClasses(Unannotated.class.getName())
+                .enableClassInfo().enableFieldInfo().enableMethodInfo().enableAnnotationInfo().scan()) {
+            final var classInfo = scanResult.getClassInfo(Unannotated.class.getName());
+            assertThat(classInfo).isNotNull();
+
+            for (final var fieldName : List.of("plain", "parameterized", "nested")) {
+                final var typeAnnotations = classInfo.getFieldInfo(fieldName).getTypeSignatureOrTypeDescriptor()
+                        .getTypeAnnotationInfo();
+                assertThat(typeAnnotations).as(fieldName).isNotNull().isEmpty();
+            }
+
+            final var nestedType = (ClassRefTypeSignature) classInfo.getFieldInfo("nested")
+                    .getTypeSignatureOrTypeDescriptor();
+            assertThat(nestedType.getSuffixes()).isNotEmpty();
+            assertThat(nestedType.getSuffixTypeAnnotationInfo()).hasSameSizeAs(nestedType.getSuffixes())
+                    .allSatisfy(suffixAnnotations -> assertThat(suffixAnnotations).isEmpty());
+
+            final MethodTypeSignature methodType = classInfo.getMethodInfo("method").get(0)
+                    .getTypeSignatureOrTypeDescriptor();
+            assertThat(methodType.getReceiverTypeAnnotationInfo()).isNotNull().isEmpty();
         }
     }
 
