@@ -33,6 +33,7 @@ import java.lang.annotation.Inherited;
 import java.lang.annotation.Repeatable;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
@@ -141,12 +142,18 @@ public final class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
         Assert.notNull(filter, "filter");
         // If every annotation in this list is directly present, then so is every annotation that is kept
         final var allDirect = directlyRelatedAnnotations == this;
+        // Compare by identity: a meta-annotation or an inherited annotation can be equal to a direct annotation,
+        // and is still not direct
+        final Set<AnnotationInfo> directIdentitySet = Collections.newSetFromMap(new IdentityHashMap<>());
+        if (!allDirect) {
+            directIdentitySet.addAll(directlyRelatedAnnotations);
+        }
         final List<AnnotationInfo> reachableFiltered = new ArrayList<>();
         final List<AnnotationInfo> directlyRelatedFiltered = new ArrayList<>();
         for (final AnnotationInfo annotationInfo : this) {
             if (filter.test(annotationInfo)) {
                 reachableFiltered.add(annotationInfo);
-                if (!allDirect && directlyRelatedAnnotations.contains(annotationInfo)) {
+                if (!allDirect && directIdentitySet.contains(annotationInfo)) {
                     directlyRelatedFiltered.add(annotationInfo);
                 }
             }
