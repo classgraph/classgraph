@@ -829,12 +829,12 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
      * @throws IOException
      *             if the entry could not be read.
      */
-    private static VfsRandomAccessChannel channelOver(final VfsEntry entry) throws IOException {
+    private static VfsFileChannel channelOver(final VfsEntry entry) throws IOException {
         final var root = entry.getRoot();
         final var content = entry.openRandomAccess();
-        final VfsRandomAccessChannel channel;
+        final VfsFileChannel channel;
         try {
-            channel = new VfsRandomAccessChannel(content, root);
+            channel = new VfsFileChannel(content, root);
         } catch (final RuntimeException | Error e) {
             // The caller never sees the channel if this throws, so nothing else would release the content
             content.closeAction().run();
@@ -867,7 +867,7 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
             throw new UnsupportedOperationException(
                     "File attributes are not supported by this read-only filesystem");
         }
-        return new VfsFileChannel(channelOver(entryOf(check(path))));
+        return channelOver(entryOf(check(path)));
     }
 
     @Override
@@ -1218,16 +1218,29 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
     }
 
     /**
-     * A read-only {@link FileChannel} over the content of one {@link VfsEntry}, so that an entry can be read by
-     * code that asks for a {@link FileChannel} rather than for a {@link SeekableByteChannel}.
+     * A read-only {@link FileChannel} over the content of one {@link VfsEntry}. It is returned both by
+     * {@link #newFileChannel} and by {@link #newByteChannel}, since a {@link FileChannel} is a
+     * {@link SeekableByteChannel}, and it is the object the root tracks, so that when the root closes it, the
+     * channel the caller holds reports itself closed.
+     *
+     * <p>
+     * Reads are not interruptible: the channel does not use {@link #begin()} and {@link #end(boolean)}, so
+     * interrupting a thread that is reading does not close the channel.
      */
     private static final class VfsFileChannel extends FileChannel {
-        /** The channel that holds the content, closed when this channel is closed. */
-        private final VfsRandomAccessChannel content;
+        /** The content of the entry, released when this channel is closed. */
+        private final VfsEntry.RandomAccessContent content;
 
         /**
-         * The read position, which is allowed to be beyond the end of the content. Every method that reads or moves
-         * it is synchronized, since {@link FileChannel} allows only one operation on the position at a time.
+         * The root the entry was read from, which closes this channel if it is still open when that root closes, so
+         * that a channel that reads a memory mapping stops holding that mapping open.
+         */
+        private final VfsRoot root;
+
+        /**
+         * The read position, which is allowed to be beyond the end of the content, where reads return end-of-file.
+         * Every method that reads or moves it is synchronized, since {@link FileChannel} allows only one operation
+         * on the position at a time.
          */
         private long position;
 
@@ -1238,15 +1251,19 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
          * Constructor.
          *
          * @param content
-         *            the channel that holds the content of the entry.
+         *            the content of the entry.
+         * @param root
+         *            the root the entry was read from. The caller registers this channel with the root -- this
+         *            constructor does not, so that the channel is not published before it is built.
          */
-        VfsFileChannel(final VfsRandomAccessChannel content) {
+        VfsFileChannel(final VfsEntry.RandomAccessContent content, final VfsRoot root) {
             this.content = content;
+            this.root = root;
         }
 
         @Override
         public synchronized int read(final ByteBuffer dst) throws IOException {
-            final var numBytes = content.read(dst, position);
+            final var numBytes = read(dst, position);
             if (numBytes > 0) {
                 position += numBytes;
             }
@@ -1270,12 +1287,44 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
             return total;
         }
 
+        /**
+         * Read from a given position, without moving the position of the channel. This is safe to do from several
+         * threads at once, which is what {@link FileChannel} promises: the reader keeps state of its own between
+         * reads, and is not safe to use from more than one thread at a time, so every read through this channel is
+         * serialized. There is one reader per open channel, so this does not serialize threads that are reading
+         * different files, or even the same file through channels of their own.
+         *
+         * @param dst
+         *            the buffer to read into.
+         * @param fromPosition
+         *            the position to read from, which is allowed to be beyond the end of the content.
+         * @return the number of bytes read, or -1 at end of file.
+         * @throws IOException
+         *             if the content could not be read.
+         */
         @Override
-        public int read(final ByteBuffer dst, final long fromPosition) throws IOException {
+        public synchronized int read(final ByteBuffer dst, final long fromPosition) throws IOException {
             if (fromPosition < 0) {
                 throw new IllegalArgumentException("Negative position: " + fromPosition);
             }
-            return content.read(dst, fromPosition);
+            checkOpen();
+            final var numBytes = dst.remaining();
+            if (numBytes == 0) {
+                return 0;
+            }
+            // The end of the content is where the reader says it is, rather than being checked against a length
+            // first: a deflated entry or a module resource does not know its own length until it has been read to
+            // the end, and reading a header should not have to inflate or stream the whole of the entry to find
+            // out where it ends
+
+            // The reader writes at an index and leaves the destination's position and limit alone, so the position
+            // is advanced here over what it wrote, which is what the contract of this method asks for
+            final var dstStart = dst.position();
+            final var numBytesRead = Math.max(content.reader().read(fromPosition, dst, dstStart, numBytes), 0);
+            dst.position(dstStart + numBytesRead);
+            // The reader returns -1, which Math#max above turned into 0, once the read starts at or past the end
+            // of the content
+            return numBytesRead == 0 ? -1 : numBytesRead;
         }
 
         @Override
@@ -1305,13 +1354,21 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
             if (newPosition < 0) {
                 throw new IllegalArgumentException("Negative position: " + newPosition);
             }
+            // Seeking beyond the end is allowed, the position reads back as the one that was asked for, and reads
+            // there return -1
             position = newPosition;
             return this;
         }
 
         @Override
-        public long size() throws IOException {
-            return content.size();
+        public synchronized long size() throws IOException {
+            checkOpen();
+            // For an entry that is inflated or streamed, this reads the whole of the content, since that is the
+            // only way to find out how long it is. That is what Files#readAllBytes and Files#readString do first,
+            // so those read the entry once from beginning to end, and then copy it out of the reader's buffer. It
+            // is synchronized for the same reason as a read is: it uses the reader, which one thread at a time may
+            // use.
+            return content.reader().length();
         }
 
         @Override
@@ -1341,7 +1398,7 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
             var numBytesTransferred = 0L;
             while (numBytesTransferred < count) {
                 buf.clear().limit((int) Math.min(buf.capacity(), count - numBytesTransferred));
-                if (content.read(buf, fromPosition + numBytesTransferred) <= 0) {
+                if (read(buf, fromPosition + numBytesTransferred) <= 0) {
                     // End of the content
                     break;
                 }
@@ -1384,162 +1441,23 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
          *             if it is not.
          */
         private void checkOpen() throws IOException {
-            if (!content.isOpen()) {
+            if (!isOpen()) {
                 throw new ClosedChannelException();
             }
         }
 
-        @Override
-        protected void implCloseChannel() throws IOException {
-            content.close();
-        }
-    }
-
-    /**
-     * A read-only {@link SeekableByteChannel} over the content of one {@link VfsEntry} that can also be read at an
-     * absolute position, without moving the position of the channel, so that {@link VfsFileChannel} can be built
-     * over it.
-     */
-    private static final class VfsRandomAccessChannel implements SeekableByteChannel {
-        /** The content of the entry, released when this channel is closed. */
-        private final VfsEntry.RandomAccessContent content;
-
         /**
-         * The root the entry was read from, which closes this channel if it is still open when that root closes, so
-         * that a channel that reads a memory mapping stops holding that mapping open.
+         * Release the content. {@link #close()} calls this at most once, whether the caller closes the channel or
+         * the root closes it. This does not take the monitor of the channel, so a close does not wait for a read
+         * that is in progress.
          */
-        private final VfsRoot root;
-
-        /**
-         * The read position, which is allowed to be beyond the end of the content, where reads return end-of-file.
-         */
-        private long position;
-
-        /** Whether this channel is still open. */
-        private final AtomicBoolean open = new AtomicBoolean(true);
-
-        /**
-         * Constructor.
-         *
-         * @param content
-         *            the content of the entry.
-         * @param root
-         *            the root the entry was read from. The caller registers this channel with the root -- this
-         *            constructor does not, so that the channel is not published before it is built.
-         */
-        VfsRandomAccessChannel(final VfsEntry.RandomAccessContent content, final VfsRoot root) {
-            this.content = content;
-            this.root = root;
-        }
-
-        /**
-         * Check that this channel is still open.
-         *
-         * @throws ClosedChannelException
-         *             if it is not.
-         */
-        private void checkOpen() throws IOException {
-            if (!open.get()) {
-                throw new ClosedChannelException();
-            }
-        }
-
         @Override
-        public synchronized int read(final ByteBuffer dst) throws IOException {
-            final var numBytes = read(dst, position);
-            if (numBytes > 0) {
-                position += numBytes;
-            }
-            return numBytes;
-        }
-
-        /**
-         * Read from a given position, without moving the position of the channel. This is safe to do from several
-         * threads at once, which is what {@link FileChannel} promises: the reader keeps state of its own between
-         * reads, and is not safe to use from more than one thread at a time, so every read through this channel is
-         * serialized. There is one reader per open channel, so this does not serialize threads that are reading
-         * different files, or even the same file through channels of their own.
-         *
-         * @param dst
-         *            the buffer to read into.
-         * @param fromPosition
-         *            the position to read from, which is allowed to be beyond the end of the content.
-         * @return the number of bytes read, or -1 at end of file.
-         * @throws IOException
-         *             if the content could not be read.
-         */
-        synchronized int read(final ByteBuffer dst, final long fromPosition) throws IOException {
-            checkOpen();
-            final var numBytes = dst.remaining();
-            if (numBytes == 0) {
-                return 0;
-            }
-            // The end of the content is where the reader says it is, rather than being checked against a length
-            // first: a deflated entry or a module resource does not know its own length until it has been read to
-            // the end, and reading a header should not have to inflate or stream the whole of the entry to find
-            // out where it ends
-
-            // The reader writes at an index and leaves the destination's position and limit alone, so the position
-            // is advanced here over what it wrote, which is what the contract of this method asks for
-            final var dstStart = dst.position();
-            final var numBytesRead = Math.max(content.reader().read(fromPosition, dst, dstStart, numBytes), 0);
-            dst.position(dstStart + numBytesRead);
-            // The reader returns -1, which Math#max above turned into 0, once the read starts at or past the end
-            // of the content
-            return numBytesRead == 0 ? -1 : numBytesRead;
-        }
-
-        @Override
-        public int write(final ByteBuffer src) {
-            throw new NonWritableChannelException();
-        }
-
-        @Override
-        public synchronized long position() throws IOException {
-            checkOpen();
-            return position;
-        }
-
-        @Override
-        public synchronized SeekableByteChannel position(final long newPosition) throws IOException {
-            checkOpen();
-            if (newPosition < 0) {
-                throw new IllegalArgumentException("Negative position: " + newPosition);
-            }
-            // Seeking beyond the end is allowed, the position reads back as the one that was asked for, and reads
-            // there return -1
-            position = newPosition;
-            return this;
-        }
-
-        @Override
-        public long size() throws IOException {
-            checkOpen();
-            // For an entry that is inflated or streamed, this reads the whole of the content, since that is the
-            // only way to find out how long it is. That is what Files#readAllBytes and Files#readString do first,
-            // so those read the entry once from beginning to end, and then copy it out of the reader's buffer.
-            return content.reader().length();
-        }
-
-        @Override
-        public SeekableByteChannel truncate(final long size) {
-            throw new NonWritableChannelException();
-        }
-
-        @Override
-        public boolean isOpen() {
-            return open.get();
-        }
-
-        @Override
-        public void close() {
-            if (open.compareAndSet(true, false)) {
-                // Stop the root tracking this channel, so that a caller that closes its channels does not
-                // accumulate them on the root for as long as it stays open. Harmless if the root is the one doing
-                // the closing, since it drains its set before it closes what was in it
-                root.untrackOpenHandle(this);
-                content.closeAction().run();
-            }
+        protected void implCloseChannel() {
+            // Stop the root tracking this channel, so that a caller that closes its channels does not accumulate
+            // them on the root for as long as it stays open. Harmless if the root is the one doing the closing,
+            // since it drains its set before it closes what was in it
+            root.untrackOpenHandle(this);
+            content.closeAction().run();
         }
     }
 }

@@ -38,6 +38,7 @@ import java.io.IOException;
 import java.lang.module.ModuleFinder;
 import java.nio.ByteBuffer;
 import java.nio.channels.ClosedChannelException;
+import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -169,6 +170,64 @@ class VfsCloseTest {
         }
 
         assertThat(extractedTempFile).doesNotExist();
+    }
+
+    /**
+     * Closing a root closes a {@link FileChannel} the caller opened on it and has not closed, just as it closes a
+     * channel from {@link Files#newByteChannel}, so that the channel reports itself closed rather than reporting
+     * itself open while every read throws {@link ClosedChannelException}.
+     *
+     * @param tempDir
+     *            a temporary directory to write the jarfile into.
+     * @throws Exception
+     *             if the jarfile could not be written or read.
+     */
+    @Test
+    void closingTheRootClosesAFileChannelTheCallerStillHolds(@TempDir final Path tempDir) throws Exception {
+        final var outerJarFile = tempDir.resolve("outer.jar").toFile();
+        writeJarContainingDeflatedJar(outerJarFile);
+
+        final File extractedTempFile;
+        try (var vfs = vfsThatSpillsToDisk()) {
+            final var innerRoot = vfs.open(outerJarFile.getPath() + "!/lib/inner.jar");
+            extractedTempFile = ((ArchiveRoot) innerRoot).getPhysicalFile();
+            assertThat(extractedTempFile).isNotNull().exists();
+
+            try (var channel = FileChannel.open(innerRoot.getEntry("com/xyz/widget.txt").asPath())) {
+                assertThat(channel.isOpen()).isTrue();
+                innerRoot.close();
+                assertThat(channel.isOpen()).isFalse();
+                assertThatThrownBy(() -> channel.read(ByteBuffer.allocate(1)))
+                        .isInstanceOf(ClosedChannelException.class);
+                assertThat(extractedTempFile).doesNotExist();
+            }
+        }
+
+        assertThat(extractedTempFile).doesNotExist();
+    }
+
+    /**
+     * Closing a {@link Vfs} closes a {@link FileChannel} the caller opened on one of its roots and has not closed.
+     *
+     * @param tempDir
+     *            a temporary directory to write the jarfile into.
+     * @throws Exception
+     *             if the jarfile could not be written or read.
+     */
+    @Test
+    void closingTheVfsClosesAFileChannelTheCallerStillHolds(@TempDir final Path tempDir) throws Exception {
+        final var jarFile = tempDir.resolve("inner.jar");
+        Files.write(jarFile, innerJarBytes());
+
+        final var vfs = new Vfs();
+        try (var channel = FileChannel.open(vfs.open(jarFile.toString()).getEntry("com/xyz/widget.txt").asPath())) {
+            assertThat(channel.isOpen()).isTrue();
+            vfs.close();
+            assertThat(channel.isOpen()).isFalse();
+            assertThatThrownBy(() -> channel.read(ByteBuffer.allocate(1)))
+                    .isInstanceOf(ClosedChannelException.class);
+            assertThatThrownBy(channel::position).isInstanceOf(ClosedChannelException.class);
+        }
     }
 
     /** Closing a {@link Vfs} deletes the temporary file that a nested jarfile was extracted to. */
