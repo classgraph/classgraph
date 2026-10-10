@@ -46,6 +46,9 @@ final class EquinoxClasspathManagerReader {
     /** The fields of a {@code BundleFile} that hold a sub-path within the bundle's base file. */
     private static final List<String> BUNDLE_FILE_SUBPATH_FIELD_NAMES = List.of("cp", "nestedDirName");
 
+    /** The most wrappers to look through to find the bundle file that a nested directory lives inside. */
+    private static final int MAX_WRAPPER_HOPS = 32;
+
     /** Not instantiable. */
     private EquinoxClasspathManagerReader() {
         // Cannot be constructed
@@ -102,8 +105,17 @@ final class EquinoxClasspathManagerReader {
                         var sep = "/";
                         if (isBundleFileClass(bundlefile, "NestedDirBundleFile")) {
                             // Handle nested ZipBundleFile with "!/" separator
-                            final var baseBundleFile = ReflectionUtils.getFieldVal(false, bundlefile,
-                                    "baseBundleFile");
+                            var baseBundleFile = ReflectionUtils.getFieldVal(false, bundlefile, "baseBundleFile");
+                            // Storage#wrapBundleFile replaces the base bundle file with a BundleFileWrapperChain
+                            // whenever a BundleFileWrapperFactoryHook returns a wrapper (as Equinox's class sharing
+                            // hook does on OpenJ9), so look through the chain's "wrapped" field and the wrapper's
+                            // "bundleFile" field to the bundle file they wrap. The hop limit stops a cycle.
+                            for (var hops = 0; baseBundleFile != null && hops < MAX_WRAPPER_HOPS
+                                    && !isBundleFileClass(baseBundleFile, "ZipBundleFile"); hops++) {
+                                final var inner = ReflectionUtils.getFieldVal(false, baseBundleFile, "wrapped");
+                                baseBundleFile = inner != null ? inner
+                                        : ReflectionUtils.getFieldVal(false, baseBundleFile, "bundleFile");
+                            }
                             if (baseBundleFile != null && isBundleFileClass(baseBundleFile, "ZipBundleFile")) {
                                 base = baseBundleFile;
                                 sep = "!/";
