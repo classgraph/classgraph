@@ -367,9 +367,31 @@ public class ClasspathOrderTest {
         final var jar = createFile(tempDir.resolve("a.jar"));
         assertThat(classpathOrder.addClasspathEntry(tempDir + "/does-not-exist/*", null, null)).isFalse();
         assertThat(classpathOrder.addClasspathEntry(jar + "/*", null, null)).isFalse();
-        // A '*' is only a wildcard as a "/*" suffix, not as a glob in the middle of the path
-        assertThat(classpathOrder.addClasspathEntry(tempDir + "/*/a.jar", null, null)).isFalse();
         assertThat(classpathOrder.getOrder()).isEmpty();
+    }
+
+    /**
+     * As in the java launcher, a '*' is a wildcard only as a "/*" suffix (or as the whole path), and anywhere else
+     * it is part of a file name, which Linux and macOS allow. A path string that contains one names the same file
+     * as a {@link Path} with the same name, so it is not dropped for looking like a glob. (Windows does not allow
+     * '*' in a file name.)
+     */
+    @Test
+    @DisabledOnOs(OS.WINDOWS)
+    public void aStarInsideAPathIsPartOfAFileName(@TempDir final Path tempDir) throws IOException {
+        final var dir = Files.createDirectory(tempDir.resolve("a*b"));
+        createFile(dir.resolve("r.txt"));
+        final var dirLocation = resolve(dir.toRealPath().toString());
+        final var jar = createFile(tempDir.resolve("c*d.jar"));
+
+        assertThat(classpathOrder.addClasspathEntry(dir.toString(), null, null)).isTrue();
+        // Through a delimited path string, as the java.class.path fallback adds the classpath
+        assertThat(classpathOrder.addClasspathPathStr(jar, null, null)).isTrue();
+        assertThat(locations()).containsExactly(dirLocation, jar);
+
+        // A path that has a '*' in it is still dropped if there is no file with that name
+        assertThat(classpathOrder.addClasspathEntry(tempDir + "/*/r.txt", null, null)).isFalse();
+        assertThat(locations()).containsExactly(dirLocation, jar);
     }
 
     /**
