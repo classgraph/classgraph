@@ -46,10 +46,7 @@ public class RecycledInflaterInputStream extends InputStream {
     private final InputStream rawInputStream;
 
     /** The recycler to hand the {@link Inflater} back to when this stream is closed. */
-    private final Recycler<RecyclableInflater, RuntimeException> inflaterRecycler;
-
-    /** The borrowed {@link Inflater} wrapper. */
-    private final RecyclableInflater recyclableInflater;
+    private final Recycler<Inflater, RuntimeException> inflaterRecycler;
 
     /** The borrowed {@link Inflater}, created with nowrap set to true (needed by zip entries). */
     private final Inflater inflater;
@@ -91,14 +88,41 @@ public class RecycledInflaterInputStream extends InputStream {
      * @param rawInputStream
      *            the stream of deflated bytes
      * @param inflaterRecycler
-     *            the recycler to borrow an {@link Inflater} from, and to hand it back to on close
+     *            the recycler to borrow an {@link Inflater} from, and to hand it back to on close, which must be
+     *            one returned by {@link #newInflaterRecycler()}
      */
     public RecycledInflaterInputStream(final InputStream rawInputStream,
-            final Recycler<RecyclableInflater, RuntimeException> inflaterRecycler) {
+            final Recycler<Inflater, RuntimeException> inflaterRecycler) {
         this.rawInputStream = rawInputStream;
         this.inflaterRecycler = inflaterRecycler;
-        this.recyclableInflater = inflaterRecycler.acquire();
-        this.inflater = recyclableInflater.getInflater();
+        this.inflater = inflaterRecycler.acquire();
+    }
+
+    /**
+     * Create a pool of {@link Inflater} instances for this stream to borrow from. Each inflater is created with the
+     * "nowrap" option, which zip entry data needs, and is reset when it is handed back, and ended when it is
+     * discarded.
+     *
+     * @return the new pool.
+     */
+    public static Recycler<Inflater, RuntimeException> newInflaterRecycler() {
+        return new Recycler<>() {
+            @Override
+            public Inflater newInstance() {
+                return new Inflater(/* nowrap = */ true);
+            }
+
+            @Override
+            protected void resetInstance(final Inflater inflater) {
+                inflater.reset();
+            }
+
+            @Override
+            protected void closeInstance(final Inflater inflater) {
+                // (Inflater is AutoCloseable only from JDK 25 onward, so end() is called directly)
+                inflater.end();
+            }
+        };
     }
 
     /**
@@ -283,7 +307,7 @@ public class RecycledInflaterInputStream extends InputStream {
             // Reset and recycle the inflater only once no read is using it. A read that starts after this sees
             // that the stream is closed, and does not touch the inflater
             synchronized (lock) {
-                inflaterRecycler.recycle(recyclableInflater);
+                inflaterRecycler.recycle(inflater);
             }
         }
     }

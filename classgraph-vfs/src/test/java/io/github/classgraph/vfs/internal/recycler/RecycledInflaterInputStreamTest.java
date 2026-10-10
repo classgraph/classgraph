@@ -42,6 +42,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.zip.Deflater;
+import java.util.zip.Inflater;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
@@ -72,13 +73,8 @@ class RecycledInflaterInputStreamTest {
         }
     }
 
-    private static Recycler<RecyclableInflater, RuntimeException> inflaterRecycler() {
-        return new Recycler<>() {
-            @Override
-            public RecyclableInflater newInstance() {
-                return new RecyclableInflater();
-            }
-        };
+    private static Recycler<Inflater, RuntimeException> inflaterRecycler() {
+        return RecycledInflaterInputStream.newInflaterRecycler();
     }
 
     /** Read the given deflated bytes back through a {@link RecycledInflaterInputStream}. */
@@ -88,6 +84,61 @@ class RecycledInflaterInputStreamTest {
                         recycler)) {
             return inflaterInputStream.readAllBytes();
         }
+    }
+
+    /**
+     * An inflater is reset when it is handed back to the pool, so the next stream that borrows it starts from a
+     * clean state rather than from the end of the previous entry.
+     *
+     * @throws Exception
+     *             if inflating failed.
+     */
+    @Test
+    void aRecycledInflaterIsResetBeforeItIsReused() throws Exception {
+        final var rawBytes = rawBytes();
+        try (var recycler = inflaterRecycler()) {
+            // Inflate a whole entry, leaving the inflater finished
+            final var inflater = recycler.acquire();
+            inflater.setInput(deflate(rawBytes));
+            assertThat(inflater.inflate(new byte[rawBytes.length])).isEqualTo(rawBytes.length);
+            assertThat(inflater.getBytesRead()).isPositive();
+            recycler.recycle(inflater);
+
+            // The pool hands the same inflater out again, reset
+            final var reacquired = recycler.acquire();
+            assertThat(reacquired).isSameAs(inflater);
+            assertThat(reacquired.getBytesRead()).isZero();
+            assertThat(reacquired.finished()).isFalse();
+            recycler.recycle(reacquired);
+
+            // A stream that borrows it inflates the next entry correctly
+            try (var inflaterInputStream = new RecycledInflaterInputStream(
+                    new ByteArrayInputStream(deflate(rawBytes)), recycler)) {
+                assertThat(inflaterInputStream.readAllBytes()).isEqualTo(rawBytes);
+            }
+        }
+    }
+
+    /**
+     * Closing the pool ends the inflaters that are not in use, and force-closing it ends the ones that are, freeing
+     * their native memory. An ended inflater throws when it is used.
+     */
+    @Test
+    void closingThePoolEndsItsInflaters() {
+        final var recycler = inflaterRecycler();
+        final var pooled = recycler.acquire();
+        final var inUse = recycler.acquire();
+        recycler.recycle(pooled);
+
+        recycler.close();
+        // (An ended inflater throws IllegalStateException from JDK 25 onward, and NullPointerException before)
+        assertThatThrownBy(pooled::getBytesRead).isInstanceOfAny(IllegalStateException.class,
+                NullPointerException.class);
+        assertThat(inUse.getBytesRead()).isZero();
+
+        recycler.forceClose();
+        assertThatThrownBy(inUse::getBytesRead).isInstanceOfAny(IllegalStateException.class,
+                NullPointerException.class);
     }
 
     /** A complete deflated stream must inflate back to the original bytes. */
@@ -319,13 +370,25 @@ class RecycledInflaterInputStreamTest {
             }
         };
 
-        final var createdInstances = new CopyOnWriteArrayList<RecyclableInflater>();
-        try (var recycler = new Recycler<RecyclableInflater, RuntimeException>() {
+        // The same pool as RecycledInflaterInputStream.newInflaterRecycler(), which also records each inflater it
+        // creates
+        final var createdInstances = new CopyOnWriteArrayList<Inflater>();
+        try (var recycler = new Recycler<Inflater, RuntimeException>() {
             @Override
-            public RecyclableInflater newInstance() {
-                final var instance = new RecyclableInflater();
+            public Inflater newInstance() {
+                final var instance = new Inflater(/* nowrap = */ true);
                 createdInstances.add(instance);
                 return instance;
+            }
+
+            @Override
+            protected void resetInstance(final Inflater inflater) {
+                inflater.reset();
+            }
+
+            @Override
+            protected void closeInstance(final Inflater inflater) {
+                inflater.end();
             }
         }) {
             final var inflaterInputStream = new RecycledInflaterInputStream(rawInputStream, recycler);
@@ -342,7 +405,7 @@ class RecycledInflaterInputStreamTest {
             });
             reader.start();
             final var closer = new Thread(inflaterInputStream::close);
-            final RecyclableInflater acquiredDuringRead;
+            final Inflater acquiredDuringRead;
             try {
                 enteredSecondRawRead.await();
                 closer.start();

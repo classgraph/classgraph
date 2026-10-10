@@ -15,7 +15,7 @@ import org.junit.jupiter.api.Test;
 /** Tests for {@link Recycler} and {@link RecycleOnClose}. */
 public class RecyclerTest {
     /** An instance that records what the recycler did to it. */
-    private static class Recyclable implements Resettable, AutoCloseable {
+    private static final class Recyclable implements AutoCloseable {
         /** The number of times this instance has been reset. */
         int numResets;
 
@@ -23,18 +23,16 @@ public class RecyclerTest {
         int numCloses;
 
         @Override
-        public void reset() {
-            numResets++;
-        }
-
-        @Override
         public void close() {
             numCloses++;
         }
     }
 
-    /** A recycler of instances that record what was done to them. */
-    private static final class RecyclableRecycler extends Recycler<Recyclable, RuntimeException> {
+    /**
+     * A recycler of instances that record what was done to them. It resets an instance with a {@code resetInstance}
+     * override, and leaves closing it to the default {@code closeInstance}.
+     */
+    private static class RecyclableRecycler extends Recycler<Recyclable, RuntimeException> {
         /** The number of instances that have been allocated. */
         final AtomicInteger numAllocated = new AtomicInteger();
 
@@ -42,6 +40,11 @@ public class RecyclerTest {
         public Recyclable newInstance() {
             numAllocated.incrementAndGet();
             return new Recyclable();
+        }
+
+        @Override
+        protected void resetInstance(final Recyclable instance) {
+            instance.numResets++;
         }
     }
 
@@ -254,23 +257,17 @@ public class RecyclerTest {
 
     /**
      * An instance handed back while another thread force-closes the recycler is closed, even when the force-close
-     * runs after the recycle has checked for one, but before the instance is back in the pool. The instance's
-     * {@code reset()} runs in that window, so a {@code reset()} that force-closes the recycler stands in for the
-     * other thread.
+     * runs after the recycle has checked for one, but before the instance is back in the pool. The recycler's
+     * {@code resetInstance()} runs in that window, so a {@code resetInstance()} that force-closes the recycler
+     * stands in for the other thread.
      */
     @Test
     public void anInstanceHandedBackDuringAForceCloseIsClosed() {
-        final var recycler = new Recycler<Recyclable, RuntimeException>() {
+        final var recycler = new RecyclableRecycler() {
             @Override
-            public Recyclable newInstance() {
-                final var recycler = this;
-                return new Recyclable() {
-                    @Override
-                    public void reset() {
-                        super.reset();
-                        recycler.forceClose();
-                    }
-                };
+            protected void resetInstance(final Recyclable instance) {
+                super.resetInstance(instance);
+                forceClose();
             }
         };
         final var instance = recycler.acquire();
@@ -298,6 +295,39 @@ public class RecyclerTest {
             recycler.recycle(second);
         }
         assertThat(numCloses).hasValue(2);
+    }
+
+    /**
+     * A {@code closeInstance} override closes instances that are not {@link AutoCloseable}, both when the recycler
+     * is closed and when it is force-closed, and an exception it throws does not stop the other instances from
+     * being closed.
+     */
+    @Test
+    public void aCloseInstanceOverrideClosesInstancesThatAreNotAutoCloseable() {
+        final var closed = new ArrayList<>();
+        final var recycler = new Recycler<Object, RuntimeException>() {
+            @Override
+            public Object newInstance() {
+                return new Object();
+            }
+
+            @Override
+            protected void closeInstance(final Object instance) throws IOException {
+                closed.add(instance);
+                throw new IOException("the reason");
+            }
+        };
+        final var first = recycler.acquire();
+        final var second = recycler.acquire();
+        final var inUse = recycler.acquire();
+        recycler.recycle(first);
+        recycler.recycle(second);
+
+        recycler.close();
+        assertThat(closed).containsExactlyInAnyOrder(first, second);
+
+        recycler.forceClose();
+        assertThat(closed).containsExactlyInAnyOrder(first, second, inUse);
     }
 
     /**
