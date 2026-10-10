@@ -3,6 +3,9 @@ package io.github.classgraph.viz;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
 import java.io.Serializable;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -10,6 +13,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.junit.jupiter.api.AfterAll;
@@ -350,7 +354,8 @@ public class GraphVizDotFileTest {
     }
 
     /**
-     * The edges from an annotation say whether it annotates the class itself, or one of its fields or methods.
+     * The edges from an annotation say whether it annotates the class itself, or one of its fields, methods or
+     * method parameters.
      */
     @Test
     public void annotationEdgesSayWhatTheAnnotationAnnotates() {
@@ -360,18 +365,472 @@ public class GraphVizDotFileTest {
                 // Field annotation
                 "\"" + FIXTURE + "Derived\" -> \"" + FIXTURE + "Indexed\" [arrowhead=odot, arrowsize=2.5]",
                 // Method annotation
-                "\"" + FIXTURE + "Derived\" -> \"" + FIXTURE + "Cached\" [arrowhead=odot, arrowsize=2.5]");
+                "\"" + FIXTURE + "Derived\" -> \"" + FIXTURE + "Cached\" [arrowhead=odot, arrowsize=2.5]",
+                // Method parameter annotation
+                "\"" + FIXTURE + "Derived\" -> \"" + FIXTURE + "NotBlank\" [arrowhead=odot, arrowsize=2.5]");
     }
 
     /** A class is joined to the types of its fields and to the types of its methods, by different edges. */
     @Test
     public void classesAreJoinedToTheTypesOfTheirMembers() {
-        assertThat(graph()).contains(
-                // Field type
+        final var dotFile = graph();
+        assertThat(dotFile).contains(
+                // Type argument of the type of a field
                 "\"" + FIXTURE + "Base\" -> \"" + FIXTURE + "Derived\" [arrowtail=obox, arrowsize=2.5, dir=back]",
-                // Parameter type of a method
-                "\"" + FIXTURE + "NotBlank\" -> \"" + FIXTURE
-                        + "Derived\" [arrowtail=box, arrowsize=2.5, dir=back]");
+                // Return type of a method
+                "\"" + FIXTURE + "Base\" -> \"" + FIXTURE + "Derived\" [arrowtail=box, arrowsize=2.5, dir=back]");
+        // The annotation on a method parameter is not a type of the method
+        assertThat(dotFile).doesNotContain("\"" + FIXTURE + "NotBlank\" -> \"" + FIXTURE + "Derived\"");
+    }
+
+    /** A class that is the type of fields, and of method parameters and return values. */
+    public static class Entity {
+    }
+
+    /** An interface with members, which is joined to the types of its members as a class is. */
+    public interface Repository {
+        /** A constant of type {@link Entity}. */
+        Entity DEFAULT_ENTITY = new Entity();
+
+        /**
+         * A method that takes and returns an {@link Entity}.
+         *
+         * @param entity
+         *            an entity.
+         * @return an entity.
+         */
+        Entity find(Entity entity);
+    }
+
+    /** An enum, used as the type of an annotation parameter. */
+    public enum Color {
+        /** Red. */
+        RED,
+        /** Green. */
+        GREEN
+    }
+
+    /** An annotation with a parameter, which is joined to the type of its parameter as a class is. */
+    @Retention(RetentionPolicy.RUNTIME)
+    public @interface Colored {
+        /**
+         * The color.
+         *
+         * @return the color.
+         */
+        Color value();
+    }
+
+    /** The bound of the type parameter of a method. */
+    public static class Bound {
+    }
+
+    /** An exception that a method declares that it throws. */
+    public static class Failure extends Exception {
+        /** Removed from the graph, since it is an implementation detail of serialization. */
+        private static final long serialVersionUID = 1L;
+    }
+
+    /**
+     * A class with several members of the same type, and with members whose annotations, annotation parameter
+     * values and thrown exceptions are graphed classes.
+     */
+    public static class Holder {
+        /** The first field of type {@link Entity}. */
+        public Entity first;
+
+        /** The second field of type {@link Entity}. */
+        public Entity second;
+
+        /** A field whose type argument is {@link Entity}. */
+        public List<Entity> all;
+
+        /** An annotated field. */
+        @Colored(Color.RED)
+        public int annotatedField;
+
+        /**
+         * A method that returns an {@link Entity}.
+         *
+         * @return an entity.
+         */
+        public Entity get() {
+            return first;
+        }
+
+        /**
+         * A method that takes an {@link Entity}.
+         *
+         * @param entity
+         *            an entity.
+         */
+        public void set(final Entity entity) {
+            first = entity;
+        }
+
+        /**
+         * An annotated method with an annotated parameter, that declares that it throws an exception.
+         *
+         * @param annotatedParameter
+         *            an annotated parameter.
+         * @throws Failure
+         *             never.
+         */
+        @Colored(Color.GREEN)
+        public void annotatedMethod(@Colored(Color.RED) final int annotatedParameter) throws Failure {
+            // Empty
+        }
+
+        /**
+         * A method with a bounded type parameter.
+         *
+         * @param <T>
+         *            the type parameter.
+         * @param bounded
+         *            a parameter of the type of the type parameter.
+         */
+        public <T extends Bound> void bounded(final T bounded) {
+            // Empty
+        }
+    }
+
+    /**
+     * A class whose members have the type of a type variable of the class.
+     *
+     * @param <E>
+     *            the type variable.
+     */
+    public static class Generic<E extends Entity> {
+        /** A field whose type is the type variable of the class. */
+        public E value;
+
+        /**
+         * A method whose return type is the type variable of the class.
+         *
+         * @return the value.
+         */
+        public E get() {
+            return value;
+        }
+    }
+
+    /**
+     * A generic class with a generic inner class.
+     *
+     * @param <X>
+     *            the type variable of the class.
+     */
+    public static class Outer<X> {
+        /**
+         * A generic inner class.
+         *
+         * @param <Y>
+         *            the type variable of the inner class.
+         */
+        public class Inner<Y> {
+        }
+    }
+
+    /** A class whose fields name the graphed classes only inside other types. */
+    public static class Nested {
+        /** A field whose array element type is {@link Entity}. */
+        public Entity[][] grid;
+
+        /** A field whose type argument is a wildcard bounded by {@link Bound}. */
+        public Map<String, ? extends Bound> bounded;
+
+        /** A field whose type arguments are {@link Color}, for the outer class, and {@link Failure}. */
+        public Outer<Color>.Inner<Failure> inner;
+    }
+
+    /** The end of the line of an edge from a class named in the type of a field to the class with the field. */
+    private static final String FIELD_TYPE_EDGE = " [arrowtail=obox, arrowsize=2.5, dir=back]\n";
+
+    /** The end of the line of an edge from a class named in the type of a method to the class with the method. */
+    private static final String METHOD_TYPE_EDGE = " [arrowtail=box, arrowsize=2.5, dir=back]\n";
+
+    /** The end of the line of an edge from a class to an annotation on its fields, methods or method parameters. */
+    private static final String MEMBER_ANNOTATION_EDGE = " [arrowhead=odot, arrowsize=2.5]\n";
+
+    /**
+     * Get an edge between two fixture classes, without its attributes.
+     *
+     * @param from
+     *            the simple name of the fixture class the edge starts at.
+     * @param to
+     *            the simple name of the fixture class the edge ends at.
+     * @return the edge, as far as its attributes.
+     */
+    private static String edge(final String from, final String to) {
+        return "\"" + FIXTURE + from + "\" -> \"" + FIXTURE + to + "\"";
+    }
+
+    /**
+     * Count the times that a string occurs in a graph.
+     *
+     * @param dotFile
+     *            the graph.
+     * @param text
+     *            the string to count.
+     * @return the number of times that {@code text} occurs in {@code dotFile}.
+     */
+    private static int count(final String dotFile, final String text) {
+        return dotFile.split(Pattern.quote(text), -1).length - 1;
+    }
+
+    /**
+     * Generate the class graph of the fixture classes that test the edges to the types of class members.
+     *
+     * @param options
+     *            the graph options.
+     * @return the .dot file contents.
+     */
+    private static String memberTypeGraph(final GraphVizDotFileOptions options) {
+        try (var memberTypeScanResult = new ClassGraph().enableClasspath()
+                .acceptClasses(Entity.class.getName(), Repository.class.getName(), Color.class.getName(),
+                        Colored.class.getName(), Bound.class.getName(), Failure.class.getName(),
+                        Holder.class.getName(), Generic.class.getName(), Nested.class.getName())
+                .enableClassInfo().enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                .ignoreClassVisibility().ignoreFieldVisibility().ignoreMethodVisibility().scan()) {
+            return graph(memberTypeScanResult, options);
+        }
+    }
+
+    /**
+     * A class is joined to a class named in the types of its fields by one edge, and to a class named in the types
+     * of its methods by one edge, however many of its members name the class.
+     */
+    @Test
+    public void classesAreJoinedToEachTypeOfTheirMembersOnce() {
+        final var dotFile = memberTypeGraph(new GraphVizDotFileOptions());
+        assertThat(count(dotFile, edge("Entity", "Holder") + FIELD_TYPE_EDGE)).isEqualTo(1);
+        assertThat(count(dotFile, edge("Entity", "Holder") + METHOD_TYPE_EDGE)).isEqualTo(1);
+    }
+
+    /**
+     * The annotations on the members of a class, the classes named in the parameter values of those annotations,
+     * and the exceptions that its methods throw are not types of its members.
+     */
+    @Test
+    public void annotationsAndThrownExceptionsAreNotTypesOfMembers() {
+        assertThat(memberTypeGraph(new GraphVizDotFileOptions())).doesNotContain(
+                // An annotation on a field, on a method and on a method parameter
+                edge("Colored", "Holder"),
+                // An enum constant named in the parameter value of an annotation on a member
+                edge("Color", "Holder"),
+                // An exception that a method throws
+                edge("Failure", "Holder"));
+    }
+
+    /** A class is not joined to itself, as the constants and the methods of an enum would otherwise join it. */
+    @Test
+    public void classesAreNotJoinedToThemselves() {
+        assertThat(memberTypeGraph(new GraphVizDotFileOptions())).doesNotContain(edge("Color", "Color"));
+    }
+
+    /**
+     * A class is joined to the classes named in the type arguments and array element types of the types of its
+     * members.
+     */
+    @Test
+    public void typeArgumentsAndArrayElementTypesAreTypesOfMembers() {
+        assertThat(memberTypeGraph(new GraphVizDotFileOptions())).contains(
+                // Array element type
+                edge("Entity", "Nested") + FIELD_TYPE_EDGE,
+                // Bound of a wildcard type argument
+                edge("Bound", "Nested") + FIELD_TYPE_EDGE,
+                // Type argument of the outer class of an inner class type
+                edge("Color", "Nested") + FIELD_TYPE_EDGE,
+                // Type argument of the inner class of an inner class type
+                edge("Failure", "Nested") + FIELD_TYPE_EDGE);
+    }
+
+    /**
+     * A class is joined to the bounds of the type parameters of its methods, and to the bound of a type variable of
+     * the class that is the whole type of a member, since that bound is the type the member has at run time.
+     */
+    @Test
+    public void typeVariablesAreJoinedToTheirBounds() {
+        final var dotFile = memberTypeGraph(new GraphVizDotFileOptions());
+        assertThat(dotFile).contains(edge("Bound", "Holder") + METHOD_TYPE_EDGE,
+                edge("Entity", "Generic") + FIELD_TYPE_EDGE, edge("Entity", "Generic") + METHOD_TYPE_EDGE);
+    }
+
+    /** Interfaces and annotations are joined to the types of their members, as classes are. */
+    @Test
+    public void interfacesAndAnnotationsAreJoinedToTheTypesOfTheirMembers() {
+        assertThat(memberTypeGraph(new GraphVizDotFileOptions())).contains(
+                // The type of an interface constant
+                edge("Entity", "Repository") + FIELD_TYPE_EDGE,
+                // The return type and parameter type of an interface method
+                edge("Entity", "Repository") + METHOD_TYPE_EDGE,
+                // The type of an annotation parameter
+                edge("Color", "Colored") + METHOD_TYPE_EDGE);
+    }
+
+    /**
+     * A class is joined to an annotation on its members by one edge, however many of its fields, methods and method
+     * parameters the annotation is on.
+     */
+    @Test
+    public void classesAreJoinedToEachAnnotationOfTheirMembersOnce() {
+        assertThat(count(memberTypeGraph(new GraphVizDotFileOptions()),
+                edge("Holder", "Colored") + MEMBER_ANNOTATION_EDGE)).isEqualTo(1);
+    }
+
+    /** Hiding the annotation edges leaves no edge between a class and the annotations on its members. */
+    @Test
+    public void hidingTheAnnotationEdgesHidesTheEdgesToTheAnnotationsOfMembers() {
+        assertThat(memberTypeGraph(new GraphVizDotFileOptions().hideAnnotationDependencyEdges()))
+                .doesNotContain(edge("Holder", "Colored"), edge("Colored", "Holder"));
+    }
+
+    /**
+     * Write a class {@code Target} with no members, and an abstract class {@code BrokenTypeDescriptors} with the
+     * fields {@code typed} and {@code untyped} and the methods {@code typed()} and {@code untyped()}, all of which
+     * have a type descriptor that does not parse. Only the members named {@code typed} have a type signature, which
+     * names {@code Target}. The JVM rejects such a classfile, but ClassGraph can still scan it.
+     *
+     * @param dir
+     *            the directory to write the classfiles to.
+     * @throws IOException
+     *             if a classfile could not be written.
+     */
+    private static void writeBrokenTypeDescriptorClassfiles(final Path dir) throws IOException {
+        final var target = new ByteArrayOutputStream();
+        try (var out = new DataOutputStream(target)) {
+            out.writeInt(0xCAFEBABE);
+            out.writeShort(0); // Minor version
+            out.writeShort(52); // Major version (Java 8)
+            out.writeShort(5); // Constant pool count (one greater than the number of entries)
+            // #1
+            out.writeByte(1);
+            out.writeUTF("Target");
+            // #2
+            out.writeByte(7); // class ref to #1 (this_class)
+            out.writeShort(1);
+            // #3
+            out.writeByte(1);
+            out.writeUTF("java/lang/Object");
+            // #4
+            out.writeByte(7); // class ref to #3 (super_class)
+            out.writeShort(3);
+            out.writeShort(0x0021); // ACC_PUBLIC | ACC_SUPER
+            out.writeShort(2); // this_class
+            out.writeShort(4); // super_class
+            out.writeShort(0); // Number of interfaces
+            out.writeShort(0); // Number of fields
+            out.writeShort(0); // Number of methods
+            out.writeShort(0); // Number of attributes
+        }
+        Files.write(dir.resolve("Target.class"), target.toByteArray());
+
+        final var broken = new ByteArrayOutputStream();
+        try (var out = new DataOutputStream(broken)) {
+            out.writeInt(0xCAFEBABE);
+            out.writeShort(0); // Minor version
+            out.writeShort(52); // Major version (Java 8)
+            out.writeShort(12); // Constant pool count (one greater than the number of entries)
+            // #1
+            out.writeByte(1);
+            out.writeUTF("BrokenTypeDescriptors");
+            // #2
+            out.writeByte(7); // class ref to #1 (this_class)
+            out.writeShort(1);
+            // #3
+            out.writeByte(1);
+            out.writeUTF("java/lang/Object");
+            // #4
+            out.writeByte(7); // class ref to #3 (super_class)
+            out.writeShort(3);
+            // #5
+            out.writeByte(1);
+            out.writeUTF("Signature");
+            // #6
+            out.writeByte(1);
+            out.writeUTF("typed");
+            // #7
+            out.writeByte(1);
+            out.writeUTF("untyped");
+            // #8
+            out.writeByte(1);
+            out.writeUTF("LTarget"); // A field type descriptor, without its closing ';'
+            // #9
+            out.writeByte(1);
+            out.writeUTF("LTarget;");
+            // #10
+            out.writeByte(1);
+            out.writeUTF("()LTarget"); // A method type descriptor, without the closing ';' of its return type
+            // #11
+            out.writeByte(1);
+            out.writeUTF("()LTarget;");
+
+            out.writeShort(0x0421); // ACC_PUBLIC | ACC_SUPER | ACC_ABSTRACT
+            out.writeShort(2); // this_class
+            out.writeShort(4); // super_class
+            out.writeShort(0); // Number of interfaces
+
+            out.writeShort(2); // Number of fields
+            // public Target typed, with a type signature
+            out.writeShort(0x0001);
+            out.writeShort(6);
+            out.writeShort(8);
+            out.writeShort(1); // attributes_count
+            out.writeShort(5); // "Signature"
+            out.writeInt(2);
+            out.writeShort(9);
+            // public Target untyped, with no type signature
+            out.writeShort(0x0001);
+            out.writeShort(7);
+            out.writeShort(8);
+            out.writeShort(0); // attributes_count
+
+            out.writeShort(2); // Number of methods
+            // public abstract Target typed(), with a type signature
+            out.writeShort(0x0401);
+            out.writeShort(6);
+            out.writeShort(10);
+            out.writeShort(1); // attributes_count
+            out.writeShort(5); // "Signature"
+            out.writeInt(2);
+            out.writeShort(11);
+            // public abstract Target untyped(), with no type signature
+            out.writeShort(0x0401);
+            out.writeShort(7);
+            out.writeShort(10);
+            out.writeShort(0); // attributes_count
+
+            out.writeShort(0); // Number of attributes
+        }
+        Files.write(dir.resolve("BrokenTypeDescriptors.class"), broken.toByteArray());
+    }
+
+    /**
+     * A member whose type descriptor does not parse is joined to the classes named in its type signature, if it has
+     * one, and does not make the graph fail.
+     *
+     * @param tempDir
+     *            the directory to write the classfiles to.
+     * @throws IOException
+     *             if a classfile could not be written.
+     */
+    @Test
+    public void typeEdgesSkipTypeDescriptorsThatDoNotParse(@TempDir final Path tempDir) throws IOException {
+        writeBrokenTypeDescriptorClassfiles(tempDir);
+        try (var brokenScanResult = new ClassGraph().enableClasspathEntries(tempDir).enableClassInfo()
+                .enableFieldInfo().enableMethodInfo().scan()) {
+            final var brokenClass = brokenScanResult.getClassInfo("BrokenTypeDescriptors");
+            assertThatThrownBy(() -> brokenClass.getFieldInfo("typed").getTypeDescriptor())
+                    .isInstanceOf(IllegalArgumentException.class);
+            assertThatThrownBy(() -> brokenClass.getMethodInfo("typed").get(0).getTypeDescriptor())
+                    .isInstanceOf(IllegalArgumentException.class);
+
+            // The member rows are hidden, since a row is drawn from the type descriptor of a member with no type
+            // signature
+            assertThat(graph(brokenScanResult, new GraphVizDotFileOptions().hideFields().hideMethods())).contains(
+                    "\"Target\" -> \"BrokenTypeDescriptors\"" + FIELD_TYPE_EDGE,
+                    "\"Target\" -> \"BrokenTypeDescriptors\"" + METHOD_TYPE_EDGE);
+        }
     }
 
     /**

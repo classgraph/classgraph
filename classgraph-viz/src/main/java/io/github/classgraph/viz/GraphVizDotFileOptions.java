@@ -69,14 +69,18 @@ public final class GraphVizDotFileOptions {
     boolean showMethods = true;
 
     /**
-     * Whether to show edges between classes and the return types and parameter types of their methods.
+     * Whether to show edges between classes and the return types, parameter types and type parameter bounds of
+     * their methods and constructors.
      */
     boolean showMethodTypeDependencyEdges = true;
 
     /** Whether to show annotations within class nodes. */
     boolean showAnnotations = true;
 
-    /** Whether to show edges between classes and the annotations on them. */
+    /**
+     * Whether to show edges between classes and the annotations on them, or on their fields, methods and method
+     * parameters.
+     */
     boolean showAnnotationDependencyEdges = true;
 
     /** Whether to strip the package name from class names in type signatures and annotations. */
@@ -135,6 +139,13 @@ public final class GraphVizDotFileOptions {
     /**
      * Show edges between classes and the types of their fields. (This is the default.)
      *
+     * <p>
+     * Each class, interface or annotation is joined by one edge to each class named in the type of any of its
+     * fields, including in type arguments and array element types, if that class has a node in the graph. Type
+     * variables are not resolved, but the erased type of each field is read as well, so a field of type {@code E},
+     * where {@code E extends Entity}, is joined to {@code Entity}. The annotations on a field are not part of its
+     * type (see {@link #showAnnotationDependencyEdges()}). A class is not joined to itself.
+     *
      * @return this {@link GraphVizDotFileOptions}, for method chaining.
      */
     public GraphVizDotFileOptions showFieldTypeDependencyEdges() {
@@ -175,7 +186,17 @@ public final class GraphVizDotFileOptions {
     }
 
     /**
-     * Show edges between classes and the return types and parameter types of their methods. (This is the default.)
+     * Show edges between classes and the return types, parameter types and type parameter bounds of their methods
+     * and constructors. (This is the default.)
+     *
+     * <p>
+     * Each class, interface or annotation is joined by one edge to each class named in those types of any of its
+     * methods and constructors, including in type arguments and array element types, if that class has a node in
+     * the graph. The methods that are not listed in a class node -- {@code hashCode()}, {@code toString()} and
+     * {@code equals(Object)} -- are skipped. Type variables are not resolved, but the erased types of each method
+     * are read as well, so a method returning {@code E}, where {@code E extends Entity}, is joined to
+     * {@code Entity}. The exceptions a method throws, and the annotations on a method and on its parameters, are
+     * not among its types (see {@link #showAnnotationDependencyEdges()}). A class is not joined to itself.
      *
      * @return this {@link GraphVizDotFileOptions}, for method chaining.
      */
@@ -185,8 +206,8 @@ public final class GraphVizDotFileOptions {
     }
 
     /**
-     * Do not show edges between classes and the return types and parameter types of their methods. (These edges are
-     * shown by default.)
+     * Do not show edges between classes and the return types, parameter types and type parameter bounds of their
+     * methods and constructors. (These edges are shown by default.)
      *
      * @return this {@link GraphVizDotFileOptions}, for method chaining.
      */
@@ -218,7 +239,13 @@ public final class GraphVizDotFileOptions {
     }
 
     /**
-     * Show edges between classes and the annotations on them. (This is the default.)
+     * Show edges between classes and the annotations on them, or on their fields, methods and method parameters.
+     * (This is the default.)
+     *
+     * <p>
+     * Each class, interface or annotation is joined by one edge (with a filled dot) to each annotation directly on
+     * it, and by one edge (with a hollow dot) to each annotation directly on any of its fields, methods,
+     * constructors or method parameters, if the annotation has a node in the graph.
      *
      * @return this {@link GraphVizDotFileOptions}, for method chaining.
      */
@@ -228,7 +255,8 @@ public final class GraphVizDotFileOptions {
     }
 
     /**
-     * Do not show edges between classes and the annotations on them. (These edges are shown by default.)
+     * Do not show edges between classes and the annotations on them, or on their fields, methods and method
+     * parameters. (These edges are shown by default.)
      *
      * @return this {@link GraphVizDotFileOptions}, for method chaining.
      */

@@ -71,6 +71,10 @@ public class GraphVizDotFileOptionsTest {
     private static final String ANNOTATION_EDGE = "\"" + FIXTURE + "GraphNode\" -> \"" + FIXTURE
             + "GraphClassAnnotation\" [arrowhead=dot, arrowsize=2.5]";
 
+    /** The edge drawn from a class to an annotation on a parameter of one of its methods. */
+    private static final String PARAMETER_ANNOTATION_EDGE = "\"" + FIXTURE + "GraphNode\" -> \"" + FIXTURE
+            + "GraphParamAnnotation\" [arrowhead=odot, arrowsize=2.5]";
+
     /**
      * Generate the class graph for the fixture classes.
      *
@@ -80,8 +84,8 @@ public class GraphVizDotFileOptionsTest {
      */
     private static String classGraph(final GraphVizDotFileOptions options) {
         try (var scanResult = new ClassGraph().enableClasspath()
-                .acceptClasses(GraphClassAnnotation.class.getName(), GraphType.class.getName(),
-                        GraphNode.class.getName())
+                .acceptClasses(GraphClassAnnotation.class.getName(), GraphParamAnnotation.class.getName(),
+                        GraphType.class.getName(), GraphNode.class.getName())
                 .enableClassInfo().enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
                 .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
                 .ignoreMethodVisibility().scan()) {
@@ -170,12 +174,15 @@ public class GraphVizDotFileOptionsTest {
         assertThat(noAnnotations).contains("<b>graphField</b>", "<b>graphMethod</b>", ANNOTATION_EDGE);
     }
 
-    /** An edge is drawn from a class to each annotation on it, and the edges can be hidden. */
+    /**
+     * An edge is drawn from a class to each annotation on it, and on its members and their parameters, and the
+     * edges can be hidden.
+     */
     @Test
     public void annotationDependencyEdgesCanBeHidden() {
-        assertThat(classGraph(new GraphVizDotFileOptions())).contains(ANNOTATION_EDGE);
+        assertThat(classGraph(new GraphVizDotFileOptions())).contains(ANNOTATION_EDGE, PARAMETER_ANNOTATION_EDGE);
         final var noAnnotationEdges = classGraph(new GraphVizDotFileOptions().hideAnnotationDependencyEdges());
-        assertThat(noAnnotationEdges).doesNotContain(ANNOTATION_EDGE);
+        assertThat(noAnnotationEdges).doesNotContain(ANNOTATION_EDGE, PARAMETER_ANNOTATION_EDGE);
         // Hiding the annotation edges still lists the annotations inside the class node
         assertThat(noAnnotationEdges).contains("@GraphClassAnnotation");
     }
