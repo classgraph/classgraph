@@ -148,6 +148,13 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     boolean isScannedClass;
 
+    /**
+     * Set to true when this class has not been scanned, and its modifiers were taken from the {@code InnerClasses}
+     * entry for it in the classfile of its enclosing class. What other classfiles say about the class is then
+     * ignored.
+     */
+    private boolean hasModifiersFromEnclosingClass;
+
     /** The classpath element that this class was found within. */
     @Nullable
     ClasspathElement classpathElement;
@@ -275,9 +282,6 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             // Spot check to make sure class names were parsed from descriptors
             throw new IllegalArgumentException("Bad class name");
         }
-        // Assign the field directly rather than calling setModifiers(int), which is overridable, and so would let a
-        // subclass see a partly-initialized instance. The field is still zero here, so the "|=" in
-        // setModifiers(int) would have the same effect as this assignment.
         this.modifiers = classModifiers;
         this.classfileResource = classfileResource;
         this.relatedClasses = new EnumMap<>(RelType.class);
@@ -515,13 +519,20 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     }
 
     /**
-     * Set class modifiers.
+     * Add modifier bits that another classfile's reference to this class implies, such as {@code ACC_INTERFACE} for
+     * a class that it implements, or {@code ACC_ANNOTATION} for a class that it is annotated with. The other
+     * classfile was compiled against some version of this class, which may not be the version on the classpath, so
+     * the bits are added only while this class has not been scanned, and only if its modifiers were not taken from
+     * its enclosing class's {@code InnerClasses} attribute. The bits a placeholder collects this way are replaced
+     * when this class's own classfile is linked.
      *
-     * @param modifiers
-     *            the class modifiers
+     * @param modifierBits
+     *            the modifier bits implied by the reference.
      */
-    void setModifiers(final int modifiers) {
-        this.modifiers |= modifiers;
+    private void inferModifiersFromReference(final int modifierBits) {
+        if (!isScannedClass && !hasModifiersFromEnclosingClass) {
+            this.modifiers |= modifierBits;
+        }
     }
 
     /**
@@ -530,8 +541,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     private static final int ACCESS_LEVEL_MODIFIERS = Modifier.PUBLIC | Modifier.PRIVATE | Modifier.PROTECTED;
 
     /**
-     * Set the modifiers of a nested class from its entry in an {@code InnerClasses} attribute. (javac writes the
-     * entry into the classfile of the nested class and into that of its enclosing class.)
+     * Set the modifiers of a nested class from its entry in an {@code InnerClasses} attribute.
      *
      * <p>
      * For a nested class, the {@code access_flags} field in the class's own classfile cannot express the
@@ -543,24 +553,19 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * {@link #isPublic()} and {@link #isProtected()} returned true. The remaining bits (e.g. {@code ACC_STATIC},
      * which only appears in the {@code InnerClasses} entry) are OR'd in.
      *
+     * <p>
+     * Every classfile that names a nested class has an {@code InnerClasses} entry for it, but only the entries in
+     * the class's own classfile and in its enclosing class's classfile are written from the same source as the
+     * class. An entry in any other classfile was written when that classfile was compiled, against what may be an
+     * older version of the class. So this is called for a scanned class only with the entry from its own classfile;
+     * see {@link #addClassContainment(List, String, Map)} for a class that is not scanned.
+     *
      * @param innerClassModifierBits
      *            the modifier bits from the {@code InnerClasses} attribute entry for this class
      */
     // #791
     void setNestedClassModifiers(final int innerClassModifierBits) {
         this.modifiers = (this.modifiers & ~ACCESS_LEVEL_MODIFIERS) | innerClassModifierBits;
-    }
-
-    /**
-     * Set isInterface status.
-     *
-     * @param isInterface
-     *            true if this is an interface
-     */
-    void setIsInterface(final boolean isInterface) {
-        if (isInterface) {
-            this.modifiers |= Modifier.INTERFACE;
-        }
     }
 
     /**
@@ -637,7 +642,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      */
     void addImplementedInterface(final String interfaceName, final Map<String, ClassInfo> classNameToClassInfo) {
         final var interfaceClassInfo = getOrCreateClassInfo(interfaceName, classNameToClassInfo);
-        interfaceClassInfo.setIsInterface(true);
+        interfaceClassInfo.inferModifiersFromReference(Modifier.INTERFACE);
         this.addRelatedClass(RelType.IMPLEMENTED_INTERFACES, interfaceClassInfo);
         interfaceClassInfo.addRelatedClass(RelType.CLASSES_IMPLEMENTING, this);
     }
@@ -645,17 +650,34 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Add class containment info.
      *
+     * <p>
+     * The modifier bits of an entry are applied only to a class that has not been scanned, since a scanned class
+     * takes its modifiers from its own classfile. For a class that has not been scanned, the entry in the classfile
+     * of its enclosing class replaces all its modifiers, and the entries in other classfiles, which may have been
+     * compiled against an older version of the class, are then ignored, so that the result does not depend on the
+     * order in which the classfiles are linked.
+     *
      * @param classContainmentEntries
      *            the class containment entries
+     * @param classfileClassName
+     *            the name of the class whose classfile the entries were read from
      * @param classNameToClassInfo
      *            the map from class name to class info
      */
     static void addClassContainment(final List<ClassContainment> classContainmentEntries,
-            final Map<String, ClassInfo> classNameToClassInfo) {
+            final String classfileClassName, final Map<String, ClassInfo> classNameToClassInfo) {
         for (final ClassContainment classContainment : classContainmentEntries) {
             final var innerClassInfo = ClassInfo.getOrCreateClassInfo(classContainment.innerClassName(),
                     classNameToClassInfo);
-            innerClassInfo.setNestedClassModifiers(classContainment.innerClassModifierBits());
+            if (!innerClassInfo.isScannedClass) {
+                if (classContainment.outerClassName().equals(classfileClassName)) {
+                    // The access flags of an InnerClasses entry hold every modifier of a nested class (JVMS 4.7.6)
+                    innerClassInfo.modifiers = classContainment.innerClassModifierBits();
+                    innerClassInfo.hasModifiersFromEnclosingClass = true;
+                } else if (!innerClassInfo.hasModifiersFromEnclosingClass) {
+                    innerClassInfo.setNestedClassModifiers(classContainment.innerClassModifierBits());
+                }
+            }
             final var outerClassInfo = ClassInfo.getOrCreateClassInfo(classContainment.outerClassName(),
                     classNameToClassInfo);
             innerClassInfo.addRelatedClass(RelType.ENCLOSING_CLASSES, outerClassInfo);
@@ -690,7 +712,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     void addClassAnnotation(final AnnotationInfo classAnnotationInfo,
             final Map<String, ClassInfo> classNameToClassInfo) {
         final var annotationClassInfo = getOrCreateClassInfo(classAnnotationInfo.getName(), classNameToClassInfo);
-        annotationClassInfo.setModifiers(ANNOTATION_CLASS_MODIFIER);
+        annotationClassInfo.inferModifiersFromReference(ANNOTATION_CLASS_MODIFIER);
         if (this.annotationInfo == null) {
             this.annotationInfo = new ArrayList<>(2);
         }
@@ -723,7 +745,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             for (final AnnotationInfo fieldAnnotationInfo : annotationInfoList) {
                 final var annotationClassInfo = getOrCreateClassInfo(fieldAnnotationInfo.getName(),
                         classNameToClassInfo);
-                annotationClassInfo.setModifiers(ANNOTATION_CLASS_MODIFIER);
+                annotationClassInfo.inferModifiersFromReference(ANNOTATION_CLASS_MODIFIER);
                 // Mark this class as having a field or method with this annotation
                 this.addRelatedClass(isField ? RelType.FIELD_ANNOTATIONS : RelType.METHOD_ANNOTATIONS,
                         annotationClassInfo);
@@ -804,7 +826,7 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                         for (final AnnotationInfo methodParamAnnotationInfo : paramAnnotationInfoArr) {
                             final var annotationClassInfo = getOrCreateClassInfo(
                                     methodParamAnnotationInfo.getName(), classNameToClassInfo);
-                            annotationClassInfo.setModifiers(ANNOTATION_CLASS_MODIFIER);
+                            annotationClassInfo.inferModifiersFromReference(ANNOTATION_CLASS_MODIFIER);
                             this.addRelatedClass(RelType.METHOD_PARAMETER_ANNOTATIONS, annotationClassInfo);
                             annotationClassInfo.addRelatedClass(RelType.CLASSES_WITH_METHOD_PARAMETER_ANNOTATION,
                                     this);
@@ -905,8 +927,10 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
             // Set the classfileResource for the placeholder class
             classInfo.classfileResource = classfileResource;
 
-            // Add any additional modifier bits
-            classInfo.modifiers |= classModifiers;
+            // Replace any modifier bits that were inferred from the references to the class in other classfiles,
+            // which may have been compiled against a different version of the class
+            classInfo.modifiers = classModifiers;
+            classInfo.hasModifiersFromEnclosingClass = false;
         }
 
         // Mark the class as scanned
@@ -1655,14 +1679,15 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * annotation that has also been implemented as an interface by some class).
      *
      * <p>
-     * Annotations are interfaces, but you can also implement an annotation, so to we return whether an interface
-     * (even an annotation) is implemented by a class or extended by a subinterface, or (failing that) if it is not
-     * an interface but not an annotation.
+     * Annotations are interfaces, but a class can also implement an annotation, and an interface can extend one, so
+     * an annotation is an implemented interface if some scanned class implements or extends it. A class that is not
+     * an interface or an annotation is never an implemented interface, even if a classfile compiled against an
+     * older version of it names it as an interface.
      *
      * @return true if this class is an implemented interface.
      */
     public boolean isImplementedInterface() {
-        return relatedClasses.get(RelType.CLASSES_IMPLEMENTING) != null || isInterface();
+        return isInterface() || isAnnotation() && relatedClasses.get(RelType.CLASSES_IMPLEMENTING) != null;
     }
 
     /**

@@ -615,12 +615,11 @@ class Classfile {
      * @return the {@link ClassInfo} object for this class.
      */
     private ClassInfo linkClassInfo(final Map<String, ClassInfo> classNameToClassInfo) {
+        // addScannedClass sets the class's modifiers, including ACC_INTERFACE and ACC_ANNOTATION, to those in its
+        // classfile, replacing any that other classfiles' references to the class implied
         final var classInfo = ClassInfo.addScannedClass(className, classModifiers, isExternalClass,
                 classNameToClassInfo, classpathElement, classfileResource);
         classInfo.setClassfileVersion(minorVersion, majorVersion);
-        classInfo.setModifiers(classModifiers);
-        classInfo.setIsInterface(isInterface);
-        classInfo.setIsAnnotation(isAnnotation);
         classInfo.setIsRecord(isRecord);
         classInfo.setSourceFile(sourceFile);
         // An interface's classfile names java.lang.Object as its superclass, but interfaces do not extend Object, so
@@ -639,7 +638,14 @@ class Classfile {
             }
         }
         if (classContainmentEntries != null) {
-            ClassInfo.addClassContainment(classContainmentEntries, classNameToClassInfo);
+            ClassInfo.addClassContainment(classContainmentEntries, className, classNameToClassInfo);
+        }
+        // A nested class's own InnerClasses entry holds modifiers that its access_flags cannot express, such as
+        // its source-level access level and ACC_STATIC. addClassContainment does not apply the modifiers of an
+        // entry to a scanned class, which this class now is, so apply them here. (The entry of a local or
+        // anonymous class has an outer class index of 0, and adds no containment entry at all.)
+        if (ownInnerClassAccessFlags != -1) {
+            classInfo.setNestedClassModifiers(ownInnerClassAccessFlags);
         }
         if (annotationParamDefaultValues != null) {
             classInfo.addAnnotationParamDefaultValues(annotationParamDefaultValues);
@@ -647,12 +653,6 @@ class Classfile {
         if (hasEnclosingMethodAttribute) {
             classInfo.setLocalOrAnonymousClass(/* isAnonymous = */ hasNoSimpleName,
                     fullyQualifiedDefiningMethodName);
-            // The InnerClasses entry of a local or anonymous class has an outer class index of 0, so it adds no
-            // containment entry, and the flags that only it holds (such as the ACC_STATIC of a local record, enum
-            // or interface) have to be applied here
-            if (ownInnerClassAccessFlags != -1) {
-                classInfo.setNestedClassModifiers(ownInnerClassAccessFlags);
-            }
         }
         if (fieldInfoList != null) {
             classInfo.addFieldInfo(fieldInfoList, classNameToClassInfo);
