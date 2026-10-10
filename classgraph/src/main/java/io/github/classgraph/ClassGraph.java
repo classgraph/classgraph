@@ -33,7 +33,6 @@ import java.io.InputStream;
 import java.lang.module.ModuleReference;
 import java.net.URI;
 import java.net.URL;
-import java.nio.ByteBuffer;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -1356,13 +1355,13 @@ public final class ClassGraph {
 
     /**
      * The maximum size of an inner (nested) jar that has been deflated (i.e. compressed, not stored) within an
-     * outer jar, before it has to be spilled to disk rather than stored in a RAM-backed {@link ByteBuffer} when it
-     * is deflated, in order for the inner jar's entries to be read. (Note that this situation of having to deflate
-     * a nested jar to RAM or disk in order to read it is rare, because normally adding a jarfile to another jarfile
-     * will store the inner jar, rather than deflate it, because deflating a jarfile does not usually produce any
-     * further compression gains. If an inner jar is stored, not deflated, then its zip entries can be read directly
-     * using ClassGraph's own zipfile central directory parser, which can use file slicing to extract entries
-     * directly from stored nested jars.)
+     * outer jar, before it has to be spilled to disk rather than held in RAM when it is inflated, in order for the
+     * inner jar's entries to be read. (Note that this situation of having to inflate a nested jar into RAM or onto
+     * disk in order to read it is rare, because normally adding a jarfile to another jarfile will store the inner
+     * jar, rather than deflate it, because deflating a jarfile does not usually produce any further compression
+     * gains. If an inner jar is stored, not deflated, then its zip entries can be read directly using ClassGraph's
+     * own zipfile central directory parser, which can use file slicing to extract entries directly from stored
+     * nested jars.)
      *
      * <p>
      * This is also the maximum size of a jar downloaded from an {@code http://} or {@code https://} classpath
@@ -1375,10 +1374,17 @@ public final class ClassGraph {
      * Default: 64MB (i.e. writing to disk is avoided wherever possible). Setting a lower max RAM size value will
      * decrease ClassGraph's memory usage if either of the above rare situations occurs.
      *
+     * <p>
+     * At most {@code Integer.MAX_VALUE - 8} bytes of a jar are held in RAM, since some JVMs cannot allocate a
+     * larger array, so a larger value, such as {@link Integer#MAX_VALUE}, has the same effect as
+     * {@code Integer.MAX_VALUE - 8}.
+     *
      * @param maxBufferedJarRAMSize
      *            The max RAM size to use for deflated inner jars or downloaded jars. This is the limit per jar, not
      *            for the whole classpath.
      * @return this (for method chaining).
+     * @throws IllegalArgumentException
+     *             if {@code maxBufferedJarRAMSize} is negative.
      */
     public ClassGraph setMaxBufferedJarRAMSize(final int maxBufferedJarRAMSize) {
         scanSpec.vfsSpec.setMaxBufferedJarRAMSize(maxBufferedJarRAMSize);

@@ -29,7 +29,6 @@
 package io.github.classgraph.vfs;
 
 import java.io.InputStream;
-import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.Set;
 import java.util.TreeSet;
@@ -308,10 +307,14 @@ public final class VfsSpec {
      * Defaults to {@value #DEFAULT_MAX_BUFFERED_JAR_RAM_SIZE} bytes (64MB), i.e. writing to disk is avoided
      * wherever possible. Setting a lower value decreases memory usage if any of the above situations does occur.
      *
+     * <p>
+     * At most {@code Integer.MAX_VALUE - 8} bytes of a jarfile are held in RAM, since some JVMs cannot allocate a
+     * larger array, so a larger value, such as {@link Integer#MAX_VALUE}, has the same effect as
+     * {@code Integer.MAX_VALUE - 8}. {@link #getMaxBufferedJarRAMSize()} still returns the value that was set.
+     *
      * @param maxBufferedJarRAMSize
-     *            the maximum number of bytes to hold in a RAM-backed {@link ByteBuffer} per jarfile, before the
-     *            content is spilled to a temporary file. This is the limit per jarfile, not for the whole
-     *            classpath.
+     *            the maximum number of bytes of a jarfile to hold in RAM, before the content is spilled to a
+     *            temporary file. This is the limit per jarfile, not for the whole classpath.
      * @return this (for method chaining).
      * @throws IllegalArgumentException
      *             if {@code maxBufferedJarRAMSize} is negative.

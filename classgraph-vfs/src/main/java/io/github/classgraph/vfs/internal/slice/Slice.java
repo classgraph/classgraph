@@ -180,7 +180,11 @@ public abstract class Slice implements AutoCloseable {
      */
     public static Slice fromInputStream(final InputStream inputStream, final String tempFileBaseName,
             final long inputStreamLengthHint, final Vfs vfs, final @Nullable LogNode log) throws IOException {
-        final var maxBufferedJarRAMSize = vfs.getVfsSpec().getMaxBufferedJarRAMSize();
+        // The setting can be as large as Integer.MAX_VALUE, but the buffer must not grow past MAX_BUFFER_SIZE. Some
+        // JVMs refuse a larger array with OutOfMemoryError ("Requested array size exceeds VM limit") however large
+        // the heap is, and the jar would then not be read at all, instead of the rest of it being spilled to disk.
+        // A known length longer than MAX_BUFFER_SIZE cannot fit in an array either, so it goes straight to disk.
+        final var maxBufferedJarRAMSize = Math.min(vfs.getVfsSpec().getMaxBufferedJarRAMSize(), MAX_BUFFER_SIZE);
         if (inputStreamLengthHint <= maxBufferedJarRAMSize) {
             // inputStreamLengthHint is unknown (-1) or no longer than maxBufferedJarRAMSize, so read the stream
             // into an array. A known length is allocated up front, since it is usually right, but only up to
