@@ -1316,22 +1316,34 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
 
     /**
      * Get simple name from fully-qualified class name. Returns everything after the last '.' or the last '$' in the
-     * class name, or the whole string if the class is in the root package. (Note that this is not the same as the
-     * result of {@link Class#getSimpleName()}, which returns "" for anonymous classes.)
+     * class name, or the whole string if the class is in the root package. A '$' at the start of the name after the
+     * last '.' (or at the start of the class name) has no enclosing class name before it, so it is kept as part of
+     * the simple name, as in "$Foo". (Note that this is not the same as the result of
+     * {@link Class#getSimpleName()}, which returns "" for anonymous classes.)
      *
      * @param className
      *            the class name
      * @return The simple name of the class.
      */
     static String getSimpleName(final String className) {
-        return className.substring(Math.max(className.lastIndexOf('.'), className.lastIndexOf('$')) + 1);
+        final var lastDotIdx = className.lastIndexOf('.');
+        final var lastDollarIdx = className.lastIndexOf('$');
+        for (var i = lastDotIdx + 1; i < lastDollarIdx; i++) {
+            if (className.charAt(i) != '$') {
+                // A name comes before the last '$', so the last '$' separates a nested class name
+                return className.substring(lastDollarIdx + 1);
+            }
+        }
+        // The last '$' (if any) is in the run of '$' at the start of the name, so it is part of the simple name
+        return className.substring(lastDotIdx + 1);
     }
 
     /**
      * Get the simple name of the class. Returns everything after the last '.' or the last '$' in the class name, so
      * that the package name and any enclosing class names are stripped, or the whole string if the class is in the
-     * root package and is not nested. (Note that this is not the same as the result of
-     * {@link Class#getSimpleName()}, which returns "" for anonymous classes.)
+     * root package and is not nested. A '$' at the start of the name after the last '.' is kept, as in "$Foo".
+     * (Note that this is not the same as the result of {@link Class#getSimpleName()}, which returns "" for
+     * anonymous classes.)
      *
      * @return The simple name of the class.
      */

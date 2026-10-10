@@ -1322,7 +1322,7 @@ class Classfile {
             // extracted from the constant pool here.
             final Set<String> refdClassNamesSet = new HashSet<>();
             refdClassNames = refdClassNamesSet;
-            addClassNamesFromClassRefs(referencedClassCpIdxs.classRefCpIdxs(), refdClassNamesSet);
+            addClassNamesFromClassRefs(referencedClassCpIdxs.classRefCpIdxs(), refdClassNamesSet, log);
             addClassNamesFromDescriptors(referencedClassCpIdxs.descriptorCpIdxs(), refdClassNamesSet, log);
         }
     }
@@ -1425,26 +1425,34 @@ class Classfile {
      *            the constant pool indices of the modified UTF8 entries referenced by class ref entries
      * @param refdClassNames
      *            the set of referenced class names to add to
+     * @param log
+     *            the log node, or null to skip logging
      * @throws IOException
      *             if the classfile could not be read.
      */
-    private void addClassNamesFromClassRefs(final List<Integer> classRefCpIdxs, final Set<String> refdClassNames)
-            throws IOException {
+    private void addClassNamesFromClassRefs(final List<Integer> classRefCpIdxs, final Set<String> refdClassNames,
+            final @Nullable LogNode log) throws IOException {
         for (final int cpIdx : classRefCpIdxs) {
             final var refdClassName = getConstantPoolClassString(cpIdx, /* stripLSemicolon = */ false);
             if (refdClassName != null) {
                 if (refdClassName.startsWith("[")) {
-                    // An array class, e.g. "[Ljava.lang.String;". The type signature parser reads '.' as the
-                    // separator before the name of an inner class, so turn every '.' back into '/' before parsing.
-                    // This gives the same class name as the non-array branch below, even for a class name that
-                    // contains '.' in the classfile.
-                    try {
-                        final var typeSig = TypeSignature.parse(refdClassName.replace('.', '/'),
-                                /* definingClass = */ null);
-                        typeSig.findReferencedClassNames(refdClassNames);
-                    } catch (final TypeSignatureParseException e) {
-                        // Should not happen
-                        throw new ClassfileFormatException("Could not parse class name: " + refdClassName, e);
+                    // An array class, e.g. "[Ljava.lang.String;" or "[I". Its name is an array field descriptor,
+                    // which cannot have type arguments, so the element class name is taken directly from between
+                    // the 'L' and the ';' rather than by the type signature parser. The parser would reject some
+                    // names the JVM accepts (e.g. a name containing '<'), and one unparseable reference must not
+                    // cause the whole class to be dropped.
+                    var elementTypeStart = 0;
+                    while (elementTypeStart < refdClassName.length()
+                            && refdClassName.charAt(elementTypeStart) == '[') {
+                        elementTypeStart++;
+                    }
+                    final var elementType = refdClassName.substring(elementTypeStart);
+                    if (elementType.length() > 2 && elementType.charAt(0) == 'L' && elementType.endsWith(";")) {
+                        refdClassNames.add(elementType.substring(1, elementType.length() - 1));
+                    } else if (elementType.length() != 1 && log != null) {
+                        // A single character is a primitive element type, which names no class
+                        log.log("Could not extract the element class name from array class reference: "
+                                + refdClassName);
                     }
                 } else {
                     refdClassNames.add(refdClassName);
