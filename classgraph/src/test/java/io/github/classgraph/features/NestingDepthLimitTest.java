@@ -28,7 +28,9 @@ public class NestingDepthLimitTest {
     /** The name of a plain class in the same directory. */
     private static final String NEIGHBOR_NAME = "Neighbor";
 
-    /** How deeply the input is nested: deep enough to overflow the stack if the depth is not limited. */
+    /**
+     * How deeply type arguments are nested: deep enough to overflow the stack if the depth is not limited.
+     */
     private static final int DEPTH = 10000;
 
     /**
@@ -178,5 +180,173 @@ public class NestingDepthLimitTest {
             assertThat(classInfo.getTypeSignatureOrTypeDescriptor()).isSameAs(classInfo.getTypeDescriptor());
             assertThat(scanResult.getClassInfo(NEIGHBOR_NAME)).isNotNull();
         }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * How deeply annotation element values are nested: deep enough to overflow the stack if the depth is not
+     * limited.
+     */
+    private static final int DEEP_ANNOTATION_DEPTH = 50000;
+
+    /** The deepest nesting of annotation element values that is read. */
+    private static final int MAX_ANNOTATION_DEPTH = 255;
+
+    /**
+     * Generate a class that extends {@code java.lang.Object} and has a {@code RuntimeVisibleAnnotations} attribute
+     * holding one annotation {@code @A(v = ...)}, whose element value is a chain of {@code depth} element values,
+     * each nested in the one before it. Every element value of the chain but the last is either an array of one
+     * element ({@code [}) or an annotation {@code @A} with one element ({@code @}), and the last is the {@code int}
+     * 1.
+     *
+     * @param className
+     *            the class name
+     * @param depth
+     *            the number of element values in the chain
+     * @param nestingTag
+     *            the tag of the element values that nest, {@code '['} or {@code '@'}
+     * @return the bytes of the classfile.
+     * @throws IOException
+     *             if the classfile could not be written.
+     */
+    private static byte[] annotatedClassfileBytes(final String className, final int depth, final char nestingTag)
+            throws IOException {
+        final var elementValueBytes = new ByteArrayOutputStream();
+        try (var out = new DataOutputStream(elementValueBytes)) {
+            for (var i = 0; i < depth - 1; i++) {
+                out.writeByte(nestingTag);
+                if (nestingTag == '@') {
+                    out.writeShort(6); // type_index: "LA;"
+                    out.writeShort(1); // num_element_value_pairs
+                    out.writeShort(7); // element_name_index: "v"
+                } else {
+                    out.writeShort(1); // num_values
+                }
+            }
+            out.writeByte('I');
+            out.writeShort(8); // const_value_index: 1
+        }
+        final var byteArrayOutputStream = new ByteArrayOutputStream();
+        try (var out = new DataOutputStream(byteArrayOutputStream)) {
+            out.writeInt(0xCAFEBABE);
+            out.writeShort(0); // Minor version
+            out.writeShort(52); // Major version (Java 8)
+
+            out.writeShort(9); // Constant pool count (one greater than the number of entries)
+            // #1
+            out.writeByte(1);
+            out.writeUTF(className);
+            // #2
+            out.writeByte(7); // class ref to #1 (this_class)
+            out.writeShort(1);
+            // #3
+            out.writeByte(1);
+            out.writeUTF("java/lang/Object");
+            // #4
+            out.writeByte(7); // class ref to #3 (super_class)
+            out.writeShort(3);
+            // #5
+            out.writeByte(1);
+            out.writeUTF("RuntimeVisibleAnnotations");
+            // #6
+            out.writeByte(1);
+            out.writeUTF("LA;");
+            // #7
+            out.writeByte(1);
+            out.writeUTF("v");
+            // #8
+            out.writeByte(3); // Integer
+            out.writeInt(1);
+
+            out.writeShort(0x0021); // ACC_PUBLIC | ACC_SUPER
+            out.writeShort(2); // this_class
+            out.writeShort(4); // super_class
+            out.writeShort(0); // Number of interfaces
+            out.writeShort(0); // Number of fields
+            out.writeShort(0); // Number of methods
+
+            out.writeShort(1); // Number of attributes
+            out.writeShort(5); // "RuntimeVisibleAnnotations"
+            out.writeInt(2 + 6 + elementValueBytes.size());
+            out.writeShort(1); // num_annotations
+            out.writeShort(6); // type_index: "LA;"
+            out.writeShort(1); // num_element_value_pairs
+            out.writeShort(7); // element_name_index: "v"
+            elementValueBytes.writeTo(out);
+        }
+        return byteArrayOutputStream.toByteArray();
+    }
+
+    /**
+     * Write a class whose annotation has nested element values, and a plain neighbor class, to a directory, scan
+     * the directory with annotation info enabled, and check that the scan finds both classes.
+     *
+     * @param tempDir
+     *            the directory to write the classfiles to
+     * @param depth
+     *            the number of nested element values
+     * @param nestingTag
+     *            the tag of the element values that nest, {@code '['} or {@code '@'}
+     * @return whether the class kept its annotation.
+     * @throws IOException
+     *             if a classfile could not be written
+     */
+    private static boolean scanKeepsAnnotation(final File tempDir, final int depth, final char nestingTag)
+            throws IOException {
+        Files.write(new File(tempDir, CLASS_NAME + ".class").toPath(),
+                annotatedClassfileBytes(CLASS_NAME, depth, nestingTag));
+        Files.write(new File(tempDir, NEIGHBOR_NAME + ".class").toPath(),
+                classfileBytes(NEIGHBOR_NAME, null, null));
+        try (var scanResult = new ClassGraph().enableClassInfo().enableAnnotationInfo()
+                .enableClasspathEntries(tempDir).scan()) {
+            final var classInfo = scanResult.getClassInfo(CLASS_NAME);
+            assertThat(classInfo).isNotNull();
+            assertThat(scanResult.getClassInfo(NEIGHBOR_NAME)).isNotNull();
+            return classInfo.getAllAnnotationInfo().getNames().contains("A");
+        }
+    }
+
+    /**
+     * An annotation whose element value nests arrays deeply is skipped, and the rest of the scan is unaffected.
+     *
+     * @param tempDir
+     *            the directory to write the classfiles to
+     * @throws IOException
+     *             if a classfile could not be written
+     */
+    @Test
+    public void aDeeplyNestedAnnotationArrayIsSkipped(@TempDir final File tempDir) throws IOException {
+        assertThat(scanKeepsAnnotation(tempDir, DEEP_ANNOTATION_DEPTH, '[')).isFalse();
+    }
+
+    /**
+     * An annotation whose element value nests annotations deeply is skipped, and the rest of the scan is
+     * unaffected.
+     *
+     * @param tempDir
+     *            the directory to write the classfiles to
+     * @throws IOException
+     *             if a classfile could not be written
+     */
+    @Test
+    public void aDeeplyNestedAnnotationIsSkipped(@TempDir final File tempDir) throws IOException {
+        assertThat(scanKeepsAnnotation(tempDir, DEEP_ANNOTATION_DEPTH, '@')).isFalse();
+    }
+
+    /**
+     * Element values nested up to the limit are read, and one more level makes the annotation be skipped.
+     *
+     * @param tempDir
+     *            the directory to write the classfiles to
+     * @throws IOException
+     *             if a classfile could not be written
+     */
+    @Test
+    public void annotationNestingIsReadUpToTheLimit(@TempDir final File tempDir) throws IOException {
+        assertThat(scanKeepsAnnotation(tempDir, MAX_ANNOTATION_DEPTH, '[')).isTrue();
+        assertThat(scanKeepsAnnotation(tempDir, MAX_ANNOTATION_DEPTH + 1, '[')).isFalse();
+        assertThat(scanKeepsAnnotation(tempDir, MAX_ANNOTATION_DEPTH, '@')).isTrue();
+        assertThat(scanKeepsAnnotation(tempDir, MAX_ANNOTATION_DEPTH + 1, '@')).isFalse();
     }
 }
