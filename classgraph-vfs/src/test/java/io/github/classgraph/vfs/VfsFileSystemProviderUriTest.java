@@ -865,6 +865,42 @@ public class VfsFileSystemProviderUriTest {
     }
 
     /**
+     * The filesystem of a module names itself by {@code "jrt:/<module>"}, the only spelling of a module in a
+     * {@code "cgvfs:"} URI, both in the URIs of its paths and in the registry. The bare module name names a
+     * directory relative to the working directory, so a filesystem registered under it would be found in place of
+     * that directory, and a URI written with it would open that directory once the module's filesystem is closed.
+     *
+     * @throws IOException
+     *             if the module could not be read.
+     */
+    @Test
+    public void aModuleFilesystemIsNamedByItsJrtPath() throws IOException {
+        assumeTrue(ModuleLayer.boot().findModule("java.logging").isPresent(),
+                "java.logging is not in the boot layer");
+
+        final URI rootUri;
+        try (var fileSystem = FileSystems.newFileSystem(cgvfsUri("jrt:/java.logging"), Map.of())) {
+            final var path = (VfsPath) fileSystem.getPath("/java/util/logging/Logger.class");
+            final var uri = path.toCgvfsUri();
+            assertThat(uri).isEqualTo(URI.create("cgvfs:jrt:/java.logging!/java/util/logging/Logger.class"));
+            assertThat(Paths.get(uri)).isEqualTo(path);
+
+            rootUri = ((VfsPath) fileSystem.getPath("/")).toCgvfsUri();
+            assertThat(rootUri).isEqualTo(URI.create("cgvfs:jrt:/java.logging"));
+
+            // A directory named java.logging must stay free to be opened by its relative path while the module is
+            // open
+            assertThatThrownBy(() -> FileSystems.getFileSystem(URI.create("cgvfs:java.logging")))
+                    .isInstanceOf(FileSystemNotFoundException.class);
+        }
+
+        // Once the module's filesystem is closed, the URI of its root opens the module again
+        try (var fileSystem = FileSystems.newFileSystem(rootUri, Map.of())) {
+            assertThat(Files.exists(fileSystem.getPath("/java/util/logging/Logger.class"))).isTrue();
+        }
+    }
+
+    /**
      * A module that no layer reachable from the given one has is reported as absent rather than opened empty, with
      * the same checked exception that opening a path that names nothing throws, both from {@link Vfs} and from
      * {@link FileSystems#newFileSystem(URI, Map)}, whose contract allows only an {@link IOException}.
