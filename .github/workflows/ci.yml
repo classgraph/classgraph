@@ -32,6 +32,11 @@ jobs:
         cache: 'maven'
     - name: print Java version
       run: java -version
+    # GraphVizDotAcceptanceTest runs dot on the graphs that classgraph-viz writes, and is skipped
+    # where dot is not installed. One OS is enough, since the graphs do not depend on the OS.
+    - name: Install Graphviz
+      if: runner.os == 'Linux'
+      run: sudo apt-get update && sudo apt-get install -y graphviz
     - name: Build with Maven
       run: ./mvnw --no-transfer-progress -B clean test
 
