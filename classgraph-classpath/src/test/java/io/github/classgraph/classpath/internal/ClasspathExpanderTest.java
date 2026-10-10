@@ -670,6 +670,28 @@ public class ClasspathExpanderTest {
     }
 
     /**
+     * A '!' in a {@code Bundle-ClassPath} manifest entry is an ordinary character, since the entry is a path within
+     * the classpath element, not a path on the host. A path shaped like a URL is not read as one.
+     *
+     * @param tempDir
+     *            the temporary directory to build the classpath element in
+     * @throws IOException
+     *             if the classpath element could not be created or read
+     */
+    @Test
+    public void aPlingInABundleClassPathManifestEntryIsAnOrdinaryCharacter(@TempDir final Path tempDir)
+            throws IOException {
+        final Path jar = createJar(tempDir, "bundle.jar",
+                entries(MANIFEST_NAME, manifest("Bundle-ClassPath: ab:c!d/./inner.jar")));
+        try (Vfs vfs = new Vfs()) {
+            final VfsRoot jarRoot = vfs.open(jar);
+            assertThat(relativeLocations(jarRoot,
+                    ClasspathExpander.childEntries(jarRoot, LIB_DIR_PREFIXES, true, null)))
+                    .containsExactly("!/ab:c!d/inner.jar");
+        }
+    }
+
+    /**
      * A {@code Class-Path} manifest entry is resolved against the jarfile that declared it, so a jarfile that lives
      * in a filesystem other than the default one declares classpath elements of that same filesystem, rather than
      * ones of the default filesystem that happen to be spelled the same way.

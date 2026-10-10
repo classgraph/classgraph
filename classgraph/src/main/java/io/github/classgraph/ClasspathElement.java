@@ -734,10 +734,9 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
      * Get the {@link Resource} for a given relative path.
      *
      * @param relativePath
-     *            The relative path of the {@link Resource} to return. Path should have already be sanitized by
-     *            calling {@link PathSyntax#sanitizeEntryPath(String, boolean, boolean)}, or by providing a path
-     *            that is already sanitized (i.e. doesn't start or end with "/", doesn't contain "/../" or "/./",
-     *            etc.).
+     *            The relative path of the {@link Resource} to return. Path should have already been sanitized by
+     *            calling {@link PathSyntax#sanitizeRelativePath(String, boolean)}, or by providing a path that is
+     *            already sanitized (i.e. doesn't start or end with "/", doesn't contain "/../" or "/./", etc.).
      * @return The {@link Resource} for the given relative path, or null if relativePath does not exist in this
      *         classpath element.
      */

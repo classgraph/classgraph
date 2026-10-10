@@ -695,8 +695,7 @@ public final class ScanResult implements AutoCloseable {
     public ResourceList getResourcesWithPath(final String resourcePath) {
         checkNotClosed();
         Assert.notNull(resourcePath, "resourcePath");
-        final var path = PathSyntax.sanitizeEntryPath(resourcePath, /* removeInitialSlash = */ true,
-                /* removeFinalSlash = */ true);
+        final var path = PathSyntax.sanitizeRelativePath(resourcePath, /* removeFinalSlash = */ true);
         if (getResourcesWithPathCallCount.incrementAndGet() > 3) {
             // If numerous calls are made, produce and cache a single HashMap for O(1) access time
             final var matchingResources = getAllResourcesAsMap().get(path);
@@ -737,8 +736,7 @@ public final class ScanResult implements AutoCloseable {
     public ResourceList getResourcesWithPathIgnoringAccept(final String resourcePath) {
         checkNotClosed();
         Assert.notNull(resourcePath, "resourcePath");
-        final var path = PathSyntax.sanitizeEntryPath(resourcePath, /* removeInitialSlash = */ true,
-                /* removeFinalSlash = */ true);
+        final var path = PathSyntax.sanitizeRelativePath(resourcePath, /* removeFinalSlash = */ true);
         // ClasspathElement#getResource(String) ignores the accept and reject criteria, since it is also how the
         // class graph is extended upwards through classes that were not accepted, so reject is applied here
         if (scanSpec.resourcePathIsRejected(path)) {

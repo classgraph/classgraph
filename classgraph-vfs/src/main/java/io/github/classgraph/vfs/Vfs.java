@@ -578,9 +578,10 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
         // The path names something within a jarfile: open the enclosing jarfile first, through the cache, so that
         // it is opened once however many nested jarfiles or package roots are read out of it
         final var parentPath = resolvedPath.substring(0, lastPlingIdx);
-        // The separator itself is the "!", and sanitizing the rest strips the "/" that follows it
-        final var childPath = PathSyntax.sanitizeEntryPath(resolvedPath.substring(lastPlingIdx + 1),
-                /* removeInitialSlash = */ true, /* removeFinalSlash = */ true);
+        // The separator itself is the "!", and sanitizing the rest strips the "/" that follows it. Any '!' in the
+        // rest is part of an entry name, since the innermost separator is the last one
+        final var childPath = PathSyntax.sanitizeRelativePath(resolvedPath.substring(lastPlingIdx + 1),
+                /* removeFinalSlash = */ true);
         final var parentRoot = openReentrant(parentPath, outerLog);
         if (!(parentRoot instanceof final ArchiveRoot parentArchive)) {
             // FastPathResolver only splits a path at a "!" that follows a jarfile, so this cannot normally happen

@@ -771,8 +771,8 @@ public class LogicalZipFile extends ZipFileSlice {
             // The replacement name has to be sanitized, and tested for naming a directory, exactly as the
             // name it replaces was -- otherwise an entry can carry a path such as "pkg/../../x" or
             // "/abs/x" simply by declaring it here
-            entryFields.entryNameSanitized = PathSyntax.sanitizeEntryPath(unicodeEntryName,
-                    /* removeInitialSlash = */ true, /* removeFinalSlash = */ false);
+            entryFields.entryNameSanitized = PathSyntax.sanitizeRelativePath(unicodeEntryName,
+                    /* removeFinalSlash = */ false);
             entryFields.renamedToDirectoryEntry = entryFields.entryNameSanitized.isEmpty()
                     || unicodeEntryName.endsWith("/");
         }
@@ -831,8 +831,9 @@ public class LogicalZipFile extends ZipFileSlice {
         final var filenameStartOff = entOff + 46;
         final var entryName = ZipEntryNameDecoder.readEntryName(cenReader, filenameStartOff, filenameLen,
                 /* isUtf8 = */ (flags & UTF8_NAME_FLAG_BIT) != 0);
-        final var entryNameSanitized = PathSyntax.sanitizeEntryPath(entryName, /* removeInitialSlash = */ true,
-                /* removeFinalSlash = */ false);
+        // A '!' in an entry name is an ordinary character, since nested jarfiles are reached by their entries, not
+        // by a separator in an entry name, so the filesystem is not consulted
+        final var entryNameSanitized = PathSyntax.sanitizeRelativePath(entryName, /* removeFinalSlash = */ false);
         if (entryNameSanitized.isEmpty() || entryName.endsWith("/")) {
             // Skip directory entries
             return null;
