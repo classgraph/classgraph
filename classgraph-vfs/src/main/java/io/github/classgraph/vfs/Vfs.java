@@ -584,7 +584,7 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
         }
         // A path opened at a package root reports itself at that root, but the entry named after the "!" is looked
         // up in the whole jarfile, so read it through the root of the whole jarfile
-        final var container = (ArchiveRoot) parentArchive.getContainerRoot();
+        final var container = parentArchive.getContainerRoot();
         final var containerZipFile = container.zipFile();
         // The enclosing jarfile may have been reached by a non-canonical path, in which case the canonical
         // spelling of this path names the same thing and is where the root belongs

@@ -62,7 +62,7 @@ import org.jspecify.annotations.Nullable;
  * Everything an entry hands out stops working once the root it came from, or the {@link Vfs} that opened that root,
  * is closed.
  */
-public abstract class VfsEntry {
+public abstract sealed class VfsEntry permits ArchiveEntry, DirEntry, ModuleEntry {
     /** The root this entry belongs to. */
     private final VfsRoot root;
 

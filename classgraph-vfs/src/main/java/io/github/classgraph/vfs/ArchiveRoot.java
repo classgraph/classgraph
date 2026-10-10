@@ -264,8 +264,18 @@ public final class ArchiveRoot extends VfsRoot {
         return packageRoot;
     }
 
+    /**
+     * Returns the root of the whole jarfile this root was opened within, so that the rest of the jarfile, outside
+     * the package root, can be reached: for {@code "app.jar!/BOOT-INF/classes"}, the root of {@code app.jar}. For a
+     * package root within a jarfile that is itself nested within another jarfile, that is the root of the nested
+     * jarfile, not of the jarfile that encloses it.
+     *
+     * @return the root of the whole jarfile, or this root itself if it was not opened at a package root.
+     * @throws IOException
+     *             if this root, or the {@link Vfs} that opened it, has been closed.
+     */
     @Override
-    public VfsRoot getContainerRoot() throws IOException {
+    public ArchiveRoot getContainerRoot() throws IOException {
         checkNotClosed(getPath());
         // A root whose package root is empty is the root of its whole jarfile already, even if that jarfile is
         // nested within another one -- its container field then holds the enclosing jarfile's root, which is its
