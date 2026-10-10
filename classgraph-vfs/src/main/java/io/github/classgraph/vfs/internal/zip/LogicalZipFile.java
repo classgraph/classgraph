@@ -416,8 +416,14 @@ public final class LogicalZipFile {
         /** The offset of the entry's local file header, which the Zip64 extra field can replace. */
         long pos;
 
-        /** The last modified time of the entry, in milliseconds, or 0 if no extra field gives a timestamp. */
+        /** The last modified time of the entry, in milliseconds, if {@link #hasExtraFieldTimestamp} is true. */
         long lastModifiedMillis;
+
+        /**
+         * True if an extended timestamp extra field or an Info-ZIP Unix extra field set
+         * {@link #lastModifiedMillis}. (A flag rather than a test for 0, since 0 is a valid time: the Unix epoch.)
+         */
+        boolean hasExtraFieldTimestamp;
 
         /** True if the Info-ZIP Unicode path extra field renamed the entry to a directory, or to nothing. */
         boolean renamedToDirectoryEntry;
@@ -759,6 +765,7 @@ public final class LogicalZipFile {
                 final var flags = cenReader.readUnsignedByte(tagOff + 4 + 0);
                 if ((flags & 1) != 0) {
                     entryFields.lastModifiedMillis = cenReader.readInt(tagOff + 4 + 1) * 1000L;
+                    entryFields.hasExtraFieldTimestamp = true;
                 }
 
             } else if (tag == 0x5855 && size >= 4 + 4) {
@@ -766,6 +773,7 @@ public final class LogicalZipFile {
                 // 32-bit Unix times in seconds.
                 // There are also optional UID and GID fields in this extra field (currently ignored)
                 entryFields.lastModifiedMillis = cenReader.readInt(tagOff + 4 + 4) * 1000L;
+                entryFields.hasExtraFieldTimestamp = true;
 
             } else if (tag == 0x7855) {
                 // Info-ZIP Unix UID and GID fields (currently ignored)
@@ -1030,8 +1038,8 @@ public final class LogicalZipFile {
 
         var lastModifiedTimeMSDOS = 0;
         var lastModifiedDateMSDOS = 0;
-        if (entryFields.lastModifiedMillis == 0L) {
-            // If Unix timestamp was not provided, convert zip entry timestamp from MS-DOS format
+        if (!entryFields.hasExtraFieldTimestamp) {
+            // If no extra field gave a Unix time, pass on the MS-DOS time and date, which FastZipEntry converts
             lastModifiedTimeMSDOS = cenReader.readUnsignedShort(entOff + 12);
             lastModifiedDateMSDOS = cenReader.readUnsignedShort(entOff + 14);
         }
