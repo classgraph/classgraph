@@ -60,30 +60,44 @@ public final class AnnotationClassRef extends ScanResultObject {
      * Get the name of the referenced class.
      *
      * @return The name of the referenced class.
+     * @throws IllegalArgumentException
+     *             if the type descriptor of the class reference is malformed, which javac never writes.
      */
     public String getName() {
         return getClassName();
     }
 
     /**
-     * Get the type signature.
+     * Get the type signature. It is parsed when it is first needed, and is published to other threads only after
+     * its scan result has been set, so that no thread sees a type signature that has no scan result.
      *
      * @return The type signature of the {@code Class<?>} reference. This will be a {@link ClassRefTypeSignature}, a
      *         {@link BaseTypeSignature}, or an {@link ArrayTypeSignature}.
+     * @throws IllegalArgumentException
+     *             if the type descriptor is malformed, or is a type variable, which names no class.
      */
     private TypeSignature getTypeSignature() {
-        var typeSig = typeSignature;
-        if (typeSig == null) {
-            try {
-                // There can't be any type variables to resolve in ClassRefTypeSignature, BaseTypeSignature or
-                // ArrayTypeSignature, so just set definingClassName to null
-                typeSignature = typeSig = TypeSignature.parse(typeDescriptorStr, /* definingClassName = */ null);
-                typeSig.setScanResult(scanResult);
-            } catch (final TypeSignatureParseException e) {
-                throw new IllegalArgumentException(e);
+        synchronized (this) {
+            if (typeSignature == null) {
+                final TypeSignature parsed;
+                try {
+                    // There can't be any type variables to resolve in ClassRefTypeSignature, BaseTypeSignature or
+                    // ArrayTypeSignature, so just set definingClassName to null
+                    parsed = TypeSignature.parse(typeDescriptorStr, /* definingClassName = */ null);
+                } catch (final TypeSignatureParseException e) {
+                    throw new IllegalArgumentException(e);
+                }
+                if (parsed instanceof TypeVariableSignature) {
+                    // A type descriptor cannot be a type variable. Reject it here, since its getClassInfo() would
+                    // throw IllegalStateException, which the callers that skip a malformed value do not catch
+                    throw new IllegalArgumentException(
+                            "Type variable is not a type descriptor: " + typeDescriptorStr);
+                }
+                parsed.setScanResult(scanResult);
+                typeSignature = parsed;
             }
+            return typeSignature;
         }
-        return typeSig;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -117,6 +131,8 @@ public final class AnnotationClassRef extends ScanResultObject {
      *         encountered during scanning (i.e. if no ClassInfo object was created for the class during scanning).
      *         For an array class such as {@code String[].class}, an {@link ArrayClassInfo} is returned, which is
      *         never null. For a primitive class such as {@code int.class}, null is always returned.
+     * @throws IllegalArgumentException
+     *             if the type descriptor of the class reference is malformed, which javac never writes.
      */
     @Override
     public @Nullable ClassInfo getClassInfo() {
@@ -125,17 +141,23 @@ public final class AnnotationClassRef extends ScanResultObject {
 
     @Override
     void setScanResult(final @Nullable ScanResult scanResult) {
-        super.setScanResult(scanResult);
-        if (typeSignature != null) {
-            typeSignature.setScanResult(scanResult);
+        synchronized (this) {
+            super.setScanResult(scanResult);
+            if (typeSignature != null) {
+                typeSignature.setScanResult(scanResult);
+            }
         }
     }
 
     // -------------------------------------------------------------------------------------------------------------
 
+    // hashCode and equals compare the type descriptors, which do not need to be parsed, so that a malformed type
+    // descriptor does not make them throw. Every encoding of a class reference in a classfile is stored as a type
+    // descriptor, so two class references to the same type have the same type descriptor.
+
     @Override
     public int hashCode() {
-        return getTypeSignature().hashCode();
+        return typeDescriptorStr.hashCode();
     }
 
     @Override
@@ -146,7 +168,7 @@ public final class AnnotationClassRef extends ScanResultObject {
         if (!(obj instanceof final AnnotationClassRef other)) {
             return false;
         }
-        return getTypeSignature().equals(other.getTypeSignature());
+        return typeDescriptorStr.equals(other.typeDescriptorStr);
     }
 
     @Override
@@ -155,6 +177,15 @@ public final class AnnotationClassRef extends ScanResultObject {
         // parameter in Java source syntax, e.g. "java.lang.String.class", "int.class" or
         // "java.lang.String[].class". (JDK 8 instead rendered the same values as "class java.lang.String",
         // "int" and "class [Ljava.lang.String;", using the "interface" prefix for interfaces and annotations.)
-        buf.append(getTypeSignature().toString(useSimpleNames)).append(".class");
+        final TypeSignature typeSig;
+        try {
+            typeSig = getTypeSignature();
+        } catch (final IllegalArgumentException e) {
+            // The type descriptor is malformed. Print it as it is, so that the annotation holding it can still be
+            // printed and sorted (annotation parameter values that are not Comparable are sorted by toString())
+            buf.append(typeDescriptorStr).append(".class");
+            return;
+        }
+        buf.append(typeSig.toString(useSimpleNames)).append(".class");
     }
 }

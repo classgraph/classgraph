@@ -429,7 +429,18 @@ class Classfile {
         } else if (annotationParamVal instanceof final AnnotationEnumValue annotationEnumValue) {
             scheduleScanningIfExternalClass(annotationEnumValue.getClassName(), "enum class", log);
         } else if (annotationParamVal instanceof final AnnotationClassRef annotationClassRef) {
-            scheduleScanningIfExternalClass(annotationClassRef.getClassName(), "class ref", log);
+            final String refdClassName;
+            try {
+                refdClassName = annotationClassRef.getClassName();
+            } catch (final IllegalArgumentException e) {
+                // The type descriptor of the class reference is malformed. Like the JDK, which loads the class and
+                // reports the malformed value only when the annotation is read, keep the class
+                if (log != null) {
+                    log.log("Ignoring malformed class reference in annotation: " + annotationClassRef, e);
+                }
+                return;
+            }
+            scheduleScanningIfExternalClass(refdClassName, "class ref", log);
         } else if (annotationParamVal.getClass().isArray()) {
             for (int i = 0, n = Array.getLength(annotationParamVal); i < n; i++) {
                 extendScanningUpwardsFromAnnotationParameterValues(Array.get(annotationParamVal, i), log);
