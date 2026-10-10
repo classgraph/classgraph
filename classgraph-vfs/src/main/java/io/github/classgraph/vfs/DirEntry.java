@@ -94,7 +94,9 @@ final class DirEntry extends VfsEntry {
 
     @Override
     public String getPath() {
-        return getRoot().getPath() + "/" + name;
+        // The path of a root at the top of the filesystem, "/" or a drive root such as "C:/", already ends in '/'
+        final var rootPath = getRoot().getPath();
+        return rootPath.endsWith("/") ? rootPath + name : rootPath + "/" + name;
     }
 
     @Override
