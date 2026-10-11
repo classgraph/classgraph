@@ -44,11 +44,13 @@ import org.jspecify.annotations.Nullable;
  * Holds metadata about a named module encountered during a scan.
  *
  * <p>
- * A jar found on the traditional classpath is in the unnamed module at runtime, but it is still listed here, under
- * the name it declares through {@code module-info.class} or the {@code Automatic-Module-Name} manifest attribute,
- * or, failing both, under the automatic module name that the module system would derive from its filename. Use
- * {@link #getModuleReference()} to tell the two cases apart: it is null for every name that came from a classpath
- * jar, and non-null only for a module that was actually resolved in a {@link ModuleLayer}.
+ * A directory or jar found on the traditional classpath is in the unnamed module at runtime, but it is still listed
+ * here, under the name it declares through {@code module-info.class} or the {@code Automatic-Module-Name} manifest
+ * attribute. A jar that declares neither is listed under the automatic module name that the module system would
+ * derive from its filename, if that is a legal module name; a directory that declares neither is not listed. Use
+ * {@link #getModuleReference()} to tell these names apart from a module resolved in a {@link ModuleLayer}: it is
+ * null for every name that came from a classpath directory or jar, and non-null only for a module that was actually
+ * resolved in a {@link ModuleLayer}.
  *
  * <p>
  * There is one {@link ModuleInfo} for each classpath element that holds a module, so two classpath elements with
@@ -151,11 +153,12 @@ public final class ModuleInfo implements Comparable<ModuleInfo>, HasName, HasAnn
     }
 
     /**
-     * The {@link ModuleReference} for this module, or null if its name came from a traditional classpath jar --
-     * whether the jar declared the name or the name was derived from the jar's filename -- rather than from a
-     * module resolved in a {@link ModuleLayer}.
+     * The {@link ModuleReference} for this module, or null if its name came from a directory or jar on the
+     * traditional classpath -- whether the directory or jar declared the name or the name was derived from the
+     * jar's filename -- rather than from a module resolved in a {@link ModuleLayer}.
      *
-     * @return the {@link ModuleReference}, or null for a name that came from a traditional classpath jar.
+     * @return the {@link ModuleReference}, or null for a name that came from a directory or jar on the traditional
+     *         classpath.
      */
     public @Nullable ModuleReference getModuleReference() {
         return moduleReference;

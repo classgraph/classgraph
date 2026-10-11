@@ -1392,14 +1392,17 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      * Get the {@link ModuleInfo} object for the class.
      *
      * <p>
-     * A class in a jar on the traditional classpath is in the unnamed module at runtime, but it is still given a
-     * {@link ModuleInfo}, named after the jar's module declaration if it has one, and otherwise after the automatic
-     * module name derived from the jar's filename. See {@link ModuleInfo#getModuleReference()}.
+     * A class in a directory or jar on the traditional classpath is in the unnamed module at runtime, but it is
+     * still given a {@link ModuleInfo} if the directory or jar declares a module name, in a
+     * {@code module-info.class} module descriptor or in the {@code Automatic-Module-Name} attribute of its
+     * manifest. A class in a jar that declares no module name is given a {@link ModuleInfo} named after the
+     * automatic module name derived from the jar's filename, if that is a legal module name. A class in a directory
+     * that declares no module name is given none. See {@link ModuleInfo#getModuleReference()}.
      *
-     * @return the {@link ModuleInfo} object for the class, or null if the class did not come from a module or a
-     *         jarfile, if the classfile of the class was not read, or if the class is not listed as a member of its
-     *         module: a rejected class, or an external class unless {@link ClassGraph#enableExternalClasses()} was
-     *         called.
+     * @return the {@link ModuleInfo} object for the class, or null if the module, directory or jar that the class
+     *         was found in has no module name, if the classfile of the class was not read, or if the class is not
+     *         listed as a member of its module: a rejected class, or an external class unless
+     *         {@link ClassGraph#enableExternalClasses()} was called.
      */
     public @Nullable ModuleInfo getModuleInfo() {
         return moduleInfo;
