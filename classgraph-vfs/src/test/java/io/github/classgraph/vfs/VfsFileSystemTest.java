@@ -39,6 +39,7 @@ import java.nio.file.attribute.BasicFileAttributeView;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileTime;
 import java.nio.file.attribute.FileAttribute;
+import java.nio.file.attribute.FileAttributeView;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -1837,6 +1838,45 @@ public class VfsFileSystemTest {
             // ...whereas opening the same jarfile twice reaches the same root, so it is the same file
             assertThat(Files.isSameFile(path, vfs.open(jarFile).asFileSystem().getPath("/com/xyz/Widget.class")))
                     .isTrue();
+        }
+    }
+
+    /**
+     * The provider rejects a null argument with {@link NullPointerException}, as the package documentation says,
+     * rather than reporting a null path as a path of another provider, or answering as if a null were a path or
+     * type it does not know.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the root could not be read.
+     */
+    @Test
+    public void providerRejectsNullArguments(@TempDir final Path tempDir) throws IOException {
+        final var jarFile = tempDir.resolve("library.jar").toFile();
+        writeJar(jarFile);
+
+        try (var vfs = new Vfs()) {
+            final var fileSystem = vfs.open(jarFile).asFileSystem();
+            final var provider = fileSystem.provider();
+            final var path = fileSystem.getPath("/com/xyz/Widget.class");
+
+            assertThatThrownBy(() -> provider.newInputStream(null)).isInstanceOf(NullPointerException.class)
+                    .hasMessage("path must not be null");
+            assertThatThrownBy(() -> provider.checkAccess(null)).isInstanceOf(NullPointerException.class)
+                    .hasMessage("path must not be null");
+            assertThatThrownBy(() -> provider.readAttributes(null, BasicFileAttributes.class))
+                    .isInstanceOf(NullPointerException.class).hasMessage("path must not be null");
+            assertThatThrownBy(() -> provider.isSameFile(null, path)).isInstanceOf(NullPointerException.class)
+                    .hasMessage("path must not be null");
+            assertThatThrownBy(() -> provider.isSameFile(path, null)).isInstanceOf(NullPointerException.class)
+                    .hasMessage("path2 must not be null");
+            assertThatThrownBy(() -> provider.getFileAttributeView(path, null))
+                    .isInstanceOf(NullPointerException.class).hasMessage("type must not be null");
+            assertThatThrownBy(() -> provider.getFileAttributeView(null, FileAttributeView.class))
+                    .isInstanceOf(NullPointerException.class).hasMessage("path must not be null");
+            assertThatThrownBy(() -> provider.newDirectoryStream(fileSystem.getPath("/nonexistent"), null))
+                    .isInstanceOf(NullPointerException.class).hasMessage("filter must not be null");
         }
     }
 

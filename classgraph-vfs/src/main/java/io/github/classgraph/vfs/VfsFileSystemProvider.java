@@ -217,10 +217,13 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
      * @param path
      *            the path.
      * @return the path, as a {@link VfsPath}.
+     * @throws NullPointerException
+     *             if the path is null.
      * @throws ProviderMismatchException
      *             if the path did not come from a {@link VfsFileSystem}.
      */
     private static VfsPath check(final Path path) {
+        Assert.notNull(path, "path");
         if (!(path instanceof final VfsPath vfsPath)) {
             throw new ProviderMismatchException("Not a path of a virtual filesystem: " + path);
         }
@@ -839,6 +842,7 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
     public DirectoryStream<Path> newDirectoryStream(final Path dir, final Filter<? super Path> filter)
             throws IOException {
         final var dirPath = check(dir);
+        Assert.notNull(filter, "filter");
         final var fileSystem = dirPath.vfsFileSystem();
         final var name = dirPath.entryName();
         // A name can be a file and a directory at the same time, if the archive holds both "a/b" and "a/b/c". The
@@ -953,6 +957,7 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
     @Override
     public boolean isSameFile(final Path path, final Path path2) {
         final var vfsPath = check(path);
+        Assert.notNull(path2, "path2");
         vfsPath.vfsFileSystem().ensureOpen();
         // A path of another filesystem is answered, not rejected, as FileSystemProvider#isSameFile requires
         if (!(path2 instanceof final VfsPath vfsPath2)) {
@@ -1001,6 +1006,8 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
     @Override
     public <V extends FileAttributeView> @Nullable V getFileAttributeView(final Path path, final Class<V> type,
             final LinkOption... options) {
+        Assert.notNull(path, "path");
+        Assert.notNull(type, "type");
         if (type != BasicFileAttributeView.class) {
             return null;
         }
