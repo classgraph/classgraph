@@ -8,6 +8,8 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 import javax.tools.ToolProvider;
 
@@ -100,11 +102,33 @@ public class ExtendedScanClasspathOrderTest {
     }
 
     /**
-     * Get the name of the directory that {@code ext.Base} was read from.
+     * Write every file under a directory to a jar.
+     *
+     * @param classesDir
+     *            the directory holding the files.
+     * @param jarFile
+     *            the jar to write.
+     * @return the jar.
+     * @throws IOException
+     *             if the jar could not be written.
+     */
+    private static Path jar(final Path classesDir, final Path jarFile) throws IOException {
+        try (var out = new ZipOutputStream(Files.newOutputStream(jarFile)); var files = Files.walk(classesDir)) {
+            for (final var file : files.filter(Files::isRegularFile).sorted().toList()) {
+                out.putNextEntry(new ZipEntry(classesDir.relativize(file).toString().replace('\\', '/')));
+                Files.copy(file, out);
+                out.closeEntry();
+            }
+        }
+        return jarFile;
+    }
+
+    /**
+     * Get the name of the directory that holds the classes directory or jar that {@code ext.Base} was read from.
      *
      * @param scanResult
      *            the scan result.
-     * @return the name of the directory above the classes directory.
+     * @return the name of the directory above the classes directory or jar.
      */
     private static String baseCopy(final ScanResult scanResult) {
         final var base = scanResult.getClassInfo("ext.Base");
@@ -138,6 +162,30 @@ public class ExtendedScanClasspathOrderTest {
                 .enableClassInfo().acceptPackages("app").scan()) {
             assertThat(baseCopy(scanResult)).isEqualTo("lib2");
             assertThat(scanResult.getAllClassesImplementing("ext.MarkerC").getNames()).containsExactly("app.Sub");
+        }
+    }
+
+    /**
+     * Scanning is extended to the first copy of a class on the classpath when the copies are in jars.
+     *
+     * @param tempDir
+     *            a temporary directory to compile into.
+     * @throws IOException
+     *             if a source file could not be written.
+     */
+    @Test
+    public void theFirstCopyInClasspathOrderIsReadFromJars(@TempDir final Path tempDir) throws IOException {
+        final var markers = compileMarkers(tempDir);
+        final var lib1 = jar(compileBase(tempDir.resolve("lib1"), markers, "MarkerA", ""),
+                tempDir.resolve("lib1").resolve("lib1.jar"));
+        final var app = jar(compileBase(tempDir.resolve("app"), markers, "MarkerB", "app"),
+                tempDir.resolve("app").resolve("app.jar"));
+
+        try (var scanResult = new ClassGraph().enableClasspathEntries(List.of(lib1, app, markers)).enableClassInfo()
+                .acceptPackages("app").scan()) {
+            assertThat(baseCopy(scanResult)).isEqualTo("lib1");
+            assertThat(scanResult.getAllClassesImplementing("ext.MarkerA").getNames()).containsExactly("app.Sub");
+            assertThat(scanResult.getAllClassesImplementing("ext.MarkerB").getNames()).isEmpty();
         }
     }
 
