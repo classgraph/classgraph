@@ -315,7 +315,10 @@ final class OffHeapMemory {
 
     /**
      * Close an arena obtained from {@link #openArena()}, freeing any direct {@link ByteBuffer}s allocated from it
-     * and unmapping any files mapped with it. The buffers must no longer be in use by any thread.
+     * and unmapping any files mapped with it. A thread that is still reading one of those buffers does not stop the
+     * arena from closing: its read throws {@link IllegalStateException} instead. Apart from a second close, what
+     * makes closing fail is an I/O operation in progress on a buffer in the arena (such as a channel write from the
+     * buffer), which holds the arena open.
      *
      * @param arena
      *            the arena to close.
