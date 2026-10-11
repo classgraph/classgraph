@@ -19,10 +19,11 @@ import org.junit.jupiter.api.io.TempDir;
 
 /**
  * An array class cannot be the superclass, an interface, a nested class or an enclosing class of a class. The JVM
- * refuses to load a class whose superclass, interface or {@code InnerClasses} outer class is an array class, but it
- * loads a class whose {@code InnerClasses} inner class or {@code EnclosingMethod} class is one. A scan skips the
- * first kind of class, and ignores the array class in the second. Neither fails the scan, even when the array's
- * element class has a name that a type signature cannot express: JVMS 4.2.1 allows a class to be named {@code a<}.
+ * refuses to load a class whose superclass, interface or {@code InnerClasses} outer class is an array class (the
+ * last only from JDK-8270404, which JDK 17.0.0 does not have), but it loads a class whose {@code InnerClasses}
+ * inner class or {@code EnclosingMethod} class is one. A scan skips the first kind of class, and ignores the array
+ * class in the second. Neither fails the scan, even when the array's element class has a name that a type signature
+ * cannot express: JVMS 4.2.1 allows a class to be named {@code a<}.
  */
 public class ArrayClassInClassfileTest {
     /** A classloader that defines a class from the bytes of its classfile. */
@@ -37,6 +38,18 @@ public class ArrayClassInClassfileTest {
         Class<?> define(final byte[] classfile) {
             return defineClass(null, classfile, 0, classfile.length);
         }
+    }
+
+    /**
+     * Whether the running JVM refuses a class whose {@code InnerClasses} outer class is an array class. JDK-8270404
+     * added that check in JDK 18 and JDK 17.0.1, so of the JDKs this branch supports, only JDK 17.0.0 loads such a
+     * class.
+     *
+     * @return true if the JVM refuses such a class.
+     */
+    private static boolean jvmRefusesArrayOuterClass() {
+        final var version = Runtime.version();
+        return version.feature() > 17 || version.update() >= 1;
     }
 
     /**
@@ -136,9 +149,9 @@ public class ArrayClassInClassfileTest {
     }
 
     /**
-     * A class whose superclass, interface or {@code InnerClasses} outer class is an array class is skipped, as the
-     * JVM refuses to load it. The scan still finds the other classes, whether or not the element class has a name
-     * that a type signature can express.
+     * A class whose superclass, interface or {@code InnerClasses} outer class is an array class is skipped, as
+     * current JVMs refuse to load it. The scan still finds the other classes, whether or not the element class has
+     * a name that a type signature can express.
      *
      * @param tempDir
      *            a temporary directory.
@@ -154,12 +167,16 @@ public class ArrayClassInClassfileTest {
                 classfile("p/Bad", "[Ljava/lang/Object;", null, null), //
                 classfile("p/Bad", "java/lang/Object", "[La<;", null), //
                 classfile("p/Bad", "java/lang/Object", "[I", null), //
+                // Only a JVM with JDK-8270404 throws ClassFormatError for an array outer class
                 classfile("p/Bad", "java/lang/Object", null, "InnerClasses", "p/Bad", "[La<;"), //
                 classfile("p/Bad", "java/lang/Object", null, "InnerClasses", "p/Bad", "[Ljava/lang/String;"));
+        final var firstOuterClassIdx = 5;
         for (var i = 0; i < badClassfiles.size(); i++) {
             final var badClassfile = badClassfiles.get(i);
-            assertThatThrownBy(() -> new ByteClassLoader().define(badClassfile)).as("classfile " + i)
-                    .isInstanceOf(ClassFormatError.class);
+            if (i < firstOuterClassIdx || jvmRefusesArrayOuterClass()) {
+                assertThatThrownBy(() -> new ByteClassLoader().define(badClassfile)).as("classfile " + i)
+                        .isInstanceOf(ClassFormatError.class);
+            }
             final var dir = writeClasses(tempDir.resolve("dir" + i), badClassfile);
             try (var scanResult = new ClassGraph().enableClassInfo().enableClasspathEntries(dir).scan()) {
                 assertThat(scanResult.getAllClasses().getNames()).as("classfile " + i).containsExactly("p.Good");
