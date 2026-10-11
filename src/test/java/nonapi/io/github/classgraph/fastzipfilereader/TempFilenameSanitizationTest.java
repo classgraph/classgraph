@@ -14,6 +14,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.PosixFilePermission;
+import java.util.Arrays;
 import java.util.Iterator;
 
 import org.junit.jupiter.api.Test;
@@ -22,6 +23,7 @@ import org.junit.jupiter.api.io.TempDir;
 import nonapi.io.github.classgraph.concurrency.InterruptionChecker;
 import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
+import nonapi.io.github.classgraph.utils.VersionFinder;
 
 /**
  * Tests that a temporary file can be created for a nested jar whose entry name contains characters that are legal
@@ -304,8 +306,8 @@ public class TempFilenameSanitizationTest {
          *             deleted.
          */
         public static void main(final String[] args) throws IOException {
-            // The JDK resolves the temporary directory when it first creates a temporary file (on JDK 8), or at
-            // startup (on later JDKs), and keeps using that directory whatever the property is changed to later
+            // The JDK resolves the temporary directory when it first creates a temporary file (before JDK 16), or
+            // at startup (from JDK 16), and keeps using that directory whatever the property is changed to later
             Files.delete(Files.createTempFile("classgraph", ".tmp"));
             final String startupTempDirName = System.getProperty("java.io.tmpdir");
             final NestedJarHandler nestedJarHandler = new NestedJarHandler(new ScanSpec(),
@@ -335,8 +337,9 @@ public class TempFilenameSanitizationTest {
     /**
      * The {@code java.io.tmpdir} system property can be changed or cleared while the JVM runs, but the JDK keeps
      * creating temporary files in the directory it resolved first. A temporary file for a nested jar must be created
-     * there too, rather than failing because the property now names a directory that does not exist, or no
-     * directory at all.
+     * there too, rather than failing because the property now names a directory that does not exist. Before JDK 16,
+     * a cleared property gives an {@link IOException} instead, since ClassGraph cannot tell whether the JDK has
+     * already resolved the directory, and if it has not, it would fail to for the rest of the life of the JVM.
      *
      * @param tempDir
      *            the temporary directory of the child JVM.
@@ -365,7 +368,195 @@ public class TempFilenameSanitizationTest {
         assertThat(outputLines[outputLines.length - 2]).as("Child JVM output:%n%s", output)
                 .isEqualTo(tempDir.toString());
         assertThat(outputLines[outputLines.length - 1]).as("Child JVM output:%n%s", output)
-                .isEqualTo(tempDir.toString());
+                .isEqualTo(VersionFinder.JAVA_MAJOR_VERSION < 16 ? IOException.class.getName() : tempDir.toString());
+        try (DirectoryStream<Path> tempFiles = Files.newDirectoryStream(tempDir)) {
+            assertThat(tempFiles).isEmpty();
+        }
+    }
+
+    /**
+     * Run in a child JVM: print the encoding that filenames are stored in, then change the {@code java.io.tmpdir}
+     * system property as the argument says, try twice to create a temporary file for a nested jar, set the property
+     * back to its value at startup, and try once to create a temporary file with
+     * {@link Files#createTempFile(String, String, java.nio.file.attribute.FileAttribute...)}. For each attempt,
+     * print the directory that the file was created in, or the class of what the attempt threw.
+     */
+    static final class CreateTempFileAfterTempDirReplaced {
+        /** Not instantiable. */
+        private CreateTempFileAfterTempDirReplaced() {
+        }
+
+        /**
+         * Entry point.
+         *
+         * @param args
+         *            "clear" to clear the property, "nul" to set it to a path that holds a NUL character, or else
+         *            the directory to set it to.
+         */
+        public static void main(final String[] args) {
+            System.out.println(System.getProperty("sun.jnu.encoding"));
+            final String startupTempDirName = System.getProperty("java.io.tmpdir");
+            if (args[0].equals("clear")) {
+                System.clearProperty("java.io.tmpdir");
+            } else {
+                System.setProperty("java.io.tmpdir", args[0].equals("nul") ? "a\u0000b" : args[0]);
+            }
+            final NestedJarHandler nestedJarHandler = new NestedJarHandler(new ScanSpec(),
+                    new InterruptionChecker(), new ReflectionUtils());
+            try {
+                for (int i = 0; i < 2; i++) {
+                    try {
+                        System.out.println(nestedJarHandler
+                                .makeTempFile("BOOT-INF/lib/lib.jar", /* onlyUseLeafname = */ true).getParent());
+                    } catch (final Throwable t) {
+                        System.out.println(t.getClass().getName());
+                    }
+                }
+            } finally {
+                nestedJarHandler.close(/* log = */ null);
+            }
+            System.setProperty("java.io.tmpdir", startupTempDirName);
+            try {
+                final Path tempFile = Files.createTempFile("classgraph", ".tmp");
+                System.out.println(tempFile.getParent());
+                Files.delete(tempFile);
+            } catch (final Throwable t) {
+                System.out.println(t.getClass().getName());
+            }
+        }
+    }
+
+    /**
+     * Run {@link CreateTempFileAfterTempDirReplaced} in a child JVM, and return the four lines that it printed.
+     *
+     * @param tempDir
+     *            the temporary directory of the child JVM at startup.
+     * @param cLocale
+     *            whether to run the child JVM under the C locale.
+     * @param arg
+     *            the argument to pass to the child JVM.
+     * @return the encoding that filenames are stored in, then the outcomes of the three attempts.
+     * @throws Exception
+     *             if the child JVM could not be run.
+     */
+    private static String[] runCreateTempFileAfterTempDirReplaced(final Path tempDir, final boolean cLocale,
+            final String arg) throws Exception {
+        final ProcessBuilder processBuilder = new ProcessBuilder(
+                Paths.get(System.getProperty("java.home"), "bin", "java").toString(),
+                "-Djava.io.tmpdir=" + tempDir, "-cp", System.getProperty("java.class.path"),
+                CreateTempFileAfterTempDirReplaced.class.getName(), arg).redirectErrorStream(true);
+        if (cLocale) {
+            final Iterator<String> envNames = processBuilder.environment().keySet().iterator();
+            while (envNames.hasNext()) {
+                if (envNames.next().startsWith("LC_")) {
+                    envNames.remove();
+                }
+            }
+            processBuilder.environment().put("LC_ALL", "C");
+            processBuilder.environment().put("LANG", "C");
+        }
+        final Process process = processBuilder.start();
+        final ByteArrayOutputStream outputBytes = new ByteArrayOutputStream();
+        try (InputStream inputStream = process.getInputStream()) {
+            final byte[] buf = new byte[8192];
+            for (int n; (n = inputStream.read(buf)) > 0;) {
+                outputBytes.write(buf, 0, n);
+            }
+        }
+        final String output = new String(outputBytes.toByteArray(), StandardCharsets.UTF_8);
+        assertThat(process.waitFor()).as("Child JVM output:%n%s", output).isZero();
+        // Read the last four lines, since the JVM may print a notice such as "Picked up JAVA_TOOL_OPTIONS" first
+        final String[] outputLines = output.split("\r?\n");
+        assertThat(outputLines.length).as("Child JVM output:%n%s", output).isGreaterThanOrEqualTo(4);
+        return Arrays.copyOfRange(outputLines, outputLines.length - 4, outputLines.length);
+    }
+
+    /**
+     * A JVM started under the C locale on Linux cannot represent a temporary directory with a non-ASCII name. If
+     * the {@code java.io.tmpdir} system property is then cleared, or changed to a directory it can represent,
+     * creating a temporary file must not throw an {@link Error}. From JDK 16, the JDK uses the directory given at
+     * startup, so it throws an {@link IOException}. Before JDK 16, the JDK uses the value the property has when it
+     * first creates a temporary file, so a cleared property throws an {@link IOException}, and a directory that it
+     * can represent is used.
+     *
+     * @param parentDir
+     *            the directory that holds the temporary directory of the child JVM.
+     * @throws Exception
+     *             if the child JVM could not be run.
+     */
+    @Test
+    public void aTempDirThatFilenamesCannotRepresentThenReplacedNeverThrowsAnError(@TempDir final Path parentDir)
+            throws Exception {
+        assumeTrue(System.getProperty("os.name").startsWith("Linux"), "The C locale is only tested on Linux");
+        assumeTrue(System.getProperty("sun.jnu.encoding").equals("UTF-8"),
+                "This JVM cannot create a directory with a non-ASCII name");
+        final Path tempDir = Files.createDirectory(parentDir.resolve("tmpé"));
+        final Path validDir = Files.createDirectory(parentDir.resolve("valid"));
+
+        final String[] cleared = runCreateTempFileAfterTempDirReplaced(tempDir, /* cLocale = */ true, "clear");
+        final String clearedOutput = String.join("\n", cleared);
+        assumeTrue(!cleared[0].equals("UTF-8"), "The C locale stores filenames in UTF-8 here");
+        assertThat(cleared[1]).as(clearedOutput).isEqualTo(IOException.class.getName());
+        assertThat(cleared[2]).as(clearedOutput).isEqualTo(IOException.class.getName());
+
+        final String[] changed = runCreateTempFileAfterTempDirReplaced(tempDir, /* cLocale = */ true,
+                validDir.toString());
+        final String changedOutput = String.join("\n", changed);
+        final String expected = VersionFinder.JAVA_MAJOR_VERSION < 16 ? validDir.toString()
+                : IOException.class.getName();
+        assertThat(changed[1]).as(changedOutput).isEqualTo(expected);
+        assertThat(changed[2]).as(changedOutput).isEqualTo(expected);
+
+        for (final Path dir : new Path[] { tempDir, validDir }) {
+            try (DirectoryStream<Path> tempFiles = Files.newDirectoryStream(dir)) {
+                assertThat(tempFiles).isEmpty();
+            }
+        }
+    }
+
+    /**
+     * Before JDK 16, the JDK resolves the temporary directory from the {@code java.io.tmpdir} system property when
+     * it first creates a temporary file, and if the property has been cleared, it can never create a temporary
+     * file again in this JVM. Creating a temporary file for a nested jar must throw an {@link IOException} without
+     * asking the JDK, so that the JDK can still create temporary files once the property is set again.
+     *
+     * @param tempDir
+     *            the temporary directory of the child JVM.
+     * @throws Exception
+     *             if the child JVM could not be run.
+     */
+    @Test
+    public void aClearedTempDirLeavesTheJdkAbleToCreateTempFilesBeforeJdk16(@TempDir final Path tempDir)
+            throws Exception {
+        assumeTrue(VersionFinder.JAVA_MAJOR_VERSION < 16, "From JDK 16, the JDK reads the property at startup");
+        final String[] output = runCreateTempFileAfterTempDirReplaced(tempDir, /* cLocale = */ false, "clear");
+        final String outputText = String.join("\n", output);
+        assertThat(output[1]).as(outputText).isEqualTo(IOException.class.getName());
+        assertThat(output[2]).as(outputText).isEqualTo(IOException.class.getName());
+        assertThat(output[3]).as(outputText).isEqualTo(tempDir.toString());
+        try (DirectoryStream<Path> tempFiles = Files.newDirectoryStream(tempDir)) {
+            assertThat(tempFiles).isEmpty();
+        }
+    }
+
+    /**
+     * From JDK 16, the JDK creates temporary files in the directory that the {@code java.io.tmpdir} system property
+     * named at startup, whatever the property is changed to later, even a value that is not a valid path. A
+     * temporary file for a nested jar must be created there too.
+     *
+     * @param tempDir
+     *            the temporary directory of the child JVM.
+     * @throws Exception
+     *             if the child JVM could not be run.
+     */
+    @Test
+    public void aTempDirChangedToAnInvalidPathIsIgnoredFromJdk16(@TempDir final Path tempDir) throws Exception {
+        assumeTrue(VersionFinder.JAVA_MAJOR_VERSION >= 16, "Before JDK 16, the JDK reads the property later");
+        final String[] output = runCreateTempFileAfterTempDirReplaced(tempDir, /* cLocale = */ false, "nul");
+        final String outputText = String.join("\n", output);
+        assertThat(output[1]).as(outputText).isEqualTo(tempDir.toString());
+        assertThat(output[2]).as(outputText).isEqualTo(tempDir.toString());
+        assertThat(output[3]).as(outputText).isEqualTo(tempDir.toString());
         try (DirectoryStream<Path> tempFiles = Files.newDirectoryStream(tempDir)) {
             assertThat(tempFiles).isEmpty();
         }

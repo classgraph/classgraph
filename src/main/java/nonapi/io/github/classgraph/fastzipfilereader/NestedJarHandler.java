@@ -657,8 +657,9 @@ public class NestedJarHandler {
      *            If true, only use the leafname of filePathBase to derive the temporary filename.
      * @return The temporary {@link File}.
      * @throws IOException
-     *             If the temporary file could not be created, including when the temporary directory named by the
-     *             {@code java.io.tmpdir} system property cannot be represented in the encoding used for filenames.
+     *             If the temporary file could not be created, including when the JDK could not set up its temporary
+     *             directory, and, before JDK 16, when the {@code java.io.tmpdir} system property is not set or
+     *             cannot be represented in the encoding used for filenames.
      */
     public File makeTempFile(final String filePathBase, final boolean onlyUseLeafname) throws IOException {
         String filenameBase = sanitizeFilename(onlyUseLeafname ? leafname(filePathBase) : filePathBase);
@@ -670,25 +671,12 @@ public class NestedJarHandler {
             }
             filenameBase = filenameBase.substring(startIdx);
         }
-        // Check the temporary directory before the first call to Files.createTempFile, whose helper class resolves
-        // it once, in its static initializer: if that fails, the class can never be used again in this JVM, and
-        // every call throws an Error rather than an IOException. The directory itself is left to the JDK, as for
-        // every other temporary file. The property is null if it has been cleared, or if a security manager does
-        // not let ClassGraph read it; the JDK reads it with its own permissions. On JDK 8, and other JDKs before 17,
-        // the helper class reads the property when it is initialized rather than when the JVM starts, so if the
-        // property has been cleared before the first call to Files.createTempFile in this JVM, that call fails with
-        // ExceptionInInitializerError, and every later call in this JVM fails with NoClassDefFoundError, as
-        // File.createTempFile did in 4.8.197.
-        final String tempDirName = VersionFinder.getProperty("java.io.tmpdir");
-        if (tempDirName != null) {
-            try {
-                Paths.get(tempDirName);
-            } catch (final InvalidPathException e) {
-                // As happens to a non-ASCII directory name when the JVM is started under the C or POSIX locale on
-                // Linux
-                throw new IOException("The temporary directory " + tempDirName
-                        + " cannot be represented in the encoding used for filenames", e);
-            }
+        // The directory is left to the JDK, as for every other temporary file. Before JDK 16, the JDK reads the
+        // java.io.tmpdir system property when it first creates a temporary file in the JVM, and this call may be
+        // that one, so the property is checked first. From JDK 16, the JDK uses the value given when the JVM
+        // started, which ClassGraph cannot change, so there is nothing to check.
+        if (VersionFinder.JAVA_MAJOR_VERSION < 16) {
+            checkTempDirPropertyBeforeJdk16();
         }
         File tempFile;
         try {
@@ -711,12 +699,62 @@ public class NestedJarHandler {
      *            The sanitized name to end the temporary filename with.
      * @return The temporary {@link File}.
      * @throws IOException
-     *             If the temporary file could not be created.
+     *             If the temporary file could not be created, including when the JDK could not set up its temporary
+     *             directory.
      * @throws InvalidPathException
      *             If the temporary filename cannot be represented in the encoding that filenames are stored in.
      */
     private static File createTempFileReadableOnlyByOwner(final String filenameBase) throws IOException {
-        return Files.createTempFile(TEMP_FILENAME_PREFIX, TEMP_FILENAME_LEAF_SEPARATOR + filenameBase).toFile();
+        try {
+            return Files.createTempFile(TEMP_FILENAME_PREFIX, TEMP_FILENAME_LEAF_SEPARATOR + filenameBase).toFile();
+        } catch (final ExceptionInInitializerError | NoClassDefFoundError e) {
+            // The static initializer of the JDK's helper class for temporary files threw, now or earlier in this
+            // JVM: see checkTempDirPropertyBeforeJdk16()
+            throw new IOException("The JDK could not set up its temporary directory from the java.io.tmpdir system "
+                    + "property (from JDK 16, the value given when the JVM started; before JDK 16, the value it had "
+                    + "when the JDK first created a temporary file), so it cannot create temporary files in this "
+                    + "JVM", e);
+        }
+    }
+
+    /**
+     * Before JDK 16, check the {@code java.io.tmpdir} system property before calling
+     * {@link Files#createTempFile(String, String, java.nio.file.attribute.FileAttribute...)}.
+     *
+     * <p>
+     * That method resolves the temporary directory once, in the static initializer of its helper class. If the
+     * initializer throws, the first call in the JVM throws {@link ExceptionInInitializerError}, and every later
+     * call throws {@link NoClassDefFoundError}, for the life of the JVM. From JDK 16 (JDK-8245194), the initializer
+     * uses the value that the property had when the JVM started, so changing the property later has no effect, and
+     * this check is not made. Before JDK 16, the initializer uses the value the property has when it runs, during
+     * the first call to {@code Files.createTempFile} in the JVM. That call may be ClassGraph's, so on those JDKs a
+     * cleared property, or a value that is not a valid path, gives an {@link IOException} here, which leaves the
+     * helper class usable by the rest of the application once the property is set to a valid value again. If the
+     * property was cleared after the initializer ran, the JDK would still create the file, but ClassGraph cannot
+     * tell whether the initializer has run, so that case gives an {@link IOException} too. If a security manager
+     * does not let ClassGraph read the property, the check is skipped, since the JDK reads it with its own
+     * permissions.
+     *
+     * @throws IOException
+     *             If the property is not set, or is not a valid path.
+     */
+    private static void checkTempDirPropertyBeforeJdk16() throws IOException {
+        final String tempDirName;
+        try {
+            tempDirName = System.getProperty("java.io.tmpdir");
+        } catch (final SecurityException e) {
+            return;
+        }
+        if (tempDirName == null) {
+            throw new IOException("The java.io.tmpdir system property is not set");
+        }
+        try {
+            Paths.get(tempDirName);
+        } catch (final InvalidPathException e) {
+            // As happens to a non-ASCII directory name when the JVM is started under the C or POSIX locale on Linux
+            throw new IOException("The temporary directory " + tempDirName
+                    + " cannot be represented in the encoding used for filenames", e);
+        }
     }
 
     /**
