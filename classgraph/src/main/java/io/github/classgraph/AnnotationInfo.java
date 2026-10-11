@@ -30,7 +30,9 @@ package io.github.classgraph;
 
 import java.lang.annotation.Inherited;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -306,10 +308,35 @@ public final class AnnotationInfo extends ScanResultObject implements Comparable
      */
     @Override
     public int compareTo(final AnnotationInfo o) {
+        return compareTo(o, new ArrayList<>());
+    }
+
+    /**
+     * Compare annotations, as in {@link #compareTo(AnnotationInfo)}.
+     *
+     * @param o
+     *            the annotation to compare with
+     * @param comparedPairs
+     *            the pairs of annotations compared so far, which are either still being compared or were found
+     *            equal, since any difference ends the whole comparison. Default values can form a cycle (see
+     *            {@link #toString(boolean, StringBuilder, Set)}), and two annotations that expand to the same
+     *            infinite annotation then lead back to a pair that is still being compared. Such a pair is counted
+     *            as equal, so that the comparison ends: a difference between the two annotations is found by
+     *            comparing their other parameter values.
+     * @return a negative number, zero or a positive number if this annotation sorts before, the same as or after
+     *         the other annotation
+     */
+    int compareTo(final AnnotationInfo o, final List<AnnotationInfo[]> comparedPairs) {
         final var diff = this.name.compareTo(o.name);
         if (diff != 0) {
             return diff;
         }
+        for (final AnnotationInfo[] pair : comparedPairs) {
+            if (pair[0] == this && pair[1] == o) {
+                return 0;
+            }
+        }
+        comparedPairs.add(new AnnotationInfo[] { this, o });
         // Both lists are sorted by parameter name
         final var paramValues = getParameterValues(/* includeDefaultValues = */ true, getClassInfoEvenIfClosed());
         final var oParamValues = o.getParameterValues(/* includeDefaultValues = */ true,
@@ -320,7 +347,7 @@ public final class AnnotationInfo extends ScanResultObject implements Comparable
             } else if (i >= oParamValues.size()) {
                 return 1;
             } else {
-                final var diff2 = paramValues.get(i).compareTo(oParamValues.get(i));
+                final var diff2 = paramValues.get(i).compareTo(oParamValues.get(i), comparedPairs);
                 if (diff2 != 0) {
                     return diff2;
                 }
@@ -367,7 +394,7 @@ public final class AnnotationInfo extends ScanResultObject implements Comparable
         for (final AnnotationParameterValue e : getParameterValues(/* includeDefaultValues = */ true,
                 getClassInfoEvenIfClosed())) {
             // AnnotationParameterValue#hashCode() hashes an array-valued parameter by its elements, matching
-            // equals(Object)
+            // equals(Object), and a nested annotation by its name only, since default values can form a cycle
             h = h * 7 + e.hashCode();
         }
         return h;
@@ -375,9 +402,32 @@ public final class AnnotationInfo extends ScanResultObject implements Comparable
 
     @Override
     protected void toString(final boolean useSimpleNames, final StringBuilder buf) {
+        toString(useSimpleNames, buf, Collections.newSetFromMap(new IdentityHashMap<>()));
+    }
+
+    /**
+     * Write the string representation of this annotation to the buffer.
+     *
+     * @param useSimpleNames
+     *            if true, strip package and outer class names from class names
+     * @param buf
+     *            the buffer to append to
+     * @param enclosing
+     *            the annotations whose string representation is being written, which hold this annotation as a
+     *            parameter value, directly or through other annotations. Default values can form a cycle, such as
+     *            an element of {@code @A} whose default value is {@code @B}, and an element of {@code @B} whose
+     *            default value is {@code @A}, which javac refuses to compile, but which the JVM loads. An
+     *            annotation that is reached again is written without its parameter values, as {@code @A(...)}, so
+     *            that writing it ends.
+     */
+    void toString(final boolean useSimpleNames, final StringBuilder buf, final Set<AnnotationInfo> enclosing) {
         buf.append('@').append(useSimpleNames ? ClassInfo.getSimpleName(name) : name);
         final var paramVals = getParameterValues();
         if (!paramVals.isEmpty()) {
+            if (!enclosing.add(this)) {
+                buf.append("(...)");
+                return;
+            }
             buf.append('(');
             for (var i = 0; i < paramVals.size(); i++) {
                 if (i > 0) {
@@ -385,11 +435,12 @@ public final class AnnotationInfo extends ScanResultObject implements Comparable
                 }
                 final var paramVal = paramVals.get(i);
                 if (paramVals.size() > 1 || !"value".equals(paramVal.getName())) {
-                    paramVal.toString(useSimpleNames, buf);
+                    paramVal.toString(useSimpleNames, buf, enclosing);
                 } else {
-                    paramVal.toStringParamValueOnly(useSimpleNames, buf);
+                    paramVal.toStringParamValueOnly(useSimpleNames, buf, enclosing);
                 }
             }
+            enclosing.remove(this);
             buf.append(')');
         }
     }
