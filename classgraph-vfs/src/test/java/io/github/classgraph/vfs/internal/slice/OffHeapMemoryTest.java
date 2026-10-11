@@ -141,6 +141,25 @@ public class OffHeapMemoryTest {
         assertThat(OffHeapMemory.closeArena(arena, /* log = */ null)).isFalse();
     }
 
+    /** Stands in for an arena whose {@code close()} throws an {@link Error}. */
+    public static class ArenaThatThrowsOnClose {
+        /** Throw {@link NoClassDefFoundError}, the error that #331 reported from closing a root. */
+        public void close() {
+            throw new NoClassDefFoundError("x");
+        }
+    }
+
+    /**
+     * An {@link Error} that closing an arena throws reaches the caller, as on the rest of the path that closes a
+     * root, rather than being logged and dropped. The arena is closed through reflection, which wraps what
+     * {@code close()} threw.
+     */
+    @Test
+    public void anErrorThrownByClosingAnArenaIsNotCaught() {
+        assertThatThrownBy(() -> OffHeapMemory.closeArena(new ArenaThatThrowsOnClose(), /* log = */ null))
+                .isInstanceOf(NoClassDefFoundError.class).hasMessage("x");
+    }
+
     /**
      * Loading the classes needed to free off-heap memory works, and works more than once -- it runs on every scan,
      * but must only do the work the first time.

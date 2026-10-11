@@ -130,7 +130,11 @@ final class OffHeapMemory {
             return true;
         } catch (final InvocationTargetException e) {
             // invokeCleaner throws IllegalArgumentException if the buffer is a duplicate or a slice of the mapping,
-            // not the mapping itself. Method.invoke wraps whatever it throws.
+            // not the mapping itself. Method.invoke wraps whatever it throws. An Error, such as OutOfMemoryError, is
+            // not caught, as on the rest of the path that closes a root
+            if (e.getCause() instanceof final Error error) {
+                throw error;
+            }
             if (log != null && !(e.getCause() instanceof IllegalArgumentException)) {
                 log.log("Could not unmap ByteBuffer: " + e.getCause());
             }
@@ -324,6 +328,16 @@ final class OffHeapMemory {
             ReflectionUtils.invokeMethod(/* throwException = */ true, arena, "close");
             return true;
         } catch (final Exception e) {
+            // ReflectionUtils wraps what close() threw. An Error, such as NoClassDefFoundError, is not caught, as
+            // on the rest of the path that closes a root
+            @Nullable
+            Throwable cause = e.getCause();
+            while (cause instanceof final InvocationTargetException invocationTargetException) {
+                cause = invocationTargetException.getCause();
+            }
+            if (cause instanceof final Error error) {
+                throw error;
+            }
             if (log != null) {
                 log.log("Could not close arena: " + e);
             }

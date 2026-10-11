@@ -1199,9 +1199,9 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
      * that root holds released now.
      *
      * <p>
-     * Closing a root that is already closed does nothing. This method never throws: a resource that cannot be
-     * released is reported to the {@link Vfs} log rather than thrown, since the close releases everything else the
-     * root owns either way.
+     * Closing a root that is already closed does nothing. This method throws no exception: a resource that cannot
+     * be released is reported to the {@link Vfs} log rather than thrown, since the close releases everything else
+     * the root owns either way. An {@link Error}, such as {@link OutOfMemoryError}, is not caught.
      */
     @Override
     public final void close() {
@@ -1256,7 +1256,8 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
     /**
      * Release the resources this root owns, as the last step of {@link #close(LogNode)}. The base root owns
      * nothing, so this does nothing; a root that owns resources overrides it. Runs at most once per root. Must not
-     * throw: a resource that cannot be released is logged, so that the rest are still released.
+     * throw an exception: a resource that cannot be released is logged, so that the rest are still released. An
+     * {@link Error} is not caught.
      *
      * @param log
      *            the log node, or null to not log.

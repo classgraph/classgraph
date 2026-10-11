@@ -1060,8 +1060,8 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
                 rootsByModule.clear();
                 // Close every root this Vfs opened, releasing what each root owns: its pooled module readers, and
                 // the file handles, memory mappings and temporary files that its jarfile was read through.
-                // VfsRoot#close never throws, so one root that fails to release does not stop the rest from being
-                // closed
+                // VfsRoot#close throws no exception, so one root that fails to release does not stop the rest from
+                // being closed
                 final var rootsToClose = new ArrayList<>(openRoots);
                 openRoots.clear();
                 for (final var root : rootsToClose) {
@@ -1070,7 +1070,8 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
             } finally {
                 // The inflaters are borrowed on top of the slices the roots read through, so the pool is dropped
                 // after the roots are closed. forceClose closes the pooled inflaters and any inflater still on
-                // loan, and never throws, so this runs even if closing a root failed
+                // loan, and throws no exception. It runs in a finally block so that the inflaters are released even
+                // if closing a root threw an Error
                 inflaterRecycler.forceClose();
             }
             // An interruption during the close arrives as this thread's status, restored by the interrupted step
