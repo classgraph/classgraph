@@ -254,6 +254,9 @@ public class MethodInfoTest {
             assertThat(mi.getThrownExceptions()).hasSize(2);
             assertThat(mi.getThrownExceptions().get(0).getSimpleName()).isEqualTo("X");
             assertThat(mi.getThrownExceptions().get(1).getSimpleName()).isEqualTo("X");
+            // Every thrown exception is directly related, including the second entry for the same class
+            assertThat(mi.getThrownExceptions().directOnly()).hasSize(2);
+            assertThat(mi.getThrownExceptions().directOnly()).isSameAs(mi.getThrownExceptions());
         }
     }
 }
