@@ -959,7 +959,8 @@ public final class ScanResult implements AutoCloseable {
      */
     public ModuleInfoList getModuleInfo() {
         checkClassInfoEnabled();
-        // Copy the list, then sort it by name only. The sort is stable, so modules of the same name stay in scan order
+        // Copy the list, then sort it by name only.
+        // The sort is stable, so modules of the same name stay in scan order
         final var sorted = new ArrayList<>(moduleInfoInScanOrder());
         sorted.sort(Comparator.comparing(ModuleInfo::getName));
         return new ModuleInfoList(sorted);
@@ -2045,10 +2046,10 @@ public final class ScanResult implements AutoCloseable {
                 // construction, so a getter on another thread that read one of them before this close finishes on
                 // a complete collection, rather than one emptied under it
                 classpathOrder = null;
-                // Drop the reference to the cached list rather than clearing it, since the list (or a map containing
-                // it) may have been returned to the caller, and returned collections are unmodifiable. The resources
-                // in it are not closed one by one: closing the virtual filesystem below closes every stream and
-                // buffer that was opened on any resource, whether or not the resource is in this list
+                // Drop the reference to the cached list rather than clearing it, since the list (or a map
+                // containing it) may have been returned to the caller, and returned collections are unmodifiable.
+                // The resources in it are not closed one by one: closing the virtual filesystem below closes every
+                // stream and buffer that was opened on any resource, whether or not the resource is in this list
                 allAcceptedResourcesCached = null;
                 pathToAcceptedResourcesCached = null;
                 // Don't clear classNameToClassInfo: just rely on the garbage collector to collect it once neither

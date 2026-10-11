@@ -1892,8 +1892,9 @@ public class GraphVizDotFileTest {
             for (final var textRun : classGraph.split("[<>]")) {
                 assertThat(textRun).hasSizeLessThan(16382);
             }
-            // The annotation is cut after 200 characters, the first 12 of which are '@LongValue("'. It is cut on the
-            // class, the method and the method parameter, and the backslashes of the field annotation are cut too.
+            // The annotation is cut after 200 characters, the first 12 of which are '@LongValue("'. It is cut on
+            // the class, the method and the method parameter, and the backslashes of the field annotation are cut
+            // too.
             final var cutXs = "@LongValue(&quot;" + "x".repeat(188) + "...";
             assertThat(classGraph.split(Pattern.quote(cutXs), -1)).hasSize(4);
             assertThat(classGraph).contains("@LongValue(&quot;" + "&#x5C;".repeat(188) + "...")

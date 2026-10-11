@@ -764,8 +764,8 @@ public class ClasspathFinderTest {
         final var namesAnotherViaLink = linkedDir.resolve("names-another.jar").toFile();
         try (var classpath = new ClasspathFinder().enableClasspathEntries(namesAnotherViaLink, namesAnother)
                 .find()) {
-            // The jarfile reached through the symlink and the same jarfile reached directly are one element, and the
-            // jarfile named by its manifest is reported the same way
+            // The jarfile reached through the symlink and the same jarfile reached directly are one element, and
+            // the jarfile named by its manifest is reported the same way
             assertThat(classpath.getLocations()).containsExactly(location(namesAnother), location(named));
         }
     }

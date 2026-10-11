@@ -102,8 +102,8 @@ public class PathSyntaxSanitizeEntryPathTest {
         assertThat(sanitize(dir + "//x.jar!")).isEqualTo(jar);
         assertThat(sanitize(jar + "!/!/a")).isEqualTo(jar + "!/a");
         assertThat(sanitize(jar + "!/a!/")).isEqualTo(jar + "!/a");
-        // The empty segment between a '/' and the separator is dropped too. The filesystem reads the path before the
-        // '!' as the jarfile, trailing '/' and all, so the '!' is a separator
+        // The empty segment between a '/' and the separator is dropped too. The filesystem reads the path before
+        // the '!' as the jarfile, trailing '/' and all, so the '!' is a separator
         assertThat(sanitize(jar + "/!/a")).isEqualTo(sanitize(jar + "/!/./a")).isEqualTo(jar + "!/a");
         // A section that is not empty is kept, and so is the separator before it
         assertThat(sanitize(jar + "!/a")).isEqualTo(jar + "!/a");

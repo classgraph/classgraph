@@ -139,7 +139,8 @@ public class ScanResultCloseTest {
     @Test
     public void closeAllClosesAScanResultReachableOnlyFromAResource() throws Exception {
         final var resource = resourceOfDroppedScanResult();
-        // Give the garbage collector the chance to collect the ScanResult, if the resource did not keep it reachable
+        // Give the garbage collector the chance to collect the
+        // ScanResult, if the resource did not keep it reachable
         for (var i = 0; i < 5; i++) {
             System.gc();
             Thread.sleep(20);

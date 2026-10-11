@@ -197,8 +197,8 @@ public final class MethodInfo extends ClassMemberInfo implements Comparable<Meth
                         // e.g. the leading enclosing-instance parameter of an inner class constructor, or
                         // the leading (String name, int ordinal) parameters of an enum constructor. Determine how
                         // many such implicit prefix parameters there are, strip them from the descriptor while
-                        // adding the type annotations so that formal_parameter_index lines up, then restore them. See
-                        // also getParameterInfo(), which "right-aligns" parameter metadata for the same reason.
+                        // adding the type annotations so that formal_parameter_index lines up, then restore them.
+                        // See also getParameterInfo(), which "right-aligns" parameter metadata for the same reason.
                         // (#897)
                         final var descNumParam = typeDescriptor.getParameterTypeSignatures().size();
                         int numImplicitPrefixParams;
@@ -253,13 +253,15 @@ public final class MethodInfo extends ClassMemberInfo implements Comparable<Meth
                 if ((declaringClassInfo.getModifiers() & 0x4000) != 0) {
                     // enum constructors have two leading synthetic params: (String name, int ordinal). Test the
                     // ACC_ENUM flag rather than isEnum(), since the constructor of the anonymous class that holds
-                    // the body of an enum constant also takes these two params, but isEnum() is false for that class.
+                    // the body of an enum constant also takes these two params, but isEnum() is false for that
+                    // class.
                     return 2;
                 } else if (declaringClassInfo.isNestedClass() && !declaringClassInfo.isStatic()) {
                     // The constructor of an inner class takes its enclosing instance as a leading parameter, typed
-                    // as the class the inner class is nested in directly -- unless the class is a local or anonymous
-                    // class declared in a static context, which has no enclosing instance. The classfile of a local
-                    // class does not say whether that context is static, so the parameter type is checked instead.
+                    // as the class the inner class is nested in directly -- unless the class is a local or
+                    // anonymous class declared in a static context, which has no enclosing instance. The classfile
+                    // of a local class does not say whether that context is static, so the parameter type is
+                    // checked instead.
                     final var paramTypes = descriptor.getParameterTypeSignatures();
                     if (!paramTypes.isEmpty()
                             && paramTypes.get(0) instanceof final ClassRefTypeSignature firstParamType
@@ -574,8 +576,8 @@ public final class MethodInfo extends ClassMemberInfo implements Comparable<Meth
             paramTypeDescriptors = getTypeDescriptor().getParameterTypeSignatures();
         } catch (final Exception _) {
             // Only a corrupt classfile has a method descriptor that does not parse. Leave the parameter types to
-            // the other sources rather than failing. (A type annotation that cannot be aligned with a parameter does
-            // not get here: it is skipped when the type annotations are added to the descriptor.)
+            // the other sources rather than failing. (A type annotation that cannot be aligned with a parameter
+            // does not get here: it is skipped when the type annotations are added to the descriptor.)
         }
 
         // Find the max length of all the parameter information sources
@@ -1068,9 +1070,9 @@ public final class MethodInfo extends ClassMemberInfo implements Comparable<Meth
             MethodParameterInfo.modifiersToString(paramInfo.getModifiers(), buf);
 
             final var paramTypeSignature = paramInfo.getTypeSignatureOrTypeDescriptor();
-            // The param type is null if neither the type signature nor the descriptor gives this param a type: when a
-            // MethodParameters or parameter annotation attribute has more entries than the descriptor has parameter
-            // types (only a bytecode tool writes such a classfile), or when the descriptor does not parse
+            // The param type is null if neither the type signature nor the descriptor gives this param a type: when
+            // a MethodParameters or parameter annotation attribute has more entries than the descriptor has
+            // parameter types (only a bytecode tool writes such a classfile), or when the descriptor does not parse
             if (paramTypeSignature != null) {
                 // Exclude parameter annotations from type annotations at toplevel of type signature, so that
                 // annotation is not listed twice

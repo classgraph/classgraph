@@ -212,8 +212,8 @@ class Scanner {
             this.unscannedModules = new UnscannedModules(unscannedModuleReferences, defaultClassLoaderStr, vfs,
                     scanSpec);
 
-            // Turn the toplevel classpath entries into work units, so that the ClassLoaderProbe (and the classloader
-            // references it holds) can be discarded now that the classpath has been found
+            // Turn the toplevel classpath entries into work units, so that the ClassLoaderProbe (and the
+            // classloader references it holds) can be discarded now that the classpath has been found
             this.rawClasspathEntryWorkUnits = new ArrayList<>();
             for (final var rawClasspathEntry : classLoaderProbe.getClasspathOrder().getOrder()) {
                 rawClasspathEntryWorkUnits.add(new ClasspathEntryWorkUnit(rawClasspathEntry.classpathEntryObj(),
@@ -519,9 +519,9 @@ class Scanner {
         Object classpathEntryObjNormalized = classpathEntryStr;
 
         // Encode spaces and hash symbols in classpath entry as they potentially can be invalid when converted to a
-        // URL/URI. A string without a URL scheme is a path that FastPathResolver has already decoded, so a '%' in it
-        // is part of a file name, and is encoded first, or opening the URL would decode it again ("a%20b.jar" would
-        // be opened as "a b.jar"). A string that is still a URL keeps its percent encoding
+        // URL/URI. A string without a URL scheme is a path that FastPathResolver has already decoded, so a '%' in
+        // it is part of a file name, and is encoded first, or opening the URL would decode it again ("a%20b.jar"
+        // would be opened as "a b.jar"). A string that is still a URL keeps its percent encoding
         var classpathEntStr = (isURL ? classpathEntryStr : classpathEntryStr.replace("%", "%25"))
                 .replace(" ", "%20").replace("#", "%23");
         // Convert back to URL (or URI) if this has a URL scheme or if this is a multi-section path (which needs the
@@ -678,29 +678,30 @@ class Scanner {
                                     : log.log(classpathElt.getURI().toString(),
                                             "Opening classpath element " + classpathElt);
 
-                            // Open the classpath element, and check that it is valid (classpathElt.skipClasspathElement
-                            // is set if not). A jarfile nested inside another jarfile is extracted or opened in place.
-                            // The manifest of a jarfile or a directory is read for its module name and for its
-                            // Class-Path and Bundle-ClassPath entries, and the classpath elements that this one
-                            // contains or refers to (package roots, manifest entries, and the jarfiles in lib dirs)
-                            // are added to the work queue.
+                            // Open the classpath element, and check that it is valid
+                            // (classpathElt.skipClasspathElement is set if not). A jarfile nested inside another
+                            // jarfile is extracted or opened in place. The manifest of a jarfile or a directory is
+                            // read for its module name and for its Class-Path and Bundle-ClassPath entries, and the
+                            // classpath elements that this one contains or refers to (package roots, manifest
+                            // entries, and the jarfiles in lib dirs) are added to the work queue.
                             classpathElt.open(workQueue, subLog);
 
                             return classpathElt;
                         }, scanSpec.getWorkerTimeoutNanos());
 
                 // Register this work unit's reference to the classpath element. This has to be done for every work
-                // unit that references the classpath element, rather than only when the classpath element is created
-                // above, because the same classpath element can be referenced both from the toplevel classpath and
-                // from the Class-Path manifest entry of another classpath element, and which of those work units wins
-                // the race to create the singleton is nondeterministic (#810).
+                // unit that references the classpath element, rather than only when the classpath element is
+                // created above, because the same classpath element can be referenced both from the toplevel
+                // classpath and from the Class-Path manifest entry of another classpath element, and which of those
+                // work units wins the race to create the singleton is nondeterministic (#810).
                 final var parentClasspathElement = workUnit.parentClasspathElement();
                 if (parentClasspathElement == null) {
                     toplevelClasspathEltsOut.add(classpathElement);
                 } else {
                     // Link classpath element to its parent, if it is not a toplevel element. The index is recorded
                     // on the edge from the parent, since the same classpath element can be named by the Class-Path
-                    // manifest entries of two different jarfiles, at a different position within each of them (#810)
+                    // manifest entries of two different jarfiles, at a different position within each of them
+                    // (#810)
                     parentClasspathElement.childClasspathElements.add(new ClasspathElement.ChildClasspathElement(
                             workUnit.classpathElementIdxWithinParent(), classpathElement));
                 }
@@ -1168,14 +1169,14 @@ class Scanner {
             }
         }
 
-        // A ClassInfo object is created for every class named as a superclass, interface, annotation, enclosing class
-        // or nested class of a scanned class, and scanning is extended upwards to the classes that a scanned class
-        // refers to (see ClassGraph#enableExternalClasses()), so the class graph above a scanned class is
+        // A ClassInfo object is created for every class named as a superclass, interface, annotation, enclosing
+        // class or nested class of a scanned class, and scanning is extended upwards to the classes that a scanned
+        // class refers to (see ClassGraph#enableExternalClasses()), so the class graph above a scanned class is
         // complete. A ClassInfo object is deliberately not created for every class named in a type descriptor or
         // type signature, since that would require every type descriptor and type signature to be parsed before the
         // ScanResult can be returned, rather than lazily on demand, which would slow down every scan. The
-        // consequence is that ClassRefTypeSignature#getClassInfo() and AnnotationClassRef#getClassInfo() return null
-        // for a class that was not scanned. Call ClassGraph#enableInterClassDependencies() to get the classes
+        // consequence is that ClassRefTypeSignature#getClassInfo() and AnnotationClassRef#getClassInfo() return
+        // null for a class that was not scanned. Call ClassGraph#enableInterClassDependencies() to get the classes
         // referenced by a scanned class. (#902)
 
         if (linkLog != null) {
@@ -1335,8 +1336,8 @@ class Scanner {
                 topLevelLog.flush();
             }
 
-            // Throwing InterruptedException may have cleared the interrupt status of this thread, so restore it, and
-            // stop any worker thread that is still running. A failure that is not an interruption must not
+            // Throwing InterruptedException may have cleared the interrupt status of this thread, so restore it,
+            // and stop any worker thread that is still running. A failure that is not an interruption must not
             // interrupt this thread, which is the thread that called scan(). A worker thread that is still running
             // was left running because another worker failed or timed out, and it stops at its next check(), which
             // throws the recorded failure

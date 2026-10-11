@@ -106,8 +106,8 @@ final class ClasspathElementDir extends ClasspathElement {
                 }
             }
 
-            // Then the classpath entries the directory's manifest declares, and last the jarfiles in its lib dirs --
-            // an exploded jarfile in a directory declares the same classpath elements that the jarfile it was
+            // Then the classpath entries the directory's manifest declares, and last the jarfiles in its lib dirs
+            // -- an exploded jarfile in a directory declares the same classpath elements that the jarfile it was
             // exploded from declares
             for (final var childEntry : ClasspathExpander.childEntries(root, libDirPrefixes,
                     vfsSpec.isNestedJarsEnabled(), log)) {

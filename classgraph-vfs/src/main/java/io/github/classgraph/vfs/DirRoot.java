@@ -80,9 +80,9 @@ public final class DirRoot extends VfsRoot {
         if (!FileUtils.canReadAndIsDir(absoluteDir)) {
             throw new IOException("Not a readable directory: " + absoluteDir);
         }
-        // A root is named by the canonical path of the directory that backs it, the same way a jarfile root is named
-        // by the canonical path of its jarfile, so that a directory reached through a symlink or -- on Windows --
-        // through an 8.3 short name is recognized as the directory it really is, and read once
+        // A root is named by the canonical path of the directory that backs it, the same way a jarfile root is
+        // named by the canonical path of its jarfile, so that a directory reached through a symlink or -- on
+        // Windows -- through an 8.3 short name is recognized as the directory it really is, and read once
         this.dir = FileUtils.canonicalize(absoluteDir);
         try {
             this.pathStr = FileUtils.pathStr(this.dir);

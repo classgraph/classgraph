@@ -131,8 +131,8 @@ final class ClasspathElementZip extends ClasspathElement {
             return;
         }
 
-        // Schedule the child classpath elements in the order the classloader would look in them, since the classpath
-        // order determines which of two copies of the same class masks the other
+        // Schedule the child classpath elements in the order the classloader would look in them, since the
+        // classpath order determines which of two copies of the same class masks the other
         final var childScheduler = new ChildClasspathElementScheduler(workQueue, rawPath);
 
         // A package root within the jarfile is a classpath element in its own right, exactly as it is when the

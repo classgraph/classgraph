@@ -51,8 +51,8 @@ import org.jspecify.annotations.NullMarked;
 module io.github.classgraph.base {
     exports io.github.classgraph.base;
 
-    // The internal packages are the internals of ClassGraph. They are only exported to the modules that are built on
-    // top of this one, and they are not covered by the project's API compatibility guarantees.
+    // The internal packages are the internals of ClassGraph. They are only exported to the modules that are built
+    // on top of this one, and they are not covered by the project's API compatibility guarantees.
     exports io.github.classgraph.base.internal.concurrency to io.github.classgraph, io.github.classgraph.classpath,
             io.github.classgraph.vfs;
     exports io.github.classgraph.base.internal.path to io.github.classgraph, io.github.classgraph.classpath,

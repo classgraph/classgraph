@@ -338,7 +338,8 @@ public class SingletonMapTest {
         final var map = new TestMap(_ -> {
             throw new OutOfMemoryError("test");
         });
-        // How the failed call fails is checked by aVirtualMachineErrorIsRethrownAsItself; this test checks the retry
+        // How the failed call fails is checked by aVirtualMachineErrorIsRethrownAsItself;
+        // this test checks the retry
         assertThat(catchThrowable(() -> map.get("theKey"))).isNotNull();
         assertThat(map.map.get("theKey", () -> "value")).isEqualTo("value");
     }

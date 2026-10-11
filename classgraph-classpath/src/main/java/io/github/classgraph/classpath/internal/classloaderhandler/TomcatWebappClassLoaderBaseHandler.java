@@ -77,8 +77,8 @@ class TomcatWebappClassLoaderBaseHandler extends URLClassLoaderHandler {
         if (ReflectionUtils.invokeMethod(false, classLoader, "getDelegate") instanceof final Boolean delegate) {
             return delegate;
         }
-        // Assume Tomcat's default, delegate == false: look in the webapp before delegating to the parent (apart from
-        // the JDK and servlet API classes, which Catalina always delegates)
+        // Assume Tomcat's default, delegate == false: look in the webapp before delegating to the parent (apart
+        // from the JDK and servlet API classes, which Catalina always delegates)
         return false;
     }
 
@@ -189,8 +189,8 @@ class TomcatWebappClassLoaderBaseHandler extends URLClassLoaderHandler {
         }
         if (!webAppMount.equals(CLASSLOADER_RESOURCES_PATH)
                 && !CLASSLOADER_RESOURCES_PATH.startsWith(webAppMount + "/")) {
-            // A resource set mounted below "/WEB-INF/classes" is loaded from too, but with the rest of its mount as a
-            // prefix, e.g. "sub/x" for "x" mounted at "/WEB-INF/classes/sub", which a classpath element cannot
+            // A resource set mounted below "/WEB-INF/classes" is loaded from too, but with the rest of its mount as
+            // a prefix, e.g. "sub/x" for "x" mounted at "/WEB-INF/classes/sub", which a classpath element cannot
             // express
             if (log != null) {
                 log.log("Skipping " + base + ", which the webapp mounts at " + webAppMount + ", not at or above "

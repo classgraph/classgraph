@@ -351,8 +351,8 @@ public class ClasspathElementModuleTest {
     @Test
     public void aResourceInAModuleThatCannotBeReadFailsTheSameWayEveryTime() {
         final var moduleReadersOpened = new AtomicInteger();
-        // A virtual filesystem of this test's own, so that the readers it opens for the unreadable module are closed
-        // as soon as the test is over
+        // A virtual filesystem of this test's own, so that the readers it opens for the unreadable module are
+        // closed as soon as the test is over
         try (var vfs = new Vfs()) {
             final var classpathElement = new ClasspathElementModule(
                     unreadableModuleReference("unreadable.module", moduleReadersOpened), vfs,

@@ -110,8 +110,8 @@ public final class FileUtils {
             }
             if (path == null) {
                 // "user.dir" is one of the system properties that System#getProperties() guarantees, but an
-                // application can replace the system properties wholesale with a set that omits it. Fall back on the
-                // directory the JVM is running in.
+                // application can replace the system properties wholesale with a set that omits it. Fall back on
+                // the directory the JVM is running in.
                 try {
                     path = Path.of("");
                 } catch (final InvalidPathException _) {

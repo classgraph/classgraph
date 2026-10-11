@@ -445,8 +445,8 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
                 // once the suffix is stripped names the zipfile, which is a file of the default filesystem, not of
                 // the zip filesystem, so the Path is rebuilt with Path.of rather than with the Path's own
                 // filesystem. If the zipfile is itself inside another archive (a zip filesystem opened on a path in
-                // another zip filesystem), what is left ("/x/outer.jar!/app.war") names a nested archive, which is a
-                // file of no filesystem, so the entry degrades to that path string, which the scanner opens as a
+                // another zip filesystem), what is left ("/x/outer.jar!/app.war") names a nested archive, which is
+                // a file of no filesystem, so the entry degrades to that path string, which the scanner opens as a
                 // nested archive
                 if (pathElementStrWithoutSuffix.contains("!/")) {
                     pathElementWithoutSuffix = pathElementStrWithoutSuffix;
@@ -461,10 +461,10 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
                 // The resolved path of a URL or URI that names a local file has lost its "file:" or "jar:file:"
                 // scheme and its percent encoding, so the URL or URI is rebuilt from the path of the file, which
                 // Path#toUri() encodes again. (Parsing the resolved path as a URL or URI would give a URI with no
-                // scheme, a URL with a space in it that cannot be turned into a URI, or a URL that names a different
-                // file once the scanner decodes a "%" that had been encoded as "%25".) The "jar:" scheme is kept if
-                // the path is still nested inside an archive once the suffix has been stripped (a URI scheme is not
-                // case sensitive, so it may be spelled "JAR:")
+                // scheme, a URL with a space in it that cannot be turned into a URI, or a URL that names a
+                // different file once the scanner decodes a "%" that had been encoded as "%25".) The "jar:" scheme
+                // is kept if the path is still nested inside an archive once the suffix has been stripped (a URI
+                // scheme is not case sensitive, so it may be spelled "JAR:")
                 try {
                     var uri = Path.of(pathElementStrWithoutSuffix).toUri();
                     if (pathElement.toString().regionMatches(/* ignoreCase = */ true, 0, "jar:", 0, 4)
@@ -476,8 +476,8 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
                     pathElementWithoutSuffix = pathElementStrWithoutSuffix;
                 }
             } else {
-                // A URL or URI whose resolved path still has a URL scheme (such as "http:"), which keeps its percent
-                // encoding, so it can be parsed again
+                // A URL or URI whose resolved path still has a URL scheme (such as "http:"), which keeps its
+                // percent encoding, so it can be parsed again
                 try {
                     pathElementWithoutSuffix = pathElement instanceof URL ? new URL(pathElementStrWithoutSuffix)
                             : new URI(pathElementStrWithoutSuffix);

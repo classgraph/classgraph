@@ -350,7 +350,8 @@ public class EqualsAndHashCodeTest {
         final var firstAgain = classInfo(secondScanResult, Fields.class).getFieldInfo().get("first");
         assertThat(first).isEqualTo(first).isEqualTo(firstAgain).hasSameHashCodeAs(firstAgain);
 
-        // A different field of the same class, and a field of the same name in a different class, are both different
+        // A different field of the same class, and a field of
+        // the same name in a different class, are both different
         assertThat(first).isNotEqualTo(classInfo(scanResult, Fields.class).getFieldInfo().get("second"))
                 .isNotEqualTo(classInfo(scanResult, OtherFields.class).getFieldInfo().get("first"))
                 .isNotEqualTo("first");

@@ -933,10 +933,10 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
             classNameToClassInfo.put(className,
                     classInfo = new ClassInfo(className, classModifiers, classfileResource));
         } else {
-            // There was a previous placeholder ClassInfo added, because a class linked earlier referred to this one,
-            // for example as its superclass, an interface, an annotation, an enclosing class or a nested class. The
-            // isScannedClass field should be false in this case, since the actual class definition wasn't reached
-            // before now.
+            // There was a previous placeholder ClassInfo added, because a class linked earlier referred to this
+            // one, for example as its superclass, an interface, an annotation, an enclosing class or a nested
+            // class. The isScannedClass field should be false in this case, since the actual class definition
+            // wasn't reached before now.
             if (classInfo.isScannedClass) {
                 // The class should not have been scanned more than once, because of classpath masking
                 throw new IllegalArgumentException("Class " + className
@@ -1079,9 +1079,9 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
                     || includeAnnotations && classInfo.isAnnotation() //
                     || includeEnums && classInfo.isEnum() //
                     || includeRecords && classInfo.isRecord();
-            // A set that is traversed further keeps the external and rejected classes. A set that is returned to the
-            // caller keeps an external (non-accepted) class only if external classes were enabled, and never keeps
-            // a class that is rejected, or that is in a rejected package.
+            // A set that is traversed further keeps the external and rejected classes. A set that is returned to
+            // the caller keeps an external (non-accepted) class only if external classes were enabled, and never
+            // keeps a class that is rejected, or that is in a rejected package.
             final var acceptClass = !excludeExternalClasses || classInfo.isReported(scanSpec);
             if (includeType && acceptClass) {
                 // Class passed accept criteria
@@ -2214,18 +2214,18 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
                     if (!classInfo.isInterfaceOrAnnotation()) {
                         overrideOrder.add(classInfo);
                         // The superclass is pushed last, so that it and everything above it are searched before the
-                        // superinterfaces of this class, since methods of superclasses always have a higher priority
-                        // than methods of interfaces. Only the direct superinterfaces are pushed: the interfaces of
-                        // the superclasses are reached from the superclass, and the superinterfaces of the direct
-                        // superinterfaces are reached from those.
+                        // superinterfaces of this class, since methods of superclasses always have a higher
+                        // priority than methods of interfaces. Only the direct superinterfaces are pushed: the
+                        // interfaces of the superclasses are reached from the superclass, and the superinterfaces
+                        // of the direct superinterfaces are reached from those.
                         pushInReverseOrder(classInfo.relatedClasses.get(RelType.IMPLEMENTED_INTERFACES), stack);
                         final var superclass = classInfo.superclassIncludingExternal();
                         if (superclass != null) {
                             stack.push(superclass);
                         }
                     } else {
-                        // overrideOrder already contains all concrete classes now. This is an interface. If one of the
-                        // extended interfaces is already in the output, then this needs to be added before it.
+                        // overrideOrder already contains all concrete classes now. This is an interface. If one of
+                        // the extended interfaces is already in the output, then this needs to be added before it.
                         // Otherwise, this is unrelated to all collected ClassInfo so far and can simply be added to
                         // the result. The compiler should've prevented inheriting unrelated interfaces with methods
                         // having the same signature. Can still happen thanks to dynamically linking a different
@@ -3614,8 +3614,8 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
         for (final ClassInfo ci : getFieldOverrideOrder()) {
             final var declaredFieldInfo = ci.getDeclaredFieldInfo();
             for (final FieldInfo fi : declaredFieldInfo) {
-                // A field is hidden by a field of the same name in a class earlier in the override order, but not by
-                // a field of its own class: a class may declare two fields of the same name with different types
+                // A field is hidden by a field of the same name in a class earlier in the override order, but not
+                // by a field of its own class: a class may declare two fields of the same name with different types
                 if (!hidingFieldNames.contains(fi.getName())) {
                     fieldInfoList.add(fi);
                 }

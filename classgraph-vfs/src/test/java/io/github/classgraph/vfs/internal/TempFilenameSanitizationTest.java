@@ -132,9 +132,9 @@ class TempFilenameSanitizationTest {
      */
     private static String runChildJvm(final ProcessBuilder processBuilder)
             throws IOException, InterruptedException {
-        // The output goes to a file rather than a pipe, so that a child JVM that hangs cannot block the read, and the
-        // timeout still applies. The file is not put in the child JVM's temporary directory, which the tests check
-        // is left empty.
+        // The output goes to a file rather than a pipe, so that a child JVM that hangs cannot block the read, and
+        // the timeout still applies. The file is not put in the child JVM's temporary directory, which the tests
+        // check is left empty.
         final var outputFile = Files.createTempFile("child-jvm", ".out");
         try {
             final var process = processBuilder.redirectOutput(outputFile.toFile()).start();
