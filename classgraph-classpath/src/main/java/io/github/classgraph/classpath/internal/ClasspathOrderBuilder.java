@@ -439,8 +439,25 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
             // lost. If it cannot be rebuilt, it degrades to the path string, rather than being dropped entirely
             if (pathElement instanceof File) {
                 pathElementWithoutSuffix = new File(pathElementStrWithoutSuffix);
-            } else if (!(pathElement instanceof Path)
-                    && !URLPaths.startsWithURLScheme(pathElementStrWithoutSuffix)) {
+            } else if (pathElement instanceof Path) {
+                // A Path whose string form ends in a package root suffix is normally a path in a zip filesystem,
+                // whose string form is a "jar:" URI such as "jar:file:///x/app.war!/WEB-INF/classes". What is left
+                // once the suffix is stripped names the zipfile, which is a file of the default filesystem, not of
+                // the zip filesystem, so the Path is rebuilt with Path.of rather than with the Path's own
+                // filesystem. If the zipfile is itself inside another archive (a zip filesystem opened on a path in
+                // another zip filesystem), what is left ("/x/outer.jar!/app.war") names a nested archive, which is a
+                // file of no filesystem, so the entry degrades to that path string, which the scanner opens as a
+                // nested archive
+                if (pathElementStrWithoutSuffix.contains("!/")) {
+                    pathElementWithoutSuffix = pathElementStrWithoutSuffix;
+                } else {
+                    try {
+                        pathElementWithoutSuffix = Path.of(pathElementStrWithoutSuffix);
+                    } catch (final InvalidPathException e) {
+                        pathElementWithoutSuffix = pathElementStrWithoutSuffix;
+                    }
+                }
+            } else if (!URLPaths.startsWithURLScheme(pathElementStrWithoutSuffix)) {
                 // The resolved path of a URL or URI that names a local file has lost its "file:" or "jar:file:"
                 // scheme and its percent encoding, so the URL or URI is rebuilt from the path of the file, which
                 // Path#toUri() encodes again. (Parsing the resolved path as a URL or URI would give a URI with no
@@ -460,13 +477,12 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
                     pathElementWithoutSuffix = pathElementStrWithoutSuffix;
                 }
             } else {
-                // A Path, or a URL or URI whose resolved path still has a URL scheme (such as "http:"), which keeps
-                // its percent encoding, so it can be parsed again
+                // A URL or URI whose resolved path still has a URL scheme (such as "http:"), which keeps its percent
+                // encoding, so it can be parsed again
                 try {
                     pathElementWithoutSuffix = pathElement instanceof URL ? new URL(pathElementStrWithoutSuffix)
-                            : pathElement instanceof URI ? new URI(pathElementStrWithoutSuffix)
-                                    : Path.of(pathElementStrWithoutSuffix);
-                } catch (MalformedURLException | URISyntaxException | InvalidPathException e) {
+                            : new URI(pathElementStrWithoutSuffix);
+                } catch (MalformedURLException | URISyntaxException e) {
                     pathElementWithoutSuffix = pathElementStrWithoutSuffix;
                 }
             }

@@ -33,10 +33,12 @@ import static org.assertj.core.api.Assertions.tuple;
 
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Supplier;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -161,6 +163,42 @@ public class RegisteredHandlerPrefixesTest {
                             Resource::getPathRelativeToContainer)
                     .containsExactly(tuple("pkg/x.txt", "classes/", "classes/pkg/x.txt"),
                             tuple("pkg/y.txt", "classes/", "classes/pkg/y.txt"));
+        }
+    }
+
+    /**
+     * A handler that names the package root of a war as a {@link Path} in a zip filesystem, such as
+     * {@code /WEB-INF/classes} of {@code app.war}, has that package root scanned, whether the war is a file of the
+     * default filesystem or is itself inside another jarfile. A declared package root at the end of a classpath
+     * element is stripped off, and what is left names the war, which is not a path in the zip filesystem the
+     * handler's {@link Path} belongs to.
+     *
+     * @param nested
+     *            whether the war is inside another jarfile.
+     */
+    @ParameterizedTest
+    @ValueSource(booleans = { false, true })
+    public void aPackageRootNamedByAPathInAZipFilesystemIsScanned(final boolean nested, @TempDir final Path tempDir)
+            throws IOException {
+        final var outerPath = tempDir.resolve(nested ? "outer.jar" : "app.war");
+        try (var outerFs = FileSystems.newFileSystem(outerPath, Map.of("create", "true"))) {
+            if (nested) {
+                try (var warFs = FileSystems.newFileSystem(outerFs.getPath("/app.war"), Map.of("create", "true"))) {
+                    writeFile(warFs.getPath("/WEB-INF/classes/pkg/x.txt"));
+                }
+            } else {
+                writeFile(outerFs.getPath("/WEB-INF/classes/pkg/x.txt"));
+            }
+        }
+
+        try (var outerFs = FileSystems.newFileSystem(outerPath);
+                var warFs = nested ? FileSystems.newFileSystem(outerFs.getPath("/app.war")) : outerFs;
+                var scanResult = new ClassGraph()
+                        .enableClassLoaders(new ListedClassLoader(warFs.getPath("/WEB-INF/classes")))
+                        .registerClassLoaderHandler(new ListedClassLoaderHandler(() -> List.of("WEB-INF/classes/")))
+                        .scan()) {
+            assertThat(scanResult.getAllResources()).extracting(Resource::getPath, Resource::getPackageRootPrefix)
+                    .containsExactly(tuple("pkg/x.txt", "WEB-INF/classes/"));
         }
     }
 
