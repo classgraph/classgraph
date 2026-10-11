@@ -248,7 +248,8 @@ public final class GraphVizDotFile {
 
     /**
      * Append the start of the HTML label of a class node: the shape and color of the node's box, and the class'
-     * modifiers and kind, its package name, and its name relative to the package.
+     * modifiers and kind, its package name, and its name relative to the package, followed by the given type
+     * parameters.
      *
      * @param ci
      *            the class info
@@ -259,11 +260,13 @@ public final class GraphVizDotFile {
      * @param packageNameSuffix
      *            the text to append after the package name, i.e. "." to run the package name into the class name on
      *            the line below it, or "" to show the package name on its own
+     * @param typeParameters
+     *            the type parameters to show after the class name, such as {@code <E extends Entity>}, or ""
      * @param buf
      *            the buffer to append to
      */
     private static void appendClassNodeLabelHeader(final ClassInfo ci, final String shape, final String boxBgColor,
-            final String packageNameSuffix, final StringBuilder buf) {
+            final String packageNameSuffix, final String typeParameters, final StringBuilder buf) {
         buf.append("[shape=").append(shape).append(",style=filled,fillcolor=\"#").append(boxBgColor)
                 .append("\",label=");
         buf.append('<');
@@ -296,10 +299,38 @@ public final class GraphVizDotFile {
         }
 
         // Class name, relative to the package, so that two nested classes with the same simple name get different
-        // labels
+        // labels, followed by the type parameters of the class
         buf.append("<tr><td><font point-size='20'><b>");
-        htmlEncode(packageName.isEmpty() ? ci.getName() : ci.getName().substring(packageName.length() + 1), buf);
+        htmlEncode((packageName.isEmpty() ? ci.getName() : ci.getName().substring(packageName.length() + 1))
+                + typeParameters, buf);
         buf.append("</b></font></td></tr>");
+    }
+
+    /**
+     * Get the type parameters of a class or method as they are declared, such as
+     * {@code <K, V extends Comparable<V>>}.
+     *
+     * @param typeParameters
+     *            the type parameters
+     * @param useSimpleNames
+     *            whether to show the simple names of the classes in the bounds, rather than their fully qualified
+     *            names
+     * @return the type parameters in angle brackets, or "" if there are none
+     */
+    private static String typeParametersToString(final List<TypeParameter> typeParameters,
+            final boolean useSimpleNames) {
+        if (typeParameters.isEmpty()) {
+            return "";
+        }
+        final var buf = new StringBuilder("<");
+        for (var i = 0; i < typeParameters.size(); i++) {
+            if (i > 0) {
+                buf.append(", ");
+            }
+            final var typeParameter = typeParameters.get(i);
+            buf.append(useSimpleNames ? typeParameter.toStringWithSimpleNames() : typeParameter.toString());
+        }
+        return buf.append('>').toString();
     }
 
     /**
@@ -639,21 +670,11 @@ public final class GraphVizDotFile {
             }
 
             // Method type parameters -- a constructor can have them too
-            final List<TypeParameter> typeParameters = methodType == null ? List.of()
-                    : methodType.getTypeParameters();
-            if (!typeParameters.isEmpty()) {
-                final var typeParametersStr = new StringBuilder("<");
-                for (var i = 0; i < typeParameters.size(); i++) {
-                    if (i > 0) {
-                        typeParametersStr.append(", ");
-                    }
-                    final var typeParameter = typeParameters.get(i);
-                    typeParametersStr.append(options.useSimpleNames ? typeParameter.toStringWithSimpleNames()
-                            : typeParameter.toString());
-                }
-                typeParametersStr.append('>');
+            final var typeParametersStr = typeParametersToString(
+                    methodType == null ? List.of() : methodType.getTypeParameters(), options.useSimpleNames);
+            if (!typeParametersStr.isEmpty()) {
                 appendSpaceIfNeeded(buf);
-                htmlEncode(typeParametersStr.toString(), buf);
+                htmlEncode(typeParametersStr, buf);
             }
 
             // Method return type -- constructors have none
@@ -704,7 +725,8 @@ public final class GraphVizDotFile {
      */
     private static void labelClassNodeHTML(final ScanResult scanResult, final ClassInfo ci, final String shape,
             final String boxBgColor, final GraphVizDotFileOptions options, final StringBuilder buf) {
-        appendClassNodeLabelHeader(ci, shape, boxBgColor, /* packageNameSuffix = */ ".", buf);
+        appendClassNodeLabelHeader(ci, shape, boxBgColor, /* packageNameSuffix = */ ".", typeParametersToString(
+                ci.getTypeSignatureOrTypeDescriptor().getTypeParameters(), options.useSimpleNames), buf);
 
         final var darkerColor = darkerColor(boxBgColor);
 
@@ -1291,7 +1313,7 @@ public final class GraphVizDotFile {
             appendClassNodeLabelHeader(ci, ci.isAnnotation() ? "oval" : ci.isInterface() ? "diamond" : "box",
                     ci.isAnnotation() ? ANNOTATION_COLOR
                             : ci.isInterface() ? INTERFACE_COLOR : STANDARD_CLASS_COLOR,
-                    /* packageNameSuffix = */ "", buf);
+                    /* packageNameSuffix = */ "", /* typeParameters = */ "", buf);
             buf.append("</table>");
             buf.append(">];\n");
         }

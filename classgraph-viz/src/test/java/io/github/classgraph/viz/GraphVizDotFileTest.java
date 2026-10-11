@@ -1398,6 +1398,22 @@ public class GraphVizDotFileTest {
     }
 
     /**
+     * The name of a generic class in its class node is followed by the type parameters of the class, as they are
+     * declared, with the type names shown as the options ask.
+     */
+    @Test
+    public void classTypeParametersAreShownAfterTheClassName() {
+        assertThat(node(memberTypeGraph(new GraphVizDotFileOptions()), Generic.class.getName()))
+                .contains("<b>GraphVizDotFileTest$Generic&lt;E extends Entity&gt;</b>");
+        assertThat(node(memberTypeGraph(new GraphVizDotFileOptions().useFullyQualifiedNames()),
+                Generic.class.getName()))
+                .contains("<b>GraphVizDotFileTest$Generic&lt;E extends " + FIXTURE + "Entity&gt;</b>");
+        // A class with no type parameters is labeled with its name alone
+        assertThat(node(memberTypeGraph(new GraphVizDotFileOptions()), Holder.class.getName()))
+                .contains("<b>GraphVizDotFileTest$Holder</b>");
+    }
+
+    /**
      * The first row of a class node gives the modifiers and the kind of the class, with no space before or after
      * them, and a class with no modifiers is labeled with its kind alone.
      */
