@@ -41,10 +41,13 @@ import org.jspecify.annotations.Nullable;
  * reads through {@link #byteBuffer}, and only the owning slice may release it.
  *
  * <p>
- * The file is mapped through a shared {@link Arena}, so that closing the arena unmaps the file the moment the
- * owning slice is closed, and makes a thread that is still reading it throw {@link IllegalStateException} rather
- * than read memory that is no longer there. The garbage collector cannot release a mapping in a shared arena: only
- * closing the arena does.
+ * The file is mapped through a shared {@link Arena}, so that the owning slice can unmap the file as it closes, by
+ * closing the arena, and a thread that reads the mapping after that throws {@link IllegalStateException} rather
+ * than read memory that is no longer there. If another thread is in the middle of an access to the mapping when the
+ * arena is closed, such as one bulk copy out of it, the close waits for that access to finish, the access then
+ * throws {@link IllegalStateException} instead of returning, and only then is the file unmapped -- so a close can
+ * take as long as that access takes. The garbage collector cannot release a mapping in a shared arena: only closing
+ * the arena does.
  *
  * <p>
  * Unmapping needs no class that mapping did not already load: this class is loaded by {@link #map}, and closing an
@@ -155,8 +158,9 @@ final class FileMapping {
      * {@link Slice} that owns the mapping, once, as it closes.
      *
      * <p>
-     * This unmaps the file even if another thread is still reading it: that read throws
-     * {@link IllegalStateException}, which the readers translate into {@link IOException}. Closing a
+     * This unmaps the file even if another thread is still reading it: if that thread is in the middle of an access
+     * to the mapping, this waits for the access to finish, and the access then throws {@link IllegalStateException}
+     * instead of returning, which the readers translate into {@link IOException}. Closing a
      * {@link io.github.classgraph.vfs.Vfs} while another thread is reading through it is a use-after-close either
      * way, and is documented as one.
      *
@@ -170,7 +174,8 @@ final class FileMapping {
 
     /**
      * Close an arena, unmapping any file mapped with it. A thread that is still reading the mapping does not stop
-     * the arena from closing: its read throws {@link IllegalStateException} instead.
+     * the arena from closing: if it is in the middle of an access to the mapping, the close waits for that access
+     * to finish, and the access then throws {@link IllegalStateException} instead of returning.
      *
      * @param arena
      *            the arena to close.

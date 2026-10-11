@@ -1185,9 +1185,11 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
      * the root releases what it owns -- so that nothing the caller left open can hold a memory mapping or a file
      * handle open past this close, and every file this root mapped is unmapped, and every temporary file it created
      * deleted, before this returns, except a file whose mapping is still in use by an I/O operation in another
-     * thread as this runs, which stays mapped until the JVM exits -- see {@link Vfs#close()}. A
-     * {@link java.nio.ByteBuffer} reference taken from such a wrapper before the close is not revoked by it, and
-     * reading through one afterwards is undefined; see {@link CloseableByteBuffer#getByteBuffer()}.
+     * thread as this runs, which stays mapped until the JVM exits -- see {@link Vfs#close()}. If another thread is
+     * in the middle of copying from a file that this root mapped, this waits for that copy to finish before it
+     * unmaps the file. A {@link java.nio.ByteBuffer} reference taken from such a wrapper before the close is not
+     * revoked by it, and reading through one afterwards is undefined; see
+     * {@link CloseableByteBuffer#getByteBuffer()}.
      *
      * <p>
      * A channel from {@link VfsEntry#openChannel()} reads one of those streams, so this closes the stream, and
