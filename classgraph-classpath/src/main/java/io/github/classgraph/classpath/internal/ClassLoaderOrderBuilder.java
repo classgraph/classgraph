@@ -91,7 +91,10 @@ public class ClassLoaderOrderBuilder implements ClassLoaderOrder {
             new IdentityHashMap<>();
 
     /**
-     * A {@link ClassLoader} in the order, with the handlers to run for it.
+     * A {@link ClassLoader} in the order, with the handlers to run for it. The generated {@code equals} and
+     * {@code hashCode} compare the classloader with {@link Object#equals}, which is not identity for every
+     * classloader (see the note on {@link ClassLoaderOrderBuilder#added}), so instances must not be compared or
+     * used as map keys.
      *
      * @param classLoader
      *            the classloader.
