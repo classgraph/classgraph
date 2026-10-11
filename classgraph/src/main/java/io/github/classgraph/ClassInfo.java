@@ -107,6 +107,12 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     private boolean isRecord;
 
     /**
+     * The names of the record components, in declaration order, or null if the class is not a record or its
+     * {@code Record} attribute is malformed.
+     */
+    private @Nullable List<String> recordComponentNames;
+
+    /**
      * This annotation has the {@link Inherited} meta-annotation, which means that any class that this annotation is
      * applied to also implicitly causes the annotation to annotate all subclasses too.
      */
@@ -625,6 +631,17 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
         if (isRecord) {
             this.isRecord = isRecord;
         }
+    }
+
+    /**
+     * Set the names of the record components.
+     *
+     * @param recordComponentNames
+     *            the names of the record components, in declaration order, or null if the class is not a record or
+     *            its {@code Record} attribute is malformed
+     */
+    void setRecordComponentNames(final @Nullable List<String> recordComponentNames) {
+        this.recordComponentNames = recordComponentNames;
     }
 
     /**
@@ -4423,10 +4440,12 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      * nothing if this class is not a record.
      *
      * <p>
-     * The record components are the instance fields of the record, in declaration order. (A record may also declare
-     * static fields, which are not components.) If field info was not enabled during the scan, or the component
-     * fields were not visible to the scan, then no component is known, and the whole component list is omitted
-     * rather than rendered empty, since an empty list would wrongly state that the record has no components.
+     * The record components are listed in declaration order, which is the order of the record's {@code Record}
+     * attribute, and each is rendered from the instance field of the same name, which gives its type. (A record may
+     * also declare static fields, which are not components.) If the {@code Record} attribute was malformed, field
+     * info was not enabled during the scan, or the field of a component was not visible to the scan, then the whole
+     * component list is omitted rather than rendered with components missing, since that would wrongly state which
+     * components the record has.
      *
      * @param useSimpleNames
      *            if true, strip package and outer class names from class names
@@ -4434,30 +4453,34 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      *            the buffer to append to
      */
     void appendRecordComponents(final boolean useSimpleNames, final StringBuilder buf) {
-        final var fields = fieldInfo;
-        if (!isRecord || fields == null) {
+        final var componentNames = recordComponentNames;
+        // A class with no fields has no field list, so a record with no components is still listed as "()"
+        final var fields = fieldInfo == null ? FieldInfoList.EMPTY_LIST : fieldInfo;
+        if (!isRecord || componentNames == null) {
             return;
         }
-        final var componentListStartPos = buf.length();
-        buf.append('(');
-        var isFirstComponent = true;
-        for (final FieldInfo field : fields) {
-            if (field.isStatic()) {
-                continue;
+        final List<FieldInfo> componentFields = new ArrayList<>(componentNames.size());
+        for (final String componentName : componentNames) {
+            FieldInfo componentField = null;
+            for (final FieldInfo field : fields) {
+                if (!field.isStatic() && field.getName().equals(componentName)) {
+                    componentField = field;
+                    break;
+                }
             }
-            if (isFirstComponent) {
-                isFirstComponent = false;
-            } else {
+            if (componentField == null) {
+                return;
+            }
+            componentFields.add(componentField);
+        }
+        buf.append('(');
+        for (var i = 0; i < componentFields.size(); i++) {
+            if (i > 0) {
                 buf.append(", ");
             }
-            field.toString(/* includeModifiers = */ false, useSimpleNames, buf);
+            componentFields.get(i).toString(/* includeModifiers = */ false, useSimpleNames, buf);
         }
-        if (isFirstComponent) {
-            // No component was rendered -- drop the component list rather than rendering "()"
-            buf.setLength(componentListStartPos);
-        } else {
-            buf.append(')');
-        }
+        buf.append(')');
     }
 
     /**

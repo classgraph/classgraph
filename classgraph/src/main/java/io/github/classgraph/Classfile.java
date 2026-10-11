@@ -108,6 +108,12 @@ class Classfile {
     /** Whether this class is a record. */
     private boolean isRecord;
 
+    /**
+     * The names of the record components, in declaration order, or null if this class is not a record or its
+     * {@code Record} attribute is malformed.
+     */
+    private @Nullable List<String> recordComponentNames;
+
     /** Whether this class is an annotation. */
     private boolean isAnnotation;
 
@@ -713,6 +719,7 @@ class Classfile {
                 classNameToClassInfo, classpathElement, classfileResource);
         classInfo.setClassfileVersion(minorVersion, majorVersion);
         classInfo.setIsRecord(isRecord);
+        classInfo.setRecordComponentNames(recordComponentNames);
         classInfo.setSourceFile(sourceFile);
         // Every call below that creates or links a ClassInfo for another class must be passed linkedClassNameMap,
         // which records the names of those classes, so that the class containment entries for them are linked
@@ -1671,6 +1678,10 @@ class Classfile {
      * past its {@code attribute_length}, such as when the number of annotations is larger than the attribute holds.
      * The class is rejected only if the attribute's {@code attribute_length} runs past the end of the classfile,
      * since the JVM rejects it too.
+     *
+     * <p>
+     * A {@code Record} attribute is read in the same way. Only the order of the record components is read from it,
+     * so if it is malformed, only that order is lost.
      *
      * @param <T>
      *            the type of what is read from the attribute
@@ -2656,10 +2667,11 @@ class Classfile {
                         classTypeAnnotations, this::readClassTypeAnnotations);
             } else if (constantPoolStringEquals(attributeNameCpIdx, "Record")) {
                 isRecord = true;
-                // No need to read record_components_info entries -- there is a 1:1 correspondence between record
-                // components and fields/methods of the same name and type as the record component, so we can just
-                // rely on the field and method reading code to work correctly with records.
-                reader().skip(attributeLength);
+                // Each record component has a field and an accessor method of the same name and type, which are
+                // read with the other fields and methods. Only the components' names are read here, since the
+                // order of the fields in a classfile is not specified, and the fields are sorted by name.
+                recordComponentNames = readAnnotationAttribute(attributeNameCpIdx, attributeLength, "the class",
+                        null, earlier -> readRecordComponentNames());
             } else if (constantPoolStringEquals(attributeNameCpIdx, "InnerClasses")) {
                 readInnerClassesAttribute();
             } else if (constantPoolStringEquals(attributeNameCpIdx, "Signature")) {
@@ -2679,6 +2691,30 @@ class Classfile {
                 reader().skip(attributeLength);
             }
         }
+    }
+
+    /**
+     * Read the names of the record components from the {@code record_components_info} entries of the class'
+     * {@code Record} attribute (JVMS 4.7.30).
+     *
+     * @return the names of the record components, in declaration order.
+     * @throws IOException
+     *             if an I/O exception occurs, or the attribute is malformed.
+     */
+    private List<String> readRecordComponentNames() throws IOException {
+        final var componentsCount = reader().readUnsignedShort();
+        final List<String> componentNames = new ArrayList<>(componentsCount);
+        for (var i = 0; i < componentsCount; i++) {
+            componentNames.add(requireConstantPoolString(getConstantPoolString(reader().readUnsignedShort()),
+                    "record component name"));
+            reader().skip(2); // descriptor_index
+            final var componentAttributesCount = reader().readUnsignedShort();
+            for (var j = 0; j < componentAttributesCount; j++) {
+                reader().skip(2); // attribute_name_index
+                reader().skip(reader().readInt()); // attribute_length, then the attribute's contents
+            }
+        }
+        return componentNames;
     }
 
     /**
