@@ -442,7 +442,7 @@ class Scanner {
      * @throws IOException
      *             if the classpath entry object could not be normalized.
      */
-    private static Object normalizeClasspathEntry(final Object classpathEntryObj) throws IOException {
+    private Object normalizeClasspathEntry(final Object classpathEntryObj) throws IOException {
         var classpathEntryObjNormalized = classpathEntryObj;
 
         // Convert URL/URI (or anything other than URL/URI, or Path) into a String. Paths.get fails with
@@ -481,8 +481,8 @@ class Scanner {
         }
         // At this point, classpathEntryObjNormalized is either a Path wherever possible (where the classpath entry
         // pointed to a jarfile or directory) or a URL/URI (for multi-section "jar:" URLs with "!" separators,
-        // custom URL schemes without backing filesystems, or URLs that can't be turned into a Path for any other
-        // reason).
+        // custom URL schemes without backing filesystems, denied URL schemes, or URLs that can't be turned into a
+        // Path for any other reason).
 
         // Canonicalize Path objects so the same file is opened only once
         if (classpathEntryObjNormalized instanceof final Path normalizedPath) {
@@ -495,7 +495,10 @@ class Scanner {
     /**
      * Convert a classpath entry string that has a URL scheme, or that is a multi-section path containing one or
      * more {@code '!'} nested jar separators, to a {@link Path} if it names a file or directory that the
-     * {@link Path} API can reach, and to a {@link URL} or {@link URI} otherwise.
+     * {@link Path} API can reach, and to a {@link URL} or {@link URI} otherwise. A URL or URI whose scheme is http,
+     * https or a scheme denied by {@link io.github.classgraph.vfs.VfsSpec#denyURLScheme(String)} is never looked up
+     * as a {@link Path}, even if a filesystem provider is installed for its scheme, so that it is opened as a
+     * jarfile at that URL or URI, and opening it refuses a denied scheme.
      *
      * @param classpathEntryStr
      *            the classpath entry string, after resolution by {@link FastPathResolver}.
@@ -511,7 +514,7 @@ class Scanner {
     // new URL(String) is deprecated from JDK 20, but it accepts URLs that new URI(String) rejects (such as one
     // containing a space), and the URI form is only the fallback here
     @SuppressWarnings("deprecation")
-    private static Object normalizeUrlFormattedClasspathEntry(final String classpathEntryStr, final boolean isURL,
+    private Object normalizeUrlFormattedClasspathEntry(final String classpathEntryStr, final boolean isURL,
             final boolean isMultiSection) throws IOException {
         Object classpathEntryObjNormalized = classpathEntryStr;
 
@@ -539,8 +542,7 @@ class Scanner {
             // If this is not a multi-section URL, try converting URL to a Path
             if (!isMultiSection) {
                 try {
-                    final var scheme = classpathEntryURL.getProtocol();
-                    if (!"http".equals(scheme) && !"https".equals(scheme)) {
+                    if (mayLookUpAsPath(classpathEntryURL.getProtocol())) {
                         final var classpathEntryURI = classpathEntryURL.toURI();
                         // See if the URL resolves to a file or directory via the Path API
                         classpathEntryObjNormalized = Path.of(classpathEntryURI);
@@ -548,7 +550,7 @@ class Scanner {
                 } catch (final URISyntaxException | IllegalArgumentException | FileSystemNotFoundException _) {
                     // This is a custom URL scheme without a backing FileSystem
                 }
-            } // else this is a remote jar URL
+            } // else this is a multi-section "jar:" URL, which names a path within a jarfile
 
         } catch (final MalformedURLException e) {
             // Try creating URI if URL creation fails, in case there is a URI-only scheme
@@ -556,11 +558,10 @@ class Scanner {
                 final var classpathEntryURI = new URI(classpathEntStr);
                 classpathEntryObjNormalized = classpathEntryURI;
 
-                final var scheme = classpathEntryURI.getScheme();
-                if (!"http".equals(scheme) && !"https".equals(scheme)) {
+                if (mayLookUpAsPath(classpathEntryURI.getScheme())) {
                     // See if the URI resolves to a file or directory via the Path API
                     classpathEntryObjNormalized = Path.of(classpathEntryURI);
-                } // else this is a remote jar URI
+                } // else this is a remote jar URI, or one with a denied scheme
 
             } catch (final URISyntaxException e1) {
                 // Both attempts failed, so both are recorded: e1 as the cause, since it is the one that says
@@ -575,6 +576,21 @@ class Scanner {
             }
         }
         return classpathEntryObjNormalized;
+    }
+
+    /**
+     * Whether a classpath entry URL or URI with the given scheme may be looked up as a {@link Path}. An http or
+     * https URL names a jarfile to download, and a denied scheme has to stay a URL so that opening it refuses it,
+     * since a {@link Path} is read through its filesystem provider without the scheme being checked.
+     *
+     * @param scheme
+     *            the URL or URI scheme.
+     * @return true if the URL or URI may be looked up as a {@link Path}.
+     */
+    private boolean mayLookUpAsPath(final String scheme) {
+        final var lowercaseScheme = scheme.toLowerCase(Locale.ROOT);
+        return !"http".equals(lowercaseScheme) && !"https".equals(lowercaseScheme)
+                && !vfs.getVfsSpec().getDeniedURLSchemes().contains(lowercaseScheme);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -600,7 +616,7 @@ class Scanner {
      */
     private static boolean classpathEntryIsJar(final Object classpathEntryObj) throws IOException {
         if (classpathEntryObj instanceof URL || classpathEntryObj instanceof URI) {
-            // URLs and URIs always point to jars
+            // A URL or URI that normalization did not turn into a Path is opened as a jarfile at that URL or URI
             return true;
         }
         if (!(classpathEntryObj instanceof final Path path)) {

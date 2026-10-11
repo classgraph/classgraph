@@ -2,12 +2,19 @@ package io.github.classgraph;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
+import java.nio.file.FileSystem;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+
+import com.google.common.jimfs.Jimfs;
 
 import io.github.classgraph.features.CustomURLScheme;
 
@@ -77,6 +84,78 @@ class URLSchemeDenyTest {
         try (var scanResult = new ClassGraph().denyURLScheme(CustomURLScheme.SCHEME)
                 .enableClasspathEntries((Object) customSchemeJarURL()).scan()) {
             assertThat(scanResult.getAllResources().getPaths()).isEmpty();
+        }
+    }
+
+    /**
+     * Copy a resource of the test classpath into a filesystem.
+     *
+     * @param resourcePath
+     *            the path of the resource.
+     * @param target
+     *            the path to copy it to.
+     * @return the target path.
+     * @throws IOException
+     *             if the resource could not be copied.
+     * @throws URISyntaxException
+     *             if the resource's URL is not a valid URI.
+     */
+    private static Path copyResource(final String resourcePath, final Path target)
+            throws IOException, URISyntaxException {
+        Files.createDirectories(target.getParent());
+        return Files.copy(Path.of(URLSchemeDenyTest.class.getClassLoader().getResource(resourcePath).toURI()),
+                target);
+    }
+
+    /**
+     * Scan one classpath entry for one class.
+     *
+     * @param classpathEntry
+     *            the classpath entry.
+     * @param className
+     *            the name of the class.
+     * @param denyJimfs
+     *            whether to deny the "jimfs" scheme.
+     * @return whether the class was found.
+     */
+    private static boolean classIsFound(final Object classpathEntry, final String className,
+            final boolean denyJimfs) {
+        final var classGraph = new ClassGraph().enableClasspathEntries(classpathEntry).enableClassInfo()
+                .ignoreClassVisibility();
+        if (denyJimfs) {
+            classGraph.denyURLScheme("jimfs");
+        }
+        try (var scanResult = classGraph.scan()) {
+            return scanResult.getClassInfo(className) != null;
+        }
+    }
+
+    /**
+     * A jarfile or a directory that an installed filesystem provider serves under a denied scheme is not read when
+     * it is named by a URL or a URI, just as it is not read when no filesystem provider serves the scheme.
+     *
+     * @throws IOException
+     *             if the test files could not be written.
+     * @throws URISyntaxException
+     *             if a resource's URL is not a valid URI.
+     */
+    @Test
+    void aDeniedSchemeThatAFilesystemProviderServesIsNotRead() throws IOException, URISyntaxException {
+        try (FileSystem memFs = Jimfs.newFileSystem()) {
+            final var jarURI = copyResource("multi-release-jar.jar", memFs.getPath("/lib/multi-release-jar.jar"))
+                    .toUri();
+            final var classFile = "io/github/classgraph/issues/issue146/CompiledWithJDK8.class";
+            copyResource(classFile, memFs.getPath("/classes/" + classFile));
+            final var dirURI = memFs.getPath("/classes").toUri();
+            final var dirClassName = "io.github.classgraph.issues.issue146.CompiledWithJDK8";
+            for (final Object jarEntry : new Object[] { jarURI, jarURI.toURL(), jarURI.toString() }) {
+                assertThat(classIsFound(jarEntry, "mrj.Cls", false)).as("allowed: %s", jarEntry).isTrue();
+                assertThat(classIsFound(jarEntry, "mrj.Cls", true)).as("denied: %s", jarEntry).isFalse();
+            }
+            for (final Object dirEntry : new Object[] { dirURI, dirURI.toURL(), dirURI.toString() }) {
+                assertThat(classIsFound(dirEntry, dirClassName, false)).as("allowed: %s", dirEntry).isTrue();
+                assertThat(classIsFound(dirEntry, dirClassName, true)).as("denied: %s", dirEntry).isFalse();
+            }
         }
     }
 }
