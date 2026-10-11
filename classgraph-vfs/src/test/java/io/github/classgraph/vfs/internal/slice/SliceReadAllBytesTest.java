@@ -123,9 +123,9 @@ public class SliceReadAllBytesTest {
     }
 
     /**
-     * A length that is too large to fit in an array is rejected before the array is allocated, so that a zipfile
-     * cannot make the reader run out of memory just by claiming an entry is enormous. The stream is still closed,
-     * since the caller has handed it over: for a deflated zip entry, closing it is what returns its inflater.
+     * A length that is too large to fit in an array is rejected before anything is read, rather than after
+     * inflating up to 2GB of content that cannot be returned. The stream is still closed, since the caller has
+     * handed it over: for a deflated zip entry, closing it is what returns its inflater.
      */
     @Test
     public void aLengthThatIsTooLargeToFitInAnArrayIsRejected() {
