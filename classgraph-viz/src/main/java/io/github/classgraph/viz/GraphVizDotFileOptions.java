@@ -265,7 +265,10 @@ public final class GraphVizDotFileOptions {
      * <p>
      * Each class, interface or annotation is joined by one edge (with a filled dot) to each annotation directly on
      * it, and by one edge (with a hollow dot) to each annotation directly on any of its fields, methods,
-     * constructors or method parameters, if the annotation has a node in the graph.
+     * constructors or method parameters, if the annotation has a node in the graph. As for the edges to the types
+     * of members, the members that are not listed in a class node -- {@code serialVersionUID}, {@code hashCode()},
+     * {@code toString()}, {@code equals(Object)}, and the members and parameters that the compiler generated -- are
+     * skipped.
      *
      * @return this {@link GraphVizDotFileOptions}, for method chaining.
      */
