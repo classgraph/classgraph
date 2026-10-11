@@ -167,8 +167,8 @@ final class URLClassPathReader {
 
             // A JDK that reads JAR indexes (META-INF/INDEX.LIST: JDK 17, or JDK 18 to 20 with the system property
             // jdk.net.URLClassPath.enableJarIndex set; JDK 21 removed them) also puts in lmap each jar that the
-            // index of an opened jar lists, but never adds it to loaders. Its value is null until a lookup opens the
-            // jar, and is the jar's loader after that. Add these jars after the loaders: by the base URL of the
+            // index of an opened jar lists, but never adds it to loaders. Its value is null until a lookup opens
+            // the jar, and is the jar's loader after that. Add these jars after the loaders: by the base URL of the
             // loader, or, for a jar that is not open yet, by parsing its key as a URL. When a lookup opens one of
             // these jars, the JDK writes its entry without holding any monitor, so a concurrent lookup can make
             // reading lmap fail; then these jars are left out.

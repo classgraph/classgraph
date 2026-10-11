@@ -86,10 +86,10 @@ class SimpleThreadFactory implements ThreadFactory {
         }
         // Use the current thread's ThreadGroup as the fallback, as java.util.concurrent.Executors'
         // defaultThreadFactory does. On JDK 18 and earlier, allocating a new ThreadGroup per thread leaks: a
-        // ThreadGroup registers itself with its parent on construction, and a non-daemon ThreadGroup is unregistered
-        // only when it is explicitly destroyed, so one ThreadGroup (plus its Thread[] array) accumulated per created
-        // thread and stayed reachable from the parent group forever. (#931) On JDK 19 and later, a parent holds its
-        // subgroups weakly, so a new ThreadGroup per thread would no longer leak.
+        // ThreadGroup registers itself with its parent on construction, and a non-daemon ThreadGroup is
+        // unregistered only when it is explicitly destroyed, so one ThreadGroup (plus its Thread[] array)
+        // accumulated per created thread and stayed reachable from the parent group forever. (#931) On JDK 19 and
+        // later, a parent holds its subgroups weakly, so a new ThreadGroup per thread would no longer leak.
         final Thread thread = new Thread(
                 securityManagerThreadGroup != null ? securityManagerThreadGroup
                         : Thread.currentThread().getThreadGroup(),

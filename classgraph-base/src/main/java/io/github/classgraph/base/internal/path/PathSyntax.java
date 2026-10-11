@@ -243,8 +243,8 @@ public final class PathSyntax {
                 if (segmentLength > 0) {
                     sectionHasSegment = true;
                 }
-                // Found a last section, after a nested jar separator, with no segments, as in a trailing "!" or "!/".
-                // An earlier section with no segments, as in "!/!/", ends in an empty segment, found above
+                // Found a last section, after a nested jar separator, with no segments, as in a trailing "!" or
+                // "!/". An earlier section with no segments, as in "!/!/", ends in an empty segment, found above
                 if (atEnd && !inFirstSection && !sectionHasSegment) {
                     return true;
                 }

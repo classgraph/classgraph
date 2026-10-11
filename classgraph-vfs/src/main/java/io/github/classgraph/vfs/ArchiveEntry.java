@@ -95,8 +95,8 @@ final class ArchiveEntry extends VfsEntry {
 
     @Override
     public long getCompressedSize() {
-        // A compressed size that runs past the end of the zipfile is not the number of bytes the entry occupies, and
-        // RandomAccessOrSequentialReader decides from this whether to believe the uncompressed size the entry
+        // A compressed size that runs past the end of the zipfile is not the number of bytes the entry occupies,
+        // and RandomAccessOrSequentialReader decides from this whether to believe the uncompressed size the entry
         // declares, so a corrupt compressed size must not let a few bytes declare megabytes
         return zipEntry.getCompressedSizeWithinZipfile();
     }

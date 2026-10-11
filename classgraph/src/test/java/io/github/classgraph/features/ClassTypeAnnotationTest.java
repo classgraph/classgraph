@@ -94,8 +94,9 @@ class ClassTypeAnnotationTest {
                 .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
                 .ignoreMethodVisibility().scan()) {
 
-            // Type with annotations should be rendered by toString() as Y<T> extends ClassTypeAnnotationTest$@X Z and
-            // not Y<T> extends @X ClassTypeAnnotationTest$Z because the annotation is on Z, not ClassTypeAnnotationTest
+            // Type with annotations should be rendered by toString() as Y<T> extends ClassTypeAnnotationTest$@X Z
+            // and not Y<T> extends @X ClassTypeAnnotationTest$Z because the annotation is on Z, not
+            // ClassTypeAnnotationTest
 
             assertThat(scanResult.getClassInfo(E.class.getName()).getTypeSignature().toString())
                     .isEqualTo("private static class " + E.class.getName() + "<T> extends "

@@ -180,8 +180,8 @@ public final class CallStackInfo {
         }
         // The walk threw, e.g. because a SecurityManager denied it, so the call stack could not be read -- fall
         // back to naming only this class' own classloader and module layer, and to reporting no class loading lock,
-        // since the check for one exists to avoid a deadlock that only some classloaders cause, so failing to run it
-        // must not stop a scan that would have worked
+        // since the check for one exists to avoid a deadlock that only some classloaders cause, so failing to run
+        // it must not stop a scan that would have worked
         final LinkedIdentitySet<ClassLoader> classLoaders = new LinkedIdentitySet<>();
         final var classLoader = CallStackInfo.class.getClassLoader();
         if (classLoader != null) {

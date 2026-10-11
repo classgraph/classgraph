@@ -715,9 +715,9 @@ abstract sealed class ClasspathElement implements Comparable<ClasspathElement>
             acceptedClassfileResources.add(resource);
         }
 
-        // Add resource to list of accepted resources, whether for a classfile or non-classfile resource. A classfile
-        // that is not scheduled for scanning is still listed as a resource, since it is still a file of the
-        // classpath element.
+        // Add resource to list of accepted resources, whether for a classfile or non-classfile resource. A
+        // classfile that is not scheduled for scanning is still listed as a resource, since it is still a file of
+        // the classpath element.
         final var addedAsResource = !isClassfileOnly;
         if (addedAsResource) {
             acceptedResources.add(resource);

@@ -423,10 +423,10 @@ public final class ModuleRoot extends VfsRoot {
                     return null;
                 }
             } catch (final SecurityException e) {
-                // A directory that a SecurityManager will not let be read cannot be checked for a case-folded match,
-                // so the module reader's answer is taken as it is, as for a module that is not a directory. (Once
-                // the directory is known, FileUtils#canonicalize falls back to an ancestor or to the path itself
-                // rather than throwing.)
+                // A directory that a SecurityManager will not let be read cannot be checked for a case-folded
+                // match, so the module reader's answer is taken as it is, as for a module that is not a directory.
+                // (Once the directory is known, FileUtils#canonicalize falls back to an ancestor or to the path
+                // itself rather than throwing.)
                 return null;
             }
             dir = FileUtils.canonicalize(moduleDir);

@@ -660,8 +660,8 @@ class Classfile {
         classInfo.setClassfileVersion(minorVersion, majorVersion);
         classInfo.setIsRecord(isRecord);
         classInfo.setSourceFile(sourceFile);
-        // An interface's classfile names java.lang.Object as its superclass, but interfaces do not extend Object, so
-        // don't record that link (this matches Class#getSuperclass(), which returns null for an interface)
+        // An interface's classfile names java.lang.Object as its superclass, but interfaces do not extend Object,
+        // so don't record that link (this matches Class#getSuperclass(), which returns null for an interface)
         if (superclassName != null && !(isInterface && "java.lang.Object".equals(superclassName))) {
             classInfo.addSuperclass(superclassName, classNameToClassInfo);
         }
@@ -1672,8 +1672,8 @@ class Classfile {
             // There is no constant pool tag type 13 or 14
             // method handle
             case 15 -> reader().skip(3);
-            // Method type -- an indirect reference to the modified UTF8 entry holding a method descriptor. Resolving
-            // a method type resolves every class named in its descriptor (JVMS 5.4.3.5).
+            // Method type -- an indirect reference to the modified UTF8 entry holding a method descriptor.
+            // Resolving a method type resolves every class named in its descriptor (JVMS 5.4.3.5).
             case 16 -> {
                 final var descriptorRef = reader().readUnsignedShort();
                 if (referencedClassCpIdxs != null) {
@@ -1777,9 +1777,9 @@ class Classfile {
             final var descriptor = getConstantPoolString(cpIdx);
             if (descriptor != null) {
                 try {
-                    // A method descriptor starts with '('. Anything else is a field descriptor: a base type, a class
-                    // type or an array type. Only the first character is checked, because a class name may contain
-                    // '(' (#645).
+                    // A method descriptor starts with '('. Anything else is a field descriptor: a base type, a
+                    // class type or an array type. Only the first character is checked, because a class name may
+                    // contain '(' (#645).
                     if (descriptor.startsWith("(")) {
                         final var typeSig = MethodTypeSignature.parse(descriptor, /* definingClassName = */ null);
                         typeSig.findReferencedClassNames(refdClassNames);
@@ -2603,7 +2603,8 @@ class Classfile {
                 checkClassName(outerClassName, "outer class name");
                 // A class that uses invokedynamic (a record, or a lambda) has an InnerClasses entry for
                 // MethodHandles$Lookup, because its bootstrap methods take a Lookup -- drop that entry, except in
-                // the classfiles of MethodHandles and the classes nested in it, where it describes their own nesting
+                // the classfiles of MethodHandles and the classes nested in it, where it describes their own
+                // nesting
                 if (!("java.lang.invoke.MethodHandles$Lookup".equals(innerClassName)
                         && "java.lang.invoke.MethodHandles".equals(outerClassName)
                         && !className.equals("java.lang.invoke.MethodHandles")

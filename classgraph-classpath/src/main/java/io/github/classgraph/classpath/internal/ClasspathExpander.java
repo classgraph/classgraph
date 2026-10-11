@@ -159,9 +159,9 @@ public final class ClasspathExpander {
         final var container = root.getContainerRoot();
         final List<ChildEntry> childEntries = new ArrayList<>();
         // The classpath entries a classpath element declares for itself come before the jarfiles that were merely
-        // found in one of its lib dirs, since an earlier classpath element masks a later one, and a classloader that
-        // serves an archive with both loads a class from the archive's own classes in preference to a copy of it in
-        // a bundled dependency -- Tomcat looks in "WEB-INF/classes/" before "WEB-INF/lib/", and Spring Boot's
+        // found in one of its lib dirs, since an earlier classpath element masks a later one, and a classloader
+        // that serves an archive with both loads a class from the archive's own classes in preference to a copy of
+        // it in a bundled dependency -- Tomcat looks in "WEB-INF/classes/" before "WEB-INF/lib/", and Spring Boot's
         // launcher looks in "BOOT-INF/classes/" before "BOOT-INF/lib/". (The package root itself is not a child
         // classpath entry, and is added by the caller, ahead of all of these.)
         addClassPathManifestEntries(container, childEntries, log);
@@ -187,8 +187,8 @@ public final class ClasspathExpander {
     private static void addLibJars(final VfsRoot container, final List<String> libDirPrefixes,
             final List<ChildEntry> childEntries) throws IOException {
         // A jarfile can lie in more than one of the lib dirs only if one of them is below another, but list the
-        // names that have been added anyway, since adding the same jarfile to the classpath twice would make it mask
-        // itself
+        // names that have been added anyway, since adding the same jarfile to the classpath twice would make it
+        // mask itself
         final Set<String> namesAdded = new HashSet<>();
         for (final String libDirPrefix : libDirPrefixes) {
             // Each lib dir is listed on its own, so that the order of libDirPrefixes decides which lib dir's jars
@@ -237,13 +237,14 @@ public final class ClasspathExpander {
         final var parentDir = PathSyntax
                 .getParentDirPath(separatorIdx < 0 ? containerPath : containerPath.substring(separatorIdx + 2));
         final var containerNioPath = pathOfRoot(container);
-        // The JVM's own classloader treats the Class-Path entries of a jarfile named by a file: URL differently from
-        // those of a jarfile named by any other URL. Only a jarfile of the filesystem can name an entry by a URL,
-        // and only by a file: URL. A jarfile fetched from a URL can only name entries relative to the directory it
-        // was fetched from, so it cannot name a file of the filesystem. A jarfile nested inside another jarfile
-        // cannot name an entry by a URL either, but a path in it that starts with '/' names a path from the root of
-        // the jarfile that contains it, and a ".." in it stops at that root. (A jarfile in a filesystem other than
-        // the default one is named by a URL too, but it is a file of a filesystem, so it is treated as one.)
+        // The JVM's own classloader treats the Class-Path entries of a jarfile named by a file: URL differently
+        // from those of a jarfile named by any other URL. Only a jarfile of the filesystem can name an entry by a
+        // URL, and only by a file: URL. A jarfile fetched from a URL can only name entries relative to the
+        // directory it was fetched from, so it cannot name a file of the filesystem. A jarfile nested inside
+        // another jarfile cannot name an entry by a URL either, but a path in it that starts with '/' names a path
+        // from the root of the jarfile that contains it, and a ".." in it stops at that root. (A jarfile in a
+        // filesystem other than the default one is named by a URL too, but it is a file of a filesystem, so it is
+        // treated as one.)
         final var isFetchedFromURL = outerPath == null && containerNioPath == null
                 && URLPaths.startsWithURLScheme(containerPath);
         final var mayNameAFileURL = outerPath == null && !isFetchedFromURL;
@@ -262,19 +263,19 @@ public final class ClasspathExpander {
                 }
                 continue;
             }
-            // A Class-Path entry is a relative URL, so its percent encoding is decoded, as the JVM's own classloader
-            // decodes it -- a jarfile with a space in its name cannot be named any other way, since whitespace
-            // separates the entries. A file: URL is decoded by the resolver.
+            // A Class-Path entry is a relative URL, so its percent encoding is decoded, as the JVM's own
+            // classloader decodes it -- a jarfile with a space in its name cannot be named any other way, since
+            // whitespace separates the entries. A file: URL is decoded by the resolver.
             final var urlPath = hasURLScheme ? relativePath : FastPathResolver.decodePercentEncoding(relativePath);
             final var resolved = FastPathResolver.resolve(parentDir, urlPath);
             if (isFetchedFromURL && (!isValidRelativeURL(relativePath) || !resolved.startsWith(parentDir + "/")
                     || resolved.indexOf("..", parentDir.length()) >= 0)) {
-                // An entry that is not a valid relative URL, an absolute path, a relative path that climbs above the
-                // directory the jarfile was fetched from, or a path below it with ".." anywhere in it, even within a
-                // name such as "a..b.jar": the JVM ignores all but the absolute path. (The JVM resolves a path that
-                // starts with '/' against the root of the server, and follows it if it lies below the jarfile's
-                // directory. Such a path is ignored here instead, which never follows an entry that the JVM would
-                // not.)
+                // An entry that is not a valid relative URL, an absolute path, a relative path that climbs above
+                // the directory the jarfile was fetched from, or a path below it with ".." anywhere in it, even
+                // within a name such as "a..b.jar": the JVM ignores all but the absolute path. (The JVM resolves a
+                // path that starts with '/' against the root of the server, and follows it if it lies below the
+                // jarfile's directory. Such a path is ignored here instead, which never follows an entry that the
+                // JVM would not.)
                 if (log != null) {
                     log.log("Ignoring Class-Path entry " + relativePath + " of " + containerPath
                             + ", since a jarfile fetched from a URL can only name paths below the directory it was"
@@ -386,8 +387,8 @@ public final class ClasspathExpander {
      */
     private static @Nullable Path pathOfRoot(final VfsRoot root) {
         final var nioPath = root.getNioPath();
-        // A root reports the path of the file it is physically stored in, which is the classpath element itself only
-        // when the classpath element is that whole file
+        // A root reports the path of the file it is physically stored in, which is the classpath element itself
+        // only when the classpath element is that whole file
         return nioPath != null && root.getPath().equals(FileUtils.pathStr(nioPath)) ? nioPath : null;
     }
 

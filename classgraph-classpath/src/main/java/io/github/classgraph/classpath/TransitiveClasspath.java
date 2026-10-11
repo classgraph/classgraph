@@ -200,10 +200,10 @@ final class TransitiveClasspath {
             // classpath elements that can be opened
             final var childPath = childEntry.path();
             final Object childObj = childPath == null ? childEntry.location() : childPath;
-            // A child classpath element is located the same way as one that a classloader declared, by the canonical
-            // path of its file, so that a jarfile that a manifest names through a symbolic link is the same classpath
-            // element as that jarfile reached directly. One the filesystem says is not there, or cannot be read, is
-            // skipped, with the reason logged
+            // A child classpath element is located the same way as one that a classloader declared, by the
+            // canonical path of its file, so that a jarfile that a manifest names through a symbolic link is the
+            // same classpath element as that jarfile reached directly. One the filesystem says is not there, or
+            // cannot be read, is skipped, with the reason logged
             final var childLocation = ClasspathOrderBuilder.toLocation(childObj, childEntry.location(), log);
             if (childLocation == null) {
                 continue;

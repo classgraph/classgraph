@@ -92,8 +92,8 @@ final class EquinoxClasspathManagerReader {
         if (bundlefile != null && visited.add(bundlefile)) {
             // A framework extension can install a BundleFileWrapperFactoryHook that replaces a bundle file with a
             // BundleFileWrapper around it (Storage#wrapBundleFile), and Equinox puts the wrappers in a
-            // BundleFileWrapperChain, which is a BundleFileWrapper too. A wrapper holds the bundle file it delegates
-            // to in its "bundleFile" field, and copies only that bundle file's base file, not its "cp" or
+            // BundleFileWrapperChain, which is a BundleFileWrapper too. A wrapper holds the bundle file it
+            // delegates to in its "bundleFile" field, and copies only that bundle file's base file, not its "cp" or
             // "nestedDirName". So a wrapper's own base file is the whole bundle jar or directory, not the classpath
             // element within it: add only the bundle file it delegates to, below.
             // type BundleFile

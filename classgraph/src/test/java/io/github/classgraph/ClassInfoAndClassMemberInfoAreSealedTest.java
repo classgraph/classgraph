@@ -19,6 +19,7 @@ public class ClassInfoAndClassMemberInfoAreSealedTest {
                 .containsExactlyInAnyOrder(FieldInfo.class, MethodInfo.class);
     }
 
-    // TODO: once the tests compile at Java 21 or later, add a test with a pattern switch over a ClassMemberInfo that
-    // lists FieldInfo and MethodInfo and has no default case, so that the compiler checks the switch is exhaustive.
+    // TODO: once the tests compile at Java 21 or later, add a test with a pattern switch over a ClassMemberInfo
+    // that lists FieldInfo and MethodInfo and has no default case, so that the compiler checks the switch is
+    // exhaustive.
 }

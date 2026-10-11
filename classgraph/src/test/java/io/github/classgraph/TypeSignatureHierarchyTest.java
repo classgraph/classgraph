@@ -24,6 +24,6 @@ public class TypeSignatureHierarchyTest {
     }
 
     // TODO: once the tests compile at Java 21 or later, add a test with a pattern switch over a TypeSignature that
-    // lists BaseTypeSignature, ArrayTypeSignature, ClassRefTypeSignature and TypeVariableSignature and has no default
-    // case, so that the compiler checks the switch is exhaustive.
+    // lists BaseTypeSignature, ArrayTypeSignature, ClassRefTypeSignature and TypeVariableSignature and has no
+    // default case, so that the compiler checks the switch is exhaustive.
 }

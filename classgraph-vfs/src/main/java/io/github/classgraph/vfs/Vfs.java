@@ -353,8 +353,8 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
         for (;;) {
             final VfsRoot root;
             try {
-                // Wait no longer than the timeout for another thread that is opening the same key, since that thread
-                // may be stuck reading it
+                // Wait no longer than the timeout for another thread that is opening the same key, since that
+                // thread may be stuck reading it
                 root = rootsByPath.get(key, factory, vfsSpec.openWaitTimeoutNanos());
             } catch (final TimeoutException e) {
                 final var timeout = new IOException(
@@ -364,10 +364,10 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
                                 + "(VfsSpec#setOpenWaitTimeout(Duration) sets how long to wait, and a ClassGraph "
                                 + "scan sets it to ClassGraph#setWorkerTimeout(Duration))",
                         e);
-                // The caller may treat an IOException as a path that cannot be read, and skip it, but the path may be
-                // fine. Record the timeout in the shared interruption checker too, so that a scan reading through
-                // this Vfs fails at its next check rather than giving incomplete results, and so that the other
-                // threads of the scan stop
+                // The caller may treat an IOException as a path that cannot be read, and skip it, but the path may
+                // be fine. Record the timeout in the shared interruption checker too, so that a scan reading
+                // through this Vfs fails at its next check rather than giving incomplete results, and so that the
+                // other threads of the scan stop
                 interruptionChecker.setExecutionException(new ExecutionException(timeout));
                 throw timeout;
             } catch (final NullSingletonException | NewInstanceException e) {

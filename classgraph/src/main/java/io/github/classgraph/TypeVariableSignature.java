@@ -166,7 +166,8 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
      * @return the type parameter, or null if the class declares no type parameter of that name.
      */
     private @Nullable TypeParameter findClassTypeParameter(final ClassInfo classInfo) {
-        // The class signature of a corrupt classfile may not parse. Treat the class as declaring no type parameters.
+        // The class signature of a corrupt classfile may not parse.
+        // Treat the class as declaring no type parameters.
         final var classSignature = classInfo.getTypeSignatureIfParseable();
         if (classSignature != null) {
             for (final TypeParameter typeParameter : classSignature.typeParameters) {

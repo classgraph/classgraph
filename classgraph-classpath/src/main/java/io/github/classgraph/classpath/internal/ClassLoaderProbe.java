@@ -133,9 +133,9 @@ public class ClassLoaderProbe {
             final ScanSourceSpec scanSourceSpec, final @Nullable LogNode log) {
         final var classLoaderProbeLog = log == null ? null : log.log("Finding classpath and modules");
 
-        // The modules are searched before the classpath, whatever order the sources were enabled in, because that is
-        // the order in which the JVM resolves a class: a builtin classloader looks the class's package up among the
-        // modules before it delegates to its parent or falls back to its classpath
+        // The modules are searched before the classpath, whatever order the sources were enabled in, because that
+        // is the order in which the JVM resolves a class: a builtin classloader looks the class's package up among
+        // the modules before it delegates to its parent or falls back to its classpath
         moduleFinder = scanSourceSpec.searchesDetectedModuleLayers(classpathSpec)
                 || scanSourceSpec.getNamedModuleLayers() != null
                         ? new ModuleFinder(callStackInfo, classpathSpec, scanSourceSpec, classLoaderProbeLog)
@@ -289,9 +289,9 @@ public class ClassLoaderProbe {
                     // Record the package roots that this ClassLoaderHandler's classpath elements can have, so that
                     // only the package roots that are applicable to each classpath element are looked for and
                     // stripped when it is scanned (#929), and likewise the lib dirs that this ClassLoaderHandler
-                    // loads jarfiles from without listing them as classpath elements. They are normalized and copied
-                    // here, so a handler that spells them loosely, or that refills one list for each classloader,
-                    // still gives each classpath element the prefixes that were declared for it
+                    // loads jarfiles from without listing them as classpath elements. They are normalized and
+                    // copied here, so a handler that spells them loosely, or that refills one list for each
+                    // classloader, still gives each classpath element the prefixes that were declared for it
                     try {
                         classpathOrder.setPackageRootPrefixes(classLoaderHandler.getPackageRootPrefixes(),
                                 classloaderHandlerLog);

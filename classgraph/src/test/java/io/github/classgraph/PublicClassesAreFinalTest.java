@@ -50,8 +50,8 @@ public class PublicClassesAreFinalTest {
             }
         }
         // If the scan stopped finding the main classes (for example because they were on the module path, or in a
-        // package that the scan no longer accepts), the last assertion would pass without checking anything, so first
-        // check that some known final and sealed classes from more than one module were checked
+        // package that the scan no longer accepts), the last assertion would pass without checking anything, so
+        // first check that some known final and sealed classes from more than one module were checked
         assertThat(checked).contains(ClassGraph.class.getName(), ClassInfo.class.getName(),
                 VfsEntry.class.getName());
         assertThat(notFinalOrSealed).isEmpty();

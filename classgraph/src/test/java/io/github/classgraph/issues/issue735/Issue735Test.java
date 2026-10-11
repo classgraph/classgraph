@@ -433,8 +433,8 @@ public class Issue735Test {
                 .resolveTypeVariables(scanResult.getClassInfo(BoundToString.class.getName()));
         assertThat(((ArrayTypeSignature) resolved).getTypeSignatureString()).isEqualTo("[Ljava/lang/String;");
 
-        // The array type of Pair#getGrid(), resolved to String[][], describes the same type as Generic#getArrayOfT()
-        // resolved to String[], with one more dimension
+        // The array type of Pair#getGrid(), resolved to String[][], describes the same type as
+        // Generic#getArrayOfT() resolved to String[], with one more dimension
         final var grid = scanResult.getClassInfo(Pair.class.getName()).getMethodInfo("getGrid").get(0)
                 .getTypeSignatureOrTypeDescriptor().getResultType()
                 .resolveTypeVariables(scanResult.getClassInfo(PairBound.class.getName()));

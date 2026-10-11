@@ -447,8 +447,8 @@ public final class GraphVizDotFile {
                 buf.append(fi.getModifiersString());
             }
 
-            // Field type -- without any field annotation that the compiler also recorded as a type annotation, which
-            // is either shown above or hidden with the other field annotations
+            // Field type -- without any field annotation that the compiler also recorded as a type annotation,
+            // which is either shown above or hidden with the other field annotations
             TypeSignature typeSig = null;
             try {
                 typeSig = fi.getTypeSignatureOrTypeDescriptor();
@@ -482,9 +482,10 @@ public final class GraphVizDotFile {
         final List<MethodInfo> methodInfoSorted = new ArrayList<>(methodInfo);
         methodInfoSorted.sort(null);
         for (var i = methodInfoSorted.size() - 1; i >= 0; --i) {
-            // Don't list static initializer blocks, methods of Object, or methods that the compiler generated rather
-            // than the source code declared, such as lambda bodies, an enum's $values() and bridge methods (the
-            // methods an enum must have, values() and valueOf(String), are not marked synthetic, so are listed)
+            // Don't list static initializer blocks, methods of Object, or methods that the compiler generated
+            // rather than the source code declared, such as lambda bodies, an enum's $values() and bridge methods
+            // (the methods an enum must have, values() and valueOf(String), are not marked synthetic, so are
+            // listed)
             final var mi = methodInfoSorted.get(i);
             final var name = mi.getName();
             final var numParam = mi.getParameterInfo().size();
@@ -1313,7 +1314,8 @@ public final class GraphVizDotFile {
         final var buf = new StringBuilder(1024 * 1024);
         appendDotFileHeader(options, buf);
 
-        // A class that the compiler generated is left out, whether it is listed or is a dependency of a listed class
+        // A class that the compiler generated is left out,
+        // whether it is listed or is a dependency of a listed class
         final var declaredClasses = classes.filter(ci -> !ci.isSynthetic());
         // Sorted by class name, so that the output does not depend on hash order
         final Set<ClassInfo> allVisibleNodes = new TreeSet<>(declaredClasses);
