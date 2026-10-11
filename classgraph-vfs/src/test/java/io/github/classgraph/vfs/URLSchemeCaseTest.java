@@ -89,7 +89,7 @@ public class URLSchemeCaseTest {
         try (var vfs = new Vfs(new VfsSpec().denyURLScheme(SCHEME))) {
             final var url = SCHEME.toUpperCase(Locale.ROOT) + ":" + jarFile.getPath();
             assertThatThrownBy(() -> vfs.open(url)).isInstanceOf(IOException.class)
-                    .hasMessageContaining("is not allowed");
+                    .hasMessageContaining("The URL scheme \"" + SCHEME + ":\" has been denied");
         }
     }
 }

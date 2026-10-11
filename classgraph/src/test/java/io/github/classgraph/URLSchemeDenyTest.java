@@ -131,7 +131,8 @@ class URLSchemeDenyTest {
 
     /**
      * A jarfile or a directory that an installed filesystem provider serves under a denied scheme is not read when
-     * it is named by a URL or a URI, just as it is not read when no filesystem provider serves the scheme.
+     * it is named by a URL, a URI or a {@link Path}, just as it is not read when no filesystem provider serves the
+     * scheme.
      *
      * @throws IOException
      *             if the test files could not be written.
@@ -141,17 +142,18 @@ class URLSchemeDenyTest {
     @Test
     void aDeniedSchemeThatAFilesystemProviderServesIsNotRead() throws IOException, URISyntaxException {
         try (FileSystem memFs = Jimfs.newFileSystem()) {
-            final var jarURI = copyResource("multi-release-jar.jar", memFs.getPath("/lib/multi-release-jar.jar"))
-                    .toUri();
+            final var jarPath = copyResource("multi-release-jar.jar", memFs.getPath("/lib/multi-release-jar.jar"));
+            final var jarURI = jarPath.toUri();
             final var classFile = "io/github/classgraph/issues/issue146/CompiledWithJDK8.class";
             copyResource(classFile, memFs.getPath("/classes/" + classFile));
-            final var dirURI = memFs.getPath("/classes").toUri();
+            final var dirPath = memFs.getPath("/classes");
+            final var dirURI = dirPath.toUri();
             final var dirClassName = "io.github.classgraph.issues.issue146.CompiledWithJDK8";
-            for (final Object jarEntry : new Object[] { jarURI, jarURI.toURL(), jarURI.toString() }) {
+            for (final Object jarEntry : new Object[] { jarURI, jarURI.toURL(), jarURI.toString(), jarPath }) {
                 assertThat(classIsFound(jarEntry, "mrj.Cls", false)).as("allowed: %s", jarEntry).isTrue();
                 assertThat(classIsFound(jarEntry, "mrj.Cls", true)).as("denied: %s", jarEntry).isFalse();
             }
-            for (final Object dirEntry : new Object[] { dirURI, dirURI.toURL(), dirURI.toString() }) {
+            for (final Object dirEntry : new Object[] { dirURI, dirURI.toURL(), dirURI.toString(), dirPath }) {
                 assertThat(classIsFound(dirEntry, dirClassName, false)).as("allowed: %s", dirEntry).isTrue();
                 assertThat(classIsFound(dirEntry, dirClassName, true)).as("denied: %s", dirEntry).isFalse();
             }

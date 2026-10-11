@@ -248,9 +248,11 @@ public final class VfsSpec {
      * there.
      *
      * <p>
-     * The scheme is checked when a path given as a string, {@link java.net.URL} or {@link java.net.URI} is opened.
-     * It is not checked for a {@link java.nio.file.Path}, which {@link Vfs#open(java.nio.file.Path)} reads through
-     * its own filesystem, nor for a path that the {@link Vfs} has already opened under the same name.
+     * The scheme is checked whether the path is given as a string, a {@link java.net.URL}, a {@link java.net.URI}
+     * or a {@link java.nio.file.Path}. The scheme of a {@link java.nio.file.Path} is the scheme of its URI, so a
+     * path in a filesystem whose provider serves the denied scheme is refused. A path in a zipfile mounted as a
+     * filesystem has a {@code jar:} URI, so what is checked for it is the scheme of the filesystem that holds the
+     * zipfile.
      *
      * <p>
      * Denying {@code file:} or {@code jar:} has no effect. A {@code file:} URL names a local file, and a
