@@ -26,6 +26,9 @@ public class ClasspathElementResourceFilterTest {
     /** The files that both the directory and the jarfile hold. */
     private static final String[] FILES = { "META-INF/marker.txt", "root.txt", "p/a.txt", "q/b.txt" };
 
+    /** An empty directory that both the directory and the jarfile hold (the jarfile as a directory entry). */
+    private static final String EMPTY_DIR = "e/";
+
     /** The directory classpath element. */
     private File dir;
 
@@ -53,6 +56,9 @@ public class ClasspathElementResourceFilterTest {
                 zipOut.write(file.getBytes());
                 zipOut.closeEntry();
             }
+            Files.createDirectories(dirPath.resolve(EMPTY_DIR));
+            zipOut.putNextEntry(new ZipEntry(EMPTY_DIR));
+            zipOut.closeEntry();
         }
         dir = dirPath.toRealPath().toFile();
         jar = jarPath.toRealPath().toFile();
@@ -90,6 +96,14 @@ public class ClasspathElementResourceFilterTest {
     public void acceptedGlobOutsideAcceptedPackages() {
         assertThat(keptElements(
                 cg -> cg.acceptPackages("p").acceptClasspathElementsContainingResourcePath("META-INF/**")))
+                .containsExactly(dir, jar);
+    }
+
+    /** A glob that matches the name of a directory, but no file, neither selects nor rejects the element. */
+    @Test
+    public void globMatchingOnlyADirectoryName() {
+        assertThat(keptElements(cg -> cg.acceptClasspathElementsContainingResourcePath(EMPTY_DIR + "*"))).isEmpty();
+        assertThat(keptElements(cg -> cg.rejectClasspathElementsContainingResourcePath(EMPTY_DIR + "*")))
                 .containsExactly(dir, jar);
     }
 

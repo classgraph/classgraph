@@ -217,11 +217,6 @@ final class ClasspathElementDir extends ClasspathElement {
             return null;
         }
 
-        // Accept/reject classpath elements based on dir resource paths
-        if (!checkResourcePathAcceptReject(dirRelativePathStr, log)) {
-            return null;
-        }
-
         final var matchStatus = scanSpec.dirAcceptMatchStatus(dirRelativePathStr);
         if (!scanSpec.classpathElementResourcePathAcceptReject.acceptAndRejectAreEmpty()) {
             // Every file has to be offered to checkResourcePathAcceptReject, as it is in a jarfile or a module, so
