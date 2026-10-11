@@ -466,11 +466,11 @@ public class MalformedAnnotationAttributeTest {
      * Get the names of a list of annotations.
      *
      * @param annotationInfoList
-     *            the annotations, or null
-     * @return the names, or the empty list if {@code annotationInfoList} is null.
+     *            the annotations
+     * @return the names.
      */
     private static List<String> names(final AnnotationInfoList annotationInfoList) {
-        return annotationInfoList == null ? List.of() : annotationInfoList.getNames();
+        return annotationInfoList.getNames();
     }
 
     /**

@@ -97,21 +97,13 @@ public class Issue897Test {
     private static List<String> typeAnnotationNames(final TypeSignature typeSignature) {
         final List<String> names = new ArrayList<>();
         if (typeSignature != null) {
-            final var baseAnnotations = typeSignature.getTypeAnnotationInfo();
-            if (baseAnnotations != null) {
-                for (final AnnotationInfo ai : baseAnnotations) {
-                    names.add(ai.getName());
-                }
+            for (final AnnotationInfo ai : typeSignature.getTypeAnnotationInfo()) {
+                names.add(ai.getName());
             }
             if (typeSignature instanceof final ClassRefTypeSignature classRefTypeSignature) {
-                final var suffixAnnotations = classRefTypeSignature.getSuffixTypeAnnotationInfo();
-                if (suffixAnnotations != null) {
-                    for (final AnnotationInfoList aiList : suffixAnnotations) {
-                        if (aiList != null) {
-                            for (final AnnotationInfo ai : aiList) {
-                                names.add(ai.getName());
-                            }
-                        }
+                for (final AnnotationInfoList aiList : classRefTypeSignature.getSuffixTypeAnnotationInfo()) {
+                    for (final AnnotationInfo ai : aiList) {
+                        names.add(ai.getName());
                     }
                 }
             }

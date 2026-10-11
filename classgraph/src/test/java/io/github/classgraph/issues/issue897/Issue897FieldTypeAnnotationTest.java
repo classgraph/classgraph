@@ -32,8 +32,8 @@ public class Issue897FieldTypeAnnotationTest {
     /** Names of the base type annotations on a field's type, or empty if none. */
     private static List<String> baseTypeAnnotationNames(final FieldInfo field) {
         final var typeSignature = field.getTypeSignatureOrTypeDescriptor();
-        final var annotations = typeSignature == null ? null : typeSignature.getTypeAnnotationInfo();
-        return annotations == null ? List.of() : annotations.stream().map(AnnotationInfo::getName).toList();
+        return typeSignature == null ? List.of()
+                : typeSignature.getTypeAnnotationInfo().stream().map(AnnotationInfo::getName).toList();
     }
 
     @Test
