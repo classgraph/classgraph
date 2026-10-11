@@ -239,8 +239,8 @@ public class VersionSkewedAnnotationValueTest {
     /**
      * An annotation class that became a plain class, with a method named like one of the elements, still reports
      * every value given at the use site, whether or not method info is enabled. The plain class declares no
-     * elements or default values, so no value is added or left out. (The JDK drops such an annotation when it is
-     * read.)
+     * elements or default values, so no value is added or left out, and there are no default values to report. (The
+     * JDK drops such an annotation when it is read.)
      */
     @Test
     public void annotationChangedToPlainClass() throws IOException {
@@ -271,6 +271,7 @@ public class VersionSkewedAnnotationValueTest {
                 assertThat(annotation.getParameterValues()).isEqualTo(annotation.getDeclaredParameterValues());
                 assertThat(annotation.getParameterValues().getValue("x")).isEqualTo(1);
                 assertThat(annotation.toString()).contains("x=1");
+                assertThat(annotation.getDefaultParameterValues()).isEmpty();
             }
         }
     }

@@ -108,12 +108,13 @@ public final class AnnotationInfo extends ScanResultObject implements Comparable
      * Get the default parameter values.
      *
      * @return the list of default parameter values for this annotation, or the empty list if none. Default
-     *         parameter values are declared by the annotation class, so if the annotation class was not scanned,
-     *         the empty list is returned.
+     *         parameter values are declared by the annotation class, so if the annotation class was not scanned, or
+     *         was changed into a class that is not an annotation after the use site was compiled, the empty list is
+     *         returned.
      */
     public AnnotationParameterValueList getDefaultParameterValues() {
         final var classInfo = getClassInfo();
-        return classInfo == null ? AnnotationParameterValueList.EMPTY_LIST
+        return classInfo == null || !classInfo.isAnnotation() ? AnnotationParameterValueList.EMPTY_LIST
                 : classInfo.getAnnotationDefaultParameterValues();
     }
 
