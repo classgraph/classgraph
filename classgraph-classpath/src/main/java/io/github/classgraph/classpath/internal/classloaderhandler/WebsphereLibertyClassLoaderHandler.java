@@ -56,6 +56,9 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
     /** {@code "com.ibm.ws.classloading.internal.AppClassLoader"} */
     private static final String IBM_APP_CLASS_LOADER = PKG_PREFIX + "AppClassLoader";
 
+    /** {@code "com.ibm.ws.classloading.internal.ParentLastClassLoader"} */
+    private static final String IBM_PARENT_LAST_CLASS_LOADER = PKG_PREFIX + "ParentLastClassLoader";
+
     /** {@code "com.ibm.ws.classloading.internal.ThreadContextClassLoader"} */
     private static final String IBM_THREAD_CONTEXT_CLASS_LOADER = PKG_PREFIX + "ThreadContextClassLoader";
 
@@ -97,13 +100,21 @@ class WebsphereLibertyClassLoaderHandler implements ClassLoaderHandler {
     @Override
     public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
             final @Nullable ClassGraphLog log) {
-        classLoaderOrder.delegateToParent(classLoader.getParent(), log);
         // An AppClassLoader holds the classloaders of the libraries it delegates to, split by the precedence
-        // configured for each library: "beforeApp" libraries are searched before the application's own classpath,
-        // "afterApp" libraries after it
+        // configured for each library: "beforeApp" libraries are searched first, even before the parent, and
+        // "afterApp" libraries right after the application's own classpath. A parent-first AppClassLoader searches
+        // its parent between the "beforeApp" libraries and its own classpath; a ParentLastClassLoader (an
+        // application configured with delegation="parentLast") searches its parent after everything else.
+        final var parentLast = classIsOrExtendsOrImplements(classLoader.getClass(), IBM_PARENT_LAST_CLASS_LOADER);
         delegateToAll(classLoader, "beforeAppDelegateLoaders", classLoaderOrder, log);
+        if (!parentLast) {
+            classLoaderOrder.delegateToParent(classLoader.getParent(), log);
+        }
         classLoaderOrder.add(classLoader, log);
         delegateToAll(classLoader, "afterAppDelegateLoaders", classLoaderOrder, log);
+        if (parentLast) {
+            classLoaderOrder.delegateToParent(classLoader.getParent(), log);
+        }
         // A ThreadContextClassLoader extends UnifiedClassLoader, which searches its parent, then in turn each of
         // the classloaders in "followOnClassLoaders"
         delegateToAll(classLoader, "followOnClassLoaders", classLoaderOrder, log);
