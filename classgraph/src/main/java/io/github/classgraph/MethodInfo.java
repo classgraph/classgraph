@@ -290,7 +290,7 @@ public final class MethodInfo extends ClassMemberInfo implements Comparable<Meth
      *            the number of implicit prefix parameters to strip while adding the type annotations (0 for none).
      */
     // #897
-    private static void applyTypeAnnotations(final MethodTypeSignature methodType,
+    private void applyTypeAnnotations(final MethodTypeSignature methodType,
             final List<TypeAnnotation<MethodTypeSignature>> typeAnnotations, final int numImplicitPrefixParams) {
         final var paramSigs = methodType.getParameterTypeSignatures();
         // Take a copy of the implicit prefix params before removing them -- do not use the live view returned by
@@ -300,7 +300,7 @@ public final class MethodInfo extends ClassMemberInfo implements Comparable<Meth
         for (var i = 0; i < numImplicitPrefixParams; i++) {
             paramSigs.remove(0);
         }
-        TypeAnnotation.applyAll(typeAnnotations, methodType);
+        TypeAnnotation.applyAll(typeAnnotations, methodType, getClassInfo());
         if (implicitPrefixParams != null) {
             for (var i = numImplicitPrefixParams - 1; i >= 0; --i) {
                 paramSigs.add(0, implicitPrefixParams.get(i));

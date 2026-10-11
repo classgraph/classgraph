@@ -33,6 +33,7 @@ import java.io.Serial;
 import java.lang.reflect.Array;
 import java.lang.reflect.Modifier;
 import java.nio.ByteOrder;
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -163,6 +164,9 @@ class Classfile {
      */
     private @Nullable List<TypeAnnotation<ClassTypeSignature>> classTypeAnnotations;
 
+    /** Whether the class, or any of its fields or methods, has a type annotation. */
+    private boolean hasTypeAnnotations;
+
     /** Why each malformed annotation attribute that was skipped could not be read, or null if none was skipped. */
     private @Nullable List<String> skippedAttributeMessages;
 
@@ -262,6 +266,55 @@ class Classfile {
      *            the outer class name.
      */
     record ClassContainment(String innerClassName, int innerClassModifierBits, String outerClassName) {
+    }
+
+    /**
+     * A view of the map from class name to class info that records the name of every class that is looked up or
+     * added through it. {@link #linkClassInfo(Map)} passes it to every call that creates or links a
+     * {@link ClassInfo} for another class, so that the names it records are exactly the classes that the classfile
+     * brings into the class graph.
+     */
+    private static final class ClassNameRecordingMap extends AbstractMap<String, ClassInfo> {
+        /** The map from class name to class info. */
+        private final Map<String, ClassInfo> classNameToClassInfo;
+
+        /** The names of the classes looked up or added. */
+        final Set<String> classNames = new HashSet<>();
+
+        /**
+         * Constructor.
+         *
+         * @param classNameToClassInfo
+         *            the map from class name to class info
+         */
+        ClassNameRecordingMap(final Map<String, ClassInfo> classNameToClassInfo) {
+            this.classNameToClassInfo = classNameToClassInfo;
+        }
+
+        @Override
+        public @Nullable ClassInfo get(final Object key) {
+            if (key instanceof final String className) {
+                classNames.add(className);
+            }
+            return classNameToClassInfo.get(key);
+        }
+
+        // AbstractMap#containsKey searches the entry set, which would not record the name, and takes linear time
+        @Override
+        public boolean containsKey(final Object key) {
+            return get(key) != null;
+        }
+
+        @Override
+        public @Nullable ClassInfo put(final String className, final ClassInfo classInfo) {
+            classNames.add(className);
+            return classNameToClassInfo.put(className, classInfo);
+        }
+
+        @Override
+        public Set<Entry<String, ClassInfo>> entrySet() {
+            return classNameToClassInfo.entrySet();
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -660,23 +713,23 @@ class Classfile {
         classInfo.setClassfileVersion(minorVersion, majorVersion);
         classInfo.setIsRecord(isRecord);
         classInfo.setSourceFile(sourceFile);
+        // Every call below that creates or links a ClassInfo for another class must be passed linkedClassNameMap,
+        // which records the names of those classes, so that the class containment entries for them are linked
+        final var linkedClassNameMap = new ClassNameRecordingMap(classNameToClassInfo);
         // An interface's classfile names java.lang.Object as its superclass, but interfaces do not extend Object,
         // so don't record that link (this matches Class#getSuperclass(), which returns null for an interface)
         if (superclassName != null && !(isInterface && "java.lang.Object".equals(superclassName))) {
-            classInfo.addSuperclass(superclassName, classNameToClassInfo);
+            classInfo.addSuperclass(superclassName, linkedClassNameMap);
         }
         if (implementedInterfaces != null) {
             for (final String interfaceName : implementedInterfaces) {
-                classInfo.addImplementedInterface(interfaceName, classNameToClassInfo);
+                classInfo.addImplementedInterface(interfaceName, linkedClassNameMap);
             }
         }
         if (classAnnotations != null) {
             for (final AnnotationInfo classAnnotation : classAnnotations) {
-                classInfo.addClassAnnotation(classAnnotation, classNameToClassInfo);
+                classInfo.addClassAnnotation(classAnnotation, linkedClassNameMap);
             }
-        }
-        if (classContainmentEntries != null) {
-            ClassInfo.addClassContainment(classContainmentEntries, className, classNameToClassInfo);
         }
         // A nested class's own InnerClasses entry holds modifiers that its access_flags cannot express, such as
         // its source-level access level and ACC_STATIC. addClassContainment does not apply the modifiers of an
@@ -693,10 +746,15 @@ class Classfile {
                     fullyQualifiedDefiningMethodName);
         }
         if (fieldInfoList != null) {
-            classInfo.addFieldInfo(fieldInfoList, classNameToClassInfo);
+            classInfo.addFieldInfo(fieldInfoList, linkedClassNameMap);
         }
         if (methodInfoList != null) {
-            classInfo.addMethodInfo(methodInfoList, classNameToClassInfo);
+            classInfo.addMethodInfo(methodInfoList, linkedClassNameMap);
+        }
+        // Link the class containment entries last, once linkedClassNameMap holds the names of all the classes that
+        // this classfile brought into the class graph
+        if (classContainmentEntries != null) {
+            linkClassContainment(classInfo, linkedClassNameMap.classNames, classNameToClassInfo);
         }
         if (typeSignatureStr != null) {
             classInfo.setTypeSignature(typeSignatureStr);
@@ -708,6 +766,91 @@ class Classfile {
             classInfo.setTypeAnnotations(classTypeAnnotations);
         }
         return classInfo;
+    }
+
+    /**
+     * Link the class containment entries of this classfile that describe this class, the classes nested in it, and
+     * the classes that this classfile brought into the class graph for another reason.
+     *
+     * <p>
+     * A compiler writes an {@code InnerClasses} entry for every nested class that a classfile names anywhere, even
+     * only in a descriptor or a signature, so linking every entry would create a {@link ClassInfo} for each such
+     * class and for its enclosing classes, such as {@code java.util.Map$Entry} and {@code java.util.Map} for a
+     * field of type {@code Map.Entry}. A class named only in a descriptor or a signature gets no {@link ClassInfo}
+     * otherwise. So an entry is linked only if its inner class is this class, or a class that this classfile
+     * brought into the class graph (a superclass, an implemented interface, the class of an annotation on the class
+     * or on one of its fields, methods or method parameters, or, if
+     * {@link ClassGraph#enableInterClassDependencies()} was called, a class named in the constant pool), or an
+     * enclosing class of one of these, found by following the entries outward (for a local or anonymous class,
+     * through the entry made from its {@code EnclosingMethod} attribute); or if its outer class is this class or a
+     * class nested in it, found by following the entries inward. Only the entries of this classfile are used, so
+     * the result does not depend on the order in which classfiles are linked.
+     *
+     * <p>
+     * Where a type annotation goes in a nested type such as {@code Outer.Inner} depends on which of the nested
+     * classes are inner classes (JLS 9.7.4). {@link ClassRefTypeSignature} decides this from the {@link ClassInfo}
+     * objects of the classes, so if this class has type annotations, the entries that are not linked and that name
+     * a non-static member class are kept in its {@link ClassInfo}, for the classes that have no {@link ClassInfo}.
+     *
+     * @param classInfo
+     *            the {@link ClassInfo} of this class
+     * @param linkedClassNames
+     *            the names of the classes that this classfile created or linked a {@link ClassInfo} for
+     * @param classNameToClassInfo
+     *            the map from class name to class info
+     */
+    private void linkClassContainment(final ClassInfo classInfo, final Set<String> linkedClassNames,
+            final Map<String, ClassInfo> classNameToClassInfo) {
+        final var entries = Objects.requireNonNull(classContainmentEntries);
+        // Follow the entries outward from this class and the classes it brought into the class graph
+        final List<String> classNamesToVisit = new ArrayList<>(linkedClassNames);
+        classNamesToVisit.add(className);
+        if (refdClassNames != null) {
+            classNamesToVisit.addAll(refdClassNames);
+        }
+        final Set<String> enclosedOrSelfClassNames = new HashSet<>();
+        while (!classNamesToVisit.isEmpty()) {
+            final var innerClassName = classNamesToVisit.remove(classNamesToVisit.size() - 1);
+            if (enclosedOrSelfClassNames.add(innerClassName)) {
+                for (final ClassContainment entry : entries) {
+                    if (entry.innerClassName().equals(innerClassName)) {
+                        classNamesToVisit.add(entry.outerClassName());
+                    }
+                }
+            }
+        }
+        // Follow the entries inward from this class
+        final Set<String> nestedOrSelfClassNames = new HashSet<>();
+        nestedOrSelfClassNames.add(className);
+        for (var changed = true; changed;) {
+            changed = false;
+            for (final ClassContainment entry : entries) {
+                if (nestedOrSelfClassNames.contains(entry.outerClassName())
+                        && nestedOrSelfClassNames.add(entry.innerClassName())) {
+                    changed = true;
+                }
+            }
+        }
+        final List<ClassContainment> entriesToLink = new ArrayList<>(entries.size());
+        List<ClassContainment> unlinkedInnerClasses = null;
+        for (final ClassContainment entry : entries) {
+            if (enclosedOrSelfClassNames.contains(entry.innerClassName())
+                    || nestedOrSelfClassNames.contains(entry.outerClassName())) {
+                entriesToLink.add(entry);
+            } else if (hasTypeAnnotations
+                    // An inner class is a nested class that is not static, and a member interface or annotation
+                    // interface is always static (JLS 8.1.3). 0x2000 is ACC_ANNOTATION.
+                    && (entry.innerClassModifierBits() & (Modifier.STATIC | Modifier.INTERFACE | 0x2000)) == 0) {
+                if (unlinkedInnerClasses == null) {
+                    unlinkedInnerClasses = new ArrayList<>();
+                }
+                unlinkedInnerClasses.add(entry);
+            }
+        }
+        ClassInfo.addClassContainment(entriesToLink, className, classNameToClassInfo);
+        if (unlinkedInnerClasses != null) {
+            classInfo.setUnlinkedInnerClasses(unlinkedInnerClasses);
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -1243,10 +1386,14 @@ class Classfile {
          *            the type path of the annotation within the part of the type that the target info names
          * @param annotationInfo
          *            the annotation
+         * @param unlinkedInnerClasses
+         *            the {@code InnerClasses} entries for inner classes that the classfile the annotation was read
+         *            from did not link (see {@link ClassInfo#getUnlinkedInnerClasses()})
          * @throws IllegalArgumentException
          *             if the type path does not fit the type
          */
-        void annotate(T type, List<TypePathNode> typePath, AnnotationInfo annotationInfo);
+        void annotate(T type, List<TypePathNode> typePath, AnnotationInfo annotationInfo,
+                List<ClassContainment> unlinkedInnerClasses);
     }
 
     /**
@@ -1272,11 +1419,14 @@ class Classfile {
          *
          * @param type
          *            the type signature or type descriptor to add the annotation to
+         * @param unlinkedInnerClasses
+         *            the {@code InnerClasses} entries for inner classes that the classfile the annotation was read
+         *            from did not link (see {@link ClassInfo#getUnlinkedInnerClasses()})
          */
         // #897
-        void applyTo(final T type) {
+        void applyTo(final T type, final List<ClassContainment> unlinkedInnerClasses) {
             try {
-                target.annotate(type, typePath, annotationInfo);
+                target.annotate(type, typePath, annotationInfo, unlinkedInnerClasses);
             } catch (final IllegalArgumentException e) {
                 // Skip a type annotation that cannot be matched to the type, rather than failing to produce the
                 // whole type (best effort). (#897)
@@ -1293,11 +1443,17 @@ class Classfile {
          *            the type annotations, or null if there are none
          * @param type
          *            the type signature or type descriptor to add the annotations to
+         * @param declaringClassInfo
+         *            the {@link ClassInfo} of the class whose classfile the annotations were read from, or null if
+         *            it is not known
          */
-        static <T> void applyAll(final @Nullable List<TypeAnnotation<T>> typeAnnotations, final T type) {
+        static <T> void applyAll(final @Nullable List<TypeAnnotation<T>> typeAnnotations, final T type,
+                final @Nullable ClassInfo declaringClassInfo) {
             if (typeAnnotations != null) {
+                final var unlinkedInnerClasses = declaringClassInfo == null ? List.<ClassContainment> of()
+                        : declaringClassInfo.getUnlinkedInnerClasses();
                 for (final var typeAnnotation : typeAnnotations) {
-                    typeAnnotation.applyTo(type);
+                    typeAnnotation.applyTo(type, unlinkedInnerClasses);
                 }
             }
         }
@@ -2016,6 +2172,7 @@ class Classfile {
             final var typePath = readTypePath();
             final var annotationInfo = readAnnotation();
             typeAnnotations.add(new TypeAnnotation<>(TypeSignature::addTypeAnnotation, typePath, annotationInfo));
+            hasTypeAnnotations = true;
         }
         return typeAnnotations;
     }
@@ -2245,8 +2402,9 @@ class Classfile {
             case 0x01 -> {
                 // Type parameter declaration of generic method or constructor
                 final var typeParameterIndex = reader().readUnsignedByte();
-                yield (methodType, typePath, annotationInfo) -> annotateTypeParameter(
-                        methodType.getTypeParameters(), typeParameterIndex, typePath, annotationInfo);
+                yield (methodType, typePath, annotationInfo, unlinkedInnerClasses) -> annotateTypeParameter(
+                        methodType.getTypeParameters(), typeParameterIndex, typePath, annotationInfo,
+                        unlinkedInnerClasses);
             }
             case 0x10 -> {
                 // This target_type is not supposed to be added to methods, it is intended for ClassFile
@@ -2260,8 +2418,9 @@ class Classfile {
                 // Type in bound of type parameter declaration of generic method or constructor
                 final var typeParameterIndex = reader().readUnsignedByte();
                 final var boundIndex = reader().readUnsignedByte();
-                yield (methodType, typePath, annotationInfo) -> annotateTypeParameterBound(
-                        methodType.getTypeParameters(), typeParameterIndex, boundIndex, typePath, annotationInfo);
+                yield (methodType, typePath, annotationInfo, unlinkedInnerClasses) -> annotateTypeParameterBound(
+                        methodType.getTypeParameters(), typeParameterIndex, boundIndex, typePath, annotationInfo,
+                        unlinkedInnerClasses);
             }
             case 0x13 ->
                 // Type in field or record component declaration (empty target). This target_type is not supposed to
@@ -2271,11 +2430,12 @@ class Classfile {
                 null;
             case 0x14 ->
                 // Return type of method, or type of newly constructed object (empty target)
-                (methodType, typePath, annotationInfo) -> methodType.getResultType().addTypeAnnotation(typePath,
-                        annotationInfo);
+                (methodType, typePath, annotationInfo, unlinkedInnerClasses) -> methodType.getResultType()
+                        .addTypeAnnotation(typePath, annotationInfo, unlinkedInnerClasses);
             case 0x15 ->
                 // Receiver type of method or constructor (explicit receiver parameter) (empty target)
-                (methodType, typePath, annotationInfo) -> methodType.addReceiverTypeAnnotation(annotationInfo);
+                (methodType, typePath, annotationInfo, unlinkedInnerClasses) -> methodType
+                        .addReceiverTypeAnnotation(annotationInfo);
             case 0x16 -> {
                 // Type in formal parameter declaration of method, constructor, or lambda expression.
                 // N.B. formal parameter indices are dodgy, because not all compilers index parameters the same way
@@ -2286,21 +2446,22 @@ class Classfile {
                 // formal_parameter_index value of 0 does not always indicate the first parameter descriptor in the
                 // method descriptor." What the heck, guys.
                 final var formalParameterIndex = reader().readUnsignedByte();
-                yield (methodType, typePath, annotationInfo) -> {
+                yield (methodType, typePath, annotationInfo, unlinkedInnerClasses) -> {
                     final var parameterTypeSignatures = methodType.getParameterTypeSignatures();
                     if (formalParameterIndex < parameterTypeSignatures.size()) {
                         parameterTypeSignatures.get(formalParameterIndex).addTypeAnnotation(typePath,
-                                annotationInfo);
+                                annotationInfo, unlinkedInnerClasses);
                     }
                 };
             }
             case 0x17 -> {
                 // Type in throws clause of method or constructor
                 final var throwsTypeIndex = reader().readUnsignedShort();
-                yield (methodType, typePath, annotationInfo) -> {
+                yield (methodType, typePath, annotationInfo, unlinkedInnerClasses) -> {
                     final var throwsSignatures = methodType.getThrowsSignatures();
                     if (throwsTypeIndex < throwsSignatures.size()) {
-                        throwsSignatures.get(throwsTypeIndex).addTypeAnnotation(typePath, annotationInfo);
+                        throwsSignatures.get(throwsTypeIndex).addTypeAnnotation(typePath, annotationInfo,
+                                unlinkedInnerClasses);
                     }
                 };
             }
@@ -2313,6 +2474,7 @@ class Classfile {
             final var annotationInfo = readAnnotation();
             if (target != null) {
                 typeAnnotations.add(new TypeAnnotation<>(target, typePath, annotationInfo));
+                hasTypeAnnotations = true;
             }
         }
         return typeAnnotations;
@@ -2329,11 +2491,16 @@ class Classfile {
      *            the type path of the annotation within the type parameter
      * @param annotationInfo
      *            the annotation
+     * @param unlinkedInnerClasses
+     *            the {@code InnerClasses} entries for inner classes that the classfile the annotation was read from
+     *            did not link (see {@link ClassInfo#getUnlinkedInnerClasses()})
      */
     private static void annotateTypeParameter(final List<TypeParameter> typeParameters,
-            final int typeParameterIndex, final List<TypePathNode> typePath, final AnnotationInfo annotationInfo) {
+            final int typeParameterIndex, final List<TypePathNode> typePath, final AnnotationInfo annotationInfo,
+            final List<ClassContainment> unlinkedInnerClasses) {
         if (typeParameterIndex < typeParameters.size()) {
-            typeParameters.get(typeParameterIndex).addTypeAnnotation(typePath, annotationInfo);
+            typeParameters.get(typeParameterIndex).addTypeAnnotation(typePath, annotationInfo,
+                    unlinkedInnerClasses);
         }
         // else there is no type parameter at this index, e.g. because the type is a type descriptor, which has no
         // type parameters
@@ -2353,22 +2520,26 @@ class Classfile {
      *            the type path of the annotation within the bound
      * @param annotationInfo
      *            the annotation
+     * @param unlinkedInnerClasses
+     *            the {@code InnerClasses} entries for inner classes that the classfile the annotation was read from
+     *            did not link (see {@link ClassInfo#getUnlinkedInnerClasses()})
      */
     private static void annotateTypeParameterBound(final List<TypeParameter> typeParameters,
             final int typeParameterIndex, final int boundIndex, final List<TypePathNode> typePath,
-            final AnnotationInfo annotationInfo) {
+            final AnnotationInfo annotationInfo, final List<ClassContainment> unlinkedInnerClasses) {
         if (typeParameterIndex < typeParameters.size()) {
             final var typeParameter = typeParameters.get(typeParameterIndex);
             // boundIndex == 0 => class bound; boundIndex > 0 => interface bound
             if (boundIndex == 0) {
                 final var classBound = typeParameter.getClassBound();
                 if (classBound != null) {
-                    classBound.addTypeAnnotation(typePath, annotationInfo);
+                    classBound.addTypeAnnotation(typePath, annotationInfo, unlinkedInnerClasses);
                 }
             } else {
                 final var interfaceBounds = typeParameter.getInterfaceBounds();
                 if (boundIndex - 1 < interfaceBounds.size()) {
-                    interfaceBounds.get(boundIndex - 1).addTypeAnnotation(typePath, annotationInfo);
+                    interfaceBounds.get(boundIndex - 1).addTypeAnnotation(typePath, annotationInfo,
+                            unlinkedInnerClasses);
                 }
             }
         }
@@ -2508,8 +2679,9 @@ class Classfile {
             case 0x00 -> {
                 // Type parameter declaration of generic class or interface
                 final var typeParameterIndex = reader().readUnsignedByte();
-                yield (classType, typePath, annotationInfo) -> annotateTypeParameter(classType.getTypeParameters(),
-                        typeParameterIndex, typePath, annotationInfo);
+                yield (classType, typePath, annotationInfo, unlinkedInnerClasses) -> annotateTypeParameter(
+                        classType.getTypeParameters(), typeParameterIndex, typePath, annotationInfo,
+                        unlinkedInnerClasses);
             }
             case 0x10 -> {
                 // Type in extends or implements clause of class declaration (including the direct superclass or
@@ -2518,18 +2690,19 @@ class Classfile {
                 final var supertypeIndex = reader().readUnsignedShort();
                 if (supertypeIndex == 65535) {
                     // Type in extends clause of class declaration
-                    yield (classType, typePath, annotationInfo) -> {
+                    yield (classType, typePath, annotationInfo, unlinkedInnerClasses) -> {
                         final var superclassSignature = classType.getSuperclassSignature();
                         if (superclassSignature != null) {
-                            superclassSignature.addTypeAnnotation(typePath, annotationInfo);
+                            superclassSignature.addTypeAnnotation(typePath, annotationInfo, unlinkedInnerClasses);
                         }
                     };
                 }
                 // Type in implements clause of class declaration, or in extends clause of interface declaration
-                yield (classType, typePath, annotationInfo) -> {
+                yield (classType, typePath, annotationInfo, unlinkedInnerClasses) -> {
                     final var superinterfaceSignatures = classType.getSuperinterfaceSignatures();
                     if (supertypeIndex < superinterfaceSignatures.size()) {
-                        superinterfaceSignatures.get(supertypeIndex).addTypeAnnotation(typePath, annotationInfo);
+                        superinterfaceSignatures.get(supertypeIndex).addTypeAnnotation(typePath, annotationInfo,
+                                unlinkedInnerClasses);
                     }
                 };
             }
@@ -2537,8 +2710,9 @@ class Classfile {
                 // Type in bound of type parameter declaration of generic class or interface
                 final var typeParameterIndex = reader().readUnsignedByte();
                 final var boundIndex = reader().readUnsignedByte();
-                yield (classType, typePath, annotationInfo) -> annotateTypeParameterBound(
-                        classType.getTypeParameters(), typeParameterIndex, boundIndex, typePath, annotationInfo);
+                yield (classType, typePath, annotationInfo, unlinkedInnerClasses) -> annotateTypeParameterBound(
+                        classType.getTypeParameters(), typeParameterIndex, boundIndex, typePath, annotationInfo,
+                        unlinkedInnerClasses);
             }
             default -> throw new ClassfileFormatException("Class " + className
                     + " has unknown class type annotation target 0x" + Integer.toHexString(targetType)
@@ -2548,6 +2722,7 @@ class Classfile {
             final var typePath = readTypePath();
             final var annotationInfo = readAnnotation();
             typeAnnotations.add(new TypeAnnotation<>(target, typePath, annotationInfo));
+            hasTypeAnnotations = true;
         }
         return typeAnnotations;
     }
@@ -2601,21 +2776,12 @@ class Classfile {
                 }
                 checkClassName(innerClassName, "inner class name");
                 checkClassName(outerClassName, "outer class name");
-                // A class that uses invokedynamic (a record, or a lambda) has an InnerClasses entry for
-                // MethodHandles$Lookup, because its bootstrap methods take a Lookup -- drop that entry, except in
-                // the classfiles of MethodHandles and the classes nested in it, where it describes their own
-                // nesting
-                if (!("java.lang.invoke.MethodHandles$Lookup".equals(innerClassName)
-                        && "java.lang.invoke.MethodHandles".equals(outerClassName)
-                        && !className.equals("java.lang.invoke.MethodHandles")
-                        && !className.startsWith("java.lang.invoke.MethodHandles$"))) {
-                    // Store relationship between inner class and outer class
-                    if (classContainmentEntries == null) {
-                        classContainmentEntries = new ArrayList<>();
-                    }
-                    classContainmentEntries
-                            .add(new ClassContainment(innerClassName, innerClassAccessFlags, outerClassName));
+                // Store relationship between inner class and outer class
+                if (classContainmentEntries == null) {
+                    classContainmentEntries = new ArrayList<>();
                 }
+                classContainmentEntries
+                        .add(new ClassContainment(innerClassName, innerClassAccessFlags, outerClassName));
             }
         }
     }

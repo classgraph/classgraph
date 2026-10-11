@@ -158,7 +158,7 @@ public final class FieldInfo extends ClassMemberInfo implements Comparable<Field
      */
     // #897
     private void applyTypeAnnotations(final TypeSignature fieldType) {
-        TypeAnnotation.applyAll(typeAnnotationsToApply, fieldType);
+        TypeAnnotation.applyAll(typeAnnotationsToApply, fieldType, getClassInfo());
     }
 
     /**

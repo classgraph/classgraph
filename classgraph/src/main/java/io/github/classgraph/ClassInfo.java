@@ -66,10 +66,10 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>
  * A {@link ClassInfo} object is also created for each class that was merely referred to by a scanned class, as its
- * superclass, an implemented interface, an enclosing or nested class, or an annotation on the class or on one of
- * its fields, methods or method parameters (or in any other way, if
- * {@link ClassGraph#enableInterClassDependencies()} was called), but whose own classfile was never read during the
- * scan. That happens when the classfile was not found, when the class is not public and
+ * superclass, an implemented interface, an annotation on the class or on one of its fields, methods or method
+ * parameters, a member class nested in it, or an enclosing class of it or of one of these classes (or in any other
+ * way, if {@link ClassGraph#enableInterClassDependencies()} was called), but whose own classfile was never read
+ * during the scan. That happens when the classfile was not found, when the class is not public and
  * {@link ClassGraph#ignoreClassVisibility()} was not called, or when the class was named only in the
  * {@code InnerClasses} attribute of a scanned class or only as one of its inter-class dependencies (see
  * {@link ClassGraph#enableExternalClasses()}) -- {@link Object}, whose classfile is never read as an external
@@ -77,7 +77,9 @@ import org.jspecify.annotations.Nullable;
  * that referred to them: {@link #getResource()} returns null for them, accessors that depend on the classfile
  * having been read return empty results, and the accessors that report where the class was found
  * ({@link #getClasspathElementFile()}, {@link #getClasspathElementURI()}, {@link #getClasspathElementURL()} and
- * {@link #getModuleReference()}) throw {@link IllegalStateException}.
+ * {@link #getModuleReference()}) throw {@link IllegalStateException}. A class that was not scanned, and that the
+ * scanned classes name only in type descriptors and type signatures, such as the types of fields, gets no
+ * {@link ClassInfo} object at all, unless {@link ClassGraph#enableInterClassDependencies()} was called.
  *
  * <p>
  * Separately, {@link #isExternalClass()} reports whether a class lies outside the accepted packages. An external
@@ -220,6 +222,12 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      */
     @Nullable
     List<TypeAnnotation<ClassTypeSignature>> typeAnnotationsToApply;
+
+    /**
+     * The entries of the {@code InnerClasses} attribute of this class's classfile that name an inner class and were
+     * not linked, or null if there are none (see {@link #getUnlinkedInnerClasses()}).
+     */
+    private @Nullable List<ClassContainment> unlinkedInnerClasses;
 
     /**
      * Names of classes referenced by this class in class refs and type signatures in the constant pool of the
@@ -639,6 +647,33 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      */
     void setTypeAnnotations(final List<TypeAnnotation<ClassTypeSignature>> classTypeAnnotations) {
         this.typeAnnotationsToApply = classTypeAnnotations;
+    }
+
+    /**
+     * Set the entries of the {@code InnerClasses} attribute of this class's classfile that name an inner class and
+     * were not linked. Called once per class, from {@code Classfile#linkClassContainment}, after
+     * {@link #addScannedClass}, which rejects a second classfile for the same class.
+     *
+     * @param unlinkedInnerClasses
+     *            the entries. The list is kept, not copied.
+     * @see #getUnlinkedInnerClasses()
+     */
+    void setUnlinkedInnerClasses(final List<ClassContainment> unlinkedInnerClasses) {
+        this.unlinkedInnerClasses = unlinkedInnerClasses;
+    }
+
+    /**
+     * Get the entries of the {@code InnerClasses} attribute of this class's classfile that name an inner class and
+     * were not passed to {@link #addClassContainment}, because the classfile only mentions the class, for example
+     * in a descriptor or a signature, so that the class may have no {@link ClassInfo}. Where a type annotation goes
+     * in a nested type such as {@code Outer.Inner} depends on which of the nested classes are inner classes (JLS
+     * 9.7.4), so these entries are kept, but only if the class or one of its fields or methods has a type
+     * annotation.
+     *
+     * @return the entries, or the empty list if there are none or if nothing in the class has a type annotation
+     */
+    List<ClassContainment> getUnlinkedInnerClasses() {
+        return unlinkedInnerClasses == null ? List.of() : unlinkedInnerClasses;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -3962,7 +3997,7 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      */
     // #897
     private void applyTypeAnnotations(final ClassTypeSignature classType) {
-        TypeAnnotation.applyAll(typeAnnotationsToApply, classType);
+        TypeAnnotation.applyAll(typeAnnotationsToApply, classType, this);
     }
 
     /**

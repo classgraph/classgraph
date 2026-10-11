@@ -1185,15 +1185,19 @@ class Scanner {
             }
         }
 
-        // A ClassInfo object is created for every class named as a superclass, interface, annotation, enclosing
-        // class or nested class of a scanned class, and scanning is extended upwards to the classes that a scanned
-        // class refers to (see ClassGraph#enableExternalClasses()), so the class graph above a scanned class is
-        // complete. A ClassInfo object is deliberately not created for every class named in a type descriptor or
-        // type signature, since that would require every type descriptor and type signature to be parsed before the
-        // ScanResult can be returned, rather than lazily on demand, which would slow down every scan. The
-        // consequence is that ClassRefTypeSignature#getClassInfo() and AnnotationClassRef#getClassInfo() return
-        // null for a class that was not scanned. Call ClassGraph#enableInterClassDependencies() to get the classes
-        // referenced by a scanned class. (#902)
+        // A ClassInfo object is created for every class named as a superclass, interface or annotation of a scanned
+        // class, or as a member class nested in it, and for the enclosing classes of these classes and of the
+        // scanned class, and scanning is extended upwards to the classes that a scanned class refers to (see
+        // ClassGraph#enableExternalClasses()), so the class graph above a scanned class is complete. A ClassInfo
+        // object is deliberately not created for every class named in a type descriptor or type signature, since
+        // that would require every type descriptor and type signature to be parsed before the ScanResult can be
+        // returned, rather than lazily on demand, which would slow down every scan. (A nested class named in a
+        // descriptor or signature is also named in the InnerClasses attribute, but Classfile#linkClassContainment
+        // ignores that entry, so that naming a nested class in a descriptor or signature does not create a
+        // ClassInfo object for it either.) The consequence is that ClassRefTypeSignature#getClassInfo() and
+        // AnnotationClassRef#getClassInfo() return null for a class that was not scanned and that is named only in
+        // descriptors and signatures. Call ClassGraph#enableInterClassDependencies() to get a ClassInfo object for
+        // every class referenced by a scanned class. (#902)
 
         if (linkLog != null) {
             linkLog.addElapsedTime();

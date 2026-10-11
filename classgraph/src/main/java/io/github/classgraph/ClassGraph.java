@@ -439,16 +439,18 @@ public final class ClassGraph {
      * Some external classes are known only by name, because their classfile was not read. These are a class that a
      * class read by the scan names as its superclass, an implemented interface, an annotation or its enclosing
      * class, if the classfile was not found, or the class is not public and {@link #ignoreClassVisibility()} was
-     * not called, or the class is {@code java.lang.Object}; and the other classes named in the {@code InnerClasses}
-     * attribute of a class read by the scan, which are not read. That attribute lists every nested class that the
-     * class refers to, with its enclosing class, not only the class' own nested and enclosing classes: a class with
-     * a field of type {@code java.util.Map.Entry} brings in {@code java.util.Map} and {@code java.util.Map$Entry}.
-     * (Entries that name no enclosing class, which are those of local and anonymous classes, are skipped, and so is
-     * the entry for {@code java.lang.invoke.MethodHandles$Lookup} that a class using {@code invokedynamic} has.) If
-     * {@link #enableInterClassDependencies()} is called, every class that a class read by the scan refers to (see
-     * {@link ClassInfo#getClassDependencies()}) is also known, by name only if its classfile was not read (such as
-     * {@code java.lang.String}). For a class known only by name, only its name and its place in the class graph are
-     * known, and {@link ClassInfo#getResource()} returns null.
+     * not called, or the class is {@code java.lang.Object}; and the classes that the {@code InnerClasses} attribute
+     * of a class read by the scan names as member classes nested in that class, at any depth, or as the enclosing
+     * classes of that class, of its superclass, of an interface it implements, or of an annotation on it or on one
+     * of its fields, methods or method parameters, which are not read. The attribute also names every other nested
+     * class that the class refers to, with its enclosing classes, but those entries are ignored: a class with a
+     * field of type {@code java.util.Map.Entry} does not bring in {@code java.util.Map} or
+     * {@code java.util.Map$Entry}. If {@link #enableInterClassDependencies()} is called, every class that a class
+     * read by the scan refers to (see {@link ClassInfo#getClassDependencies()}) is also known, by name only if its
+     * classfile was not read (such as {@code java.lang.String}), and so are the enclosing classes of the nested
+     * classes among them (such as {@code java.util.Map}, for {@code java.util.Map$Entry}). For a class known only
+     * by name, only its name and its place in the class graph are known, and {@link ClassInfo#getResource()}
+     * returns null.
      *
      * <p>
      * External classes are found in this way whether or not this method is called, so that the part of the class

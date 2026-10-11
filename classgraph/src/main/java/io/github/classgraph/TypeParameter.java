@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
+import io.github.classgraph.Classfile.ClassContainment;
 import io.github.classgraph.Classfile.TypePathNode;
 import org.jspecify.annotations.Nullable;
 
@@ -108,10 +109,14 @@ public final class TypeParameter extends HierarchicalTypeSignature {
      *            The type path, which must be empty.
      * @param annotationInfo
      *            The annotation to add.
+     * @param unlinkedInnerClasses
+     *            The {@code InnerClasses} entries for inner classes that the classfile the annotation was read from
+     *            did not link (unused, since the type path must be empty).
      * @throws IllegalArgumentException
      *             if the type path is not empty.
      */
-    void addTypeAnnotation(final List<TypePathNode> typePath, final AnnotationInfo annotationInfo) {
+    void addTypeAnnotation(final List<TypePathNode> typePath, final AnnotationInfo annotationInfo,
+            final List<ClassContainment> unlinkedInnerClasses) {
         if (typePath.isEmpty()) {
             addTypeAnnotation(annotationInfo);
         } else {
