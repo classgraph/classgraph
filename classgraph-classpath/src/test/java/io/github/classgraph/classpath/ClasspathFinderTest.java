@@ -869,6 +869,25 @@ public class ClasspathFinderTest {
     }
 
     /**
+     * The filter is applied to the classpath elements that an OSGi bundle jar's {@code Bundle-ClassPath} manifest
+     * entry declares, and is given the nested location of each one, such as {@code "bundle.jar!/inner.jar"}.
+     */
+    @Test
+    public void theFilterSeesBundleClassPathEntries(@TempDir final Path tempDir) throws IOException {
+        final var bundle = writeJarWithManifest(tempDir.resolve("bundle.jar"), "Bundle-ClassPath",
+                ".,kept.jar,rejected.jar");
+        final var seen = new ArrayList<String>();
+        try (var classpath = new ClasspathFinder().enableClasspathEntries((Object) bundle)
+                .filterClasspathEntries(entry -> {
+                    seen.add(entry.getLocation());
+                    return !entry.getLocation().equals(location(bundle) + "!/rejected.jar");
+                }).find()) {
+            assertThat(classpath.getLocations()).containsExactly(location(bundle), location(bundle) + "!/kept.jar");
+        }
+        assertThat(seen).contains(location(bundle) + "!/rejected.jar");
+    }
+
+    /**
      * The filter is applied to the jarfiles in a lib dir that a classloader handler declares.
      *
      * @param tempDir
