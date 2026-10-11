@@ -195,4 +195,92 @@ public class TempFilenameSanitizationTest {
             assertThat(tempFiles).isEmpty();
         }
     }
+
+    /**
+     * Run in a child JVM: try twice to create a temporary file, and print the encoding that filenames are stored
+     * in, then the class of the {@link IOException} that each attempt threw, or the name of the file it created.
+     */
+    static final class CreateTempFileInNonAsciiTempDir {
+        /** Not instantiable. */
+        private CreateTempFileInNonAsciiTempDir() {
+        }
+
+        /**
+         * Entry point.
+         *
+         * @param args
+         *            ignored.
+         */
+        public static void main(final String[] args) {
+            System.out.println(System.getProperty("sun.jnu.encoding"));
+            final NestedJarHandler nestedJarHandler = new NestedJarHandler(new ScanSpec(),
+                    new InterruptionChecker(), new ReflectionUtils());
+            try {
+                for (int i = 0; i < 2; i++) {
+                    try {
+                        final File tempFile = nestedJarHandler.makeTempFile("BOOT-INF/lib/lib.jar",
+                                /* onlyUseLeafname = */ true);
+                        System.out.println(tempFile.getName());
+                    } catch (final IOException e) {
+                        System.out.println(e.getClass().getName());
+                    }
+                }
+            } finally {
+                nestedJarHandler.close(/* log = */ null);
+            }
+        }
+    }
+
+    /**
+     * A JVM started under the C locale on Linux stores filenames in ASCII, so it cannot represent a temporary
+     * directory with a non-ASCII name. Creating a temporary file must then throw an {@link IOException} every time,
+     * which skips only the jar being spilled to disk, rather than an {@link Error} that aborts the whole scan.
+     *
+     * @param parentDir
+     *            the directory that holds the temporary directory of the child JVM.
+     * @throws Exception
+     *             if the child JVM could not be run.
+     */
+    @Test
+    public void aTempDirThatFilenamesCannotRepresentThrowsIOException(@TempDir final Path parentDir)
+            throws Exception {
+        assumeTrue(System.getProperty("os.name").startsWith("Linux"), "The C locale is only tested on Linux");
+        assumeTrue(System.getProperty("sun.jnu.encoding").equals("UTF-8"),
+                "This JVM cannot create a directory with a non-ASCII name");
+        final Path tempDir = Files.createDirectory(parentDir.resolve("tmpé"));
+        final ProcessBuilder processBuilder = new ProcessBuilder(
+                Paths.get(System.getProperty("java.home"), "bin", "java").toString(),
+                "-Djava.io.tmpdir=" + tempDir, "-cp", System.getProperty("java.class.path"),
+                CreateTempFileInNonAsciiTempDir.class.getName()).redirectErrorStream(true);
+        final Iterator<String> envNames = processBuilder.environment().keySet().iterator();
+        while (envNames.hasNext()) {
+            if (envNames.next().startsWith("LC_")) {
+                envNames.remove();
+            }
+        }
+        processBuilder.environment().put("LC_ALL", "C");
+        processBuilder.environment().put("LANG", "C");
+        final Process process = processBuilder.start();
+        final ByteArrayOutputStream outputBytes = new ByteArrayOutputStream();
+        try (InputStream inputStream = process.getInputStream()) {
+            final byte[] buf = new byte[8192];
+            for (int n; (n = inputStream.read(buf)) > 0;) {
+                outputBytes.write(buf, 0, n);
+            }
+        }
+        final String output = new String(outputBytes.toByteArray(), StandardCharsets.UTF_8);
+        assertThat(process.waitFor()).as("Child JVM output:%n%s", output).isZero();
+        // Read the last three lines, since the JVM may print a notice such as "Picked up JAVA_TOOL_OPTIONS" first
+        final String[] outputLines = output.split("\r?\n");
+        assertThat(outputLines.length).as("Child JVM output:%n%s", output).isGreaterThanOrEqualTo(3);
+        assumeTrue(!outputLines[outputLines.length - 3].equals("UTF-8"),
+                "The C locale stores filenames in UTF-8 here");
+        assertThat(outputLines[outputLines.length - 2]).as("Child JVM output:%n%s", output)
+                .isEqualTo(IOException.class.getName());
+        assertThat(outputLines[outputLines.length - 1]).as("Child JVM output:%n%s", output)
+                .isEqualTo(IOException.class.getName());
+        try (DirectoryStream<Path> tempFiles = Files.newDirectoryStream(tempDir)) {
+            assertThat(tempFiles).isEmpty();
+        }
+    }
 }

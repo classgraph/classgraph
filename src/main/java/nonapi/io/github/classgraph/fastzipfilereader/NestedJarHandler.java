@@ -552,7 +552,7 @@ public class NestedJarHandler {
      * The most characters of a path that are kept in the name of its temporary file. A filename is limited to 255
      * bytes on Linux and macOS, and to 255 UTF-16 characters on Windows. A UTF-16 character takes at most 3 bytes
      * in UTF-8, so this leaves room for the prefix and the random number that
-     * {@link Files#createTempFile(String, String, java.nio.file.attribute.FileAttribute...)} adds.
+     * {@link Files#createTempFile(Path, String, String, java.nio.file.attribute.FileAttribute...)} adds.
      */
     private static final int MAX_TEMP_FILENAME_BASE_LENGTH = 64;
 
@@ -574,7 +574,8 @@ public class NestedJarHandler {
      *            If true, only use the leafname of filePathBase to derive the temporary filename.
      * @return The temporary {@link File}.
      * @throws IOException
-     *             If the temporary file could not be created.
+     *             If the temporary file could not be created, including when the temporary directory named by the
+     *             {@code java.io.tmpdir} system property cannot be represented in the encoding used for filenames.
      */
     public File makeTempFile(final String filePathBase, final boolean onlyUseLeafname) throws IOException {
         String filenameBase = sanitizeFilename(onlyUseLeafname ? leafname(filePathBase) : filePathBase);
@@ -586,13 +587,26 @@ public class NestedJarHandler {
             }
             filenameBase = filenameBase.substring(startIdx);
         }
+        // Resolve the temporary directory here rather than leaving it to Files.createTempFile(String, String),
+        // whose helper class resolves it once in its static initializer: if that fails, the class can never be
+        // used again in this JVM, and every call throws an Error rather than an IOException
+        final String tempDirName = System.getProperty("java.io.tmpdir");
+        final Path tempDir;
+        try {
+            tempDir = Paths.get(tempDirName);
+        } catch (final InvalidPathException e) {
+            // As happens to a non-ASCII directory name when the JVM is started under the C or POSIX locale on Linux
+            throw new IOException("The temporary directory " + tempDirName
+                    + " cannot be represented in the encoding used for filenames", e);
+        }
         File tempFile;
         try {
-            tempFile = createTempFileReadableOnlyByOwner(filenameBase);
+            tempFile = createTempFileReadableOnlyByOwner(tempDir, filenameBase);
         } catch (final InvalidPathException e) {
             // The encoding that filenames are stored in cannot represent some character of the filename, as
             // happens to every non-ASCII character when the JVM is started under the C or POSIX locale on Linux
-            tempFile = createTempFileReadableOnlyByOwner(NON_ASCII_CHARS.matcher(filenameBase).replaceAll("_"));
+            tempFile = createTempFileReadableOnlyByOwner(tempDir,
+                    NON_ASCII_CHARS.matcher(filenameBase).replaceAll("_"));
         }
         tempFiles.add(tempFile);
         return tempFile;
@@ -603,6 +617,8 @@ public class NestedJarHandler {
      * whose file can be read by every local user under the usual umask of 022. On Windows the file takes the access
      * control list of the temporary directory.
      *
+     * @param tempDir
+     *            The directory to create the temporary file in.
      * @param filenameBase
      *            The sanitized name to end the temporary filename with.
      * @return The temporary {@link File}.
@@ -611,8 +627,10 @@ public class NestedJarHandler {
      * @throws InvalidPathException
      *             If the temporary filename cannot be represented in the encoding that filenames are stored in.
      */
-    private static File createTempFileReadableOnlyByOwner(final String filenameBase) throws IOException {
-        return Files.createTempFile(TEMP_FILENAME_PREFIX, TEMP_FILENAME_LEAF_SEPARATOR + filenameBase).toFile();
+    private static File createTempFileReadableOnlyByOwner(final Path tempDir, final String filenameBase)
+            throws IOException {
+        return Files.createTempFile(tempDir, TEMP_FILENAME_PREFIX, TEMP_FILENAME_LEAF_SEPARATOR + filenameBase)
+                .toFile();
     }
 
     /**
