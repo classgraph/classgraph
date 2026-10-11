@@ -152,7 +152,7 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
         synchronized (this) {
             final var receiverTypeAnnotationList = receiverTypeAnnotations;
             return receiverTypeAnnotationList == null ? AnnotationInfoList.EMPTY_LIST
-                    : receiverTypeAnnotationList.getAnnotationInfo();
+                    : receiverTypeAnnotationList.getAnnotationInfo(scanResult);
         }
     }
 

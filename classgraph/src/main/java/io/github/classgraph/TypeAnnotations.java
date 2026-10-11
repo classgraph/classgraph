@@ -39,13 +39,13 @@ import org.jspecify.annotations.Nullable;
  * explicit receiver parameter of a method. Type signatures allocate this only when they get their first type
  * annotation; a class reference then allocates one for each of its nested classes. It is not thread-safe: type
  * annotations are added before the type signature is handed out, and the type signature synchronizes calls to
- * {@link #getAnnotationInfo()}.
+ * {@link #getAnnotationInfo(ScanResult)}.
  */
 final class TypeAnnotations implements Iterable<AnnotationInfo> {
     /** The type annotations, in the order they were read. */
     private final List<AnnotationInfo> annotations;
 
-    /** The value returned by {@link #getAnnotationInfo()}, or null if it has not been built yet. */
+    /** The value returned by {@link #getAnnotationInfo(ScanResult)}, or null if it has not been built yet. */
     private @Nullable AnnotationInfoList annotationInfoRef;
 
     /** Create an empty list of type annotations. */
@@ -111,6 +111,8 @@ final class TypeAnnotations implements Iterable<AnnotationInfo> {
         for (final AnnotationInfo annotationInfo : annotations) {
             annotationInfo.setScanResult(scanResult);
         }
+        // The ScanResult says which annotations are containers to unpack, so rebuild the cached list
+        annotationInfoRef = null;
     }
 
     /**
@@ -133,15 +135,25 @@ final class TypeAnnotations implements Iterable<AnnotationInfo> {
 
     /**
      * Get the type annotations, sorted by name, since the order of type annotations in a classfile is not
-     * specified. Annotations of the same name keep the order they were read in.
+     * specified. Annotations of the same name keep the order they were read in. The container annotations of
+     * {@link java.lang.annotation.Repeatable} annotations are unpacked, as in the declaration annotation lists (see
+     * {@link AnnotationInfoList#unpackRepeatableAnnotations(List, java.util.Set)}).
      *
+     * @param scanResult
+     *            the {@link ScanResult} of the type signature that holds these type annotations, which knows the
+     *            names of the container annotations, or null if the type signature did not come from a scan, in
+     *            which case no containers are unpacked.
      * @return the type annotations, sorted by name.
      */
-    AnnotationInfoList getAnnotationInfo() {
+    AnnotationInfoList getAnnotationInfo(final @Nullable ScanResult scanResult) {
         var annotationInfo = annotationInfoRef;
         if (annotationInfo == null) {
+            final List<AnnotationInfo> unpacked = new ArrayList<>(annotations);
+            if (scanResult != null) {
+                AnnotationInfoList.unpackRepeatableAnnotations(unpacked, scanResult.containerAnnotationNames);
+            }
             annotationInfoRef = annotationInfo = new AnnotationInfoList(
-                    AnnotationInfoList.sortCopyByName(annotations));
+                    AnnotationInfoList.sortCopyByName(unpacked));
         }
         return annotationInfo;
     }

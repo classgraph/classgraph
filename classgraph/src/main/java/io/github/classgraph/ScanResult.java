@@ -123,6 +123,13 @@ public final class ScanResult implements AutoCloseable {
     /** The scan spec. */
     final ScanSpec scanSpec;
 
+    /**
+     * The names of the container annotations of every {@link java.lang.annotation.Repeatable} annotation found by
+     * the scan. The type annotation lists of type signatures are built after the scan, and use this to unpack
+     * containers the way the declaration annotation lists are unpacked when the scan result is made.
+     */
+    final Set<String> containerAnnotationNames;
+
     /** If true, this ScanResult has already been closed. */
     private final AtomicBoolean closed = new AtomicBoolean(false);
 
@@ -281,6 +288,7 @@ public final class ScanResult implements AutoCloseable {
                 }
             }
         }
+        this.containerAnnotationNames = allRepeatableAnnotationNames;
         if (!allRepeatableAnnotationNames.isEmpty()) {
             for (final ClassInfo classInfo : classNameToClassInfo.values()) {
                 classInfo.handleRepeatableAnnotations(allRepeatableAnnotationNames);
