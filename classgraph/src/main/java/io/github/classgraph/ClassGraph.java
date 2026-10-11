@@ -1372,7 +1372,7 @@ public final class ClassGraph {
     }
 
     /**
-     * Allow classpath elements to be fetched from {@link URL} connections with the specified URL scheme.
+     * Allow classpath elements named by a {@link URL} with the specified URL scheme to be read.
      *
      * <p>
      * Only {@code http}, {@code https}, {@code ftp} and {@code mailto} have to be allowed this way -- see
@@ -1403,9 +1403,11 @@ public final class ClassGraph {
     }
 
     /**
-     * Refuse to fetch a jarfile from a classpath element named by a {@link URL} with the specified URL scheme. The
-     * classpath element is still reported, but the jarfile it names is not read, so neither its classes nor the
-     * classpath elements its manifest declares are found.
+     * Refuse to read a classpath element named by a {@link URL} or {@link java.net.URI} with the specified URL
+     * scheme. The jarfile or directory it names is not read, so neither its classes nor the classpath elements it
+     * declares are found, and it is left out of {@link ScanResult#getClasspathURIs()}. This holds even if a
+     * {@link java.nio.file.spi.FileSystemProvider} is installed for the scheme. A classpath element given as a
+     * {@link java.nio.file.Path} is read through its own filesystem whatever its scheme.
      *
      * <p>
      * {@code http}, {@code https}, {@code ftp} and {@code mailto} are refused already -- see {@link #ClassGraph()}.

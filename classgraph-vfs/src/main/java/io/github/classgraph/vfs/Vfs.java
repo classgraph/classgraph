@@ -745,7 +745,9 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
 
     /**
      * Open a directory or a jarfile named by a {@link Path}. The {@link Path} may be in a filesystem other than the
-     * default one, e.g. in a zipfile mounted with {@link FileSystems#newFileSystem(Path, ClassLoader)}.
+     * default one, e.g. in a zipfile mounted with {@link FileSystems#newFileSystem(Path, ClassLoader)}. A path in
+     * another filesystem is read through that filesystem whatever the scheme of its URI, even one that
+     * {@link VfsSpec#denyURLScheme(String)} denied, since the caller has already chosen the filesystem.
      *
      * @param path
      *            the directory or jarfile to open.

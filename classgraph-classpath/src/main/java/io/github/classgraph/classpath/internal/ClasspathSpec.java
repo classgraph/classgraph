@@ -85,9 +85,9 @@ public class ClasspathSpec {
 
     /**
      * URL schemes that may start a classpath element, so that a {@code ':'}-separated classpath string is not split
-     * at a scheme's own colon. This is a parsing aid, not a permission check -- whether a jarfile may be fetched
-     * over a scheme is {@link io.github.classgraph.vfs.VfsSpec#denyURLScheme(String)}'s business. {@code "jar:"}
-     * and {@code "file:"} are recognized without being listed here.
+     * at a scheme's own colon. This is a parsing aid, not a permission check -- whether a jarfile or directory may
+     * be read over a scheme is {@link io.github.classgraph.vfs.VfsSpec#denyURLScheme(String)}'s business.
+     * {@code "jar:"} and {@code "file:"} are recognized without being listed here.
      */
     private final Set<String> allowedURLSchemes = new HashSet<>();
 

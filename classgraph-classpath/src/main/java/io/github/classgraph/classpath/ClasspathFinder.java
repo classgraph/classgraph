@@ -143,8 +143,7 @@ public final class ClasspathFinder {
     }
 
     /**
-     * Allow a jarfile to be fetched from a classpath element named by a URL with the given scheme, e.g.
-     * {@code "http"}.
+     * Allow a classpath element named by a URL with the given scheme, e.g. {@code "http"}, to be read.
      *
      * <p>
      * Only {@code http}, {@code https}, {@code ftp} and {@code mailto} have to be allowed this way -- see
@@ -173,9 +172,11 @@ public final class ClasspathFinder {
     }
 
     /**
-     * Refuse to fetch a jarfile from a classpath element named by a URL with the given scheme. The classpath
-     * element is still reported, but the jarfile it names is not read, so the classpath elements that it declares
-     * are not found.
+     * Refuse to read a classpath element named by a URL or URI with the given scheme. The classpath element is
+     * still reported, but the jarfile or directory it names is not read, so the classpath elements that it declares
+     * are not found. This holds even if a {@link java.nio.file.spi.FileSystemProvider} is installed for the scheme.
+     * A classpath element given as a {@link java.nio.file.Path} is read through its own filesystem whatever its
+     * scheme.
      *
      * <p>
      * {@code http}, {@code https}, {@code ftp} and {@code mailto} are refused already -- see
