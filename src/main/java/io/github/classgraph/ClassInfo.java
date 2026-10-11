@@ -1203,7 +1203,15 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     /**
      * Get the {@link ModuleInfo} object for the class.
      *
-     * @return the {@link ModuleInfo} object for the class, or null if the class is not part of a named module.
+     * <p>
+     * A class found in a jar on the traditional classpath is in the unnamed module at runtime, but still gets a
+     * {@link ModuleInfo}, named after the module that the jar declares in its module descriptor or in the
+     * {@code Automatic-Module-Name} attribute of its manifest, or else after the automatic module name derived from
+     * the jar's filename. A class found in a directory gets a {@link ModuleInfo} only if the directory contains a
+     * {@code module-info.class} file.
+     *
+     * @return the {@link ModuleInfo} object for the class, or null if the classpath element that the class was found
+     *         in has no module name.
      */
     public ModuleInfo getModuleInfo() {
         return moduleInfo;
