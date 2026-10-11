@@ -220,8 +220,9 @@ public class NestingDepthLimitTest {
     }
 
     /**
-     * A class reference to an array type whose element type has deeply nested type arguments makes only the class
-     * that holds it fail, when the dependencies of each class are found.
+     * A class reference to an array type whose element type has deeply nested type arguments is not recorded as a
+     * dependency, since the element class name contains {@code ';'}, and the class that holds it is kept, when the
+     * dependencies of each class are found.
      *
      * @param tempDir
      *            the directory to write the classfiles to
@@ -232,14 +233,16 @@ public class NestingDepthLimitTest {
     public void aDeeplyNestedArrayClassReferenceIsSkipped(@TempDir final File tempDir) throws IOException {
         try (ScanResult scanResult = scan(tempDir, "java/lang/Object", /* classSignature = */ null, "I",
                 "[" + deeplyNestedTypeArguments())) {
-            assertThat(scanResult.getClassInfo(CLASS_NAME)).isNull();
+            final ClassInfo classInfo = scanResult.getClassInfo(CLASS_NAME);
+            assertThat(classInfo).isNotNull();
+            assertThat(classInfo.getClassDependencies().getNames()).noneMatch(name -> name.startsWith("a"));
             assertThat(scanResult.getClassInfo(NEIGHBOR_NAME)).isNotNull();
         }
     }
 
     /**
-     * A superclass whose name has deeply nested type arguments does not stop the type descriptor of the class from
-     * being built.
+     * A superclass whose name has deeply nested type arguments does not overflow the stack. The name contains
+     * {@code ';'}, so the JVM refuses to load the class, and the scan skips it and keeps the other classes.
      *
      * @param tempDir
      *            the directory to write the classfiles to
@@ -251,9 +254,7 @@ public class NestingDepthLimitTest {
         final String nested = deeplyNestedTypeArguments();
         try (ScanResult scanResult = scan(tempDir, nested.substring(1, nested.length() - 1),
                 /* classSignature = */ null, "I", "java/lang/String")) {
-            final ClassInfo classInfo = scanResult.getClassInfo(CLASS_NAME);
-            assertThat(classInfo).isNotNull();
-            assertThat(classInfo.getTypeSignatureOrTypeDescriptor()).isNotNull();
+            assertThat(scanResult.getClassInfo(CLASS_NAME)).isNull();
             assertThat(scanResult.getClassInfo(NEIGHBOR_NAME)).isNotNull();
         }
     }

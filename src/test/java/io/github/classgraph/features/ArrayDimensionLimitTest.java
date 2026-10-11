@@ -317,8 +317,10 @@ public class ArrayDimensionLimitTest {
     }
 
     /**
-     * A class with a class reference to an array type with too many dimensions, in the class name form, is skipped
-     * by a scan that finds the dependencies of each class, and the other classes are scanned.
+     * A class with a class reference to an array type with too many dimensions, in either the descriptor form or
+     * the class name form, that only records a dependency keeps its class in a scan that finds the dependencies of
+     * each class, as a class with any other malformed class reference does, and the reference is not recorded as a
+     * dependency.
      *
      * @param tempDir
      *            the directory to write the classfiles to
@@ -327,13 +329,21 @@ public class ArrayDimensionLimitTest {
      */
     @Test
     public void classRefWithTooManyDimensions(@TempDir final File tempDir) throws IOException {
-        Files.write(new File(tempDir, "Refs.class").toPath(),
-                classfileBytes("Refs", "java/lang/Object", TOO_MANY_DIMENSIONS_CLASS_NAME,
+        Files.write(new File(tempDir, "Refs1.class").toPath(),
+                classfileBytes("Refs1", "java/lang/Object", TOO_MANY_DIMENSIONS_DESCRIPTOR,
+                        /* fieldSignature = */ null, ANN, /* annotationClassLiteral = */ null));
+        Files.write(new File(tempDir, "Refs2.class").toPath(),
+                classfileBytes("Refs2", "java/lang/Object", TOO_MANY_DIMENSIONS_CLASS_NAME,
                         /* fieldSignature = */ null, ANN, /* annotationClassLiteral = */ null));
         writeValidClass(tempDir);
         try (ScanResult scanResult = new ClassGraph().overrideClasspath(tempDir).enableClassInfo()
                 .enableInterClassDependencies().enableExternalClasses().scan()) {
-            assertThat(scanResult.getClassInfo("Refs")).isNull();
+            for (final String className : new String[] { "Refs1", "Refs2" }) {
+                final ClassInfo classInfo = scanResult.getClassInfo(className);
+                assertThat(classInfo).as(className).isNotNull();
+                assertThat(classInfo.getClassDependencies().getNames()).as(className)
+                        .noneMatch(name -> name.startsWith("[") || name.endsWith("[]"));
+            }
             assertThat(scanResult.getClassInfo("Valid").getClassDependencies().getNames())
                     .contains("java.lang.String");
         }
