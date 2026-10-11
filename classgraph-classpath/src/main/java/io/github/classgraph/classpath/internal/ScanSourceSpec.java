@@ -75,7 +75,10 @@ public class ScanSourceSpec {
     }
 
     /**
-     * The classpath elements declared by the given classloaders, and by their parents.
+     * The classpath elements declared by the given classloaders, and by their parents. The generated {@code equals}
+     * and {@code hashCode} compare the classloaders with {@link Object#equals}, which is not identity for every
+     * classloader (TomEE makes two distinct classloaders equal, #515), so instances must not be compared or used as
+     * map keys.
      *
      * @param classLoaders
      *            the classloaders.
