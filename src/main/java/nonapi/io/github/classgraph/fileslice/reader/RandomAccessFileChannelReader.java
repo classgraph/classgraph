@@ -171,7 +171,10 @@ public class RandomAccessFileChannelReader implements RandomAccessReader {
                     continue;
                 }
                 if (numBytesReadThisCall <= 0) {
-                    // -1 => end of file; 0 => the destination buffer has no space left
+                    // -1 => end of file, which here means the file is shorter than its slice. A FileChannel is
+                    // always in blocking mode, and the window above always leaves room while this loop runs, so
+                    // ReadableByteChannel#read guarantees that at least one byte is read, and a FileChannel that
+                    // keeps to its contract never returns 0 here
                     break;
                 }
                 numBytesRead += numBytesReadThisCall;
