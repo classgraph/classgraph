@@ -548,7 +548,7 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
      * @return the {@link URL} of the classpath element, or null if it could not be converted to a {@link URL}.
      */
     // new URL(String) is deprecated from JDK 20, but it accepts URLs that new URI(String) rejects (such as one
-    // containing a space), which is what the fallbacks below rely on
+    // containing a space), which is what the parsing of the path string below relies on
     @SuppressWarnings("deprecation")
     private static @Nullable URL toClasspathElementURL(final Object pathElement, final String pathElementStr,
             final @Nullable ClassGraphLog log) {
@@ -569,13 +569,16 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
             try {
                 pathElementURL = new URL(urlStr);
             } catch (final MalformedURLException _) {
-                try {
-                    pathElementURL = new File(urlStr).toURI().toURL();
-                } catch (final MalformedURLException | IllegalArgumentException | IOError _) {
-                    // Final fallback -- try just using the raw string as a URL
+                // The path is not a valid URL, usually because no URL handler is registered for its scheme. It is
+                // only a local file if a file of that name exists, such as "lib:/x.jar" in a directory named "lib:"
+                // in the current directory. Otherwise, turning it into a "file:" URL would name a file below the
+                // current directory that does not exist, such as "file:/cwd/custom:/host/x.jar", so the classpath
+                // element is left in the form it was given
+                final var file = new File(pathElementStr);
+                if (file.exists()) {
                     try {
-                        pathElementURL = new URL(pathElementStr);
-                    } catch (final MalformedURLException _) {
+                        pathElementURL = file.toURI().toURL();
+                    } catch (final MalformedURLException | IllegalArgumentException | IOError _) {
                         // Fall through
                     }
                 }

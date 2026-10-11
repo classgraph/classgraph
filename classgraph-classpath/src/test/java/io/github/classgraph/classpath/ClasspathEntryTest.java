@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.IOException;
+import java.net.URI;
 import java.nio.file.FileSystem;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -164,6 +165,24 @@ public class ClasspathEntryTest {
                     assertThat(denyingVfs.open(entry.getLocation())).isSameAs(root);
                 }
             }
+        }
+    }
+
+    /**
+     * A classpath element named by a URI, or a URI string, whose scheme has no URL handler is kept in the form it
+     * was found in. It used to be turned into a "file:" URL naming a file below the current directory, such as
+     * "file:/cwd/custom:/host/lib.jar", which does not exist.
+     */
+    @Test
+    public void aClasspathElementWithNoUrlHandlerIsNotTurnedIntoALocalFile() {
+        final var uri = URI.create("custom://host/lib.jar");
+        try (var classpath = findClasspath(uri.toString())) {
+            assertThat(classpath.getEntries()).singleElement().isInstanceOf(ClasspathEntry.OfPathString.class)
+                    .returns(uri.toString(), ClasspathEntry::getLocation);
+        }
+        try (var classpath = findClasspath(uri)) {
+            assertThat(classpath.getEntries()).singleElement().isInstanceOf(ClasspathEntry.OfURI.class)
+                    .returns(uri.toString(), ClasspathEntry::getLocation);
         }
     }
 
