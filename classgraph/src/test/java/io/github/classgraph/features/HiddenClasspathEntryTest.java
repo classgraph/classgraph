@@ -3,6 +3,7 @@ package io.github.classgraph.features;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
+import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
@@ -314,15 +315,23 @@ class HiddenClasspathEntryTest {
                     lmap instanceof Map && ((Map<?, ?>) lmap).keySet().stream()
                             .anyMatch(key -> String.valueOf(key).endsWith("/indexed.jar")),
                     "Could not reach the URLClassPath internals, or this JDK does not read JAR indexes");
-            try (var scanResult = new ClassGraph().enableClassLoaders(classLoader).acceptPaths(RESOURCE_DIR)
-                    .scan()) {
-                assertThat(scanResult.getResourcesWithPath(indexedPath)).isNotEmpty();
-            }
-            // Looking up a resource in the indexed package opens indexed.jar, which is still not in loaders
-            assertThat(classLoader.getResource(indexedPath)).isNotNull();
-            try (var scanResult = new ClassGraph().enableClassLoaders(classLoader).acceptPaths(RESOURCE_DIR)
-                    .scan()) {
-                assertThat(scanResult.getResourcesWithPath(indexedPath)).isNotEmpty();
+            try {
+                try (var scanResult = new ClassGraph().enableClassLoaders(classLoader).acceptPaths(RESOURCE_DIR)
+                        .scan()) {
+                    assertThat(scanResult.getResourcesWithPath(indexedPath)).isNotEmpty();
+                }
+                // Looking up a resource in the indexed package opens indexed.jar, which is still not in loaders
+                assertThat(classLoader.getResource(indexedPath)).isNotNull();
+                try (var scanResult = new ClassGraph().enableClassLoaders(classLoader).acceptPaths(RESOURCE_DIR)
+                        .scan()) {
+                    assertThat(scanResult.getResourcesWithPath(indexedPath)).isNotEmpty();
+                }
+            } finally {
+                // Closing the classloader closes only the jars in loaders, so the JDK would leave indexed.jar open,
+                // and Windows would then refuse to delete the temporary directory. Closing a jar twice is harmless
+                for (final var loader : ((Map<?, ?>) lmap).values()) {
+                    ((Closeable) loader).close();
+                }
             }
         }
     }
