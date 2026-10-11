@@ -237,6 +237,45 @@ public class VersionSkewedAnnotationValueTest {
     }
 
     /**
+     * An annotation class that became a plain class, with a method named like one of the elements, still reports
+     * every value given at the use site, whether or not method info is enabled. The plain class declares no
+     * elements or default values, so no value is added or left out. (The JDK drops such an annotation when it is
+     * read.)
+     */
+    @Test
+    public void annotationChangedToPlainClass() throws IOException {
+        final var classpath = compileUserAgainstChangedAnnotation("""
+                package p;
+                public class A {
+                    public int x() {
+                        return 0;
+                    }
+                }
+                """);
+        for (final boolean methodInfo : new boolean[] { false, true }) {
+            final var classGraph = new ClassGraph().enableClasspathEntries((Object[]) classpath).enableClassInfo()
+                    .enableAnnotationInfo();
+            if (methodInfo) {
+                classGraph.enableMethodInfo();
+            }
+            try (var scanResult = classGraph.scan()) {
+                final var a = scanResult.getClassInfo("p.A");
+                assertThat(a).isNotNull();
+                assertThat(a.isAnnotation()).isFalse();
+                final var user = scanResult.getClassInfo("p.User");
+                assertThat(user).isNotNull();
+                final var annotation = user.getAllAnnotationInfo().get("p.A");
+                assertThat(annotation).isNotNull();
+                assertThat(annotation.getParameterValues().getNames()).as("methodInfo = " + methodInfo)
+                        .containsExactly("v", "x");
+                assertThat(annotation.getParameterValues()).isEqualTo(annotation.getDeclaredParameterValues());
+                assertThat(annotation.getParameterValues().getValue("x")).isEqualTo(1);
+                assertThat(annotation.toString()).contains("x=1");
+            }
+        }
+    }
+
+    /**
      * Compile {@link #TAGGED} against {@link #TAGS_V1}, then replace the container with a second version.
      *
      * @param tagsV2

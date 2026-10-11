@@ -141,9 +141,10 @@ public final class AnnotationInfo extends ScanResultObject implements Comparable
             AnnotationParameterValueList.convertWrapperArraysToPrimitiveArrays(paramValues, classInfo);
             annotationParamValuesHasBeenConvertedToPrimitive = true;
         }
-        if (!includeDefaultValues || classInfo == null || !classInfo.isScannedClass) {
+        if (!includeDefaultValues || classInfo == null || !classInfo.isScannedClass || !classInfo.isAnnotation()) {
             // Don't include defaults, or the annotation class was not scanned, so its elements and their default
-            // values are not known
+            // values are not known. If the annotation class was changed into a class that is not an annotation
+            // after the use site was compiled, it declares no elements, so the values are also returned unchanged.
             return paramValues == null ? AnnotationParameterValueList.EMPTY_LIST : paramValues;
         }
         // Read the field only once, since another thread may set it between two reads
