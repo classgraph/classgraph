@@ -546,7 +546,9 @@ public final class ScanResult implements AutoCloseable {
      * Only the classpath elements that were actually scanned are listed: a classpath element is scanned only if it
      * was enabled with {@link ClassGraph#enableClasspath()}, {@link ClassGraph#enableClassLoaders(ClassLoader...)}
      * or {@link ClassGraph#enableClasspathEntries(Object...)}, and was not narrowed out by an {@code accept} or
-     * {@code reject} method.
+     * {@code reject} method. A classpath element that has no {@link File}, as described for
+     * {@link Resource#getClasspathElementFile()}, is left out, but {@link #getClasspathURIs()} lists it if it has a
+     * location URI.
      *
      * @return The unique classpath elements that were scanned.
      * @throws IllegalStateException
