@@ -234,7 +234,7 @@ public class TempFilenameSanitizationTest {
     /**
      * A JVM started under the C locale on Linux stores filenames in ASCII, so it cannot represent a temporary
      * directory with a non-ASCII name. Creating a temporary file must then throw an {@link IOException} every time,
-     * which skips only the jar being spilled to disk, rather than an {@link Error} that aborts the whole scan.
+     * rather than an {@link Error} that leaves the JDK unable to create a temporary file again in this JVM.
      *
      * @param parentDir
      *            the directory that holds the temporary directory of the child JVM.
@@ -279,6 +279,93 @@ public class TempFilenameSanitizationTest {
                 .isEqualTo(IOException.class.getName());
         assertThat(outputLines[outputLines.length - 1]).as("Child JVM output:%n%s", output)
                 .isEqualTo(IOException.class.getName());
+        try (DirectoryStream<Path> tempFiles = Files.newDirectoryStream(tempDir)) {
+            assertThat(tempFiles).isEmpty();
+        }
+    }
+
+    /**
+     * Run in a child JVM: create a temporary file after the {@code java.io.tmpdir} system property has been changed
+     * to a directory that does not exist, and again after it has been cleared, and print the directory that each
+     * file was created in, or the class of the exception that each attempt threw.
+     */
+    static final class CreateTempFileAfterTempDirChanged {
+        /** Not instantiable. */
+        private CreateTempFileAfterTempDirChanged() {
+        }
+
+        /**
+         * Entry point.
+         *
+         * @param args
+         *            ignored.
+         * @throws IOException
+         *             if the temporary file used to start using the temporary directory could not be created or
+         *             deleted.
+         */
+        public static void main(final String[] args) throws IOException {
+            // The JDK resolves the temporary directory when it first creates a temporary file (on JDK 8), or at
+            // startup (on later JDKs), and keeps using that directory whatever the property is changed to later
+            Files.delete(Files.createTempFile("classgraph", ".tmp"));
+            final String startupTempDirName = System.getProperty("java.io.tmpdir");
+            final NestedJarHandler nestedJarHandler = new NestedJarHandler(new ScanSpec(),
+                    new InterruptionChecker(), new ReflectionUtils());
+            try {
+                for (final String tempDirName : new String[] { new File(startupTempDirName, "missing").getPath(),
+                        null }) {
+                    if (tempDirName == null) {
+                        System.clearProperty("java.io.tmpdir");
+                    } else {
+                        System.setProperty("java.io.tmpdir", tempDirName);
+                    }
+                    try {
+                        final File tempFile = nestedJarHandler.makeTempFile("BOOT-INF/lib/lib.jar",
+                                /* onlyUseLeafname = */ true);
+                        System.out.println(tempFile.getParent());
+                    } catch (final Exception e) {
+                        System.out.println(e.getClass().getName());
+                    }
+                }
+            } finally {
+                nestedJarHandler.close(/* log = */ null);
+            }
+        }
+    }
+
+    /**
+     * The {@code java.io.tmpdir} system property can be changed or cleared while the JVM runs, but the JDK keeps
+     * creating temporary files in the directory it resolved first. A temporary file for a nested jar must be created
+     * there too, rather than failing because the property now names a directory that does not exist, or no
+     * directory at all.
+     *
+     * @param tempDir
+     *            the temporary directory of the child JVM.
+     * @throws Exception
+     *             if the child JVM could not be run.
+     */
+    @Test
+    public void aTempDirChangedWhileRunningIsIgnored(@TempDir final Path tempDir) throws Exception {
+        final ProcessBuilder processBuilder = new ProcessBuilder(
+                Paths.get(System.getProperty("java.home"), "bin", "java").toString(),
+                "-Djava.io.tmpdir=" + tempDir, "-cp", System.getProperty("java.class.path"),
+                CreateTempFileAfterTempDirChanged.class.getName()).redirectErrorStream(true);
+        final Process process = processBuilder.start();
+        final ByteArrayOutputStream outputBytes = new ByteArrayOutputStream();
+        try (InputStream inputStream = process.getInputStream()) {
+            final byte[] buf = new byte[8192];
+            for (int n; (n = inputStream.read(buf)) > 0;) {
+                outputBytes.write(buf, 0, n);
+            }
+        }
+        final String output = new String(outputBytes.toByteArray(), StandardCharsets.UTF_8);
+        assertThat(process.waitFor()).as("Child JVM output:%n%s", output).isZero();
+        // Read the last two lines, since the JVM may print a notice such as "Picked up JAVA_TOOL_OPTIONS" first
+        final String[] outputLines = output.split("\r?\n");
+        assertThat(outputLines.length).as("Child JVM output:%n%s", output).isGreaterThanOrEqualTo(2);
+        assertThat(outputLines[outputLines.length - 2]).as("Child JVM output:%n%s", output)
+                .isEqualTo(tempDir.toString());
+        assertThat(outputLines[outputLines.length - 1]).as("Child JVM output:%n%s", output)
+                .isEqualTo(tempDir.toString());
         try (DirectoryStream<Path> tempFiles = Files.newDirectoryStream(tempDir)) {
             assertThat(tempFiles).isEmpty();
         }
