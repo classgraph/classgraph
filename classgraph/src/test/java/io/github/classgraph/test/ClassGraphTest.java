@@ -239,8 +239,10 @@ public class ClassGraphTest {
     /**
      * Test can query with rejected annotation.
      */
+    @Test
     public void testCanQueryWithRejectedAnnotation() {
-        try (var scanResult = new ClassGraph().enableClasspath().acceptPackages(ACCEPT_PACKAGE).scan()) {
+        try (var scanResult = new ClassGraph().enableClassInfo().enableClasspath().acceptPackages(ACCEPT_PACKAGE)
+                .enableAnnotationInfo().scan()) {
             assertThat(scanResult.getAllSuperclasses(Accepted.class.getName()).getNames()).isEmpty();
             assertThat(scanResult.getClassesWithAnnotation(RejectedAnnotation.class).getNames())
                     .containsExactly(Accepted.class.getName());
@@ -309,23 +311,27 @@ public class ClassGraphTest {
     /**
      * Test rejected package.
      */
+    @Test
     public void testRejectedPackage() {
-        try (var scanResult = new ClassGraph().enableClasspath()
-                .acceptPackages(ROOT_PACKAGE, "-" + RejectedSuperclass.class.getPackage().getName()).scan()) {
+        try (var scanResult = new ClassGraph().enableClassInfo().enableClasspath().acceptPackages(ROOT_PACKAGE)
+                .rejectPackages(RejectedSuperclass.class.getPackage().getName()).enableAnnotationInfo().scan()) {
             assertThat(scanResult.getAllSuperclasses(Accepted.class.getName()).getNames()).isEmpty();
             assertThat(scanResult.getAllSubclasses(Accepted.class).getNames()).isEmpty();
             assertThat(scanResult.getAllClassesImplementing(AcceptedInterface.class).getNames()).isEmpty();
             assertThat(scanResult.getAllClassesImplementing(AcceptedInterface.class).getNames()).isEmpty();
-            assertThat(scanResult.getClassesWithAnnotation(RejectedAnnotation.class).getNames()).isEmpty();
+            // The rejected annotation is not returned itself, but it can still be queried for accepted classes
+            assertThat(scanResult.getClassesWithAnnotation(RejectedAnnotation.class).getNames())
+                    .containsExactly(Accepted.class.getName());
         }
     }
 
     /**
      * Test no exception if querying rejected.
      */
+    @Test
     public void testNoExceptionIfQueryingRejected() {
-        try (var scanResult = new ClassGraph().enableClasspath()
-                .acceptPackages(ACCEPT_PACKAGE, "-" + RejectedSuperclass.class.getPackage().getName()).scan()) {
+        try (var scanResult = new ClassGraph().enableClassInfo().enableClasspath().acceptPackages(ACCEPT_PACKAGE)
+                .rejectPackages(RejectedSuperclass.class.getPackage().getName()).scan()) {
             assertThat(scanResult.getAllSuperclasses(RejectedSuperclass.class.getName()).getNames()).isEmpty();
         }
     }
@@ -333,11 +339,11 @@ public class ClassGraphTest {
     /**
      * Test no exception if explicitly accepted class in rejected package.
      */
+    @Test
     public void testNoExceptionIfExplicitlyAcceptedClassInRejectedPackage() {
-        try (var scanResult = new ClassGraph().enableClasspath()
-                .acceptPackages(ACCEPT_PACKAGE,
-                        "-" + RejectedSuperclass.class.getPackage().getName() + RejectedSuperclass.class.getName())
-                .scan()) {
+        try (var scanResult = new ClassGraph().enableClassInfo().enableClasspath().acceptPackages(ACCEPT_PACKAGE)
+                .rejectPackages(RejectedSuperclass.class.getPackage().getName())
+                .acceptClasses(RejectedSuperclass.class.getName()).scan()) {
             assertThat(scanResult.getAllSuperclasses(RejectedSuperclass.class.getName()).getNames()).isEmpty();
         }
     }
