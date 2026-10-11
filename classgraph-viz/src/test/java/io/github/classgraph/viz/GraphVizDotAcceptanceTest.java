@@ -38,20 +38,28 @@ public class GraphVizDotAcceptanceTest {
     /**
      * Check whether {@code dot} can be run.
      *
-     * @return true if {@code dot -V} ran and exited with status 0.
+     * @return true if {@code dot -V} ran and exited with status 0, or false if it could not be run, exited with an
+     *         error, or did not finish in time (in which case it is killed).
      */
     private static boolean dotIsInstalled() {
+        final Process process;
         try {
-            final var process = new ProcessBuilder("dot", "-V").redirectErrorStream(true)
+            process = new ProcessBuilder("dot", "-V").redirectErrorStream(true)
                     .redirectOutput(ProcessBuilder.Redirect.DISCARD).start();
-            return process.waitFor(DOT_TIMEOUT_SECONDS, TimeUnit.SECONDS) && process.exitValue() == 0;
         } catch (final IOException _) {
             // Not installed
             return false;
+        }
+        try {
+            if (process.waitFor(DOT_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+                return process.exitValue() == 0;
+            }
         } catch (final InterruptedException _) {
             Thread.currentThread().interrupt();
-            return false;
         }
+        // Timed out or interrupted: do not leave dot running after the test JVM exits
+        process.destroyForcibly();
+        return false;
     }
 
     /**
@@ -70,7 +78,13 @@ public class GraphVizDotAcceptanceTest {
         final var outputFile = Path.of(dotFile + ".out");
         final var process = new ProcessBuilder("dot", "-Tplain", dotFile.toString()).redirectErrorStream(true)
                 .redirectOutput(outputFile.toFile()).start();
-        final var finished = process.waitFor(DOT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        final boolean finished;
+        try {
+            finished = process.waitFor(DOT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        } catch (final InterruptedException e) {
+            process.destroyForcibly();
+            throw e;
+        }
         if (!finished) {
             process.destroyForcibly().waitFor();
         }
