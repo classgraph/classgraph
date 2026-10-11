@@ -20,8 +20,8 @@ import org.junit.jupiter.api.io.TempDir;
  * them containing {@code '.'}, {@code ';'} or {@code '['} (JVMS 4.2.1). A classfile that breaks this rule must not
  * make the scan fail, or give a class with an empty name. The JVM refuses to load a class that uses such a name as
  * its superclass, an interface, or a nested or enclosing class, and the scan skips that class. A name that only
- * records a dependency, and the type of an annotation, which the JVM does not check, are skipped, and the class is
- * kept.
+ * records a dependency, and an annotation whose type has an illegal name, which the JVM does not check, are
+ * skipped, and the class is kept.
  */
 public class IllegalClassNameInClassfileTest {
     /** A classloader that defines a class from the bytes of its classfile. */
@@ -49,13 +49,16 @@ public class IllegalClassNameInClassfileTest {
      *            the name of the interface the class implements, or null for none.
      * @param attributeName
      *            {@code "InnerClasses"}, {@code "EnclosingMethod"}, {@code "RuntimeVisibleAnnotations"},
+     *            {@code "RuntimeInvisibleAnnotations"}, {@code "RuntimeVisibleParameterAnnotations"},
      *            {@code "Exceptions"}, or null for no attribute.
      * @param attributeNames
      *            for {@code InnerClasses}, the names of the inner and the outer class of its one entry; for
-     *            {@code EnclosingMethod}, the name of the enclosing class; for {@code RuntimeVisibleAnnotations},
-     *            the type descriptor of its one annotation; for {@code Exceptions}, the name of the exception class
-     *            thrown by the method {@code m()}. For no attribute, the names held by {@code CONSTANT_Class}
-     *            entries that nothing refers to.
+     *            {@code EnclosingMethod}, the name of the enclosing class; for {@code RuntimeVisibleAnnotations}
+     *            and {@code RuntimeInvisibleAnnotations}, the type descriptors of its annotations, which have no
+     *            elements; for {@code RuntimeVisibleParameterAnnotations}, the type descriptors of the annotations,
+     *            which have no elements, on the one parameter of the method {@code m(int)}; for {@code Exceptions},
+     *            the name of the exception class thrown by the method {@code m()}. For no attribute, the names held
+     *            by {@code CONSTANT_Class} entries that nothing refers to.
      * @return the bytes of the classfile.
      * @throws IOException
      *             if the classfile could not be written.
@@ -63,7 +66,9 @@ public class IllegalClassNameInClassfileTest {
     private static byte[] classfile(final String internalName, final String superclassName,
             final @Nullable String interfaceName, final @Nullable String attributeName,
             final String... attributeNames) throws IOException {
-        final var isAnnotation = "RuntimeVisibleAnnotations".equals(attributeName);
+        final var isAnnotation = "RuntimeVisibleAnnotations".equals(attributeName)
+                || "RuntimeInvisibleAnnotations".equals(attributeName);
+        final var isParameterAnnotation = "RuntimeVisibleParameterAnnotations".equals(attributeName);
         final var isExceptions = "Exceptions".equals(attributeName);
         // A CONSTANT_Utf8 and a CONSTANT_Class for each class name, so the class ref for name i is at 2 + 2i
         final List<String> classNames = new ArrayList<>(List.of(internalName, superclassName));
@@ -71,14 +76,17 @@ public class IllegalClassNameInClassfileTest {
             classNames.add(interfaceName);
         }
         final var firstAttributeClassIdx = classNames.size();
-        if (!isAnnotation) {
+        if (!isAnnotation && !isParameterAnnotation) {
             classNames.addAll(List.of(attributeNames));
         }
-        // Then CONSTANT_Utf8 entries for the annotation type descriptor, or for the method name and descriptor,
-        // and for the attribute name
+        // Then CONSTANT_Utf8 entries for the method name and descriptor, for the annotation type descriptors, and
+        // for the attribute name
         final List<String> strings = new ArrayList<>();
         if (isAnnotation) {
-            strings.add(attributeNames[0]);
+            strings.addAll(List.of(attributeNames));
+        } else if (isParameterAnnotation) {
+            strings.addAll(List.of("m", "(I)V"));
+            strings.addAll(List.of(attributeNames));
         } else if (isExceptions) {
             strings.addAll(List.of("m", "()V"));
         }
@@ -124,6 +132,21 @@ public class IllegalClassNameInClassfileTest {
                 out.writeShort(1); // number_of_exceptions
                 out.writeShort(2 + 2 * firstAttributeClassIdx);
                 out.writeShort(0); // Number of attributes
+            } else if (isParameterAnnotation) {
+                out.writeShort(1); // Number of methods
+                out.writeShort(0x0401); // ACC_PUBLIC | ACC_ABSTRACT
+                out.writeShort(firstStringCpIdx); // "m"
+                out.writeShort(firstStringCpIdx + 1); // "(I)V"
+                out.writeShort(1); // attributes_count
+                out.writeShort(attributeNameCpIdx);
+                out.writeInt(1 + 2 + 4 * attributeNames.length);
+                out.writeByte(1); // num_parameters
+                out.writeShort(attributeNames.length); // num_annotations
+                for (var i = 0; i < attributeNames.length; i++) {
+                    out.writeShort(firstStringCpIdx + 2 + i); // type_index
+                    out.writeShort(0); // num_element_value_pairs
+                }
+                out.writeShort(0); // Number of attributes
             } else {
                 out.writeShort(0); // Number of methods
                 if (attributeName == null) {
@@ -132,10 +155,12 @@ public class IllegalClassNameInClassfileTest {
                     out.writeShort(1);
                     out.writeShort(attributeNameCpIdx);
                     if (isAnnotation) {
-                        out.writeInt(2 + 4);
-                        out.writeShort(1); // num_annotations
-                        out.writeShort(firstStringCpIdx); // type_index
-                        out.writeShort(0); // num_element_value_pairs
+                        out.writeInt(2 + 4 * attributeNames.length);
+                        out.writeShort(attributeNames.length); // num_annotations
+                        for (var i = 0; i < attributeNames.length; i++) {
+                            out.writeShort(firstStringCpIdx + i); // type_index
+                            out.writeShort(0); // num_element_value_pairs
+                        }
                     } else if (attributeName.equals("InnerClasses")) {
                         out.writeInt(2 + 8);
                         out.writeShort(1); // number_of_classes
@@ -238,9 +263,9 @@ public class IllegalClassNameInClassfileTest {
     }
 
     /**
-     * A class annotation whose type has an illegal name is skipped with the rest of its annotation attribute, and
-     * the class is kept, as the JVM loads it. No class is created for the annotation type, so in particular no
-     * class has an empty name.
+     * An annotation whose type has an illegal name is skipped, and the class and its other annotations are kept, as
+     * the JVM loads such a class and leaves out an annotation whose type it cannot find. No class is created for
+     * the annotation type, so in particular no class has an empty name.
      *
      * @param tempDir
      *            a temporary directory.
@@ -249,20 +274,55 @@ public class IllegalClassNameInClassfileTest {
      */
     @Test
     public void anAnnotationWhoseTypeHasAnIllegalNameIsSkipped(@TempDir final Path tempDir) throws IOException {
-        final var badClassfiles = List.of( //
-                classfile("p/Bad", "java/lang/Object", null, "RuntimeVisibleAnnotations", "L;"), //
-                classfile("p/Bad", "java/lang/Object", null, "RuntimeVisibleAnnotations", "Lp/A;;"), //
-                classfile("p/Bad", "java/lang/Object", null, "RuntimeVisibleAnnotations", "Lp//A;"));
-        for (var i = 0; i < badClassfiles.size(); i++) {
-            final var badClassfile = badClassfiles.get(i);
-            assertThat(new ByteClassLoader().define(badClassfile).getName()).as("classfile " + i)
-                    .isEqualTo("p.Bad");
-            final var dir = writeClasses(tempDir.resolve("dir" + i), badClassfile);
-            try (var scanResult = new ClassGraph().enableClassInfo().enableAnnotationInfo().enableExternalClasses()
-                    .enableClasspathEntries(dir).scan()) {
-                assertThat(scanResult.getAllClasses().getNames()).as("classfile " + i)
-                        .containsExactlyInAnyOrder("p.Bad", "p.Good", "java.lang.Object");
-                assertThat(scanResult.getClassInfo("p.Bad").getAllAnnotationInfo()).as("classfile " + i).isEmpty();
+        var dirIdx = 0;
+        for (final var attributeName : List.of("RuntimeVisibleAnnotations", "RuntimeInvisibleAnnotations")) {
+            for (final var illegalName : List.of("L;", "Lp/A;;", "Lp//A;")) {
+                final var desc = attributeName + " " + illegalName;
+                final var badClassfile = classfile("p/Bad", "java/lang/Object", null, attributeName, "Lp/Good;",
+                        illegalName);
+                assertThat(new ByteClassLoader().define(badClassfile).getName()).as(desc).isEqualTo("p.Bad");
+                final var dir = writeClasses(tempDir.resolve("dir" + dirIdx++), badClassfile);
+                try (var scanResult = new ClassGraph().enableClassInfo().enableAnnotationInfo()
+                        .enableExternalClasses().enableClasspathEntries(dir).scan()) {
+                    assertThat(scanResult.getAllClasses().getNames()).as(desc).containsExactlyInAnyOrder("p.Bad",
+                            "p.Good", "java.lang.Object");
+                    assertThat(scanResult.getClassInfo("p.Bad").getAllAnnotationInfo().getNames()).as(desc)
+                            .containsExactly("p.Good");
+                }
+            }
+        }
+    }
+
+    /**
+     * A method parameter annotation whose type has an illegal name is skipped, and the other annotations on the
+     * parameter are kept, with no gap left where the skipped annotation was.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if a file could not be written.
+     */
+    @Test
+    public void aParameterAnnotationWhoseTypeHasAnIllegalNameIsSkipped(@TempDir final Path tempDir)
+            throws IOException {
+        var dirIdx = 0;
+        for (final var illegalName : List.of("L;", "Lp/A;;", "Lp//A;")) {
+            // The illegal annotation comes first, so that skipping it must move the legal one down
+            final var badClassfile = classfile("p/Bad", "java/lang/Object", null,
+                    "RuntimeVisibleParameterAnnotations", illegalName, "Lp/Good;");
+            assertThat(new ByteClassLoader().define(badClassfile).getName()).as(illegalName).isEqualTo("p.Bad");
+            final var dir = writeClasses(tempDir.resolve("dir" + dirIdx++), badClassfile);
+            try (var scanResult = new ClassGraph().enableClassInfo().enableMethodInfo().enableAnnotationInfo()
+                    .enableExternalClasses().enableClasspathEntries(dir).scan()) {
+                assertThat(scanResult.getAllClasses().getNames()).as(illegalName).containsExactlyInAnyOrder("p.Bad",
+                        "p.Good", "java.lang.Object");
+                final var parameterInfo = scanResult.getClassInfo("p.Bad").getMethodInfo("m").get(0)
+                        .getParameterInfo();
+                assertThat(parameterInfo).as(illegalName).hasSize(1);
+                // The annotations as read from the classfile, before any meta-annotations are added
+                assertThat(parameterInfo.get(0).annotationInfo).as(illegalName).hasSize(1).doesNotContainNull();
+                assertThat(parameterInfo.get(0).getAllAnnotationInfo().getNames()).as(illegalName)
+                        .containsExactly("p.Good");
             }
         }
     }
