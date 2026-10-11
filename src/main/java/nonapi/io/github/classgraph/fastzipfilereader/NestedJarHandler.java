@@ -674,7 +674,11 @@ public class NestedJarHandler {
         // it once, in its static initializer: if that fails, the class can never be used again in this JVM, and
         // every call throws an Error rather than an IOException. The directory itself is left to the JDK, as for
         // every other temporary file. The property is null if it has been cleared, or if a security manager does
-        // not let ClassGraph read it; the JDK reads it with its own permissions.
+        // not let ClassGraph read it; the JDK reads it with its own permissions. On JDK 8, and other JDKs before 17,
+        // the helper class reads the property when it is initialized rather than when the JVM starts, so if the
+        // property has been cleared before the first call to Files.createTempFile in this JVM, that call fails with
+        // ExceptionInInitializerError, and every later call in this JVM fails with NoClassDefFoundError, as
+        // File.createTempFile did in 4.8.197.
         final String tempDirName = VersionFinder.getProperty("java.io.tmpdir");
         if (tempDirName != null) {
             try {
