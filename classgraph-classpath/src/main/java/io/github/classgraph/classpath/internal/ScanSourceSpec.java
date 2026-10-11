@@ -158,8 +158,8 @@ public class ScanSourceSpec {
      * Search the given classpath elements. Each {@link String}, {@link File}, {@link Path}, {@link URL} or
      * {@link URI} is one classpath entry, and a {@link String} is not split on {@link File#pathSeparatorChar}. An
      * element that is an {@link Iterable} (other than a {@link Path}) or an array of objects is replaced by its own
-     * elements, to any depth, except that an {@link Iterable} that is not a {@link Collection} and yields itself,
-     * as an Ant {@code Resource} does, is one classpath entry. That, and any other element, is read by its
+     * elements, to any depth, except that an {@link Iterable} that is not a {@link Collection} and yields only
+     * itself, as an Ant {@code Resource} does, is one classpath entry. That, and any other element, is read by its
      * {@link Object#toString()}, except that a {@link BaseStream} (any {@code Stream}, {@code IntStream},
      * {@code LongStream} or {@code DoubleStream}), {@link Iterator} or {@link Enumeration} that is not an
      * {@link Iterable} is rejected.
