@@ -517,8 +517,11 @@ class Scanner {
         Object classpathEntryObjNormalized = classpathEntryStr;
 
         // Encode spaces and hash symbols in classpath entry as they potentially can be invalid when converted to a
-        // URL/URI
-        var classpathEntStr = classpathEntryStr.replace(" ", "%20").replace("#", "%23");
+        // URL/URI. A string without a URL scheme is a path that FastPathResolver has already decoded, so a '%' in it
+        // is part of a file name, and is encoded first, or opening the URL would decode it again ("a%20b.jar" would
+        // be opened as "a b.jar"). A string that is still a URL keeps its percent encoding
+        var classpathEntStr = (isURL ? classpathEntryStr : classpathEntryStr.replace("%", "%25"))
+                .replace(" ", "%20").replace("#", "%23");
         // Convert back to URL (or URI) if this has a URL scheme or if this is a multi-section path (which needs the
         // "jar:file:" scheme)
         if (!isURL) {
