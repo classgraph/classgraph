@@ -765,10 +765,13 @@ public final class MethodInfo extends ClassMemberInfo implements Comparable<Meth
      *            the names of the container annotations of all repeatable annotations
      */
     void handleRepeatableAnnotations(final Set<String> allRepeatableAnnotationNames) {
+        final var classInfo = getClassInfo();
+        final var isInherited = classInfo != null
+                && classInfo.isInheritedMember(getModifiers(), /* isField = */ false);
         if (annotationInfo != null) {
-            AnnotationInfoList.handleRepeatableAnnotations(annotationInfo, allRepeatableAnnotationNames,
-                    getClassInfo(), RelType.METHOD_ANNOTATIONS, RelType.CLASSES_WITH_METHOD_ANNOTATION,
-                    RelType.CLASSES_WITH_NONPRIVATE_METHOD_ANNOTATION);
+            AnnotationInfoList.handleRepeatableAnnotations(annotationInfo, allRepeatableAnnotationNames, classInfo,
+                    RelType.METHOD_ANNOTATIONS, RelType.CLASSES_WITH_METHOD_ANNOTATION,
+                    isInherited ? RelType.CLASSES_WITH_NONPRIVATE_METHOD_ANNOTATION : null);
         }
         if (parameterAnnotationInfo != null) {
             for (var i = 0; i < parameterAnnotationInfo.length; i++) {
@@ -784,9 +787,9 @@ public final class MethodInfo extends ClassMemberInfo implements Comparable<Meth
                     if (hasRepeatableAnnotation) {
                         final List<AnnotationInfo> aiList = new ArrayList<>(Arrays.asList(pai));
                         AnnotationInfoList.handleRepeatableAnnotations(aiList, allRepeatableAnnotationNames,
-                                getClassInfo(), RelType.METHOD_PARAMETER_ANNOTATIONS,
+                                classInfo, RelType.METHOD_PARAMETER_ANNOTATIONS,
                                 RelType.CLASSES_WITH_METHOD_PARAMETER_ANNOTATION,
-                                RelType.CLASSES_WITH_NONPRIVATE_METHOD_PARAMETER_ANNOTATION);
+                                isInherited ? RelType.CLASSES_WITH_NONPRIVATE_METHOD_PARAMETER_ANNOTATION : null);
                         parameterAnnotationInfo[i] = aiList.toArray(AnnotationInfo[]::new);
                     }
                 }

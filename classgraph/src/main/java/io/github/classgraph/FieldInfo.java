@@ -249,9 +249,12 @@ public final class FieldInfo extends ClassMemberInfo implements Comparable<Field
      */
     void handleRepeatableAnnotations(final Set<String> allRepeatableAnnotationNames) {
         if (annotationInfo != null) {
-            AnnotationInfoList.handleRepeatableAnnotations(annotationInfo, allRepeatableAnnotationNames,
-                    getClassInfo(), RelType.FIELD_ANNOTATIONS, RelType.CLASSES_WITH_FIELD_ANNOTATION,
-                    RelType.CLASSES_WITH_NONPRIVATE_FIELD_ANNOTATION);
+            final var classInfo = getClassInfo();
+            AnnotationInfoList.handleRepeatableAnnotations(annotationInfo, allRepeatableAnnotationNames, classInfo,
+                    RelType.FIELD_ANNOTATIONS, RelType.CLASSES_WITH_FIELD_ANNOTATION,
+                    classInfo != null && classInfo.isInheritedMember(getModifiers(), /* isField = */ true)
+                            ? RelType.CLASSES_WITH_NONPRIVATE_FIELD_ANNOTATION
+                            : null);
         }
     }
 
