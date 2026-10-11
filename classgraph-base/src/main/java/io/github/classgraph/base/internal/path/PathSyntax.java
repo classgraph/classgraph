@@ -259,6 +259,7 @@ public final class PathSyntax {
      * Append a path to a {@link StringBuilder}, dropping empty and {@code "."} segments, and removing the preceding
      * segment for each {@code ".."} segment. Each segment is preceded by {@code '/'}, and each nested jar separator
      * is written as {@code '!'} (so that {@code "jar:"} URL syntax is produced, since {@code '/'} always follows).
+     * A final {@code '/'} is kept if the last section has any segments.
      *
      * @param path
      *            The path to sanitize.
@@ -323,6 +324,11 @@ public final class PathSyntax {
                     pathSanitized.append(sectionSegment);
                 }
             }
+        }
+        // Keep a final '/', as a path that needs no sanitizing keeps it, unless the last section has no segments,
+        // in which case the '/' is dropped with that section and the separator before it
+        if (path.charAt(pathLen - 1) == '/' && !currSectionSegments.isEmpty()) {
+            pathSanitized.append('/');
         }
     }
 
