@@ -39,6 +39,7 @@ import java.lang.module.ModuleDescriptor;
 import java.lang.module.ModuleFinder;
 import java.lang.module.ModuleReader;
 import java.lang.module.ModuleReference;
+import java.lang.ref.WeakReference;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
@@ -526,6 +527,58 @@ class VfsRootCloseTest {
                         .hasMessageContaining(entry.getPath())
                         .hasMessageContaining("after the root has been closed");
             }
+        }
+    }
+
+    /**
+     * Read an entry of the given root through a buffer, a stream and a channel, close each of them, and hand back
+     * only {@link WeakReference}s to them, so that nothing in the caller's frame is left holding them.
+     *
+     * @param root
+     *            the root to read the entry of.
+     * @return weak references to the closed buffer, stream and channel, in that order.
+     * @throws IOException
+     *             if the entry could not be read.
+     */
+    private static List<WeakReference<AutoCloseable>> readThroughAndCloseEachHandle(final VfsRoot root)
+            throws IOException {
+        final var entry = Objects.requireNonNull(root.getEntry("stored.bin"));
+        final var handles = new ArrayList<WeakReference<AutoCloseable>>();
+        try (var buffer = entry.read()) {
+            assertThat(Objects.requireNonNull(buffer.getByteBuffer()).get(0)).isEqualTo(CONTENT[0]);
+            handles.add(new WeakReference<>(buffer));
+        }
+        try (var inputStream = entry.open()) {
+            assertThat(inputStream.read()).isEqualTo(CONTENT[0] & 0xff);
+            handles.add(new WeakReference<>(inputStream));
+        }
+        try (var channel = Files.newByteChannel(entry.asPath())) {
+            assertThat(channel.read(ByteBuffer.allocate(10))).isEqualTo(10);
+            handles.add(new WeakReference<>(channel));
+        }
+        return handles;
+    }
+
+    /**
+     * A buffer, stream or channel that the caller closes drops itself from the root it was read from, so that a
+     * caller that keeps a root open and reads it repeatedly does not accumulate every handle it ever closed on the
+     * root until the root closes.
+     */
+    @Test
+    void aClosedHandleIsNotHeldByItsRoot() throws Exception {
+        try (var vfs = new Vfs()) {
+            final var root = vfs.open(jarBytes(), "test.jar");
+            final var closedHandles = readThroughAndCloseEachHandle(root);
+            for (var i = 0; i < 100 && !closedHandles.stream().allMatch(handle -> handle.refersTo(null)); i++) {
+                System.gc();
+                Thread.sleep(10);
+            }
+            assertThat(closedHandles.stream().map(handle -> handle.refersTo(null)).toList())
+                    .as("whether the closed buffer, stream and channel were collected")
+                    .containsExactly(true, true, true);
+            // The root stays strongly reachable across the check above, both from the open Vfs and from this use
+            // of it: the point of the check is that the open root is not what holds the closed handles
+            assertThat(root.isClosed()).isFalse();
         }
     }
 
