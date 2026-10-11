@@ -1032,8 +1032,11 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      * {@link IOException}, and reading through a {@link java.nio.file.Path} of one of them throws
      * {@link java.nio.file.ClosedFileSystemException}. A read that was in flight in another thread when this was
      * called fails the same way, rather than returning content that was read from a file that has since been
-     * released. A {@link java.nio.ByteBuffer} that {@link VfsEntry#read()} handed out must not be read after this
-     * either -- see {@link CloseableByteBuffer}.
+     * released -- except below JDK 22 on a file that was memory-mapped, which happens only on Windows: such a file
+     * can only be unmapped by freeing its address range, and a read already in progress on it can crash the JVM, so
+     * wait for every thread that reads through this {@link Vfs} to finish before closing it. A
+     * {@link java.nio.ByteBuffer} that {@link VfsEntry#read()} handed out must not be read after this either -- see
+     * {@link CloseableByteBuffer}.
      *
      * <p>
      * Every file that was memory mapped is unmapped before this returns, including one that a
