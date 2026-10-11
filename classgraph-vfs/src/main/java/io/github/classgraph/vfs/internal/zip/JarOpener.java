@@ -109,10 +109,10 @@ public final class JarOpener {
         // before it is looked up -- otherwise "HTTP://host/x.jar" is fetched even though "http" was denied
         final var scheme = url.substring(0, url.indexOf(':')).toLowerCase(Locale.ROOT);
         // Whatever the JVM can open is opened, so only a scheme the caller took away is refused here. A
-        // scheme that nothing has registered a handler for is left to the download below, which reports the
-        // JVM's own reason for not being able to open it. ("file:" and "jar:" never reach here --
-        // FastPathResolver.resolve() has already stripped them.) The download checks the scheme again once the URL
-        // is parsed, since the parser can read a different scheme from the same text
+        // scheme that nothing has registered a URL stream handler or a filesystem provider for is left to the
+        // download below, which reports the JVM's own reason for not being able to open it. ("file:" and "jar:"
+        // never reach here -- FastPathResolver.resolve() has already stripped them.) The download checks the
+        // scheme again once the URL is parsed, since the parser can read a different scheme from the same text
         if (vfs.getVfsSpec().getDeniedURLSchemes().contains(scheme)) {
             throw new IOException("Fetching a jarfile over \"" + scheme + ":\" is not allowed: " + url);
         }

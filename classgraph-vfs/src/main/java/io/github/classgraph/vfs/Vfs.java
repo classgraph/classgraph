@@ -236,11 +236,12 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      *
      * <p>
      * The path may name a directory or a jarfile in the local filesystem, or a URL with any scheme the JVM has a
-     * handler for, other than one denied by {@link VfsSpec#denyURLScheme(String)}. A jarfile nested within another
-     * jarfile is named by separating the enclosing jarfile from the nested one with {@code "!/"}, to any depth,
-     * e.g. {@code "outer.jar!/lib/inner.jar"}. A trailing {@code "!/"} section that does not name a nested jarfile
-     * names a package root within the jarfile instead, e.g. {@code "spring-boot-app.jar!/BOOT-INF/classes"}, in
-     * which case only the entries under that root are reported, with the root stripped from their names.
+     * URL stream handler or a filesystem provider for, other than one denied by
+     * {@link VfsSpec#denyURLScheme(String)}. A jarfile nested within another jarfile is named by separating the
+     * enclosing jarfile from the nested one with {@code "!/"}, to any depth, e.g.
+     * {@code "outer.jar!/lib/inner.jar"}. A trailing {@code "!/"} section that does not name a nested jarfile names
+     * a package root within the jarfile instead, e.g. {@code "spring-boot-app.jar!/BOOT-INF/classes"}, in which
+     * case only the entries under that root are reported, with the root stripped from their names.
      *
      * <p>
      * A relative path is resolved against the current directory. A {@code ".."} segment in the part of the path
@@ -732,8 +733,8 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      *
      * @param uri
      *            the {@link URI} to open. A {@code "jar:"} or {@code "file:"} URI names something in the local
-     *            filesystem; any other scheme is opened if the JVM has a handler for it and
-     *            {@link VfsSpec#denyURLScheme(String)} has not denied it.
+     *            filesystem; any other scheme is opened if the JVM has a URL stream handler or a filesystem
+     *            provider for it and {@link VfsSpec#denyURLScheme(String)} has not denied it.
      * @return the opened root.
      * @throws IOException
      *             if the {@link URI} could not be opened or read, or if this {@link Vfs} has been closed.

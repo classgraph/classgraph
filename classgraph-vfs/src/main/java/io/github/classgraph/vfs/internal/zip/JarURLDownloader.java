@@ -105,8 +105,9 @@ final class JarURLDownloader {
     /**
      * Read a jar from a URL into RAM, or into a temporary file if it is larger than
      * {@link io.github.classgraph.vfs.VfsSpec#getMaxBufferedJarRAMSize()}. A URL that names a {@link Path} in an
-     * installed filesystem, such as a "file:" URL, is opened as that {@link Path} rather than read through the URL.
-     * An http or https redirect is followed, as long as {@link #redirectTarget(URL, String, Vfs)} allows it.
+     * installed filesystem, such as a "file:" URL, is opened as that {@link Path} rather than read through the URL,
+     * which also opens a URI whose scheme has a filesystem provider but no URL stream handler. An http or https
+     * redirect is followed, as long as {@link #redirectTarget(URL, String, Vfs)} allows it.
      *
      * @param jarURL
      *            the jar URL
@@ -128,12 +129,28 @@ final class JarURLDownloader {
         try {
             url = new URL(jarURL);
         } catch (final MalformedURLException _) {
+            final URI uri;
             try {
-                url = new URI(jarURL).toURL();
-            } catch (final MalformedURLException | IllegalArgumentException | URISyntaxException e2) {
+                uri = new URI(jarURL);
+            } catch (final URISyntaxException e2) {
+                throw new IOException("Could not parse URL (" + e2 + "): " + jarURL, e2);
+            }
+            try {
+                url = uri.toURL();
+            } catch (final MalformedURLException | IllegalArgumentException e2) {
+                // No URL stream handler is registered for the URI's scheme, but a filesystem may still be
+                // installed for it, as the Scanner finds when it turns a classpath element into a Path
+                final var scheme = uri.getScheme();
+                if (scheme != null) {
+                    checkSchemeNotDenied(scheme, jarURL, vfs);
+                    final var physicalZipFile = openThroughFilesystem(uri, jarURL, vfs, log);
+                    if (physicalZipFile != null) {
+                        return physicalZipFile;
+                    }
+                }
                 // Chain the cause, as well as naming it in the message -- for a URL whose scheme nothing has
-                // registered a URL stream handler for, the cause is the JVM's own "unknown protocol" report,
-                // which is the whole reason the URL could not be opened
+                // registered a URL stream handler or a filesystem for, the cause is the JVM's own "unknown
+                // protocol" report, which is the whole reason the URL could not be opened
                 throw new IOException("Could not parse URL (" + e2 + "): " + jarURL, e2);
             }
         }
@@ -142,32 +159,25 @@ final class JarURLDownloader {
         // uses: new URL(String) skips a leading "url:" in any case, so "url:mailto:x@y" is a "mailto:" URL. Check
         // the scheme that is actually opened, before anything is opened through it.
         final var scheme = url.getProtocol();
-        final var lowercaseScheme = scheme.toLowerCase(Locale.ROOT);
-        if (vfs.getVfsSpec().getDeniedURLSchemes().contains(lowercaseScheme)) {
-            throw new IOException("Fetching a jarfile over \"" + lowercaseScheme + ":\" is not allowed: " + jarURL);
-        }
+        checkSchemeNotDenied(scheme, jarURL, vfs);
         if (!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme)) {
             // Check if this URL is backed by a filesystem -- if it is, don't download a copy of the file over the
             // URL; instead, access the filesystem directly
+            URI uri = null;
             try {
-                final var path = Path.of(url.toURI());
-                // Fails with FileSystemNotFoundException if filesystem not registered for URL
-                final var fs = path.getFileSystem();
-                if (log != null) {
-                    log.log("URL " + jarURL + " is backed by filesystem " + fs.getClass().getName());
-                }
-                // Wrap Path in PhysicalZipFile and return it
-                return new PhysicalZipFile(path, vfs, log);
-            } catch (final IllegalArgumentException e) {
-                // A filesystem is installed for the URL's scheme, but it rejected the URI
-                throw new IOException("Could not convert URL to a path (" + e + "): " + url, e);
+                uri = url.toURI();
             } catch (final URISyntaxException e) {
                 // The URL cannot be written as a URI (it may contain a space), so no filesystem can be looked up
                 // for it, but new URL(String) accepted it, so its URL handler may still be able to read it
                 if (log != null) {
                     log.log("URL " + jarURL + " is not a valid URI, so reading it through its URL handler: " + e);
                 }
-            } catch (final FileSystemNotFoundException _) {
+            }
+            if (uri != null) {
+                final var physicalZipFile = openThroughFilesystem(uri, jarURL, vfs, log);
+                if (physicalZipFile != null) {
+                    return physicalZipFile;
+                }
                 // No filesystem is installed for the URL's scheme, so read it through its URL handler
             }
         }
@@ -210,6 +220,62 @@ final class JarURLDownloader {
                 }
                 return download(urlConn, jarURL, vfs, log);
             }
+        }
+    }
+
+    /**
+     * Refuse a URL scheme that has been denied.
+     *
+     * @param scheme
+     *            the scheme of the URL, in any case.
+     * @param jarURL
+     *            the jar URL, for the exception message.
+     * @param vfs
+     *            the {@link Vfs} that is opening the jarfile, whose denied URL schemes are checked.
+     * @throws IOException
+     *             if the scheme has been denied.
+     */
+    private static void checkSchemeNotDenied(final String scheme, final String jarURL, final Vfs vfs)
+            throws IOException {
+        final var lowercaseScheme = scheme.toLowerCase(Locale.ROOT);
+        if (vfs.getVfsSpec().getDeniedURLSchemes().contains(lowercaseScheme)) {
+            throw new IOException("Fetching a jarfile over \"" + lowercaseScheme + ":\" is not allowed: " + jarURL);
+        }
+    }
+
+    /**
+     * Open a jar at a URI through the filesystem that is installed for the URI's scheme, if there is one, rather
+     * than downloading a copy of it.
+     *
+     * @param uri
+     *            the URI of the jar.
+     * @param jarURL
+     *            the jar URL, as it was given.
+     * @param vfs
+     *            the {@link Vfs} that is opening this jarfile.
+     * @param log
+     *            the log node, or null to skip logging.
+     * @return the jar, as a {@link PhysicalZipFile}, or null if no filesystem is installed for the URI's scheme, or
+     *         the installed one has no filesystem open that holds the URI.
+     * @throws IOException
+     *             if a filesystem is installed for the URI's scheme but it rejected the URI, or the jar could not
+     *             be read.
+     */
+    private static @Nullable PhysicalZipFile openThroughFilesystem(final URI uri, final String jarURL,
+            final Vfs vfs, final @Nullable LogNode log) throws IOException {
+        try {
+            // Throws FileSystemNotFoundException if no filesystem provider is installed for the URI's scheme, or
+            // the provider has no filesystem open that holds the URI
+            final var path = Path.of(uri);
+            if (log != null) {
+                log.log("URL " + jarURL + " is backed by filesystem " + path.getFileSystem().getClass().getName());
+            }
+            return new PhysicalZipFile(path, vfs, log);
+        } catch (final IllegalArgumentException e) {
+            // A filesystem is installed for the URI's scheme, but it rejected the URI
+            throw new IOException("Could not convert URL to a path (" + e + "): " + uri, e);
+        } catch (final FileSystemNotFoundException _) {
+            return null;
         }
     }
 
