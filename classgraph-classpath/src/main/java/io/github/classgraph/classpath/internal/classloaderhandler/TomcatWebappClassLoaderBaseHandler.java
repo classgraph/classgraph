@@ -204,12 +204,11 @@ class TomcatWebappClassLoaderBaseHandler extends URLClassLoaderHandler {
             final var archivePath = (String) ReflectionUtils.getFieldVal(false, webResourceSet, "archivePath");
             final var archive = archivePath == null ? base
                     : base + "!" + (archivePath.startsWith("/") ? archivePath : "/" + archivePath);
-            classpathOrder.addClasspathEntryObject(
+            classpathOrder.addClasspathEntry(
                     classpathElementPath.isEmpty() ? archive : archive + "!" + classpathElementPath, classLoader,
                     log);
         } else {
-            classpathOrder.addClasspathEntryObject(new File(base, classpathElementPath).getPath(), classLoader,
-                    log);
+            classpathOrder.addClasspathEntry(new File(base, classpathElementPath).getPath(), classLoader, log);
         }
     }
 
