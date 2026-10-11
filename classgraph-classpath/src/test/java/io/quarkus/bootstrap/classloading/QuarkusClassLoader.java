@@ -25,9 +25,25 @@ public class QuarkusClassLoader extends ClassLoader {
     /** The lesser-priority classpath elements, or null if this classloader does not report them. */
     public @Nullable Collection<Object> lesserPriorityElements;
 
+    /** Whether this classloader looks in its parent before its own classpath elements. */
+    public boolean parentFirst;
+
     /** Constructor. */
     public QuarkusClassLoader() {
         super(/* parent = */ null);
+    }
+
+    /**
+     * Constructor.
+     *
+     * @param parent
+     *            the parent classloader.
+     * @param parentFirst
+     *            whether this classloader looks in its parent before its own classpath elements.
+     */
+    public QuarkusClassLoader(final ClassLoader parent, final boolean parentFirst) {
+        super(parent);
+        this.parentFirst = parentFirst;
     }
 
     /**

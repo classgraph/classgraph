@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
 import java.io.IOException;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -269,6 +271,88 @@ public class QuarkusClassLoaderTest {
     @Test
     public void aRunnerClassLoaderThatReportsNoResourcesDoesNotThrow() {
         assertThatCode(() -> locations(new RunnerClassLoader())).doesNotThrowAnyException();
+    }
+
+    /**
+     * A Quarkus classloader that is not set to look in its parent first, which is how Quarkus creates the
+     * classloader of the application itself, loads a class from its own classpath elements before its parent's, so
+     * its own elements come first on the classpath.
+     *
+     * @param tempDir
+     *            a temporary directory to create the application in.
+     * @throws IOException
+     *             if the application could not be created.
+     */
+    @Test
+    public void aParentLastQuarkusClassLoaderContributesItsOwnClasspathFirst(@TempDir final Path tempDir)
+            throws IOException {
+        final var parentDir = Files.createDirectory(tempDir.resolve("parent"));
+        final var jar = Files.createFile(tempDir.resolve("app.jar"));
+        try (var parent = new URLClassLoader(new URL[] { parentDir.toUri().toURL() }, /* parent = */ null)) {
+            final var classLoader = new QuarkusClassLoader(parent, /* parentFirst = */ false)
+                    .serving(new PathTreeClassPathElement(jar));
+            assertThat(locations(classLoader)).containsExactly(location(jar), location(parentDir));
+        }
+    }
+
+    /**
+     * A Quarkus classloader that is set to look in its parent first contributes its parent's classpath first.
+     *
+     * @param tempDir
+     *            a temporary directory to create the application in.
+     * @throws IOException
+     *             if the application could not be created.
+     */
+    @Test
+    public void aParentFirstQuarkusClassLoaderContributesItsParentsClasspathFirst(@TempDir final Path tempDir)
+            throws IOException {
+        final var parentDir = Files.createDirectory(tempDir.resolve("parent"));
+        final var jar = Files.createFile(tempDir.resolve("app.jar"));
+        try (var parent = new URLClassLoader(new URL[] { parentDir.toUri().toURL() }, /* parent = */ null)) {
+            final var classLoader = new QuarkusClassLoader(parent, /* parentFirst = */ true)
+                    .serving(new PathTreeClassPathElement(jar));
+            assertThat(locations(classLoader)).containsExactly(location(parentDir), location(jar));
+        }
+    }
+
+    /**
+     * The classloader of a fast jar application loads a class from its own jars before its parent's, apart from the
+     * JDK's classes and those of a few packages it is configured to load from its parent, so its own jars come
+     * first on the classpath.
+     *
+     * @param tempDir
+     *            a temporary directory to create the application in.
+     * @throws IOException
+     *             if the application could not be created.
+     */
+    @Test
+    public void aRunnerClassLoaderContributesItsOwnClasspathFirst(@TempDir final Path tempDir) throws IOException {
+        final var parentDir = Files.createDirectory(tempDir.resolve("parent"));
+        final var jar = Files.createFile(tempDir.resolve("app.jar"));
+        try (var parent = new URLClassLoader(new URL[] { parentDir.toUri().toURL() }, /* parent = */ null)) {
+            final var classLoader = new RunnerClassLoader(parent).serving("org/example", new JarResource(jar));
+            assertThat(locations(classLoader)).containsExactly(location(jar), location(parentDir));
+        }
+    }
+
+    /**
+     * The classloader of an application built with Quarkus 1.2 or earlier loads a class from its own directories
+     * before its parent's, apart from the framework classes it generates, so its own directories come first on the
+     * classpath.
+     *
+     * @param tempDir
+     *            a temporary directory to create the application in.
+     * @throws IOException
+     *             if the application could not be created.
+     */
+    @Test
+    public void aRuntimeClassLoaderContributesItsOwnClasspathFirst(@TempDir final Path tempDir) throws IOException {
+        final var parentDir = Files.createDirectory(tempDir.resolve("parent"));
+        final var classesDir = Files.createDirectory(tempDir.resolve("classes"));
+        try (var parent = new URLClassLoader(new URL[] { parentDir.toUri().toURL() }, /* parent = */ null)) {
+            final var classLoader = new RuntimeClassLoader(parent).serving(classesDir);
+            assertThat(locations(classLoader)).containsExactly(location(classesDir), location(parentDir));
+        }
     }
 
     /**

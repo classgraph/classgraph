@@ -23,6 +23,16 @@ public class RunnerClassLoader extends ClassLoader {
     }
 
     /**
+     * Constructor.
+     *
+     * @param parent
+     *            the parent classloader.
+     */
+    public RunnerClassLoader(final ClassLoader parent) {
+        super(parent);
+    }
+
+    /**
      * Record the resources that serve a resource directory.
      *
      * @param resourceDirectory

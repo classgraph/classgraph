@@ -24,6 +24,16 @@ public class RuntimeClassLoader extends ClassLoader {
     }
 
     /**
+     * Constructor.
+     *
+     * @param parent
+     *            the parent classloader.
+     */
+    public RuntimeClassLoader(final ClassLoader parent) {
+        super(parent);
+    }
+
+    /**
      * Serve the application's classes out of the given directories.
      *
      * @param directories
