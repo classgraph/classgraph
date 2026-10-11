@@ -90,7 +90,7 @@ final class EquinoxClasspathManagerReader {
             final @Nullable ClassGraphLog log) {
         // Don't get stuck in infinite loop
         if (bundlefile != null && visited.add(bundlefile)) {
-            // A framework extension can install a ClassLoaderHook that replaces a bundle file with a
+            // A framework extension can install a BundleFileWrapperFactoryHook that replaces a bundle file with a
             // BundleFileWrapper around it (Storage#wrapBundleFile), and Equinox puts the wrappers in a
             // BundleFileWrapperChain, which is a BundleFileWrapper too. A wrapper holds the bundle file it delegates
             // to in its "bundleFile" field, and copies only that bundle file's base file, not its "cp" or

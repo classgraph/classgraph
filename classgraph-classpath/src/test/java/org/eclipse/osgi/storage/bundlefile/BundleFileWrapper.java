@@ -1,9 +1,10 @@
 package org.eclipse.osgi.storage.bundlefile;
 
 /**
- * Stand-in for the Equinox {@code BundleFileWrapper} that a framework extension's {@code ClassLoaderHook} can
- * install around a bundle file. It copies only the base file of the bundle file it wraps, not the classpath element
- * within it, so the bundle file it delegates to has to be read in its place.
+ * Stand-in for the Equinox {@code BundleFileWrapper} that a framework extension's
+ * {@code BundleFileWrapperFactoryHook} can install around a bundle file. It copies only the base file of the bundle
+ * file it wraps, not the classpath element within it, so the bundle file it delegates to has to be read in its
+ * place.
  */
 public class BundleFileWrapper extends BundleFile {
     /** The bundle file that this wrapper delegates to. */
