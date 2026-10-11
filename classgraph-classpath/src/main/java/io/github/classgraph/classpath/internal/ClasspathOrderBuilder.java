@@ -48,6 +48,7 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 import io.github.classgraph.base.ClassGraphLog;
 import io.github.classgraph.base.internal.path.FastPathResolver;
@@ -61,6 +62,9 @@ import org.jspecify.annotations.Nullable;
 
 /** A class to find the unique ordered classpath elements. */
 public class ClasspathOrderBuilder implements ClasspathOrder {
+    /** A "%" that is not followed by two hex digits, so does not start a percent escape. */
+    private static final Pattern LONE_PERCENT = Pattern.compile("%(?![0-9A-Fa-f]{2})");
+
     /** The scan spec. */
     private final ClasspathSpec classpathSpec;
 
@@ -537,8 +541,10 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
             // Fall through
         }
         if (pathElementURL == null) {
-            // Escape percentage characters in URLs (#255)
-            final var urlStr = pathElementStr.replace("%", "%25");
+            // Escape a "%" that does not start a percent escape, so that it stands for itself (#255). An existing
+            // escape is kept, since escaping its "%" would make the URL name a different resource ("a%20b.jar"
+            // would become "a%2520b.jar")
+            final var urlStr = LONE_PERCENT.matcher(pathElementStr).replaceAll("%25");
             try {
                 pathElementURL = new URL(urlStr);
             } catch (final MalformedURLException e) {

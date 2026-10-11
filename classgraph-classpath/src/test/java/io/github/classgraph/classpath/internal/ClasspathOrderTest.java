@@ -504,6 +504,22 @@ public class ClasspathOrderTest {
         assertThat(entryObjects().get(0)).isInstanceOf(URL.class);
     }
 
+    /**
+     * A URL classpath entry given as a string keeps the percent escapes it already has, so it names the same
+     * resource, and is a duplicate of the same URL given as a {@link URL}. A "%" that does not start an escape is
+     * escaped as "%25", so that it stands for itself.
+     */
+    @Test
+    public void percentEscapesInAURLStringAreKept() throws Exception {
+        assertThat(classpathOrder.addClasspathEntry("http://example.com/a%20b.jar", null, null)).isTrue();
+        assertThat(classpathOrder.addClasspathEntry(URI.create("http://example.com/a%20b.jar").toURL(), null, null))
+                .isFalse();
+        assertThat(classpathOrder.addClasspathEntry("http://example.com/100%.jar", null, null)).isTrue();
+        assertThat(classpathOrder.addClasspathEntry("http://example.com/%2x%41.jar", null, null)).isTrue();
+        assertThat(entryObjects()).map(Object::toString).containsExactly("http://example.com/a%20b.jar",
+                "http://example.com/100%25.jar", "http://example.com/%252x%41.jar");
+    }
+
     /** A {@link File} classpath entry is recorded as the {@link File} object it arrived as. */
     @Test
     public void fileClasspathEntriesAreRecordedAsFiles(@TempDir final Path tempDir) throws IOException {
