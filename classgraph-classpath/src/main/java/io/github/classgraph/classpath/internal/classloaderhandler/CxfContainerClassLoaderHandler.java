@@ -52,6 +52,11 @@ class CxfContainerClassLoaderHandler implements ClassLoaderHandler {
     @Override
     public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
             final @Nullable ClassGraphLog log) {
+        // CxfContainerClassLoader loads CXF's own classes (org.apache.cxf.*) from the container's classloader first
+        // and then from the webapp's classloader, and loads every other class from the webapp's classloader only.
+        // The webapp's classloader normally delegates to the container's, so listing the container first is a
+        // close approximation; a classloader order cannot express a different order for each package.
+
         // The container's classes are looked up in the classloader being handled, since they are not necessarily
         // visible to ClassGraph's own classloader
         final var cxfUtil = ReflectionUtils
@@ -59,7 +64,8 @@ class CxfContainerClassLoaderHandler implements ClassLoaderHandler {
         if (cxfUtil != null) {
             classLoaderOrder.delegateToParent(cxfUtil.getClassLoader(), log);
         }
-        // tccl = TomcatClassLoader
+        // tccl() returns the webapp's classloader that the current thread set, or the container's classloader if
+        // the current thread set none
         classLoaderOrder.delegateToPeer((ClassLoader) ReflectionUtils.invokeMethod(false, classLoader, "tccl"),
                 log);
         // This classloader doesn't actually load any classes, but add it to the order to improve logging
