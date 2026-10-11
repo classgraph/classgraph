@@ -577,8 +577,10 @@ public final class Resource implements AutoCloseable, Comparable<Resource> {
      */
     @Override
     public String toString() {
-        if (toString == null) {
-            String str;
+        // The field is read only once, into a local, since this may be called from several threads, and without
+        // synchronization a second read of the field could see null even after the first read saw a value
+        var str = toString;
+        if (str == null) {
             try {
                 str = getURI().toString();
             } catch (final IllegalStateException _) {
@@ -592,7 +594,7 @@ public final class Resource implements AutoCloseable, Comparable<Resource> {
             }
             toString = str;
         }
-        return toString;
+        return str;
     }
 
     /**

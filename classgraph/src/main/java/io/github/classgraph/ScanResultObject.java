@@ -137,17 +137,22 @@ abstract class ScanResultObject {
      */
     @Nullable
     ClassInfo getClassInfo() {
-        if (classInfo == null) {
-            if (scanResult == null) {
+        // The field is read only once, into a local, since this may be called from several threads, and without
+        // synchronization a second read of the field could see null even after the first read saw a value
+        var ci = classInfo;
+        if (ci == null) {
+            final var sr = scanResult;
+            if (sr == null) {
                 return null;
             }
             final var className = getClassName();
             if (className == null) {
                 throw new IllegalStateException("Class name is not set");
             }
-            classInfo = scanResult.getClassInfo(className);
+            ci = sr.getClassInfo(className);
+            classInfo = ci;
         }
-        return classInfo;
+        return ci;
     }
 
     // -------------------------------------------------------------------------------------------------------------
