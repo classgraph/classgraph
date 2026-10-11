@@ -1911,7 +1911,9 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     }
 
     /**
-     * Checks whether this class declares a method of the given name.
+     * Checks whether this class declares a method of the given name. This is true exactly when
+     * {@link #getDeclaredMethodInfo(String)} returns a non-empty list, so the name {@code "<init>"} finds a
+     * constructor, and {@code "<clinit>"} a static initializer block.
      *
      * @param methodName
      *            The name of a method.
@@ -1921,11 +1923,14 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      */
     public boolean hasDeclaredMethod(final String methodName) {
         Assert.notNull(methodName, "methodName");
-        return getDeclaredMethodInfo().containsName(methodName);
+        return !getDeclaredMethodInfoWithName(methodName).isEmpty();
     }
 
     /**
-     * Checks whether this class or one of its superclasses or interfaces declares a method of the given name.
+     * Checks whether this class or one of its superclasses or interfaces declares a method of the given name. This
+     * is true exactly when {@link #getMethodInfo(String)} returns a non-empty list. Constructors ({@code "<init>"})
+     * and static initializer blocks ({@code "<clinit>"}) are not inherited, so for those names only this class is
+     * checked.
      *
      * @param methodName
      *            The name of a method.
@@ -1935,6 +1940,10 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      */
     public boolean hasMethod(final String methodName) {
         Assert.notNull(methodName, "methodName");
+        if ("<init>".equals(methodName) || "<clinit>".equals(methodName)) {
+            // Constructors and static initializer blocks are not inherited
+            return hasDeclaredMethod(methodName);
+        }
         for (final ClassInfo ci : getMethodOverrideOrder()) {
             if (ci.hasDeclaredMethod(methodName)) {
                 return true;
