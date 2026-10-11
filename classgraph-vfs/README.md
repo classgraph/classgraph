@@ -228,7 +228,9 @@ by path or by URI. To open an archive through this provider, call
 
 Two options can be passed in the `env` map: `"vfsSpec"`, a `VfsSpec` configuring the `Vfs` that will
 be created (see [Options](#options)), and `"layer"`, a `ModuleLayer` to resolve a `cgvfs:jrt:/...`
-module name against instead of the boot layer.
+module name against instead of the boot layer. Only one module of a given name can be open through
+`newFileSystem` at a time, whatever its layer; to read two at once, open each with
+`vfs.openModule(name, layer).asFileSystem()`.
 
 `VfsPath.toCgvfsUri()` writes a path back out as a `cgvfs:` URI, and throws
 `FileSystemNotFoundException` if the scheme is not installed in this JVM, rather than handing back a
