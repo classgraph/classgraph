@@ -42,9 +42,11 @@ public class AwkwardPathNamesTest {
      */
     // A space is escaped as %20, '+' means a space in a query string, '%' introduces an escape sequence, '#'
     // starts a URL fragment, a non-ASCII letter has to be escaped as its UTF-8 bytes (#468), and '!' used to be
-    // read as a nested jar separator wherever it appeared (#903)
+    // read as a nested jar separator wherever it appeared (#903), which a name ending in '!' tests most directly,
+    // since it puts a "!/" in the path
     static Stream<String> awkwardNames() {
-        return Stream.of("plain", "with space", "with+plus", "with%25percent", "with#hash", "café", "with!bang");
+        return Stream.of("plain", "with space", "with+plus", "with%25percent", "with#hash", "café", "with!bang",
+                "ends-with-bang!");
     }
 
     /**
