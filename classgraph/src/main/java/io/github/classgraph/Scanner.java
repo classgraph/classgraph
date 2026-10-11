@@ -676,10 +676,12 @@ class Scanner {
                                     : log.log(classpathElt.getURI().toString(),
                                             "Opening classpath element " + classpathElt);
 
-                            // Check if the classpath element is valid (classpathElt.skipClasspathElement will be
-                            // set if not). In case of ClasspathElementZip, open or extract nested jars as
-                            // LogicalZipFile instances. Read manifest files for jarfiles to look for Class-Path
-                            // manifest entries. Adds extra classpath elements to the work queue if they are found.
+                            // Open the classpath element, and check that it is valid (classpathElt.skipClasspathElement
+                            // is set if not). A jarfile nested inside another jarfile is extracted or opened in place.
+                            // The manifest of a jarfile or a directory is read for its module name and for its
+                            // Class-Path and Bundle-ClassPath entries, and the classpath elements that this one
+                            // contains or refers to (package roots, manifest entries, and the jarfiles in lib dirs)
+                            // are added to the work queue.
                             classpathElt.open(workQueue, subLog);
 
                             return classpathElt;
@@ -1187,8 +1189,9 @@ class Scanner {
      */
     private ScanResult openClasspathElementsThenScan() throws InterruptedException, ExecutionException {
         // In parallel, create a ClasspathElement singleton for each classpath element, then call open() on each
-        // ClasspathElement object, which in the case of jarfiles will cause LogicalZipFile instances to be created
-        // for each (possibly nested) jarfile, then will read the manifest file and zip entries.
+        // ClasspathElement object, which opens the directory or jarfile (extracting a nested jarfile or opening it
+        // in place), reads its manifest, and adds the classpath elements that it contains or refers to to the work
+        // queue.
         final Set<ClasspathElement> toplevelClasspathElts = Collections.newSetFromMap(new ConcurrentHashMap<>());
         processWorkUnits(rawClasspathEntryWorkUnits,
                 topLevelLog == null ? null : topLevelLog.log("Opening classpath elements"),
