@@ -334,8 +334,9 @@ final class ClasspathElementModule extends ClasspathElement {
                     return file;
                 }
             }
-        } catch (final Exception e) {
-            // Invalid "file:" URI
+        } catch (final IllegalArgumentException | SecurityException e) {
+            // The location is not a "file:" URI, or is one that does not name a file, such as one with a query,
+            // or a security manager does not let the file be checked
         }
         return null;
     }

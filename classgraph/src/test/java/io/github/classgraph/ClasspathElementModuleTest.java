@@ -2,7 +2,9 @@ package io.github.classgraph;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.module.ModuleDescriptor;
@@ -14,6 +16,7 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.Permission;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -27,6 +30,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import io.github.classgraph.vfs.Vfs;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Tests for the classpath element of a module, and for the resources read from it. A module is read through a
@@ -293,6 +297,71 @@ public class ClasspathElementModuleTest {
     }
 
     /**
+     * A module whose location is not a {@code "file:"} URI, or is a {@code "file:"} URI that does not name a file,
+     * is located by that URI, and is not a file.
+     */
+    @Test
+    public void aModuleWhoseLocationIsNotAFileUriIsNotAFile() {
+        for (final var location : List.of(URI.create("mem:/located.module"),
+                URI.create("file:/located.module.jar?version=1"))) {
+            final var classpathElement = classpathElementFor(moduleReferenceAt("located.module", location));
+            assertThat(classpathElement.getURI()).isEqualTo(location);
+            assertThat(classpathElement.getFile()).as("%s", location).isNull();
+        }
+    }
+
+    /**
+     * A module whose jar a SecurityManager does not allow to be read is not a file, rather than failing with a
+     * {@link SecurityException}. A SecurityManager can only be installed on JDK 17, so this test is skipped on
+     * later JDKs.
+     *
+     * @param tempDir
+     *            the directory that holds the module's jar.
+     * @throws IOException
+     *             if the jar could not be created.
+     */
+    @Test
+    @SuppressWarnings("removal")
+    public void aModuleWhoseJarASecurityManagerWillNotLetBeReadIsNotAFile(@TempDir final Path tempDir)
+            throws IOException {
+        final var jar = Files.createFile(tempDir.resolve("denied.module.jar"));
+        final var classpathElement = classpathElementFor(moduleReferenceAt("denied.module", jar.toUri()));
+        final var deniedPath = jar.toFile().getPath();
+        final var denyingSecurityManager = new SecurityManager() {
+            @Override
+            public void checkPermission(final Permission perm) {
+                // Allow everything else, including removing this SecurityManager again
+            }
+
+            @Override
+            public void checkRead(final String file) {
+                if (file.equals(deniedPath)) {
+                    throw new SecurityException("Read access denied: " + file);
+                }
+            }
+        };
+        try {
+            System.setSecurityManager(denyingSecurityManager);
+        } catch (final UnsupportedOperationException e) {
+            assumeTrue(false, "Cannot install a SecurityManager");
+        }
+        File file;
+        Throwable thrown;
+        try {
+            file = classpathElement.getFile();
+            thrown = null;
+        } catch (final RuntimeException e) {
+            file = null;
+            thrown = e;
+        } finally {
+            System.setSecurityManager(null);
+        }
+        // Asserted only once the SecurityManager is removed
+        assertThat(thrown).isNull();
+        assertThat(file).isNull();
+    }
+
+    /**
      * Two classpath elements are the same classpath element when they are for the same module, since a module can
      * only be scanned once however many times it is reached.
      */
@@ -381,8 +450,21 @@ public class ClasspathElementModuleTest {
      * @return the module reference.
      */
     private static ModuleReference moduleReferenceWithNoLocation(final String moduleName) {
+        return moduleReferenceAt(moduleName, /* location = */ null);
+    }
+
+    /**
+     * A module reference that reports the given location, and that cannot be read.
+     *
+     * @param moduleName
+     *            the name of the module.
+     * @param location
+     *            the location of the module, or null for none.
+     * @return the module reference.
+     */
+    private static ModuleReference moduleReferenceAt(final String moduleName, final @Nullable URI location) {
         final var descriptor = ModuleDescriptor.newModule(moduleName).build();
-        return new ModuleReference(descriptor, /* location = */ null) {
+        return new ModuleReference(descriptor, location) {
             @Override
             public ModuleReader open() {
                 throw new UnsupportedOperationException();
