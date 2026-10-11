@@ -286,8 +286,8 @@ public final class GraphVizDotFileOptions {
     }
 
     /**
-     * Strip the package name from class names in method and field type signatures and in annotations, leaving the
-     * simple name. (This is the default.)
+     * Strip the package name from class names in method and field type signatures, in the bounds of class type
+     * parameters, and in annotations, leaving the simple name. (This is the default.)
      *
      * @return this {@link GraphVizDotFileOptions}, for method chaining.
      */
@@ -297,8 +297,8 @@ public final class GraphVizDotFileOptions {
     }
 
     /**
-     * Show class names in method and field type signatures and in annotations fully qualified. (By default the
-     * package name is stripped, leaving the simple name.)
+     * Show class names in method and field type signatures, in the bounds of class type parameters, and in
+     * annotations fully qualified. (By default the package name is stripped, leaving the simple name.)
      *
      * @return this {@link GraphVizDotFileOptions}, for method chaining.
      */
