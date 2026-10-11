@@ -3,13 +3,20 @@ package io.github.classgraph;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
+import java.io.File;
+import java.io.IOException;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import java.nio.file.Files;
+import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 /** Tests for {@link BaseTypeSignature}, the type signature of the primitive types and void. */
 public class BaseTypeSignatureTest {
@@ -136,6 +143,108 @@ public class BaseTypeSignatureTest {
             // longer shared, and a base type is reachable from the ScanResult anyway, so suppressing it only broke
             // type annotations.)
             assertThat(((BaseTypeSignature) fieldType).scanResult).isSameAs(scanResult);
+        }
+    }
+
+    /** A base type has no internal structure, so a type annotation on it must have an empty type path. */
+    @Test
+    public void aTypeAnnotationOnABaseTypeMustHaveAnEmptyTypePath() {
+        final var intSignature = new BaseTypeSignature('I');
+        final var typePath = List.of(new Classfile.TypePathNode((short) 0, (short) 0));
+        assertThatThrownBy(() -> intSignature.addTypeAnnotation(typePath, new AnnotationInfo("Ann", null)))
+                .isInstanceOf(IllegalArgumentException.class).hasMessage("Base type should have empty typePath");
+        assertThat(intSignature.getTypeAnnotationInfo()).isEmpty();
+    }
+
+    /**
+     * Write a public field whose type is annotated with {@code @Good} and {@code @Bad}, as in a corrupt classfile:
+     * the type path of {@code @Good} leads to the base type, and the type path of {@code @Bad} has one more
+     * {@code [ARRAY]} step, which leads past the base type.
+     *
+     * @param out
+     *            the output stream of the classfile
+     * @param nameIndex
+     *            the constant pool index of the field name
+     * @param descriptorIndex
+     *            the constant pool index of the field descriptor
+     * @param numDimensions
+     *            the number of array dimensions of the field type
+     * @throws IOException
+     *             if the field could not be written
+     */
+    private static void writeField(final DataOutputStream out, final int nameIndex, final int descriptorIndex,
+            final int numDimensions) throws IOException {
+        out.writeShort(0x0001); // ACC_PUBLIC
+        out.writeShort(nameIndex);
+        out.writeShort(descriptorIndex);
+        out.writeShort(1); // Number of attributes
+        out.writeShort(5); // "RuntimeVisibleTypeAnnotations"
+        out.writeInt(2 + (6 + 2 * numDimensions) + (6 + 2 * (numDimensions + 1)));
+        out.writeShort(2); // num_annotations
+        for (var pathLength = numDimensions; pathLength <= numDimensions + 1; pathLength++) {
+            out.writeByte(0x13); // target_type: type in field declaration (empty target)
+            out.writeByte(pathLength); // type_path: path_length
+            for (var i = 0; i < pathLength; i++) {
+                out.writeByte(0); // type_path_kind: ARRAY
+                out.writeByte(0); // type_argument_index
+            }
+            out.writeShort(pathLength == numDimensions ? 6 : 7); // type_index: "LGood;" or "LBad;"
+            out.writeShort(0); // num_element_value_pairs
+        }
+    }
+
+    /**
+     * A type annotation in a classfile whose type path leads past a base type is skipped, rather than being placed
+     * on the base type, and the other type annotations on the same type are still applied.
+     *
+     * @param tempDir
+     *            the directory to write the classfile to
+     * @throws IOException
+     *             if the classfile could not be written
+     */
+    @Test
+    public void aTypeAnnotationWhosePathLeadsPastABaseTypeIsSkipped(@TempDir final File tempDir)
+            throws IOException {
+        final var className = "BadBaseTypePath";
+        final var byteArrayOutputStream = new ByteArrayOutputStream();
+        try (var out = new DataOutputStream(byteArrayOutputStream)) {
+            out.writeInt(0xCAFEBABE);
+            out.writeShort(0); // Minor version
+            out.writeShort(52); // Major version (Java 8)
+            out.writeShort(12); // Constant pool count (one greater than the number of entries)
+            final var utf8Entries = new String[] { className, null, "java/lang/Object", null,
+                    "RuntimeVisibleTypeAnnotations", "LGood;", "LBad;", "intField", "I", "intArrayField", "[I" };
+            for (var i = 0; i < utf8Entries.length; i++) {
+                if (utf8Entries[i] == null) {
+                    out.writeByte(7); // Class ref to the preceding entry
+                    out.writeShort(i);
+                } else {
+                    out.writeByte(1);
+                    out.writeUTF(utf8Entries[i]);
+                }
+            }
+            out.writeShort(0x0021); // ACC_PUBLIC | ACC_SUPER
+            out.writeShort(2); // this_class
+            out.writeShort(4); // super_class
+            out.writeShort(0); // Number of interfaces
+            out.writeShort(2); // Number of fields
+            writeField(out, 8, 9, 0);
+            writeField(out, 10, 11, 1);
+            out.writeShort(0); // Number of methods
+            out.writeShort(0); // Number of attributes
+        }
+        Files.write(new File(tempDir, className + ".class").toPath(), byteArrayOutputStream.toByteArray());
+
+        try (var scanResult = new ClassGraph().enableClassInfo().enableFieldInfo().enableAnnotationInfo()
+                .enableClasspathEntries(tempDir).scan()) {
+            final var classInfo = scanResult.getClassInfo(className);
+            assertThat(classInfo.getFieldInfo("intField").getTypeDescriptor().getTypeAnnotationInfo())
+                    .extracting(AnnotationInfo::getName).containsExactly("Good");
+            final var intArrayType = (ArrayTypeSignature) classInfo.getFieldInfo("intArrayField")
+                    .getTypeDescriptor();
+            assertThat(intArrayType.getTypeAnnotationInfo()).isEmpty();
+            assertThat(intArrayType.getElementTypeSignature().getTypeAnnotationInfo())
+                    .extracting(AnnotationInfo::getName).containsExactly("Good");
         }
     }
 }
