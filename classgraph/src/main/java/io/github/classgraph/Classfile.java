@@ -893,6 +893,29 @@ class Classfile {
     }
 
     /**
+     * Check that a class name that this classfile refers to, and that a {@link ClassInfo} is to be created for, is
+     * legal (see {@link ClassNames#isLegalClassName(String)}). The JVM refuses to load a classfile whose constant
+     * pool has a {@code CONSTANT_Class} entry with an illegal name, though it does not check the name of the type
+     * of an annotation. Without this check, a name such as {@code "p.S;"} would make the scan fail when the
+     * {@link ClassInfo} is created, and an empty name would give a class with no name.
+     *
+     * @param name
+     *            the class name, with {@code '.'} as the separator.
+     * @param description
+     *            a description of what the class name names, for the exception message.
+     * @return {@code name}
+     * @throws ClassfileFormatException
+     *             If the class name is not legal.
+     */
+    private String checkClassName(final String name, final String description) throws ClassfileFormatException {
+        if (!ClassNames.isLegalClassName(name)) {
+            throw new ClassfileFormatException(
+                    "Class " + className + " has an illegal " + description + ": \"" + name + "\"");
+        }
+        return name;
+    }
+
+    /**
      * Get a string from the constant pool representing an internal string descriptor for a class name
      * ("Lcom/xyz/MyClass;"), and interpret it as a class name by replacing '/' with '.', and removing the leading
      * "L" and the trailing ";".
@@ -1025,9 +1048,13 @@ class Classfile {
      *             If an IO exception occurs.
      */
     private AnnotationInfo readAnnotation() throws IOException {
-        // Lcom/xyz/Annotation; -> com.xyz.Annotation
-        final var annotationClassName = requireConstantPoolString(
-                getConstantPoolClassDescriptor(reader().readUnsignedShort()), "annotation class name");
+        // Lcom/xyz/Annotation; -> com.xyz.Annotation. The JVM does not check the name, but a ClassInfo is created
+        // for the type of an annotation on a class, method, field or parameter, so an illegal name makes the
+        // annotation attribute be skipped.
+        final var annotationClassName = checkClassName(
+                requireConstantPoolString(getConstantPoolClassDescriptor(reader().readUnsignedShort()),
+                        "annotation class name"),
+                "annotation class name");
         final var numElementValuePairs = reader().readUnsignedShort();
         AnnotationParameterValueList paramVals = null;
         if (numElementValuePairs > 0) {
@@ -1656,6 +1683,7 @@ class Classfile {
                 continue;
             }
             if (refdClassName != null) {
+                var dependencyName = refdClassName;
                 if (refdClassName.startsWith("[")) {
                     // An array class, e.g. "[Ljava.lang.String;" or "[I". Its name is an array field descriptor,
                     // which cannot have type arguments, so the element class name is taken directly from between
@@ -1669,14 +1697,23 @@ class Classfile {
                     }
                     final var elementType = refdClassName.substring(elementTypeStart);
                     if (elementType.length() > 2 && elementType.charAt(0) == 'L' && elementType.endsWith(";")) {
-                        refdClassNames.add(elementType.substring(1, elementType.length() - 1));
-                    } else if (elementType.length() != 1 && log != null) {
-                        // A single character is a primitive element type, which names no class
-                        log.log("Could not extract the element class name from array class reference: "
-                                + refdClassName);
+                        dependencyName = elementType.substring(1, elementType.length() - 1);
+                    } else {
+                        if (elementType.length() != 1 && log != null) {
+                            // A single character is a primitive element type, which names no class
+                            log.log("Could not extract the element class name from array class reference: "
+                                    + refdClassName);
+                        }
+                        continue;
                     }
-                } else {
-                    refdClassNames.add(refdClassName);
+                }
+                // The JVM refuses to load a class with an illegal class name in its constant pool, but this name
+                // only records a dependency, so as above, only the reference is skipped. Whether a class is in the
+                // scan result then does not depend on whether dependencies are recorded.
+                if (ClassNames.isLegalClassName(dependencyName)) {
+                    refdClassNames.add(dependencyName);
+                } else if (log != null) {
+                    log.log("Skipping class reference with an illegal class name: \"" + refdClassName + "\"");
                 }
             }
         }
@@ -1774,6 +1811,9 @@ class Classfile {
                 throw new ClassfileFormatException(
                         "Class " + className + " has an array class as its superclass: " + superclassName);
             }
+            if (superclassName != null) {
+                checkClassName(superclassName, "superclass name");
+            }
         }
     }
 
@@ -1785,7 +1825,7 @@ class Classfile {
      * @throws IOException
      *             if an I/O exception occurs.
      * @throws ClassfileFormatException
-     *             if an interface is an array class.
+     *             if an interface is an array class, or has an illegal name.
      */
     private void readInterfaces() throws IOException, ClassfileFormatException {
         // Interfaces
@@ -1798,6 +1838,7 @@ class Classfile {
                 throw new ClassfileFormatException(
                         "Class " + className + " has an array class as an interface: " + interfaceName);
             }
+            checkClassName(interfaceName, "interface name");
             if (implementedInterfaces == null) {
                 implementedInterfaces = new ArrayList<>();
             }
@@ -2518,6 +2559,8 @@ class Classfile {
                 if (innerClassName.startsWith("[")) {
                     continue;
                 }
+                checkClassName(innerClassName, "inner class name");
+                checkClassName(outerClassName, "outer class name");
                 // A class that uses invokedynamic (a record, or a lambda) has an InnerClasses entry for
                 // MethodHandles$Lookup, because its bootstrap methods take a Lookup -- drop that entry, except in
                 // the classfiles of MethodHandles and the classes nested in it, where it describes their own nesting
@@ -2543,7 +2586,7 @@ class Classfile {
      * @throws IOException
      *             if an I/O exception occurs.
      * @throws ClassfileFormatException
-     *             if the enclosing class or method name is missing.
+     *             if the enclosing class or method name is missing, or the enclosing class name is illegal.
      */
     private void readEnclosingMethodAttribute() throws IOException, ClassfileFormatException {
         hasEnclosingMethodAttribute = true;
@@ -2555,6 +2598,7 @@ class Classfile {
         if (innermostEnclosingClassName.startsWith("[")) {
             return;
         }
+        checkClassName(innermostEnclosingClassName, "enclosing class name");
         // A method_index of 0 means the class is declared in an initializer (a static or instance initializer
         // block, or a field initializer) rather than in a method or constructor (JVMS 4.7.7). The classfile does
         // not say which initializer, so no defining method name is recorded.
