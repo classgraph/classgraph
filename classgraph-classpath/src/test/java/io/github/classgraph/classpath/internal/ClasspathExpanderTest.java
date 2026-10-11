@@ -542,6 +542,34 @@ public class ClasspathExpanderTest {
     }
 
     /**
+     * A jarfile in a directory whose name ends in '!' is not nested inside another jarfile, since the "!/" of the
+     * directory name is not a separator, so a {@code Class-Path} manifest entry of the jarfile is resolved in the
+     * filesystem, and may climb above the directory that contains the jarfile.
+     *
+     * @param tempDir
+     *            the temporary directory to build the classpath element in
+     * @throws IOException
+     *             if the classpath element could not be created or read
+     */
+    @Test
+    public void classPathManifestEntriesOfAJarInADirWhoseNameEndsInAPlingAreResolvedBesideIt(
+            @TempDir final Path tempDir) throws IOException {
+        final Path jar = createJar(tempDir, "build!/app.jar",
+                entries(MANIFEST_NAME, manifest("Class-Path: dep.jar ../up.jar")));
+        try (Vfs vfs = new Vfs()) {
+            final VfsRoot root = vfs.open(jar);
+            final List<ChildEntry> childEntries = ClasspathExpander.childEntries(root, LIB_DIR_PREFIXES, true,
+                    null);
+            final String jarPath = root.getPath();
+            final String jarDir = jarPath.substring(0, jarPath.lastIndexOf('/'));
+            final String tempDirPath = jarDir.substring(0, jarDir.lastIndexOf('/'));
+            assertThat(locations(childEntries)).containsExactly(jarDir + "/dep.jar", tempDirPath + "/up.jar");
+            assertThat(childEntries.get(0).path()).isEqualTo(canonical(tempDir).resolve("build!/dep.jar"));
+            assertThat(childEntries.get(1).path()).isEqualTo(canonical(tempDir).resolve("up.jar"));
+        }
+    }
+
+    /**
      * A {@code Class-Path} manifest entry is a relative URL, as it is for the JVM's own classloader, so its percent
      * encoding is decoded. This is the only way to name a jarfile with a space in its name, since whitespace
      * separates the entries.
