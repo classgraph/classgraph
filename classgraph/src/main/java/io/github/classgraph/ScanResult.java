@@ -548,7 +548,8 @@ public final class ScanResult implements AutoCloseable {
      * or {@link ClassGraph#enableClasspathEntries(Object...)}, and was not narrowed out by an {@code accept} or
      * {@code reject} method. A classpath element that has no {@link File}, as described for
      * {@link Resource#getClasspathElementFile()}, is left out, but {@link #getClasspathURIs()} lists it if it has a
-     * location URI.
+     * location URI. A jarfile downloaded from a URL into a temporary file is listed by that file, which is deleted
+     * when this {@link ScanResult} is closed.
      *
      * @return The unique classpath elements that were scanned.
      * @throws IllegalStateException
