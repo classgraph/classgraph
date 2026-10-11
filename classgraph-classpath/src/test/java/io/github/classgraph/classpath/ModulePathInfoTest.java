@@ -2,12 +2,16 @@ package io.github.classgraph.classpath;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.io.File;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.spi.ToolProvider;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -95,9 +99,26 @@ public class ModulePathInfoTest {
      *             if the child JVM could not be run.
      */
     private static List<String> runChildJvm(final List<String> jvmOptions) throws Exception {
+        return runChildJvm(ProcessHandle.current().info().command()
+                .orElseGet(() -> Path.of(System.getProperty("java.home"), "bin", "java").toString()), jvmOptions);
+    }
+
+    /**
+     * Run {@link ModulePathInfoPrinter} in a child JVM launched by the given {@code java} launcher with the given
+     * JVM options, on the classpath of the currently-running JVM.
+     *
+     * @param javaLauncher
+     *            the path of the {@code java} launcher to run.
+     * @param jvmOptions
+     *            the JVM options to launch the child JVM with.
+     * @return the {@code <field>TAB<value>} lines the child JVM printed.
+     * @throws Exception
+     *             if the child JVM could not be run.
+     */
+    private static List<String> runChildJvm(final String javaLauncher, final List<String> jvmOptions)
+            throws Exception {
         final List<String> command = new ArrayList<>();
-        command.add(ProcessHandle.current().info().command()
-                .orElseGet(() -> Path.of(System.getProperty("java.home"), "bin", "java").toString()));
+        command.add(javaLauncher);
         command.addAll(jvmOptions);
         command.add("-cp");
         command.add(System.getProperty("java.class.path"));
@@ -218,6 +239,47 @@ public class ModulePathInfoTest {
                 List.of("--limit-modules", "java.base", "--add-opens", "java.base/java.lang=ALL-UNNAMED"));
 
         // The --add-opens switch would be read if java.management were present
+        assertThat(valuesOf(outputLines, "addOpens")).isEmpty();
+        assertThat(valuesOf(outputLines, "commandline")).containsExactly("");
+    }
+
+    /**
+     * On a runtime whose java.management module is present but cannot be initialized, here because its native
+     * library is missing, the commandline switches cannot be read either, so every set is empty, rather than
+     * reading them throwing an error.
+     *
+     * @param tempDir
+     *            a temporary directory to build the runtime image in.
+     * @throws Exception
+     *             if the runtime image could not be changed, or the child JVM could not be run.
+     */
+    @Test
+    public void nothingIsReadWhenTheManagementModuleCannotBeInitialized(@TempDir final Path tempDir)
+            throws Exception {
+        final var jlink = ToolProvider.findFirst("jlink");
+        assumeTrue(jlink.isPresent(), "jlink is not available");
+        final var imageDir = tempDir.resolve("image");
+        final var jlinkOutput = new StringWriter();
+        final var jlinkPrintWriter = new PrintWriter(jlinkOutput);
+        final int jlinkExitCode = jlink.get().run(jlinkPrintWriter, jlinkPrintWriter, "--add-modules",
+                "java.base,java.management", "--output", imageDir.toString());
+        assumeTrue(jlinkExitCode == 0, () -> "jlink could not build a runtime image: " + jlinkOutput);
+
+        // Delete the native library of java.management (lib/libmanagement.so, or bin/management.dll on Windows)
+        final var libraryName = System.mapLibraryName("management");
+        final List<Path> libraries;
+        try (var paths = Files.walk(imageDir)) {
+            libraries = paths.filter(path -> path.getFileName().toString().equals(libraryName)).toList();
+        }
+        assertThat(libraries).isNotEmpty();
+        for (final Path library : libraries) {
+            Files.delete(library);
+        }
+
+        final var outputLines = runChildJvm(imageDir.resolve("bin").resolve("java").toString(),
+                List.of("--add-opens", "java.base/java.lang=ALL-UNNAMED"));
+
+        // The --add-opens switch would be read if java.management could be initialized
         assertThat(valuesOf(outputLines, "addOpens")).isEmpty();
         assertThat(valuesOf(outputLines, "commandline")).containsExactly("");
     }
