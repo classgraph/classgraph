@@ -156,8 +156,7 @@ public class PathSyntaxSanitizeEntryPathTest {
 
     /**
      * A {@code '.'} that does not form a complete segment is an ordinary filename character, so paths containing
-     * one must be returned unchanged -- in particular, a trailing slash must be preserved, since normalizing would
-     * drop it along with the empty final segment.
+     * one must be returned unchanged, including any trailing slash.
      */
     @Test
     public void dotsWithinSegmentNamesAreNotNormalized() {
@@ -203,6 +202,34 @@ public class PathSyntaxSanitizeEntryPathTest {
         assertThat(PathSyntax.sanitizeRelativePath("a/b/", false)).isEqualTo("a/b/");
         assertThat(PathSyntax.sanitizeRelativePath("a/b/", true)).isEqualTo("a/b");
         assertThat(PathSyntax.sanitizeRelativePath("", false)).isEmpty();
+    }
+
+    /**
+     * A final '/' that is to be kept is kept whether or not some other part of the path needs sanitizing, so that a
+     * redundant segment does not change whether the path names a directory.
+     *
+     * @param tempDir
+     *            a temporary directory to write a jarfile into
+     * @throws IOException
+     *             if the jarfile could not be written
+     */
+    @Test
+    public void finalSlashIsKeptWhenOtherSegmentsAreSanitized(@TempDir final Path tempDir) throws IOException {
+        assertThat(PathSyntax.sanitizeRelativePath("a/./b/", false))
+                .isEqualTo(PathSyntax.sanitizeRelativePath("a/b/", false)).isEqualTo("a/b/");
+        assertThat(PathSyntax.sanitizeRelativePath("a/b/c/../", false)).isEqualTo("a/b/");
+        assertThat(PathSyntax.sanitizeRelativePath("a/b//", false)).isEqualTo("a/b/");
+        assertThat(PathSyntax.sanitizeRelativePath("a/./b/", true)).isEqualTo("a/b");
+        assertThat(sanitize("/a/./b/")).isEqualTo("/a/b/");
+        // A path that sanitizes to nothing gains no '/'
+        assertThat(PathSyntax.sanitizeRelativePath("a/../", false)).isEmpty();
+        assertThat(PathSyntax.sanitizeRelativePath("./", false)).isEmpty();
+        // A '/' after a nested jar separator is dropped with the empty section it ends, and not moved onto the
+        // jarfile, which would then read as a directory
+        final var jar = Files.write(tempDir.resolve("x.jar"), new byte[] { 'P', 'K' }).toString()
+                .replace(File.separatorChar, '/');
+        assertThat(sanitize(jar + "!/./")).isEqualTo(jar);
+        assertThat(sanitize(jar + "!/a/./b/")).isEqualTo(jar + "!/a/b/");
     }
 
     /**
