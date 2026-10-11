@@ -794,22 +794,30 @@ public class Issue735Test {
         return suffixTypeArguments.get(suffixTypeArguments.size() - 1).get(0).getTypeSignature();
     }
 
-    /** A type annotation on a type that substitution rebuilds stays where it was. */
+    /** A type annotation on a parameterized type that substitution rebuilds stays on the rebuilt type. */
     @Test
-    void typeAnnotationsOnRebuiltTypesAreKept() {
+    void typeAnnotationsOnRebuiltParameterizedTypesAreKept() {
         assertThat(annotatedFieldType("annotatedParameterizedType").toString())
                 .isEqualTo(AT_TA + " java.util.List<T>");
         final var parameterizedType = (ClassRefTypeSignature) resolvedAnnotatedFieldType(
                 "annotatedParameterizedType", AnnotatedBoundToString.class);
         assertThat(parameterizedType.toString()).isEqualTo(AT_TA + " java.util.List<java.lang.String>");
         assertThat(parameterizedType.getTypeAnnotationInfo().getNames()).containsExactly(TA.class.getName());
+    }
 
+    /** A type annotation on an array dimension that substitution rebuilds stays on the rebuilt dimension. */
+    @Test
+    void typeAnnotationsOnRebuiltArrayDimensionsAreKept() {
         assertThat(annotatedFieldType("annotatedArrayDimension").toString()).isEqualTo("T " + AT_TA + " []");
         final var arrayDimension = resolvedAnnotatedFieldType("annotatedArrayDimension",
                 AnnotatedBoundToString.class);
         assertThat(arrayDimension.toString()).isEqualTo("java.lang.String " + AT_TA + " []");
         assertThat(arrayDimension.getTypeAnnotationInfo().getNames()).containsExactly(TA.class.getName());
+    }
 
+    /** A type annotation on a nested class that substitution rebuilds stays on the rebuilt nested class. */
+    @Test
+    void typeAnnotationsOnRebuiltNestedClassesAreKept() {
         assertThat(annotatedFieldType("annotatedNestedClass").toString())
                 .isEqualTo("java.util.Map$" + AT_TA + " Entry<T, java.lang.String>");
         final var nestedClass = (ClassRefTypeSignature) resolvedAnnotatedFieldType("annotatedNestedClass",
@@ -817,7 +825,11 @@ public class Issue735Test {
         assertThat(nestedClass.toString())
                 .isEqualTo("java.util.Map$" + AT_TA + " Entry<java.lang.String, java.lang.String>");
         assertThat(nestedClass.getSuffixTypeAnnotationInfo().get(0).getNames()).containsExactly(TA.class.getName());
+    }
 
+    /** A type annotation on a wildcard type argument that substitution rebuilds stays on the rebuilt wildcard. */
+    @Test
+    void typeAnnotationsOnRebuiltWildcardsAreKept() {
         assertThat(annotatedFieldType("annotatedWildcard").toString())
                 .isEqualTo("java.util.List<" + AT_TA + " ? extends T>");
         final var wildcard = (ClassRefTypeSignature) resolvedAnnotatedFieldType("annotatedWildcard",
