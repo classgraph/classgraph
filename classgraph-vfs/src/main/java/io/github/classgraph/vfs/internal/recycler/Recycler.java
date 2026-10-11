@@ -126,18 +126,6 @@ public abstract class Recycler<T, E extends Exception> implements AutoCloseable 
     }
 
     /**
-     * Acquire a {@link RecycleOnClose} wrapper around an object instance, which can be used to recycle object
-     * instances at the end of a try-with-resources block.
-     *
-     * @return Either a new or a recycled object instance.
-     * @throws E
-     *             If anything goes wrong when trying to allocate a new object instance.
-     */
-    public RecycleOnClose<T, E> acquireRecycleOnClose() throws E {
-        return new RecycleOnClose<>(this, acquire());
-    }
-
-    /**
      * Recycle an object for reuse by a subsequent call to {@link #acquire()}, calling
      * {@link #resetInstance(Object)} on it first.
      *
