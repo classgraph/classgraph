@@ -215,6 +215,32 @@ public class ExtendedScanClasspathOrderTest {
     }
 
     /**
+     * Directories that come before the copy of an external class, and do not hold its package, are passed over,
+     * whether the package directory is missing or is a file.
+     *
+     * @param tempDir
+     *            a temporary directory to compile into.
+     * @throws IOException
+     *             if a source file could not be written.
+     */
+    @Test
+    public void directoriesWithoutThePackageArePassedOver(@TempDir final Path tempDir) throws IOException {
+        final var markers = compileMarkers(tempDir);
+        final var lib1 = compileBase(tempDir.resolve("lib1"), markers, "MarkerA", "");
+        final var app = compileBase(tempDir.resolve("app"), markers, "MarkerB", "app");
+        final var emptyDir = Files.createDirectories(tempDir.resolve("empty"));
+        final var extIsAFile = Files.createDirectories(tempDir.resolve("extfile"));
+        Files.createFile(extIsAFile.resolve("ext"));
+
+        try (var scanResult = new ClassGraph()
+                .enableClasspathEntries(List.of(emptyDir, extIsAFile, lib1, app, markers)).enableClassInfo()
+                .acceptPackages("app").scan()) {
+            assertThat(baseCopy(scanResult)).isEqualTo("lib1");
+            assertThat(scanResult.getAllClassesImplementing("ext.MarkerA").getNames()).containsExactly("app.Sub");
+        }
+    }
+
+    /**
      * A class whose package is in a module is read from the module, even when a classpath element holds a copy of
      * it, since the JVM never loads such a class from the classpath. This is the case of a jar such as
      * {@code xml-apis}, which holds old copies of classes in the {@code java.xml} module.

@@ -31,8 +31,12 @@ package io.github.classgraph;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import io.github.classgraph.ScanSpec.ScanSpecPathMatch;
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
@@ -53,6 +57,12 @@ final class ClasspathElementDir extends ClasspathElement {
 
     /** The virtual filesystem that the directory is enumerated and read through. */
     private final Vfs vfs;
+
+    /**
+     * Whether each directory that {@link #getResourceDuringScan(String)} has looked in exists, keyed by its path
+     * relative to the classpath element root.
+     */
+    private final Map<String, Boolean> parentDirExistsDuringScan = new ConcurrentHashMap<>();
 
     /**
      * A directory classpath element.
@@ -184,6 +194,37 @@ final class ClasspathElementDir extends ClasspathElement {
         } catch (final IOException _) {
             return null;
         }
+    }
+
+    /**
+     * Get the {@link Resource} for a given relative path while the scan is running. A file can only exist if its
+     * parent directory does, so whether each parent directory exists is looked up once per scan, rather than
+     * looking up every file in a package that this directory does not hold.
+     *
+     * @param relativePath
+     *            The relative path of the {@link Resource} to return.
+     * @return A new {@link Resource} for the given relative path, or null if relativePath does not exist in this
+     *         classpath element, or is a path that the scan skips.
+     */
+    @Override
+    @Nullable
+    Resource getResourceDuringScan(final String relativePath) {
+        final var lastSlashIdx = relativePath.lastIndexOf('/');
+        if (lastSlashIdx > 0) {
+            final var parentDirExists = parentDirExistsDuringScan
+                    .computeIfAbsent(relativePath.substring(0, lastSlashIdx), parentDir -> {
+                        try {
+                            return Files.isDirectory(classpathEltPath.resolve(parentDir));
+                        } catch (final InvalidPathException _) {
+                            // Cannot tell, so look up the file itself
+                            return true;
+                        }
+                    });
+            if (!parentDirExists) {
+                return null;
+            }
+        }
+        return getResource(relativePath);
     }
 
     /**

@@ -463,7 +463,7 @@ class Classfile {
         // scanned come before all traditional classpath elements in classpathOrder. This is O(N) for each external
         // class, but each external class is looked up only once.
         for (final ClasspathElement classpathOrderElt : classpathOrder) {
-            final var classResource = classpathOrderElt.getResource(classfilePath);
+            final var classResource = classpathOrderElt.getResourceDuringScan(classfilePath);
             if (classResource != null) {
                 return new ClassfileLocation(classpathOrderElt, classResource);
             }
