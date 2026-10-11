@@ -293,6 +293,25 @@ public class RepeatableAnnotationTest {
     }
 
     /**
+     * The type annotations of a type signature are sorted by name, and annotations of the same name keep the order
+     * they were read in, rather than being sorted by their parameter values. javac writes repeated type annotations
+     * as a container, so only a classfile from another compiler can hold two annotations of the same name on one
+     * type; the list is built directly here for that reason.
+     */
+    @Test
+    public void typeAnnotationsKeepTheOrderOfAnnotationsOfTheSameName() {
+        final var annotations = annotationsOn(TaggedTwice.class);
+        final var second = annotations.getRepeatable(Tag.class).get(0);
+        final var first = annotations.getRepeatable(Tag.class).get(1);
+        final var notRepeatable = annotations.get(NotRepeatable.class.getName());
+        final var typeAnnotations = new TypeAnnotations();
+        typeAnnotations.add(second, scanResult);
+        typeAnnotations.add(notRepeatable, scanResult);
+        typeAnnotations.add(first, scanResult);
+        assertThat(typeAnnotations.getAnnotationInfo()).containsExactly(notRepeatable, second, first);
+    }
+
+    /**
      * The container is reported as an annotation of its own, and every query, whether it answers from the
      * annotation lists or from the class graph, agrees on that.
      */

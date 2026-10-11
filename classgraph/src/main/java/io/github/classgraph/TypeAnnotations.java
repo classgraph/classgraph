@@ -32,7 +32,6 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-import io.github.classgraph.base.internal.utils.CollectionUtils;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -134,14 +133,15 @@ final class TypeAnnotations implements Iterable<AnnotationInfo> {
 
     /**
      * Get the type annotations, sorted by name, since the order of type annotations in a classfile is not
-     * specified.
+     * specified. Annotations of the same name keep the order they were read in.
      *
      * @return the type annotations, sorted by name.
      */
     AnnotationInfoList getAnnotationInfo() {
         var annotationInfo = annotationInfoRef;
         if (annotationInfo == null) {
-            annotationInfoRef = annotationInfo = new AnnotationInfoList(CollectionUtils.sortCopy(annotations));
+            annotationInfoRef = annotationInfo = new AnnotationInfoList(
+                    AnnotationInfoList.sortCopyByName(annotations));
         }
         return annotationInfo;
     }
