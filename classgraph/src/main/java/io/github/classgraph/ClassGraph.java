@@ -1046,8 +1046,8 @@ public final class ClassGraph {
      * of class information: without {@link #enableClassInfo()}, the scan reads resources only.
      *
      * <p>
-     * A class in a rejected package is never returned in the results of a query, but it is still read if a class
-     * that is scanned extends it, implements it or is annotated with it, as described for
+     * A class in a rejected package is never in the list of classes that a query returns, but it is still read if a
+     * class that is scanned extends it, implements it or is annotated with it, as described for
      * {@link #rejectClasses(String...)}.
      *
      * @param packageNames
@@ -1161,18 +1161,20 @@ public final class ClassGraph {
     }
 
     /**
-     * Specifically reject one or more specific classes, preventing them from being scanned even if they are in a
-     * accepted package.
+     * Reject one or more classes, so that they are left out of the lists of classes that queries return, even if
+     * they are in an accepted package.
      *
      * <p>
-     * This leaves the named classes out of what is being scanned; like the {@code accept} methods, it never adds
-     * anything to the scan.
+     * Like the {@code accept} methods, this never adds anything to the scan. The classfile of a rejected class is
+     * still a file of its classpath element, so it is still listed as a resource, e.g. by
+     * {@link ScanResult#getAllResources()}.
      *
      * <p>
-     * A rejected class is never returned in the results of a query, but if a class that is scanned extends it,
-     * implements it or is annotated with it, the rejected class is still read, so that the queries reach the
+     * A rejected class is never in the list of classes that a query returns, but if a class that is scanned extends
+     * it, implements it or is annotated with it, the rejected class is still read, so that the queries reach the
      * classes beyond it: for example, {@link ScanResult#getAllClassesImplementing(String)} still finds a class
-     * whose rejected superclass implements the interface. The same holds for the classes in a package rejected with
+     * whose rejected superclass implements the interface. A rejected class that was read can still be looked up by
+     * name with {@link ScanResult#getClassInfo(String)}. The same holds for the classes in a package rejected with
      * {@link #rejectPackages(String...)}.
      *
      * <p>
