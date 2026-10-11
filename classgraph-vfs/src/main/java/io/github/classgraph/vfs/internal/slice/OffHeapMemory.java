@@ -47,8 +47,10 @@ import org.jspecify.annotations.Nullable;
  * <p>
  * On JDK 22 and later this is done through the {@code java.lang.foreign.Arena} API: buffers are allocated from a
  * shared arena, and closing the arena frees or unmaps all of them at once, and makes a thread that is still reading
- * one throw {@link IllegalStateException} rather than reading memory that is no longer there. On JDK 17 to 21 that
- * API is unavailable (or not final), so {@link #openArena()} returns null, a file is memory mapped through
+ * one throw {@link IllegalStateException} rather than reading memory that is no longer there. If that thread is in
+ * the middle of an access to one of them, such as one bulk copy out of it, the close waits for that access to
+ * finish, and the access then throws {@link IllegalStateException} instead of returning. On JDK 17 to 21 that API
+ * is unavailable (or not final), so {@link #openArena()} returns null, a file is memory mapped through
  * {@link FileChannel#map(MapMode, long, long)} instead, and the mapping is unmapped by
  * {@link #closeDirectByteBuffer(ByteBuffer, LogNode)}. Both APIs are reached by reflection, since ClassGraph
  * compiles against JDK 17.
@@ -316,9 +318,10 @@ final class OffHeapMemory {
     /**
      * Close an arena obtained from {@link #openArena()}, freeing any direct {@link ByteBuffer}s allocated from it
      * and unmapping any files mapped with it. A thread that is still reading one of those buffers does not stop the
-     * arena from closing: its read throws {@link IllegalStateException} instead. Apart from a second close, what
-     * makes closing fail is an I/O operation in progress on a buffer in the arena (such as a channel write from the
-     * buffer), which holds the arena open.
+     * arena from closing: if it is in the middle of an access to one of them, the close waits for that access to
+     * finish, and the access then throws {@link IllegalStateException} instead of returning. Apart from a second
+     * close, what makes closing fail is an I/O operation in progress on a buffer in the arena (such as a channel
+     * write from the buffer), which holds the arena open.
      *
      * @param arena
      *            the arena to close.

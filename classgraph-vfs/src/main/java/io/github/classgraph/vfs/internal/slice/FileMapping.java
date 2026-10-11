@@ -42,11 +42,14 @@ import org.jspecify.annotations.Nullable;
  * reads through {@link #byteBuffer}, and only the owning slice may release it.
  *
  * <p>
- * On JDK 22 and later the file is mapped through a {@code java.lang.foreign.Arena}, so that closing the arena
- * unmaps the file the moment the owning slice is closed. Arenas were only finalized in JDK 22, so on JDK 17 to 21
- * the file is mapped through {@link FileChannel#map} instead, and unmapping it frees the address range whether or
- * not anything is still reading it. So on those JDK versions the file is unmapped once the owning slice has closed
- * <i>and</i> every view of the mapping that the caller could still read has been released -- see {@link #unmap()},
+ * On JDK 22 and later the file is mapped through a {@code java.lang.foreign.Arena}, so that the owning slice can
+ * unmap the file as it closes, by closing the arena. If another thread is in the middle of an access to the mapping
+ * when the arena is closed, such as one bulk copy out of it, the close waits for that access to finish, the access
+ * then throws {@link IllegalStateException} instead of returning, and only then is the file unmapped -- so a close
+ * can take as long as that access takes. Arenas were only finalized in JDK 22, so on JDK 17 to 21 the file is
+ * mapped through {@link FileChannel#map} instead, and unmapping it frees the address range whether or not anything
+ * is still reading it. So on those JDK versions the file is unmapped once the owning slice has closed <i>and</i>
+ * every view of the mapping that the caller could still read has been released -- see {@link #unmap()},
  * {@link #acquireView()} and {@link #releaseView()}.
  */
 // #939
@@ -275,8 +278,9 @@ final class FileMapping {
      *
      * <p>
      * On JDK 22 and later this unmaps the file by closing the arena that mapped it, and does so even if another
-     * thread is still reading it: that read throws {@link IllegalStateException}, which the readers translate into
-     * {@link IOException}.
+     * thread is still reading it: if that thread is in the middle of an access to the mapping, this waits for the
+     * access to finish, and the access then throws {@link IllegalStateException} instead of returning, which the
+     * readers translate into {@link IOException}.
      *
      * <p>
      * Below JDK 22 there is no arena, and the only method that can unmap a file, {@code Unsafe::invokeCleaner},

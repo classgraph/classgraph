@@ -1143,7 +1143,9 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      * called fails the same way, rather than returning content that was read from a file that has since been
      * released -- except below JDK 22 on a file that was memory-mapped, which happens only on Windows: such a file
      * can only be unmapped by freeing its address range, and a read already in progress on it can crash the JVM, so
-     * wait for every thread that reads through this {@link Vfs} to finish before closing it. A
+     * wait for every thread that reads through this {@link Vfs} to finish before closing it. On JDK 22 and later,
+     * if a read in flight in another thread is in the middle of copying from a file that is memory mapped, this
+     * waits for that copy to finish before it unmaps the file, so this can take as long as the copy does. A
      * {@link java.nio.ByteBuffer} that {@link VfsEntry#read()} handed out must not be read after this either -- see
      * {@link CloseableByteBuffer}.
      *
