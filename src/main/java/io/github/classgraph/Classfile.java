@@ -1004,8 +1004,9 @@ class Classfile {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Returned by {@link #readAnnotationElementValue()} in place of a nested annotation whose class name is
-     * illegal, or of an array that holds one.
+     * Returned by {@link #readAnnotationElementValue()} in place of a nested annotation that
+     * {@link #readAnnotation()} leaves out, because its class name, or that of an annotation nested in it, is
+     * missing or illegal, or in place of an array that holds such an annotation.
      */
     private static final Object ILLEGAL_ANNOTATION = new Object();
 
@@ -1013,7 +1014,7 @@ class Classfile {
      * Read annotation entry from classfile.
      *
      * @return the annotation, as an {@link AnnotationInfo} object, or null if the class name of the annotation, or
-     *         of an annotation nested in it, is illegal.
+     *         of an annotation nested in it, is missing or illegal.
      * @throws IOException
      *             If an IO exception occurs.
      */
@@ -1056,7 +1057,9 @@ class Classfile {
     /**
      * Read annotation element value from classfile.
      *
-     * @return the annotation element value
+     * @return the annotation element value, or {@link #ILLEGAL_ANNOTATION} if it is, or is an array that holds,
+     *         an annotation that {@link #readAnnotation()} leaves out because a class name in it is missing or
+     *         illegal.
      * @throws IOException
      *             If an IO exception occurs.
      * @throws ClassfileFormatException
@@ -1079,7 +1082,9 @@ class Classfile {
      * Read the contents of an annotation element value from classfile, at the nesting depth set by
      * {@link #readAnnotationElementValue()}.
      *
-     * @return the annotation element value
+     * @return the annotation element value, or {@link #ILLEGAL_ANNOTATION} if it is, or is an array that holds,
+     *         an annotation that {@link #readAnnotation()} leaves out because a class name in it is missing or
+     *         illegal.
      * @throws IOException
      *             If an IO exception occurs.
      */
@@ -1121,12 +1126,13 @@ class Classfile {
             return new AnnotationClassRef(classRefStr == null || entryTag[classRefCpIdx] == 1 ? classRefStr
                     : constantPoolClassNameToTypeDescriptor(classRefStr));
         case '@': {
-            // Complex (nested) annotation. Return type is AnnotationInfo.
+            // Complex (nested) annotation. Return type is AnnotationInfo, or ILLEGAL_ANNOTATION if it is left out.
             final AnnotationInfo nestedAnnotation = readAnnotation();
             return nestedAnnotation == null ? ILLEGAL_ANNOTATION : nestedAnnotation;
         }
         case '[':
-            // Return type is Object[] (of nested annotation element values)
+            // Return type is Object[] (of nested annotation element values), or ILLEGAL_ANNOTATION if an element
+            // is ILLEGAL_ANNOTATION
             final int count = reader.readUnsignedShort();
             final Object[] arr = new Object[count];
             boolean isLegal = true;
