@@ -78,7 +78,7 @@ public final class TempFile {
      * The most characters of a zip entry's leafname that are kept in the name of its temporary file. A filename is
      * limited to 255 bytes on Linux and macOS, and to 255 UTF-16 characters on Windows. A UTF-16 character takes at
      * most 3 bytes in UTF-8, so this leaves room for the prefix and the random number that
-     * {@link Files#createTempFile(Path, String, String, java.nio.file.attribute.FileAttribute...)} adds.
+     * {@link Files#createTempFile(String, String, java.nio.file.attribute.FileAttribute...)} adds.
      */
     private static final int MAX_LEAFNAME_LENGTH = 64;
 
@@ -122,24 +122,27 @@ public final class TempFile {
             }
             leafname = leafname.substring(startIdx);
         }
-        // Resolve the temporary directory here rather than leaving it to Files.createTempFile(String, String),
-        // whose helper class resolves it once in its static initializer: if that fails, the class can never be
-        // used again in this JVM, and every call throws an Error rather than an IOException
+        // Check the temporary directory before the first call to Files.createTempFile, whose helper class resolves
+        // it once, in its static initializer: if that fails, the class can never be used again in this JVM, and
+        // every call throws an Error rather than an IOException. The directory itself is left to the JDK, as for
+        // every other temporary file. The property is null if it has been cleared.
         final var tempDirName = System.getProperty("java.io.tmpdir");
-        final Path tempDir;
-        try {
-            tempDir = Path.of(tempDirName);
-        } catch (final InvalidPathException e) {
-            // As happens to a non-ASCII directory name when the JVM is started under the C or POSIX locale on Linux
-            throw new IOException("The temporary directory " + tempDirName
-                    + " cannot be represented in the encoding used for filenames", e);
+        if (tempDirName != null) {
+            try {
+                Path.of(tempDirName);
+            } catch (final InvalidPathException e) {
+                // As happens to a non-ASCII directory name when the JVM is started under the C or POSIX locale on
+                // Linux
+                throw new IOException("The temporary directory " + tempDirName
+                        + " cannot be represented in the encoding used for filenames", e);
+            }
         }
         try {
-            return createReadableOnlyByOwner(tempDir, leafname);
+            return createReadableOnlyByOwner(leafname);
         } catch (final InvalidPathException _) {
             // The encoding that filenames are stored in cannot represent some character of the leafname, as happens
             // to every non-ASCII character when the JVM is started under the C or POSIX locale on Linux
-            return createReadableOnlyByOwner(tempDir, NON_ASCII_CHARS.matcher(leafname).replaceAll("_"));
+            return createReadableOnlyByOwner(NON_ASCII_CHARS.matcher(leafname).replaceAll("_"));
         }
     }
 
@@ -148,8 +151,6 @@ public final class TempFile {
      * whose file can be read by every local user under the usual umask of 022. On Windows the file takes the access
      * control list of the temporary directory.
      *
-     * @param tempDir
-     *            The directory to create the temporary file in.
      * @param leafname
      *            The sanitized leafname to end the temporary filename with.
      * @return The temporary {@link File}.
@@ -158,9 +159,10 @@ public final class TempFile {
      * @throws InvalidPathException
      *             If the temporary filename cannot be represented in the encoding that filenames are stored in.
      */
-    private static File createReadableOnlyByOwner(final Path tempDir, final String leafname) throws IOException {
-        return Files.createTempFile(tempDir, PathSyntax.TEMP_FILENAME_PREFIX,
-                PathSyntax.TEMP_FILENAME_LEAF_SEPARATOR + leafname).toFile();
+    private static File createReadableOnlyByOwner(final String leafname) throws IOException {
+        return Files
+                .createTempFile(PathSyntax.TEMP_FILENAME_PREFIX, PathSyntax.TEMP_FILENAME_LEAF_SEPARATOR + leafname)
+                .toFile();
     }
 
     /**

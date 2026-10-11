@@ -240,7 +240,8 @@ class TempFilenameSanitizationTest {
     /**
      * A JVM started under the C locale on Linux stores filenames in ASCII, so it cannot represent a temporary
      * directory with a non-ASCII name. Creating a temporary file must then throw an {@link IOException} every time,
-     * which skips only the jar being spilled to disk, rather than an {@link Error} that aborts the whole scan.
+     * rather than an {@link Error} from the JDK's temporary file helper, which leaves that helper unusable for the
+     * rest of the JVM.
      *
      * @param parentDir
      *            the directory that holds the temporary directory of the child JVM.
@@ -268,6 +269,68 @@ class TempFilenameSanitizationTest {
                 "The C locale stores filenames in UTF-8 here");
         assertThat(outputLines.subList(outputLines.size() - 2, outputLines.size()))
                 .as("Child JVM output:%n%s", output).containsOnly(IOException.class.getName());
+        try (var tempFiles = Files.list(tempDir)) {
+            assertThat(tempFiles).isEmpty();
+        }
+    }
+
+    /**
+     * Run in a child JVM: change the {@code java.io.tmpdir} system property to a directory that does not exist,
+     * then clear it, and each time create and delete a temporary file, printing the directory it was created in, or
+     * the class of the exception that was thrown.
+     */
+    static final class CreateTempFileAfterTempDirChanged {
+        /** Not instantiable. */
+        private CreateTempFileAfterTempDirChanged() {
+        }
+
+        /**
+         * Entry point.
+         *
+         * @param args
+         *            ignored.
+         */
+        public static void main(final String[] args) {
+            final var startupTempDir = System.getProperty("java.io.tmpdir");
+            for (final var newTempDir : new String[] { Path.of(startupTempDir, "missing").toString(), null }) {
+                if (newTempDir == null) {
+                    System.clearProperty("java.io.tmpdir");
+                } else {
+                    System.setProperty("java.io.tmpdir", newTempDir);
+                }
+                try {
+                    final var tempFile = TempFile.create("BOOT-INF/lib/lib.jar");
+                    System.out.println(tempFile.getParent());
+                    TempFile.delete(tempFile);
+                } catch (final Exception e) {
+                    System.out.println(e.getClass().getName());
+                }
+            }
+        }
+    }
+
+    /**
+     * The JDK reads the {@code java.io.tmpdir} system property once, when the JVM starts, and creates every
+     * temporary file in that directory. A temporary file for a nested jar must be created there too, even if the
+     * property has since been changed to a directory that does not exist, or cleared.
+     *
+     * @param tempDir
+     *            the temporary directory of the child JVM.
+     * @throws Exception
+     *             if the child JVM could not be run.
+     */
+    @Test
+    void aTempDirChangedWhileRunningIsIgnored(@TempDir final Path tempDir) throws Exception {
+        final var processBuilder = new ProcessBuilder(
+                Path.of(System.getProperty("java.home"), "bin", "java").toString(), "-Djava.io.tmpdir=" + tempDir,
+                "-cp", System.getProperty("java.class.path"), CreateTempFileAfterTempDirChanged.class.getName())
+                .redirectErrorStream(true);
+        final var output = runChildJvm(processBuilder);
+        // Read the last two lines, since the JVM may print a notice such as "Picked up JAVA_TOOL_OPTIONS" first
+        final var outputLines = output.lines().toList();
+        assertThat(outputLines).as("Child JVM output:%n%s", output).hasSizeGreaterThanOrEqualTo(2);
+        assertThat(outputLines.subList(outputLines.size() - 2, outputLines.size()))
+                .as("Child JVM output:%n%s", output).containsOnly(tempDir.toString());
         try (var tempFiles = Files.list(tempDir)) {
             assertThat(tempFiles).isEmpty();
         }
