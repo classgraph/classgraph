@@ -306,9 +306,7 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      * part of the path that names a file on disk for the filesystem to resolve. Collapsing such a segment textually
      * would drop a leading {@code ".."} from a relative path, so that {@code "../x.jar"} named {@code "x.jar"} in
      * the current directory, and would name the wrong file after a symlinked directory. A relative path is left
-     * relative, for the filesystem to resolve against the current directory: resolving it here would also prefix
-     * the current directory to a URL whose scheme is not followed by {@code "//"}, such as
-     * {@code "url:jrt:/java.base"}, which would then no longer be read as a URL.
+     * relative, for the filesystem to resolve against the current directory.
      *
      * @param path
      *            the path to resolve.
