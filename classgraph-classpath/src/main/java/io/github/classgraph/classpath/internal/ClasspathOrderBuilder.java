@@ -767,11 +767,14 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
         pathElementStr = FastPathResolver.resolveFilePath(FileUtils.currDirPath(), pathElementStr);
         URL pathElementURL = null;
         var hasWildcardSuffix = false;
-        if (pathElementStr.endsWith("/*") || pathElementStr.endsWith("\\*")) {
+        // As in the java launcher, a path ending in '*' is not a wildcard if a file with that exact name exists
+        // (Windows does not allow '*' in a file name, so this only applies elsewhere)
+        if ((pathElementStr.endsWith("/*") || pathElementStr.endsWith("\\*"))
+                && !new File(pathElementStr).exists()) {
             hasWildcardSuffix = true;
             pathElementStr = pathElementStr.substring(0, pathElementStr.length() - 2);
             // Leave pathElementURL null, so that wildcards can be handled below
-        } else if ("*".equals(pathElementStr)) {
+        } else if ("*".equals(pathElementStr) && !new File(pathElementStr).exists()) {
             // Reached when the current directory path is empty, because user.dir could not be read. "." names the
             // current directory
             hasWildcardSuffix = true;
@@ -802,7 +805,8 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
         }
 
         // Non-wildcarded (standard) classpath element. As in the java launcher, a '*' anywhere but in a "/*" suffix
-        // is not a wildcard: it is part of a file name, which Linux and macOS allow
+        // (or in a "/*" suffix that names an existing file) is not a wildcard: it is part of a file name, which
+        // Linux and macOS allow
         // (pathElementStr was already resolved above, so there is nothing left to resolve here)
         if (!passesFilters(pathElementURL, pathElementStr, pathElementStr, log)) {
             return false;
