@@ -364,9 +364,9 @@ public class JarURLDownloaderTest {
         try (var redirectServer = new CannedResponseHttpServer("301 Moved Permanently",
                 "https://example.com/downloaded.jar")) {
             assertThatThrownBy(() -> JarURLDownloader.downloadJarFromURL(redirectServer.jarURL(), httpsDeniedVfs,
-                    /* log = */ null)).isInstanceOf(IOException.class).hasMessage(
-                            "Fetching a jarfile over \"https:\" is not allowed: https://example.com/downloaded.jar"
-                                    + " (redirected from " + redirectServer.jarURL() + ")");
+                    /* log = */ null)).isInstanceOf(IOException.class)
+                    .hasMessage("The URL scheme \"https:\" has been denied: https://example.com/downloaded.jar"
+                            + " (redirected from " + redirectServer.jarURL() + ")");
         } finally {
             httpsDeniedVfs.close(/* log = */ null);
         }
@@ -388,7 +388,7 @@ public class JarURLDownloaderTest {
                     "URL:jrt:/java.base/java/lang/Object.class",
                     "jar:url:jrt:/java.base/java/lang/Object.class" }) {
                 assertThatThrownBy(() -> jrtDeniedVfs.open(url)).as(url).isInstanceOf(IOException.class)
-                        .hasMessageContaining("Fetching a jarfile over \"jrt:\" is not allowed");
+                        .hasMessageContaining("The URL scheme \"jrt:\" has been denied");
             }
         }
     }
@@ -590,8 +590,8 @@ public class JarURLDownloaderTest {
         final var uri = ProviderOnlySchemeFileSystemProvider.uriOf(jar).toString();
         try (var deniedVfs = new Vfs(new VfsSpec().denyURLScheme(ProviderOnlySchemeFileSystemProvider.SCHEME))) {
             assertThatThrownBy(() -> JarURLDownloader.downloadJarFromURL(uri, deniedVfs, /* log = */ null))
-                    .isInstanceOf(IOException.class).hasMessageContaining(
-                            "Fetching a jarfile over \"" + ProviderOnlySchemeFileSystemProvider.SCHEME + ":\"");
+                    .isInstanceOf(IOException.class).hasMessageContaining("The URL scheme \""
+                            + ProviderOnlySchemeFileSystemProvider.SCHEME + ":\" has been denied: " + uri);
         }
     }
 

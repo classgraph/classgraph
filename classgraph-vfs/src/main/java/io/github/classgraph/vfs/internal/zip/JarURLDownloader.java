@@ -139,7 +139,7 @@ final class JarURLDownloader {
                 // installed for it, as the Scanner finds when it turns a classpath element into a Path
                 final var scheme = uri.getScheme();
                 if (scheme != null) {
-                    checkSchemeNotDenied(scheme, jarURL, vfs);
+                    JarOpener.checkURLSchemeNotDenied(scheme, jarURL, vfs);
                     final var physicalZipFile = openThroughFilesystem(uri, jarURL, vfs, log);
                     if (physicalZipFile != null) {
                         return physicalZipFile;
@@ -156,7 +156,7 @@ final class JarURLDownloader {
         // uses: new URL(String) skips a leading "url:" in any case, so "url:mailto:x@y" is a "mailto:" URL. Check
         // the scheme that is actually opened, before anything is opened through it.
         final var scheme = url.getProtocol();
-        checkSchemeNotDenied(scheme, jarURL, vfs);
+        JarOpener.checkURLSchemeNotDenied(scheme, jarURL, vfs);
         if (!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme)) {
             // Check if this URL is backed by a filesystem -- if it is, don't download a copy of the file over the
             // URL; instead, access the filesystem directly
@@ -217,26 +217,6 @@ final class JarURLDownloader {
                 }
                 return download(urlConn, jarURL, vfs, log);
             }
-        }
-    }
-
-    /**
-     * Refuse a URL scheme that has been denied.
-     *
-     * @param scheme
-     *            the scheme of the URL, in any case.
-     * @param jarURL
-     *            the jar URL, for the exception message.
-     * @param vfs
-     *            the {@link Vfs} that is opening the jarfile, whose denied URL schemes are checked.
-     * @throws IOException
-     *             if the scheme has been denied.
-     */
-    private static void checkSchemeNotDenied(final String scheme, final String jarURL, final Vfs vfs)
-            throws IOException {
-        final var lowercaseScheme = scheme.toLowerCase(Locale.ROOT);
-        if (vfs.getVfsSpec().getDeniedURLSchemes().contains(lowercaseScheme)) {
-            throw new IOException("Fetching a jarfile over \"" + lowercaseScheme + ":\" is not allowed: " + jarURL);
         }
     }
 
@@ -322,10 +302,7 @@ final class JarURLDownloader {
         if ("https".equalsIgnoreCase(url.getProtocol()) && "http".equals(scheme)) {
             throw new IOException("Not following the redirect from https to http: " + url + " to " + redirectURL);
         }
-        if (vfs.getVfsSpec().getDeniedURLSchemes().contains(scheme)) {
-            throw new IOException("Fetching a jarfile over \"" + scheme + ":\" is not allowed: " + redirectURL
-                    + " (redirected from " + url + ")");
-        }
+        JarOpener.checkURLSchemeNotDenied(scheme, redirectURL + " (redirected from " + url + ")", vfs);
         return redirectURL;
     }
 
