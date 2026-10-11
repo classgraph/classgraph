@@ -23,6 +23,7 @@ import org.eclipse.osgi.internal.loader.classpath.FragmentClasspath;
 import org.eclipse.osgi.storage.Storage;
 import org.eclipse.osgi.storage.bundlefile.BundleFile;
 import org.eclipse.osgi.storage.bundlefile.BundleFileWrapper;
+import org.eclipse.osgi.storage.bundlefile.BundleFileWrapperChain;
 import org.eclipse.osgi.storage.bundlefile.DirBundleFile;
 import org.eclipse.osgi.storage.bundlefile.NestedDirBundleFile;
 import org.eclipse.osgi.storage.bundlefile.ZipBundleFile;
@@ -47,6 +48,28 @@ public class EquinoxClassLoaderTest {
         try (var classpath = new ClasspathFinder().enableClassLoaders(classLoader).find()) {
             return classpath.getLocations();
         }
+    }
+
+    /**
+     * Wrap a bundle file as Equinox's {@code Storage#wrapBundleFile} does when a framework extension has installed
+     * the given number of {@code BundleFileWrapperFactoryHook}s, each of which returns a wrapper. Each hook wraps
+     * the result of the hooks before it, and each wrapper is put in a new link of a {@code BundleFileWrapperChain}
+     * whose next link is the chain built so far, starting from a link around the original bundle file.
+     *
+     * @param original
+     *            the bundle file to wrap.
+     * @param hookCount
+     *            the number of hooks.
+     * @return the wrapped bundle file, or the original if there are no hooks.
+     */
+    private static BundleFile wrappedByHooks(final BundleFile original, final int hookCount) {
+        var bundleFile = original;
+        var chain = new BundleFileWrapperChain(original, /* next = */ null);
+        for (var i = 0; i < hookCount; i++) {
+            chain = new BundleFileWrapperChain(new BundleFileWrapper(bundleFile), chain);
+            bundleFile = chain;
+        }
+        return bundleFile;
     }
 
     /**
@@ -117,9 +140,7 @@ public class EquinoxClassLoaderTest {
     public void aDirectoryNestedInsideAWrappedBundleJarIsOnTheClasspathAsAPathWithinTheJar(
             @TempDir final Path tempDir) throws IOException {
         final var bundleJar = Files.createFile(tempDir.resolve("bundle.jar"));
-        // Equinox puts the hook's wrapper in a BundleFileWrapperChain, which holds it in its "wrapped" field
-        final var wrappedJar = new BundleFile(bundleJar.toFile())
-                .wrapping(new BundleFileWrapper(new ZipBundleFile(bundleJar.toFile())));
+        final var wrappedJar = wrappedByHooks(new ZipBundleFile(bundleJar.toFile()), 2);
         final var classLoader = new EquinoxClassLoader(new ClasspathManager(
                 new ClasspathEntry(new NestedDirBundleFile(bundleJar.toFile(), wrappedJar, "bin"))));
         assertThat(locations(classLoader)).containsExactly(location(bundleJar) + "!/bin");
@@ -145,8 +166,10 @@ public class EquinoxClassLoaderTest {
     }
 
     /**
-     * Bundle files are chained -- a bundle file can wrap another and can be followed by another -- and every bundle
-     * file in the chain contributes to the classpath.
+     * When hooks wrap every bundle file, every link of the chain around a bundle file, and every wrapper in it,
+     * leads back to the same original bundle file, and has that bundle file's base file as its own. Only the
+     * original bundle file is on the classpath: for a directory nested inside a bundle jar, which is itself
+     * wrapped, that is the nested directory within the jar, and not the jar.
      *
      * @param tempDir
      *            a temporary directory to create the bundle in.
@@ -154,14 +177,14 @@ public class EquinoxClassLoaderTest {
      *             if the bundle could not be created.
      */
     @Test
-    public void everyBundleFileInAChainIsOnTheClasspath(@TempDir final Path tempDir) throws IOException {
-        final var outer = Files.createDirectory(tempDir.resolve("outer"));
-        final var inner = Files.createDirectory(tempDir.resolve("inner"));
-        final var sibling = Files.createDirectory(tempDir.resolve("sibling"));
-        final var bundleFile = new DirBundleFile(outer.toFile()).wrapping(new DirBundleFile(inner.toFile()))
-                .followedBy(new DirBundleFile(sibling.toFile()));
-        final var classLoader = new EquinoxClassLoader(new ClasspathManager(new ClasspathEntry(bundleFile)));
-        assertThat(locations(classLoader)).containsExactly(location(outer), location(inner), location(sibling));
+    public void onlyTheBundleFileThatAChainOfWrappersLeadsBackToIsOnTheClasspath(@TempDir final Path tempDir)
+            throws IOException {
+        final var bundleJar = Files.createFile(tempDir.resolve("bundle.jar"));
+        final var wrappedJar = wrappedByHooks(new ZipBundleFile(bundleJar.toFile()), 2);
+        final var wrappedNestedDir = wrappedByHooks(new NestedDirBundleFile(bundleJar.toFile(), wrappedJar, "bin"),
+                2);
+        final var classLoader = new EquinoxClassLoader(new ClasspathManager(new ClasspathEntry(wrappedNestedDir)));
+        assertThat(locations(classLoader)).containsExactly(location(bundleJar) + "!/bin");
     }
 
     /**
@@ -215,11 +238,10 @@ public class EquinoxClassLoaderTest {
     public void aBundleFileChainThatLoopsBackOnItselfTerminates(@TempDir final Path tempDir) throws IOException {
         final var first = Files.createDirectory(tempDir.resolve("first"));
         final var second = Files.createDirectory(tempDir.resolve("second"));
-        final BundleFile firstBundleFile = new DirBundleFile(first.toFile());
-        final BundleFile secondBundleFile = new DirBundleFile(second.toFile());
-        firstBundleFile.followedBy(secondBundleFile);
-        secondBundleFile.followedBy(firstBundleFile);
-        final var classLoader = new EquinoxClassLoader(new ClasspathManager(new ClasspathEntry(firstBundleFile)));
+        final var firstLink = new BundleFileWrapperChain(new DirBundleFile(first.toFile()), /* next = */ null);
+        final var secondLink = new BundleFileWrapperChain(new DirBundleFile(second.toFile()), firstLink);
+        firstLink.setNext(secondLink);
+        final var classLoader = new EquinoxClassLoader(new ClasspathManager(new ClasspathEntry(firstLink)));
         assertThat(locations(classLoader)).containsExactly(location(first), location(second));
     }
 
