@@ -303,7 +303,8 @@ final class WorkQueue<T> implements AutoCloseable {
      * {@link #startWorkers(ExecutorService, int)} runs this, and so does the thread that called
      * {@link #runWorkQueue}, so that the work still gets done if the ExecutorService has fewer free threads than
      * numParallelTasks. When this method returns normally, either all the work has been completed, or another
-     * thread failed, was interrupted or timed out, and emptied the queue so that every thread stops.
+     * thread failed, was interrupted or timed out, and emptied the queue so that every thread stops. When it
+     * throws, it empties the queue in the same way.
      *
      * @param isCallingThread
      *            true on the thread that called {@link #runWorkQueue}, which stops waiting for more work once no
@@ -333,9 +334,12 @@ final class WorkQueue<T> implements AutoCloseable {
                 // Process the work unit (may throw InterruptedException)
                 workUnitProcessor.processWorkUnit(workUnit, this, log);
 
-            } catch (InterruptedException | Error e) {
-                // On InterruptedException or an Error such as OutOfMemoryError, drain the work queue, send poison
-                // pills, and re-throw
+            } catch (InterruptedException | ExecutionException | Error e) {
+                // On InterruptedException, on ExecutionException (a failure that another thread recorded in the
+                // InterruptionChecker, or the timeout of the calling thread), or on an Error such as
+                // OutOfMemoryError, drain the work queue, send poison pills, and re-throw. The poison pills stop
+                // the threads that are waiting for more work, which would otherwise wait until every work unit in
+                // progress had finished, however long a stuck one takes
                 workUnits.clear();
                 numIncompleteWorkUnits.set(0);
                 sendPoisonPills();
