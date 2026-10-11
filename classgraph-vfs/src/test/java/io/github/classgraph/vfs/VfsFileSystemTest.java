@@ -2125,7 +2125,9 @@ public class VfsFileSystemTest {
      * No attribute of a file hands out its entry, its root or the {@link Vfs} behind them. A filesystem created by
      * the provider owns its {@link Vfs}, and the filesystem is the only reference the caller is given to it, so
      * code that reads attributes, such as a file visitor that keeps {@link BasicFileAttributes#fileKey()} to detect
-     * cycles, must not be able to reach the {@link Vfs} and close it behind the filesystem's back.
+     * cycles, must not be able to reach the {@link Vfs} and close it behind the filesystem's back. A view from
+     * {@link VfsRoot#asFileSystem()} is checked as well, although there the caller already holds the {@link Vfs},
+     * so that what the attributes hold does not depend on how the filesystem was created.
      *
      * @param tempDir
      *            a temporary directory.
