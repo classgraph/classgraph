@@ -963,38 +963,60 @@ class Classfile {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Read an int from the constant pool.
+     * Check that a constant pool index is in range and that the entry at that index has the expected tag.
      *
      * @param cpIdx
      *            the constant pool index.
-     * @return the int value of the entry
-     * @throws IOException
-     *             If an I/O exception occurred.
+     * @param expectedTag
+     *            the tag that the entry must have.
+     * @throws ClassfileFormatException
+     *             If the index is out of range, or the entry has a different tag.
      */
-    private int cpReadInt(final int cpIdx) throws IOException {
+    private void checkConstantPoolTag(final int cpIdx, final int expectedTag) throws ClassfileFormatException {
         if (cpIdx < 1 || cpIdx >= cpCount) {
             throw new ClassfileFormatException("Constant pool index " + cpIdx + ", should be in range [1, "
                     + (cpCount - 1) + "] -- cannot continue reading class. "
                     + "Please report this at https://github.com/classgraph/classgraph/issues");
         }
+        if (entryTag[cpIdx] != expectedTag) {
+            throw new ClassfileFormatException("Wrong tag number " + entryTag[cpIdx] + " at constant pool index "
+                    + cpIdx + ", should be " + expectedTag);
+        }
+    }
+
+    /**
+     * Read an int from a {@code CONSTANT_Integer} or {@code CONSTANT_Float} entry of the constant pool.
+     *
+     * @param cpIdx
+     *            the constant pool index.
+     * @param expectedTag
+     *            the tag that the entry must have: 3 for {@code CONSTANT_Integer} or 4 for {@code CONSTANT_Float}.
+     * @return the int value of the entry
+     * @throws IOException
+     *             If an I/O exception occurred.
+     * @throws ClassfileFormatException
+     *             If the index is out of range, or the entry has a different tag.
+     */
+    private int cpReadInt(final int cpIdx, final int expectedTag) throws IOException {
+        checkConstantPoolTag(cpIdx, expectedTag);
         return reader().readInt(entryOffset[cpIdx]);
     }
 
     /**
-     * Read a long from the constant pool.
+     * Read a long from a {@code CONSTANT_Long} or {@code CONSTANT_Double} entry of the constant pool.
      *
      * @param cpIdx
      *            the constant pool index.
+     * @param expectedTag
+     *            the tag that the entry must have: 5 for {@code CONSTANT_Long} or 6 for {@code CONSTANT_Double}.
      * @return the long
      * @throws IOException
      *             If an I/O exception occurred.
+     * @throws ClassfileFormatException
+     *             If the index is out of range, or the entry has a different tag.
      */
-    private long cpReadLong(final int cpIdx) throws IOException {
-        if (cpIdx < 1 || cpIdx >= cpCount) {
-            throw new ClassfileFormatException("Constant pool index " + cpIdx + ", should be in range [1, "
-                    + (cpCount - 1) + "] -- cannot continue reading class. "
-                    + "Please report this at https://github.com/classgraph/classgraph/issues");
-        }
+    private long cpReadLong(final int cpIdx, final int expectedTag) throws IOException {
+        checkConstantPoolTag(cpIdx, expectedTag);
         return reader().readLong(entryOffset[cpIdx]);
     }
 
@@ -1024,16 +1046,16 @@ class Classfile {
         case 1, 7, 8 -> fieldTypeDescriptor.equals("Ljava/lang/String;") ? getConstantPoolString(cpIdx) : null;
         // int, short, char, byte and boolean are all represented by CONSTANT_Integer
         case 3 -> switch (fieldTypeDescriptor) {
-        case "I" -> cpReadInt(cpIdx);
-        case "S" -> (short) cpReadInt(cpIdx);
-        case "C" -> (char) cpReadInt(cpIdx);
-        case "B" -> (byte) cpReadInt(cpIdx);
-        case "Z" -> cpReadInt(cpIdx) != 0;
+        case "I" -> cpReadInt(cpIdx, 3);
+        case "S" -> (short) cpReadInt(cpIdx, 3);
+        case "C" -> (char) cpReadInt(cpIdx, 3);
+        case "B" -> (byte) cpReadInt(cpIdx, 3);
+        case "Z" -> cpReadInt(cpIdx, 3) != 0;
         default -> null;
         };
-        case 4 -> fieldTypeDescriptor.equals("F") ? Float.intBitsToFloat(cpReadInt(cpIdx)) : null;
-        case 5 -> fieldTypeDescriptor.equals("J") ? cpReadLong(cpIdx) : null;
-        case 6 -> fieldTypeDescriptor.equals("D") ? Double.longBitsToDouble(cpReadLong(cpIdx)) : null;
+        case 4 -> fieldTypeDescriptor.equals("F") ? Float.intBitsToFloat(cpReadInt(cpIdx, 4)) : null;
+        case 5 -> fieldTypeDescriptor.equals("J") ? cpReadLong(cpIdx, 5) : null;
+        case 6 -> fieldTypeDescriptor.equals("D") ? Double.longBitsToDouble(cpReadLong(cpIdx, 6)) : null;
         default -> null;
         };
     }
@@ -1120,14 +1142,17 @@ class Classfile {
         // This list of element_value tags is complete and up to date as of JDK 26 (JVMS 26 table 4.7.16.1-A). No
         // tag has been added since annotations were introduced in Java SE 5.
         return switch (tag) {
-        case 'B' -> (byte) cpReadInt(reader().readUnsignedShort());
-        case 'C' -> (char) cpReadInt(reader().readUnsignedShort());
-        case 'D' -> Double.longBitsToDouble(cpReadLong(reader().readUnsignedShort()));
-        case 'F' -> Float.intBitsToFloat(cpReadInt(reader().readUnsignedShort()));
-        case 'I' -> cpReadInt(reader().readUnsignedShort());
-        case 'J' -> cpReadLong(reader().readUnsignedShort());
-        case 'S' -> (short) cpReadInt(reader().readUnsignedShort());
-        case 'Z' -> cpReadInt(reader().readUnsignedShort()) != 0;
+        // The const_value_index of 'B', 'C', 'I', 'S' and 'Z' must refer to a CONSTANT_Integer (3) entry, of 'F'
+        // to a CONSTANT_Float (4) entry, of 'J' to a CONSTANT_Long (5) entry, and of 'D' to a CONSTANT_Double (6)
+        // entry (JVMS 4.7.16.1)
+        case 'B' -> (byte) cpReadInt(reader().readUnsignedShort(), 3);
+        case 'C' -> (char) cpReadInt(reader().readUnsignedShort(), 3);
+        case 'D' -> Double.longBitsToDouble(cpReadLong(reader().readUnsignedShort(), 6));
+        case 'F' -> Float.intBitsToFloat(cpReadInt(reader().readUnsignedShort(), 4));
+        case 'I' -> cpReadInt(reader().readUnsignedShort(), 3);
+        case 'J' -> cpReadLong(reader().readUnsignedShort(), 5);
+        case 'S' -> (short) cpReadInt(reader().readUnsignedShort(), 3);
+        case 'Z' -> cpReadInt(reader().readUnsignedShort(), 3) != 0;
         case 's' -> requireConstantPoolString(getConstantPoolString(reader().readUnsignedShort()),
                 "annotation element value");
         case 'e' -> {
