@@ -3,6 +3,8 @@ package io.github.classgraph.features;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -18,6 +20,11 @@ import org.junit.jupiter.api.io.TempDir;
 
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
+import io.github.classgraph.base.ClassGraphLog;
+import io.github.classgraph.classpath.ClassLoaderHandler;
+import io.github.classgraph.classpath.ClassLoaderOrder;
+import io.github.classgraph.classpath.ClasspathOrder;
+import org.jspecify.annotations.Nullable;
 
 /**
  * When a scanned class refers to a class outside the accepted packages, scanning is extended to that class. If the
@@ -211,6 +218,106 @@ public class ExtendedScanClasspathOrderTest {
                 assertThat(scanResult.getAllClassesImplementing("ext.MarkerA").getNames()).as("scan " + i)
                         .containsExactly("app1.Sub", "app2.Sub");
             }
+        }
+    }
+
+    /**
+     * Directories that come before the copy of an external class, and do not hold its package, are passed over,
+     * whether the package directory is missing or is a file, and a package root within a directory is searched.
+     *
+     * @param tempDir
+     *            a temporary directory to compile into.
+     * @throws IOException
+     *             if a source file could not be written.
+     */
+    @Test
+    public void directoriesWithoutThePackageArePassedOver(@TempDir final Path tempDir) throws IOException {
+        final var markers = compileMarkers(tempDir);
+        final var lib1 = compileBase(tempDir.resolve("lib1"), markers, "MarkerA", "");
+        final var app = compileBase(tempDir.resolve("app"), markers, "MarkerB", "app");
+        final var emptyDir = Files.createDirectories(tempDir.resolve("empty"));
+        final var extIsAFile = Files.createDirectories(tempDir.resolve("extfile"));
+        Files.createFile(extIsAFile.resolve("ext"));
+        final var warClasses = Files.createDirectories(tempDir.resolve("war/WEB-INF/classes/ext"));
+        Files.copy(lib1.resolve("ext/Base.class"), warClasses.resolve("Base.class"));
+
+        try (var scanResult = new ClassGraph()
+                .enableClasspathEntries(List.of(emptyDir, extIsAFile, lib1, app, markers)).enableClassInfo()
+                .acceptPackages("app").scan()) {
+            assertThat(baseCopy(scanResult)).isEqualTo("lib1");
+            assertThat(scanResult.getAllClassesImplementing("ext.MarkerA").getNames()).containsExactly("app.Sub");
+        }
+        // A package root within a directory is found only for a classloader whose handler declares it
+        try (var classLoader = new WebappClassLoader(emptyDir, tempDir.resolve("war"), app, markers);
+                var scanResult = new ClassGraph().enableClassLoaders(classLoader)
+                        .registerClassLoaderHandler(new WebappClassLoaderHandler()).enableClassInfo()
+                        .acceptPackages("app").scan()) {
+            assertThat(scanResult.getClassInfo("ext.Base").getClasspathElementFile().toPath())
+                    .endsWith(Path.of("war", "WEB-INF", "classes"));
+            assertThat(scanResult.getAllClassesImplementing("ext.MarkerA").getNames()).containsExactly("app.Sub");
+        }
+    }
+
+    /** A stand-in for a servlet container's classloader, which looks for classes in each war's package root. */
+    private static final class WebappClassLoader extends URLClassLoader {
+        /**
+         * Constructor.
+         *
+         * @param classpath
+         *            the directories to load classes from.
+         * @throws IOException
+         *             if a directory cannot be represented as a URL.
+         */
+        WebappClassLoader(final Path... classpath) throws IOException {
+            super(urls(classpath), /* parent = */ null);
+        }
+
+        /**
+         * Convert directories to URLs.
+         *
+         * @param classpath
+         *            the directories.
+         * @return the URLs.
+         * @throws IOException
+         *             if a directory cannot be represented as a URL.
+         */
+        private static URL[] urls(final Path... classpath) throws IOException {
+            final var urls = new URL[classpath.length];
+            for (var i = 0; i < classpath.length; i++) {
+                urls[i] = classpath[i].toUri().toURL();
+            }
+            return urls;
+        }
+    }
+
+    /** A {@link ClassLoaderHandler} for {@link WebappClassLoader}, declaring the package root of a war. */
+    private static final class WebappClassLoaderHandler implements ClassLoaderHandler {
+        /** Constructor. */
+        WebappClassLoaderHandler() {
+        }
+
+        @Override
+        public boolean canHandle(final Class<?> classLoaderClass, final @Nullable ClassGraphLog log) {
+            return classLoaderClass == WebappClassLoader.class;
+        }
+
+        @Override
+        public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
+                final @Nullable ClassGraphLog log) {
+            classLoaderOrder.add(classLoader, log);
+        }
+
+        @Override
+        public void findClasspathOrder(final ClassLoader classLoader, final ClasspathOrder classpathOrder,
+                final @Nullable ClassGraphLog log) {
+            for (final var url : ((WebappClassLoader) classLoader).getURLs()) {
+                classpathOrder.addClasspathEntry(url, classLoader, log);
+            }
+        }
+
+        @Override
+        public List<String> getPackageRootPrefixes() {
+            return List.of("WEB-INF/classes/");
         }
     }
 

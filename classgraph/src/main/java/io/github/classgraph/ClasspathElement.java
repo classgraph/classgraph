@@ -820,11 +820,27 @@ abstract sealed class ClasspathElement implements Comparable<ClasspathElement>
      *         classpath element, or is a path that the scan skips (see {@link #isSkippedPath(String)}).
      */
     // N.B. this deliberately ignores the accept and reject criteria, because it is how the class graph is extended
-    // upwards through classes that the scan did not accept (Classfile#findClassfile). Callers that must not report
-    // a rejected resource filter the result with ScanSpec#resourcePathIsRejected(String). It returns a new Resource
-    // on every call, rather than one of the acceptedResources, so that a caller can open what it returns while the
-    // accepted Resource for the same path is open.
+    // upwards through classes that the scan did not accept (Classfile#findClassfile, through getResourceDuringScan).
+    // Callers that must not report a rejected resource filter the result with ScanSpec#resourcePathIsRejected(String).
+    // It returns a new Resource on every call, rather than one of the acceptedResources, so that a caller can open
+    // what it returns while the accepted Resource for the same path is open.
     abstract @Nullable Resource getResource(final String relativePath);
+
+    /**
+     * Get the {@link Resource} for a given relative path while the scan is running. This returns what
+     * {@link #getResource(String)} returns, but may assume that the classpath element does not change during the
+     * scan, so it may remember what it learned from earlier calls. Scanning calls it to find the classfile of an
+     * external class, once in each classpath element before the one holding the classfile.
+     *
+     * @param relativePath
+     *            The relative path of the {@link Resource} to return.
+     * @return A new {@link Resource} for the given relative path, or null if relativePath does not exist in this
+     *         classpath element, or is a path that the scan skips.
+     */
+    @Nullable
+    Resource getResourceDuringScan(final String relativePath) {
+        return getResource(relativePath);
+    }
 
     /**
      * Get the URI for this classpath element.

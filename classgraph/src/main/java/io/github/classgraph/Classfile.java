@@ -461,9 +461,10 @@ class Classfile {
         }
         // Otherwise the first copy in classpath order wins, as for classpath masking. The modules that are being
         // scanned come before all traditional classpath elements in classpathOrder. This is O(N) for each external
-        // class, but each external class is looked up only once.
+        // class, but each external class is looked up only once, and a directory classpath element that does not
+        // hold the class's package looks up the package directory only once per scan.
         for (final ClasspathElement classpathOrderElt : classpathOrder) {
-            final var classResource = classpathOrderElt.getResource(classfilePath);
+            final var classResource = classpathOrderElt.getResourceDuringScan(classfilePath);
             if (classResource != null) {
                 return new ClassfileLocation(classpathOrderElt, classResource);
             }
