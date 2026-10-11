@@ -378,7 +378,10 @@ public final class ClasspathFinder {
      * @return this (for method chaining).
      * @throws IllegalArgumentException
      *             if {@code classpathElements} holds no classpath element, or holds a {@link ClassLoader} (pass
-     *             those to {@link #enableClassLoaders(ClassLoader...)} instead).
+     *             those to {@link #enableClassLoaders(ClassLoader...)} instead), or holds a
+     *             {@link java.util.stream.BaseStream} (any {@code Stream}, {@code IntStream}, {@code LongStream} or
+     *             {@code DoubleStream}), {@link java.util.Iterator} or {@link java.util.Enumeration} that is not an
+     *             {@link Iterable} (collect it into a collection first).
      */
     public ClasspathFinder enableClasspathEntries(final Object... classpathElements) {
         Assert.notNullElements(classpathElements, "classpathElements");
@@ -405,7 +408,10 @@ public final class ClasspathFinder {
      * @return this (for method chaining).
      * @throws IllegalArgumentException
      *             if {@code classpathElements} holds no classpath element, or holds a {@link ClassLoader} (pass
-     *             those to {@link #enableClassLoaders(ClassLoader...)} instead).
+     *             those to {@link #enableClassLoaders(ClassLoader...)} instead), or holds a
+     *             {@link java.util.stream.BaseStream} (any {@code Stream}, {@code IntStream}, {@code LongStream} or
+     *             {@code DoubleStream}), {@link java.util.Iterator} or {@link java.util.Enumeration} that is not an
+     *             {@link Iterable} (collect it into a collection first).
      */
     public ClasspathFinder enableClasspathEntries(final Iterable<?> classpathElements) {
         Assert.notNull(classpathElements, "classpathElements");
