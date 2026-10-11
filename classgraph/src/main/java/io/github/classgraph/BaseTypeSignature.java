@@ -162,7 +162,11 @@ public final class BaseTypeSignature extends TypeSignature {
 
     @Override
     void addTypeAnnotation(final List<TypePathNode> typePath, final AnnotationInfo annotationInfo) {
-        addTypeAnnotation(annotationInfo);
+        if (typePath.isEmpty()) {
+            addTypeAnnotation(annotationInfo);
+        } else {
+            throw new IllegalArgumentException("Base type should have empty typePath");
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------

@@ -464,6 +464,8 @@ public abstract sealed class TypeSignature extends HierarchicalTypeSignature
      *            The type path, relative to this type.
      * @param annotationInfo
      *            The annotation to add.
+     * @throws IllegalArgumentException
+     *             if the type path does not lead to a type within this type.
      */
     abstract void addTypeAnnotation(List<TypePathNode> typePath, AnnotationInfo annotationInfo);
 }
