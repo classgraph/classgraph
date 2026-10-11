@@ -19,10 +19,12 @@ import java.util.List;
  *
  * This is what the "Releasing a mapping differs below JDK 22" section of the memory mapping benchmark wiki page is
  * measured with. T1 and T5 are why a mapping has to be released at all: Windows refuses to delete, rename or
- * overwrite a file while it is mapped. T8 on Linux, and T7 on Windows, are why it is not released by dropping the
- * last reference and asking for a collection: over enough rounds that leaves a file still mapped when the request
- * to collect returns, which on Windows means still locked. So a mapping is unmapped explicitly instead, and the
- * collector is only the fallback.
+ * overwrite a file while it is mapped through a RandomAccessFile, as this probe maps it. (ClassGraph maps a file
+ * through FileChannel#open instead, which Windows lets be renamed while it is mapped, and some versions of Windows
+ * let be deleted, but Windows still refuses to overwrite it.) T8 on Linux, and T7 on Windows, are why it is not
+ * released by dropping the last reference and asking for a collection: over enough rounds that leaves a file still
+ * mapped when the request to collect returns, which on Windows means still locked. So a mapping is unmapped
+ * explicitly instead, and the collector is only the fallback.
  *
  * Always exits 0; the answer is in the printed output.
  *

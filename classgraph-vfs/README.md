@@ -382,12 +382,13 @@ every root, on every JDK version: on JDK 22 or later by closing the `java.lang.f
 mapped it, and below that by `Unsafe::invokeCleaner`, the only method there is that can unmap a file
 on demand. The root closes every `CloseableByteBuffer` it handed out first, so that no wrapper is
 left holding a view of a mapping the root is about to release, and the unmap is the last thing the
-close does. Unmapping has to happen as the root closes because Windows refuses to delete, rename or
-overwrite a file while it is mapped: a close that returned with the files it had mapped still mapped
-would leave them locked, and a temporary file that a nested jarfile had been extracted to could not
-be deleted. The cost is that `Unsafe::invokeCleaner` frees the address range whether or not another
-thread is still reading it, so a caller that keeps a raw `ByteBuffer` past the close of its root, and
-reads it, takes a SIGSEGV that kills the JVM below JDK 22.)
+close does. Unmapping has to happen as the root closes because Windows refuses to overwrite a file
+while it is mapped, and some versions of Windows refuse to delete one: a close that returned with
+the files it had mapped still mapped would leave them locked, and on those versions a temporary file
+that a nested jarfile had been extracted to could not be deleted. The cost is that
+`Unsafe::invokeCleaner` frees the address range whether or not another thread is still reading it,
+so a caller that keeps a raw `ByteBuffer` past the close of its root, and reads it, takes a SIGSEGV
+that kills the JVM below JDK 22.)
 
 A `Vfs` and everything it hands out is safe to use from many threads at once. This is what lets
 ClassGraph scan a jarfile in parallel. What that is worth is measured in

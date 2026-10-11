@@ -655,23 +655,25 @@ public final class PathSlice extends Slice {
             return;
         }
         if (mappingStillHeldOpen != null) {
-            // Windows refuses to delete a file that is still memory-mapped, and this one is, because a view of the
-            // mapping that the caller can still read is open. No garbage collection can unmap a file whose buffer
-            // the caller is still holding, so rather than asking for one, the delete is retried when the last view
-            // is released, which is what unmaps the file.
+            // Some versions of Windows refuse to delete a file that is still memory-mapped, and this one is, because a
+            // view of the mapping that the caller can still read is open. No garbage collection can unmap a file
+            // whose buffer the caller is still holding, so rather than asking for one, the delete is retried when
+            // the last view is released, which is what unmaps the file.
             // #939
             mappingStillHeldOpen
                     .runWhenUnmapped(() -> deleteTempFile(fileToDelete, /* mappingStillHeldOpen = */ null));
             return;
         }
-        // Windows refuses to delete a file that is still memory-mapped, so a delete that failed may be waiting on
-        // a mapping that only the garbage collector can release -- one that Unsafe::invokeCleaner failed to unmap
-        // below JDK 22, or one that something other than this slice made through FileChannel#map, from the File
-        // that getFile() hands out. (The garbage collector cannot release a mapping whose arena would not close:
-        // only closing the arena can.) The collector only runs when it chooses to, so ask for a collection and try
-        // again. (If the JVM was started with -XX:+DisableExplicitGC then this is a no-op.) A file that still cannot
-        // be deleted is scheduled for deletion when the JVM exits, which succeeds if whatever kept it mapped has
-        // released it by then.
+        // Windows can refuse to delete a file that is still memory-mapped (Windows Server 2022 refuses whenever the
+        // file is mapped, and Windows Server 2025 and Windows 11 refuse only when it was mapped through a
+        // RandomAccessFile, which opens a file without letting it be deleted), so a delete that failed may be
+        // waiting on a mapping that only the garbage collector can release -- one that Unsafe::invokeCleaner
+        // failed to unmap below JDK 22, or one that something other than this slice made through FileChannel#map,
+        // from the File that getFile() hands out. (The garbage collector cannot release a mapping whose arena
+        // would not close: only closing the arena can.) The collector only runs when it chooses to, so ask for a
+        // collection and try again. (If the JVM was started with -XX:+DisableExplicitGC then this is a no-op.) A
+        // file that still cannot be deleted is scheduled for deletion when the JVM exits, which succeeds if
+        // whatever kept it mapped has released it by then.
         // #939
         freeUnreachableBuffers();
         if (TempFile.delete(fileToDelete)) {
