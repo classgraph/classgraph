@@ -37,6 +37,8 @@ import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermission;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.Test;
@@ -209,8 +211,9 @@ class TempFilenameSanitizationTest {
     }
 
     /**
-     * Run in a child JVM: try twice to create a temporary file, and print the encoding that filenames are stored
-     * in, then the class of the {@link IOException} that each attempt threw, or the name of the file it created.
+     * Run in a child JVM: optionally change the {@code java.io.tmpdir} system property, then try twice to create a
+     * temporary file, and print the encoding that filenames are stored in, then the class of the exception or error
+     * that each attempt threw, or the name of the file it created.
      */
     static final class CreateTempFileInNonAsciiTempDir {
         /** Not instantiable. */
@@ -221,19 +224,68 @@ class TempFilenameSanitizationTest {
          * Entry point.
          *
          * @param args
-         *            ignored.
+         *            empty to leave the {@code java.io.tmpdir} system property unchanged; {@code clear} to clear
+         *            it; or the directory to set it to.
          */
         public static void main(final String[] args) {
+            if (args.length > 0) {
+                if (args[0].equals("clear")) {
+                    System.clearProperty("java.io.tmpdir");
+                } else {
+                    System.setProperty("java.io.tmpdir", args[0]);
+                }
+            }
             System.out.println(System.getProperty("sun.jnu.encoding"));
             for (var i = 0; i < 2; i++) {
                 try {
                     final var tempFile = TempFile.create("BOOT-INF/lib/lib.jar");
                     System.out.println(tempFile.getName());
                     TempFile.delete(tempFile);
-                } catch (final IOException e) {
+                } catch (final Throwable e) {
                     System.out.println(e.getClass().getName());
                 }
             }
+        }
+    }
+
+    /**
+     * Run {@link CreateTempFileInNonAsciiTempDir} in a child JVM under the C locale, whose temporary directory has
+     * a non-ASCII name, and check that each attempt to create a temporary file threw an {@link IOException}.
+     *
+     * @param parentDir
+     *            the directory to create the temporary directory of the child JVM in.
+     * @param args
+     *            the arguments to pass to {@link CreateTempFileInNonAsciiTempDir}.
+     * @throws Exception
+     *             if the child JVM could not be run.
+     */
+    private static void assertNonAsciiTempDirThrowsIOException(final Path parentDir, final String... args)
+            throws Exception {
+        assumeTrue(System.getProperty("os.name").startsWith("Linux"), "The C locale is only tested on Linux");
+        assumeTrue(System.getProperty("sun.jnu.encoding").equals("UTF-8"),
+                "This JVM cannot create a directory with a non-ASCII name");
+        final var tempDir = Files.createDirectory(parentDir.resolve("tmpé"));
+        final var command = new ArrayList<>(List.of(
+                Path.of(System.getProperty("java.home"), "bin", "java").toString(), "-Djava.io.tmpdir=" + tempDir,
+                "-cp", System.getProperty("java.class.path"), CreateTempFileInNonAsciiTempDir.class.getName()));
+        command.addAll(List.of(args));
+        final var processBuilder = new ProcessBuilder(command).redirectErrorStream(true);
+        processBuilder.environment().keySet().removeIf(name -> name.startsWith("LC_"));
+        processBuilder.environment().put("LC_ALL", "C");
+        processBuilder.environment().put("LANG", "C");
+        final var output = runChildJvm(processBuilder);
+        // Read the last three lines, since the JVM may print a notice such as "Picked up JAVA_TOOL_OPTIONS" first
+        final var outputLines = output.lines().toList();
+        assertThat(outputLines).as("Child JVM output:%n%s", output).hasSizeGreaterThanOrEqualTo(3);
+        assumeTrue(!outputLines.get(outputLines.size() - 3).equals("UTF-8"),
+                "The C locale stores filenames in UTF-8 here");
+        assertThat(outputLines.subList(outputLines.size() - 2, outputLines.size()))
+                .as("Child JVM output:%n%s", output).containsOnly(IOException.class.getName());
+        try (var tempFiles = Files.list(tempDir)) {
+            assertThat(tempFiles).isEmpty();
+        }
+        try (var files = Files.list(parentDir)) {
+            assertThat(files).containsOnly(tempDir);
         }
     }
 
@@ -250,34 +302,45 @@ class TempFilenameSanitizationTest {
      */
     @Test
     void aTempDirThatFilenamesCannotRepresentThrowsIOException(@TempDir final Path parentDir) throws Exception {
-        assumeTrue(System.getProperty("os.name").startsWith("Linux"), "The C locale is only tested on Linux");
-        assumeTrue(System.getProperty("sun.jnu.encoding").equals("UTF-8"),
-                "This JVM cannot create a directory with a non-ASCII name");
-        final var tempDir = Files.createDirectory(parentDir.resolve("tmpé"));
-        final var processBuilder = new ProcessBuilder(
-                Path.of(System.getProperty("java.home"), "bin", "java").toString(), "-Djava.io.tmpdir=" + tempDir,
-                "-cp", System.getProperty("java.class.path"), CreateTempFileInNonAsciiTempDir.class.getName())
-                .redirectErrorStream(true);
-        processBuilder.environment().keySet().removeIf(name -> name.startsWith("LC_"));
-        processBuilder.environment().put("LC_ALL", "C");
-        processBuilder.environment().put("LANG", "C");
-        final var output = runChildJvm(processBuilder);
-        // Read the last three lines, since the JVM may print a notice such as "Picked up JAVA_TOOL_OPTIONS" first
-        final var outputLines = output.lines().toList();
-        assertThat(outputLines).as("Child JVM output:%n%s", output).hasSizeGreaterThanOrEqualTo(3);
-        assumeTrue(!outputLines.get(outputLines.size() - 3).equals("UTF-8"),
-                "The C locale stores filenames in UTF-8 here");
-        assertThat(outputLines.subList(outputLines.size() - 2, outputLines.size()))
-                .as("Child JVM output:%n%s", output).containsOnly(IOException.class.getName());
-        try (var tempFiles = Files.list(tempDir)) {
-            assertThat(tempFiles).isEmpty();
-        }
+        assertNonAsciiTempDirThrowsIOException(parentDir);
+    }
+
+    /**
+     * The JDK reads the {@code java.io.tmpdir} system property once, when the JVM starts. If that directory cannot
+     * be represented in the encoding used for filenames, no temporary file can be created, even after the property
+     * has been cleared, and creating one must still throw an {@link IOException} every time, not an {@link Error}.
+     *
+     * @param parentDir
+     *            the directory that holds the temporary directory of the child JVM.
+     * @throws Exception
+     *             if the child JVM could not be run.
+     */
+    @Test
+    void aTempDirThatFilenamesCannotRepresentThrowsIOExceptionAfterThePropertyIsCleared(
+            @TempDir final Path parentDir) throws Exception {
+        assertNonAsciiTempDirThrowsIOException(parentDir, "clear");
+    }
+
+    /**
+     * As {@link #aTempDirThatFilenamesCannotRepresentThrowsIOExceptionAfterThePropertyIsCleared(Path)}, but the
+     * property is set to a directory that filenames can represent, which the JDK ignores.
+     *
+     * @param parentDir
+     *            the directory that holds the temporary directory of the child JVM, and that the property is set
+     *            to.
+     * @throws Exception
+     *             if the child JVM could not be run.
+     */
+    @Test
+    void aTempDirThatFilenamesCannotRepresentThrowsIOExceptionAfterThePropertyIsChanged(
+            @TempDir final Path parentDir) throws Exception {
+        assertNonAsciiTempDirThrowsIOException(parentDir, parentDir.toString());
     }
 
     /**
      * Run in a child JVM: change the {@code java.io.tmpdir} system property to a directory that does not exist,
-     * then clear it, and each time create and delete a temporary file, printing the directory it was created in, or
-     * the class of the exception that was thrown.
+     * then to a string that is not a valid path, then clear it, and each time create and delete a temporary file,
+     * printing the directory it was created in, or the class of the exception that was thrown.
      */
     static final class CreateTempFileAfterTempDirChanged {
         /** Not instantiable. */
@@ -292,7 +355,8 @@ class TempFilenameSanitizationTest {
          */
         public static void main(final String[] args) {
             final var startupTempDir = System.getProperty("java.io.tmpdir");
-            for (final var newTempDir : new String[] { Path.of(startupTempDir, "missing").toString(), null }) {
+            for (final var newTempDir : new String[] { Path.of(startupTempDir, "missing").toString(), "a\u0000b",
+                    null }) {
                 if (newTempDir == null) {
                     System.clearProperty("java.io.tmpdir");
                 } else {
@@ -312,7 +376,8 @@ class TempFilenameSanitizationTest {
     /**
      * The JDK reads the {@code java.io.tmpdir} system property once, when the JVM starts, and creates every
      * temporary file in that directory. A temporary file for a nested jar must be created there too, even if the
-     * property has since been changed to a directory that does not exist, or cleared.
+     * property has since been changed to a directory that does not exist or to a string that is not a valid path,
+     * or cleared.
      *
      * @param tempDir
      *            the temporary directory of the child JVM.
@@ -326,10 +391,10 @@ class TempFilenameSanitizationTest {
                 "-cp", System.getProperty("java.class.path"), CreateTempFileAfterTempDirChanged.class.getName())
                 .redirectErrorStream(true);
         final var output = runChildJvm(processBuilder);
-        // Read the last two lines, since the JVM may print a notice such as "Picked up JAVA_TOOL_OPTIONS" first
+        // Read the last three lines, since the JVM may print a notice such as "Picked up JAVA_TOOL_OPTIONS" first
         final var outputLines = output.lines().toList();
-        assertThat(outputLines).as("Child JVM output:%n%s", output).hasSizeGreaterThanOrEqualTo(2);
-        assertThat(outputLines.subList(outputLines.size() - 2, outputLines.size()))
+        assertThat(outputLines).as("Child JVM output:%n%s", output).hasSizeGreaterThanOrEqualTo(3);
+        assertThat(outputLines.subList(outputLines.size() - 3, outputLines.size()))
                 .as("Child JVM output:%n%s", output).containsOnly(tempDir.toString());
         try (var tempFiles = Files.list(tempDir)) {
             assertThat(tempFiles).isEmpty();

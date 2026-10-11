@@ -32,7 +32,6 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
-import java.nio.file.Path;
 import java.util.regex.Pattern;
 
 import io.github.classgraph.base.internal.path.PathSyntax;
@@ -109,8 +108,9 @@ public final class TempFile {
      *            The path to derive the temporary filename from.
      * @return The temporary {@link File}.
      * @throws IOException
-     *             If the temporary file could not be created, including when the temporary directory named by the
-     *             {@code java.io.tmpdir} system property cannot be represented in the encoding used for filenames.
+     *             If the temporary file could not be created, including when the temporary directory that the
+     *             {@code java.io.tmpdir} system property named when the JVM started cannot be represented in the
+     *             encoding used for filenames.
      */
     public static File create(final String path) throws IOException {
         var leafname = sanitizeFilename(PathSyntax.simpleName(path));
@@ -121,21 +121,6 @@ public final class TempFile {
                 startIdx++;
             }
             leafname = leafname.substring(startIdx);
-        }
-        // Check the temporary directory before the first call to Files.createTempFile, whose helper class resolves
-        // it once, in its static initializer: if that fails, the class can never be used again in this JVM, and
-        // every call throws an Error rather than an IOException. The directory itself is left to the JDK, as for
-        // every other temporary file. The property is null if it has been cleared.
-        final var tempDirName = System.getProperty("java.io.tmpdir");
-        if (tempDirName != null) {
-            try {
-                Path.of(tempDirName);
-            } catch (final InvalidPathException e) {
-                // As happens to a non-ASCII directory name when the JVM is started under the C or POSIX locale on
-                // Linux
-                throw new IOException("The temporary directory " + tempDirName
-                        + " cannot be represented in the encoding used for filenames", e);
-            }
         }
         try {
             return createReadableOnlyByOwner(leafname);
@@ -151,18 +136,34 @@ public final class TempFile {
      * whose file can be read by every local user under the usual umask of 022. On Windows the file takes the access
      * control list of the temporary directory.
      *
+     * <p>
+     * The file is created in the JDK's temporary directory, which is the value that the {@code java.io.tmpdir}
+     * system property had when the JVM started: the JDK reads the property only then, so a later change to it has
+     * no effect. The JDK resolves that directory in the static initializer of its temporary file helper, on the
+     * first call to {@link Files#createTempFile(String, String, java.nio.file.attribute.FileAttribute...)}. If that
+     * fails, the first call throws {@link ExceptionInInitializerError} and every later call in the JVM throws
+     * {@link NoClassDefFoundError}; both are thrown here as an {@link IOException}.
+     *
      * @param leafname
      *            The sanitized leafname to end the temporary filename with.
      * @return The temporary {@link File}.
      * @throws IOException
-     *             If the temporary file could not be created.
+     *             If the temporary file could not be created, including when the JDK could not resolve its
+     *             temporary directory.
      * @throws InvalidPathException
      *             If the temporary filename cannot be represented in the encoding that filenames are stored in.
      */
     private static File createReadableOnlyByOwner(final String leafname) throws IOException {
-        return Files
-                .createTempFile(PathSyntax.TEMP_FILENAME_PREFIX, PathSyntax.TEMP_FILENAME_LEAF_SEPARATOR + leafname)
-                .toFile();
+        try {
+            return Files.createTempFile(PathSyntax.TEMP_FILENAME_PREFIX,
+                    PathSyntax.TEMP_FILENAME_LEAF_SEPARATOR + leafname).toFile();
+        } catch (final ExceptionInInitializerError | NoClassDefFoundError e) {
+            // As happens when the JVM is started under the C or POSIX locale on Linux with a temporary directory
+            // that has a non-ASCII name
+            throw new IOException("The JDK could not set up its temporary directory, which is the value that the "
+                    + "java.io.tmpdir system property had when the JVM started, perhaps because that path cannot "
+                    + "be represented in the encoding used for filenames", e);
+        }
     }
 
     /**
