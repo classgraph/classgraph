@@ -38,8 +38,10 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
 import java.util.AbstractMap.SimpleEntry;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Deque;
 import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -2116,34 +2118,27 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Recurse to interfaces and superclasses to get the order that fields are overridden in.
+     * Push classes onto a stack in reverse order, so that they are popped in their original order.
      *
-     * @param visited
-     *            visited
-     * @param overrideOrderOut
-     *            the override order
-     * @return the override order
+     * @param classInfos
+     *            the classes, or null for none
+     * @param stack
+     *            the stack
      */
-    private List<ClassInfo> getFieldOverrideOrder(final Set<ClassInfo> visited,
-            final List<ClassInfo> overrideOrderOut) {
-        if (visited.add(this)) {
-            overrideOrderOut.add(this);
-            // Only the direct superinterfaces, since the interfaces of the superclass are searched after the
-            // superclass itself, by the recursion into the superclass (JVMS 5.4.3.2)
-            for (final ClassInfo iface : allSuperinterfacesIncludingExternal().directOnly()) {
-                iface.getFieldOverrideOrder(visited, overrideOrderOut);
-            }
-            final var superclass = superclassIncludingExternal();
-            if (superclass != null) {
-                superclass.getFieldOverrideOrder(visited, overrideOrderOut);
+    private static void pushInReverseOrder(final @Nullable Collection<ClassInfo> classInfos,
+            final Deque<ClassInfo> stack) {
+        if (classInfos != null) {
+            final List<ClassInfo> classInfoList = new ArrayList<>(classInfos);
+            for (var i = classInfoList.size() - 1; i >= 0; i--) {
+                stack.push(classInfoList.get(i));
             }
         }
-        return overrideOrderOut;
     }
 
     /**
-     * Get the order that fields are searched in: this class first, then its superinterfaces, then its superclass,
-     * recursively.
+     * Get the order that fields are searched in (JVMS 5.4.3.2): this class first, then each of its direct
+     * superinterfaces, each followed by its own superinterfaces, then its superclass, searched in the same way. A
+     * class that is reached more than once is searched only the first time.
      *
      * @return the override order
      */
@@ -2152,73 +2147,40 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
         // takes no other lock, so this cannot deadlock.
         synchronized (this) {
             if (fieldOverrideOrder == null) {
-                fieldOverrideOrder = getFieldOverrideOrder(new HashSet<>(), new ArrayList<>());
+                // A depth-first search, with a stack rather than recursion, so that a class hierarchy thousands of
+                // levels deep cannot overflow the call stack
+                final Set<ClassInfo> visited = new HashSet<>();
+                final List<ClassInfo> overrideOrder = new ArrayList<>();
+                final Deque<ClassInfo> stack = new ArrayDeque<>();
+                stack.push(this);
+                while (!stack.isEmpty()) {
+                    final var classInfo = stack.pop();
+                    if (visited.add(classInfo)) {
+                        overrideOrder.add(classInfo);
+                        // The superclass is pushed first, so that it is searched after the direct superinterfaces.
+                        // Only the direct superinterfaces are pushed, since the interfaces of the superclass are
+                        // searched after the superclass itself.
+                        final var superclass = classInfo.superclassIncludingExternal();
+                        if (superclass != null) {
+                            stack.push(superclass);
+                        }
+                        pushInReverseOrder(classInfo.relatedClasses.get(RelType.IMPLEMENTED_INTERFACES), stack);
+                    }
+                }
+                fieldOverrideOrder = overrideOrder;
             }
             return fieldOverrideOrder;
         }
     }
 
     /**
-     * Recurse to collect classes and interfaces in the order of overridden methods, in descending priority.
+     * Get the classes and interfaces in the order of overridden methods, in descending priority.
      * <p>
-     * First collects all direct super classes, as their methods always have a higher priority than any method
-     * declared by an interface. Iterates over interfaces and inserts those extending already found interfaces
-     * before them in the output. The order of unrelated interfaces is unspecified.
+     * First collects this class and all its superclasses, as their methods always have a higher priority than any
+     * method declared by an interface. Then collects the interfaces, inserting each interface before any interface
+     * that it extends that was already collected. The order of unrelated interfaces is unspecified.
      * <p>
      * See Java Language Specification 8.4.8 for details.
-     *
-     * @param visited
-     *            non-null set of already visited ClassInfos
-     * @param overrideOrderOut
-     *            non-null outgoing list of ClassInfos in descending override order.
-     * @return the overrideOrderOut instance
-     */
-    private List<ClassInfo> getMethodOverrideOrder(final Set<ClassInfo> visited,
-            final List<ClassInfo> overrideOrderOut) {
-        if (!visited.add(this)) {
-            return overrideOrderOut;
-        }
-        // collect concrete super classes first, simply add to overrideOrder
-        if (!isInterfaceOrAnnotation()) {
-            overrideOrderOut.add(this);
-            // iterate over direct super classes first, they have the highest priority regarding method overrides
-            final var superclass = superclassIncludingExternal();
-            if (superclass != null) {
-                superclass.getMethodOverrideOrder(visited, overrideOrderOut);
-            }
-            for (final ClassInfo iface : allSuperinterfacesIncludingExternal()) {
-                iface.getMethodOverrideOrder(visited, overrideOrderOut);
-            }
-            return overrideOrderOut;
-        }
-        // overrideOrderOut already contains all concrete classes now. This is an interface. If one of the extended
-        // interfaces is already in the output, then this needs to be added before it. Otherwise, this is unrelated
-        // to all collected ClassInfo so far and can simply be added to the result. The compiler should've prevented
-        // inheriting unrelated interfaces with methods having the same signature. Can still happen thanks to
-        // dynamically linking a different interface during runtime, for which the returned order is undefined.
-        final var interfaces = allSuperinterfacesIncludingExternal();
-        var minIndex = Integer.MAX_VALUE;
-        for (final ClassInfo iface : interfaces) {
-            if (!visited.contains(iface)) {
-                continue;
-            }
-            final var currIdx = overrideOrderOut.indexOf(iface);
-            minIndex = currIdx >= 0 && currIdx < minIndex ? currIdx : minIndex;
-        }
-        if (minIndex == Integer.MAX_VALUE) {
-            overrideOrderOut.add(this);
-        } else {
-            overrideOrderOut.add(minIndex, this);
-        }
-        // Add interfaces to end of override order
-        for (final ClassInfo iface : interfaces) {
-            iface.getMethodOverrideOrder(visited, overrideOrderOut);
-        }
-        return overrideOrderOut;
-    }
-
-    /**
-     * Get the order that methods are overridden in.
      *
      * @return the override order
      */
@@ -2227,7 +2189,55 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
         // takes no other lock, so this cannot deadlock.
         synchronized (this) {
             if (methodOverrideOrder == null) {
-                methodOverrideOrder = getMethodOverrideOrder(new HashSet<>(), new ArrayList<>());
+                // A depth-first search, with a stack rather than recursion, so that a class hierarchy thousands of
+                // levels deep cannot overflow the call stack
+                final Set<ClassInfo> visited = new HashSet<>();
+                final List<ClassInfo> overrideOrder = new ArrayList<>();
+                final Deque<ClassInfo> stack = new ArrayDeque<>();
+                stack.push(this);
+                while (!stack.isEmpty()) {
+                    final var classInfo = stack.pop();
+                    if (!visited.add(classInfo)) {
+                        continue;
+                    }
+                    if (!classInfo.isInterfaceOrAnnotation()) {
+                        overrideOrder.add(classInfo);
+                        // The superclass is pushed last, so that it and everything above it are searched before the
+                        // superinterfaces of this class, since methods of superclasses always have a higher priority
+                        // than methods of interfaces. Only the direct superinterfaces are pushed: the interfaces of
+                        // the superclasses are reached from the superclass, and the superinterfaces of the direct
+                        // superinterfaces are reached from those.
+                        pushInReverseOrder(classInfo.relatedClasses.get(RelType.IMPLEMENTED_INTERFACES), stack);
+                        final var superclass = classInfo.superclassIncludingExternal();
+                        if (superclass != null) {
+                            stack.push(superclass);
+                        }
+                    } else {
+                        // overrideOrder already contains all concrete classes now. This is an interface. If one of the
+                        // extended interfaces is already in the output, then this needs to be added before it.
+                        // Otherwise, this is unrelated to all collected ClassInfo so far and can simply be added to
+                        // the result. The compiler should've prevented inheriting unrelated interfaces with methods
+                        // having the same signature. Can still happen thanks to dynamically linking a different
+                        // interface during runtime, for which the returned order is undefined.
+                        final var interfaces = classInfo.allSuperinterfacesIncludingExternal();
+                        var minIndex = Integer.MAX_VALUE;
+                        for (final ClassInfo iface : interfaces) {
+                            if (!visited.contains(iface)) {
+                                continue;
+                            }
+                            final var currIdx = overrideOrder.indexOf(iface);
+                            minIndex = currIdx >= 0 && currIdx < minIndex ? currIdx : minIndex;
+                        }
+                        if (minIndex == Integer.MAX_VALUE) {
+                            overrideOrder.add(classInfo);
+                        } else {
+                            overrideOrder.add(minIndex, classInfo);
+                        }
+                        // Search the extended interfaces next
+                        pushInReverseOrder(interfaces, stack);
+                    }
+                }
+                methodOverrideOrder = overrideOrder;
             }
             return methodOverrideOrder;
         }
