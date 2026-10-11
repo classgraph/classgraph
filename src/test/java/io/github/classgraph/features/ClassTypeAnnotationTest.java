@@ -16,7 +16,7 @@ import io.github.classgraph.ScanResult;
  * Test that a type annotation on a superclass or interface reference is rendered on the type it annotates,
  * not on the enclosing class.
  */
-class ClassTypeAnnotation {
+class ClassTypeAnnotationTest {
     /** A type-use annotation, applied to the superclass reference of the fixture classes below. */
     @Retention(RetentionPolicy.RUNTIME)
     @Target(value = { ElementType.TYPE_USE, ElementType.TYPE })
@@ -88,55 +88,55 @@ class ClassTypeAnnotation {
     @Test
     void classTypeAnnotation() {
         try (ScanResult scanResult = new ClassGraph()
-                .acceptPackages(ClassTypeAnnotation.class.getPackage().getName()).enableAllInfo().scan()) {
+                .acceptPackages(ClassTypeAnnotationTest.class.getPackage().getName()).enableAllInfo().scan()) {
 
             // Type with annotations should be rendered by toString() as
-            //   Y<T> extends ClassTypeAnnotation$@X Z
+            //   Y<T> extends ClassTypeAnnotationTest$@X Z
             // and not
-            //   Y<T> extends @X ClassTypeAnnotation$Z
-            // because the annotation is on Z, not ClassTypeAnnotation
+            //   Y<T> extends @X ClassTypeAnnotationTest$Z
+            // because the annotation is on Z, not ClassTypeAnnotationTest
 
             assertThat(scanResult.getClassInfo(E.class.getName()).getTypeSignature().toString())
                     .isEqualTo("private static class " + E.class.getName() + "<T> extends "
-                            + ClassTypeAnnotation.class.getName() + "$@" + P.class.getName() + " "
-                            + Z.class.getSimpleName() + " implements " + ClassTypeAnnotation.class.getName() + "$@"
+                            + ClassTypeAnnotationTest.class.getName() + "$@" + P.class.getName() + " "
+                            + Z.class.getSimpleName() + " implements " + ClassTypeAnnotationTest.class.getName() + "$@"
                             + Q.class.getName() + " " + A.class.getSimpleName() + ", "
-                            + ClassTypeAnnotation.class.getName() + "$@" + R.class.getName() + " "
+                            + ClassTypeAnnotationTest.class.getName() + "$@" + R.class.getName() + " "
                             + B.class.getSimpleName());
 
             assertThat(scanResult.getClassInfo(F.class.getName()).getTypeSignatureOrTypeDescriptor().toString())
                     .isEqualTo("private static class " + F.class.getName() + " extends "
-                            + ClassTypeAnnotation.class.getName() + "$@" + P.class.getName() + " "
-                            + Z.class.getSimpleName() + " implements " + ClassTypeAnnotation.class.getName() + "$@"
+                            + ClassTypeAnnotationTest.class.getName() + "$@" + P.class.getName() + " "
+                            + Z.class.getSimpleName() + " implements " + ClassTypeAnnotationTest.class.getName() + "$@"
                             + Q.class.getName() + " " + A.class.getSimpleName() + ", "
-                            + ClassTypeAnnotation.class.getName() + "$@" + R.class.getName() + " "
+                            + ClassTypeAnnotationTest.class.getName() + "$@" + R.class.getName() + " "
                             + B.class.getSimpleName());
 
             assertThat(scanResult.getClassInfo(G.class.getName()).getTypeSignatureOrTypeDescriptor().toString())
                     .isEqualTo("private static class " + G.class.getName() + " extends "
-                            + ClassTypeAnnotation.class.getName() + "$@" + P.class.getName() + " "
-                            + Z.class.getSimpleName() + " implements " + ClassTypeAnnotation.class.getName() + "$@"
+                            + ClassTypeAnnotationTest.class.getName() + "$@" + P.class.getName() + " "
+                            + Z.class.getSimpleName() + " implements " + ClassTypeAnnotationTest.class.getName() + "$@"
                             + Q.class.getName() + " " + B.class.getSimpleName() + ", "
-                            + ClassTypeAnnotation.class.getName() + "$@" + R.class.getName() + " "
+                            + ClassTypeAnnotationTest.class.getName() + "$@" + R.class.getName() + " "
                             + A.class.getSimpleName());
 
             assertThat(scanResult.getClassInfo(H.class.getName()).getTypeSignatureOrTypeDescriptor().toString())
                     .isEqualTo("private static class " + H.class.getName() + " extends "
-                            + ClassTypeAnnotation.class.getName() + "$@" + P.class.getName() + " "
+                            + ClassTypeAnnotationTest.class.getName() + "$@" + P.class.getName() + " "
                             + Z.class.getSimpleName());
 
             assertThat(scanResult.getClassInfo(I.class.getName()).getTypeSignatureOrTypeDescriptor().toString())
                     .isEqualTo("private static class " + I.class.getName() + " implements "
-                            + ClassTypeAnnotation.class.getName() + "$@" + Q.class.getName() + " "
-                            + B.class.getSimpleName() + ", " + ClassTypeAnnotation.class.getName() + "$@"
+                            + ClassTypeAnnotationTest.class.getName() + "$@" + Q.class.getName() + " "
+                            + B.class.getSimpleName() + ", " + ClassTypeAnnotationTest.class.getName() + "$@"
                             + R.class.getName() + " " + A.class.getSimpleName());
 
             // The synthesized type descriptor must list the directly implemented interfaces, in classfile order,
             // since the class type annotation targets index into the classfile's own interfaces[] array
             assertThat(scanResult.getClassInfo(J.class.getName()).getTypeSignatureOrTypeDescriptor().toString())
                     .isEqualTo("private static class " + J.class.getName() + " implements "
-                            + ClassTypeAnnotation.class.getName() + "$@" + Q.class.getName() + " "
-                            + BSubC.class.getSimpleName() + ", " + ClassTypeAnnotation.class.getName() + "$@"
+                            + ClassTypeAnnotationTest.class.getName() + "$@" + Q.class.getName() + " "
+                            + BSubC.class.getSimpleName() + ", " + ClassTypeAnnotationTest.class.getName() + "$@"
                             + R.class.getName() + " " + A.class.getSimpleName());
         }
     }

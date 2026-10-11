@@ -11,9 +11,10 @@ import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
 
 /**
+ * The default parameter values of an annotation are kept when a scan result is serialized to JSON and back.
  */
 @SuppressWarnings("unused")
-public class AnnotationDefaultVals {
+public class AnnotationDefaultValsTest {
     @Retention(RetentionPolicy.RUNTIME)
     @interface MyAnnotation {
         String msg() default "hello";
@@ -32,11 +33,11 @@ public class AnnotationDefaultVals {
         // the same after the first and second deserialization, because overrideClasspath is set by the first
         // serialization for consistency.)
         final String classfileURL = getClass().getClassLoader()
-                .getResource(AnnotationDefaultVals.class.getName().replace('.', '/') + ".class").toString();
+                .getResource(AnnotationDefaultValsTest.class.getName().replace('.', '/') + ".class").toString();
         final String classpathBase = classfileURL.substring(0,
-                classfileURL.length() - (AnnotationDefaultVals.class.getName().length() + 6));
+                classfileURL.length() - (AnnotationDefaultValsTest.class.getName().length() + 6));
         try (ScanResult scanResult = new ClassGraph().overrideClasspath(classpathBase)
-                .acceptPackagesNonRecursive(AnnotationDefaultVals.class.getPackage().getName())
+                .acceptPackagesNonRecursive(AnnotationDefaultValsTest.class.getPackage().getName())
                 .ignoreClassVisibility().enableAllInfo().scan()) {
             assertThat(scanResult.getClassInfo(MyClass.class.getName()).getAnnotationInfo().get(0)
                     .getDefaultParameterValues().get(0).getValue()).isEqualTo("hello");
