@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Files;
@@ -498,5 +499,31 @@ public class TomcatWebappClassLoaderTest {
         final var urls = new URL[] { urlDir.toUri().toURL() };
         assertThat(locations(new WebappClassLoaderBase(root, urls, /* parent = */ null)))
                 .containsExactly(location(classesDir), location(urlDir));
+    }
+
+    /**
+     * The webapp classloader of a packed WAR file also lists the WAR's {@code WEB-INF/classes} dir and each jarfile
+     * in its {@code WEB-INF/lib} among its URLs. The WAR file itself must not be added as a classpath element as
+     * well, or its {@code index.jsp} and {@code WEB-INF/web.xml} are scanned too, which the classloader cannot
+     * load.
+     *
+     * @param tempDir
+     *            a temporary directory to create the webapp in.
+     * @throws IOException
+     *             if the webapp could not be created.
+     */
+    @Test
+    public void aPackedWarIsNotOnTheClasspathThroughTheUrlsOfTheWebappClassLoader(@TempDir final Path tempDir)
+            throws IOException {
+        final var war = Files.createFile(tempDir.resolve("app.war"));
+        final var classesJar = new JarWarResourceSet("/WEB-INF/classes", war.toString(),
+                "WEB-INF/lib/dependency.jar", "/");
+        classesJar.setClassLoaderOnly(true);
+        final var root = new StandardRoot().addResourceSets(new WarResourceSet("/", war.toString()))
+                .addResourceSets(classesJar);
+        final var urls = new URL[] { URI.create("jar:" + war.toUri() + "!/WEB-INF/classes/").toURL(),
+                URI.create("jar:" + war.toUri() + "!/WEB-INF/lib/dependency.jar").toURL() };
+        assertThat(locations(new WebappClassLoaderBase(root, urls, /* parent = */ null))).containsExactly(
+                location(war) + "!/WEB-INF/classes", location(war) + "!/WEB-INF/lib/dependency.jar");
     }
 }
