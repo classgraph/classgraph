@@ -199,7 +199,7 @@ public class ClasspathSpec {
      * @return the {@link URL} of the classpath element, or null if the path could not be converted to a {@link URL}
      */
     // new URL(String) is deprecated from JDK 20, but it accepts URLs that new URI(String) rejects (such as one
-    // containing a space), and a path is not escaped before it is put into the jar: URL
+    // containing a space), and a classpath element that is already a URL is passed on as it was written
     @SuppressWarnings("deprecation")
     private static @Nullable URL toURL(final String classpathElementPath) {
         try {
@@ -211,9 +211,11 @@ public class ClasspathSpec {
             if (nestedPathIdx < 0) {
                 return new File(classpathElementPath).toURI().toURL();
             }
-            // A nested path "outer.jar!/inner" becomes the jar URL "jar:file:/outer.jar!/inner"
+            // A nested path "outer.jar!/inner" becomes the jar URL "jar:file:/outer.jar!/inner". The inner path is
+            // percent-encoded as File#toURI() encodes the outer path, so that a '%', ' ', '?' or '#' in it is
+            // decoded back to the same character rather than to an escape, a query or a fragment
             return new URL("jar:" + new File(classpathElementPath.substring(0, nestedPathIdx)).toURI()
-                    + classpathElementPath.substring(nestedPathIdx));
+                    + URLPaths.encodePath(classpathElementPath.substring(nestedPathIdx)));
         } catch (final MalformedURLException | IllegalArgumentException | IOError _) {
             return null;
         }
