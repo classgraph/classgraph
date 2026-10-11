@@ -262,6 +262,9 @@ public abstract sealed class ClassMemberInfo extends ScanResultObject implements
      *
      * @return The parsed type signature for the class member, or if not available, the parsed type descriptor for
      *         the class member.
+     * @throws IllegalArgumentException
+     *             if the type descriptor is needed and cannot be parsed (this should only be thrown in the case of
+     *             classfile corruption).
      */
     public abstract HierarchicalTypeSignature getTypeSignatureOrTypeDescriptor();
 
