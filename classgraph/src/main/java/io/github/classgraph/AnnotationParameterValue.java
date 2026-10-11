@@ -379,10 +379,13 @@ public final class AnnotationParameterValue extends ScanResultObject
         if (diff != 0) {
             return diff;
         }
-        if (Objects.deepEquals(value, other.value)) {
+        // Read each value once, since another thread may replace it with its converted array between two reads
+        final var val = value;
+        final var otherVal = other.value;
+        if (Objects.deepEquals(val, otherVal)) {
             return 0;
         }
-        return compareValues(value, other.value);
+        return compareValues(val, otherVal);
     }
 
     /**
