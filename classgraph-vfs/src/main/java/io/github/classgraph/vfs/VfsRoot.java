@@ -203,8 +203,11 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
     /**
      * Returns the {@link URI} of a path within this root: a {@code file:} URI for a file in a directory, a
      * {@code jar:} URI for a path within a jarfile, and whatever the module names it as for a path within a module,
-     * which is a {@code jrt:} URI for a module of the running JDK. The path is percent-encoded here, so it is
-     * passed in unencoded, exactly as {@link VfsEntry#getRawPathFromRoot()} reports it.
+     * which is a {@code jrt:} URI for a module of the running JDK. In a {@code jar:} URI, including one that a
+     * modular jarfile names a path by, a {@code '!'} that ends a directory name in the path of the jarfile is
+     * spelled {@code %21}, since the scheme would otherwise end the jarfile's path there. The path is
+     * percent-encoded here, so it is passed in unencoded, exactly as {@link VfsEntry#getRawPathFromRoot()} reports
+     * it.
      *
      * <p>
      * This is what {@link VfsEntry#getURI()} is built on, and is offered separately from it so that a path can be
@@ -236,6 +239,24 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
      */
     URI uriOfPath(final String pathWithinRoot) {
         return resolveURI(pathWithinRoot);
+    }
+
+    /**
+     * Returns the {@code "jar:"} URI of a jarfile, to which {@code "!/"} and the percent-encoded path of an entry
+     * are appended to name the entry.
+     *
+     * @param jarfileURIStr
+     *            the URI of the jarfile: a {@code "file:"} URI, the {@code "http:"} or {@code "https:"} URL of a
+     *            remote jarfile, or the {@code "jar:"} URI of a jarfile nested within another jarfile.
+     * @return the {@code "jar:"} URI of the jarfile.
+     */
+    static String jarURIOf(final String jarfileURIStr) {
+        // A jarfile nested within another jarfile already has a "jar:" URI, and must not be given a second one.
+        // Otherwise the "jar:" scheme ends the jarfile's URI at its first "!/". So a '!' followed by '/' in it, as
+        // at the end of a directory named "dir!", is percent-encoded: %21 is the only escape the scheme allows, and
+        // the "file:" URL handler decodes it again. Any other '!' is left as it is, since it cannot end the
+        // jarfile's URI, and the JDK's own jar: URLs do not encode it
+        return jarfileURIStr.startsWith("jar:") ? jarfileURIStr : "jar:" + jarfileURIStr.replace("!/", "%21/");
     }
 
     /**

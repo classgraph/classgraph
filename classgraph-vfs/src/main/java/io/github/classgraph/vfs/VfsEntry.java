@@ -155,7 +155,8 @@ public abstract sealed class VfsEntry permits ArchiveEntry, DirEntry, ModuleEntr
     /**
      * Returns the {@link URI} of this entry: a {@code file:} URI for a file in a directory, a {@code jar:} URI for
      * a jarfile entry, and whatever the module names it as for a module resource, which is a {@code jrt:} URI for a
-     * module of the running JDK.
+     * module of the running JDK. A {@code '!'} that ends a directory name in the path of a jarfile, modular or not,
+     * is spelled {@code %21} in a {@code jar:} URI, as {@link VfsRoot#resolveURI(String)} explains.
      *
      * @return the {@link URI} of the entry.
      * @throws IllegalStateException

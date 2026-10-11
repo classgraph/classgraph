@@ -13,6 +13,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.JarURLConnection;
 import java.net.URI;
 import java.lang.module.ModuleDescriptor;
 import java.lang.module.ModuleFinder;
@@ -2022,6 +2023,42 @@ public class VfsTest {
             assertThat(moduleRoot.resolveURI("java/util/logging/Logger.class")).isEqualTo(moduleEntry.getURI());
             assertThatThrownBy(() -> moduleRoot.resolveURI("no/such/entry.txt"))
                     .isInstanceOf(IllegalStateException.class);
+        }
+    }
+
+    /**
+     * A modular jarfile in a directory whose name ends in '!' has a {@code "!/"} in its location, where the
+     * {@code "jar:"} URL scheme would end the path of the jarfile, so it is percent-encoded in the URI of a path
+     * within the module, as it is for a jarfile that is not a module, whether the module names the path or the root
+     * names it without asking the module.
+     *
+     * @param tempDir
+     *            a temporary directory to hold the jarfile.
+     * @throws IOException
+     *             if the jarfile could not be written or read.
+     */
+    @Test
+    public void aModuleJarInADirectoryWhoseNameEndsInBangHasJarURIsTheJDKSplitsCorrectly(
+            @TempDir final Path tempDir) throws IOException {
+        final var jarPath = Files.createDirectories(tempDir.resolve("build!")).resolve("widget.jar");
+        writeJar(jarPath.toFile(), "com/xyz/widget.txt");
+        try (var vfs = new Vfs()) {
+            final var root = (ModuleRoot) vfs.open(ModuleFinder.of(jarPath).find("com.xyz.widget").orElseThrow());
+            final var entryURI = Objects.requireNonNull(root.getEntry("com/xyz/widget.txt")).getURI();
+            assertThat(entryURI.toString()).endsWith("/build%21/widget.jar!/com/xyz/widget.txt");
+            assertThat(root.uriOfPath("com/xyz/widget.txt")).isEqualTo(entryURI);
+            assertThat(root.uriOfPath("com/xyz").toString()).endsWith("/build%21/widget.jar!/com/xyz");
+            // ... so the JDK's jar URL handler finds the jarfile and the entry within it
+            final var connection = (JarURLConnection) entryURI.toURL().openConnection();
+            // A cached JarFile is never closed, which would stop the temporary directory from being deleted on
+            // Windows
+            connection.setUseCaches(false);
+            assertThat(Path.of(URI.create(connection.getJarFileURL().toString()))).isEqualTo(jarPath);
+            assertThat(connection.getEntryName()).isEqualTo("com/xyz/widget.txt");
+            try (var inputStream = connection.getInputStream()) {
+                assertThat(new String(inputStream.readAllBytes(), StandardCharsets.UTF_8))
+                        .isEqualTo(RESOURCE_CONTENT);
+            }
         }
     }
 
