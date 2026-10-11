@@ -1159,6 +1159,11 @@ class Scanner {
                 scannedClassfiles);
         processWorkUnits(classfileScanWorkItems,
                 topLevelLog == null ? null : topLevelLog.log("Scanning classfiles"), classfileWorkUnitProcessor);
+        // Only the classfile scan looks up external classes, so what the classpath elements remembered to speed
+        // that up is no longer needed, and should not be kept for as long as the scan result is open
+        for (final ClasspathElement classpathElement : finalClasspathEltOrder) {
+            classpathElement.classfileScanFinished();
+        }
 
         // Link the Classfile objects to produce ClassInfo objects. This needs to be done from a single thread.
         final var linkLog = topLevelLog == null ? null : topLevelLog.log("Linking related classfiles");

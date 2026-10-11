@@ -6,6 +6,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+import javax.tools.ToolProvider;
+
 import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -98,5 +100,45 @@ public class ClasspathElementDirTest {
         // A package "directory" that is a regular file holds no classfiles
         createFile(tempDir.resolve("notadir"));
         assertThat(classpathElement.getResourceDuringScan("notadir/C.class")).isNull();
+    }
+
+    /**
+     * What a directory classpath element learned about its package directories during the scan is forgotten once
+     * the classfiles have been scanned, since the scan result keeps the classpath element for as long as it is
+     * open.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if a file could not be written.
+     */
+    @Test
+    public void packageDirsAreForgottenAfterTheScan(@TempDir final Path tempDir) throws IOException {
+        // p.A, in the first directory, extends q.B, in the second, so the scan looks for q/B.class in the first
+        // directory, and finds that it has no directory q
+        final var srcDir = tempDir.resolve("src");
+        final var firstDir = tempDir.resolve("first");
+        final var secondDir = tempDir.resolve("second");
+        Files.createDirectories(srcDir);
+        final var sourceA = Files.writeString(srcDir.resolve("A.java"), "package p; public class A extends q.B {}");
+        final var sourceB = Files.writeString(srcDir.resolve("B.java"), "package q; public class B {}");
+        final var compiler = ToolProvider.getSystemJavaCompiler();
+        assertThat(compiler).as("the tests must be run on a JDK, not a JRE").isNotNull();
+        assertThat(
+                compiler.run(null, null, null, "-d", firstDir.toString(), sourceA.toString(), sourceB.toString()))
+                .as("javac exit code").isZero();
+        Files.createDirectories(secondDir);
+        Files.move(firstDir.resolve("q"), secondDir.resolve("q"));
+
+        try (var scanResult = new ClassGraph().enableClassInfo().enableExternalClasses().acceptPackages("p")
+                .enableClasspathEntries(firstDir, secondDir).scan()) {
+            final var classInfoA = scanResult.getClassInfo("p.A");
+            assertThat(classInfoA.getSuperclass().getName()).isEqualTo("q.B");
+
+            // A classfile in a package directory created after the scan is found, so the classpath element no
+            // longer remembers that the directory was missing
+            createFile(firstDir.resolve("q/C.class"));
+            assertThat(classInfoA.classpathElement.getResourceDuringScan("q/C.class")).isNotNull();
+        }
     }
 }
