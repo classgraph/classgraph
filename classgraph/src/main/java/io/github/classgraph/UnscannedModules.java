@@ -53,9 +53,9 @@ import org.jspecify.annotations.Nullable;
  * class.
  *
  * <p>
- * Only rejecting a module prevents its classfiles from being read this way, matching how accept/reject criteria are
- * applied to classes: scanning is extended upwards to a class in a package that was not accepted, but not to a
- * class that was rejected.
+ * Only rejecting a module prevents its classfiles from being read this way. The accept and reject criteria for
+ * classes do not: scanning is extended upwards to a class in a package that was not accepted, and to a class that
+ * was rejected by name or by package, which the queries then leave out of their results.
  */
 class UnscannedModules {
     /** The modules that are not being scanned, and that were not rejected. */

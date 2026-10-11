@@ -356,18 +356,13 @@ class Classfile {
                 || !classNamesScheduledForExtendedScanning.add(className)) {
             return;
         }
-        if (scanSpec.classAcceptReject.isRejected(className)) {
-            if (log != null) {
-                log.log("Cannot extend scanning upwards to external " + relationship + " " + className
-                        + ", since it is rejected");
-            }
-            return;
-        }
+        // A rejected class is read too, whether it was rejected by name or by package, so that the class graph
+        // above it is complete. The queries leave it out of their results (see ClassInfo.isReported).
         final var classfileLocation = findClassfile(className, log);
         if (classfileLocation == null) {
             if (log != null) {
-                log.log("External " + relationship + " " + className + " was not found in "
-                        + "non-rejected packages -- cannot extend scanning to this class");
+                log.log("External " + relationship + " " + className
+                        + " was not found -- cannot extend scanning to this class");
             }
             return;
         }
