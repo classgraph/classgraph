@@ -8,6 +8,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URL;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
@@ -15,6 +16,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledOnOs;
@@ -280,6 +282,59 @@ public class ClasspathOrderTest {
         final var entryObj = entryObjects().get(0);
         assertThat(entryObj).isExactlyInstanceOf(asURL ? URL.class : URI.class);
         assertThat(entryObj.toString()).isEqualTo("jar:" + Path.of(jar).toUri() + "!/app.war");
+    }
+
+    /**
+     * A classpath entry given as a {@link Path} in a zip filesystem, whose string form is a "jar:" URI ending in a
+     * package root suffix, becomes the {@link Path} of the zipfile on the default filesystem once the suffix has
+     * been stripped. The path left once the suffix is stripped names the zipfile, which is not inside the zip
+     * filesystem, so it must not be looked up in the filesystem of the original {@link Path}.
+     */
+    @Test
+    public void strippingAPackageRootSuffixFromAZipFilesystemPathGivesTheZipfile(@TempDir final Path tempDir)
+            throws IOException {
+        final var warPath = tempDir.resolve("app.war");
+        try (var zipFs = FileSystems.newFileSystem(warPath, Map.of("create", "true"))) {
+            Files.createDirectories(zipFs.getPath("/WEB-INF/classes"));
+        }
+        final var war = resolve(warPath.toRealPath().toString());
+        classpathOrder.setPackageRootPrefixes(List.of("WEB-INF/classes/"), null);
+        try (var zipFs = FileSystems.newFileSystem(warPath)) {
+            final var classesDir = zipFs.getPath("/WEB-INF/classes");
+            assertThat(classpathOrder.addClasspathEntry(classesDir, null, null)).isTrue();
+        }
+        assertThat(locations()).containsExactly(war);
+        final var entryObj = entryObjects().get(0);
+        assertThat(entryObj).isInstanceOf(Path.class);
+        assertThat(((Path) entryObj).getFileSystem()).isSameAs(FileSystems.getDefault());
+        assertThat(entryObj).isEqualTo(Path.of(war));
+    }
+
+    /**
+     * A classpath entry given as a {@link Path} in a zip filesystem that was opened on a zipfile inside another zip
+     * filesystem is not dropped when its package root suffix is stripped. What is left once the suffix is stripped
+     * names the inner zipfile inside the outer one, which is a file of no filesystem, so the entry is kept as that
+     * path string, which names the inner zipfile as a nested archive.
+     */
+    @Test
+    public void strippingAPackageRootSuffixFromANestedZipFilesystemPathKeepsTheEntry(@TempDir final Path tempDir)
+            throws IOException {
+        final var jarPath = tempDir.resolve("outer.jar");
+        try (var outerFs = FileSystems.newFileSystem(jarPath, Map.of("create", "true"));
+                var innerFs = FileSystems.newFileSystem(outerFs.getPath("/app.war"), Map.of("create", "true"))) {
+            Files.createDirectories(innerFs.getPath("/WEB-INF/classes"));
+        }
+        final var jar = resolve(jarPath.toRealPath().toString());
+        classpathOrder.setPackageRootPrefixes(List.of("WEB-INF/classes/"), null);
+        try (var outerFs = FileSystems.newFileSystem(jarPath);
+                var innerFs = FileSystems.newFileSystem(outerFs.getPath("/app.war"))) {
+            final var classesDir = innerFs.getPath("/WEB-INF/classes");
+            assertThat(classpathOrder.addClasspathEntry(classesDir, null, null)).isTrue();
+        }
+        assertThat(locations()).containsExactly(jar + "!/app.war");
+        assertThat(entryObjects()).containsExactly(jar + "!/app.war");
+        // The same nested archive given as a path string is now a duplicate
+        assertThat(classpathOrder.addClasspathEntry(jar + "!/app.war", null, null)).isFalse();
     }
 
     /**
