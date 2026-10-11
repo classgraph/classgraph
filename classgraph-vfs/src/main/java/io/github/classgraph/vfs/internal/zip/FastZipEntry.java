@@ -41,7 +41,7 @@ import io.github.classgraph.vfs.internal.slice.Slice;
 import org.jspecify.annotations.Nullable;
 
 /** A zip entry within a {@link LogicalZipFile}. */
-public class FastZipEntry implements Comparable<FastZipEntry> {
+public final class FastZipEntry implements Comparable<FastZipEntry> {
     /**
      * The most that deflate can expand its input by: a match of 258 bytes, the longest there is, takes at least 2
      * bits, so a compressed byte can inflate to at most 1032 bytes.

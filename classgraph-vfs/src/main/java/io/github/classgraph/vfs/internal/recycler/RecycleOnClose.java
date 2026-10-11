@@ -40,7 +40,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * @param <E>
  *            the exception type that may be thrown when a recyclable item is acquired.
  */
-public class RecycleOnClose<T, E extends Exception> implements AutoCloseable {
+public final class RecycleOnClose<T, E extends Exception> implements AutoCloseable {
     /** The recycler. */
     private final Recycler<T, E> recycler;
 

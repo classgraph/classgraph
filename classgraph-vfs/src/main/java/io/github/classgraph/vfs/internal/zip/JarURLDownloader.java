@@ -61,7 +61,7 @@ final class JarURLDownloader {
      * A {@link URLConnection} that can be used in a try-with-resources block, so that the underlying HTTP
      * connection is disconnected when it goes out of scope.
      */
-    private static class CloseableUrlConnection implements AutoCloseable {
+    private static final class CloseableUrlConnection implements AutoCloseable {
         /** The connection. */
         public final URLConnection conn;
 
