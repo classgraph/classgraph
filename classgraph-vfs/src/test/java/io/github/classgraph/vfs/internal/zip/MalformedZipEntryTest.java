@@ -14,6 +14,7 @@ import java.util.logging.Handler;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import java.util.zip.CRC32;
+import java.util.zip.Deflater;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -35,7 +36,10 @@ public class MalformedZipEntryTest {
     /** The name of the readable entry that every zipfile written here holds. */
     private static final String GOOD_NAME = "testpkg/good.txt";
 
-    /** The contents of every entry, which is stored uncompressed. */
+    /**
+     * The contents of every entry, which is deflated if the entry's compression method is 8, and otherwise stored
+     * uncompressed.
+     */
     private static final byte[] CONTENTS = "contents".getBytes(StandardCharsets.UTF_8);
 
     /** The signature of a central directory record. */
@@ -346,6 +350,29 @@ public class MalformedZipEntryTest {
     }
 
     /**
+     * Deflate bytes as a zip entry stores them, as a raw deflate stream with no zlib header or trailer.
+     *
+     * @param bytes
+     *            the bytes to deflate
+     * @return the deflated bytes
+     */
+    private static byte[] deflated(final byte[] bytes) {
+        final var deflater = new Deflater(Deflater.DEFAULT_COMPRESSION, /* nowrap = */ true);
+        try {
+            deflater.setInput(bytes);
+            deflater.finish();
+            final var buf = new ByteArrayOutputStream();
+            final var chunk = new byte[1024];
+            while (!deflater.finished()) {
+                buf.write(chunk, 0, deflater.deflate(chunk));
+            }
+            return buf.toByteArray();
+        } finally {
+            deflater.end();
+        }
+    }
+
+    /**
      * Write a zipfile holding the given entries, each written correctly, but each with the central directory record
      * its {@link EntrySpec} describes.
      *
@@ -367,8 +394,11 @@ public class MalformedZipEntryTest {
 
         // Local file header of each entry, each immediately followed by the contents of the entry
         final var localHeaderOffsets = new ArrayList<Integer>();
+        final List<byte[]> storedContents = new ArrayList<>();
         for (final var entrySpec : entrySpecs) {
             localHeaderOffsets.add(zip.size());
+            final var stored = entrySpec.compressionMethod == 8 ? deflated(CONTENTS) : CONTENTS;
+            storedContents.add(stored);
             final var nameBytes = entrySpec.name.getBytes(StandardCharsets.UTF_8);
             write32(zip, 0x04034b50L);
             write16(zip, 45); // Version needed to extract
@@ -377,12 +407,12 @@ public class MalformedZipEntryTest {
             write16(zip, 0); // Last modified time
             write16(zip, 0x21); // Last modified date (1 Jan 1980)
             write32(zip, crc.getValue());
-            write32(zip, CONTENTS.length); // Compressed size
+            write32(zip, stored.length); // Compressed size
             write32(zip, CONTENTS.length); // Uncompressed size
             write16(zip, nameBytes.length);
             write16(zip, 0); // Extra field length
             zip.writeBytes(nameBytes);
-            zip.writeBytes(CONTENTS);
+            zip.writeBytes(stored);
         }
 
         // Central directory record of each entry
@@ -398,7 +428,8 @@ public class MalformedZipEntryTest {
             write16(zip, 0); // Last modified time
             write16(zip, 0x21); // Last modified date (1 Jan 1980)
             write32(zip, crc.getValue());
-            write32(zip, entrySpec.cenCompressedSize == null ? CONTENTS.length : entrySpec.cenCompressedSize);
+            write32(zip, entrySpec.cenCompressedSize == null ? storedContents.get(i).length
+                    : entrySpec.cenCompressedSize);
             write32(zip, entrySpec.cenUncompressedSize == null ? CONTENTS.length : entrySpec.cenUncompressedSize);
             write16(zip, entrySpec.cenFilenameLen == null ? nameBytes.length : entrySpec.cenFilenameLen);
             write16(zip,
@@ -591,11 +622,11 @@ public class MalformedZipEntryTest {
     }
 
     /**
-     * An entry whose compressed size runs past the end of the zipfile has no complete content to read, so reading
-     * it fails rather than returning whatever bytes happen to follow it.
+     * A stored entry whose compressed size runs past the end of the zipfile has no complete content to read, so
+     * reading it fails rather than returning whatever bytes happen to follow it.
      */
     @Test
-    public void anEntryWhoseContentExtendsPastTheEndOfTheZipfileCannotBeRead(@TempDir final File tempDir)
+    public void aStoredEntryWhoseContentExtendsPastTheEndOfTheZipfileCannotBeRead(@TempDir final File tempDir)
             throws Exception {
         final var jarFile = writeZip(tempDir, "csize-past-eof.jar",
                 entry("testpkg/past-eof.txt").cenCompressedSize(0xfffffff0L));
@@ -605,15 +636,42 @@ public class MalformedZipEntryTest {
 
     /**
      * A compressed size can be made large enough that adding it to the entry's start position overflows a 64-bit
-     * value, which must not let the entry past the check that its content lies within the zipfile.
+     * value, which must not let a stored entry past the check that its content lies within the zipfile.
      */
     @Test
-    public void anEntryWhoseCompressedSizeOverflowsTheEndOfTheZipfileCannotBeRead(@TempDir final File tempDir)
+    public void aStoredEntryWhoseCompressedSizeOverflowsTheEndOfTheZipfileCannotBeRead(@TempDir final File tempDir)
             throws Exception {
         final var jarFile = writeZip(tempDir, "csize-overflow.jar", entry("testpkg/overflow.txt")
                 .cenCompressedSize(OVERFLOWED).extraField(zip64ExtraField(null, Long.MAX_VALUE, null)));
         assertThatThrownBy(() -> entryContentsReadBack(jarFile)).isInstanceOf(IOException.class)
                 .hasMessageContaining("Unexpected EOF when trying to read zip entry data: testpkg/overflow.txt");
+    }
+
+    /**
+     * A deflate stream marks its own end, so the compressed size of a deflated entry is not needed to read it, and
+     * an entry whose compressed size runs past the end of the zipfile is read to the end of its stream, as
+     * {@link java.util.zip.ZipFile} reads it. Nothing that follows the stream is returned.
+     */
+    @Test
+    public void aDeflatedEntryWhoseContentExtendsPastTheEndOfTheZipfileIsReadToTheEndOfItsStream(
+            @TempDir final File tempDir) throws Exception {
+        final var jarFile = writeZip(tempDir, "deflated-csize-past-eof.jar",
+                entry("testpkg/past-eof.txt").compressionMethod(8).cenCompressedSize(0xfffffff0L),
+                entry(GOOD_NAME).compressionMethod(8));
+        assertThat(entryContentsReadBack(jarFile)).containsExactly("testpkg/past-eof.txt: contents",
+                GOOD_NAME + ": contents");
+    }
+
+    /**
+     * A deflated entry whose compressed size overflows the end of the zipfile is read to the end of its stream too.
+     */
+    @Test
+    public void aDeflatedEntryWhoseCompressedSizeOverflowsTheEndOfTheZipfileIsReadToTheEndOfItsStream(
+            @TempDir final File tempDir) throws Exception {
+        final var jarFile = writeZip(tempDir, "deflated-csize-overflow.jar",
+                entry("testpkg/overflow.txt").compressionMethod(8).cenCompressedSize(OVERFLOWED)
+                        .extraField(zip64ExtraField(null, Long.MAX_VALUE, null)));
+        assertThat(entryContentsReadBack(jarFile)).containsExactly("testpkg/overflow.txt: contents");
     }
 
     /**
