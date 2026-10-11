@@ -92,6 +92,18 @@ public class ClassRefTypeSignatureTest {
                 .containsExactly("java.lang.String");
     }
 
+    /** A nested class can follow the type arguments of a class name that ends in '$'. */
+    @Test
+    public void aNestedClassCanFollowTypeArgumentsAfterATrailingDollarSign() throws TypeSignatureParseException {
+        final var sig = parse("Lp1/Box$<TT;>.Inner;");
+        assertThat(sig.getBaseClassName()).isEqualTo("p1.Box$");
+        assertThat(sig.getTypeArguments()).extracting(Object::toString).containsExactly("T");
+        assertThat(sig.getSuffixes()).containsExactly("Inner");
+        assertThat(sig.getSuffixTypeArguments()).containsExactly(List.of());
+        assertThat(sig.getFullyQualifiedClassName()).isEqualTo("p1.Box$$Inner");
+        assertThat(sig).hasToString("p1.Box$<T>$Inner");
+    }
+
     /** A name cannot have two lists of type arguments, one before and one after a trailing '$'. */
     @Test
     public void typeArgumentsBeforeAndAfterATrailingDollarSignAreAParseError() {
