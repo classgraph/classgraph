@@ -29,7 +29,7 @@
 package io.github.classgraph;
 
 import java.lang.module.ModuleReference;
-import java.util.Collection;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -135,13 +135,20 @@ class UnscannedModules {
     }
 
     /**
-     * Get the classpath elements that were created for the modules that were looked in, so that
-     * {@link ClasspathElement#setScanResult(ScanResult)} can be called on them.
+     * Get the classpath elements that were created for the modules that were looked in, in module order (not in the
+     * order the modules were first looked in, which depends on thread timing).
      *
      * @return the classpath elements
      */
-    synchronized Collection<ClasspathElementModule> getClasspathElements() {
-        return List.copyOf(moduleToClasspathElement.values());
+    synchronized List<ClasspathElementModule> getClasspathElements() {
+        final List<ClasspathElementModule> classpathElements = new ArrayList<>(moduleToClasspathElement.size());
+        for (final ModuleReference moduleReference : unscannedModules) {
+            final var classpathElement = moduleToClasspathElement.get(moduleReference);
+            if (classpathElement != null) {
+                classpathElements.add(classpathElement);
+            }
+        }
+        return classpathElements;
     }
 
     /**

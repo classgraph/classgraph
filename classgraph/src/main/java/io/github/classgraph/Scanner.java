@@ -1150,15 +1150,20 @@ class Scanner {
         }
 
         // List the modules in classpath order, not in the order the classfiles were linked in, which depends on
-        // thread timing, so that the first module of a given name is the same in every scan. The modules left over
-        // were only looked in for external classes, and are not in the classpath order.
+        // thread timing, so that the first module of a given name is the same in every scan. The modules that were
+        // only looked in for external classes are not in the classpath order, so they follow it, in module order.
         for (final ClasspathElement classpathElement : finalClasspathEltOrder) {
-            final var moduleInfo = classpathEltToModuleInfo.remove(classpathElement);
+            final var moduleInfo = classpathEltToModuleInfo.get(classpathElement);
             if (moduleInfo != null) {
                 moduleInfoInScanOrder.add(moduleInfo);
             }
         }
-        moduleInfoInScanOrder.addAll(classpathEltToModuleInfo.values());
+        for (final ClasspathElement classpathElement : unscannedModules.getClasspathElements()) {
+            final var moduleInfo = classpathEltToModuleInfo.get(classpathElement);
+            if (moduleInfo != null) {
+                moduleInfoInScanOrder.add(moduleInfo);
+            }
+        }
 
         // A ClassInfo object is created for every class named as a superclass, interface or annotation of a scanned
         // class, and scanning is extended upwards to those classes, so the class graph above a scanned class is
