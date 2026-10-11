@@ -4,9 +4,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
- * Can a jar be deleted or replaced while ClassGraph is holding a ScanResult over it? Windows refuses to delete a
- * file that is memory-mapped, and refuses to delete an open file at all, whereas Unix allows both. Jarfiles are
- * memory-mapped on Windows only, so this probes whichever path the platform takes.
+ * Can a jar be deleted or replaced while ClassGraph is holding a ScanResult over it? Some versions of Windows
+ * refuse to delete a file that is memory-mapped, and Windows refuses to delete a file that is open through a
+ * FileInputStream or a ZipFile, which open a file without letting it be deleted, whereas Unix allows both. Jarfiles
+ * are memory-mapped on Windows only, so this probes whichever path the platform takes.
  *
  * Run with: java -cp <classgraph-classes> LockProbe.java <a-jar-to-copy>
  */

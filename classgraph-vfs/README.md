@@ -381,9 +381,10 @@ A mapped file is unmapped when the root that mapped it is closed, which closing 
 every root, by closing the `java.lang.foreign.Arena` that mapped it. The root closes every
 `CloseableByteBuffer` it handed out first, so that no wrapper is left holding a view of a mapping the
 root is about to release, and the unmap is the last thing the close does. Unmapping has to happen as
-the root closes because Windows refuses to delete, rename or overwrite a file while it is mapped: a
-close that returned with the files it had mapped still mapped would leave them locked, and a
-temporary file that a nested jarfile had been extracted to could not be deleted.)
+the root closes because Windows refuses to overwrite a file while it is mapped, and some versions of
+Windows refuse to delete one: a close that returned with the files it had mapped still mapped would
+leave them locked, and on those versions a temporary file that a nested jarfile had been extracted
+to could not be deleted.)
 
 A `Vfs` and everything it hands out is safe to use from many threads at once. This is what lets
 ClassGraph scan a jarfile in parallel. What that is worth is measured in
