@@ -59,23 +59,29 @@ public class PhysicalZipFileIdentityTest {
             final var fromFile = new PhysicalZipFile(jarFile, vfs, /* log = */ null);
             final var fromPath = new PhysicalZipFile(jarFile.toPath(), vfs, /* log = */ null);
             final var fromOtherFile = new PhysicalZipFile(otherJarFile, vfs, /* log = */ null);
+            try {
+                assertThat(fromFile).isEqualTo(fromFile).isNotEqualTo(fromPath).isNotEqualTo(fromOtherFile)
+                        .isNotEqualTo(jarFile.getPath());
 
-            assertThat(fromFile).isEqualTo(fromFile).isNotEqualTo(fromPath).isNotEqualTo(fromOtherFile)
-                    .isNotEqualTo(jarFile.getPath());
+                // Only one of the two openings has a File, and only the other has a Path
+                assertThat(fromFile.getFile()).isEqualTo(jarFile);
+                assertThat(fromFile.getPath()).isNull();
+                assertThat(fromPath.getPath()).isEqualTo(jarFile.toPath());
+                assertThat(fromPath.getFile()).isNull();
 
-            // Only one of the two openings has a File, and only the other has a Path
-            assertThat(fromFile.getFile()).isEqualTo(jarFile);
-            assertThat(fromFile.getPath()).isNull();
-            assertThat(fromPath.getPath()).isEqualTo(jarFile.toPath());
-            assertThat(fromPath.getFile()).isNull();
-
-            // A zipfile names itself by its path
-            assertThat(fromFile.getPathString()).endsWith(jarFile.getName());
-            assertThat(fromFile).hasToString(fromFile.getPathString());
-            assertThat(fromPath).hasToString(fromFile.getPathString());
-            assertThat(fromFile.length()).isEqualTo(jarFile.length());
+                // A zipfile names itself by its path
+                assertThat(fromFile.getPathString()).endsWith(jarFile.getName());
+                assertThat(fromFile).hasToString(fromFile.getPathString());
+                assertThat(fromPath).hasToString(fromFile.getPathString());
+                assertThat(fromFile.length()).isEqualTo(jarFile.length());
+            } finally {
+                // The jarfiles must not be left open, otherwise the temporary directory cannot be deleted on
+                // Windows. Whatever constructs a physical zipfile owns it, and closing the Vfs does not close it
+                fromFile.close();
+                fromPath.close();
+                fromOtherFile.close();
+            }
         } finally {
-            // The jarfiles must not be left open, otherwise the temporary directory cannot be deleted on Windows
             vfs.close(/* log = */ null);
         }
     }
@@ -131,14 +137,24 @@ public class PhysicalZipFileIdentityTest {
         final var vfs = new Vfs(new VfsSpec(), new InterruptionChecker());
         final var otherVfs = new Vfs(new VfsSpec(), new InterruptionChecker());
         try {
-            final var logicalZipFile = JarOpener.openJarFile(jarFile, vfs, /* log = */ null).zipFile();
-            final var openedAgain = JarOpener.openJarFile(jarFile, otherVfs, /* log = */ null).zipFile();
+            final var openedJar = JarOpener.openJarFile(jarFile, vfs, /* log = */ null);
+            final var openedJarAgain = JarOpener.openJarFile(jarFile, otherVfs, /* log = */ null);
+            try {
+                final var logicalZipFile = openedJar.zipFile();
+                final var openedAgain = openedJarAgain.zipFile();
 
-            // The two openings are of the same file, but are not the same handle on it
-            assertThat(logicalZipFile.getPhysicalFile()).isEqualTo(openedAgain.getPhysicalFile());
-            assertThat(logicalZipFile.getPath()).isEqualTo(openedAgain.getPath());
-            assertThat(logicalZipFile).isEqualTo(logicalZipFile).isNotEqualTo(openedAgain)
-                    .isNotEqualTo(jarFile.getPath());
+                // The two openings are of the same file, but are not the same handle on it
+                assertThat(logicalZipFile.getPhysicalFile()).isEqualTo(openedAgain.getPhysicalFile());
+                assertThat(logicalZipFile.getPath()).isEqualTo(openedAgain.getPath());
+                assertThat(logicalZipFile).isEqualTo(logicalZipFile).isNotEqualTo(openedAgain)
+                        .isNotEqualTo(jarFile.getPath());
+            } finally {
+                // The jarfile must not be left open, otherwise the temporary directory cannot be deleted on
+                // Windows. The caller owns the physical zipfiles that were opened, which closing the Vfs does not
+                // close
+                openedJar.ownedPhysicalZipFile().close();
+                openedJarAgain.ownedPhysicalZipFile().close();
+            }
         } finally {
             vfs.close(/* log = */ null);
             otherVfs.close(/* log = */ null);

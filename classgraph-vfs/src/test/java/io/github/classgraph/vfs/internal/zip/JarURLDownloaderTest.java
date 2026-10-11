@@ -495,10 +495,15 @@ public class JarURLDownloaderTest {
         final var jarBytes = buildJar(jar, "Read from the local filesystem");
         final var log = new LogNode();
         final var physicalZipFile = JarURLDownloader.downloadJarFromURL(jar.toUri().toString(), vfs, log);
-
-        assertThat(physicalZipFile.slice.load()).isEqualTo(jarBytes);
-        assertThat(physicalZipFile.getPath()).isEqualTo(jar);
-        assertThat(log.toString()).contains("is backed by filesystem");
+        try {
+            assertThat(physicalZipFile.slice.load()).isEqualTo(jarBytes);
+            assertThat(physicalZipFile.getPath()).isEqualTo(jar);
+            assertThat(log.toString()).contains("is backed by filesystem");
+        } finally {
+            // The jarfile must not be left open, otherwise the temporary directory cannot be deleted on Windows.
+            // The caller owns the physical zipfile that was opened, which closing the Vfs does not close
+            physicalZipFile.close();
+        }
     }
 
     /**
@@ -565,10 +570,15 @@ public class JarURLDownloaderTest {
         final var log = new LogNode();
 
         final var physicalZipFile = JarURLDownloader.downloadJarFromURL(uri.toString(), vfs, log);
-
-        assertThat(physicalZipFile.slice.load()).isEqualTo(jarBytes);
-        assertThat(physicalZipFile.getPath()).isEqualTo(jar);
-        assertThat(log.toString()).contains("is backed by filesystem");
+        try {
+            assertThat(physicalZipFile.slice.load()).isEqualTo(jarBytes);
+            assertThat(physicalZipFile.getPath()).isEqualTo(jar);
+            assertThat(log.toString()).contains("is backed by filesystem");
+        } finally {
+            // The jarfile must not be left open, otherwise the temporary directory cannot be deleted on Windows.
+            // The caller owns the physical zipfile that was opened, which closing the Vfs does not close
+            physicalZipFile.close();
+        }
         // Opening the URI through the Vfs, as a classpath element named by that URI is opened, reads the same jar
         assertThat(Objects.requireNonNull(vfs.open(uri).getEntry(ENTRY_PATH)).loadAsString())
                 .isEqualTo("Read from a filesystem with no URL handler");

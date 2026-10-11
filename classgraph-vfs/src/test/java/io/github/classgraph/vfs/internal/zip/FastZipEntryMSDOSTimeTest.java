@@ -87,12 +87,18 @@ public class FastZipEntryMSDOSTimeTest {
         final var vfs = new Vfs(new VfsSpec(), new InterruptionChecker());
         final long lastModifiedTimeMillis;
         try {
-            final var entries = JarOpener.openJarFile(jarFile, vfs, /* log = */ null).zipFile().getEntries();
-            assertThat(entries).hasSize(1);
-            assertThat(entries.get(0).entryName).isEqualTo(ENTRY_NAME);
-            lastModifiedTimeMillis = entries.get(0).getLastModifiedMillis();
+            final var openedJar = JarOpener.openJarFile(jarFile, vfs, /* log = */ null);
+            try {
+                final var entries = openedJar.zipFile().getEntries();
+                assertThat(entries).hasSize(1);
+                assertThat(entries.get(0).entryName).isEqualTo(ENTRY_NAME);
+                lastModifiedTimeMillis = entries.get(0).getLastModifiedMillis();
+            } finally {
+                // The jarfile must not be left open, otherwise the temporary directory cannot be deleted on
+                // Windows. The caller owns the physical zipfile that was opened, which closing the Vfs does not close
+                openedJar.ownedPhysicalZipFile().close();
+            }
         } finally {
-            // The jarfile must not be left open, otherwise the temporary directory cannot be deleted on Windows
             vfs.close(/* log = */ null);
         }
         return lastModifiedTimeMillis;

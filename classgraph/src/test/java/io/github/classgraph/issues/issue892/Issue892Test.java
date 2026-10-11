@@ -15,6 +15,7 @@ import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import io.github.classgraph.ClassGraph;
 
@@ -85,11 +86,8 @@ class Issue892Test {
      * A classpath element is found even if the classloader only exposes it through {@code getResources()}.
      */
     @Test
-    void classpathElementIsFoundByProbingForResources() throws IOException {
-        // Not @TempDir: on Windows, the jar cannot be deleted while it is still open, and it may be held open by a
-        // memory mapping until it is garbage collected, which would fail the temp directory cleanup
-        final var jarFile = File.createTempFile("issue892-", ".jar");
-        jarFile.deleteOnExit();
+    void classpathElementIsFoundByProbingForResources(@TempDir final File tempDir) throws IOException {
+        final var jarFile = new File(tempDir, "issue892.jar");
         buildJar(jarFile, ClassInProbedJar.class);
 
         try (var classLoader = new OpaqueClassLoader(jarFile.toURI().toURL())) {

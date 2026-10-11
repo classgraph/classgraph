@@ -333,22 +333,28 @@ public class PathSliceTest {
     }
 
     /**
-     * A file that a vfs memory-mapped can be deleted once the vfs has been closed, since closing the vfs unmaps it.
-     * Windows refuses to delete a file that is still mapped. (Every other operating system lets a mapped file be
-     * deleted, so this test only bites on Windows.)
+     * A file that a slice memory-mapped can be overwritten and deleted once the slice has been closed, since
+     * closing the slice unmaps it. Windows refuses to overwrite a file that is still mapped, and some versions of
+     * Windows refuse to delete one. (Every other operating system allows both, so this test only bites on Windows.)
      */
     // #939
     @Test
     @EnabledOnOs(OS.WINDOWS)
-    public void aMappedFileCanBeDeletedOnceTheSessionIsClosed(@TempDir final Path tempDir) throws IOException {
+    public void aMappedFileCanBeOverwrittenAndDeletedOnceTheSliceIsClosed(@TempDir final Path tempDir)
+            throws IOException {
         final var file = writeTestFile(tempDir);
         final var vfs = vfs();
-        final var slice = new PathSlice(file, vfs, /* log = */ null);
-        assertThat(slice.read().isDirect()).isTrue();
+        try {
+            final var slice = new PathSlice(file, vfs, /* log = */ null);
+            assertThat(slice.read().isDirect()).isTrue();
+            // Closing the slice unmaps the file. Closing the vfs would not, since a slice that no root owns belongs
+            // to whoever opened it
+            slice.close();
+        } finally {
+            vfs.close(/* log = */ null);
+        }
 
-        // Closing the vfs closes the slice, which unmaps the file
-        vfs.close(/* log = */ null);
-
+        writeTestFile(tempDir);
         Files.delete(file);
         assertThat(Files.exists(file)).isFalse();
     }
