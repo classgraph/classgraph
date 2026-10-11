@@ -213,7 +213,10 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
      * Returns the parsed type descriptor for the class member, which will not include type parameters. If you need
      * generic type parameters, call {@link #getTypeSignature()} instead.
      *
-     * @return The parsed type descriptor string for the class member.
+     * @return The parsed type descriptor for the class member.
+     * @throws IllegalArgumentException
+     *             if the field or method type descriptor in the classfile cannot be parsed (this should only be
+     *             thrown in the case of classfile corruption).
      */
     public abstract HierarchicalTypeSignature getTypeDescriptor();
 
@@ -258,6 +261,9 @@ public abstract class ClassMemberInfo extends ScanResultObject implements HasNam
      *
      * @return The parsed type signature for the class member, or if not available, the parsed type descriptor for
      *         the class member.
+     * @throws IllegalArgumentException
+     *             if the type descriptor is needed and the field or method type descriptor in the classfile cannot
+     *             be parsed (this should only be thrown in the case of classfile corruption).
      */
     public abstract HierarchicalTypeSignature getTypeSignatureOrTypeDescriptor();
 

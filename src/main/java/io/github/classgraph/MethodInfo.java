@@ -181,6 +181,9 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
      * generic type parameters, call {@link #getTypeSignature()} instead.
      * 
      * @return The parsed type descriptor for the method.
+     * @throws IllegalArgumentException
+     *             if the method type descriptor in the classfile cannot be parsed (this should only be thrown in
+     *             the case of classfile corruption).
      */
     @Override
     public MethodTypeSignature getTypeDescriptor() {
@@ -365,6 +368,9 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
      *
      * @return The parsed type signature for the method, or if not available, the parsed type descriptor for the
      *         method.
+     * @throws IllegalArgumentException
+     *             if the type descriptor is needed and the method type descriptor in the classfile cannot be parsed
+     *             (this should only be thrown in the case of classfile corruption).
      */
     @Override
     public MethodTypeSignature getTypeSignatureOrTypeDescriptor() {

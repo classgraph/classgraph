@@ -146,7 +146,10 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
      * Returns the parsed type descriptor for the field, which will not include type parameters. If you need generic
      * type parameters, call {@link #getTypeSignature()} instead.
      *
-     * @return The parsed type descriptor string for the field.
+     * @return The parsed type descriptor for the field.
+     * @throws IllegalArgumentException
+     *             if the field type descriptor in the classfile cannot be parsed (this should only be thrown in the
+     *             case of classfile corruption).
      */
     @Override
     public TypeSignature getTypeDescriptor() {
@@ -231,6 +234,9 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
      *
      * @return The parsed type signature for the field, or if not available, the parsed type descriptor for the
      *         field.
+     * @throws IllegalArgumentException
+     *             if the type descriptor is needed and the field type descriptor in the classfile cannot be parsed
+     *             (this should only be thrown in the case of classfile corruption).
      */
     @Override
     public TypeSignature getTypeSignatureOrTypeDescriptor() {
