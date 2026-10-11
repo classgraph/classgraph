@@ -3,13 +3,17 @@ package io.github.classgraph;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.regex.Pattern;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 /**
  * A {@link ScanResult} keeps the configuration it was scanned with, even if the {@link ClassGraph} that produced it
@@ -47,6 +51,41 @@ public class ScanSpecCopyTest {
                     .withMessageContaining("enableFieldInfo");
             assertThat(scanResult.getAllClasses().getNames()).containsExactly(Target.class.getName());
             assertThat(scanResult.getResourcesWithPathIgnoringAccept(targetPath)).hasSize(1);
+        }
+    }
+
+    /**
+     * Changing the {@link ClassGraph}'s storage settings after a scan does not change the answers of the
+     * {@link ScanResult} that the scan returned. Whether multi-release versioning is honored is read again each
+     * time the {@link ScanResult} looks up a resource by path, so it is the setting to change here.
+     *
+     * @param dir
+     *            a temporary directory to scan.
+     * @throws IOException
+     *             if a file could not be written.
+     */
+    @Test
+    public void reconfiguringTheVfsSettingsAfterAScanDoesNotChangeTheEarlierResult(@TempDir final Path dir)
+            throws IOException {
+        final var path = "p/a.txt";
+        final var versionedPath = "META-INF/versions/9/" + path;
+        for (final var relativePath : new String[] { path, versionedPath }) {
+            final var file = dir.resolve(relativePath);
+            Files.createDirectories(file.getParent());
+            Files.writeString(file, relativePath);
+        }
+        final var classGraph = new ClassGraph().enableClasspathEntries(dir.toString());
+        try (var scanResult = classGraph.scan()) {
+            assertThat(scanResult.getResourcesWithPathIgnoringAccept(versionedPath)).isEmpty();
+
+            classGraph.disableMultiReleaseVersions();
+
+            assertThat(scanResult.getResourcesWithPathIgnoringAccept(versionedPath)).isEmpty();
+            assertThat(scanResult.getResourcesWithPathIgnoringAccept(path)).hasSize(1);
+        }
+        // A scan started after the change does use it
+        try (var scanResult = classGraph.scan()) {
+            assertThat(scanResult.getResourcesWithPathIgnoringAccept(versionedPath)).hasSize(1);
         }
     }
 
