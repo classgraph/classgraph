@@ -179,6 +179,14 @@ public class ClassGraphTest {
         assertThat(verbose.get(0)).contains("ClassGraph version").contains("marker.txt");
     }
 
+    /** {@code verbose(false)} switches off verbose logging that was switched on before. */
+    @Test
+    public void verboseFalseSwitchesOffVerboseLogging() {
+        final var messages = captureLog(() -> new ClassGraph().verbose().verbose(false)
+                .enableClasspathEntries(markerDir.toString()).scan().close());
+        assertThat(messages).isEmpty();
+    }
+
     /** Realtime logging writes each log entry as it is created, rather than only when the scan completes. */
     @Test
     public void realtimeLoggingWritesEntriesAsTheyAreCreated() {

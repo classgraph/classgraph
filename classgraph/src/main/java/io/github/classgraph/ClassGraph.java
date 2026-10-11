@@ -195,16 +195,14 @@ public final class ClassGraph {
     }
 
     /**
-     * Switches on verbose logging if verbose is true, as {@link #verbose()} does.
+     * Switches verbose logging on if verbose is true, and off if it is false. See {@link #verbose()}.
      *
      * @param verbose
-     *            if true, enable verbose logging.
+     *            if true, enable verbose logging; if false, disable it.
      * @return this (for method chaining).
      */
     public ClassGraph verbose(final boolean verbose) {
-        if (verbose) {
-            this.verbose = true;
-        }
+        this.verbose = verbose;
         return this;
     }
 
@@ -1550,8 +1548,8 @@ public final class ClassGraph {
      * a loop, or where one scanning step is taking much longer than it should, etc.
      *
      * <p>
-     * This says when the log is written, not whether there is a log, so {@link #verbose()} has to be called too, or
-     * the scan throws {@link IllegalArgumentException}.
+     * This says when the log is written, not whether there is a log, so verbose logging has to be switched on too,
+     * with {@link #verbose()}, or the scan throws {@link IllegalArgumentException}.
      *
      * @return this (for method chaining).
      */
