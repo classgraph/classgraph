@@ -110,8 +110,7 @@ final class URLClassPathReader {
      */
     static void addAllClasspathEntries(final Object ucp, final ClassLoader classLoader,
             final ClasspathOrder classpathOrder, final @Nullable ClassGraphLog log) {
-        classpathOrder.addClasspathEntryObject(ReflectionUtils.invokeMethod(false, ucp, "getURLs"), classLoader,
-                log);
+        classpathOrder.addClasspathEntry(ReflectionUtils.invokeMethod(false, ucp, "getURLs"), classLoader, log);
         addUnlistedClasspathEntries(ucp, classLoader, classpathOrder, log);
     }
 
@@ -138,13 +137,13 @@ final class URLClassPathReader {
             synchronized (unopenedUrls) {
                 unopenedUrlsCopy = new ArrayList<>(unopenedUrlsCollection);
             }
-            classpathOrder.addClasspathEntryObject(unopenedUrlsCopy, classLoader, log);
+            classpathOrder.addClasspathEntry(unopenedUrlsCopy, classLoader, log);
         }
 
         // The JDK adds to this list while holding the URLClassPath's own monitor, so hold that too. (These two
         // monitors are never held at the same time here, so there is no lock ordering to get wrong.) Read each
-        // loader's base URL, rather than the String keys of the lmap field: those keys are not URLs, and passing a
-        // String to addClasspathEntryObject would split it at every path separator character in the path.
+        // loader's base URL from this list, which is in classpath order, rather than the keys of the lmap field:
+        // lmap is a HashMap, so its keys are in hash order, and they are strings rather than URLs.
         final List<URL> openedUrls = new ArrayList<>();
         synchronized (ucp) {
             if (ReflectionUtils.getFieldVal(false, ucp, "loaders") instanceof final List<?> loaders) {

@@ -215,7 +215,7 @@ class QuarkusClassLoaderHandler implements ClassLoaderHandler {
                 }
                 try {
                     final var uri = path.toUri();
-                    classpathOrder.addClasspathEntryObject(uri, classLoader, log);
+                    classpathOrder.addClasspathEntry(uri, classLoader, log);
                 } catch (final IOError _) {
                     if (log != null) {
                         log.log("Could not convert path to URI: " + path);
