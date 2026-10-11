@@ -40,7 +40,7 @@ import org.jspecify.annotations.Nullable;
  * An {@link InputStream} that reads the bytes of a {@link Slice}, in order, through the slice's
  * {@link RandomAccessReader}.
  */
-class SliceInputStream extends InputStream {
+final class SliceInputStream extends InputStream {
     /** The slice being read. */
     private final Slice slice;
 

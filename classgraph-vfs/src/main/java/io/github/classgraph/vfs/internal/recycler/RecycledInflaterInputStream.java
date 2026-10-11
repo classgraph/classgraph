@@ -41,7 +41,7 @@ import java.util.zip.ZipException;
  * An {@link InputStream} that inflates a stream of deflated zip entry data, using an {@link Inflater} borrowed from
  * a {@link Recycler} and handed back to it when this stream is closed.
  */
-public class RecycledInflaterInputStream extends InputStream {
+public final class RecycledInflaterInputStream extends InputStream {
     /** The stream of deflated bytes. */
     private final InputStream rawInputStream;
 
