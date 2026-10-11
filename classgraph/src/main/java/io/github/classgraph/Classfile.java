@@ -233,6 +233,22 @@ class Classfile {
      */
     private static final int MAX_CLASSFILE_LENGTH = 64 * 1024 * 1024;
 
+    /**
+     * The bits of a class's {@code access_flags} that JVMS 4.1 defines: {@code ACC_PUBLIC}, {@code ACC_FINAL},
+     * {@code ACC_SUPER}, {@code ACC_INTERFACE}, {@code ACC_ABSTRACT}, {@code ACC_SYNTHETIC},
+     * {@code ACC_ANNOTATION}, {@code ACC_ENUM} and {@code ACC_MODULE}. The other bits are reserved, and the JVM
+     * ignores them.
+     */
+    private static final int CLASS_ACCESS_FLAGS = 0xF631;
+
+    /**
+     * The bits of an {@code InnerClasses} entry's {@code inner_class_access_flags} that JVMS 4.7.6 defines:
+     * {@code ACC_PUBLIC}, {@code ACC_PRIVATE}, {@code ACC_PROTECTED}, {@code ACC_STATIC}, {@code ACC_FINAL},
+     * {@code ACC_INTERFACE}, {@code ACC_ABSTRACT}, {@code ACC_SYNTHETIC}, {@code ACC_ANNOTATION} and
+     * {@code ACC_ENUM}. The other bits are reserved, and the JVM ignores them.
+     */
+    private static final int INNER_CLASS_ACCESS_FLAGS = 0x761F;
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**
@@ -1797,8 +1813,9 @@ class Classfile {
      *             false)
      */
     private void readBasicClassInfo() throws IOException, ClassfileFormatException, SkipClassException {
-        // Modifier flags
-        classModifiers = reader().readUnsignedShort();
+        // Modifier flags. The reserved bits are dropped: the jlink-generated java.lang.invoke.*$Holder classes,
+        // for example, set bit 0x0002 (ACC_PRIVATE for a nested class), and would otherwise be reported as private.
+        classModifiers = reader().readUnsignedShort() & CLASS_ACCESS_FLAGS;
 
         isInterface = (classModifiers & 0x0200) != 0;
         isAnnotation = (classModifiers & 0x2000) != 0;
@@ -2552,7 +2569,7 @@ class Classfile {
             final var innerClassInfoCpIdx = reader().readUnsignedShort();
             final var outerClassInfoCpIdx = reader().readUnsignedShort();
             final var innerNameCpIdx = reader().readUnsignedShort();
-            final var innerClassAccessFlags = reader().readUnsignedShort();
+            final var innerClassAccessFlags = reader().readUnsignedShort() & INNER_CLASS_ACCESS_FLAGS;
             if (innerClassInfoCpIdx != 0 && className.equals(getConstantPoolClassName(innerClassInfoCpIdx))) {
                 ownInnerClassAccessFlags = innerClassAccessFlags;
                 // An inner_name_index of 0 in the class' own entry means that the class is anonymous (JVMS 4.7.6)

@@ -47,6 +47,13 @@ public class ClassfileOracleTest {
      */
     private static final int CLASS_FLAGS = 0xF631;
 
+    /**
+     * The access flags that JVMS 4.7.6 defines for an {@code InnerClasses} entry: {@code ACC_PUBLIC},
+     * {@code ACC_PRIVATE}, {@code ACC_PROTECTED}, {@code ACC_STATIC}, {@code ACC_FINAL}, {@code ACC_INTERFACE},
+     * {@code ACC_ABSTRACT}, {@code ACC_SYNTHETIC}, {@code ACC_ANNOTATION} and {@code ACC_ENUM}.
+     */
+    private static final int INNER_CLASS_FLAGS = 0x761F;
+
     /** The differences found, one line each. */
     private final List<String> mismatches = new ArrayList<>();
 
@@ -261,19 +268,15 @@ public class ClassfileOracleTest {
                 model.majorVersion() + "." + model.minorVersion());
 
         // The modifiers of a class come only from its own classfile: the access level and ACC_STATIC from its
-        // own InnerClasses entry if it has one, otherwise its access flags, of which the JVM ignores the bits
-        // that JVMS 4.1 does not define for a class
-        final var rawFlags = model.flags().flagsMask();
+        // own InnerClasses entry if it has one, otherwise its access flags. The JVM ignores the bits that JVMS 4.1
+        // does not define for a class (the jlink-generated java.lang.invoke.*$Holder classes set bit 0x0002), and
+        // the bits that JVMS 4.7.6 does not define for an InnerClasses entry.
+        final var classFlags = model.flags().flagsMask() & CLASS_FLAGS;
         final var ownInner = ownInnerFlags.get(cn);
-        final var expectedModifiers = (ownInner == null ? rawFlags & CLASS_FLAGS
-                : (rawFlags & ~ACCESS_LEVEL) | ownInner) & ~ACC_SUPER;
-        // ClassGraph keeps the undefined bits of a class's access flags. The jlink-generated
-        // java.lang.invoke.*$Holder classes have no InnerClasses entry of their own and set bit 0x0002 in their
-        // access flags, which ClassGraph reports as private, while reflection reports package access. Until
-        // ClassGraph drops these bits, compare only the defined bits of a class with no entry of its own.
-        final var comparedBits = ownInner == null ? CLASS_FLAGS : ~0;
-        check(cn + " modifiers", Integer.toHexString(classInfo.getModifiers() & comparedBits),
-                Integer.toHexString(expectedModifiers & comparedBits));
+        final var expectedModifiers = (ownInner == null ? classFlags
+                : (classFlags & ~ACCESS_LEVEL) | (ownInner & INNER_CLASS_FLAGS)) & ~ACC_SUPER;
+        check(cn + " modifiers", Integer.toHexString(classInfo.getModifiers()),
+                Integer.toHexString(expectedModifiers));
 
         final var typeDescriptor = classInfo.getTypeDescriptor();
         final var superclassSignature = typeDescriptor.getSuperclassSignature();
