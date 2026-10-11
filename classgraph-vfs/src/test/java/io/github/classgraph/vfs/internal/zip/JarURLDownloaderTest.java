@@ -2,6 +2,7 @@ package io.github.classgraph.vfs.internal.zip;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -16,6 +17,8 @@ import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.Permission;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.zip.ZipEntry;
@@ -537,6 +540,107 @@ public class JarURLDownloaderTest {
         assertThatThrownBy(() -> JarURLDownloader.downloadJarFromURL("nosuchscheme:/x.jar", vfs, /* log = */ null))
                 .isInstanceOf(IOException.class).hasMessageContaining("unknown protocol: nosuchscheme")
                 .hasCauseInstanceOf(MalformedURLException.class);
+    }
+
+    /**
+     * A jar at a URI whose scheme is backed by a {@link java.nio.file.spi.FileSystemProvider}, but that no URL
+     * stream handler is registered for, is read through the filesystem that backs it, even though the URI cannot be
+     * turned into a URL.
+     *
+     * @param tempDir
+     *            a temporary directory to build the jar in
+     * @throws IOException
+     *             if the jar could not be built, or the jar could not be read
+     */
+    @Test
+    public void aJarAtAUriThatOnlyAFilesystemCanReadIsReadThroughThatFilesystem(@TempDir final Path tempDir)
+            throws IOException {
+        final var jar = tempDir.resolve("provider-only.jar");
+        final var jarBytes = buildJar(jar, "Read from a filesystem with no URL handler");
+        final var uri = ProviderOnlySchemeFileSystemProvider.uriOf(jar);
+        final var log = new LogNode();
+
+        final var physicalZipFile = JarURLDownloader.downloadJarFromURL(uri.toString(), vfs, log);
+
+        assertThat(physicalZipFile.slice.load()).isEqualTo(jarBytes);
+        assertThat(physicalZipFile.getPath()).isEqualTo(jar);
+        assertThat(log.toString()).contains("is backed by filesystem");
+        // Opening the URI through the Vfs, as a classpath element named by that URI is opened, reads the same jar
+        assertThat(Objects.requireNonNull(vfs.open(uri).getEntry(ENTRY_PATH)).loadAsString())
+                .isEqualTo("Read from a filesystem with no URL handler");
+    }
+
+    /**
+     * A denied scheme is refused for a URI that only a filesystem can read, just as for a URL.
+     *
+     * @param tempDir
+     *            a temporary directory to build the jar in
+     * @throws IOException
+     *             if the jar could not be built
+     */
+    @Test
+    public void aDeniedSchemeIsRefusedForAUriThatOnlyAFilesystemCanRead(@TempDir final Path tempDir)
+            throws IOException {
+        final var jar = tempDir.resolve("provider-only.jar");
+        buildJar(jar, "Never read");
+        final var uri = ProviderOnlySchemeFileSystemProvider.uriOf(jar).toString();
+        try (var deniedVfs = new Vfs(new VfsSpec().denyURLScheme(ProviderOnlySchemeFileSystemProvider.SCHEME))) {
+            assertThatThrownBy(() -> JarURLDownloader.downloadJarFromURL(uri, deniedVfs, /* log = */ null))
+                    .isInstanceOf(IOException.class).hasMessageContaining(
+                            "Fetching a jarfile over \"" + ProviderOnlySchemeFileSystemProvider.SCHEME + ":\"");
+        }
+    }
+
+    /**
+     * A jar at a URI that only a filesystem can read, whose filesystem provider throws a {@link SecurityException}
+     * from {@code getPath} because a SecurityManager denies access to the file, is reported with an
+     * {@link IOException} that names the {@link SecurityException}, as a URI that the provider rejects is, rather
+     * than letting the {@link SecurityException} escape. A SecurityManager can only be installed on JDK 17, so this
+     * test is skipped on later JDKs.
+     *
+     * @param tempDir
+     *            a temporary directory to build the jar in
+     * @throws IOException
+     *             if the jar could not be built
+     */
+    @Test
+    @SuppressWarnings("removal")
+    public void aJarThatASecurityManagerWillNotLetAFilesystemReadIsReportedAsAnIOException(
+            @TempDir final Path tempDir) throws IOException {
+        final var jar = tempDir.resolve("provider-only.jar");
+        buildJar(jar, "Never read");
+        final var uri = ProviderOnlySchemeFileSystemProvider.uriOf(jar).toString();
+        final var deniedPath = jar.toString();
+        final var denyingSecurityManager = new SecurityManager() {
+            @Override
+            public void checkPermission(final Permission perm) {
+                // Allow everything else, including removing this SecurityManager again
+            }
+
+            @Override
+            public void checkRead(final String file) {
+                if (file.equals(deniedPath)) {
+                    throw new SecurityException("Read access denied: " + file);
+                }
+            }
+        };
+        try {
+            System.setSecurityManager(denyingSecurityManager);
+        } catch (final UnsupportedOperationException e) {
+            assumeTrue(false, "Cannot install a SecurityManager");
+        }
+        Throwable thrown;
+        try {
+            JarURLDownloader.downloadJarFromURL(uri, vfs, /* log = */ null);
+            thrown = null;
+        } catch (final IOException | RuntimeException e) {
+            thrown = e;
+        } finally {
+            System.setSecurityManager(null);
+        }
+        // Asserted only once the SecurityManager is removed
+        assertThat(thrown).isInstanceOf(IOException.class).hasMessageContaining("Could not convert URL to a path")
+                .hasCauseInstanceOf(SecurityException.class);
     }
 
     /**

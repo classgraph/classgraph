@@ -481,7 +481,7 @@ public abstract sealed class ClasspathEntry {
     /**
      * A classpath element that a classloader named with a {@link URI}. A {@code "jar:"} or {@code "file:"} URI
      * names something in the local filesystem; with any other scheme, {@link #open(Vfs)} reads it if the JVM has a
-     * handler for that scheme and the {@link Vfs} has not denied it.
+     * URL stream handler or a filesystem provider for that scheme and the {@link Vfs} has not denied it.
      */
     public static final class OfURI extends ClasspathEntry {
         /** The URI. */
