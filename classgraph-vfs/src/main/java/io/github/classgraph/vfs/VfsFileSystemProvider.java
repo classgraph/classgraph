@@ -659,8 +659,16 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
      * afterward does not change the filesystem. Any other key is ignored rather than rejected, so that a caller
      * which drives both this provider and zipfs from one env map does not have to strip the keys zipfs takes.
      *
+     * <p>
+     * A module's filesystem is registered under {@code "jrt:/<module>"}, whatever layer the module was resolved in,
+     * so only one module of a given name can be open through this method at a time: opening the module of the same
+     * name in another layer throws {@link FileSystemAlreadyExistsException} until the first is closed, and
+     * {@link #getFileSystem(URI)} returns whichever one is open. To read two modules of the same name at once, open
+     * each with {@link Vfs#openModule(String, ModuleLayer)} and read it through {@link VfsRoot#asFileSystem()}.
+     *
      * @throws FileSystemAlreadyExistsException
-     *             if a filesystem created by this method is already open at that path.
+     *             if a filesystem created by this method is already open at that path, or, for a module, if one is
+     *             open for a module of the same name in any layer.
      */
     @Override
     public FileSystem newFileSystem(final URI uri, final Map<String, ?> env) throws IOException {
