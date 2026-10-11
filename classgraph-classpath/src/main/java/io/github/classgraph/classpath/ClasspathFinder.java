@@ -364,7 +364,9 @@ public final class ClasspathFinder {
      * Each element that is a {@link String}, {@link java.io.File}, {@link Path}, {@link java.net.URL} or
      * {@link java.net.URI} is one classpath element, and a {@link String} is not split on
      * {@link java.io.File#pathSeparatorChar}. An element that is any other {@link Iterable}, or an array of
-     * objects, is replaced by its own elements, to any depth. An element of any other type is read by its
+     * objects, is replaced by its own elements, to any depth, except that an {@link Iterable} that is not a
+     * {@link java.util.Collection} and yields only itself, as an Ant {@code Resource} does, is one classpath
+     * element, read by its {@link Object#toString()}. An element of any other type is read by its
      * {@link Object#toString()}.
      *
      * <p>
@@ -398,7 +400,9 @@ public final class ClasspathFinder {
      * {@link java.net.URI} is one classpath element, and a {@link String} is not split on
      * {@link java.io.File#pathSeparatorChar} (pass a classpath string to {@link #enableClasspathEntries(String)}).
      * An element that is any other {@link Iterable}, or an array of objects, is replaced by its own elements, to
-     * any depth. An element of any other type is read by its {@link Object#toString()}.
+     * any depth, except that an {@link Iterable} that is not a {@link java.util.Collection} and yields only itself,
+     * as an Ant {@code Resource} does, is one classpath element, read by its {@link Object#toString()}. An element
+     * of any other type is read by its {@link Object#toString()}.
      *
      * <p>
      * A single {@link Path} is treated as one classpath element, not as a sequence of its name elements.

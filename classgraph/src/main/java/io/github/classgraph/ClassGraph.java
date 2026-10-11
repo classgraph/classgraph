@@ -599,7 +599,9 @@ public final class ClassGraph {
      * or {@link java.net.URI} is one classpath entry, and a {@link String} is not split on
      * {@link java.io.File#pathSeparatorChar} (pass a classpath string to {@link #enableClasspathEntries(String)}).
      * An element that is any other {@link Iterable}, or an array of objects, is replaced by its own elements, to
-     * any depth. An element of any other type is read by its {@code toString()}.
+     * any depth, except that an {@link Iterable} that is not a {@link java.util.Collection} and yields only itself,
+     * as an Ant {@code Resource} does, is one classpath entry, read by its {@code toString()}. An element of any
+     * other type is read by its {@code toString()}.
      *
      * <p>
      * A single {@link java.nio.file.Path} is treated as one classpath entry, not as a sequence of its name
@@ -632,8 +634,9 @@ public final class ClassGraph {
      * Each element that is a {@link String}, {@link java.io.File}, {@link java.nio.file.Path}, {@link java.net.URL}
      * or {@link java.net.URI} is one classpath entry, and a {@link String} is not split on
      * {@link java.io.File#pathSeparatorChar}. An element that is any other {@link Iterable}, or an array of
-     * objects, is replaced by its own elements, to any depth. An element of any other type is read by its
-     * {@code toString()}.
+     * objects, is replaced by its own elements, to any depth, except that an {@link Iterable} that is not a
+     * {@link java.util.Collection} and yields only itself, as an Ant {@code Resource} does, is one classpath entry,
+     * read by its {@code toString()}. An element of any other type is read by its {@code toString()}.
      *
      * <p>
      * So {@code enableClasspathEntries(classpath, extraJar)} takes the whole classpath string as one classpath
