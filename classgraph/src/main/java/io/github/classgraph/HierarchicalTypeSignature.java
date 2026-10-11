@@ -144,7 +144,7 @@ public abstract sealed class HierarchicalTypeSignature extends ScanResultObject
         synchronized (this) {
             final var typeAnnotationList = typeAnnotations;
             return typeAnnotationList == null ? AnnotationInfoList.EMPTY_LIST
-                    : typeAnnotationList.getAnnotationInfo();
+                    : typeAnnotationList.getAnnotationInfo(scanResult);
         }
     }
 

@@ -5,10 +5,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.IOException;
 import java.lang.annotation.Annotation;
+import java.lang.annotation.ElementType;
 import java.lang.annotation.Inherited;
 import java.lang.annotation.Repeatable;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collection;
@@ -133,6 +135,57 @@ public class RepeatableAnnotationTest {
 
     /** A class that inherits both repeats, rather than carrying them. */
     public static class InheritsRepeats extends InheritedRepeatBase {
+    }
+
+    /** The container that holds the repeats of {@link TypeTag}. */
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.TYPE_USE)
+    public @interface TypeTags {
+        /**
+         * The repeats.
+         *
+         * @return the repeats.
+         */
+        TypeTag[] value();
+    }
+
+    /** A repeatable type annotation. */
+    @Repeatable(TypeTags.class)
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.TYPE_USE)
+    public @interface TypeTag {
+        /**
+         * The name of the tag.
+         *
+         * @return the name of the tag.
+         */
+        String value();
+    }
+
+    /**
+     * A generic class with an inner class, so that a reference to the inner class has a suffix that can carry a
+     * type annotation.
+     *
+     * @param <T>
+     *            an unused type parameter.
+     */
+    public static class GenericOuter<T> {
+        /** A non-static inner class. */
+        public class Inner {
+        }
+    }
+
+    /** A class carrying two repeats of a repeatable type annotation in each kind of type annotation list. */
+    public class TypeTaggedTwice {
+        /** A field whose type argument carries two repeats. */
+        public List<@TypeTag("b") @TypeTag("a") String> typeArgument;
+
+        /** A field whose nested class suffix carries two repeats. */
+        public GenericOuter<String>.@TypeTag("b") @TypeTag("a") Inner suffix;
+
+        /** A method whose explicit receiver parameter carries two repeats. */
+        public void receiver(@TypeTag("b") @TypeTag("a") TypeTaggedTwice this) {
+        }
     }
 
     /** The name of the repeatable annotation in the compiled module. */
@@ -308,7 +361,40 @@ public class RepeatableAnnotationTest {
         typeAnnotations.add(second, scanResult);
         typeAnnotations.add(notRepeatable, scanResult);
         typeAnnotations.add(first, scanResult);
-        assertThat(typeAnnotations.getAnnotationInfo()).containsExactly(notRepeatable, second, first);
+        assertThat(typeAnnotations.getAnnotationInfo(scanResult)).containsExactly(notRepeatable, second, first);
+    }
+
+    /**
+     * The repeats of a repeatable type annotation are reported the same way as those on a class, in the type
+     * annotations of a type, of a nested class suffix and of an explicit receiver parameter, as in
+     * {@link java.lang.reflect.AnnotatedType#getAnnotationsByType(Class)}. The container stays in each list.
+     */
+    @Test
+    public void theRepeatsOfARepeatableTypeAnnotationAreReported() {
+        final var classInfo = scanResult.getClassInfo(TypeTaggedTwice.class.getName());
+        assertThat(classInfo).isNotNull();
+
+        final var fieldType = (ClassRefTypeSignature) classInfo.getFieldInfo("typeArgument")
+                .getTypeSignatureOrTypeDescriptor();
+        final var typeArgumentAnnotations = fieldType.getTypeArguments().get(0).getTypeSignature()
+                .getTypeAnnotationInfo();
+
+        final var suffixType = (ClassRefTypeSignature) classInfo.getFieldInfo("suffix")
+                .getTypeSignatureOrTypeDescriptor();
+        final var suffixAnnotations = suffixType.getSuffixTypeAnnotationInfo()
+                .get(suffixType.getSuffixes().size() - 1);
+
+        final MethodTypeSignature methodType = classInfo.getMethodInfo("receiver").get(0)
+                .getTypeSignatureOrTypeDescriptor();
+        final var receiverAnnotations = methodType.getReceiverTypeAnnotationInfo();
+
+        for (final AnnotationInfoList annotations : List.of(typeArgumentAnnotations, suffixAnnotations,
+                receiverAnnotations)) {
+            assertThat(annotations.getRepeatable(TypeTag.class))
+                    .extracting(ai -> ai.getParameterValues().getValue("value")).containsExactly("b", "a");
+            assertThat(annotations.getNames()).containsExactly(TypeTag.class.getName(), TypeTag.class.getName(),
+                    TypeTags.class.getName());
+        }
     }
 
     /**

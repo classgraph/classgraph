@@ -268,7 +268,7 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
             }
             final List<AnnotationInfoList> suffixTypeAnnotationInfo = new ArrayList<>(typeAnnotations.size());
             for (final TypeAnnotations annotations : typeAnnotations) {
-                suffixTypeAnnotationInfo.add(annotations.getAnnotationInfo());
+                suffixTypeAnnotationInfo.add(annotations.getAnnotationInfo(scanResult));
             }
             return Collections.unmodifiableList(suffixTypeAnnotationInfo);
         }
