@@ -18,11 +18,11 @@ import org.junit.jupiter.api.io.TempDir;
 import io.github.classgraph.ClassGraph;
 
 /**
- * A memory-mapped file has to be unmapped when the scan that mapped it is closed, since Windows refuses to delete,
- * rename or overwrite a file while it is mapped. The file is mapped in a {@code java.lang.foreign.Arena} and
- * unmapped by closing it. The scan closes every buffer it handed out first, so that nothing is left holding a view
- * of the mapping when it goes. The mechanics are tested by {@code FileMappingTest} and {@code PathSliceTest}, in
- * the vfs library; this checks the behavior a caller sees.
+ * A memory-mapped file has to be unmapped when the scan that mapped it is closed, since Windows refuses to
+ * overwrite a file while it is mapped, and some versions of Windows refuse to delete one. The file is mapped in a
+ * {@code java.lang.foreign.Arena} and unmapped by closing it. The scan closes every buffer it handed out first, so
+ * that nothing is left holding a view of the mapping when it goes. The mechanics are tested by
+ * {@code FileMappingTest} and {@code PathSliceTest}, in the vfs library; this checks the behavior a caller sees.
  *
  * <p>
  * Files are memory-mapped on Windows only, so these tests run there only.
@@ -74,10 +74,11 @@ public class Issue939Test {
     }
 
     /**
-     * A jarfile that a scan memory-mapped can be deleted as soon as the {@link io.github.classgraph.ScanResult} is
-     * closed, with no collection and no retry in between. Windows refuses to delete a file while it is mapped, so
-     * this is the property that makes memory mapping usable there at all. That a slice unmaps its file when it
-     * closes is tested in the vfs library; what this adds is that closing a scan result reaches that.
+     * A jarfile that a scan memory-mapped can be overwritten and deleted as soon as the
+     * {@link io.github.classgraph.ScanResult} is closed, with no collection and no retry in between. Windows
+     * refuses to overwrite a file while it is mapped, and some versions of Windows refuse to delete one, so this is
+     * the property that makes memory mapping usable there at all. That a slice unmaps its file when it closes is
+     * tested in the vfs library; what this adds is that closing a scan result reaches that.
      *
      * @param tempDir
      *            a temporary directory to write the jarfile to be scanned into
@@ -87,7 +88,8 @@ public class Issue939Test {
     // #939
     @Test
     @EnabledOnOs(OS.WINDOWS)
-    public void aMappedJarCanBeDeletedOnceTheScanIsClosed(@TempDir final Path tempDir) throws IOException {
+    public void aMappedJarCanBeOverwrittenAndDeletedOnceTheScanIsClosed(@TempDir final Path tempDir)
+            throws IOException {
         final var jarPath = tempDir.resolve("deleted-after-the-scan.jar");
         writeJarWithAStoredEntry(jarPath);
 
@@ -102,6 +104,7 @@ public class Issue939Test {
             }
         }
 
+        writeJarWithAStoredEntry(jarPath);
         Files.delete(jarPath);
         assertThat(jarPath).doesNotExist();
     }

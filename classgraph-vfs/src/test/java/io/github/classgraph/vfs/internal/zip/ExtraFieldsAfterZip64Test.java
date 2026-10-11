@@ -198,12 +198,17 @@ public class ExtraFieldsAfterZip64Test {
         final var vfs = new Vfs(new VfsSpec(), new InterruptionChecker());
         final List<String> entryNames = new ArrayList<>();
         try {
-            for (final FastZipEntry zipEntry : JarOpener.openJarFile(jarFile, vfs, /* log = */ null).zipFile()
-                    .getEntries()) {
-                entryNames.add(zipEntry.entryName);
+            final var openedJar = JarOpener.openJarFile(jarFile, vfs, /* log = */ null);
+            try {
+                for (final FastZipEntry zipEntry : openedJar.zipFile().getEntries()) {
+                    entryNames.add(zipEntry.entryName);
+                }
+            } finally {
+                // The jarfile must not be left open, otherwise the temporary directory cannot be deleted on
+                // Windows. The caller owns the physical zipfile that was opened, which closing the Vfs does not close
+                openedJar.ownedPhysicalZipFile().close();
             }
         } finally {
-            // The jarfile must not be left open, otherwise the temporary directory cannot be deleted on Windows
             vfs.close(/* log = */ null);
         }
         return entryNames;

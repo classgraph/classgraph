@@ -83,9 +83,15 @@ public class FastZipEntryIdentityTest {
     private static void withZipFile(final File jarFile, final ZipFileAssertions assertions) throws Exception {
         final var vfs = new Vfs(new VfsSpec(), new InterruptionChecker());
         try {
-            assertions.run(JarOpener.openJarFile(jarFile, vfs, /* log = */ null).zipFile());
+            final var openedJar = JarOpener.openJarFile(jarFile, vfs, /* log = */ null);
+            try {
+                assertions.run(openedJar.zipFile());
+            } finally {
+                // The jarfile must not be left open, otherwise the temporary directory cannot be deleted on
+                // Windows. The caller owns the physical zipfile that was opened, which closing the Vfs does not close
+                openedJar.ownedPhysicalZipFile().close();
+            }
         } finally {
-            // The jarfile must not be left open, otherwise the temporary directory cannot be deleted on Windows
             vfs.close(/* log = */ null);
         }
     }

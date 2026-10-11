@@ -185,11 +185,17 @@ public class ExtendedTimestampExtraFieldTest {
 
         final var vfs = new Vfs(new VfsSpec(), new InterruptionChecker());
         try {
-            final var entries = JarOpener.openJarFile(jarFile, vfs, /* log = */ null).zipFile().getEntries();
-            assertThat(entries).hasSize(1);
-            return entries.get(0).getLastModifiedMillis();
+            final var openedJar = JarOpener.openJarFile(jarFile, vfs, /* log = */ null);
+            try {
+                final var entries = openedJar.zipFile().getEntries();
+                assertThat(entries).hasSize(1);
+                return entries.get(0).getLastModifiedMillis();
+            } finally {
+                // The jarfile must not be left open, otherwise the temporary directory cannot be deleted on
+                // Windows. The caller owns the physical zipfile that was opened, which closing the Vfs does not close
+                openedJar.ownedPhysicalZipFile().close();
+            }
         } finally {
-            // The jarfile must not be left open, otherwise the temporary directory cannot be deleted on Windows
             vfs.close(/* log = */ null);
         }
     }
@@ -258,11 +264,17 @@ public class ExtendedTimestampExtraFieldTest {
 
         final var vfs = new Vfs(new VfsSpec(), new InterruptionChecker());
         try {
-            final var entries = JarOpener.openJarFile(jarFile, vfs, /* log = */ null).zipFile().getEntries();
-            assertThat(entries).hasSize(1);
-            assertThat(entries.get(0).getLastModifiedMillis()).isEqualTo(jdkTime);
+            final var openedJar = JarOpener.openJarFile(jarFile, vfs, /* log = */ null);
+            try {
+                final var entries = openedJar.zipFile().getEntries();
+                assertThat(entries).hasSize(1);
+                assertThat(entries.get(0).getLastModifiedMillis()).isEqualTo(jdkTime);
+            } finally {
+                // The jarfile must not be left open, otherwise the temporary directory cannot be deleted on
+                // Windows. The caller owns the physical zipfile that was opened, which closing the Vfs does not close
+                openedJar.ownedPhysicalZipFile().close();
+            }
         } finally {
-            // The jarfile must not be left open, otherwise the temporary directory cannot be deleted on Windows
             vfs.close(/* log = */ null);
         }
     }

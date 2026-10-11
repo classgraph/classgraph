@@ -106,12 +106,17 @@ public class UnicodePathExtraFieldTest {
         final var vfs = new Vfs(new VfsSpec(), new InterruptionChecker());
         final List<String> entryNames = new ArrayList<>();
         try {
-            for (final FastZipEntry zipEntry : JarOpener.openJarFile(jarFile, vfs, /* log = */ null).zipFile()
-                    .getEntries()) {
-                entryNames.add(zipEntry.entryName);
+            final var openedJar = JarOpener.openJarFile(jarFile, vfs, /* log = */ null);
+            try {
+                for (final FastZipEntry zipEntry : openedJar.zipFile().getEntries()) {
+                    entryNames.add(zipEntry.entryName);
+                }
+            } finally {
+                // The jarfile must not be left open, otherwise the temporary directory cannot be deleted on
+                // Windows. The caller owns the physical zipfile that was opened, which closing the Vfs does not close
+                openedJar.ownedPhysicalZipFile().close();
             }
         } finally {
-            // The jarfile must not be left open, otherwise the temporary directory cannot be deleted on Windows
             vfs.close(/* log = */ null);
         }
         return entryNames;
@@ -193,13 +198,18 @@ public class UnicodePathExtraFieldTest {
 
         final var vfs = new Vfs(new VfsSpec(), new InterruptionChecker());
         try {
-            final var entry = Objects
-                    .requireNonNull(JarOpener.openJarFile(jar, vfs, /* log = */ null).zipFile().findEntry("a.txt"));
-            try (var in = entry.open()) {
-                assertThat(new String(in.readAllBytes(), StandardCharsets.UTF_8)).isEqualTo("first");
+            final var openedJar = JarOpener.openJarFile(jar, vfs, /* log = */ null);
+            try {
+                final var entry = Objects.requireNonNull(openedJar.zipFile().findEntry("a.txt"));
+                try (var in = entry.open()) {
+                    assertThat(new String(in.readAllBytes(), StandardCharsets.UTF_8)).isEqualTo("first");
+                }
+            } finally {
+                // The jarfile must not be left open, otherwise the temporary directory cannot be deleted on
+                // Windows. The caller owns the physical zipfile that was opened, which closing the Vfs does not close
+                openedJar.ownedPhysicalZipFile().close();
             }
         } finally {
-            // The jarfile must not be left open, otherwise the temporary directory cannot be deleted on Windows
             vfs.close(/* log = */ null);
         }
     }
@@ -242,13 +252,18 @@ public class UnicodePathExtraFieldTest {
 
         final var vfs = new Vfs(new VfsSpec(), new InterruptionChecker());
         try {
-            final var entry = Objects
-                    .requireNonNull(JarOpener.openJarFile(jar, vfs, /* log = */ null).zipFile().findEntry(name));
-            try (var in = entry.open()) {
-                assertThat(new String(in.readAllBytes(), StandardCharsets.UTF_8)).isEqualTo("second");
+            final var openedJar = JarOpener.openJarFile(jar, vfs, /* log = */ null);
+            try {
+                final var entry = Objects.requireNonNull(openedJar.zipFile().findEntry(name));
+                try (var in = entry.open()) {
+                    assertThat(new String(in.readAllBytes(), StandardCharsets.UTF_8)).isEqualTo("second");
+                }
+            } finally {
+                // The jarfile must not be left open, otherwise the temporary directory cannot be deleted on
+                // Windows. The caller owns the physical zipfile that was opened, which closing the Vfs does not close
+                openedJar.ownedPhysicalZipFile().close();
             }
         } finally {
-            // The jarfile must not be left open, otherwise the temporary directory cannot be deleted on Windows
             vfs.close(/* log = */ null);
         }
     }
