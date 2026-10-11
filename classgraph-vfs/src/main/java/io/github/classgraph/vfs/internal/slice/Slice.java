@@ -426,6 +426,9 @@ public abstract class Slice implements AutoCloseable {
     public static byte[] readAllBytesAsArray(final InputStream inputStream, final long uncompressedLengthHint)
             throws IOException {
         try (inputStream) {
+            // An entry that says it is too long for an array is rejected before inflating up to 2GB of it. (A
+            // length that is wrong cannot make readUpTo allocate more than MAX_INITIAL_BUFFER_SIZE up front either
+            // way.)
             if (uncompressedLengthHint > MAX_BUFFER_SIZE) {
                 throw new IOException("InputStream is too large to read");
             }
