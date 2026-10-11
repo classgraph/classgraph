@@ -267,7 +267,7 @@ public final class AnnotationInfo extends ScanResultObject implements Comparable
 
     /**
      * Get the {@link ClassInfo} object for the annotation class, as {@link #getClassInfo()} does, but without
-     * throwing if the {@link ScanResult} has been closed, so that {@link #equals(Object)} and
+     * throwing if the {@link ScanResult} has been closed, so that {@link #equals(Object)}, {@link #hashCode()} and
      * {@link #compareTo(AnnotationInfo)} keep working after it is closed. The map of class names is not cleared
      * when the {@link ScanResult} is closed.
      *
@@ -295,7 +295,8 @@ public final class AnnotationInfo extends ScanResultObject implements Comparable
 
     /**
      * Compare annotations by name, then by parameter values, counting default values, so that the order is
-     * consistent with {@link #equals(Object)}.
+     * consistent with {@link #equals(Object)}. Unlike most methods, this keeps working after the {@link ScanResult}
+     * is closed, so that an {@link AnnotationInfo} in a sorted collection stays usable.
      *
      * @param o
      *            the annotation to compare with
@@ -331,7 +332,9 @@ public final class AnnotationInfo extends ScanResultObject implements Comparable
      * Two annotations are equal when they have the same name and the same parameter values, counting default
      * values, as in {@link java.lang.annotation.Annotation#equals(Object)}: {@code @A} equals {@code @A(x = 5)} if
      * 5 is the default value of {@code x}. The default values are declared by the annotation class, so they are
-     * counted only if the annotation class was scanned.
+     * counted only if the annotation class was scanned. Unlike most methods, this keeps working after the
+     * {@link ScanResult} is closed, so that an {@link AnnotationInfo} in a hash set or sorted collection stays
+     * usable.
      *
      * @param obj
      *            the object to compare with
@@ -349,7 +352,9 @@ public final class AnnotationInfo extends ScanResultObject implements Comparable
     }
 
     /**
-     * Get the hash code, which counts default values, as {@link #equals(Object)} does.
+     * Get the hash code, which counts default values, as {@link #equals(Object)} does. Unlike most methods, this
+     * keeps working after the {@link ScanResult} is closed, so that an {@link AnnotationInfo} in a hash set stays
+     * usable.
      *
      * @return the hash code
      */
