@@ -90,13 +90,17 @@ when it cannot be read in place -- and the roots opened within it, which read th
 Closing the `Vfs` closes every root, releasing all of it, and every root it handed out stops working
 at that moment, so a `Vfs` belongs in a try-with-resources block, as it is in every example below.
 
-Nothing outlasts that close. A `CloseableByteBuffer` you have not closed is closed for you as the
-root that handed it out closes, before the root releases the storage the buffer was a view of, so a
-memory mapping is unmapped and a temporary file deleted as the root closes rather than whenever the
-caller gets round to it. A stream from `entry.open()` that you have not closed is closed for you at
-the same point, releasing the file handle it holds. Reading a `ByteBuffer` you took out of such a
-wrapper after that point is a bug in the calling code, and on Windows below JDK 22 it can kill the
-JVM -- see [Read one entry](#read-one-entry).
+Nothing outlasts that close, with the one exception below. A `CloseableByteBuffer` you have not
+closed is closed for you as the root that handed it out closes, before the root releases the
+storage the buffer was a view of, so a memory mapping is unmapped and a temporary file deleted as
+the root closes rather than whenever the caller gets round to it. A stream from `entry.open()` that
+you have not closed is closed for you at the same point, releasing the file handle it holds.
+Reading a `ByteBuffer` you took out of such a wrapper after that point is a bug in the calling
+code, and on Windows below JDK 22 it can kill the JVM -- see [Read one entry](#read-one-entry). On
+JDK 22 and later, the one thing that can outlast the close is a mapping that another thread is
+still using for an I/O operation as the close runs, such as a channel write from a `ByteBuffer`
+taken out of such a wrapper: the JDK will not unmap a file while that operation is in progress, so
+the file stays mapped until the JVM exits, and if it is a temporary file, it is left behind.
 
 A `VfsRoot` is `AutoCloseable` too, but rarely needs closing by hand, since closing the `Vfs` closes
 it. Closing one early is for a long-lived `Vfs` that is done reading one root and wants what it

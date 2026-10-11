@@ -96,7 +96,7 @@ import org.jspecify.annotations.Nullable;
  * {@link CloseableByteBuffer} the caller has not closed does not delay that: the root closes every buffer it handed
  * out, every stream from {@link VfsEntry#open()}, and every channel opened through its
  * {@link VfsRoot#asFileSystem()} view, before it releases what it owns, so the file is unmapped and deleted as the
- * root closes.
+ * root closes, with the one exception described at {@link #close()}.
  *
  * <p>
  * A {@link Vfs} caches every root it opens, so opening the same path twice returns the same {@link VfsRoot}, and a
@@ -1065,7 +1065,12 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      * every buffer it handed out, every stream from {@link VfsEntry#open()}, and every channel opened through its
      * {@link VfsRoot#asFileSystem()} view, as the step before it releases what it owns, so nothing the caller left
      * open can hold a mapping or a file handle open past this. That is what lets every temporary file be deleted
-     * here, since Windows refuses to delete, rename or overwrite a file while it is mapped.
+     * here, since Windows refuses to delete, rename or overwrite a file while it is mapped. On JDK 22 and later,
+     * the one exception is a file whose mapping is still in use by an I/O operation in another thread as this runs,
+     * such as a channel write from a {@link java.nio.ByteBuffer} taken from a {@link CloseableByteBuffer}: the JDK
+     * does not unmap a file while such an operation is in progress, so that file stays mapped until the JVM exits,
+     * and if it is a temporary file, it is left behind. Closing a {@link Vfs} while a buffer from it is still in
+     * use is a bug in the calling code, as with the reads described above.
      *
      * <p>
      * Closing an already-closed {@link Vfs} has no effect.
