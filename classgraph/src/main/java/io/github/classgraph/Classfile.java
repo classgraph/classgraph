@@ -1223,18 +1223,18 @@ class Classfile {
     /**
      * Read annotation entry from classfile.
      *
-     * @return the annotation, as an {@link AnnotationInfo} object.
+     * @return the annotation, as an {@link AnnotationInfo} object, or null if the class name of the annotation, or
+     *         of an annotation nested in it, is illegal.
      * @throws IOException
      *             If an IO exception occurs.
      */
-    private AnnotationInfo readAnnotation() throws IOException {
-        // Lcom/xyz/Annotation; -> com.xyz.Annotation. The JVM does not check the name, but a ClassInfo is created
-        // for the type of an annotation on a class, method, field or parameter, so an illegal name makes the
-        // annotation attribute be skipped.
-        final var annotationClassName = checkClassName(
-                requireConstantPoolString(getConstantPoolClassDescriptor(reader().readUnsignedShort()),
-                        "annotation class name"),
-                "annotation class name");
+    private @Nullable AnnotationInfo readAnnotation() throws IOException {
+        // Lcom/xyz/Annotation; -> com.xyz.Annotation. The JVM does not check the name, and leaves out an annotation
+        // whose class it cannot find. A ClassInfo is created for the type of an annotation, so an annotation whose
+        // class name is illegal is read, to step over it, and then left out in the same way.
+        final var annotationClassName = requireConstantPoolString(
+                getConstantPoolClassDescriptor(reader().readUnsignedShort()), "annotation class name");
+        var isLegal = ClassNames.isLegalClassName(annotationClassName);
         final var numElementValuePairs = reader().readUnsignedShort();
         AnnotationParameterValueList paramVals = null;
         if (numElementValuePairs > 0) {
@@ -1243,14 +1243,24 @@ class Classfile {
                 final var paramName = requireConstantPoolString(getConstantPoolString(reader().readUnsignedShort()),
                         "annotation parameter name");
                 final var paramValue = readAnnotationElementValue();
-                paramValList.add(new AnnotationParameterValue(paramName, paramValue));
+                if (paramValue == ILLEGAL_ANNOTATION) {
+                    isLegal = false;
+                } else {
+                    paramValList.add(new AnnotationParameterValue(paramName, paramValue));
+                }
             }
             // The order of the elements of an annotation in a classfile is not specified, so sort them by name
             CollectionUtils.sortIfNotEmpty(paramValList);
             paramVals = new AnnotationParameterValueList(paramValList);
         }
-        return new AnnotationInfo(annotationClassName, paramVals);
+        return isLegal ? new AnnotationInfo(annotationClassName, paramVals) : null;
     }
+
+    /**
+     * Returned by {@link #readAnnotationElementValue()} in place of a nested annotation whose class name is
+     * illegal, or of an array that holds one.
+     */
+    private static final Object ILLEGAL_ANNOTATION = new Object();
 
     /**
      * The deepest that annotation element values may be nested, counting each array element value and each nested
@@ -1268,7 +1278,8 @@ class Classfile {
     /**
      * Read annotation element value from classfile.
      *
-     * @return the annotation element value
+     * @return the annotation element value, or {@link #ILLEGAL_ANNOTATION} if it is an annotation whose class name
+     *         is illegal, or an array or annotation that holds one.
      * @throws IOException
      *             If an IO exception occurs.
      * @throws ClassfileFormatException
@@ -1331,18 +1342,24 @@ class Classfile {
             yield new AnnotationClassRef(
                     entryTag[classInfoIdx] == 1 ? rawStr : constantPoolClassNameToTypeDescriptor(rawStr));
         }
-        case '@' ->
+        case '@' -> {
             // Complex (nested) annotation. Return type is AnnotationInfo.
-            readAnnotation();
+            final var nestedAnnotation = readAnnotation();
+            yield nestedAnnotation == null ? ILLEGAL_ANNOTATION : nestedAnnotation;
+        }
         case '[' -> {
             // Return type is Object[] (of nested annotation element values)
             final var count = reader().readUnsignedShort();
             final var arr = new Object[count];
+            var isLegal = true;
             for (var i = 0; i < count; ++i) {
                 // Nested annotation element value
                 arr[i] = readAnnotationElementValue();
+                if (arr[i] == ILLEGAL_ANNOTATION) {
+                    isLegal = false;
+                }
             }
-            yield arr;
+            yield isLegal ? arr : ILLEGAL_ANNOTATION;
         }
         default ->
             throw new ClassfileFormatException("Class " + className + " has unknown annotation element type tag '"
@@ -1587,7 +1604,10 @@ class Classfile {
         }
         final var annotations = newListWithCapacity(annotationInfoList, annotationCount);
         for (var i = 0; i < annotationCount; i++) {
-            annotations.add(readAnnotation());
+            final var annotationInfo = readAnnotation();
+            if (annotationInfo != null) {
+                annotations.add(annotationInfo);
+            }
         }
         return annotations;
     }
@@ -2172,8 +2192,11 @@ class Classfile {
             }
             final var typePath = readTypePath();
             final var annotationInfo = readAnnotation();
-            typeAnnotations.add(new TypeAnnotation<>(TypeSignature::addTypeAnnotation, typePath, annotationInfo));
-            hasTypeAnnotations = true;
+            if (annotationInfo != null) {
+                typeAnnotations
+                        .add(new TypeAnnotation<>(TypeSignature::addTypeAnnotation, typePath, annotationInfo));
+                hasTypeAnnotations = true;
+            }
         }
         return typeAnnotations;
     }
@@ -2273,7 +2296,8 @@ class Classfile {
                 // Get annotation parameter default value, or null if the attribute is malformed
                 final var defaultValue = this.<@Nullable Object> readAnnotationAttribute(attributeNameCpIdx,
                         attributeLength, "method " + methodName, null, earlier -> readAnnotationElementValue());
-                if (defaultValue != null) {
+                // A default value that is an annotation with an illegal class name, or holds one, is dropped
+                if (defaultValue != null && defaultValue != ILLEGAL_ANNOTATION) {
                     if (annotationParamDefaultValues == null) {
                         annotationParamDefaultValues = new ArrayList<>();
                     }
@@ -2357,8 +2381,17 @@ class Classfile {
                 } else {
                     mergedParameterAnnotations[paramIdx] = new AnnotationInfo[numAnnotations];
                 }
+                var numParamAnnotations = annStartIdx;
                 for (var annIdx = 0; annIdx < numAnnotations; annIdx++) {
-                    mergedParameterAnnotations[paramIdx][annStartIdx + annIdx] = readAnnotation();
+                    final var annotationInfo = readAnnotation();
+                    if (annotationInfo != null) {
+                        mergedParameterAnnotations[paramIdx][numParamAnnotations++] = annotationInfo;
+                    }
+                }
+                if (numParamAnnotations < mergedParameterAnnotations[paramIdx].length) {
+                    // Drop the slots of annotations whose class name is illegal
+                    mergedParameterAnnotations[paramIdx] = Arrays.copyOf(mergedParameterAnnotations[paramIdx],
+                            numParamAnnotations);
                 }
             }
         }
@@ -2473,7 +2506,7 @@ class Classfile {
             };
             final var typePath = readTypePath();
             final var annotationInfo = readAnnotation();
-            if (target != null) {
+            if (target != null && annotationInfo != null) {
                 typeAnnotations.add(new TypeAnnotation<>(target, typePath, annotationInfo));
                 hasTypeAnnotations = true;
             }
@@ -2722,8 +2755,10 @@ class Classfile {
             };
             final var typePath = readTypePath();
             final var annotationInfo = readAnnotation();
-            typeAnnotations.add(new TypeAnnotation<>(target, typePath, annotationInfo));
-            hasTypeAnnotations = true;
+            if (annotationInfo != null) {
+                typeAnnotations.add(new TypeAnnotation<>(target, typePath, annotationInfo));
+                hasTypeAnnotations = true;
+            }
         }
         return typeAnnotations;
     }
