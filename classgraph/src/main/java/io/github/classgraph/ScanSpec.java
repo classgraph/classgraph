@@ -143,8 +143,8 @@ class ScanSpec {
 
     /**
      * If true, allow external classes (classes outside of accepted packages) to be returned in the ScanResult, if
-     * they are directly referred to by an accepted class, as a superclass, implemented interface or annotation.
-     * Disabled by default.
+     * the scan came across them while reading the accepted classes (see {@link ClassGraph#enableExternalClasses()}
+     * for which classes those are). Disabled by default.
      */
     public boolean enableExternalClasses;
 

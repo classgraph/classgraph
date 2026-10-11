@@ -417,21 +417,52 @@ public final class ClassGraph {
 
     /**
      * Causes ClassGraph to return the external classes: the classes that were not accepted for scanning, but that
-     * were read anyway, because an accepted class refers to them as a superclass, implemented interface or
-     * annotation.
+     * the scan came across while reading the accepted classes.
      *
      * <p>
      * {@link #enableClassInfo()} has to be called too, or the scan throws {@link IllegalArgumentException}.
      *
      * <p>
-     * Scanning is always extended upwards from an accepted class in this way, so that the part of the class graph
-     * above an accepted class is complete, whether or not this method is called. What this method changes is only
-     * whether the external classes are reported: without it, an external class is left out of
-     * {@link ScanResult#getAllClasses()}, and out of the result of any query, including the "upward" queries such
-     * as {@link ClassInfo#getSuperclass()}, {@link ClassInfo#getAllSuperinterfaces()} and
-     * {@link ClassInfo#getAllAnnotations()}. (The predicates that report the class hierarchy as the JVM sees it,
-     * such as {@link ClassInfo#extendsSuperclass(String)}, {@link ClassInfo#implementsInterface(String)} and
-     * {@link ClassInfo#hasAnnotation(String)}, still take the external classes into account.)
+     * Scanning is extended from each accepted class to the classes that it names as its superclass, an implemented
+     * interface or its enclosing class; as an annotation on the class or on one of its fields, methods or method
+     * parameters; as the annotation class, the enum class or the class given in an annotation parameter value,
+     * including the default value of a parameter; or as an exception type thrown by one of its methods. (The
+     * annotations count only if {@link #enableAnnotationInfo()} was called, and the annotations of fields only if
+     * {@link #enableFieldInfo()} was called too. The annotations of methods and method parameters, and the thrown
+     * exception types, count only if {@link #enableMethodInfo()} was called, except in an annotation class, whose
+     * methods are always read. Only public fields and methods are read unless {@link #ignoreFieldVisibility()} or
+     * {@link #ignoreMethodVisibility()} is called. The default values of annotation parameters are always read.)
+     * Scanning is then extended from each external class that was read, in the same ways. The classfile of an
+     * external class is read if it can be found and the class is public or {@link #ignoreClassVisibility()} was
+     * called, even if the class was rejected (see {@link #rejectClasses(String...)}). The classfile of
+     * {@code java.lang.Object} is never read as an external class.
+     *
+     * <p>
+     * Some external classes are known only by name, because their classfile was not read. These are a class that a
+     * class read by the scan names as its superclass, an implemented interface, an annotation or its enclosing
+     * class, if the classfile was not found, or the class is not public and {@link #ignoreClassVisibility()} was
+     * not called, or the class is {@code java.lang.Object}; and the other classes named in the {@code InnerClasses}
+     * attribute of a class read by the scan, which are not read. That attribute lists every nested class that the
+     * class refers to, with its enclosing class, not only the class' own nested and enclosing classes: a class with
+     * a field of type {@code java.util.Map.Entry} brings in {@code java.util.Map} and {@code java.util.Map$Entry}.
+     * (Entries that name no enclosing class, which are those of local and anonymous classes, are skipped, and so is
+     * the entry for {@code java.lang.invoke.MethodHandles$Lookup} that a class using {@code invokedynamic} has.) If
+     * {@link #enableInterClassDependencies()} is called, every class that a class read by the scan refers to (see
+     * {@link ClassInfo#getClassDependencies()}) is also known, by name only if its classfile was not read (such as
+     * {@code java.lang.String}). For a class known only by name, only its name and its place in the class graph are
+     * known, and {@link ClassInfo#getResource()} returns null.
+     *
+     * <p>
+     * External classes are found in this way whether or not this method is called, so that the part of the class
+     * graph above an accepted class is complete. What this method changes is only whether the external classes are
+     * reported: without it, an external class is left out of {@link ScanResult#getAllClasses()}, and out of the
+     * result of any query, including the "upward" queries such as {@link ClassInfo#getSuperclass()},
+     * {@link ClassInfo#getAllSuperinterfaces()} and {@link ClassInfo#getAllAnnotations()}. (The predicates that
+     * report the class hierarchy as the JVM sees it, such as {@link ClassInfo#extendsSuperclass(String)},
+     * {@link ClassInfo#implementsInterface(String)} and {@link ClassInfo#hasAnnotation(String)}, still take the
+     * external classes into account.) A class that was rejected, by name or by package, is never reported, even if
+     * this method is called. ({@link ScanResult#getClassInfo(String)} looks a class up by name, and returns any
+     * class in the class graph, including an external class or a rejected class.)
      *
      * @return this (for method chaining).
      */

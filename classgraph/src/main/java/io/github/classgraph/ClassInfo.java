@@ -65,21 +65,26 @@ import org.jspecify.annotations.Nullable;
  * Holds metadata about a class encountered during a scan.
  *
  * <p>
- * A {@link ClassInfo} object is also created for each class that was merely referred to by a scanned class as a
- * superclass, implemented interface or annotation, but whose own classfile was never read during the scan, because
- * the class was not on the scanned classpath -- {@link Object} is the most common example, when only the user's own
- * packages were accepted. These placeholder objects hold only what could be inferred from the classes that referred
- * to them: {@link #getResource()} returns null for them, accessors that depend on the classfile having been read
- * return empty results, and the accessors that report where the class was found
+ * A {@link ClassInfo} object is also created for each class that was merely referred to by a scanned class, as its
+ * superclass, an implemented interface, an enclosing or nested class, or an annotation on the class or on one of
+ * its fields, methods or method parameters (or in any other way, if
+ * {@link ClassGraph#enableInterClassDependencies()} was called), but whose own classfile was never read during the
+ * scan. That happens when the classfile was not found, when the class is not public and
+ * {@link ClassGraph#ignoreClassVisibility()} was not called, or when the class was named only in the
+ * {@code InnerClasses} attribute of a scanned class or only as one of its inter-class dependencies (see
+ * {@link ClassGraph#enableExternalClasses()}) -- {@link Object}, whose classfile is never read as an external
+ * class, is the most common example. These placeholder objects hold only what could be inferred from the classes
+ * that referred to them: {@link #getResource()} returns null for them, accessors that depend on the classfile
+ * having been read return empty results, and the accessors that report where the class was found
  * ({@link #getClasspathElementFile()}, {@link #getClasspathElementURI()}, {@link #getClasspathElementURL()} and
  * {@link #getModuleReference()}) throw {@link IllegalStateException}.
  *
  * <p>
  * Separately, {@link #isExternalClass()} reports whether a class lies outside the accepted packages. An external
- * class may still have been scanned, if its classfile happened to be reachable on the scanned classpath, in which
- * case none of the above applies to it. External classes are only returned by queries that report all scanned
- * classes, such as {@link ScanResult#getAllClasses()}, if {@link ClassGraph#enableExternalClasses()} was called
- * before scanning.
+ * class may still have been scanned, if its classfile was read (see {@link ClassGraph#enableExternalClasses()} for
+ * which external classes are read), in which case none of the above applies to it. External classes are only
+ * returned by queries that report all scanned classes, such as {@link ScanResult#getAllClasses()}, if
+ * {@link ClassGraph#enableExternalClasses()} was called before scanning.
  *
  * <p>
  * {@link #toString()} does not apply that filter: it renders the class declaration as it would be written in Java
@@ -137,17 +142,17 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     private @Nullable String fullyQualifiedDefiningMethodName;
 
     /**
-     * If true, this class is not an accepted class: it is known only because an accepted class refers to it, and
-     * its classfile was either not read at all, or read only because scanning was extended to the classes that
-     * accepted classes refer to.
+     * If true, this class is not an accepted class: it is known only because an accepted class refers to it,
+     * directly or through other external classes, and its classfile was either not read at all, or read only
+     * because scanning was extended to the classes that accepted classes refer to.
      *
      * If false, this class's classfile was read because the class itself is accepted.
      */
     boolean isExternalClass = true;
 
     /**
-     * Set to true when the class is actually scanned (as opposed to just referenced as a superclass, interface or
-     * annotation of a scanned class).
+     * Set to true when the class is actually scanned (as opposed to just referenced by a scanned class, for example
+     * as a superclass, interface, annotation, enclosing class or nested class).
      */
     boolean isScannedClass;
 
@@ -928,9 +933,10 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
             classNameToClassInfo.put(className,
                     classInfo = new ClassInfo(className, classModifiers, classfileResource));
         } else {
-            // There was a previous placeholder ClassInfo class added, due to the class being referred to as a
-            // superclass, interface or annotation. The isScannedClass field should be false in this case, since the
-            // actual class definition wasn't reached before now.
+            // There was a previous placeholder ClassInfo added, because a class linked earlier referred to this one,
+            // for example as its superclass, an interface, an annotation, an enclosing class or a nested class. The
+            // isScannedClass field should be false in this case, since the actual class definition wasn't reached
+            // before now.
             if (classInfo.isScannedClass) {
                 // The class should not have been scanned more than once, because of classpath masking
                 throw new IllegalArgumentException("Class " + className
@@ -990,14 +996,14 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      * {@link ClassGraph#enableExternalClasses()} was called.
      *
      * <p>
-     * An external class -- one that was read only because an accepted class referred to it -- is part of an answer
-     * only if {@link ClassGraph#enableExternalClasses()} was called, as for any other class that was not explicitly
-     * enabled. A class that was rejected, by name or by package, is never part of an answer. The class graph is
-     * still completed above an accepted class, so a query still traverses external and rejected classes to reach
-     * the classes beyond them, but those classes themselves are left out of the answer. The queries that need the
-     * class graph as the JVM sees it -- the predicates such as {@link #extendsSuperclass(String)}, and the
-     * machinery that resolves type signatures and method overrides -- call the {@code ...IncludingExternal()}
-     * methods instead, which skip this filtering.
+     * An external class -- one that is known only because an accepted class referred to it, directly or through
+     * other external classes -- is part of an answer only if {@link ClassGraph#enableExternalClasses()} was called,
+     * as for any other class that was not explicitly enabled. A class that was rejected, by name or by package, is
+     * never part of an answer. The class graph is still completed above an accepted class, so a query still
+     * traverses external and rejected classes to reach the classes beyond them, but those classes themselves are
+     * left out of the answer. The queries that need the class graph as the JVM sees it -- the predicates such as
+     * {@link #extendsSuperclass(String)}, and the machinery that resolves type signatures and method overrides --
+     * call the {@code ...IncludingExternal()} methods instead, which skip this filtering.
      *
      * @param classInfoList
      *            the classes reached by the query, including the external and rejected classes
@@ -1424,8 +1430,10 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      * Checks if this is an external class.
      *
      * @return true if this class is an external class, i.e. is not itself an accepted class, and is known only
-     *         because an accepted class refers to it, for example as its superclass, an interface, an annotation or
-     *         an enclosing class. An external class may still have been scanned: see the class documentation.
+     *         because an accepted class refers to it, directly or through other external classes, for example as
+     *         its superclass, an interface, an annotation or an enclosing class (see
+     *         {@link ClassGraph#enableExternalClasses()} for the full list). An external class may still have been
+     *         scanned: see the class documentation.
      */
     public boolean isExternalClass() {
         return isExternalClass;

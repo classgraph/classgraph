@@ -335,7 +335,9 @@ class Classfile {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Extend scanning to a superclass, interface or annotation.
+     * Extend scanning to a class that this class refers to, if the class is external: schedule its classfile for
+     * reading, unless the class is {@code java.lang.Object}, is accepted, was already scheduled, or has no
+     * classfile that can be found.
      *
      * @param className
      *            the class name

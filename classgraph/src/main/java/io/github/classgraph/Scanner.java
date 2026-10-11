@@ -1165,8 +1165,9 @@ class Scanner {
             }
         }
 
-        // A ClassInfo object is created for every class named as a superclass, interface or annotation of a scanned
-        // class, and scanning is extended upwards to those classes, so the class graph above a scanned class is
+        // A ClassInfo object is created for every class named as a superclass, interface, annotation, enclosing class
+        // or nested class of a scanned class, and scanning is extended upwards to the classes that a scanned class
+        // refers to (see ClassGraph#enableExternalClasses()), so the class graph above a scanned class is
         // complete. A ClassInfo object is deliberately not created for every class named in a type descriptor or
         // type signature, since that would require every type descriptor and type signature to be parsed before the
         // ScanResult can be returned, rather than lazily on demand, which would slow down every scan. The
