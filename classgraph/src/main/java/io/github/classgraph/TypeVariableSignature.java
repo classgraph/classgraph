@@ -62,6 +62,12 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
     /** The resolved type parameter, if any. */
     private @Nullable TypeParameter typeParameterCached;
 
+    /**
+     * The name of the class whose type parameter {@link #resolve()} found, which is either the class that this type
+     * variable is used in or a class it is nested in, or null if no such type parameter has been found.
+     */
+    private @Nullable String declaringClassNameCached;
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**
@@ -131,6 +137,7 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
             for (var i = 0;; i++) {
                 final var typeParameter = findClassTypeParameter(classInfo);
                 if (typeParameter != null) {
+                    declaringClassNameCached = classInfo.getName();
                     typeParameterCached = typeParameter;
                     return typeParameter;
                 }
@@ -188,7 +195,16 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
         if (methodTypeParameter != null) {
             return null;
         }
-        return substitutions.get(TypeSignature.substitutionKey(definingClassName, name));
+        // Type arguments are recorded against the class that declares the type parameter, which for a type
+        // variable that an inner class inherits from its enclosing class is the enclosing class
+        try {
+            resolve();
+        } catch (final IllegalStateException e) {
+            // The class that the type variable is used in was not found, or the scan result is not set
+        }
+        final var declaringClassName = declaringClassNameCached;
+        return substitutions.get(TypeSignature
+                .substitutionKey(declaringClassName != null ? declaringClassName : definingClassName, name));
     }
 
     @Override

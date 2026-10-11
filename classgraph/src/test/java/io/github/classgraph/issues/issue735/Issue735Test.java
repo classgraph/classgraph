@@ -236,6 +236,37 @@ public class Issue735Test {
     static class OuterBound extends Outer<Short> {
     }
 
+    /** A generic class whose inner class passes the outer class' type parameter on to Generic. */
+    static class GenericOuter<V> {
+        abstract class InnerPassingThrough implements Generic<V> {
+        }
+    }
+
+    /** Binds GenericOuter's V to String, which must bind Generic's T to String through the inner class. */
+    abstract static class BoundThroughInner extends GenericOuter<String>.InnerPassingThrough {
+        BoundThroughInner(final GenericOuter<String> outer) {
+            outer.super();
+        }
+    }
+
+    /** Extends the inner class of GenericOuter in raw form, so supplies no type argument for Generic's T. */
+    @SuppressWarnings("rawtypes")
+    abstract static class RawThroughInner extends GenericOuter.InnerPassingThrough {
+        RawThroughInner(final GenericOuter outer) {
+            outer.super();
+        }
+    }
+
+    /** Like {@link RawThroughInner}, but has a generic signature of its own. */
+    @SuppressWarnings("rawtypes")
+    abstract static class GenericRawThroughInner<X> extends GenericOuter.InnerPassingThrough {
+        X field;
+
+        GenericRawThroughInner(final GenericOuter outer) {
+            outer.super();
+        }
+    }
+
     /** Uses its type parameter as the element type of arrays. */
     interface ArrayElement<E> {
         E[] getArray();
@@ -615,17 +646,44 @@ public class Issue735Test {
     }
 
     /**
-     * A type variable that an inner class inherits from its enclosing class is left unresolved: the classfile
-     * records it as declared by the inner class itself, and the inner class is not on the supertype chain of a
-     * subclass of the enclosing class, so no type argument is ever supplied for it.
+     * A type variable that an inner class inherits from its enclosing class is resolved by the type argument
+     * supplied for the enclosing class, even though the classfile records the type variable as used in the inner
+     * class.
      */
     @Test
-    void typeVariableOfEnclosingClassIsNotResolved() {
+    void typeVariableOfEnclosingClassIsResolved() {
         final var resultType = scanResult.getClassInfo(Outer.Inner.class.getName()).getMethodInfo("getO").get(0)
                 .getTypeSignatureOrTypeDescriptor().getResultType();
         assertThat(resultType.toString()).isEqualTo("O");
         assertThat(resultType.resolveTypeVariables(scanResult.getClassInfo(OuterBound.class.getName())).toString())
-                .isEqualTo("O");
+                .isEqualTo("java.lang.Short");
+    }
+
+    /**
+     * A type argument supplied for the enclosing class of an inner supertype, as in
+     * {@code GenericOuter<String>.InnerPassingThrough}, is passed on to the supertypes of the inner class.
+     */
+    @Test
+    void typeVariableOfEnclosingClassIsResolvedThroughInnerClass() {
+        assertThat(resolvedResultType("getT", BoundThroughInner.class)).isEqualTo("java.lang.String");
+    }
+
+    /**
+     * An inner class of a generic class used in raw form erases the bindings above it, even though the inner class
+     * declares no type parameters of its own.
+     */
+    @Test
+    void rawInnerClassOfGenericClassLeavesTypeVariableUnresolved() {
+        assertThat(resolvedResultType("getT", RawThroughInner.class)).isEqualTo("T");
+    }
+
+    /**
+     * Like {@link #rawInnerClassOfGenericClassLeavesTypeVariableUnresolved()}, for a subclass that has a generic
+     * signature of its own.
+     */
+    @Test
+    void rawInnerClassOfGenericClassLeavesTypeVariableUnresolvedForGenericSubclass() {
+        assertThat(resolvedResultType("getT", GenericRawThroughInner.class)).isEqualTo("T");
     }
 
     /**

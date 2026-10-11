@@ -86,8 +86,11 @@ public abstract sealed class TypeSignature extends HierarchicalTypeSignature
      * <p>
      * Type variables are matched by the class that declares them together with their name, and bindings are
      * collected by walking up the superclass and superinterface chain of the context class. A type variable that an
-     * inner class inherits from its enclosing class is therefore not resolved, since the classfile records it as
-     * declared by the inner class, which is not on that chain.
+     * inner class inherits from its enclosing class is matched by the enclosing class, so given {@code class
+     * Outer<V> { abstract class Inner implements Base<V> {} }}, the result type of {@code Base#getT()} resolves to
+     * {@code java.lang.String} against a subclass of {@code Outer<String>.Inner}, and a type variable used in
+     * {@code Inner} resolves against a subclass of {@code Outer<String>}. An inner class of a generic class that is
+     * referenced with no type arguments, as in {@code Outer.Inner}, is used in raw form.
      *
      * <p>
      * An array type substituted for the element type of an array type adds its dimensions, so {@code E[]} with
@@ -158,14 +161,14 @@ public abstract sealed class TypeSignature extends HierarchicalTypeSignature
         if (classSignature == null) {
             // The class has no generic signature, or one that does not parse, so it supplies no type arguments --
             // but a class further up the hierarchy may still be generic, so keep walking through each direct
-            // supertype that is not generic. A generic direct supertype is used in raw form, which erases every
-            // binding above it (JLS 4.8), so the walk stops there.
+            // supertype that is not generic. A generic direct supertype, or an inner class of a generic class, is
+            // used in raw form, which erases every binding above it (JLS 4.8), so the walk stops there.
             final var superclassInfo = classInfo.superclassIncludingExternal();
-            if (!isGeneric(superclassInfo)) {
+            if (!hasTypeParametersInScope(superclassInfo)) {
                 addSubstitutions(superclassInfo, substitutions, visited);
             }
             for (final ClassInfo interfaceInfo : classInfo.allSuperinterfacesIncludingExternal().directOnly()) {
-                if (!isGeneric(interfaceInfo)) {
+                if (!hasTypeParametersInScope(interfaceInfo)) {
                     addSubstitutions(interfaceInfo, substitutions, visited);
                 }
             }
@@ -208,9 +211,8 @@ public abstract sealed class TypeSignature extends HierarchicalTypeSignature
                     substitutions);
         }
         final var supertypeClassInfo = supertypeSignature.getClassInfo();
-        final var lastLevelTypeArguments = suffixes.isEmpty() ? supertypeSignature.getTypeArguments()
-                : suffixTypeArguments.get(suffixes.size() - 1);
-        if (lastLevelTypeArguments.isEmpty() && isGeneric(supertypeClassInfo)) {
+        if (supertypeSignature.getTypeArguments().isEmpty() && suffixTypeArguments.stream().allMatch(List::isEmpty)
+                && hasTypeParametersInScope(supertypeClassInfo)) {
             // The supertype is used in raw form, which erases every binding above it (JLS 4.8)
             return;
         }
@@ -218,16 +220,31 @@ public abstract sealed class TypeSignature extends HierarchicalTypeSignature
     }
 
     /**
-     * Check whether a class declares type parameters.
+     * Check whether a class declares type parameters, or is an inner member class of a class that has type
+     * parameters in scope, i.e. whether a reference to the class with no type arguments is a raw type (JLS 4.8).
      *
      * @param classInfo
      *            the class, or null.
-     * @return true if the class is non-null and has a parseable generic signature that declares at least one type
-     *         parameter.
+     * @return true if the class or a class it is nested in, up to the first static member class, local class or
+     *         anonymous class, has a parseable generic signature that declares at least one type parameter.
      */
-    private static boolean isGeneric(final @Nullable ClassInfo classInfo) {
-        final var classSignature = classInfo == null ? null : classInfo.getTypeSignatureIfParseable();
-        return classSignature != null && !classSignature.getTypeParameters().isEmpty();
+    private static boolean hasTypeParametersInScope(final @Nullable ClassInfo classInfo) {
+        if (classInfo == null) {
+            return false;
+        }
+        // The enclosing classes are listed innermost first, as in TypeVariableSignature.resolve()
+        final var enclosingClasses = classInfo.enclosingClassesIncludingExternal();
+        var currClassInfo = classInfo;
+        for (var i = 0;; i++) {
+            final var classSignature = currClassInfo.getTypeSignatureIfParseable();
+            if (classSignature != null && !classSignature.getTypeParameters().isEmpty()) {
+                return true;
+            }
+            if (i == enclosingClasses.size() || !currClassInfo.isMemberClass() || currClassInfo.isStatic()) {
+                return false;
+            }
+            currClassInfo = enclosingClasses.get(i);
+        }
     }
 
     /**
