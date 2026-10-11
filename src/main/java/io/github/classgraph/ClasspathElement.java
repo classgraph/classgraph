@@ -575,10 +575,11 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
             final boolean isClassfileOnly, final LogNode log) {
         final String path = resource.getPath();
         final boolean isClassFile = FileUtils.isClassfile(path);
-        // A classfile is only scheduled for scanning if classfile scanning is enabled, and the classfile is not
-        // specifically rejected
-        final boolean addedAsClassfile = isClassFile && scanSpec.enableClassInfo && !scanSpec.classfilePathAcceptReject
-                .isRejected(FileUtils.withLowerCaseClassfileExtension(path));
+        // A classfile is only scheduled for scanning if classfile scanning is enabled, its path is a class name in
+        // internal form, and the classfile is not specifically rejected
+        final boolean addedAsClassfile = isClassFile && scanSpec.enableClassInfo
+                && FileUtils.classfilePathIsClassName(path)
+                && !scanSpec.classfilePathAcceptReject.isRejected(FileUtils.withLowerCaseClassfileExtension(path));
         if (addedAsClassfile) {
             acceptedClassfileResources.add(resource);
         }

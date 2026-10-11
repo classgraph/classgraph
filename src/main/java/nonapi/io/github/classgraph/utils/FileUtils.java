@@ -400,6 +400,31 @@ public final class FileUtils {
     }
 
     /**
+     * Check whether the path of a classfile, without its {@code ".class"} extension, is a class name in internal
+     * form: a sequence of segments separated by {@code '/'}, none of them empty, and none of them containing
+     * {@code '.'}, {@code ';'} or {@code '['} (JVMS 4.2.1). A classfile at any other path holds no class that the
+     * JVM can load from there, and a {@code '.'} in the path would give the same class name as a different path:
+     * {@code "x.Y.class"} and {@code "x/Y.class"} both give {@code "x.Y"}.
+     *
+     * @param classfilePath
+     *            the path of a classfile, as accepted by {@link #isClassfile(String)}, with {@code '/'} as the
+     *            separator.
+     * @return true if the path, without its extension, is a class name in internal form.
+     */
+    public static boolean classfilePathIsClassName(final String classfilePath) {
+        final int classNameEnd = classfilePath.length() - CLASSFILE_EXTENSION_LENGTH;
+        for (int i = 0; i < classNameEnd; i++) {
+            final char c = classfilePath.charAt(i);
+            // A '/' at the start of the path, or right after another '/', ends an empty segment
+            if (c == '.' || c == ';' || c == '[' || c == '/' && (i == 0 || classfilePath.charAt(i - 1) == '/')) {
+                return false;
+            }
+        }
+        // isClassfile already rejects a path whose file name is empty, i.e. one ending in "/.class"
+        return true;
+    }
+
+    /**
      * Check if a classfile is stored at the path implied by the name of the class it declares, i.e. whether the
      * path of the classfile is the name of the class in path form, plus a {@code ".class"} extension.
      *
