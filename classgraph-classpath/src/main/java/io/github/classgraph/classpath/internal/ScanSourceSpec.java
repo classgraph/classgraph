@@ -36,9 +36,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Enumeration;
 import java.util.IdentityHashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.BaseStream;
 
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.path.PathList;
@@ -157,12 +160,16 @@ public class ScanSourceSpec {
      * element that is an {@link Iterable} (other than a {@link Path}) or an array of objects is replaced by its own
      * elements, to any depth, except that an {@link Iterable} that is not a {@link Collection} and yields itself,
      * as an Ant {@code Resource} does, is one classpath entry. That, and any other element, is read by its
-     * {@link Object#toString()}.
+     * {@link Object#toString()}, except that a {@link BaseStream} (any {@code Stream}, {@code IntStream},
+     * {@code LongStream} or {@code DoubleStream}), {@link Iterator} or {@link Enumeration} that is not an
+     * {@link Iterable} is rejected.
      *
      * @param classpathEntries
      *            the classpath elements.
      * @throws IllegalArgumentException
-     *             if the elements hold no classpath element, or hold a {@link ClassLoader}.
+     *             if the elements hold no classpath element, or hold a {@link ClassLoader}, a {@link BaseStream}
+     *             (any {@code Stream}, {@code IntStream}, {@code LongStream} or {@code DoubleStream}), an
+     *             {@link Iterator} or an {@link Enumeration} that is not an {@link Iterable}.
      */
     public void enableClasspathEntries(final List<?> classpathEntries) {
         final List<Object> normalized = new ArrayList<>(classpathEntries.size());
@@ -191,7 +198,9 @@ public class ScanSourceSpec {
      * @throws NullPointerException
      *             if the classpath element is, or contains, null.
      * @throws IllegalArgumentException
-     *             if the classpath element is, or contains, a {@link ClassLoader}.
+     *             if the classpath element is, or contains, a {@link ClassLoader}, a {@link BaseStream} (any
+     *             {@code Stream}, {@code IntStream}, {@code LongStream} or {@code DoubleStream}), an
+     *             {@link Iterator} or an {@link Enumeration} that is not an {@link Iterable}.
      */
     private static void addClasspathEntry(final Object classpathEntry, final List<Object> normalized,
             final Set<Object> expanding) {
@@ -224,6 +233,12 @@ public class ScanSourceSpec {
             }
             // A collection or array that contains itself, directly or through another one, is not expanded again:
             // every entry it holds is already being added by the call that is expanding it
+        } else if (classpathEntry instanceof BaseStream<?, ?> || classpathEntry instanceof Iterator<?>
+                || classpathEntry instanceof Enumeration<?>) {
+            // A one-shot sequence that is not an Iterable would be read by its string form, which names no file,
+            // so the classpath elements it holds would be silently left out
+            throw new IllegalArgumentException("Need to collect a " + classpathEntry.getClass().getName()
+                    + " into a collection before passing it to enableClasspathEntries");
         } else {
             // Anything else is read by its string form, which is taken now rather than at scan time, so that a
             // mutable object cannot change what it names in between

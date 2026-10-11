@@ -14,6 +14,7 @@ import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
@@ -25,6 +26,7 @@ import java.util.jar.Manifest;
 import java.util.logging.Handler;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
+import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -359,6 +361,54 @@ public class ClasspathFinderTest {
         assertThatThrownBy(
                 () -> new ClasspathFinder().enableClasspathEntries((Object) new ClassLoader[] { classLoader }))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    /**
+     * A stream, iterator or enumeration is rejected rather than read by its {@code toString()}, which names no
+     * file, so that its classpath elements are not silently left out.
+     */
+    @Test
+    public void aStreamIteratorOrEnumerationIsRejected(@TempDir final Path tempDir) throws IOException {
+        final var jar = writeJarWithManifest(tempDir.resolve("a.jar"));
+        assertThatThrownBy(() -> new ClasspathFinder().enableClasspathEntries(Stream.of(jar), jar))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new ClasspathFinder().enableClasspathEntries(List.of(List.of(jar).iterator())))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(
+                () -> new ClasspathFinder().enableClasspathEntries(Collections.enumeration(List.of(jar))))
+                .isInstanceOf(IllegalArgumentException.class);
+        // An Iterator that is also an Iterable is expanded, as any other Iterable is
+        try (var classpath = new ClasspathFinder().enableClasspathEntries(new IterableIterator(List.of(jar)))
+                .find()) {
+            assertThat(classpath.getLocations()).containsExactly(location(jar));
+        }
+    }
+
+    /**
+     * An {@link Iterator} that is its own {@link Iterable}.
+     *
+     * @param files
+     *            the files that the iterator yields.
+     */
+    private record IterableIterator(Iterator<File> files) implements Iterable<File>, Iterator<File> {
+        IterableIterator(final List<File> files) {
+            this(files.iterator());
+        }
+
+        @Override
+        public Iterator<File> iterator() {
+            return this;
+        }
+
+        @Override
+        public boolean hasNext() {
+            return files.hasNext();
+        }
+
+        @Override
+        public File next() {
+            return files.next();
+        }
     }
 
     /** The modules the JVM can see are found, and split into the JDK's own modules and everything else. */
