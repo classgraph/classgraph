@@ -1856,7 +1856,10 @@ public final class ClassGraph {
      * narrowed out by an {@code accept} or {@code reject} method. Classpath elements that do not exist as a file or
      * directory are not included in the returned list, and nor is a classpath element that has no {@link File}, as
      * described for {@link Resource#getClasspathElementFile()}, but {@link #getClasspathURIs()} lists it if it has
-     * a location URI.
+     * a location URI. A jarfile downloaded from a URL into a temporary file (see
+     * {@link #setMaxBufferedJarRAMSize(int)}) is not included either, since this method finds the classpath
+     * elements with a scan that it closes before it returns, which deletes that file; {@link #getClasspathURIs()}
+     * lists the jarfile by its URL.
      *
      * @return a {@code List<File>} consisting of the unique enabled directories and jarfiles, in classpath
      *         resolution order.
@@ -1877,8 +1880,9 @@ public final class ClassGraph {
      * Returns the unique enabled directory and zip/jarfile classpath elements, in classloader resolution order, in
      * the form of a classpath path string. Only the classpath elements that would have been scanned are returned,
      * as described in {@link #getClasspathFiles()}. Classpath elements that do not exist as a file or directory are
-     * not included in the returned list. Note that the returned string contains only base files, and does not
-     * include package roots or nested jars within jars, since the path separator (':') conflicts with the URL
+     * not included in the returned list, and nor is a jarfile downloaded from a URL into a temporary file, as
+     * described in {@link #getClasspathFiles()}. Note that the returned string contains only base files, and does
+     * not include package roots or nested jars within jars, since the path separator (':') conflicts with the URL
      * scheme separator character (also ':') on Linux and Mac OS X. Call {@link #getClasspathURIs()} to get the full
      * URIs for classpath elements and modules. Where the path separator is ':', a ':' inside a file path is written
      * as {@code "\:"}, which ClassGraph reads back as part of the path, but the {@code java} launcher does not.
