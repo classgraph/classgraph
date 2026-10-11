@@ -104,19 +104,27 @@
 		<dependency>
 			<groupId>org.ops4j.pax.url</groupId>
 			<artifactId>pax-url-aether</artifactId>
-			<version>2.6.17</version>
+			<version>2.7.1</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.slf4j</groupId>
 			<artifactId>slf4j-api</artifactId>
-			<version>2.0.18</version>
+			<version>2.0.20</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.slf4j</groupId>
 			<artifactId>slf4j-jdk14</artifactId>
-			<version>2.0.18</version>
+			<version>2.0.20</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<!-- pax-url-aether 2.6.x had the commons-logging classes inside its jar, and 2.7.x -->
+			<!-- does not, but its shaded HttpClient still needs them to download an artifact -->
+			<groupId>org.slf4j</groupId>
+			<artifactId>jcl-over-slf4j</artifactId>
+			<version>2.0.20</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
@@ -128,7 +136,7 @@
 		<dependency>
 			<groupId>com.google.jimfs</groupId>
 			<artifactId>jimfs</artifactId>
-			<version>1.3.1</version>
+			<version>1.3.2</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
@@ -170,17 +178,17 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
-				<version>3.15.0</version>
+				<version>3.16.0</version>
 			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
-				<version>3.5.6</version>
+				<version>3.6.0</version>
 			</plugin>
 			<plugin>
 				<groupId>org.codehaus.mojo</groupId>
 				<artifactId>build-helper-maven-plugin</artifactId>
-				<version>3.6.1</version>
+				<version>3.6.2</version>
 			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
@@ -222,7 +230,7 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-install-plugin</artifactId>
-				<version>3.1.4</version>
+				<version>3.2.0</version>
 			</plugin>
 		</plugins>
 
@@ -236,7 +244,7 @@
 						<dependency>
 							<groupId>org.codehaus.mojo</groupId>
 							<artifactId>animal-sniffer-enforcer-rule</artifactId>
-							<version>1.27</version>
+							<version>1.28</version>
 						</dependency>
 					</dependencies>
 					<executions>
@@ -338,14 +346,9 @@
 					<artifactId>maven-antrun-plugin</artifactId>
 					<executions>
 						<execution>
-							<!-- Put module-info.class in META-INF/versions/9 to maximize backwards -->
-							<!-- compatibility. This has to be done after the jar is created, since -->
-							<!-- module-info.class cannot be copied to the target directory, otherwise -->
-							<!-- this build or the following incremental build will cause Animal Sniffer -->
-							<!-- to fail, since it depends upon ASM 5, which balks when it hits -->
-							<!-- module-info.class with: "Execution check-signatures of goal -->
-							<!-- org.apache.maven.plugins:maven-enforcer-plugin:3.0.0-M3:enforce failed: -->
-							<!-- This feature requires ASM6". -->
+							<!-- Add the precompiled module-info.class (see src/module-info/COMPILING) to -->
+							<!-- META-INF/versions/9 of the finished jar, so that the root of the jar holds -->
+							<!-- only Java 8 class files, for tools that cannot read a Java 9 class file. -->
 							<id>add-module-info-to-jar</id>
 							<phase>package</phase>
 							<goals>
@@ -471,7 +474,7 @@
 								<Require-Capability>osgi.ee;filter:="(&amp;(osgi.ee=JavaSE)(version=1.8))"</Require-Capability>
 								<Export-Package>io.github.classgraph;version="${project.version}"</Export-Package>
 								<!-- Make sure "requires" entries in the module descriptor match these imports: -->
-								<!-- src/main/module-info/io.github.classgraph/module-info.java -->
+								<!-- src/module-info/io.github.classgraph/module-info.java -->
 								<Import-Package>javax.xml,javax.xml.xpath,javax.xml.namespace,javax.xml.parsers,org.w3c.dom,sun.misc;resolution:="optional",sun.nio.ch;resolution:="optional",io.github.toolfactory.narcissus;resolution:="optional"</Import-Package>
 								<!-- Add the same module dependencies that are specified in module-info.java -->
 								<Dependencies>java.xml,jdk.unsupported,java.management,java.logging</Dependencies>
