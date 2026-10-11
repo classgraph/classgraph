@@ -369,7 +369,7 @@ public final class FastPathResolver {
                 matchedPrefix = true;
                 parsed.startIdx += 7;
                 // Force protocol name to lowercase
-                parsed.prefix += "http://";
+                parsed.prefix = "http://";
                 // Treat the part after the protocol as an absolute path, so the domain is not treated as a
                 // directory relative to the current directory.
                 parsed.isAbsolutePath = true;
@@ -379,14 +379,14 @@ public final class FastPathResolver {
                 // Detect https://
                 matchedPrefix = true;
                 parsed.startIdx += 8;
-                parsed.prefix += "https://";
+                parsed.prefix = "https://";
                 parsed.isAbsolutePath = true;
                 parsed.remainderIsFilePath = false;
             } else if (path.regionMatches(true, parsed.startIdx, "jrt:", 0, 4)) {
                 // Detect jrt:
                 matchedPrefix = true;
                 parsed.startIdx += 4;
-                parsed.prefix += "jrt:";
+                parsed.prefix = "jrt:";
                 parsed.isAbsolutePath = true;
                 parsed.remainderIsFilePath = false;
             } else if (path.regionMatches(true, parsed.startIdx, "file:", 0, 5)) {
@@ -405,7 +405,7 @@ public final class FastPathResolver {
                     // A scheme is case-insensitive, and its canonical form is lowercase (RFC 3986 section 3.1), so
                     // lowercase it, as the schemes that are recognized by name above are. The match is a scheme
                     // followed by ':' and one or two slashes, so this changes nothing but the scheme
-                    parsed.prefix += match.toLowerCase(Locale.ROOT);
+                    parsed.prefix = match.toLowerCase(Locale.ROOT);
                     // Treat the part after the protocol as an absolute path, so the rest of the URL is not treated
                     // as a directory relative to the current directory.
                     parsed.isAbsolutePath = true;
@@ -516,7 +516,7 @@ public final class FastPathResolver {
             if (path.startsWith("//", parsed.startIdx) || path.startsWith("\\\\", parsed.startIdx)) {
                 // Windows UNC path
                 parsed.startIdx += 2;
-                parsed.prefix += "//";
+                parsed.prefix = "//";
                 parsed.isAbsolutePath = true;
             } else if (path.length() - parsed.startIdx >= 2 && Character.isLetter(path.charAt(parsed.startIdx))
                     && path.charAt(parsed.startIdx + 1) == ':') {

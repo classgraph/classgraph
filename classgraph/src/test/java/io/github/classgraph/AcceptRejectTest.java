@@ -98,24 +98,15 @@ public class AcceptRejectTest {
         }
 
         /** {@code "**"} that does not form a complete segment is rejected, rather than silently misinterpreted. */
+        // #940
         @Test
         public void aDoubleStarThatIsNotAWholeSegmentIsRejected() {
-            for (final String glob : new String[] { "com.a**b.impl", "com.a**.impl", "com.**b.impl", "com.a**",
-                    "**b" }) {
+            for (final String glob : new String[] { "com.a**b.impl", "com.a**.impl", "com.**b.impl", "com.***.impl",
+                    "com.a**", "**b" }) {
                 assertThatThrownBy(() -> AcceptReject.globToPattern(glob, '.', false)).as(glob)
                         .isInstanceOf(IllegalArgumentException.class)
                         .hasMessageContaining("may only be used as a complete segment");
             }
-        }
-
-        /** {@code "**"} that does not form a complete segment is still rejected. */
-        // #940
-        @Test
-        public void gluedDoubleGlobIsRejected() {
-            assertThatThrownBy(() -> AcceptReject.globToPattern("com.a**b.impl", '.', /* prefixMatch = */ false))
-                    .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("**");
-            assertThatThrownBy(() -> AcceptReject.globToPattern("com.***.impl", '.', /* prefixMatch = */ false))
-                    .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("**");
         }
 
         /** Regexp metacharacters in a glob are matched literally, rather than being interpreted. */

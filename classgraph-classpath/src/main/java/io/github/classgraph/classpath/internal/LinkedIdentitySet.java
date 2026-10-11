@@ -67,7 +67,7 @@ final class LinkedIdentitySet<E> extends AbstractSet<E> {
     private final List<E> elementsInOrder = new ArrayList<>();
 
     /** Constructor. */
-    public LinkedIdentitySet() {
+    LinkedIdentitySet() {
     }
 
     /**
