@@ -1,0 +1,201 @@
+package io.github.classgraph.vfs;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
+
+import java.io.IOException;
+import java.lang.management.ManagementFactory;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Random;
+import java.util.zip.CRC32;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+/**
+ * The uncompressed size that a zip entry declares is only a hint for the size of the buffer it is inflated into,
+ * since a zipfile can declare any size. A deflated entry that declares far more than it holds must not make every
+ * reader of it allocate a buffer of the declared size.
+ */
+public class DeclaredUncompressedSizeTest {
+    /** The uncompressed size that the entries declare: 16 MB, the most a declared size could allocate up front. */
+    private static final int DECLARED_SIZE = 16 * 1024 * 1024;
+
+    /** The most that reading one small entry may allocate: far less than {@link #DECLARED_SIZE}. */
+    private static final long MAX_ALLOCATED_BYTES = 4L * 1024 * 1024;
+
+    /** The signature of a central directory file header. */
+    private static final int CEN_SIGNATURE = 0x02014b50;
+
+    /**
+     * Write a jarfile.
+     *
+     * @param jarFile
+     *            the jarfile to write.
+     * @param deflatedName
+     *            the name of a deflated entry.
+     * @param deflatedContent
+     *            the content of the deflated entry.
+     * @param storedName
+     *            the name of a stored entry, or null for none.
+     * @param storedContent
+     *            the content of the stored entry.
+     * @throws IOException
+     *             if the jarfile could not be written.
+     */
+    private static void writeJar(final Path jarFile, final String deflatedName, final byte[] deflatedContent,
+            final String storedName, final byte[] storedContent) throws IOException {
+        try (var zipOut = new ZipOutputStream(Files.newOutputStream(jarFile))) {
+            zipOut.putNextEntry(new ZipEntry(deflatedName));
+            zipOut.write(deflatedContent);
+            zipOut.closeEntry();
+            if (storedName != null) {
+                final var entry = new ZipEntry(storedName);
+                entry.setMethod(ZipEntry.STORED);
+                entry.setSize(storedContent.length);
+                final var crc = new CRC32();
+                crc.update(storedContent);
+                entry.setCrc(crc.getValue());
+                zipOut.putNextEntry(entry);
+                zipOut.write(storedContent);
+                zipOut.closeEntry();
+            }
+        }
+    }
+
+    /**
+     * Overwrite the uncompressed size that the central directory declares for an entry with {@link #DECLARED_SIZE}.
+     * The entry is deflated, so its local header defers its sizes to a data descriptor, and the central directory
+     * is the only place a reader takes them from.
+     *
+     * @param jarFile
+     *            the jarfile.
+     * @param entryName
+     *            the name of the entry.
+     * @throws IOException
+     *             if the jarfile could not be read or written.
+     */
+    private static void overstateUncompressedSize(final Path jarFile, final String entryName) throws IOException {
+        final var bytes = Files.readAllBytes(jarFile);
+        final var buf = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN);
+        final var nameBytes = entryName.getBytes(StandardCharsets.UTF_8);
+        for (var i = 0; i + 46 + nameBytes.length <= bytes.length; i++) {
+            if (buf.getInt(i) == CEN_SIGNATURE && buf.getShort(i + 28) == nameBytes.length
+                    && ByteBuffer.wrap(bytes, i + 46, nameBytes.length).equals(ByteBuffer.wrap(nameBytes))) {
+                assertThat(buf.getInt(i + 24)).isLessThan(DECLARED_SIZE);
+                buf.putInt(i + 24, DECLARED_SIZE);
+                Files.write(jarFile, bytes);
+                return;
+            }
+        }
+        throw new AssertionError("No central directory entry for " + entryName);
+    }
+
+    /**
+     * Random bytes, which do not compress.
+     *
+     * @param length
+     *            the number of bytes.
+     * @param seed
+     *            the random seed.
+     * @return the bytes.
+     */
+    private static byte[] randomBytes(final int length, final long seed) {
+        final var bytes = new byte[length];
+        new Random(seed).nextBytes(bytes);
+        return bytes;
+    }
+
+    /**
+     * Get the number of bytes the current thread has allocated so far, or skip the test if the JVM cannot tell.
+     *
+     * @return the number of bytes allocated.
+     */
+    private static long allocatedBytes() {
+        final var threadMXBean = ManagementFactory.getThreadMXBean();
+        assumeTrue(threadMXBean instanceof com.sun.management.ThreadMXBean);
+        final var sunThreadMXBean = (com.sun.management.ThreadMXBean) threadMXBean;
+        assumeTrue(sunThreadMXBean.isThreadAllocatedMemorySupported());
+        sunThreadMXBean.setThreadAllocatedMemoryEnabled(true);
+        return sunThreadMXBean.getCurrentThreadAllocatedBytes();
+    }
+
+    /**
+     * A small deflated entry of a toplevel jarfile is loaded without allocating the uncompressed size it declares,
+     * since its compressed bytes cannot inflate to anywhere near that size.
+     */
+    @Test
+    public void loadingASmallEntryDoesNotAllocateItsDeclaredSize(@TempDir final Path tempDir) throws IOException {
+        final var content = "small".getBytes(StandardCharsets.UTF_8);
+        final var jarFile = tempDir.resolve("overstated.jar");
+        writeJar(jarFile, "small.bin", content, /* storedName = */ null, /* storedContent = */ null);
+        overstateUncompressedSize(jarFile, "small.bin");
+
+        try (var vfs = new Vfs()) {
+            final var entry = vfs.open(jarFile.toString()).getEntry("small.bin");
+            assertThat(entry.getLength()).isEqualTo(DECLARED_SIZE);
+            final var allocatedBefore = allocatedBytes();
+            assertThat(entry.load()).isEqualTo(content);
+            assertThat(allocatedBytes() - allocatedBefore).isLessThan(MAX_ALLOCATED_BYTES);
+        }
+    }
+
+    /**
+     * A small deflated nested jarfile within a large jarfile is opened without allocating the uncompressed size it
+     * declares, since its compressed bytes cannot inflate to anywhere near that size, although the jarfiles nested
+     * within the large jarfile may inflate to more than that size.
+     */
+    @Test
+    public void openingASmallNestedJarfileDoesNotAllocateItsDeclaredSize(@TempDir final Path tempDir)
+            throws IOException {
+        final var innerJar = tempDir.resolve("inner.jar");
+        writeJar(innerJar, "a.txt", "a".getBytes(StandardCharsets.UTF_8), /* storedName = */ null,
+                /* storedContent = */ null);
+        // Pad the outer jarfile so that the jarfiles nested within it may inflate to more than DECLARED_SIZE
+        final var outerJar = tempDir.resolve("outer.jar");
+        writeJar(outerJar, "lib/inner.jar", Files.readAllBytes(innerJar), "padding.bin",
+                randomBytes(DECLARED_SIZE / 50, 1));
+        overstateUncompressedSize(outerJar, "lib/inner.jar");
+
+        try (var vfs = new Vfs()) {
+            vfs.open(outerJar.toString());
+            final var allocatedBefore = allocatedBytes();
+            final var root = vfs.open(outerJar + "!/lib/inner.jar");
+            assertThat(allocatedBytes() - allocatedBefore).isLessThan(MAX_ALLOCATED_BYTES);
+            assertThat(root.getEntry("a.txt").load()).isEqualTo("a".getBytes(StandardCharsets.UTF_8));
+        }
+    }
+
+    /**
+     * A deflated nested jarfile that could inflate to the uncompressed size it declares is opened without
+     * allocating that size, when the jarfiles nested within the jarfile that holds it may not inflate that far.
+     */
+    @Test
+    public void openingANestedJarfileDoesNotAllocateMoreThanItMayInflateTo(@TempDir final Path tempDir)
+            throws IOException {
+        // Random bytes, stored, so that the nested jarfile hardly compresses, and its compressed bytes could
+        // inflate to more than DECLARED_SIZE
+        final var randomContent = randomBytes(20 * 1024, 2);
+        final var innerJar = tempDir.resolve("inner.jar");
+        writeJar(innerJar, "unused.txt", new byte[0], "random.bin", randomContent);
+        final var outerJar = tempDir.resolve("outer.jar");
+        writeJar(outerJar, "lib/inner.jar", Files.readAllBytes(innerJar), /* storedName = */ null,
+                /* storedContent = */ null);
+        overstateUncompressedSize(outerJar, "lib/inner.jar");
+        assertThat(100L * Files.size(outerJar)).isLessThan(MAX_ALLOCATED_BYTES);
+
+        try (var vfs = new Vfs()) {
+            vfs.open(outerJar.toString());
+            final var allocatedBefore = allocatedBytes();
+            final var root = vfs.open(outerJar + "!/lib/inner.jar");
+            assertThat(allocatedBytes() - allocatedBefore).isLessThan(MAX_ALLOCATED_BYTES);
+            assertThat(root.getEntry("random.bin").load()).isEqualTo(randomContent);
+        }
+    }
+}

@@ -271,9 +271,13 @@ public final class LogicalZipFile {
         final var inflatedInputStream = allowance.limit(zipEntry.open(), getPath() + "!/" + zipEntry.entryName);
         try (inflatedInputStream) {
             // The declared uncompressed size is only a hint, since the inflated stream is read to its end whatever
-            // its length: it decides whether to inflate to RAM or straight to disk, and the initial buffer size
-            inflatedZipFile = new PhysicalZipFile(inflatedInputStream, zipEntry.uncompressedSize,
-                    zipEntry.entryName, /* inflatedOutOf = */ allowance, vfs, log);
+            // its length: it decides whether to inflate to RAM or straight to disk, and the initial buffer size.
+            // Since the declared size can be anything, the hint is capped at what the compressed bytes could
+            // inflate to, and at what is left of the allowance, past which reading the stream throws, so that a
+            // nested jarfile cannot make each open of it allocate a buffer far larger than its content.
+            final var lengthHint = Math.min(zipEntry.inflatedSizeHint(), allowance.bytesLeft());
+            inflatedZipFile = new PhysicalZipFile(inflatedInputStream, lengthHint, zipEntry.entryName,
+                    /* inflatedOutOf = */ allowance, vfs, log);
         } catch (final IOException | RuntimeException | Error e) {
             if (inflatedZipFile != null) {
                 // Closing the stream failed after the jarfile was inflated: release it, which gives back what it

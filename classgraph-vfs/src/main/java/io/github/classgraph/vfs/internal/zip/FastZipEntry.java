@@ -42,6 +42,12 @@ import org.jspecify.annotations.Nullable;
 
 /** A zip entry within a {@link LogicalZipFile}. */
 public class FastZipEntry implements Comparable<FastZipEntry> {
+    /**
+     * The most that deflate can expand its input by: a match of 258 bytes, the longest there is, takes at least 2
+     * bits, so a compressed byte can inflate to at most 1032 bytes.
+     */
+    private static final long MAX_DEFLATE_RATIO = 1032L;
+
     /** The parent logical zipfile. */
     final LogicalZipFile parentLogicalZipFile;
 
@@ -338,7 +344,23 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
      */
     public byte[] load() throws IOException {
         // Slice.readAllBytesAsArray closes the stream
-        return isDeflated ? Slice.readAllBytesAsArray(open(), uncompressedSize) : getRawSlice().load();
+        return isDeflated ? Slice.readAllBytesAsArray(open(), inflatedSizeHint()) : getRawSlice().load();
+    }
+
+    /**
+     * Get the length to expect the content of a deflated entry to inflate to, for sizing the buffer it is inflated
+     * into: the uncompressed size the central directory declares, but no more than the compressed bytes of the
+     * entry could inflate to. The declared size can be anything, and a buffer of that size, up to 16 MB, is
+     * allocated up front, so without the cap an entry of a few bytes that declared 16 MB would make each read of it
+     * allocate 16 MB. The compressed size is checked against the length of the zipfile when the entry is opened, so
+     * the cap is set by bytes the zipfile really holds.
+     *
+     * @return the length to expect the inflated content to have, which is only a hint: the content is read to its
+     *         end whatever its length.
+     */
+    long inflatedSizeHint() {
+        return compressedSize > Long.MAX_VALUE / MAX_DEFLATE_RATIO ? uncompressedSize
+                : Math.min(uncompressedSize, compressedSize * MAX_DEFLATE_RATIO);
     }
 
     /**

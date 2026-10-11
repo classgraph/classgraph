@@ -79,6 +79,17 @@ final class NestedJarInflationAllowance {
     }
 
     /**
+     * Get the number of bytes the nested jarfiles may still inflate to, all together. A stream wrapped by
+     * {@link #limit(InputStream, String)} cannot be read further than this without throwing, though other streams
+     * may take from the allowance or give back to it at the same time.
+     *
+     * @return the number of bytes left.
+     */
+    long bytesLeft() {
+        return bytesLeft.get();
+    }
+
+    /**
      * Give back bytes that were taken from this allowance, when what they were inflated to is released.
      *
      * @param numBytes
