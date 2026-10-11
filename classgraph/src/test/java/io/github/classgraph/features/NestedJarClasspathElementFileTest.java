@@ -68,9 +68,6 @@ public class NestedJarClasspathElementFileTest {
             zipOut.closeEntry();
         }
 
-        System.out.println("PROBE " + new ClassGraph()
-                .enableClasspathEntries(outerJarFile + "!/lib/stored.jar", outerJarFile + "!/lib/deflated.jar")
-                .getClasspathFiles());
         try (var scanResult = new ClassGraph()
                 .enableClasspathEntries(outerJarFile + "!/lib/stored.jar", outerJarFile + "!/lib/deflated.jar")
                 .scan()) {
