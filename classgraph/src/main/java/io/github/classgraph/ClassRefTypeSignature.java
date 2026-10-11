@@ -37,7 +37,6 @@ import java.util.Objects;
 import java.util.Set;
 
 import io.github.classgraph.Classfile.TypePathNode;
-import io.github.classgraph.base.internal.utils.CollectionUtils;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -59,11 +58,8 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
     /** The suffix type arguments. */
     private final List<List<TypeArgument>> suffixTypeArguments;
 
-    /** The suffix type annotations, in the order they were read, one list per suffix. */
-    private @Nullable List<List<AnnotationInfo>> suffixTypeAnnotations;
-
-    /** The value returned by {@link #getSuffixTypeAnnotationInfo()}, or null if it has not been built yet. */
-    private @Nullable List<AnnotationInfoList> suffixTypeAnnotationInfoRef;
+    /** The suffix type annotations, one list per suffix, or null if no suffix has type annotations. */
+    private @Nullable List<TypeAnnotations> suffixTypeAnnotations;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -226,7 +222,7 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
             // the type annotations of the base class apply only to the outermost class. The annotations are not
             // given the copy's ScanResult, which is not set yet: they are shared with the type signature that the
             // substitution was made in, and keep its ScanResult.
-            copy.suffixTypeAnnotationLists().get(suffixes.size() - 1).addAll(0, annotations);
+            copy.suffixTypeAnnotationLists().get(suffixes.size() - 1).prepend(annotations);
         }
         return copy;
     }
@@ -246,9 +242,9 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
         copy.copyTypeAnnotationsFrom(this);
         final var suffixAnnotations = suffixTypeAnnotations;
         if (suffixAnnotations != null) {
-            final List<List<AnnotationInfo>> suffixAnnotationsCopy = new ArrayList<>(suffixAnnotations.size());
-            for (final List<AnnotationInfo> annotations : suffixAnnotations) {
-                suffixAnnotationsCopy.add(new ArrayList<>(annotations));
+            final List<TypeAnnotations> suffixAnnotationsCopy = new ArrayList<>(suffixAnnotations.size());
+            for (final TypeAnnotations annotations : suffixAnnotations) {
+                suffixAnnotationsCopy.add(annotations.copy());
             }
             copy.suffixTypeAnnotations = suffixAnnotationsCopy;
         }
@@ -263,20 +259,15 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
      */
     public List<AnnotationInfoList> getSuffixTypeAnnotationInfo() {
         synchronized (this) {
-            if (suffixTypeAnnotationInfoRef == null) {
-                final var typeAnnotations = suffixTypeAnnotations;
-                if (typeAnnotations == null) {
-                    // Not cached, so that a type annotation added later is still seen
-                    return Collections.nCopies(suffixes.size(), AnnotationInfoList.EMPTY_LIST);
-                }
-                final List<AnnotationInfoList> suffixTypeAnnotationInfo = new ArrayList<>(typeAnnotations.size());
-                for (final List<AnnotationInfo> annotations : typeAnnotations) {
-                    // The order of type annotations in a classfile is not specified, so sort them by name
-                    suffixTypeAnnotationInfo.add(new AnnotationInfoList(CollectionUtils.sortCopy(annotations)));
-                }
-                suffixTypeAnnotationInfoRef = Collections.unmodifiableList(suffixTypeAnnotationInfo);
+            final var typeAnnotations = suffixTypeAnnotations;
+            if (typeAnnotations == null) {
+                return Collections.nCopies(suffixes.size(), AnnotationInfoList.EMPTY_LIST);
             }
-            return suffixTypeAnnotationInfoRef;
+            final List<AnnotationInfoList> suffixTypeAnnotationInfo = new ArrayList<>(typeAnnotations.size());
+            for (final TypeAnnotations annotations : typeAnnotations) {
+                suffixTypeAnnotationInfo.add(annotations.getAnnotationInfo());
+            }
+            return Collections.unmodifiableList(suffixTypeAnnotationInfo);
         }
     }
 
@@ -286,12 +277,12 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
      *
      * @return the per-suffix type annotation lists.
      */
-    private List<List<AnnotationInfo>> suffixTypeAnnotationLists() {
+    private List<TypeAnnotations> suffixTypeAnnotationLists() {
         var typeAnnotations = suffixTypeAnnotations;
         if (typeAnnotations == null) {
             suffixTypeAnnotations = typeAnnotations = new ArrayList<>(suffixes.size());
             for (var i = 0; i < suffixes.size(); i++) {
-                typeAnnotations.add(new ArrayList<>(1));
+                typeAnnotations.add(new TypeAnnotations());
             }
         }
         return typeAnnotations;
@@ -306,10 +297,7 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
      *            the type annotation
      */
     private void addSuffixTypeAnnotation(final int suffixIdx, final AnnotationInfo annotationInfo) {
-        // Set the ScanResult as the annotation is added, for the same reason as in
-        // HierarchicalTypeSignature#addTypeAnnotation
-        annotationInfo.setScanResult(scanResult);
-        suffixTypeAnnotationLists().get(suffixIdx).add(annotationInfo);
+        suffixTypeAnnotationLists().get(suffixIdx).add(annotationInfo, scanResult);
     }
 
     @Override
@@ -420,10 +408,8 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
         }
         final var suffixAnnotations = suffixTypeAnnotations;
         if (suffixAnnotations != null) {
-            for (final List<AnnotationInfo> annotations : suffixAnnotations) {
-                for (final AnnotationInfo annotationInfo : annotations) {
-                    annotationInfo.setScanResult(scanResult);
-                }
+            for (final TypeAnnotations annotations : suffixAnnotations) {
+                annotations.setScanResult(scanResult);
             }
         }
     }
@@ -515,14 +501,15 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
      */
     private Set<AnnotationInfo> findExcludedTypeAnnotations(final List<AnnotationInfo> annotationsToExclude) {
         final Set<AnnotationInfo> excluded = Collections.newSetFromMap(new IdentityHashMap<>());
-        final var typeAnnotationList = typeAnnotations;
+        final var typeAnnotationList = typeAnnotations == null ? null : typeAnnotations.asList();
         final var suffixTypeAnnotationLists = suffixTypeAnnotations;
         for (final AnnotationInfo annotationToExclude : annotationsToExclude) {
             final var idx = typeAnnotationList == null ? -1 : typeAnnotationList.indexOf(annotationToExclude);
             if (typeAnnotationList != null && idx >= 0) {
                 excluded.add(typeAnnotationList.get(idx));
             } else if (suffixTypeAnnotationLists != null) {
-                for (final List<AnnotationInfo> suffixTypeAnnotationList : suffixTypeAnnotationLists) {
+                for (final TypeAnnotations suffixAnnotations : suffixTypeAnnotationLists) {
+                    final var suffixTypeAnnotationList = suffixAnnotations.asList();
                     final var suffixIdx = suffixTypeAnnotationList.indexOf(annotationToExclude);
                     if (suffixIdx >= 0) {
                         excluded.add(suffixTypeAnnotationList.get(suffixIdx));

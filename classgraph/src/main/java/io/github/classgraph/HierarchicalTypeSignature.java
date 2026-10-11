@@ -28,14 +28,12 @@
  */
 package io.github.classgraph;
 
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import io.github.classgraph.base.LogNode;
-import io.github.classgraph.base.internal.utils.CollectionUtils;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -45,12 +43,9 @@ import org.jspecify.annotations.Nullable;
  */
 public abstract sealed class HierarchicalTypeSignature extends ScanResultObject
         permits TypeSignature, ClassTypeSignature, MethodTypeSignature, TypeArgument, TypeParameter {
-    /** The type annotations on this type, in the order they were read, or null if none. */
+    /** The type annotations on this type, or null if none. */
     @Nullable
-    List<AnnotationInfo> typeAnnotations;
-
-    /** The value returned by {@link #getTypeAnnotationInfo()}, or null if it has not been built yet. */
-    private @Nullable AnnotationInfoList typeAnnotationInfoRef;
+    TypeAnnotations typeAnnotations;
 
     /** A hierarchical type signature. */
     HierarchicalTypeSignature() {
@@ -66,13 +61,9 @@ public abstract sealed class HierarchicalTypeSignature extends ScanResultObject
     void addTypeAnnotation(final AnnotationInfo annotationInfo) {
         var typeAnnotationList = typeAnnotations;
         if (typeAnnotationList == null) {
-            typeAnnotations = typeAnnotationList = new ArrayList<>(1);
+            typeAnnotations = typeAnnotationList = new TypeAnnotations();
         }
-        // The type annotations read from the classfile are added when the type signature is first requested, which
-        // is after the signature has been given its ScanResult, so the annotation has to be given the ScanResult
-        // here rather than by setScanResult
-        annotationInfo.setScanResult(scanResult);
-        typeAnnotationList.add(annotationInfo);
+        typeAnnotationList.add(annotationInfo, scanResult);
     }
 
     /**
@@ -84,8 +75,7 @@ public abstract sealed class HierarchicalTypeSignature extends ScanResultObject
      */
     void copyTypeAnnotationsFrom(final HierarchicalTypeSignature source) {
         final var sourceTypeAnnotations = source.typeAnnotations;
-        typeAnnotations = sourceTypeAnnotations == null ? null : new ArrayList<>(sourceTypeAnnotations);
-        typeAnnotationInfoRef = null;
+        typeAnnotations = sourceTypeAnnotations == null ? null : sourceTypeAnnotations.copy();
     }
 
     /**
@@ -96,13 +86,11 @@ public abstract sealed class HierarchicalTypeSignature extends ScanResultObject
      *            the type annotations to put first.
      */
     void prependTypeAnnotations(final List<AnnotationInfo> annotations) {
-        final List<AnnotationInfo> typeAnnotationList = new ArrayList<>(annotations);
-        final var ownTypeAnnotations = typeAnnotations;
-        if (ownTypeAnnotations != null) {
-            typeAnnotationList.addAll(ownTypeAnnotations);
+        var typeAnnotationList = typeAnnotations;
+        if (typeAnnotationList == null) {
+            typeAnnotations = typeAnnotationList = new TypeAnnotations();
         }
-        typeAnnotations = typeAnnotationList;
-        typeAnnotationInfoRef = null;
+        typeAnnotationList.prepend(annotations);
     }
 
     @Override
@@ -110,9 +98,7 @@ public abstract sealed class HierarchicalTypeSignature extends ScanResultObject
         super.setScanResult(scanResult);
         final var typeAnnotationList = typeAnnotations;
         if (typeAnnotationList != null) {
-            for (final AnnotationInfo annotationInfo : typeAnnotationList) {
-                annotationInfo.setScanResult(scanResult);
-            }
+            typeAnnotationList.setScanResult(scanResult);
         }
     }
 
@@ -124,16 +110,9 @@ public abstract sealed class HierarchicalTypeSignature extends ScanResultObject
      */
     public AnnotationInfoList getTypeAnnotationInfo() {
         synchronized (this) {
-            if (typeAnnotationInfoRef == null) {
-                final var typeAnnotationList = typeAnnotations;
-                if (typeAnnotationList == null) {
-                    // Not cached, so that a type annotation added later is still seen
-                    return AnnotationInfoList.EMPTY_LIST;
-                }
-                // The order of type annotations in a classfile is not specified, so sort them by name
-                typeAnnotationInfoRef = new AnnotationInfoList(CollectionUtils.sortCopy(typeAnnotationList));
-            }
-            return typeAnnotationInfoRef;
+            final var typeAnnotationList = typeAnnotations;
+            return typeAnnotationList == null ? AnnotationInfoList.EMPTY_LIST
+                    : typeAnnotationList.getAnnotationInfo();
         }
     }
 
