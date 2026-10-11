@@ -207,4 +207,34 @@ public class StaleClientModifiersTest {
             }
         }
     }
+
+    /**
+     * When neither a nested class nor its enclosing class is scanned, the only {@code InnerClasses} entries for the
+     * nested class are those of client classfiles, which can disagree about its access level. Here one client is
+     * compiled against version 1 of the library, in which {@code Prot} is {@code protected}, and another against
+     * version 2, in which it is {@code public}. The widest access level is kept, whichever client is linked first.
+     *
+     * @param tempDir
+     *            a temporary directory to compile into.
+     * @throws IOException
+     *             if a source file could not be written.
+     */
+    @Test
+    public void unscannedNestedClassModifiersDoNotDependOnLinkOrder(@TempDir final Path tempDir)
+            throws IOException {
+        final var libV1 = compile(tempDir.resolve("v1"), "lib", LIB_V1, null);
+        final var libV2 = compile(tempDir.resolve("v2"), "lib", LIB_V2, null);
+        final var client = Map.of("D", "public class D extends lib.Outer { Prot p; }");
+        final var clientV1 = compile(tempDir.resolve("client1"), "client1", client, libV1);
+        final var clientV2 = compile(tempDir.resolve("client2"), "client2", client, libV2);
+        for (final var classpath : List.of(List.of(clientV1, clientV2), List.of(clientV2, clientV1))) {
+            try (var scanResult = new ClassGraph().enableClasspathEntries(classpath).enableClassInfo()
+                    .acceptPackages("lib", "client1", "client2").scan(1)) {
+                final var order = "classpath " + classpath;
+                final var prot = scanResult.getClassInfo("lib.Outer$Prot");
+                assertThat(prot).as(order).isNotNull();
+                assertThat(prot.getModifiers()).as(order).isEqualTo(Modifier.PUBLIC | Modifier.STATIC);
+            }
+        }
+    }
 }

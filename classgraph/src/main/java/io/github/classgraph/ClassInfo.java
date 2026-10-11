@@ -156,6 +156,12 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      */
     private boolean hasModifiersFromEnclosingClass;
 
+    /**
+     * Set to true when this class has not been scanned, and the access level of at least one {@code InnerClasses}
+     * entry for it in a classfile other than its enclosing class's has been merged into its modifiers.
+     */
+    private boolean hasAccessLevelFromInnerClassesEntry;
+
     /** The classpath element that this class was found within. */
     @Nullable
     ClasspathElement classpathElement;
@@ -543,6 +549,46 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     }
 
     /**
+     * Merge into the modifiers of a nested class that has not been scanned the modifiers from an
+     * {@code InnerClasses} entry for it in a classfile other than its enclosing class's. Such entries may have been
+     * written against different versions of the class, and disagree. The non-access modifier bits are OR'd in, and
+     * the widest access level named by any entry is kept, so that the result does not depend on the order in which
+     * the entries are merged.
+     *
+     * @param innerClassModifierBits
+     *            the modifier bits from the {@code InnerClasses} attribute entry for this class
+     */
+    private void mergeNestedClassModifiers(final int innerClassModifierBits) {
+        final int oldAccess = this.modifiers & ACCESS_LEVEL_MODIFIERS;
+        final int newAccess = innerClassModifierBits & ACCESS_LEVEL_MODIFIERS;
+        final int access = hasAccessLevelFromInnerClassesEntry && accessRank(oldAccess) > accessRank(newAccess)
+                ? oldAccess
+                : newAccess;
+        this.modifiers = (this.modifiers & ~ACCESS_LEVEL_MODIFIERS)
+                | (innerClassModifierBits & ~ACCESS_LEVEL_MODIFIERS) | access;
+        hasAccessLevelFromInnerClassesEntry = true;
+    }
+
+    /**
+     * Rank an access level from narrowest to widest.
+     *
+     * @param accessLevelModifierBits
+     *            the access level modifier bits
+     * @return 0 for {@code private}, 1 for package-private, 2 for {@code protected}, 3 for {@code public}
+     */
+    private static int accessRank(final int accessLevelModifierBits) {
+        if ((accessLevelModifierBits & Modifier.PUBLIC) != 0) {
+            return 3;
+        } else if ((accessLevelModifierBits & Modifier.PROTECTED) != 0) {
+            return 2;
+        } else if ((accessLevelModifierBits & Modifier.PRIVATE) != 0) {
+            return 0;
+        } else {
+            return 1;
+        }
+    }
+
+    /**
      * Set isAnnotation status.
      *
      * @param isAnnotation
@@ -628,8 +674,9 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      * The modifier bits of an entry are applied only to a class that has not been scanned, since a scanned class
      * takes its modifiers from its own classfile. For a class that has not been scanned, the entry in the classfile
      * of its enclosing class replaces all its modifiers, and the entries in other classfiles, which may have been
-     * compiled against an older version of the class, are then ignored, so that the result does not depend on the
-     * order in which the classfiles are linked.
+     * compiled against an older version of the class, are then ignored. Until the enclosing class's entry is seen,
+     * the entries in other classfiles are merged: their modifier bits are OR'd, and the widest access level any of
+     * them names is kept. Either way, the result does not depend on the order in which the classfiles are linked.
      *
      * @param classContainmentEntries
      *            the class containment entries
@@ -649,7 +696,7 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
                     innerClassInfo.modifiers = classContainment.innerClassModifierBits();
                     innerClassInfo.hasModifiersFromEnclosingClass = true;
                 } else if (!innerClassInfo.hasModifiersFromEnclosingClass) {
-                    innerClassInfo.setNestedClassModifiers(classContainment.innerClassModifierBits());
+                    innerClassInfo.mergeNestedClassModifiers(classContainment.innerClassModifierBits());
                 }
             }
             final var outerClassInfo = ClassInfo.getOrCreateClassInfo(classContainment.outerClassName(),
@@ -881,6 +928,7 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
             // which may have been compiled against a different version of the class
             classInfo.modifiers = classModifiers;
             classInfo.hasModifiersFromEnclosingClass = false;
+            classInfo.hasAccessLevelFromInnerClassesEntry = false;
         }
 
         // Mark the class as scanned
