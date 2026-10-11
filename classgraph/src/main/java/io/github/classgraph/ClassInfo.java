@@ -360,8 +360,8 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
         CLASSES_WITH_METHOD_ANNOTATION,
 
         /**
-         * Classes that have one or more non-private (inherited) methods annotated with this annotation, if this is
-         * an annotation.
+         * Classes that have one or more inherited (non-private, and not static if declared by an interface) methods
+         * annotated with this annotation, if this is an annotation.
          */
         CLASSES_WITH_NONPRIVATE_METHOD_ANNOTATION,
 
@@ -375,8 +375,8 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
         CLASSES_WITH_METHOD_PARAMETER_ANNOTATION,
 
         /**
-         * Classes that have one or more non-private (inherited) methods that have one or more parameters annotated
-         * with this annotation, if this is an annotation.
+         * Classes that have one or more inherited (non-private, and not static if declared by an interface) methods
+         * that have one or more parameters annotated with this annotation, if this is an annotation.
          */
         CLASSES_WITH_NONPRIVATE_METHOD_PARAMETER_ANNOTATION,
 
@@ -771,13 +771,30 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
                 annotationClassInfo.addRelatedClass(
                         isField ? RelType.CLASSES_WITH_FIELD_ANNOTATION : RelType.CLASSES_WITH_METHOD_ANNOTATION,
                         this);
-                // For non-private methods/fields, also add to nonprivate (inherited) mapping
-                if (!Modifier.isPrivate(modifiers)) {
+                // For inherited methods/fields, also add to nonprivate (inherited) mapping
+                if (isInheritedMember(modifiers, isField)) {
                     annotationClassInfo.addRelatedClass(isField ? RelType.CLASSES_WITH_NONPRIVATE_FIELD_ANNOTATION
                             : RelType.CLASSES_WITH_NONPRIVATE_METHOD_ANNOTATION, this);
                 }
             }
         }
+    }
+
+    /**
+     * Check whether a field or method of this class is inherited by the subclasses of this class, and, if this is
+     * an interface, by the classes that implement it and its subinterfaces (JLS 8.3, 8.4.8, 9.3, 9.4.1). A private
+     * field or method is not inherited, and nor is a static method of an interface. A static field of an interface
+     * is inherited, as is a static field or method of a class.
+     *
+     * @param modifiers
+     *            the field or method modifiers
+     * @param isField
+     *            true for a field, false for a method
+     * @return true if the field or method is inherited
+     */
+    boolean isInheritedMember(final int modifiers, final boolean isField) {
+        return !Modifier.isPrivate(modifiers)
+                && (isField || !Modifier.isStatic(modifiers) || !isInterfaceOrAnnotation());
     }
 
     /**
@@ -840,8 +857,8 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
                             this.addRelatedClass(RelType.METHOD_PARAMETER_ANNOTATIONS, annotationClassInfo);
                             annotationClassInfo.addRelatedClass(RelType.CLASSES_WITH_METHOD_PARAMETER_ANNOTATION,
                                     this);
-                            // For non-private methods/fields, also add to nonprivate (inherited) mapping
-                            if (!Modifier.isPrivate(mi.getModifiers())) {
+                            // For inherited methods, also add to nonprivate (inherited) mapping
+                            if (isInheritedMember(mi.getModifiers(), /* isField = */ false)) {
                                 annotationClassInfo.addRelatedClass(
                                         RelType.CLASSES_WITH_NONPRIVATE_METHOD_PARAMETER_ANNOTATION, this);
                             }
@@ -1796,11 +1813,11 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     }
 
     /**
-     * Checks whether this class or one of its superclasses has the named field.
+     * Checks whether this class or one of its superclasses or interfaces has the named field.
      *
      * @param fieldName
      *            The name of a field.
-     * @return true if this class or one of its superclasses declares a field of the given name.
+     * @return true if this class or one of its superclasses or interfaces declares a field of the given name.
      * @throws IllegalStateException
      *             if {@link ClassGraph#enableFieldInfo()} was not called before scanning.
      */
@@ -1853,12 +1870,12 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     }
 
     /**
-     * Checks whether this class or one of its superclasses declares a field with the annotation.
+     * Checks whether this class or one of its superclasses or interfaces declares a field with the annotation.
      *
      * @param fieldAnnotation
      *            The field annotation. Only the name of this class is used for the lookup, so the class itself does
      *            not need to have been on the scanned classpath.
-     * @return true if this class or one of its superclasses declares a field with the annotation.
+     * @return true if this class or one of its superclasses or interfaces declares a field with the annotation.
      * @throws IllegalArgumentException
      *             if {@code fieldAnnotation} is not an annotation type.
      * @throws IllegalStateException
@@ -1872,11 +1889,13 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     }
 
     /**
-     * Checks whether this class or one of its superclasses declares a field with the named annotation.
+     * Checks whether this class or one of its superclasses or interfaces declares a field with the named
+     * annotation.
      *
      * @param fieldAnnotationName
      *            The name of a field annotation.
-     * @return true if this class or one of its superclasses declares a field with the named annotation.
+     * @return true if this class or one of its superclasses or interfaces declares a field with the named
+     *         annotation.
      * @throws IllegalStateException
      *             if {@link ClassGraph#enableFieldInfo()} and {@link ClassGraph#enableAnnotationInfo()} were not
      *             both called before scanning.
@@ -2658,9 +2677,8 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     }
 
     /**
-     * Get the classes that have this class as a field, method or method parameter annotation, plus the subclasses
-     * of any class whose annotated field or method is non-private, since non-private fields and methods are
-     * inherited.
+     * Get the classes that have this class as a field, method or method parameter annotation, plus the classes that
+     * inherit the annotated field or method (see {@link #isInheritedMember(int, boolean)}).
      *
      * @param relType
      *            One of {@link RelType#CLASSES_WITH_FIELD_ANNOTATION},
@@ -2675,14 +2693,23 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
             final RelType nonprivateRelType) {
         // Get all classes that have a field or method annotated or meta-annotated with this annotation
         final Set<ClassInfo> classesWithAnnotation = new HashSet<>(getClassesWithFieldOrMethodAnnotation(relType));
-        // Add subclasses of all classes with a field or method that is non-privately annotated or meta-annotated
-        // with this annotation, since non-private fields and methods are inherited. Don't filter the two
-        // traversals, since an accepted class can inherit the field or method from an external or rejected
-        // superclass -- filter the union at the end instead.
+        // Add the classes that inherit a field or method that is annotated or meta-annotated with this annotation:
+        // the subclasses of the declaring class, and, if the declaring class is an interface, the classes that
+        // implement it (including its subinterfaces) and their subclasses. Don't filter these traversals, since an
+        // accepted class can inherit the field or method from an external or rejected class -- filter the union at
+        // the end instead.
         for (final ClassInfo classWithNonprivateAnnotation : getClassesWithFieldOrMethodAnnotation(
                 nonprivateRelType)) {
             classesWithAnnotation.addAll(classWithNonprivateAnnotation
                     .filterClassInfo(RelType.SUBCLASSES, /* excludeExternalClasses = */ false).reachableClasses());
+            for (final ClassInfo implementingClass : classWithNonprivateAnnotation
+                    .filterClassInfo(RelType.CLASSES_IMPLEMENTING, /* excludeExternalClasses = */ false)
+                    .reachableClasses()) {
+                classesWithAnnotation.add(implementingClass);
+                classesWithAnnotation.addAll(
+                        implementingClass.filterClassInfo(RelType.SUBCLASSES, /* excludeExternalClasses = */ false)
+                                .reachableClasses());
+            }
         }
         return new ClassInfoList(
                 ClassInfo.filterClassInfo(classesWithAnnotation, scanResult().scanSpec,
@@ -3458,13 +3485,14 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     }
 
     /**
-     * Get all classes that have this class as a method annotation, and their subclasses, if the method is
-     * non-private. A subclass is found even if the class that declares the method is external or rejected. An
-     * annotated method of an interface, such as a default method, does not add the classes that implement the
-     * interface, or its subinterfaces.
+     * Get all classes that have this class as a method annotation, and the classes that inherit the method, if the
+     * method is non-private: the subclasses of the declaring class, and, if the declaring class is an interface,
+     * the classes that implement it, their subclasses, and its subinterfaces. A static method of an interface is
+     * not inherited. An inheriting class is found even if the class that declares the method is external or
+     * rejected.
      *
-     * @return A list of classes that declare a method with this annotation or meta-annotation, and the subclasses
-     *         of those classes if the method is non-private, or the empty list if none.
+     * @return A list of classes that declare a method with this annotation or meta-annotation, and the classes that
+     *         inherit the method, or the empty list if none.
      * @throws IllegalStateException
      *             if {@link ClassGraph#enableMethodInfo()} and {@link ClassGraph#enableAnnotationInfo()} were not
      *             both called before scanning.
@@ -3475,13 +3503,14 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     }
 
     /**
-     * Get all classes that have this class as a method parameter annotation, and their subclasses, if the method is
-     * non-private. A subclass is found even if the class that declares the method is external or rejected. A method
-     * of an interface does not add the classes that implement the interface, or its subinterfaces.
+     * Get all classes that have this class as a method parameter annotation, and the classes that inherit the
+     * method, if the method is non-private: the subclasses of the declaring class, and, if the declaring class is
+     * an interface, the classes that implement it, their subclasses, and its subinterfaces. A static method of an
+     * interface is not inherited. An inheriting class is found even if the class that declares the method is
+     * external or rejected.
      *
      * @return A list of classes that declare a method with a parameter that is annotated with this annotation or
-     *         meta-annotation, and the subclasses of those classes if the method is non-private, or the empty list
-     *         if none.
+     *         meta-annotation, and the classes that inherit the method, or the empty list if none.
      * @throws IllegalStateException
      *             if {@link ClassGraph#enableMethodInfo()} and {@link ClassGraph#enableAnnotationInfo()} were not
      *             both called before scanning.
@@ -3829,12 +3858,13 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     }
 
     /**
-     * Get the classes that have this class as a field annotation or meta-annotation, and their subclasses, if the
-     * field is non-private. A subclass is found even if the class that declares the field is external or rejected.
-     * A field of an interface does not add the classes that implement the interface, or its subinterfaces.
+     * Get the classes that have this class as a field annotation or meta-annotation, and the classes that inherit
+     * the field, if the field is non-private: the subclasses of the declaring class, and, if the declaring class is
+     * an interface, the classes that implement it, their subclasses, and its subinterfaces. An inheriting class is
+     * found even if the class that declares the field is external or rejected.
      *
-     * @return A list of classes that declare a field with this annotation or meta-annotation, and the subclasses of
-     *         those classes if the field is non-private, or the empty list if none.
+     * @return A list of classes that declare a field with this annotation or meta-annotation, and the classes that
+     *         inherit the field, or the empty list if none.
      * @throws IllegalStateException
      *             if {@link ClassGraph#enableFieldInfo()} and {@link ClassGraph#enableAnnotationInfo()} were not
      *             both called before scanning.
