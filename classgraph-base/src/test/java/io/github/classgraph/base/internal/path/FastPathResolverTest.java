@@ -553,6 +553,31 @@ public class FastPathResolverTest {
     }
 
     /**
+     * The path of a remote URL names nothing on the local disk, so which of its '!' characters is a nested jar
+     * separator is decided by the rule for URLs, and does not depend on which local files happen to exist at the
+     * same path.
+     *
+     * @param tempDir
+     *            a temporary directory
+     * @throws IOException
+     *             if the local file could not be created
+     */
+    @Test
+    public void theSeparatorsOfARemoteUrlDoNotDependOnLocalFiles(@TempDir final Path tempDir) throws IOException {
+        final var localFilePath = Files.createFile(tempDir.resolve("a")).toString().replace(File.separatorChar,
+                '/');
+        final var dirPath = localFilePath.substring(0, localFilePath.length() - 2);
+        final var urlDirPath = "http://h" + (dirPath.startsWith("/") ? "" : "/") + dirPath;
+        // The local file <dir>/a exists, and <dir>/zz does not, but the two URLs must be resolved the same way
+        for (final var name : new String[] { "a", "zz" }) {
+            assertThat(FastPathResolver.resolve(null, urlDirPath + "/" + name + "!/b/../../c.jar")).as(name)
+                    .isEqualTo(urlDirPath + "/" + name + "!/c.jar");
+            assertThat(FastPathResolver.resolve(urlDirPath, name + "!/b/../../c.jar")).as(name)
+                    .isEqualTo(urlDirPath + "/" + name + "!/c.jar");
+        }
+    }
+
+    /**
      * Any separator after an authority beyond the first is an empty path segment, and is collapsed like any other.
      * The path that follows an authority never starts a UNC path, whose doubled separator is kept on Windows, so
      * the two must not be confused.
