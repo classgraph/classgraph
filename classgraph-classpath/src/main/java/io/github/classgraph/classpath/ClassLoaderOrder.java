@@ -65,10 +65,8 @@ public interface ClassLoaderOrder {
      * <p>
      * {@link ClasspathFinder#ignoreParentClassLoaders()} leaves out the classpath elements of a classloader reached
      * this way. A classloader reached this way by any handler counts as a parent, even if another handler reaches
-     * it with {@link #delegateToPeer(ClassLoader, ClassGraphLog)}. The one exception is when more than one set of
-     * classloaders is searched, for example after two calls to
-     * {@link ClasspathFinder#enableClassLoaders(ClassLoader...)}: a classloader whose classpath elements were
-     * already added while an earlier set was searched keeps them.
+     * it with {@link #delegateToPeer(ClassLoader, ClassGraphLog)}, and even if the classloader is also named
+     * directly, for example in an earlier call to {@link ClasspathFinder#enableClassLoaders(ClassLoader...)}.
      *
      * <p>
      * The classloader is not placed in the order here: its own handler places it, by calling
@@ -90,8 +88,7 @@ public interface ClassLoaderOrder {
      *
      * <p>
      * {@link ClasspathFinder#ignoreParentClassLoaders()} keeps the classpath elements of a classloader reached this
-     * way, unless a handler also reaches it with {@link #delegateToParent(ClassLoader, ClassGraphLog)} (see there
-     * for the one exception).
+     * way, unless a handler also reaches it with {@link #delegateToParent(ClassLoader, ClassGraphLog)}.
      *
      * <p>
      * The classloader is not placed in the order here: its own handler places it, by calling
