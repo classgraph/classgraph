@@ -12,6 +12,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Random;
 import java.util.zip.CRC32;
+import java.util.zip.Deflater;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -212,7 +213,8 @@ public class DeclaredUncompressedSizeTest {
         final var innerJar = tempDir.resolve("inner.jar");
         writeJar(innerJar, "a.txt", "a".getBytes(StandardCharsets.UTF_8), /* storedName = */ null,
                 /* storedContent = */ null);
-        // Pad the outer jarfile so that the jarfiles nested within it may inflate to more than DECLARED_SIZE
+        // Pad the outer jarfile so that the jarfiles nested within it may inflate to more than DECLARED_SIZE, even
+        // without the minimum of 256 MB
         final var outerJar = tempDir.resolve("outer.jar");
         writeJar(outerJar, "lib/inner.jar", Files.readAllBytes(innerJar), "padding.bin",
                 randomBytes(DECLARED_SIZE / 50, 1));
@@ -229,7 +231,8 @@ public class DeclaredUncompressedSizeTest {
 
     /**
      * A deflated nested jarfile that could inflate to the uncompressed size it declares is opened without
-     * allocating that size, when the jarfiles nested within the jarfile that holds it may not inflate that far.
+     * allocating that size, when what is left of what the jarfiles nested within the jarfile that holds it may
+     * inflate to is less than that size.
      */
     @Test
     public void openingANestedJarfileDoesNotAllocateMoreThanItMayInflateTo(@TempDir final Path tempDir)
@@ -239,14 +242,42 @@ public class DeclaredUncompressedSizeTest {
         final var randomContent = randomBytes(20 * 1024, 2);
         final var innerJar = tempDir.resolve("inner.jar");
         writeJar(innerJar, "unused.txt", new byte[0], "random.bin", randomContent);
+        // The jarfiles nested within a short jarfile may inflate to 256 MB in all. Another nested jarfile, of
+        // 254 MB of zeros, is opened first, so that less than MAX_ALLOCATED_BYTES of that is left
+        final var numZeros = 254L * 1024 * 1024;
+        final var chunk = new byte[64 * 1024];
+        final var crc = new CRC32();
+        for (long i = 0; i < numZeros; i += chunk.length) {
+            crc.update(chunk);
+        }
         final var outerJar = tempDir.resolve("outer.jar");
-        writeJar(outerJar, "lib/inner.jar", Files.readAllBytes(innerJar), /* storedName = */ null,
-                /* storedContent = */ null);
+        try (var zipOut = new ZipOutputStream(Files.newOutputStream(outerJar))) {
+            zipOut.setLevel(Deflater.BEST_SPEED);
+            zipOut.putNextEntry(new ZipEntry("lib/zeros.jar"));
+            // Not closed, since closing it would close zipOut: finish() writes its central directory
+            final var nestedZipOut = new ZipOutputStream(zipOut);
+            final var entry = new ZipEntry("zeros.bin");
+            entry.setMethod(ZipEntry.STORED);
+            entry.setSize(numZeros);
+            entry.setCompressedSize(numZeros);
+            entry.setCrc(crc.getValue());
+            nestedZipOut.putNextEntry(entry);
+            for (long i = 0; i < numZeros; i += chunk.length) {
+                nestedZipOut.write(chunk);
+            }
+            nestedZipOut.closeEntry();
+            nestedZipOut.finish();
+            zipOut.closeEntry();
+            zipOut.putNextEntry(new ZipEntry("lib/inner.jar"));
+            Files.copy(innerJar, zipOut);
+            zipOut.closeEntry();
+        }
         overstateUncompressedSize(outerJar, "lib/inner.jar", /* compressedSize = */ 0);
-        assertThat(100L * Files.size(outerJar)).isLessThan(MAX_ALLOCATED_BYTES);
+        assertThat(100L * Files.size(outerJar)).isLessThan(numZeros);
 
         try (var vfs = new Vfs()) {
             vfs.open(outerJar.toString());
+            assertThat(vfs.open(outerJar + "!/lib/zeros.jar").getEntry("zeros.bin")).isNotNull();
             final var allocatedBefore = allocatedBytes();
             final var root = vfs.open(outerJar + "!/lib/inner.jar");
             assertThat(allocatedBytes() - allocatedBefore).isLessThan(MAX_ALLOCATED_BYTES);
