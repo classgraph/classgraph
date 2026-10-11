@@ -66,6 +66,25 @@ public class SingletonMapTest {
         }
     }
 
+    /**
+     * Wait until a thread is blocked in a wait with no timeout, such as a waiter blocked on another thread's
+     * unfinished value. A fixed sleep is not enough: on a loaded machine the thread may not have reached the wait
+     * yet, and the test would then check a later lookup instead of a waiter.
+     *
+     * @param thread
+     *            the thread
+     * @throws InterruptedException
+     *             if interrupted while waiting
+     */
+    private static void awaitWaiting(final Thread thread) throws InterruptedException {
+        final var deadlineNanos = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+        while (thread.getState() != Thread.State.WAITING) {
+            assertThat(System.nanoTime() - deadlineNanos).as("Time past the deadline for %s to wait", thread)
+                    .isNegative();
+            Thread.sleep(1);
+        }
+    }
+
     /** The instance is created once per key, and the same instance is returned by every later call. */
     @Test
     public void instanceIsCreatedOncePerKey() throws Exception {
@@ -162,8 +181,8 @@ public class SingletonMapTest {
             }
         });
         waiter.start();
-        // Give the waiter time to block on the creator's unfinished value, then fail the creation
-        Thread.sleep(100);
+        // Wait until the waiter is blocked on the creator's unfinished value, then fail the creation
+        awaitWaiting(waiter);
         letCreatorFail.countDown();
 
         creator.join(5000);
@@ -286,8 +305,8 @@ public class SingletonMapTest {
             }
         });
         waiter.start();
-        // Give the waiter time to block on the creator's unfinished value, then abandon the creation
-        Thread.sleep(100);
+        // Wait until the waiter is blocked on the creator's unfinished value, then abandon the creation
+        awaitWaiting(waiter);
         letCreatorFail.countDown();
 
         creator.join(5000);
@@ -364,8 +383,8 @@ public class SingletonMapTest {
             }
         });
         waiter.start();
-        // Give the waiter time to block on the creator's unfinished value, then fail the creation
-        Thread.sleep(100);
+        // Wait until the waiter is blocked on the creator's unfinished value, then fail the creation
+        awaitWaiting(waiter);
         letCreatorFail.countDown();
 
         creator.join(5000);
