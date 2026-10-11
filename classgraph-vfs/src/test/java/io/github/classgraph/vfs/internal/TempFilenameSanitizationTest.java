@@ -37,6 +37,8 @@ import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermission;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.Test;
@@ -275,9 +277,21 @@ class TempFilenameSanitizationTest {
     }
 
     /**
-     * Run in a child JVM: set the {@code java.io.tmpdir} system property to a directory that does not exist, then
-     * clear it, and after each change create and delete a temporary file, printing the directory it was created in,
-     * or the class of the exception that creating it threw.
+     * The argument of {@link CreateTempFileAfterTempDirChanged} that clears the {@code java.io.tmpdir} property.
+     */
+    private static final String CLEARED = "<cleared>";
+
+    /**
+     * The argument of {@link CreateTempFileAfterTempDirChanged} that sets the {@code java.io.tmpdir} property to a
+     * string that is not a valid path on any platform. A NUL character cannot be passed on the command line itself.
+     */
+    private static final String NUL = "<nul>";
+
+    /**
+     * Run in a child JVM: print the encoding that filenames are stored in, then for each argument, set the
+     * {@code java.io.tmpdir} system property to it, or clear it if it is {@link #CLEARED}, or set it to
+     * {@code "a\0b"} if it is {@link #NUL}, and after each change create and delete a temporary file, printing the
+     * directory it was created in, or the class of the exception or error that creating it threw.
      */
     static final class CreateTempFileAfterTempDirChanged {
         /** Not instantiable. */
@@ -288,21 +302,21 @@ class TempFilenameSanitizationTest {
          * Entry point.
          *
          * @param args
-         *            ignored.
+         *            the values to set the {@code java.io.tmpdir} system property to, in order.
          */
         public static void main(final String[] args) {
-            final var startupTempDir = System.getProperty("java.io.tmpdir");
-            for (final var newTempDir : new String[] { Path.of(startupTempDir, "missing").toString(), null }) {
-                if (newTempDir == null) {
+            System.out.println(System.getProperty("sun.jnu.encoding"));
+            for (final var newTempDir : args) {
+                if (newTempDir.equals(CLEARED)) {
                     System.clearProperty("java.io.tmpdir");
                 } else {
-                    System.setProperty("java.io.tmpdir", newTempDir);
+                    System.setProperty("java.io.tmpdir", newTempDir.equals(NUL) ? "a\0b" : newTempDir);
                 }
                 try {
                     final var tempFile = TempFile.create("BOOT-INF/lib/lib.jar");
                     System.out.println(tempFile.getParent());
                     TempFile.delete(tempFile);
-                } catch (final IOException | RuntimeException e) {
+                } catch (final IOException | RuntimeException | Error e) {
                     System.out.println(e.getClass().getName());
                 }
             }
@@ -310,9 +324,46 @@ class TempFilenameSanitizationTest {
     }
 
     /**
+     * Start a child JVM that runs {@link CreateTempFileAfterTempDirChanged}.
+     *
+     * @param startupTempDir
+     *            the temporary directory the child JVM starts with.
+     * @param asciiFilenames
+     *            true to start the child JVM under the C locale, which on Linux stores filenames in ASCII.
+     * @param newTempDirs
+     *            the arguments of {@link CreateTempFileAfterTempDirChanged}.
+     * @return the lines the child JVM printed for each argument, after the encoding that filenames are stored in,
+     *         which is the first line of the list.
+     * @throws Exception
+     *             if the child JVM could not be run.
+     */
+    private static List<String> createTempFileAfterTempDirChanged(final Path startupTempDir,
+            final boolean asciiFilenames, final String... newTempDirs) throws Exception {
+        final var command = new ArrayList<String>();
+        command.add(Path.of(System.getProperty("java.home"), "bin", "java").toString());
+        command.add("-Djava.io.tmpdir=" + startupTempDir);
+        command.add("-cp");
+        command.add(System.getProperty("java.class.path"));
+        command.add(CreateTempFileAfterTempDirChanged.class.getName());
+        command.addAll(List.of(newTempDirs));
+        final var processBuilder = new ProcessBuilder(command).redirectErrorStream(true);
+        if (asciiFilenames) {
+            processBuilder.environment().keySet().removeIf(name -> name.startsWith("LC_"));
+            processBuilder.environment().put("LC_ALL", "C");
+            processBuilder.environment().put("LANG", "C");
+        }
+        final var output = runChildJvm(processBuilder);
+        // Read only the last lines, since the JVM may print a notice such as "Picked up JAVA_TOOL_OPTIONS" first
+        final var outputLines = output.lines().toList();
+        assertThat(outputLines).as("Child JVM output:%n%s", output).hasSizeGreaterThan(newTempDirs.length);
+        return outputLines.subList(outputLines.size() - newTempDirs.length - 1, outputLines.size());
+    }
+
+    /**
      * A temporary file is created in the temporary directory that the JVM started with, as for every other
      * temporary file the JDK creates, even if the {@code java.io.tmpdir} system property is changed or cleared
-     * while the JVM runs. Otherwise a jar that has to be spilled to disk is skipped.
+     * while the JVM runs, or set to a string that is not a valid path. Otherwise a jar that has to be spilled to
+     * disk is skipped.
      *
      * @param tempDir
      *            the temporary directory of the child JVM.
@@ -321,17 +372,45 @@ class TempFilenameSanitizationTest {
      */
     @Test
     void aTempDirChangedWhileRunningIsIgnored(@TempDir final Path tempDir) throws Exception {
-        final var processBuilder = new ProcessBuilder(
-                Path.of(System.getProperty("java.home"), "bin", "java").toString(), "-Djava.io.tmpdir=" + tempDir,
-                "-cp", System.getProperty("java.class.path"), CreateTempFileAfterTempDirChanged.class.getName())
-                .redirectErrorStream(true);
-        final var output = runChildJvm(processBuilder);
-        // Read the last two lines, since the JVM may print a notice such as "Picked up JAVA_TOOL_OPTIONS" first
-        final var outputLines = output.lines().toList();
-        assertThat(outputLines).as("Child JVM output:%n%s", output).hasSizeGreaterThanOrEqualTo(2);
-        assertThat(outputLines.subList(outputLines.size() - 2, outputLines.size()))
-                .as("Child JVM output:%n%s", output).containsExactly(tempDir.toString(), tempDir.toString());
+        final var outputLines = createTempFileAfterTempDirChanged(tempDir, false,
+                tempDir.resolve("missing").toString(), NUL, CLEARED);
+        assertThat(outputLines.subList(1, outputLines.size())).as("Child JVM output: %s", outputLines)
+                .containsExactly(tempDir.toString(), tempDir.toString(), tempDir.toString());
         try (var tempFiles = Files.list(tempDir)) {
+            assertThat(tempFiles).isEmpty();
+        }
+    }
+
+    /**
+     * The JDK sets up its temporary directory from the value the {@code java.io.tmpdir} system property had when
+     * the JVM started, the first time a temporary file is created, so a directory that cannot be represented in the
+     * encoding used for filenames fails then, whatever the property has been changed to since. Creating a temporary
+     * file must still throw an {@link IOException} every time, rather than an {@link Error}, both when the property
+     * has been cleared and when it has been set to a directory that can be represented.
+     *
+     * @param parentDir
+     *            the directory that holds the temporary directories of the child JVMs.
+     * @throws Exception
+     *             if a child JVM could not be run.
+     */
+    @Test
+    void aTempDirThatFilenamesCannotRepresentThrowsIOExceptionAfterItIsChanged(@TempDir final Path parentDir)
+            throws Exception {
+        assumeTrue(System.getProperty("os.name").startsWith("Linux"), "The C locale is only tested on Linux");
+        assumeTrue(System.getProperty("sun.jnu.encoding").equals("UTF-8"),
+                "This JVM cannot create a directory with a non-ASCII name");
+        final var startupTempDir = Files.createDirectory(parentDir.resolve("tmpé"));
+        final var asciiTempDir = Files.createDirectory(parentDir.resolve("tmp"));
+        for (final var newTempDir : new String[] { CLEARED, asciiTempDir.toString() }) {
+            final var outputLines = createTempFileAfterTempDirChanged(startupTempDir, true, newTempDir, newTempDir);
+            assumeTrue(!outputLines.get(0).equals("UTF-8"), "The C locale stores filenames in UTF-8 here");
+            assertThat(outputLines.subList(1, outputLines.size())).as("Child JVM output: %s", outputLines)
+                    .containsExactly(IOException.class.getName(), IOException.class.getName());
+        }
+        try (var tempFiles = Files.list(startupTempDir)) {
+            assertThat(tempFiles).isEmpty();
+        }
+        try (var tempFiles = Files.list(asciiTempDir)) {
             assertThat(tempFiles).isEmpty();
         }
     }
