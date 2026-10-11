@@ -270,9 +270,16 @@ public final class FastZipEntry implements Comparable<FastZipEntry> {
      * deflated ({@link #isDeflated}). Use {@link #open()}, {@link #load()} or {@link #read()} to read the content
      * of the entry.
      *
+     * <p>
+     * The slice is {@link #compressedSize} bytes long, except for a deflated entry whose compressed size runs past
+     * the end of the zipfile: its slice runs only to the end of the zipfile, so it may also hold bytes that follow
+     * the entry's deflate stream, which inflating the slice never reads.
+     *
      * @return the {@link Slice} covering the entry's stored bytes.
      * @throws IOException
-     *             If an I/O exception occurs.
+     *             if the entry's local header could not be read or is invalid, if the entry's data starts past the
+     *             end of the zipfile, or if the entry is stored and its compressed size runs past the end of the
+     *             zipfile.
      */
     public Slice getRawSlice() throws IOException {
         var slice = this.slice;
@@ -288,16 +295,30 @@ public final class FastZipEntry implements Comparable<FastZipEntry> {
             // more negative, which moves dataStartPos back before the LOC header)
             final var dataStartPos = locHeaderPos + 30 + randomAccessReader.readUnsignedShort(locHeaderPos + 26)
                     + randomAccessReader.readUnsignedShort(locHeaderPos + 28);
-            // The entry's data has to lie entirely within the zipfile. (Test the compressed size against the space
-            // left in the zipfile by subtraction, since adding it to dataStartPos could overflow. Both operands are
-            // non-negative -- a negative compressed size is rejected when the central directory is read.)
-            if (dataStartPos > parentLogicalZipFile.slice.sliceLength
-                    || compressedSize > parentLogicalZipFile.slice.sliceLength - dataStartPos) {
+            if (dataStartPos > parentLogicalZipFile.slice.sliceLength) {
                 throw new IOException("Unexpected EOF when trying to read zip entry data: " + entryName);
             }
+            // (Compare the compressed size with the space left in the zipfile by subtraction, since adding it to
+            // dataStartPos could overflow. Both operands are non-negative -- a negative compressed size is rejected
+            // when the central directory is read.)
+            final var spaceLeft = parentLogicalZipFile.slice.sliceLength - dataStartPos;
+            var storedSize = compressedSize;
+            if (storedSize > spaceLeft) {
+                if (!isDeflated) {
+                    // The compressed size of a stored entry is the only thing that marks where its content ends, so
+                    // the content of an entry that runs past the end of the zipfile is not all there, and reading
+                    // it must not return whatever bytes follow it instead
+                    throw new IOException("Unexpected EOF when trying to read zip entry data: " + entryName);
+                }
+                // A deflate stream marks its own end, so the inflater stops there, and never reads the bytes that
+                // follow it. The compressed size of a deflated entry is not needed to read it, so a size that runs
+                // past the end of the zipfile is cut short there, as java.util.zip.ZipFile reads such an entry. If
+                // the stream itself is cut short, inflating it fails at the end of the zipfile.
+                storedSize = spaceLeft;
+            }
 
-            // Create a new Slice that wraps just the data of the zip entry
-            this.slice = slice = parentLogicalZipFile.slice.slice(dataStartPos, compressedSize);
+            // Create a new Slice that wraps the data of the zip entry
+            this.slice = slice = parentLogicalZipFile.slice.slice(dataStartPos, storedSize);
         }
         return slice;
     }
@@ -352,15 +373,19 @@ public final class FastZipEntry implements Comparable<FastZipEntry> {
      * into: the uncompressed size the central directory declares, but no more than the compressed bytes of the
      * entry could inflate to. The declared size can be anything, and a buffer of that size, up to 16 MB, is
      * allocated up front, so without the cap an entry of a few bytes that declared 16 MB would make each read of it
-     * allocate 16 MB. The compressed size is checked against the length of the zipfile when the entry is opened, so
-     * the cap is set by bytes the zipfile really holds.
+     * allocate 16 MB. The cap is computed from the length of the entry's raw slice rather than from the compressed
+     * size the central directory declares, since a compressed size that runs past the end of the zipfile is cut
+     * short at the end of the zipfile, so the cap is set by bytes the zipfile really holds.
      *
      * @return the length to expect the inflated content to have, which is only a hint: the content is read to its
      *         end whatever its length.
+     * @throws IOException
+     *             if the entry's raw slice could not be read.
      */
-    long inflatedSizeHint() {
-        return compressedSize > Long.MAX_VALUE / MAX_DEFLATE_RATIO ? uncompressedSize
-                : Math.min(uncompressedSize, compressedSize * MAX_DEFLATE_RATIO);
+    long inflatedSizeHint() throws IOException {
+        final var storedSize = getRawSlice().sliceLength;
+        return storedSize > Long.MAX_VALUE / MAX_DEFLATE_RATIO ? uncompressedSize
+                : Math.min(uncompressedSize, storedSize * MAX_DEFLATE_RATIO);
     }
 
     /**
