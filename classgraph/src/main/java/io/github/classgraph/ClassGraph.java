@@ -674,6 +674,13 @@ public final class ClassGraph {
      * rejects is not opened, so the classpath elements that it declares are scanned only if an accepted classpath
      * element declares them too.
      *
+     * <p>
+     * The classpath elements that another classpath element declares are found while the scan's worker threads open
+     * that classpath element, so the filter is called both on the calling thread and on the worker threads,
+     * possibly by several threads at once. This holds for every {@code scan} method, and for the methods that find
+     * the classpath elements without scanning them, such as {@link #getClasspathFiles()}. The filter must therefore
+     * be thread-safe.
+     *
      * @param classpathElementFilter
      *            The filter to apply to the path string of each discovered classpath element. The path string is
      *            normalized so that the path separator is '/'. It will usually be a file path, but could be a URL,
@@ -700,7 +707,8 @@ public final class ClassGraph {
      * the URL of {@link java.nio.file.Path#toUri()} for a {@link java.nio.file.Path} in another filesystem. A
      * classpath element whose path has no URL form, such as a {@code Path} in a filesystem whose URI scheme has no
      * URL handler, is not tested by the URL filters, only by the filters added by
-     * {@link #filterClasspathElements(Predicate)}.
+     * {@link #filterClasspathElements(Predicate)}. Like those filters, the filter may be called by several threads
+     * at once, so it must be thread-safe.
      *
      * @param classpathElementURLFilter
      *            The filter to apply to the {@link URL} of each discovered classpath element.

@@ -165,6 +165,8 @@ public class ClasspathSpec {
      * Add a classpath element path filter. The provided filter should return true if the path string passed to it
      * is a path that should be scanned. The filter is applied to every classpath element: those named directly,
      * each jarfile that a wildcarded directory is expanded into, and those that another classpath element declares.
+     * The filter may be called by several threads at once, since the classpath elements that another classpath
+     * element declares are tested while worker threads open it, so it must be thread-safe.
      *
      * @param filter
      *            The filter to apply to the path string of all discovered classpath elements, to decide which
@@ -179,7 +181,8 @@ public class ClasspathSpec {
      * Add a classpath element {@link URL} filter. The provided filter should return true if the {@link URL} passed
      * to it is a classpath element that should be scanned. The filter is applied to the same classpath elements as
      * the filters added by {@link #filterClasspathElements(Predicate)}, except a classpath element whose path has
-     * no {@link URL} form, which is tested only by the path filters.
+     * no {@link URL} form, which is tested only by the path filters. Like those filters, it may be called by
+     * several threads at once, so it must be thread-safe.
      *
      * @param filter
      *            The filter to apply to the {@link URL} of all discovered classpath elements, to decide which
