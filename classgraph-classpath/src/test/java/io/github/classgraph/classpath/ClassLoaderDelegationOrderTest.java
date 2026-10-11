@@ -106,12 +106,9 @@ public class ClassLoaderDelegationOrderTest {
      * classloader declares, so the application classloader's own entries are still searched when it is one of the
      * classloaders being searched rather than a parent of one -- which is the usual case, since the context
      * classloader is normally the application classloader.
-     *
-     * @throws IOException
-     *             if the classpath could not be read
      */
     @Test
-    public void ignoringParentClassLoadersKeepsTheApplicationClassLoadersOwnEntries() throws IOException {
+    public void ignoringParentClassLoadersKeepsTheApplicationClassLoadersOwnEntries() {
         try (var classpath = new ClasspathFinder().enableClasspath().ignoreParentClassLoaders().find()) {
             // This test class is loaded from a java.class.path entry, so that entry must have been searched
             assertThat(classpath.getLocations()).isNotEmpty();

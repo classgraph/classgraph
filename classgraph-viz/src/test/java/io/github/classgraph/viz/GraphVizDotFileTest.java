@@ -488,6 +488,8 @@ public class GraphVizDotFileTest {
          *             never.
          */
         @Colored(Color.GREEN)
+        // The throws clause is what is graphed, so it is declared even though nothing throws the exception
+        @SuppressWarnings("unused")
         public void annotatedMethod(@Colored(Color.RED) final int annotatedParameter) throws Failure {
             // Empty
         }

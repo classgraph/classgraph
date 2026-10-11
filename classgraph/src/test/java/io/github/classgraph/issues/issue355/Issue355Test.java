@@ -2,7 +2,6 @@ package io.github.classgraph.issues.issue355;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.io.IOException;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
@@ -55,12 +54,9 @@ public class Issue355Test {
 
     /**
      * Test.
-     *
-     * @throws IOException
-     *             Signals that an I/O exception has occurred.
      */
     @Test
-    public void test() throws IOException {
+    public void test() {
         try (var scanResult = new ClassGraph().enableClasspath()
                 .acceptPackagesNonRecursive(Issue355Test.class.getPackage().getName()).enableClassInfo()
                 .enableMethodInfo().enableAnnotationInfo().enableInterClassDependencies().scan()) {

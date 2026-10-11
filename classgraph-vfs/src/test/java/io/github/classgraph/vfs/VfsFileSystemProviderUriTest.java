@@ -1179,12 +1179,9 @@ public class VfsFileSystemProviderUriTest {
      * A module that no layer reachable from the given one has is reported as absent rather than opened empty, with
      * the same checked exception that opening a path that names nothing throws, both from {@link Vfs} and from
      * {@link FileSystems#newFileSystem(URI, Map)}, whose contract allows only an {@link IOException}.
-     *
-     * @throws IOException
-     *             if the Vfs could not be closed.
      */
     @Test
-    public void aModuleThatNoLayerHasIsReportedAsAbsent() throws IOException {
+    public void aModuleThatNoLayerHasIsReportedAsAbsent() {
         try (var vfs = new Vfs()) {
             assertThatThrownBy(() -> vfs.openModule("no.such.module.exists"))
                     .isInstanceOf(NoSuchFileException.class).hasMessageContaining("no.such.module.exists");

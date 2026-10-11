@@ -412,7 +412,9 @@ public abstract class Slice implements AutoCloseable {
      * @throws IOException
      *             if the file has already been unmapped, so that there is nothing left to read.
      */
-    // #939
+    // #939. The throws clause is declared even though nothing here throws the exception, since PathSlice overrides
+    // this method for a memory-mapped file, and throws it once the file has been unmapped
+    @SuppressWarnings("unused")
     public Runnable acquireMappingView() throws IOException {
         return () -> {
             // Nothing to release

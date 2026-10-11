@@ -29,6 +29,8 @@ public class ThrowsClauseDependencyTest {
          * @throws ThrownException
          *             never thrown
          */
+        // The throws clause is what is scanned, so it is declared even though nothing throws the exception
+        @SuppressWarnings("unused")
         public void throwingMethod() throws ThrownException {
         }
     }

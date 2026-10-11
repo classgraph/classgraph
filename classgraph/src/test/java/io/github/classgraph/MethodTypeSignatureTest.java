@@ -36,6 +36,8 @@ public class MethodTypeSignatureTest {
          * @throws IOException
          *             never.
          */
+        // The throws clause is what is scanned, so it is declared even though nothing throws the exception
+        @SuppressWarnings("unused")
         public <T extends Number & Comparable<T>> Map<String, T> generic(final T value, final int count)
                 throws IOException {
             return Map.of(String.valueOf(count), value);
@@ -49,6 +51,8 @@ public class MethodTypeSignatureTest {
          * @throws E
          *             never.
          */
+        // The throws clause is what is scanned, so it is declared even though nothing throws the exception
+        @SuppressWarnings("unused")
         public <E extends Exception> void throwsATypeVariable() throws E {
             // Does not throw
         }

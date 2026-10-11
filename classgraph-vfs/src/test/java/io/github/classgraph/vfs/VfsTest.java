@@ -825,11 +825,9 @@ public class VfsTest {
      *
      * @param tempDir
      *            a temporary directory.
-     * @throws IOException
-     *             if the directory could not be written.
      */
     @Test
-    public void anUnreadableDirectoryCannotBeOpened(@TempDir final File tempDir) throws IOException {
+    public void anUnreadableDirectoryCannotBeOpened(@TempDir final File tempDir) {
         final var unreadable = new File(tempDir, "unreadable");
         assertThat(unreadable.mkdir()).isTrue();
         if (!unreadable.setReadable(false) || unreadable.canRead()) {

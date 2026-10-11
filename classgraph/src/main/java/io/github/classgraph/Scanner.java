@@ -503,8 +503,8 @@ class Scanner {
         if (classpathEntryObjNormalized instanceof final Path normalizedPath) {
             try {
                 classpathEntryObjNormalized = FileUtils.canonicalize(normalizedPath);
-            } catch (final IOException | SecurityException e) {
-                // The path could not be canonicalized -- use it as given
+            } catch (final SecurityException e) {
+                // A SecurityManager would not let the path be canonicalized -- use it as given
             }
         }
 
