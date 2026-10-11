@@ -7,6 +7,7 @@ import static org.assertj.core.api.Assertions.catchThrowable;
 import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -169,6 +170,44 @@ public class SingletonMapTest {
         waiter.join(5000);
         assertThat(waiterResult.get()).isInstanceOf(NewInstanceException.class);
         assertThat(((Throwable) waiterResult.get()).getCause()).isSameAs(cause);
+        assertThat(map.numNewInstanceCalls).hasValue(1);
+    }
+
+    /**
+     * A thread waiting with a timeout for a value that another thread is still creating gets a
+     * {@link TimeoutException} once the timeout passes. The creation is not abandoned: a later call gets the value
+     * once the other thread finishes creating it, and the factory is not called again.
+     */
+    @Test
+    public void aWaiterGivesUpAfterItsTimeout() throws Exception {
+        final var creatorInNewInstance = new CountDownLatch(1);
+        final var letCreatorFinish = new CountDownLatch(1);
+        final var map = new TestMap(key -> {
+            creatorInNewInstance.countDown();
+            letCreatorFinish.await();
+            return key;
+        });
+
+        final var creator = new Thread(() -> {
+            try {
+                map.get("theKey");
+            } catch (final Exception _) {
+                // Checked below, through the value the creator leaves in the map
+            }
+        });
+        creator.start();
+        try {
+            assertThat(creatorInNewInstance.await(5, TimeUnit.SECONDS)).isTrue();
+            final var startNanos = System.nanoTime();
+            assertThatThrownBy(() -> map.map.get("theKey", () -> "fromWaiter", TimeUnit.MILLISECONDS.toNanos(100)))
+                    .isInstanceOf(TimeoutException.class);
+            assertThat(System.nanoTime() - startNanos).isGreaterThanOrEqualTo(TimeUnit.MILLISECONDS.toNanos(100));
+        } finally {
+            letCreatorFinish.countDown();
+            creator.join(5000);
+        }
+        assertThat(map.map.get("theKey", () -> "fromWaiter", TimeUnit.MILLISECONDS.toNanos(100)))
+                .isEqualTo("theKey");
         assertThat(map.numNewInstanceCalls).hasValue(1);
     }
 

@@ -35,6 +35,8 @@ import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.jspecify.annotations.Nullable;
@@ -235,13 +237,24 @@ public class SingletonMap<K, V> {
         /**
          * Get the value, waiting for it to be set if it has not been set yet.
          *
+         * @param key
+         *            the key the value is for, to name in the exception if the wait times out.
+         * @param timeoutNanos
+         *            the maximum number of nanoseconds to wait, or {@link Long#MAX_VALUE} to wait indefinitely.
          * @return the value, or null if it could not be created.
          * @throws InterruptedException
          *             if the thread was interrupted while waiting for the value to be set.
+         * @throws TimeoutException
+         *             if the value was not set within the timeout.
          */
         @Nullable
-        V get() throws InterruptedException {
-            initialized.await();
+        V get(final Object key, final long timeoutNanos) throws InterruptedException, TimeoutException {
+            if (timeoutNanos == Long.MAX_VALUE) {
+                initialized.await();
+            } else if (!initialized.await(timeoutNanos, TimeUnit.NANOSECONDS)) {
+                throw new TimeoutException(
+                        "Timed out waiting for another thread to create the value for key " + key);
+            }
             return singleton;
         }
 
@@ -288,12 +301,56 @@ public class SingletonMap<K, V> {
      */
     public V get(final K key, final NewInstanceFactory<V> newInstanceFactory)
             throws IOException, InterruptedException, NullSingletonException, NewInstanceException {
+        try {
+            return get(key, newInstanceFactory, Long.MAX_VALUE);
+        } catch (final TimeoutException e) {
+            // Cannot happen, since a wait with no timeout does not time out
+            throw new IllegalStateException(e);
+        }
+    }
+
+    /**
+     * Get the value for a key, as {@link #get(Object, NewInstanceFactory)} does, but give up waiting for another
+     * thread's value once the timeout has passed. A thread that is creating the value can be stuck, for example on
+     * a read from a network filesystem that never returns, and without a timeout every thread that asks for the
+     * same key would then be stuck too. The timeout bounds only the wait for another thread's value, not the time
+     * this thread spends running the factory itself.
+     *
+     * @param key
+     *            The key.
+     * @param newInstanceFactory
+     *            Creates the value, if there is no value for the key yet.
+     * @param timeoutNanos
+     *            The maximum number of nanoseconds to wait for another thread to create the value, or
+     *            {@link Long#MAX_VALUE} to wait indefinitely.
+     * @return The value.
+     * @throws IOException
+     *             if the owner of this map has been closed.
+     * @throws InterruptedException
+     *             if the thread was interrupted while creating the value, or while waiting for another thread to
+     *             create it.
+     * @throws TimeoutException
+     *             if another thread was creating the value, and did not finish within the timeout. The creation is
+     *             not abandoned: the other thread may still finish it, and a later call may then get the value.
+     * @throws NullSingletonException
+     *             if the factory returned null, on this call or an earlier one.
+     * @throws NewInstanceException
+     *             if the factory threw an exception, on this call or an earlier one; its cause is the exception the
+     *             factory threw.
+     */
+    public V get(final K key, final NewInstanceFactory<V> newInstanceFactory, final long timeoutNanos)
+            throws IOException, InterruptedException, TimeoutException, NullSingletonException,
+            NewInstanceException {
+        final var deadlineNanos = System.nanoTime() + timeoutNanos;
         while (true) {
             checkNotClosed();
             final var singletonHolder = map.get(key);
             if (singletonHolder != null) {
-                // There is already a SingletonHolder in the map for this key -- get the value
-                final var instance = singletonHolder.get();
+                // There is already a SingletonHolder in the map for this key -- get the value, waiting until the
+                // deadline if another thread is still creating it (the deadline is computed once, so that waiting
+                // again after retrying an abandoned creation does not restart the timeout)
+                final var instance = singletonHolder.get(key, timeoutNanos == Long.MAX_VALUE ? Long.MAX_VALUE
+                        : Math.max(0L, deadlineNanos - System.nanoTime()));
                 if (instance != null) {
                     return instance;
                 }
