@@ -669,12 +669,30 @@ public final class PathSlice extends Slice {
         // below JDK 22, or one that something other than this slice made through FileChannel#map, from the File
         // that getFile() hands out. (The garbage collector cannot release a mapping whose arena would not close:
         // only closing the arena can.) The collector only runs when it chooses to, so ask for a collection and try
-        // again. If the JVM was started with -XX:+DisableExplicitGC then this is a no-op, and the file is left
-        // behind, and logged.
+        // again. (If the JVM was started with -XX:+DisableExplicitGC then this is a no-op.) A file that still cannot
+        // be deleted is scheduled for deletion when the JVM exits, which succeeds if whatever kept it mapped has
+        // released it by then.
         // #939
         freeUnreachableBuffers();
-        if (!TempFile.delete(fileToDelete) && tempFileLog != null) {
-            tempFileLog.log("Removing temporary file failed: " + fileToDelete);
+        if (TempFile.delete(fileToDelete)) {
+            return;
+        }
+        if (TempFile.deleteOnExit(fileToDelete)) {
+            if (tempFileLog != null) {
+                tempFileLog.log("Could not remove temporary file, so it will be removed when the JVM exits: "
+                        + fileToDelete);
+            }
+        } else if (tempFileLog != null) {
+            boolean fileStillExists;
+            try {
+                fileStillExists = fileToDelete.exists();
+            } catch (final SecurityException e) {
+                // A security manager does not allow the file to be read, so it cannot be known to be gone
+                fileStillExists = true;
+            }
+            if (fileStillExists) {
+                tempFileLog.log("Removing temporary file failed: " + fileToDelete);
+            }
         }
     }
 

@@ -1859,7 +1859,8 @@ public final class ClassGraph {
      * a location URI. A jarfile downloaded from a URL into a temporary file (see
      * {@link #setMaxBufferedJarRAMSize(int)}) is not included either, since this method finds the classpath
      * elements with a scan that it closes before it returns, which deletes that file; {@link #getClasspathURIs()}
-     * lists the jarfile by its URL.
+     * lists the jarfile by its URL. (If deleting that file fails, as can happen on Windows, then the file is
+     * listed, and deleting it is tried again when the JVM exits.)
      *
      * @return a {@code List<File>} consisting of the unique enabled directories and jarfiles, in classpath
      *         resolution order.
