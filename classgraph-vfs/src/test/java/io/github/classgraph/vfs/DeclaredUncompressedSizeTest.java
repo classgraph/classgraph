@@ -229,7 +229,8 @@ public class DeclaredUncompressedSizeTest {
 
     /**
      * A deflated nested jarfile that could inflate to the uncompressed size it declares is opened without
-     * allocating that size, when the jarfiles nested within the jarfile that holds it may not inflate that far.
+     * allocating that size, when the jarfiles nested within the jarfile that holds it may no longer inflate that
+     * far, since another nested jarfile has taken almost all of what they may inflate to.
      */
     @Test
     public void openingANestedJarfileDoesNotAllocateMoreThanItMayInflateTo(@TempDir final Path tempDir)
@@ -239,14 +240,40 @@ public class DeclaredUncompressedSizeTest {
         final var randomContent = randomBytes(20 * 1024, 2);
         final var innerJar = tempDir.resolve("inner.jar");
         writeJar(innerJar, "unused.txt", new byte[0], "random.bin", randomContent);
+        // The jarfiles nested within a small jarfile may inflate to 256 MB together, so a nested jarfile of
+        // 254 MB of zeros, written straight into its entry, leaves less than MAX_ALLOCATED_BYTES for the others
+        final var numZeros = 254L * 1024 * 1024;
+        final var chunk = new byte[64 * 1024];
+        final var crc = new CRC32();
+        for (long i = 0; i < numZeros; i += chunk.length) {
+            crc.update(chunk);
+        }
         final var outerJar = tempDir.resolve("outer.jar");
-        writeJar(outerJar, "lib/inner.jar", Files.readAllBytes(innerJar), /* storedName = */ null,
-                /* storedContent = */ null);
+        try (var zipOut = new ZipOutputStream(Files.newOutputStream(outerJar))) {
+            zipOut.putNextEntry(new ZipEntry("lib/inner.jar"));
+            Files.copy(innerJar, zipOut);
+            zipOut.closeEntry();
+            zipOut.putNextEntry(new ZipEntry("lib/zeros.jar"));
+            // Not closed, since closing it would close zipOut: finish() writes its central directory
+            final var nestedZipOut = new ZipOutputStream(zipOut);
+            final var entry = new ZipEntry("zeros.bin");
+            entry.setMethod(ZipEntry.STORED);
+            entry.setSize(numZeros);
+            entry.setCompressedSize(numZeros);
+            entry.setCrc(crc.getValue());
+            nestedZipOut.putNextEntry(entry);
+            for (long i = 0; i < numZeros; i += chunk.length) {
+                nestedZipOut.write(chunk);
+            }
+            nestedZipOut.closeEntry();
+            nestedZipOut.finish();
+            zipOut.closeEntry();
+        }
         overstateUncompressedSize(outerJar, "lib/inner.jar", /* compressedSize = */ 0);
-        assertThat(100L * Files.size(outerJar)).isLessThan(MAX_ALLOCATED_BYTES);
 
         try (var vfs = new Vfs()) {
             vfs.open(outerJar.toString());
+            assertThat(vfs.open(outerJar + "!/lib/zeros.jar").getEntry("zeros.bin")).isNotNull();
             final var allocatedBefore = allocatedBytes();
             final var root = vfs.open(outerJar + "!/lib/inner.jar");
             assertThat(allocatedBytes() - allocatedBefore).isLessThan(MAX_ALLOCATED_BYTES);
