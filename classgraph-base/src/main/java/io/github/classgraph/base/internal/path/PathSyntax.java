@@ -41,9 +41,9 @@ import io.github.classgraph.base.internal.utils.VersionFinder.OperatingSystem;
  * <p>
  * These operations read the path as text, and do not ask the filesystem what it names. The exceptions are
  * {@link #indexOfNestedJarSeparator(String)} and {@link #hasURLScheme(String)}, and the methods that call them,
- * such as {@link #sanitizeEntryPath(String, boolean, boolean)}, which have to test whether a path names an existing
- * file or directory, because neither a {@code '!'} separator nor a URL scheme can be told from a filename by syntax
- * alone. Reading and resolving the file a path names are the business of {@link FileUtils} and
+ * such as {@link #sanitizeEntryPath(String, String, boolean, boolean, boolean)}, which have to test whether a path
+ * names an existing file or directory, because neither a {@code '!'} separator nor a URL scheme can be told from a
+ * filename by syntax alone. Reading and resolving the file a path names are the business of {@link FileUtils} and
  * {@link FastPathResolver} respectively.
  */
 public final class PathSyntax {
@@ -65,28 +65,6 @@ public final class PathSyntax {
     }
 
     // -------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Sanitize a path on the host against "zip slip" vulnerability, by removing path segments if ".." is found in
-     * the URL, but without allowing navigation above the path hierarchy root. Each nested jar separator '!' starts
-     * a new path hierarchy root; which '!' characters are separators is decided by testing the filesystem (see
-     * {@link #indexOfNestedJarSeparator(String)}). Also removes "." and empty path segments ("//"). To sanitize a
-     * path within a directory or archive, where '!' is always an ordinary character, use
-     * {@link #sanitizeRelativePath(String, boolean)}.
-     *
-     * @param path
-     *            The path to sanitize.
-     * @param removeInitialSlash
-     *            If true, remove any '/' character(s) from the beginning of the returned path.
-     * @param removeFinalSlash
-     *            If true, remove any '/' character(s) from the end of the returned path.
-     * @return The sanitized path.
-     */
-    public static String sanitizeEntryPath(final String path, final boolean removeInitialSlash,
-            final boolean removeFinalSlash) {
-        return sanitizeEntryPath(/* prefix = */ "", path, removeInitialSlash, removeFinalSlash,
-                /* collapseParentSegmentsInFirstSection = */ true);
-    }
 
     /**
      * Sanitize a path on the host against "zip slip" vulnerability, by removing path segments if ".." is found in
@@ -140,9 +118,9 @@ public final class PathSyntax {
      * character(s).
      *
      * <p>
-     * Unlike {@link #sanitizeEntryPath(String, boolean, boolean)}, this treats every '!' as an ordinary character,
-     * since a path within a root is not a path on the host, and so contains no nested jar separator. The filesystem
-     * is never read.
+     * Unlike {@link #sanitizeEntryPath(String, String, boolean, boolean, boolean)}, this treats every '!' as an
+     * ordinary character, since a path within a root is not a path on the host, and so contains no nested jar
+     * separator. The filesystem is never read.
      *
      * @param relativePath
      *            The path to sanitize.

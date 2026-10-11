@@ -57,8 +57,9 @@ public class PathSyntaxTest {
         assertThat(PathSyntax.indexOfNestedJarSeparator(entryInPlingDir)).isEqualTo(outerJarPath.length());
         assertThat(PathSyntax.lastIndexOfNestedJarSeparator(entryInPlingDir)).isEqualTo(outerJarPath.length());
         // ... so sanitizing such a path must not insert a '/' after that '!', which would name a different entry
-        assertThat(PathSyntax.sanitizeEntryPath(outerJarPath + "!/dir!name/./x.txt", false, false))
-                .isEqualTo(entryInPlingDir);
+        assertThat(PathSyntax.sanitizeEntryPath(/* prefix = */ "", outerJarPath + "!/dir!name/./x.txt",
+                /* removeInitialSlash = */ false, /* removeFinalSlash = */ false,
+                /* collapseParentSegmentsInFirstSection = */ true)).isEqualTo(entryInPlingDir);
 
         // The innermost separator is the last '!' that really is one, not simply the last '!' in the path
         final var twoDeep = outerJarPath + "!/lib/inner.jar!/dir!name";
