@@ -8,9 +8,9 @@ import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ClassRefTypeSignature;
 
 /**
- * GenericInnerClassTypedField.
+ * The type signature of a field whose type is an inner class of a parameterized generic class.
  */
-public class GenericInnerClassTypedField {
+public class GenericInnerClassTypedFieldTest {
     /**
      * The Class A.
      *
@@ -37,11 +37,12 @@ public class GenericInnerClassTypedField {
     @Test
     public void testGenericInnerClassTypedField() {
         try (var scanResult = new ClassGraph().enableClasspath()
-                .acceptPackages(GenericInnerClassTypedField.class.getPackage().getName()).enableClassInfo()
+                .acceptPackages(GenericInnerClassTypedFieldTest.class.getPackage().getName()).enableClassInfo()
                 .enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
                 .enableStaticFinalFieldConstantInitializerValues().ignoreClassVisibility().ignoreFieldVisibility()
                 .ignoreMethodVisibility().scan()) {
-            final var fields = scanResult.getClassInfo(GenericInnerClassTypedField.class.getName()).getFieldInfo();
+            final var fields = scanResult.getClassInfo(GenericInnerClassTypedFieldTest.class.getName())
+                    .getFieldInfo();
             final var classRefTypeSignature = (ClassRefTypeSignature) fields.get(0).getTypeSignature();
             assertThat(classRefTypeSignature.toString()).isEqualTo(
                     A.class.getName() + "<" + Integer.class.getName() + ", " + String.class.getName() + ">$B");
