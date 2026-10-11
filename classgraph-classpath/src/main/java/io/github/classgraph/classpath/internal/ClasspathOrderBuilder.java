@@ -424,6 +424,12 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
             // Convert package root prefix to a suffix, e.g. "WEB-INF/classes/" -> "!/WEB-INF/classes"
             final var suffix = "!/" + packageRootPrefix.substring(0, packageRootPrefix.length() - 1);
             if (pathElementStrResolved.endsWith(suffix)) {
+                // A path that names an existing file or directory as it is written, such as
+                // "/x/app!/WEB-INF/classes" where "app!" is a directory holding an unpacked war, is scanned as it
+                // is, since its '!' is part of a directory name, not a nested jar separator (#903)
+                if (new File(pathElementStrResolved).exists()) {
+                    break;
+                }
                 // Strip off automatic package root suffix
                 pathElementStrWithoutSuffix = pathElementStrResolved.substring(0,
                         pathElementStrResolved.length() - suffix.length());
@@ -447,8 +453,9 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
                 // filesystem. If the zipfile is itself inside another archive (a zip filesystem opened on a path in
                 // another zip filesystem), what is left ("/x/outer.jar!/app.war") names a nested archive, which is
                 // a file of no filesystem, so the entry degrades to that path string, which the scanner opens as a
-                // nested archive
-                if (pathElementStrWithoutSuffix.contains("!/")) {
+                // nested archive. Whether it is nested is decided by testing the filesystem (#903), since a "!/" in
+                // what is left may end a directory name, as in "/x/build!/app.war", which names a zipfile
+                if (PathSyntax.indexOfNestedJarSeparator(pathElementStrWithoutSuffix) >= 0) {
                     pathElementWithoutSuffix = pathElementStrWithoutSuffix;
                 } else {
                     try {
@@ -460,19 +467,22 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
             } else if (!URLPaths.startsWithURLScheme(pathElementStrWithoutSuffix)) {
                 // The resolved path of a URL or URI that names a local file has lost its "file:" or "jar:file:"
                 // scheme and its percent encoding, so the URL or URI is rebuilt from the path of the file, which
-                // Path#toUri() encodes again. (Parsing the resolved path as a URL or URI would give a URI with no
+                // URLPaths#toURI encodes again. (Parsing the resolved path as a URL or URI would give a URI with no
                 // scheme, a URL with a space in it that cannot be turned into a URI, or a URL that names a
-                // different file once the scanner decodes a "%" that had been encoded as "%25".) The "jar:" scheme
-                // is kept if the path is still nested inside an archive once the suffix has been stripped (a URI
-                // scheme is not case sensitive, so it may be spelled "JAR:")
+                // different file once the scanner decodes a "%" that had been encoded as "%25".) The rebuilt URI
+                // is the "file:" URI of the archive or directory that is left, or a "jar:" URI if the path is still
+                // nested inside another archive once the suffix has been stripped. Whether it is nested is decided
+                // by testing the filesystem (#903), since a "!/" in the path may end a directory name, as in
+                // "/x/build!/app.war", and such a "!/" is percent-encoded in a "jar:" URI, which would otherwise
+                // end the outer archive's path there. A path that is not nested is turned into a URI by its Path,
+                // which ends the URI of a directory in '/', as java.net.URLClassLoader requires of a directory. The
+                // scanner forms the URI it reports for an archive or a directory the same way
                 try {
-                    var uri = Path.of(pathElementStrWithoutSuffix).toUri();
-                    if (pathElement.toString().regionMatches(/* ignoreCase = */ true, 0, "jar:", 0, 4)
-                            && pathElementStrWithoutSuffix.contains("!/")) {
-                        uri = new URI("jar:" + uri);
-                    }
+                    final var uri = PathSyntax.indexOfNestedJarSeparator(pathElementStrWithoutSuffix) >= 0
+                            ? URLPaths.toURI(pathElementStrWithoutSuffix)
+                            : URLPaths.toURI(Path.of(pathElementStrWithoutSuffix));
                     pathElementWithoutSuffix = pathElement instanceof URL ? uri.toURL() : uri;
-                } catch (InvalidPathException | IOError | URISyntaxException | MalformedURLException _) {
+                } catch (InvalidPathException | IllegalStateException | MalformedURLException _) {
                     pathElementWithoutSuffix = pathElementStrWithoutSuffix;
                 }
             } else {
