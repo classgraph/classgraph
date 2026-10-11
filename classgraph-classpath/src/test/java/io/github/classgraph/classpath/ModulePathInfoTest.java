@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.File;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -103,13 +102,7 @@ public class ModulePathInfoTest {
         command.add("-cp");
         command.add(System.getProperty("java.class.path"));
         command.add(ModulePathInfoPrinter.class.getName());
-        final var process = new ProcessBuilder(command).redirectErrorStream(true).start();
-        final String output;
-        try (var inputStream = process.getInputStream()) {
-            output = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
-        }
-        assertThat(process.waitFor()).as("Child JVM output:%n%s", output).isZero();
-        return output.lines().toList();
+        return ChildJvm.run(new ProcessBuilder(command)).lines().toList();
     }
 
     /**

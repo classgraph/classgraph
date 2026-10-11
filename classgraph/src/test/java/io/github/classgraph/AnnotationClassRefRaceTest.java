@@ -2,7 +2,6 @@ package io.github.classgraph;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -100,15 +99,9 @@ public class AnnotationClassRefRaceTest {
     public void classInfoCanBeFoundByTwoThreadsAtOnce() throws Exception {
         final var javaExecutable = ProcessHandle.current().info().command()
                 .orElseGet(() -> Path.of(System.getProperty("java.home"), "bin", "java").toString());
-        final var process = new ProcessBuilder(javaExecutable, "-XX:CompileCommand=quiet",
+        final var output = ChildJvm.run(new ProcessBuilder(javaExecutable, "-XX:CompileCommand=quiet",
                 "-XX:CompileCommand=exclude," + AnnotationClassRef.class.getName() + "::getTypeSignature", "-cp",
-                System.getProperty("java.class.path"), AnnotationClassRefRaceTest.class.getName())
-                .redirectErrorStream(true).start();
-        final String output;
-        try (var inputStream = process.getInputStream()) {
-            output = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
-        }
-        assertThat(process.waitFor()).as("Child JVM output:%n%s", output).isZero();
+                System.getProperty("java.class.path"), AnnotationClassRefRaceTest.class.getName()));
         assertThat(output).as("Child JVM output:%n%s", output).contains(NUM_FAILURES + 0);
     }
 }

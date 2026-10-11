@@ -22,6 +22,7 @@ import java.util.zip.ZipOutputStream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import io.github.classgraph.ChildJvm;
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.base.internal.reflection.ReflectionUtils;
 
@@ -115,13 +116,7 @@ class HiddenClasspathEntryTest {
         command.add("-cp");
         command.add(System.getProperty("java.class.path"));
         command.add(HiddenClasspathEntryScanner.class.getName());
-        final var process = new ProcessBuilder(command).redirectErrorStream(true).start();
-        final String output;
-        try (var inputStream = process.getInputStream()) {
-            output = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
-        }
-        assertThat(process.waitFor()).as("Child JVM output:%n%s", output).isZero();
-        return output;
+        return ChildJvm.run(new ProcessBuilder(command));
     }
 
     /**
