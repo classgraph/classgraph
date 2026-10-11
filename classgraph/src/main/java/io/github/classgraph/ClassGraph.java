@@ -1478,8 +1478,9 @@ public final class ClassGraph {
      * forever. The time counts from when a unit of work last finished, so a scan whose worker threads are still
      * finishing units of work is not stopped, however long it takes altogether. The one exception is a thread
      * waiting for another thread to open a classpath element that both of them need (because it is listed twice,
-     * for example once on the classpath and once in the {@code Class-Path} entry of a jarfile's manifest): that
-     * wait is limited to this time from when it starts, whatever other work finishes meanwhile.
+     * for example once on the classpath and once in the {@code Class-Path} entry of a jarfile's manifest), or a
+     * jarfile that both of their classpath elements are read from (for example a jarfile and a package root within
+     * it): that wait is limited to this time from when it starts, whatever other work finishes meanwhile.
      *
      * <p>
      * A worker thread that never finishes means the scan cannot complete. The two known causes are a classloading

@@ -48,6 +48,9 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.zip.Inflater;
 
@@ -105,10 +108,11 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>
  * Every method is safe to call from multiple threads at once. Two threads that ask for the same path at the same
- * time get back the same {@link VfsRoot}, and the jarfile behind it is only read once. How storage is read is set
- * by a copy of the {@link VfsSpec} this {@link Vfs} was constructed with, taken by the constructor, so its settings
- * cannot change while it is open. {@link #close()} takes effect the moment it is called, so a thread that calls any
- * other method after that -- even while the close is still running -- gets an {@link IOException} from an
+ * time get back the same {@link VfsRoot}, and the jarfile behind it is only read once: the second thread waits for
+ * the first, for no longer than {@link VfsSpec#setOpenWaitTimeout(java.time.Duration)} allows. How storage is read
+ * is set by a copy of the {@link VfsSpec} this {@link Vfs} was constructed with, taken by the constructor, so its
+ * settings cannot change while it is open. {@link #close()} takes effect the moment it is called, so a thread that
+ * calls any other method after that -- even while the close is still running -- gets an {@link IOException} from an
  * {@code open} method, or an {@link IllegalStateException} from {@link #verbose()}, rather than a root backed by
  * storage that is being released.
  */
@@ -334,7 +338,8 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      *            builds the root if no thread has opened that key yet.
      * @return the root open at that key.
      * @throws IOException
-     *             if the key could not be opened or read, or if this {@link Vfs} has been closed.
+     *             if the key could not be opened or read, if another thread was opening it and did not finish
+     *             within {@link VfsSpec#getOpenWaitTimeout()}, or if this {@link Vfs} has been closed.
      * @throws InterruptedException
      *             if the thread was interrupted.
      */
@@ -343,7 +348,23 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
         for (;;) {
             final VfsRoot root;
             try {
-                root = rootsByPath.get(key, factory);
+                // Wait no longer than the timeout for another thread that is opening the same key, since that thread
+                // may be stuck reading it
+                root = rootsByPath.get(key, factory, vfsSpec.openWaitTimeoutNanos());
+            } catch (final TimeoutException e) {
+                final var timeout = new IOException(
+                        "Timed out after " + TimeUnit.NANOSECONDS.toMillis(vfsSpec.openWaitTimeoutNanos())
+                                + "ms waiting for another thread to open " + key
+                                + ". The other thread may be blocked reading it from a filesystem or network "
+                                + "(VfsSpec#setOpenWaitTimeout(Duration) sets how long to wait, and a ClassGraph "
+                                + "scan sets it to ClassGraph#setWorkerTimeout(Duration))",
+                        e);
+                // The caller may treat an IOException as a path that cannot be read, and skip it, but the path may be
+                // fine. Record the timeout in the shared interruption checker too, so that a scan reading through
+                // this Vfs fails at its next check rather than giving incomplete results, and so that the other
+                // threads of the scan stop
+                interruptionChecker.setExecutionException(new ExecutionException(timeout));
+                throw timeout;
             } catch (final NullSingletonException | NewInstanceException e) {
                 // A failed open is not remembered: the cache would otherwise turn every later attempt at the same
                 // path away with the first failure, so a path that failed once could never be opened again through
