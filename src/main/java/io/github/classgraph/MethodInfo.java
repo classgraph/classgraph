@@ -818,10 +818,12 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
      *            the names of all repeatable annotations
      */
     void handleRepeatableAnnotations(final Set<String> allRepeatableAnnotationNames) {
+        // A private method is not inherited, so its annotations are not linked as non-private
+        final boolean isPrivate = Modifier.isPrivate(getModifiers());
         if (annotationInfo != null) {
             annotationInfo.handleRepeatableAnnotations(allRepeatableAnnotationNames, getClassInfo(),
                     RelType.METHOD_ANNOTATIONS, RelType.CLASSES_WITH_METHOD_ANNOTATION,
-                    RelType.CLASSES_WITH_NONPRIVATE_METHOD_ANNOTATION);
+                    isPrivate ? null : RelType.CLASSES_WITH_NONPRIVATE_METHOD_ANNOTATION);
         }
         if (parameterAnnotationInfo != null) {
             for (int i = 0; i < parameterAnnotationInfo.length; i++) {
@@ -840,7 +842,7 @@ public class MethodInfo extends ClassMemberInfo implements Comparable<MethodInfo
                         aiList.handleRepeatableAnnotations(allRepeatableAnnotationNames, getClassInfo(),
                                 RelType.METHOD_PARAMETER_ANNOTATIONS,
                                 RelType.CLASSES_WITH_METHOD_PARAMETER_ANNOTATION,
-                                RelType.CLASSES_WITH_NONPRIVATE_METHOD_PARAMETER_ANNOTATION);
+                                isPrivate ? null : RelType.CLASSES_WITH_NONPRIVATE_METHOD_PARAMETER_ANNOTATION);
                         parameterAnnotationInfo[i] = aiList.toArray(new AnnotationInfo[0]);
                     }
                 }

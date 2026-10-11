@@ -297,9 +297,10 @@ public class FieldInfo extends ClassMemberInfo implements Comparable<FieldInfo> 
      */
     void handleRepeatableAnnotations(final Set<String> allRepeatableAnnotationNames) {
         if (annotationInfo != null) {
+            // A private field is not inherited, so its annotations are not linked as non-private
             annotationInfo.handleRepeatableAnnotations(allRepeatableAnnotationNames, getClassInfo(),
                     RelType.FIELD_ANNOTATIONS, RelType.CLASSES_WITH_FIELD_ANNOTATION,
-                    RelType.CLASSES_WITH_NONPRIVATE_FIELD_ANNOTATION);
+                    Modifier.isPrivate(getModifiers()) ? null : RelType.CLASSES_WITH_NONPRIVATE_FIELD_ANNOTATION);
         }
     }
 
