@@ -24,12 +24,14 @@ import org.junit.jupiter.api.Test;
  */
 public class ScanResultReachabilityTest {
     /**
-     * The one field that may legitimately hold objects that have not been given the {@link ScanResult} yet: a type
-     * annotation captured by a decorator that has not run. The decorator gives the annotation the
-     * {@link ScanResult} when it applies it to the type signature, so such an annotation is never handed to the
-     * caller with a null {@code ScanResult}.
+     * The one field that may legitimately hold objects that have not been given the {@link ScanResult} yet: the
+     * type annotations of a class, field or method, read from the classfile but not yet added to a type signature,
+     * since the signature is parsed only when it is first requested. Adding the annotation to the type signature
+     * gives it the {@link ScanResult}, so such an annotation is never handed to the caller with a null
+     * {@code ScanResult}. (The field name must not match {@code HierarchicalTypeSignature#typeAnnotations}, which
+     * holds the annotations that have been added, and must have the {@code ScanResult}.)
      */
-    private static final String LAZY_FIELD = "typeAnnotationDecorators";
+    private static final String LAZY_FIELD = "#typeAnnotationsToApply";
 
     /** Walk everything reachable from a {@link ScanResult}, and check that no object was missed. */
     @Test

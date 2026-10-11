@@ -58,7 +58,7 @@ public final class FieldInfo extends ClassMemberInfo implements Comparable<Field
     /**
      * The type annotations to add to the {@link TypeSignature} instance of this field.
      */
-    private @Nullable List<TypeAnnotation<TypeSignature>> typeAnnotationDecorators;
+    private @Nullable List<TypeAnnotation<TypeSignature>> typeAnnotationsToApply;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -79,16 +79,16 @@ public final class FieldInfo extends ClassMemberInfo implements Comparable<Field
      *            The static constant value the field is initialized to, if any.
      * @param annotationInfo
      *            {@link AnnotationInfo} for any annotations on the field.
-     * @param typeAnnotationDecorators
+     * @param typeAnnotationsToApply
      *            the type annotations to add to the parsed field type, or null if none.
      */
     FieldInfo(final String definingClassName, final String fieldName, final int modifiers,
             final String typeDescriptorStr, final @Nullable String typeSignatureStr,
             final @Nullable Object constantInitializerValue, final @Nullable List<AnnotationInfo> annotationInfo,
-            final @Nullable List<TypeAnnotation<TypeSignature>> typeAnnotationDecorators) {
+            final @Nullable List<TypeAnnotation<TypeSignature>> typeAnnotationsToApply) {
         super(definingClassName, fieldName, modifiers, typeDescriptorStr, typeSignatureStr, annotationInfo);
         this.constantInitializerValue = constantInitializerValue;
-        this.typeAnnotationDecorators = typeAnnotationDecorators;
+        this.typeAnnotationsToApply = typeAnnotationsToApply;
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -139,7 +139,7 @@ public final class FieldInfo extends ClassMemberInfo implements Comparable<Field
                 try {
                     typeDescriptor = TypeSignature.parse(typeDescriptorStr, declaringClassName);
                     typeDescriptor.setScanResult(this.scanResult);
-                    decorateType(typeDescriptor);
+                    applyTypeAnnotations(typeDescriptor);
                 } catch (final TypeSignatureParseException e) {
                     throw new IllegalArgumentException(e);
                 }
@@ -154,11 +154,11 @@ public final class FieldInfo extends ClassMemberInfo implements Comparable<Field
      * allowed to abort parsing of the whole field type.
      *
      * @param fieldType
-     *            the parsed field type signature or descriptor to decorate.
+     *            the parsed field type signature or descriptor to add the type annotations to.
      */
     // #897
-    private void decorateType(final TypeSignature fieldType) {
-        TypeAnnotation.applyAll(typeAnnotationDecorators, fieldType);
+    private void applyTypeAnnotations(final TypeSignature fieldType) {
+        TypeAnnotation.applyAll(typeAnnotationsToApply, fieldType);
     }
 
     /**
@@ -182,7 +182,7 @@ public final class FieldInfo extends ClassMemberInfo implements Comparable<Field
                 try {
                     typeSignature = TypeSignature.parse(typeSignatureStr, declaringClassName);
                     typeSignature.setScanResult(this.scanResult);
-                    decorateType(typeSignature);
+                    applyTypeAnnotations(typeSignature);
                 } catch (final TypeSignatureParseException e) {
                     throw new IllegalArgumentException(
                             "Invalid type signature for field " + getClassName() + "." + getName()

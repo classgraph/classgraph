@@ -87,7 +87,7 @@ public final class MethodInfo extends ClassMemberInfo implements Comparable<Meth
     /**
      * The type annotations to add to the {@link MethodTypeSignature} instance.
      */
-    private @Nullable List<TypeAnnotation<MethodTypeSignature>> typeAnnotationDecorators;
+    private @Nullable List<TypeAnnotation<MethodTypeSignature>> typeAnnotationsToApply;
 
     /** The names of the exceptions thrown by this method, or null if none. */
     private @Nullable List<String> thrownExceptionNames;
@@ -124,7 +124,7 @@ public final class MethodInfo extends ClassMemberInfo implements Comparable<Meth
      *            The minimum line number for the body of this method, or 0 if unknown.
      * @param maxLineNum
      *            The maximum line number for the body of this method, or 0 if unknown.
-     * @param methodTypeAnnotationDecorators
+     * @param methodTypeAnnotations
      *            The type annotations to add to the parsed method type, or null if none.
      * @param thrownExceptionNames
      *            exceptions thrown by this method.
@@ -135,7 +135,7 @@ public final class MethodInfo extends ClassMemberInfo implements Comparable<Meth
             final @Nullable String @Nullable [] parameterNames, final int @Nullable [] parameterModifiers,
             final AnnotationInfo @Nullable [][] parameterAnnotationInfo, final boolean hasBody,
             final int minLineNum, final int maxLineNum,
-            final @Nullable List<TypeAnnotation<MethodTypeSignature>> methodTypeAnnotationDecorators,
+            final @Nullable List<TypeAnnotation<MethodTypeSignature>> methodTypeAnnotations,
             final String @Nullable [] thrownExceptionNames) {
         super(definingClassName, methodName, modifiers, typeDescriptorStr, typeSignatureStr, methodAnnotationInfo);
         this.parameterNames = parameterNames;
@@ -144,7 +144,7 @@ public final class MethodInfo extends ClassMemberInfo implements Comparable<Meth
         this.hasBody = hasBody;
         this.minLineNum = minLineNum;
         this.maxLineNum = maxLineNum;
-        this.typeAnnotationDecorators = methodTypeAnnotationDecorators;
+        this.typeAnnotationsToApply = methodTypeAnnotations;
         this.thrownExceptionNames = thrownExceptionNames == null ? null : List.of(thrownExceptionNames);
     }
 
@@ -187,7 +187,7 @@ public final class MethodInfo extends ClassMemberInfo implements Comparable<Meth
                 try {
                     typeDescriptor = MethodTypeSignature.parse(typeDescriptorStr, declaringClassName);
                     typeDescriptor.setScanResult(this.scanResult);
-                    if (typeAnnotationDecorators != null) {
+                    if (typeAnnotationsToApply != null) {
                         // Type annotations index formal parameters starting from the first parameter that was
                         // declared in source code. However, the method type descriptor may begin with extra
                         // implicit (compiler-synthesized) parameters that formal_parameter_index does not count --
@@ -216,7 +216,7 @@ public final class MethodInfo extends ClassMemberInfo implements Comparable<Meth
                         } else if (numImplicitPrefixParams > descNumParam) {
                             numImplicitPrefixParams = descNumParam;
                         }
-                        decorateMethodType(typeDescriptor, typeAnnotationDecorators, numImplicitPrefixParams);
+                        applyTypeAnnotations(typeDescriptor, typeAnnotationsToApply, numImplicitPrefixParams);
                     }
                 } catch (final TypeSignatureParseException e) {
                     throw new IllegalArgumentException(e);
@@ -235,7 +235,7 @@ public final class MethodInfo extends ClassMemberInfo implements Comparable<Meth
      * anonymous class captures are passed as trailing parameters, so they do not affect the count. If the count is
      * wrong, as it is for a local class declared in a static context whose first declared parameter has the type of
      * the class it is nested in, a parameter type annotation whose index falls past the last parameter is dropped,
-     * one whose type path does not fit the parameter's type is skipped by {@link #decorateMethodType}, and any
+     * one whose type path does not fit the parameter's type is skipped by {@link #applyTypeAnnotations}, and any
      * other is attached to the wrong parameter.)
      *
      * @param descriptor
@@ -278,14 +278,14 @@ public final class MethodInfo extends ClassMemberInfo implements Comparable<Meth
      * skipped rather than being allowed to abort parsing of the whole method type.
      *
      * @param methodType
-     *            the parsed method type signature or descriptor to decorate.
+     *            the parsed method type signature or descriptor to add the type annotations to.
      * @param typeAnnotations
      *            the type annotations to add.
      * @param numImplicitPrefixParams
-     *            the number of implicit prefix parameters to strip while decorating (0 for none).
+     *            the number of implicit prefix parameters to strip while adding the type annotations (0 for none).
      */
     // #897
-    private static void decorateMethodType(final MethodTypeSignature methodType,
+    private static void applyTypeAnnotations(final MethodTypeSignature methodType,
             final List<TypeAnnotation<MethodTypeSignature>> typeAnnotations, final int numImplicitPrefixParams) {
         final var paramSigs = methodType.getParameterTypeSignatures();
         // Take a copy of the implicit prefix params before removing them -- do not use the live view returned by
@@ -321,10 +321,10 @@ public final class MethodInfo extends ClassMemberInfo implements Comparable<Meth
                 try {
                     typeSignature = MethodTypeSignature.parse(typeSignatureStr, declaringClassName);
                     typeSignature.setScanResult(this.scanResult);
-                    if (typeAnnotationDecorators != null) {
+                    if (typeAnnotationsToApply != null) {
                         // The generic type signature already omits any implicit prefix parameters, so
                         // formal_parameter_index lines up with it directly (strip 0). (#897)
-                        decorateMethodType(typeSignature, typeAnnotationDecorators, 0);
+                        applyTypeAnnotations(typeSignature, typeAnnotationsToApply, 0);
                     }
                 } catch (final TypeSignatureParseException e) {
                     throw new IllegalArgumentException(
@@ -569,7 +569,7 @@ public final class MethodInfo extends ClassMemberInfo implements Comparable<Meth
         } catch (final Exception e) {
             // Only a corrupt classfile has a method descriptor that does not parse. Leave the parameter types to
             // the other sources rather than failing. (A type annotation that cannot be aligned with a parameter does
-            // not get here: it is skipped while the descriptor is decorated.)
+            // not get here: it is skipped when the type annotations are added to the descriptor.)
         }
 
         // Find the max length of all the parameter information sources

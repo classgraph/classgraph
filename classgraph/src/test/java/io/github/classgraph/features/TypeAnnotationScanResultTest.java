@@ -16,10 +16,10 @@ import io.github.classgraph.ClassRefTypeSignature;
 import io.github.classgraph.MethodTypeSignature;
 
 /**
- * A type annotation is attached to its type signature by a decorator that runs after the signature has been given
- * its {@link io.github.classgraph.ScanResult}, so the annotation has to be given the {@code ScanResult} as it is
- * added. Without that, the annotation cannot reach the annotation class it names, so its default parameter values
- * are silently dropped.
+ * A type annotation is added to its type signature when the signature is first requested, which is after the
+ * signature has been given its {@link io.github.classgraph.ScanResult}, so the annotation has to be given the
+ * {@code ScanResult} as it is added. Without that, the annotation cannot reach the annotation class it names, so
+ * its default parameter values are silently dropped.
  */
 public class TypeAnnotationScanResultTest {
     /** A type annotation with a default parameter value. */
@@ -30,7 +30,7 @@ public class TypeAnnotationScanResultTest {
         int level() default 7;
     }
 
-    /** A class carrying type annotations in each of the positions that are decorated lazily. */
+    /** A class carrying type annotations in each of the positions where they are added lazily. */
     public class Annotated {
         /** A field whose type carries a type annotation. */
         public @Level String field;
