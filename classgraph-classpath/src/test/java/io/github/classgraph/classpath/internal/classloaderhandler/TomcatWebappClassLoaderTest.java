@@ -433,6 +433,53 @@ public class TomcatWebappClassLoaderTest {
     }
 
     /**
+     * A subclass of the webapp classloader from which the delegation order cannot be read: it hides Catalina's
+     * {@code boolean delegate} field with a field that is not a {@link Boolean}, and its {@code getDelegate()}
+     * method fails.
+     */
+    private static class UnreadableDelegationWebappClassLoader extends DelegatingWebappClassLoader {
+        /**
+         * Constructor.
+         *
+         * @param resources
+         *            the {@code WebResourceRoot} of the webapp.
+         * @param parent
+         *            the parent classloader.
+         */
+        UnreadableDelegationWebappClassLoader(final Object resources, final ClassLoader parent) {
+            super(resources, parent);
+        }
+
+        @Override
+        public boolean getDelegate() {
+            throw new UnsupportedOperationException();
+        }
+    }
+
+    /**
+     * When the delegation order cannot be read, a webapp classloader is assumed to have Tomcat's default delegation
+     * order, which looks in the webapp before delegating to its parent, so it contributes its own classpath
+     * elements first.
+     *
+     * @param tempDir
+     *            a temporary directory to create the webapp in.
+     * @throws IOException
+     *             if the webapp could not be created.
+     */
+    @Test
+    public void aWebappWhoseDelegationOrderCannotBeReadContributesItsOwnClasspathFirst(@TempDir final Path tempDir)
+            throws IOException {
+        final var sharedDir = Files.createDirectories(tempDir.resolve("shared"));
+        final var webappDir = tempDir.resolve("webapp");
+        final var classesDir = Files.createDirectories(webappDir.resolve("WEB-INF/classes"));
+        final var root = new StandardRoot().addResourceSets(new DirResourceSet("/", webappDir.toString(), "/"));
+        try (var parent = new URLClassLoader(new URL[] { sharedDir.toUri().toURL() }, /* parent = */ null)) {
+            assertThat(locations(new UnreadableDelegationWebappClassLoader(root, parent)))
+                    .containsExactly(location(classesDir), location(sharedDir));
+        }
+    }
+
+    /**
      * {@code WebappClassLoaderBase} extends {@link URLClassLoader}, so it can load from URLs that no
      * {@code WebResourceSet} of the webapp serves. Those URLs are on the classpath as well as the resource sets --
      * the handler for a subclass of {@link URLClassLoader} reads what the subclass adds, and the URLs too.

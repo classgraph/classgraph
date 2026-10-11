@@ -77,8 +77,9 @@ class TomcatWebappClassLoaderBaseHandler extends URLClassLoaderHandler {
         if (ReflectionUtils.invokeMethod(false, classLoader, "getDelegate") instanceof final Boolean delegate) {
             return delegate;
         }
-        // Assume parent-first delegation order
-        return true;
+        // Assume Tomcat's default, delegate == false: look in the webapp before delegating to the parent (apart from
+        // the JDK and servlet API classes, which Catalina always delegates)
+        return false;
     }
 
     @Override
