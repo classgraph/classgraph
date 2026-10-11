@@ -629,9 +629,12 @@ public class ClasspathExpanderTest {
             throws IOException {
         final Path other = createJar(tempDir, "other.jar", entries());
         final Path filed = createJar(tempDir, "filed.jar", entries());
+        // The file: URL is given by the real path of the jarfile, since a child entry is located by the path it is
+        // named by, and the path of the temporary directory is not its real path where it is reached through a
+        // symlink (/var on macOS) or an 8.3 short name (on Windows)
         final Path jar = createJar(tempDir, "app.jar",
                 entries(MANIFEST_NAME, manifest("Class-Path: http://127.0.0.1:1/remote.jar jar:" + other.toUri()
-                        + "!/ " + filed.toUri() + " custom:/x.jar rel.jar")));
+                        + "!/ " + canonical(filed).toUri() + " custom:/x.jar rel.jar")));
         try (Vfs vfs = new Vfs()) {
             final VfsRoot root = vfs.open(jar);
             final List<ChildEntry> childEntries = ClasspathExpander.childEntries(root, LIB_DIR_PREFIXES, true,

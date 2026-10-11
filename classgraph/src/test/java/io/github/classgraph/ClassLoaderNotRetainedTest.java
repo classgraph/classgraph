@@ -164,9 +164,12 @@ public class ClassLoaderNotRetainedTest {
 
             try (var scanResult = new ClassGraph().enableClassLoaders(pluginClassLoader).ignoreParentClassLoaders()
                     .scan()) {
+                // A classpath element is reported by its real path, which is not the path of the temporary
+                // directory where that is reached through a symlink (/var on macOS) or an 8.3 short name (on
+                // Windows)
                 assertThat(scanResult.getClasspathFiles())
                         .as("the classpath should have been read from the classloader's field by reflection")
-                        .containsExactly(classpathDir);
+                        .containsExactly(classpathDir.toPath().toRealPath().toFile());
             }
             return new WeakReference<>(definingClassLoader);
         }

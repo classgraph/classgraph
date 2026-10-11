@@ -128,7 +128,9 @@ public class Issue420Test {
         try (var memFs = Jimfs.newFileSystem()) {
             final var classFilePath = "io/github/classgraph/issues/issue146/CompiledWithJDK8.class";
             final var classFile = Path.of(Issue420Test.class.getClassLoader().getResource(classFilePath).toURI());
-            final var memFsDir = memFs.getPath("/classes");
+            // The path is made absolute from the working directory of the filesystem, since Jimfs follows the path
+            // syntax of the platform, and on Windows an absolute path needs a drive letter
+            final var memFsDir = memFs.getPath("classes").toAbsolutePath();
             final var memFsClassFile = memFsDir.resolve(classFilePath);
             Files.createDirectories(memFsClassFile.getParent());
             Files.copy(classFile, memFsClassFile);

@@ -48,13 +48,22 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import io.github.classgraph.base.internal.utils.VersionFinder;
+import io.github.classgraph.base.internal.utils.VersionFinder.OperatingSystem;
+
 /**
  * A thread interrupted while opening something through a virtual filesystem gets an {@link IOException} that names
  * the interruption as its cause, and the interruption is recorded where the rest of the scan can see it, rather
- * than only on the thread that noticed it. A thread interrupted while reading gets an {@link IOException} too, but
- * the other threads reading the same file are not affected.
+ * than only on the thread that noticed it. A thread interrupted while reading a jarfile through its file channel
+ * gets an {@link IOException} too, but the other threads reading the same file are not affected.
  */
 public class VfsInterruptTest {
+    /**
+     * True where a jarfile is memory-mapped rather than read through its file channel, which is on Windows only. A
+     * read of a mapped jarfile does not check whether the thread has been interrupted, so it is not stopped.
+     */
+    private static final boolean JARFILES_ARE_MAPPED = VersionFinder.OS == OperatingSystem.Windows;
+
     /**
      * Clear the interrupt status, so that an assertion failing part-way through a test cannot leak an interrupted
      * thread into the tests that run after it.
@@ -202,7 +211,8 @@ public class VfsInterruptTest {
     /**
      * A thread that is interrupted while it reads a jarfile fails to read it, but does not stop any other thread
      * from reading the same jarfile, then or later. The jarfile is read through a file channel that every thread
-     * shares, and a file channel is closed by a read on a thread that has been interrupted.
+     * shares, and a file channel is closed by a read on a thread that has been interrupted. (Where the jarfile is
+     * memory-mapped instead, the interrupted thread reads it too.)
      *
      * @param tempDir
      *            the temporary directory to write the jarfile into.
@@ -218,7 +228,11 @@ public class VfsInterruptTest {
             assertThat(root.getEntry("first.txt").loadAsString()).isEqualTo("first.txt");
 
             Thread.currentThread().interrupt();
-            assertThatThrownBy(() -> root.getEntry("second.txt").load()).isInstanceOf(IOException.class);
+            if (JARFILES_ARE_MAPPED) {
+                assertThat(root.getEntry("second.txt").loadAsString()).isEqualTo("second.txt");
+            } else {
+                assertThatThrownBy(() -> root.getEntry("second.txt").load()).isInstanceOf(IOException.class);
+            }
             // The interruption is not swallowed
             assertThat(Thread.interrupted()).isTrue();
 
@@ -264,7 +278,11 @@ public class VfsInterruptTest {
                     }
                 });
                 otherThread.start();
-                assertThat(otherThreadFailure.get(30, TimeUnit.SECONDS)).isInstanceOf(IOException.class);
+                if (JARFILES_ARE_MAPPED) {
+                    assertThat(otherThreadFailure.get(30, TimeUnit.SECONDS)).isNull();
+                } else {
+                    assertThat(otherThreadFailure.get(30, TimeUnit.SECONDS)).isInstanceOf(IOException.class);
+                }
 
                 // This thread was not interrupted, so it reads the rest of the entry
                 assertThat(inputStream.readNBytes(contentRead, 1000, largeContent.length - 1000))

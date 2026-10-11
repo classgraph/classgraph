@@ -92,11 +92,21 @@ public class FastZipEntryContentTest {
         writeJar(jarFile);
         final var vfs = new Vfs(new VfsSpec(), new InterruptionChecker());
         try {
-            final var zipEntry = JarOpener.openJarFile(jarFile, vfs, /* log = */ null).zipFile().getEntries()
-                    .stream().filter(e -> e.entryName.equals(entryName)).findFirst().orElseThrow();
-            assertions.run(zipEntry);
+            final var openedJar = JarOpener.openJarFile(jarFile, vfs, /* log = */ null);
+            try {
+                final var zipEntry = openedJar.zipFile().getEntries().stream()
+                        .filter(e -> e.entryName.equals(entryName)).findFirst().orElseThrow();
+                assertions.run(zipEntry);
+            } finally {
+                // The jarfile must be closed before it is written again, since Windows refuses to truncate a file
+                // while it is memory-mapped. The caller owns the physical zipfile that was opened, which closing
+                // the Vfs does not close
+                final var physicalZipFile = openedJar.ownedPhysicalZipFile();
+                if (physicalZipFile != null) {
+                    physicalZipFile.close();
+                }
+            }
         } finally {
-            // The jarfile must not be left open, otherwise the temporary directory cannot be deleted on Windows
             vfs.close(/* log = */ null);
         }
     }

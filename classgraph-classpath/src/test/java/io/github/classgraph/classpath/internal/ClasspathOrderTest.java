@@ -363,7 +363,9 @@ public class ClasspathOrderTest {
         final var entryObj = entryObjects().get(0);
         assertThat(entryObj).isInstanceOf(Path.class);
         assertThat(((Path) entryObj).getFileSystem()).isSameAs(FileSystems.getDefault());
-        assertThat(entryObj).isEqualTo(Path.of(war));
+        // The entry keeps the path it was given by, which is not the real path of the temporary directory where
+        // that is reached through a symlink (/var on macOS) or an 8.3 short name (on Windows)
+        assertThat(entryObj).isEqualTo(warPath);
     }
 
     /**
@@ -425,7 +427,9 @@ public class ClasspathOrderTest {
         final var entryObj = entryObjects().get(0);
         assertThat(entryObj).isInstanceOf(Path.class);
         assertThat(((Path) entryObj).getFileSystem()).isSameAs(FileSystems.getDefault());
-        assertThat(entryObj).isEqualTo(Path.of(war));
+        // The entry keeps the path it was given by, which is not the real path of the temporary directory where
+        // that is reached through a symlink (/var on macOS) or an 8.3 short name (on Windows)
+        assertThat(entryObj).isEqualTo(warPath);
     }
 
     /**
@@ -450,7 +454,9 @@ public class ClasspathOrderTest {
             assertThat(classpathOrder.addClasspathEntry(classesDir, null, null)).isTrue();
         }
         assertThat(locations()).containsExactly(jar + "!/app.war");
-        assertThat(entryObjects()).containsExactly(jar + "!/app.war");
+        // The entry keeps the path it was given by, which is not the real path of the temporary directory where
+        // that is reached through a symlink (/var on macOS) or an 8.3 short name (on Windows)
+        assertThat(entryObjects()).containsExactly(resolve(jarPath.toString()) + "!/app.war");
         // The same nested archive given as a path string is now a duplicate
         assertThat(classpathOrder.addClasspathEntry(jar + "!/app.war", null, null)).isFalse();
     }

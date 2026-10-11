@@ -1000,14 +1000,18 @@ public class VfsFileSystemTest {
         }
 
         try (var vfs = new Vfs()) {
-            final var dirFileSystem = vfs.open(dir).asFileSystem();
-            final var moduleFileSystem = vfs.open(explodedModule(dir, entryNames)).asFileSystem();
-            for (final var fileSystem : List.of(dirFileSystem, moduleFileSystem)) {
+            // A directory root is named by the real path of its directory, which is not the path of the temporary
+            // directory where that is reached through a symlink (/var on macOS) or an 8.3 short name (on Windows).
+            // A module is named by its location, as its module reader names its resources
+            final var rootDirs = List.of(Map.entry(vfs.open(dir).asFileSystem(), dir.toRealPath()),
+                    Map.entry(vfs.open(explodedModule(dir, entryNames)).asFileSystem(), dir));
+            for (final var rootDir : rootDirs) {
+                final var fileSystem = rootDir.getKey();
                 for (final var dirName : dirNames) {
                     final var dirURI = fileSystem.getPath("/" + dirName).toUri();
                     final var fileURI = fileSystem.getPath("/" + dirName + "/X.class").toUri();
                     // The default filesystem's URI of the directory, less the '/' it ends a directory's URI with
-                    final var defaultDirURI = dir.resolve(dirName).toUri().toString();
+                    final var defaultDirURI = rootDir.getValue().resolve(dirName).toUri().toString();
                     assertThat(dirURI.toString()).isEqualTo(defaultDirURI.substring(0, defaultDirURI.length() - 1));
                     assertThat(dirURI.relativize(fileURI).toString()).as(dirURI.toString()).isEqualTo("X.class");
                 }
