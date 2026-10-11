@@ -32,6 +32,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -48,6 +49,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.jar.Attributes;
+import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
 
@@ -57,18 +59,24 @@ import org.junit.jupiter.api.io.TempDir;
 /**
  * A classpath element that is named twice, once on the classpath and once by the {@code Class-Path} manifest entry
  * of another classpath element, is opened once, by whichever thread reaches it first, and the other thread waits
- * for it. If the thread opening it never finishes, the waiting thread must give up after the worker timeout, as
- * every other wait in a scan does, rather than wait forever.
+ * for it. If the thread opening it never finishes, the waiting thread must give up once the worker timeout has
+ * passed with no progress, as every other wait in a scan does, rather than wait forever. If the thread opening it
+ * is slow but still making progress, the waiting thread must keep waiting.
  */
 public class StuckClasspathElementTimeoutTest {
     /**
-     * An HTTP server on the loopback interface that answers one request for a jarfile with a body that it sends
-     * one byte at a time, for as long as it is not released. Each byte arrives well within the read timeout of
-     * the download, so the thread downloading the jarfile is stuck until the server is released.
+     * An HTTP server on the loopback interface that answers one request for a jarfile. Given a body, it sends the
+     * body in 20 parts, 100 ms apart, which stands in for a slow download that is still making progress. Given no
+     * body, it sends the headers and then nothing, for as long as it is not released, which stands in for a read
+     * that never returns: the thread downloading the jarfile is stuck until the read timeout of the download,
+     * which is longer than the worker timeouts used here.
      */
-    private static final class TricklingHttpServer implements AutoCloseable {
+    private static final class SlowHttpServer implements AutoCloseable {
         /** The server socket. */
         private final ServerSocket serverSocket;
+
+        /** The body to send, or null to send none. */
+        private final byte[] body;
 
         /** Counted down once the request for the jarfile has been received. */
         final CountDownLatch requestReceived = new CountDownLatch(1);
@@ -79,10 +87,13 @@ public class StuckClasspathElementTimeoutTest {
         /**
          * Constructor. Starts the server.
          *
+         * @param body
+         *            the body to send, or null to send none.
          * @throws IOException
          *             if the server socket could not be opened
          */
-        TricklingHttpServer() throws IOException {
+        SlowHttpServer(final byte[] body) throws IOException {
+            this.body = body;
             serverSocket = new ServerSocket(0, /* backlog = */ 50, InetAddress.getLoopbackAddress());
             final Thread thread = new Thread(new Runnable() {
                 @Override
@@ -94,17 +105,25 @@ public class StuckClasspathElementTimeoutTest {
             thread.start();
         }
 
-        /** Answer one request, sending a byte of the body every 100 ms until released. */
+        /** Answer one request, sending a part of the body every 100 ms, or nothing until released. */
         private void serve() {
             try (Socket socket = serverSocket.accept()) {
                 readRequest(socket.getInputStream());
                 requestReceived.countDown();
                 final OutputStream outputStream = socket.getOutputStream();
-                outputStream.write("HTTP/1.1 200 OK\r\nContent-Length: 1000000\r\nConnection: close\r\n\r\n"
-                        .getBytes(StandardCharsets.US_ASCII));
+                outputStream.write(("HTTP/1.1 200 OK\r\nContent-Length: " + (body == null ? 1000000 : body.length)
+                        + "\r\nConnection: close\r\n\r\n").getBytes(StandardCharsets.US_ASCII));
                 outputStream.flush();
-                while (!released.await(100, TimeUnit.MILLISECONDS)) {
-                    outputStream.write(0);
+                if (body == null) {
+                    released.await();
+                    return;
+                }
+                final int partLength = (body.length + 19) / 20;
+                for (int offset = 0; offset < body.length; offset += partLength) {
+                    if (released.await(100, TimeUnit.MILLISECONDS)) {
+                        return;
+                    }
+                    outputStream.write(body, offset, Math.min(partLength, body.length - offset));
                     outputStream.flush();
                 }
             } catch (final IOException | InterruptedException e) {
@@ -169,7 +188,7 @@ public class StuckClasspathElementTimeoutTest {
      */
     @Test
     public void aThreadWaitingForAStuckClasspathElementTimesOut(@TempDir final Path tempDir) throws Exception {
-        try (final TricklingHttpServer server = new TricklingHttpServer()) {
+        try (final SlowHttpServer server = new SlowHttpServer(/* body = */ null)) {
             final String stuckJarURL = server.jarURL();
             final Path parentJar = tempDir.resolve("parent.jar");
             final Manifest manifest = new Manifest();
@@ -235,7 +254,7 @@ public class StuckClasspathElementTimeoutTest {
      */
     @Test
     public void aThreadWaitingForAnotherThreadToOpenTheSameJarfileTimesOut() throws Exception {
-        try (final TricklingHttpServer server = new TricklingHttpServer()) {
+        try (final SlowHttpServer server = new SlowHttpServer(/* body = */ null)) {
             final String stuckJarURL = server.jarURL();
 
             // Hold the calling thread in execute until the worker thread is stuck downloading the remote jarfile
@@ -267,6 +286,119 @@ public class StuckClasspathElementTimeoutTest {
                 executorService.shutdown();
                 assertThat(executorService.awaitTermination(20, TimeUnit.SECONDS)).isTrue();
             }
+        }
+    }
+
+    /**
+     * A jarfile holding one resource, {@code pkgroot/resource.txt}.
+     *
+     * @return the jarfile's bytes.
+     * @throws IOException
+     *             if the jarfile could not be written.
+     */
+    private static byte[] jarWithOneResource() throws IOException {
+        final ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        try (JarOutputStream jarOut = new JarOutputStream(bytes)) {
+            jarOut.putNextEntry(new JarEntry("pkgroot/resource.txt"));
+            jarOut.write(new byte[100000]);
+            jarOut.closeEntry();
+        }
+        return bytes.toByteArray();
+    }
+
+    /**
+     * Scan with a worker timeout of one second, while the server sends the remote jarfile over about two seconds,
+     * holding the calling thread in {@code execute} until the worker thread has started downloading it, as in
+     * {@link #aThreadWaitingForAStuckClasspathElementTimesOut(Path)}. The download makes progress the whole time,
+     * so the scan must not time out, however long the download takes in all.
+     *
+     * @param server
+     *            the server.
+     * @param classpath
+     *            the classpath.
+     * @throws Exception
+     *             if the scan failed.
+     */
+    private static void scanWhileTheDownloadMakesProgress(final SlowHttpServer server, final String... classpath)
+            throws Exception {
+        final ThreadPoolExecutor executorService = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS,
+                new LinkedBlockingQueue<Runnable>()) {
+            @Override
+            public void execute(final Runnable command) {
+                super.execute(command);
+                try {
+                    server.requestReceived.await(10, TimeUnit.SECONDS);
+                } catch (final InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        };
+        try {
+            assertTimeoutPreemptively(Duration.ofSeconds(20), () -> {
+                try (ScanResult scanResult = new ClassGraph().overrideClasspath((Object[]) classpath)
+                        .enableURLScheme("http").setWorkerTimeout(1, TimeUnit.SECONDS)
+                        .scan(executorService, 2)) {
+                    assertThat(scanResult.getResourcesWithLeafName("resource.txt")).isNotEmpty();
+                }
+            });
+            assertThat(server.requestReceived.getCount()).isZero();
+        } finally {
+            server.close();
+            executorService.shutdown();
+            assertThat(executorService.awaitTermination(20, TimeUnit.SECONDS)).isTrue();
+        }
+    }
+
+    /**
+     * The calling thread waits in the work queue for a worker thread that is downloading a classpath element
+     * slowly but steadily, for longer than the worker timeout. The worker timeout counts time with no progress, so
+     * the scan succeeds.
+     *
+     * @throws Exception
+     *             if the server could not be started.
+     */
+    @Test
+    public void aThreadWaitingForASlowButProgressingWorkerDoesNotTimeOut() throws Exception {
+        try (final SlowHttpServer server = new SlowHttpServer(jarWithOneResource())) {
+            scanWhileTheDownloadMakesProgress(server, server.jarURL());
+        }
+    }
+
+    /**
+     * As {@link #aThreadWaitingForAStuckClasspathElementTimesOut(Path)}, but the download of the remote jarfile is
+     * slow and steady rather than stuck, and takes longer than the worker timeout. The scan succeeds.
+     *
+     * @param tempDir
+     *            the directory to make the local jarfile in.
+     * @throws Exception
+     *             if the local jarfile could not be made, or the server could not be started.
+     */
+    @Test
+    public void aThreadWaitingForAProgressingClasspathElementDoesNotTimeOut(@TempDir final Path tempDir)
+            throws Exception {
+        try (final SlowHttpServer server = new SlowHttpServer(jarWithOneResource())) {
+            final Path parentJar = tempDir.resolve("parent.jar");
+            final Manifest manifest = new Manifest();
+            manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
+            manifest.getMainAttributes().put(Attributes.Name.CLASS_PATH, server.jarURL());
+            try (JarOutputStream jarOut = new JarOutputStream(Files.newOutputStream(parentJar), manifest)) {
+                // The manifest is the only entry
+            }
+            scanWhileTheDownloadMakesProgress(server, server.jarURL(), parentJar.toString());
+        }
+    }
+
+    /**
+     * As {@link #aThreadWaitingForAnotherThreadToOpenTheSameJarfileTimesOut()}, but the download of the remote
+     * jarfile is slow and steady rather than stuck, and takes longer than the worker timeout. The scan succeeds.
+     *
+     * @throws Exception
+     *             if the server could not be started.
+     */
+    @Test
+    public void aThreadWaitingForAnotherThreadToDownloadTheSameJarfileDoesNotTimeOut() throws Exception {
+        try (final SlowHttpServer server = new SlowHttpServer(jarWithOneResource())) {
+            scanWhileTheDownloadMakesProgress(server, server.jarURL(), server.jarURL() + "!/pkgroot");
         }
     }
 }

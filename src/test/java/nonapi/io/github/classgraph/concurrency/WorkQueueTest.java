@@ -270,4 +270,43 @@ public class WorkQueueTest {
             }
         }
     }
+
+    /**
+     * A worker that reports progress from inside a long work unit, as a download, a directory walk or the
+     * inflation of a nested jar does, is not stopped by the worker timeout, however long the work unit takes,
+     * while the calling thread has no work left to do.
+     *
+     * @throws Exception
+     *             if the work queue failed.
+     */
+    @Test
+    public void aWorkerThatKeepsReportingProgressDoesNotTimeOut() throws Exception {
+        final InterruptionChecker interruptionChecker = new InterruptionChecker();
+        final Thread callingThread = Thread.currentThread();
+        // Counted down once the worker thread has started its work unit, so that the calling thread then has no
+        // work left to do
+        final CountDownLatch workerStarted = new CountDownLatch(1);
+        final Set<Integer> processed = ConcurrentHashMap.newKeySet();
+
+        try (AutoCloseableExecutorService executorService = new AutoCloseableExecutorService(2)) {
+            // The worker's work unit takes 1000ms, four times the 250ms timeout, but reports progress every 25ms
+            WorkQueue.runWorkQueue(Arrays.asList(1, 2), executorService, interruptionChecker,
+                    /* numParallelTasks = */ 2, TimeUnit.MILLISECONDS.toNanos(250), /* log = */ (LogNode) null,
+                    (workUnit, workQueue, log) -> {
+                        if (Thread.currentThread() == callingThread) {
+                            assertThat(workerStarted.await(10, TimeUnit.SECONDS)).isTrue();
+                        } else {
+                            workerStarted.countDown();
+                            for (int i = 0; i < 40; i++) {
+                                Thread.sleep(25);
+                                interruptionChecker.progress();
+                            }
+                        }
+                        processed.add(workUnit);
+                    });
+        }
+
+        assertThat(processed).containsExactlyInAnyOrder(1, 2);
+        assertThat(interruptionChecker.getExecutionException()).isNull();
+    }
 }

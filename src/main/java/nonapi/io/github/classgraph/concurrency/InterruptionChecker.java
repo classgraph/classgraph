@@ -30,6 +30,7 @@ package nonapi.io.github.classgraph.concurrency;
 
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -44,8 +45,28 @@ public class InterruptionChecker {
     private final AtomicReference<ExecutionException> thrownExecutionException = //
             new AtomicReference<>();
 
+    /** The number of times any thread has reported progress. */
+    private final AtomicLong progressCount = new AtomicLong();
+
     /** Constructor. */
     public InterruptionChecker() {
+    }
+
+    /**
+     * Record that a thread that shares this InterruptionChecker made progress, so that a thread waiting for it with
+     * an {@link IdleTimeout} does not time out.
+     */
+    public void progress() {
+        progressCount.incrementAndGet();
+    }
+
+    /**
+     * Get the number of times {@link #progress()} has been called.
+     *
+     * @return the number of times {@link #progress()} has been called
+     */
+    long getProgressCount() {
+        return progressCount.get();
     }
 
     /**

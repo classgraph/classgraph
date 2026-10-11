@@ -469,8 +469,9 @@ public class NestedJarHandler {
     public InterruptionChecker interruptionChecker;
 
     /**
-     * The maximum number of nanoseconds that a thread opening a jarfile waits for another thread that is already
-     * opening it, or {@link Long#MAX_VALUE} to wait indefinitely.
+     * The number of nanoseconds with no progress after which a thread opening a jarfile stops waiting for another
+     * thread that is already opening it, or {@link Long#MAX_VALUE} to wait indefinitely. Progress is anything
+     * reported to {@link InterruptionChecker#progress()}, such as the bytes of a download arriving.
      */
     private final long openWaitTimeoutNanos;
 
@@ -513,8 +514,8 @@ public class NestedJarHandler {
      * @param reflectionUtils
      *            the {@link ReflectionUtils} instance
      * @param openWaitTimeoutNanos
-     *            the maximum number of nanoseconds that a thread opening a jarfile waits for another thread that is
-     *            already opening it, or {@link Long#MAX_VALUE} to wait indefinitely
+     *            the number of nanoseconds with no progress after which a thread opening a jarfile stops waiting
+     *            for another thread that is already opening it, or {@link Long#MAX_VALUE} to wait indefinitely
      */
     public NestedJarHandler(final ScanSpec scanSpec, final InterruptionChecker interruptionChecker,
             final ReflectionUtils reflectionUtils, final long openWaitTimeoutNanos) {
@@ -525,10 +526,13 @@ public class NestedJarHandler {
     }
 
     /**
-     * Get the value for a key from one of the singleton maps of this handler, waiting no longer than the timeout
-     * given to the constructor if another thread is creating the value. That thread may be stuck reading a
-     * jarfile from a filesystem or network, and the waiting thread may be the thread that called the scan, which is
-     * the thread that applies the worker timeout to the other threads, so without a limit the whole scan could hang.
+     * Get the value for a key from one of the singleton maps of this handler, waiting if another thread is
+     * creating the value until the timeout given to the constructor has passed with no progress reported to the
+     * {@link InterruptionChecker}. That thread may be stuck reading a jarfile from a filesystem or network, and the
+     * waiting thread may be the thread that called the scan, which is the thread that applies the worker timeout
+     * to the other threads, so without a limit the whole scan could hang. A thread that is downloading or
+     * extracting a jarfile slowly but steadily reports its progress, so the wait for it goes on for as long as
+     * that progress continues.
      *
      * <p>
      * On timeout, the timeout is recorded in the {@link InterruptionChecker} as well as thrown as an
@@ -548,7 +552,7 @@ public class NestedJarHandler {
      *            the log
      * @return the non-null value
      * @throws IOException
-     *             if the value could not be created, or another thread was creating it and did not finish within
+     *             if the value could not be created, or another thread was creating it and made no progress for
      *             the timeout
      * @throws InterruptedException
      *             if the thread was interrupted
@@ -561,7 +565,8 @@ public class NestedJarHandler {
             final LogNode log)
             throws IOException, InterruptedException, NullSingletonException, NewInstanceException {
         try {
-            return singletonMap.get(key, log, /* newInstanceFactory = */ null, openWaitTimeoutNanos);
+            return singletonMap.get(key, log, /* newInstanceFactory = */ null, interruptionChecker,
+                    openWaitTimeoutNanos);
         } catch (final TimeoutException e) {
             final String message = "Timed out after " + TimeUnit.NANOSECONDS.toMillis(openWaitTimeoutNanos)
                     + "ms waiting for another thread to open " + key
@@ -1312,6 +1317,8 @@ public class NestedJarHandler {
                     while ((bytesRead = inptStream.read(buf, bufBytesUsed, buf.length - bufBytesUsed)) > 0) {
                         // Fill buffer until nothing more can be read
                         bufBytesUsed += bytesRead;
+                        // Tell any thread waiting for this download or extraction that it is not stuck
+                        interruptionChecker.progress();
                     }
                     if (bytesRead < 0) {
                         // Reached the end of the stream
@@ -1414,6 +1421,8 @@ public class NestedJarHandler {
                 final int bytesRead = inputStream.read(copyBuf, 0, copyBuf.length);
                 if (bytesRead > 0) {
                     outputStream.write(copyBuf, 0, bytesRead);
+                    // Tell any thread waiting for this download or extraction that it is not stuck
+                    interruptionChecker.progress();
                 } else if (bytesRead < 0) {
                     break;
                 } else {

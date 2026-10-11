@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.Test;
 
@@ -56,5 +57,46 @@ public class InterruptionCheckerTest {
 
         // checkAndReturn() interrupts the calling thread when the shared flag is set, so clear it again
         Thread.interrupted();
+    }
+
+    /**
+     * An {@link IdleTimeout} counts a slice of the wait that took far longer than it should have, which is what a
+     * pause of the whole JVM (by a debugger, by SIGSTOP, or by a suspended virtual machine) looks like to the
+     * waiting thread, as no longer than the slice, so a pause cannot use up the timeout. It still runs out once
+     * the waits add up to the timeout with no progress, and progress starts the timeout again.
+     *
+     * @throws InterruptedException
+     *             if the test thread was interrupted.
+     */
+    @Test
+    public void anIdleTimeoutCountsAPauseAsOneSliceAndIsResetByProgress() throws InterruptedException {
+        final InterruptionChecker interruptionChecker = new InterruptionChecker();
+        final long timeoutNanos = TimeUnit.MILLISECONDS.toNanos(100);
+        final IdleTimeout idleTimeout = new IdleTimeout(interruptionChecker, timeoutNanos);
+
+        // A slice that lasts three times the whole timeout, as when the JVM is paused during the wait
+        final long sliceNanos = idleTimeout.nextWaitNanos();
+        assertThat(sliceNanos).isPositive().isLessThan(timeoutNanos);
+        Thread.sleep(300);
+        assertThat(idleTimeout.hasRunOut()).isFalse();
+
+        // Waits that add up to the timeout with no progress run it out
+        int numSlices = 1; // The slice in which the JVM was paused
+        for (;;) {
+            numSlices++;
+            TimeUnit.NANOSECONDS.sleep(idleTimeout.nextWaitNanos());
+            if (idleTimeout.hasRunOut()) {
+                break;
+            }
+            assertThat(numSlices).isLessThan(1000);
+        }
+        assertThat(numSlices * sliceNanos).isGreaterThanOrEqualTo(timeoutNanos);
+
+        // Progress starts the timeout again
+        interruptionChecker.progress();
+        TimeUnit.NANOSECONDS.sleep(idleTimeout.nextWaitNanos());
+        assertThat(idleTimeout.hasRunOut()).isFalse();
+        TimeUnit.NANOSECONDS.sleep(idleTimeout.nextWaitNanos());
+        assertThat(idleTimeout.hasRunOut()).isFalse();
     }
 }

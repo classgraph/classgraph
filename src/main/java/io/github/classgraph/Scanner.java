@@ -106,8 +106,8 @@ class Scanner implements Callable<ScanResult> {
     private final int numParallelTasks;
 
     /**
-     * The maximum number of nanoseconds to wait for a worker to finish, or {@link Long#MAX_VALUE} to wait
-     * indefinitely.
+     * The number of nanoseconds with no progress after which a thread waiting for other threads gives up, or
+     * {@link Long#MAX_VALUE} to wait indefinitely.
      */
     private final long workerTimeoutNanos;
 
@@ -142,8 +142,8 @@ class Scanner implements Callable<ScanResult> {
      * @param numParallelTasks
      *            the num parallel tasks
      * @param workerTimeoutNanos
-     *            the maximum number of nanoseconds to wait for a worker to finish, or {@link Long#MAX_VALUE} to
-     *            wait indefinitely
+     *            the number of nanoseconds with no progress after which a thread waiting for other threads gives
+     *            up, or {@link Long#MAX_VALUE} to wait indefinitely
      * @param scanResultProcessor
      *            the scan result processor
      * @param failureHandler
@@ -177,9 +177,10 @@ class Scanner implements Callable<ScanResult> {
         this.interruptionChecker = executorService instanceof AutoCloseableExecutorService
                 ? ((AutoCloseableExecutorService) executorService).interruptionChecker
                 : new InterruptionChecker();
-        // A thread that waits for another thread to open the same jarfile waits no longer than the worker timeout,
-        // as a thread waiting for another thread to open the same classpath element does, since the other thread
-        // may be stuck, and this may be the calling thread, which applies the worker timeout to the other threads
+        // A thread that waits for another thread to open the same jarfile gives up once the worker timeout has
+        // passed with no progress, as a thread waiting for another thread to open the same classpath element does,
+        // since the other thread may be stuck, and this may be the calling thread, which applies the worker
+        // timeout to the other threads
         this.nestedJarHandler = new NestedJarHandler(scanSpec, interruptionChecker, reflectionUtils,
                 workerTimeoutNanos);
         this.numParallelTasks = numParallelTasks;
@@ -632,8 +633,9 @@ class Scanner implements Callable<ScanResult> {
                     // Create a ClasspathElementZip or ClasspathElementDir from the classpath entry
                     // Use a singleton map to ensure that classpath elements are only opened once
                     // per unique Path, URL, or URI. If another thread is opening the same classpath element, wait
-                    // for it for no longer than the worker timeout, since that thread may be stuck, and this may be
-                    // the calling thread, which is the thread that applies the worker timeout to the other threads
+                    // for it until the worker timeout has passed with no progress, since that thread may be stuck,
+                    // and this may be the calling thread, which is the thread that applies the worker timeout to
+                    // the other threads
                     final ClasspathElement classpathElement = classpathEntryObjToClasspathEntrySingletonMap.get(
                             workUnit.classpathEntryObj, log,
                             // A NewInstanceFactory is used here because workUnit has to be passed in,
@@ -663,7 +665,7 @@ class Scanner implements Callable<ScanResult> {
 
                                     return classpathElt;
                                 }
-                            }, workerTimeoutNanos);
+                            }, interruptionChecker, workerTimeoutNanos);
 
                     // Register this work unit's reference to the classpath element. This has to be done for every
                     // work unit that references the classpath element, rather than only within newInstance() above,

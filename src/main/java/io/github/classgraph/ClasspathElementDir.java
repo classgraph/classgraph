@@ -573,6 +573,8 @@ class ClasspathElementDir extends ClasspathElement {
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(path)) {
             for (final Path subPath : stream) {
                 pathsInDir.add(subPath);
+                // Tell any thread waiting for this directory scan that it is not stuck
+                nestedJarHandler.interruptionChecker.progress();
             }
         } catch (IOException | SecurityException e) {
             if (log != null) {

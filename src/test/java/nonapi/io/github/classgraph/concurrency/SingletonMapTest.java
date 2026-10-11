@@ -185,7 +185,7 @@ public class SingletonMapTest {
 
     /**
      * A thread waiting with a timeout for a value that another thread is still creating gets a
-     * {@link TimeoutException} once the timeout passes. The creation is not abandoned: a later call gets the value
+     * {@link TimeoutException} once the timeout passes with no progress. The creation is not abandoned: a later call gets the value
      * once the other thread finishes creating it, and {@code newInstance} is not called again.
      */
     @Test
@@ -209,16 +209,55 @@ public class SingletonMapTest {
         try {
             assertThat(creatorInNewInstance.await(5, TimeUnit.SECONDS)).isTrue();
             final long startNanos = System.nanoTime();
-            assertThatThrownBy(
-                    () -> map.get("theKey", null, () -> "fromWaiter", TimeUnit.MILLISECONDS.toNanos(100)))
-                            .isInstanceOf(TimeoutException.class);
+            assertThatThrownBy(() -> map.get("theKey", null, () -> "fromWaiter", new InterruptionChecker(),
+                    TimeUnit.MILLISECONDS.toNanos(100))).isInstanceOf(TimeoutException.class);
             assertThat(System.nanoTime() - startNanos).isGreaterThanOrEqualTo(TimeUnit.MILLISECONDS.toNanos(100));
         } finally {
             letCreatorFinish.countDown();
             creator.join(5000);
         }
-        assertThat(map.get("theKey", null, () -> "fromWaiter", TimeUnit.MILLISECONDS.toNanos(100)))
-                .isEqualTo("theKey");
+        assertThat(map.get("theKey", null, () -> "fromWaiter", new InterruptionChecker(),
+                TimeUnit.MILLISECONDS.toNanos(100))).isEqualTo("theKey");
+        assertThat(map.numNewInstanceCalls).hasValue(1);
+    }
+
+    /**
+     * A thread waiting with a timeout for a value that another thread is still creating keeps waiting for as long
+     * as the other thread reports progress, however long the creation takes altogether, so that a slow download or
+     * a large nested jar does not fail the scan.
+     *
+     * @throws Exception
+     *             if the value could not be got.
+     */
+    @Test
+    public void aWaiterKeepsWaitingWhileTheCreatorReportsProgress() throws Exception {
+        final InterruptionChecker interruptionChecker = new InterruptionChecker();
+        final CountDownLatch creatorInNewInstance = new CountDownLatch(1);
+        // The creation takes 1000ms, ten times the 100ms timeout, but reports progress every 20ms
+        final TestMap map = new TestMap(key -> {
+            creatorInNewInstance.countDown();
+            for (int i = 0; i < 50; i++) {
+                Thread.sleep(20);
+                interruptionChecker.progress();
+            }
+            return key;
+        });
+
+        final Thread creator = new Thread(() -> {
+            try {
+                map.get("theKey", null);
+            } catch (final Exception e) {
+                // Checked below, through the value the waiter gets
+            }
+        });
+        creator.start();
+        try {
+            assertThat(creatorInNewInstance.await(5, TimeUnit.SECONDS)).isTrue();
+            assertThat(map.get("theKey", null, () -> "fromWaiter", interruptionChecker,
+                    TimeUnit.MILLISECONDS.toNanos(100))).isEqualTo("theKey");
+        } finally {
+            creator.join(5000);
+        }
         assertThat(map.numNewInstanceCalls).hasValue(1);
     }
 

@@ -41,7 +41,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 
 import nonapi.io.github.classgraph.utils.LogNode;
 
@@ -104,22 +103,17 @@ public class WorkQueue<T> implements AutoCloseable {
     private final InterruptionChecker interruptionChecker;
 
     /**
-     * The maximum number of nanoseconds that the calling thread waits for a work unit to finish while it has no
-     * work of its own to do, and that {@link #close()} waits for a worker to finish, or {@link Long#MAX_VALUE} to
-     * wait indefinitely.
+     * The number of nanoseconds with no progress after which the calling thread stops waiting for more work while
+     * it has no work of its own to do, and {@link #close()} stops waiting for the workers to finish, or
+     * {@link Long#MAX_VALUE} to wait indefinitely. Progress is anything reported to
+     * {@link InterruptionChecker#progress()}: a work unit finishing, or a worker reporting progress from within a
+     * long work unit.
      */
     private final long workerTimeoutNanos;
 
     /**
-     * The {@link System#nanoTime()} at which the last work unit finished, or at which this work queue was created
-     * if no work unit has finished yet. The calling thread stops waiting for more work once the worker timeout has
-     * passed since then, so a work queue that is still finishing work units is never stopped.
-     */
-    private final AtomicLong lastProgressNanos = new AtomicLong(System.nanoTime());
-
-    /**
-     * True once the calling thread has stopped waiting for more work because no work unit finished within the
-     * worker timeout. Only read and written on the calling thread.
+     * True once the calling thread has stopped waiting for more work because no progress was made for the worker
+     * timeout. Only read and written on the calling thread.
      */
     private boolean timedOutWaitingForWork;
 
@@ -185,9 +179,12 @@ public class WorkQueue<T> implements AutoCloseable {
      * @param numParallelTasks
      *            The number of parallel tasks.
      * @param workerTimeoutNanos
-     *            The maximum number of nanoseconds to wait for a worker to finish, or {@link Long#MAX_VALUE} to
-     *            wait indefinitely. Once the calling thread has no work of its own left to do, the timeout counts
-     *            from when a work unit last finished.
+     *            The number of nanoseconds with no progress after which to stop waiting for the workers, or
+     *            {@link Long#MAX_VALUE} to wait indefinitely. Progress is anything reported to
+     *            {@link InterruptionChecker#progress()}: a work unit finishing on any thread, or a worker reporting
+     *            progress from within a long work unit. The timeout applies once the calling thread has no work of
+     *            its own left to do, and while waiting for the workers to finish. Time during which the whole JVM
+     *            was paused, for example in a debugger, is not counted.
      * @param log
      *            The log.
      * @param workUnitProcessor
@@ -195,8 +192,8 @@ public class WorkQueue<T> implements AutoCloseable {
      * @throws InterruptedException
      *             If the work was interrupted.
      * @throws ExecutionException
-     *             If the calling thread throws an uncaught exception while processing a work unit, or if no work
-     *             unit finishes within the timeout while the calling thread is waiting for more work. A failure or
+     *             If the calling thread throws an uncaught exception while processing a work unit, or if no
+     *             progress is made for the timeout while the calling thread is waiting for more work. A failure or
      *             timeout of a worker thread is not thrown here, but recorded in the {@link InterruptionChecker},
      *             to be thrown by its next {@link InterruptionChecker#check()}.
      */
@@ -233,8 +230,8 @@ public class WorkQueue<T> implements AutoCloseable {
      * @param interruptionChecker
      *            the interruption checker
      * @param workerTimeoutNanos
-     *            the maximum number of nanoseconds to wait for a worker to finish, or {@link Long#MAX_VALUE} to
-     *            wait indefinitely
+     *            the number of nanoseconds with no progress after which to stop waiting for the workers, or
+     *            {@link Long#MAX_VALUE} to wait indefinitely
      * @param log
      *            the log
      */
@@ -291,7 +288,7 @@ public class WorkQueue<T> implements AutoCloseable {
      *
      * @param isCallingThread
      *            true on the thread that called {@link #runWorkQueue}, which stops waiting for more work once no
-     *            work unit has finished for the worker timeout. False on a worker thread, which waits for more work
+     *            progress has been made for the worker timeout. False on a worker thread, which waits for more work
      *            for as long as it takes, since the calling thread sends it a poison pill if the work queue times
      *            out.
      * @throws InterruptedException
@@ -334,7 +331,7 @@ public class WorkQueue<T> implements AutoCloseable {
                 throw new ExecutionException("Worker thread threw unchecked exception", e);
 
             }
-            lastProgressNanos.set(System.nanoTime());
+            interruptionChecker.progress();
             if (numIncompleteWorkUnits.decrementAndGet() == 0) {
                 // No more work units -- send poison pills
                 sendPoisonPills();
@@ -344,34 +341,35 @@ public class WorkQueue<T> implements AutoCloseable {
 
     /**
      * Take the next work unit from the queue on the thread that called {@link #runWorkQueue}, giving up once no
-     * work unit has finished for the worker timeout. The calling thread cannot wait for more work indefinitely,
+     * progress has been made for the worker timeout. The calling thread cannot wait for more work indefinitely,
      * since a worker thread that never finishes its work unit would then stop it from ever reaching
-     * {@link #close()}, where the worker timeout is applied to each worker.
+     * {@link #close()}, where the worker timeout is applied to the workers.
      *
      * <p>
-     * The timeout counts from when a work unit last finished on any thread, not from when this thread ran out of
-     * work, so that the work queue is not stopped while the other threads are still finishing work units.
+     * The timeout counts only time with no progress on any thread, so that the work queue is not stopped while
+     * the other threads are still finishing work units, or are still making progress within a long work unit,
+     * such as a slow download. Time during which the whole JVM was paused is not counted.
      *
      * @return the wrapper of the work unit, holding null for a poison pill.
      * @throws InterruptedException
      *             if this thread was interrupted while waiting.
      * @throws ExecutionException
-     *             if no work unit finished for the worker timeout. The queue has then been emptied and the other
+     *             if no progress was made for the worker timeout. The queue has then been emptied and the other
      *             threads sent poison pills, and the timeout has been recorded in the {@link InterruptionChecker}.
      */
     private WorkUnitWrapper<T> takeWorkUnitOnCallingThread() throws InterruptedException, ExecutionException {
         if (workerTimeoutNanos == Long.MAX_VALUE) {
             return workUnits.take();
         }
+        final IdleTimeout idleTimeout = new IdleTimeout(interruptionChecker, workerTimeoutNanos);
         for (;;) {
-            final long lastProgress = lastProgressNanos.get();
-            final WorkUnitWrapper<T> workUnitWrapper = workUnits
-                    .poll(workerTimeoutNanos - (System.nanoTime() - lastProgress), TimeUnit.NANOSECONDS);
+            final WorkUnitWrapper<T> workUnitWrapper = workUnits.poll(idleTimeout.nextWaitNanos(),
+                    TimeUnit.NANOSECONDS);
             if (workUnitWrapper != null) {
                 return workUnitWrapper;
             }
-            if (lastProgressNanos.get() == lastProgress) {
-                // No work unit finished for the whole timeout, so a worker thread is stuck. Record the timeout
+            if (idleTimeout.hasRunOut()) {
+                // No progress was made for the whole timeout, so a worker thread is stuck. Record the timeout
                 // before throwing it, so that the other workers stop at their next check(), and so that close()
                 // does not wait for the full timeout again for the stuck worker
                 final ExecutionException timeout = newWorkerTimeoutException();
@@ -382,7 +380,6 @@ public class WorkQueue<T> implements AutoCloseable {
                 sendPoisonPills();
                 throw timeout;
             }
-            // A work unit finished while this thread was waiting, so wait until the timeout has passed since then
         }
     }
 
@@ -448,6 +445,9 @@ public class WorkQueue<T> implements AutoCloseable {
         // finish
         long timeoutNanos = timedOutWaitingForWork || interruptionChecker.getExecutionException() != null ? 0L
                 : workerTimeoutNanos;
+        // One IdleTimeout for all the workers, so that the wait gives up once no thread has made progress for the
+        // worker timeout, however many workers are still running
+        final IdleTimeout idleTimeout = new IdleTimeout(interruptionChecker, workerTimeoutNanos);
         for (Worker worker; (worker = workerTasks.poll()) != null;) {
             // If the ExecutorService did not have a free thread to start a worker on, claiming the worker here
             // stops it running the work loop if it is started later, so there is nothing to wait for. Waiting for
@@ -461,7 +461,22 @@ public class WorkQueue<T> implements AutoCloseable {
             final Future<?> future = worker.future;
             try {
                 // Block on completion using future.get(), which may throw one of the exceptions below
-                future.get(timeoutNanos, TimeUnit.NANOSECONDS);
+                if (timeoutNanos == 0L) {
+                    future.get(0L, TimeUnit.NANOSECONDS);
+                } else if (timeoutNanos == Long.MAX_VALUE) {
+                    future.get();
+                } else {
+                    for (;;) {
+                        try {
+                            future.get(idleTimeout.nextWaitNanos(), TimeUnit.NANOSECONDS);
+                            break;
+                        } catch (final TimeoutException e) {
+                            if (idleTimeout.hasRunOut()) {
+                                throw e;
+                            }
+                        }
+                    }
+                }
             } catch (final TimeoutException e) {
                 // The worker is still running, and there is no way to stop it, since a thread blocked on class
                 // loading or on a filesystem read cannot be interrupted. All that can be done is to report why the
