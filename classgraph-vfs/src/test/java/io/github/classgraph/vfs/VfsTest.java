@@ -1125,6 +1125,51 @@ public class VfsTest {
         }
     }
 
+    /**
+     * The top directory of a mounted zipfile keeps the {@code "!/"} that separates the jarfile from the paths
+     * within it, so that it and its entries are not named as if the jarfile were a directory.
+     */
+    @Test
+    public void theTopDirectoryOfAMountedZipfileIsNamedWithinTheJarfile(@TempDir final File tempDir)
+            throws IOException {
+        final var jarFile = new File(tempDir, "widget.jar");
+        writeJar(jarFile, "com/xyz/widget.txt");
+
+        try (var fileSystem = FileSystems.newFileSystem(jarFile.toPath()); var vfs = new Vfs()) {
+            final var root = vfs.open(fileSystem.getPath("/"));
+            assertThat(root).isInstanceOf(DirRoot.class);
+            assertThat(root.getPath()).endsWith("/widget.jar!/");
+            assertThat(Objects.requireNonNull(root.getEntry("com/xyz/widget.txt")).getPath())
+                    .endsWith("/widget.jar!/com/xyz/widget.txt");
+        }
+    }
+
+    /**
+     * A directory opened through another filesystem is found again only by that filesystem's path: opening the
+     * jarfile it is in by name opens the jarfile itself, rather than returning a root that reads through a
+     * filesystem the caller may close.
+     */
+    @Test
+    public void aDirectoryInAnotherFilesystemIsNotReturnedForTheJarfileItIsIn(@TempDir final File tempDir)
+            throws IOException {
+        final var jarFile = new File(tempDir, "widget.jar");
+        writeJar(jarFile, "com/xyz/widget.txt");
+
+        try (var fileSystem = FileSystems.newFileSystem(jarFile.toPath()); var vfs = new Vfs()) {
+            final var topDirRoot = vfs.open(fileSystem.getPath("/"));
+            final var comDirRoot = vfs.open(fileSystem.getPath("/com"));
+            assertThat(vfs.open(jarFile.getPath())).isInstanceOf(ArchiveRoot.class).isNotSameAs(topDirRoot);
+            assertThat(vfs.open(jarFile.getPath() + "!/com")).isInstanceOf(ArchiveRoot.class)
+                    .isNotSameAs(comDirRoot);
+        }
+        // The same holds for the view of a jarfile that another Vfs serves as a filesystem
+        try (var viewVfs = new Vfs(); var vfs = new Vfs()) {
+            final var view = viewVfs.open(jarFile.getPath()).asFileSystem();
+            final var topDirRoot = vfs.open(view.getPath("/"));
+            assertThat(vfs.open(jarFile.getPath())).isInstanceOf(ArchiveRoot.class).isNotSameAs(topDirRoot);
+        }
+    }
+
     /** A jarfile held in RAM can be read from a byte array or from a stream, without being written to disk. */
     @Test
     public void aJarfileCanBeReadFromABuiltInStreamOrByteArray(@TempDir final File tempDir) throws IOException {

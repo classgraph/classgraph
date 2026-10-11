@@ -67,7 +67,10 @@ public final class FileUtils {
      * started in, the path with {@code '/'} as the separator; for a file of any other filesystem, the URI of the
      * file resolved to a path, since the string form of such a path names nothing outside its own filesystem -- a
      * directory of a mounted zipfile is called {@code "/dir"} there, whatever jarfile it is in, whereas resolving
-     * its URI yields the {@code "the-jarfile.jar!/dir"} form that a package root within a jarfile is named by.
+     * its URI yields the {@code "the-jarfile.jar!/dir"} form that a package root within a jarfile is named by. The
+     * top directory of a mounted zipfile is named {@code "the-jarfile.jar!/"}, keeping the separator that resolving
+     * drops, so that it is not named as the jarfile itself, and the paths of its files are not named as if the
+     * jarfile were a directory.
      *
      * @param path
      *            A {@link Path}.
@@ -76,9 +79,12 @@ public final class FileUtils {
      *             if the URI of a file of another filesystem could not be formed.
      */
     public static String pathStr(final Path path) {
-        return path.getFileSystem() == FileSystems.getDefault()
-                ? FastPathResolver.resolve(currDirPath(), path.toString())
-                : FastPathResolver.resolve(path.toUri().toString());
+        if (path.getFileSystem() == FileSystems.getDefault()) {
+            return FastPathResolver.resolve(currDirPath(), path.toString());
+        }
+        final var uriStr = path.toUri().toString();
+        final var resolved = FastPathResolver.resolve(uriStr);
+        return uriStr.endsWith("!/") && !resolved.endsWith("/") ? resolved + "!/" : resolved;
     }
 
     /**
