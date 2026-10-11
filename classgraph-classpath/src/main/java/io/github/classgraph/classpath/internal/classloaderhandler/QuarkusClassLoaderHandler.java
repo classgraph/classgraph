@@ -106,8 +106,20 @@ class QuarkusClassLoaderHandler implements ClassLoaderHandler {
     @Override
     public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
             final @Nullable ClassGraphLog log) {
-        classLoaderOrder.delegateToParent(classLoader.getParent(), log);
+        // All three classloaders look in their own classpath elements before their parent, except a
+        // QuarkusClassLoader that was built to look in its parent first, which its "parentFirst" field records (if
+        // the field cannot be read, the parent is put first). Each of them also sends the classes of some packages
+        // or artifacts to its parent first (the JDK's packages, a configured set of parent-first packages or
+        // artifacts, or generated framework classes), which cannot be represented here.
+        final var parentFirst = QUARKUS_CLASSLOADER.equals(findQuarkusClassLoaderName(classLoader.getClass()))
+                && !Boolean.FALSE.equals(ReflectionUtils.getFieldVal(false, classLoader, "parentFirst"));
+        if (parentFirst) {
+            classLoaderOrder.delegateToParent(classLoader.getParent(), log);
+        }
         classLoaderOrder.add(classLoader, log);
+        if (!parentFirst) {
+            classLoaderOrder.delegateToParent(classLoader.getParent(), log);
+        }
     }
 
     @Override
