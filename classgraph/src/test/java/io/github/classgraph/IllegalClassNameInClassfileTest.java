@@ -6,10 +6,14 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Pattern;
+
+import javax.tools.ToolProvider;
 
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
@@ -314,10 +318,135 @@ public class IllegalClassNameInClassfileTest {
                     final var parameterInfo = scanResult.getClassInfo("p.Bad").getMethodInfo("m").get(0)
                             .getParameterInfo();
                     assertThat(parameterInfo).as(desc).hasSize(1);
+                    assertThat(parameterInfo.get(0).annotationInfo).as(desc).doesNotContainNull();
                     assertThat(parameterInfo.get(0).getAllAnnotationInfo().getNames()).as(desc)
                             .containsExactly("p.Good");
                 }
             }
+        }
+    }
+
+    /**
+     * Sources for the nested annotation tests. {@code p.In} is the annotation that is given an illegal class name,
+     * by {@link #renameIn(Path)}, in the classfiles that use it.
+     */
+    private static final List<String> NESTED_ANNOTATION_SOURCES = List.of( //
+            "package p; public @interface Good {}", //
+            "package p; public @interface In {}", //
+            "package p; public @interface Holder { In[] value() default {}; }", //
+            "package p; public @interface Outer { In nested() default @In; Holder[] array() default {}; }", //
+            "package p; @Good @Outer(nested = @In) public abstract class BadNested {}", //
+            "package p; @Good @Outer(array = { @Holder, @Holder(@In) }) public abstract class BadArray {}", //
+            "package p; public @interface Defaults { int x() default 1; In nested() default @In; "
+                    + "In[] array() default { @In }; }");
+
+    /** The {@code CONSTANT_Utf8} entry that holds the type descriptor of {@code p.In}: tag, length, bytes. */
+    private static final String IN_DESCRIPTOR_ENTRY = "\u0001\u0000\u0006Lp/In;";
+
+    /**
+     * The same entry with an illegal class name of the same length, so the constant pool keeps its layout. A method
+     * descriptor such as {@code ()Lp/In;} is a different entry, and is not changed.
+     */
+    private static final String ILLEGAL_DESCRIPTOR_ENTRY = "\u0001\u0000\u0006Lp/I;;";
+
+    /**
+     * Compile {@link #NESTED_ANNOTATION_SOURCES}, then give {@code p.In} an illegal class name in the classfiles of
+     * {@code p.BadNested}, {@code p.BadArray} and {@code p.Defaults}.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @return the directory that holds the classfiles.
+     * @throws IOException
+     *             if a file could not be written.
+     */
+    private static Path compileNestedAnnotationClasses(final Path tempDir) throws IOException {
+        final var srcDir = Files.createDirectories(tempDir.resolve("src/p"));
+        final var classesDir = Files.createDirectories(tempDir.resolve("classes"));
+        final List<String> args = new ArrayList<>(List.of("-d", classesDir.toString()));
+        for (final var source : NESTED_ANNOTATION_SOURCES) {
+            final var nameMatcher = Pattern.compile("(?:class|@interface) (\\w+)").matcher(source);
+            assertThat(nameMatcher.find()).as(source).isTrue();
+            final var srcFile = srcDir.resolve(nameMatcher.group(1) + ".java");
+            Files.writeString(srcFile, source);
+            args.add(srcFile.toString());
+        }
+        final var compiler = ToolProvider.getSystemJavaCompiler();
+        assertThat(compiler).as("the tests must be run on a JDK, not a JRE").isNotNull();
+        assertThat(compiler.run(null, null, null, args.toArray(new String[0]))).as("javac exit code").isZero();
+        for (final var className : List.of("BadNested", "BadArray", "Defaults")) {
+            renameIn(classesDir.resolve("p/" + className + ".class"));
+        }
+        return classesDir;
+    }
+
+    /**
+     * Replace the {@code CONSTANT_Utf8} entry {@link #IN_DESCRIPTOR_ENTRY} in a classfile with
+     * {@link #ILLEGAL_DESCRIPTOR_ENTRY}.
+     *
+     * @param classfile
+     *            the classfile.
+     * @throws IOException
+     *             if the classfile could not be read or written.
+     */
+    private static void renameIn(final Path classfile) throws IOException {
+        final var bytes = Files.readAllBytes(classfile);
+        // ISO-8859-1 maps each byte to one char, so string positions are byte positions
+        final var str = new String(bytes, StandardCharsets.ISO_8859_1);
+        final var idx = str.indexOf(IN_DESCRIPTOR_ENTRY);
+        assertThat(idx).as(classfile.toString()).isNotNegative();
+        assertThat(str.indexOf(IN_DESCRIPTOR_ENTRY, idx + 1)).as(classfile.toString()).isNegative();
+        System.arraycopy(ILLEGAL_DESCRIPTOR_ENTRY.getBytes(StandardCharsets.ISO_8859_1), 0, bytes, idx,
+                ILLEGAL_DESCRIPTOR_ENTRY.length());
+        Files.write(classfile, bytes);
+    }
+
+    /**
+     * An annotation that holds a nested annotation whose type has an illegal name, directly or in an array, is
+     * skipped as a whole, even if the array also holds legal annotations, and the other annotations of the class
+     * are kept. The JVM loads such a class.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if a file could not be written.
+     */
+    @Test
+    public void anAnnotationThatHoldsAnAnnotationWhoseTypeHasAnIllegalNameIsSkipped(@TempDir final Path tempDir)
+            throws IOException {
+        final var dir = compileNestedAnnotationClasses(tempDir);
+        for (final var className : List.of("p.BadNested", "p.BadArray")) {
+            final var classfile = Files.readAllBytes(dir.resolve(className.replace('.', '/') + ".class"));
+            assertThat(new ByteClassLoader().define(classfile).getName()).isEqualTo(className);
+        }
+        try (var scanResult = new ClassGraph().enableClassInfo().enableAnnotationInfo().enableClasspathEntries(dir)
+                .scan()) {
+            for (final var className : List.of("p.BadNested", "p.BadArray")) {
+                assertThat(scanResult.getClassInfo(className).getAllAnnotationInfo().getNames()).as(className)
+                        .containsExactly("p.Good");
+            }
+        }
+    }
+
+    /**
+     * The default value of an annotation element that is an annotation whose type has an illegal name, or an array
+     * that holds one, is left out, and the other default values of the annotation are kept.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if a file could not be written.
+     */
+    @Test
+    public void aDefaultValueThatHoldsAnAnnotationWhoseTypeHasAnIllegalNameIsLeftOut(@TempDir final Path tempDir)
+            throws IOException {
+        final var dir = compileNestedAnnotationClasses(tempDir);
+        try (var scanResult = new ClassGraph().enableClassInfo().enableMethodInfo().enableAnnotationInfo()
+                .enableClasspathEntries(dir).scan()) {
+            final var defaults = scanResult.getClassInfo("p.Defaults");
+            assertThat(defaults.getDeclaredMethodInfo().getNames()).containsExactlyInAnyOrder("x", "nested",
+                    "array");
+            assertThat(defaults.getAnnotationDefaultParameterValues().getNames()).containsExactly("x");
+            assertThat(defaults.getAnnotationDefaultParameterValues().getValue("x")).isEqualTo(1);
         }
     }
 
