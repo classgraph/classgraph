@@ -7,6 +7,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.time.Duration;
 import java.util.Arrays;
 
 import org.junit.jupiter.api.Test;
@@ -22,6 +23,19 @@ public class VfsSpecTest {
                 .isEqualTo(VfsSpec.DEFAULT_ENABLE_MULTI_RELEASE_VERSIONS);
         assertThat(vfsSpec.getMaxBufferedJarRAMSize()).isEqualTo(VfsSpec.DEFAULT_MAX_BUFFERED_JAR_RAM_SIZE);
         assertThat(vfsSpec.getDeniedURLSchemes()).isEmpty();
+        assertThat(vfsSpec.getOpenWaitTimeout()).isEqualTo(Duration.ZERO);
+    }
+
+    /** A timeout that is zero, negative, or too long to express in nanoseconds waits indefinitely. */
+    @Test
+    public void anOpenWaitTimeoutThatIsNotPositiveWaitsIndefinitely() {
+        assertThat(new VfsSpec().openWaitTimeoutNanos()).isEqualTo(Long.MAX_VALUE);
+        assertThat(new VfsSpec().setOpenWaitTimeout(Duration.ofSeconds(-1)).openWaitTimeoutNanos())
+                .isEqualTo(Long.MAX_VALUE);
+        assertThat(new VfsSpec().setOpenWaitTimeout(Duration.ofDays(365L * 1000)).openWaitTimeoutNanos())
+                .isEqualTo(Long.MAX_VALUE);
+        assertThat(new VfsSpec().setOpenWaitTimeout(Duration.ofMillis(500)).openWaitTimeoutNanos())
+                .isEqualTo(500_000_000L);
     }
 
     /** Every setter returns the same object, so that settings can be chained. */
@@ -78,8 +92,9 @@ public class VfsSpecTest {
     @Test
     public void aCopyIsIndependentOfTheOriginal() {
         final var original = new VfsSpec().disableNestedJars().disableMultiReleaseVersions()
-                .setMaxBufferedJarRAMSize(1024).denyURLScheme("https");
+                .setMaxBufferedJarRAMSize(1024).denyURLScheme("https").setOpenWaitTimeout(Duration.ofSeconds(5));
         final var copy = original.copy();
+        assertThat(copy.getOpenWaitTimeout()).isEqualTo(Duration.ofSeconds(5));
         assertThat(copy).isNotSameAs(original).hasToString(original.toString());
 
         copy.enableNestedJars().enableMultiReleaseVersions().setMaxBufferedJarRAMSize(2048).allowURLScheme("https")
@@ -87,6 +102,8 @@ public class VfsSpecTest {
         assertThat(original.isNestedJarsEnabled()).isFalse();
         assertThat(original.isMultiReleaseVersionsEnabled()).isFalse();
         assertThat(original.getMaxBufferedJarRAMSize()).isEqualTo(1024);
+        copy.setOpenWaitTimeout(Duration.ofSeconds(6));
+        assertThat(original.getOpenWaitTimeout()).isEqualTo(Duration.ofSeconds(5));
         assertThat(original.getDeniedURLSchemes()).containsExactly("https");
 
         original.denyURLScheme("s3");
@@ -106,9 +123,10 @@ public class VfsSpecTest {
     /** The settings are described in the verbose log. */
     @Test
     public void theSettingsAreDescribed() {
-        assertThat(new VfsSpec().denyURLScheme("https").setMaxBufferedJarRAMSize(1024).toString()).contains(
-                "nestedJars: true", "multiReleaseVersions: true", "deniedURLSchemes: [https]",
-                "maxBufferedJarRAMSize: 1024");
+        assertThat(new VfsSpec().denyURLScheme("https").setMaxBufferedJarRAMSize(1024)
+                .setOpenWaitTimeout(Duration.ofSeconds(5)).toString()).contains("nestedJars: true",
+                        "multiReleaseVersions: true", "deniedURLSchemes: [https]", "maxBufferedJarRAMSize: 1024",
+                        "openWaitTimeout: PT5S");
     }
 
     /**
@@ -119,7 +137,7 @@ public class VfsSpecTest {
     @Test
     public void aVfsCopiesEverySetting() {
         final var vfsSpec = new VfsSpec().disableNestedJars().disableMultiReleaseVersions().denyURLScheme("https")
-                .setMaxBufferedJarRAMSize(1024);
+                .setMaxBufferedJarRAMSize(1024).setOpenWaitTimeout(Duration.ofSeconds(5));
         try (var vfs = new Vfs(vfsSpec)) {
             final var copy = vfs.getVfsSpec();
             assertThat(copy).isNotSameAs(vfsSpec);
@@ -127,11 +145,12 @@ public class VfsSpecTest {
             assertThat(copy.isMultiReleaseVersionsEnabled()).isFalse();
             assertThat(copy.getDeniedURLSchemes()).containsExactly("https");
             assertThat(copy.getMaxBufferedJarRAMSize()).isEqualTo(1024);
+            assertThat(copy.getOpenWaitTimeout()).isEqualTo(Duration.ofSeconds(5));
         }
         assertThat(Arrays.stream(VfsSpec.class.getDeclaredFields())
                 .filter(field -> !Modifier.isStatic(field.getModifiers()) && !field.isSynthetic())
                 .map(Field::getName)).containsExactlyInAnyOrder("nestedJarsEnabled", "multiReleaseVersionsEnabled",
-                        "deniedURLSchemes", "maxBufferedJarRAMSize", "frozen");
+                        "deniedURLSchemes", "maxBufferedJarRAMSize", "openWaitTimeout", "frozen");
     }
 
     /**
@@ -149,7 +168,7 @@ public class VfsSpecTest {
                     .toList();
             assertThat(mutators).extracting(Method::getName).contains("enableNestedJars", "disableNestedJars",
                     "enableMultiReleaseVersions", "disableMultiReleaseVersions", "denyURLScheme", "allowURLScheme",
-                    "setMaxBufferedJarRAMSize");
+                    "setMaxBufferedJarRAMSize", "setOpenWaitTimeout");
             for (final var mutator : mutators) {
                 // A valid argument, so that only the spec being frozen can make the call fail
                 final var args = Arrays.stream(mutator.getParameterTypes()).map(type -> {
@@ -157,6 +176,8 @@ public class VfsSpecTest {
                         return "https";
                     } else if (type == int.class) {
                         return 0;
+                    } else if (type == Duration.class) {
+                        return Duration.ofSeconds(1);
                     }
                     throw new AssertionError("No test argument for a parameter of type " + type + " of " + mutator);
                 }).toArray();
@@ -170,6 +191,7 @@ public class VfsSpecTest {
                     .isEqualTo(VfsSpec.DEFAULT_ENABLE_MULTI_RELEASE_VERSIONS);
             assertThat(copy.getMaxBufferedJarRAMSize()).isEqualTo(VfsSpec.DEFAULT_MAX_BUFFERED_JAR_RAM_SIZE);
             assertThat(copy.getDeniedURLSchemes()).isEmpty();
+            assertThat(copy.getOpenWaitTimeout()).isEqualTo(Duration.ZERO);
         }
     }
 }

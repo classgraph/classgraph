@@ -29,6 +29,7 @@
 package io.github.classgraph.vfs;
 
 import java.io.InputStream;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.Set;
 import java.util.TreeSet;
@@ -87,6 +88,11 @@ public final class VfsSpec {
     /** The maximum size of a jarfile that may be held in RAM rather than spilled to disk, in bytes. */
     private volatile int maxBufferedJarRAMSize = DEFAULT_MAX_BUFFERED_JAR_RAM_SIZE;
 
+    /**
+     * How long to wait for another thread that is opening the same path, or zero or negative to wait indefinitely.
+     */
+    private volatile Duration openWaitTimeout = Duration.ZERO;
+
     /** True if this is the copy that a {@link Vfs} holds, whose settings cannot be changed. */
     private final boolean frozen;
 
@@ -108,6 +114,7 @@ public final class VfsSpec {
         this.multiReleaseVersionsEnabled = vfsSpec.multiReleaseVersionsEnabled;
         this.deniedURLSchemes = vfsSpec.deniedURLSchemes;
         this.maxBufferedJarRAMSize = vfsSpec.maxBufferedJarRAMSize;
+        this.openWaitTimeout = vfsSpec.openWaitTimeout;
         this.frozen = true;
     }
 
@@ -137,6 +144,7 @@ public final class VfsSpec {
         // An unmodifiable set, so it can be shared
         copy.deniedURLSchemes = deniedURLSchemes;
         copy.maxBufferedJarRAMSize = maxBufferedJarRAMSize;
+        copy.openWaitTimeout = openWaitTimeout;
         return copy;
     }
 
@@ -355,6 +363,62 @@ public final class VfsSpec {
         return maxBufferedJarRAMSize;
     }
 
+    /**
+     * Set the maximum length of time that a thread opening a path waits for another thread that is already opening
+     * the same directory or jarfile. A path is only opened once, however many threads ask for it at the same time,
+     * so the threads that ask for it while it is being opened wait for the thread that is opening it. That thread
+     * can be stuck, for example reading a jarfile from a server that sends it very slowly, or from a network
+     * filesystem that does not answer, and without a timeout every thread that needs the same jarfile -- including
+     * a thread that opens a jarfile nested within it, or a package root within it -- would then be stuck too.
+     *
+     * <p>
+     * This bounds only the wait for another thread, not the time a thread takes to open a path itself. When the
+     * wait times out, the {@code open} method that was waiting throws {@link java.io.IOException}. The thread that
+     * was opening the path is not stopped, and a later {@code open} of the same path gets its root if it finishes.
+     *
+     * <p>
+     * Default: zero, which waits indefinitely, as does any timeout that is negative or too long to express in
+     * nanoseconds. {@code ClassGraph} sets this to its worker timeout.
+     *
+     * @param openWaitTimeout
+     *            the maximum length of time to wait for another thread to open the same path.
+     * @return this (for method chaining).
+     * @throws IllegalStateException
+     *             if this is the copy that a {@link Vfs} holds, which {@link Vfs#getVfsSpec()} returns.
+     */
+    public VfsSpec setOpenWaitTimeout(final Duration openWaitTimeout) {
+        checkNotFrozen();
+        Assert.notNull(openWaitTimeout, "openWaitTimeout");
+        this.openWaitTimeout = openWaitTimeout;
+        return this;
+    }
+
+    /**
+     * The maximum length of time that a thread opening a path waits for another thread that is already opening the
+     * same directory or jarfile.
+     *
+     * @return the timeout, which waits indefinitely if it is zero or negative.
+     */
+    public Duration getOpenWaitTimeout() {
+        return openWaitTimeout;
+    }
+
+    /**
+     * Get {@link #getOpenWaitTimeout()} in nanoseconds, for {@link Vfs} to pass to a timed wait.
+     *
+     * @return the number of nanoseconds to wait, or {@link Long#MAX_VALUE} to wait indefinitely, if the timeout is
+     *         zero, negative, or too long to express in nanoseconds.
+     */
+    long openWaitTimeoutNanos() {
+        try {
+            final var timeoutNanos = openWaitTimeout.toNanos();
+            return timeoutNanos > 0L ? timeoutNanos : Long.MAX_VALUE;
+        } catch (final ArithmeticException e) {
+            // The timeout is longer than Long.MAX_VALUE nanoseconds (about 292 years)
+            return Long.MAX_VALUE;
+        }
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**
@@ -383,6 +447,7 @@ public final class VfsSpec {
         return "VfsSpec(nestedJars: " + nestedJarsEnabled //
                 + "; multiReleaseVersions: " + multiReleaseVersionsEnabled //
                 + "; deniedURLSchemes: " + deniedURLSchemes //
-                + "; maxBufferedJarRAMSize: " + maxBufferedJarRAMSize + ")";
+                + "; maxBufferedJarRAMSize: " + maxBufferedJarRAMSize //
+                + "; openWaitTimeout: " + openWaitTimeout + ")";
     }
 }

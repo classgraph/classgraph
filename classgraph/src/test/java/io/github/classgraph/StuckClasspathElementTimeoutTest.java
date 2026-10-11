@@ -4,7 +4,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
+import java.io.Closeable;
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.InetAddress;
+import java.net.ServerSocket;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -117,6 +122,166 @@ public class StuckClasspathElementTimeoutTest {
                             + "classpath element " + tempDir.resolve("stuck").toRealPath());
         } finally {
             releaseWorker.countDown();
+            executorService.shutdown();
+            assertThat(executorService.awaitTermination(20, TimeUnit.SECONDS)).isTrue();
+        }
+    }
+
+    /**
+     * An HTTP server on the loopback interface that answers a request for a jarfile by sending the response one
+     * byte at a time, slowly enough that the download never finishes, but quickly enough that the read timeout of
+     * the download never expires. This stands in for a slow server, or a network filesystem that is very slow to
+     * read.
+     */
+    private static final class TricklingJarServer implements Closeable {
+        /** The socket the server listens on. */
+        private final ServerSocket serverSocket;
+
+        /** Counted down once the server has received a request. */
+        private final CountDownLatch requestReceived = new CountDownLatch(1);
+
+        /** Counted down when the server is closed, to stop sending the response. */
+        private final CountDownLatch closed = new CountDownLatch(1);
+
+        /**
+         * Constructor. Starts the server.
+         *
+         * @throws IOException
+         *             if the server socket could not be opened.
+         */
+        TricklingJarServer() throws IOException {
+            serverSocket = new ServerSocket(0, /* backlog = */ 50, InetAddress.getLoopbackAddress());
+            final var thread = new Thread(this::serve);
+            thread.setDaemon(true);
+            thread.start();
+        }
+
+        /** Answer requests until the server is closed. */
+        private void serve() {
+            while (!serverSocket.isClosed()) {
+                try (var socket = serverSocket.accept()) {
+                    readRequest(socket.getInputStream());
+                    requestReceived.countDown();
+                    final var outputStream = socket.getOutputStream();
+                    outputStream.write(("HTTP/1.1 200 OK\r\nContent-Length: 1000000\r\nConnection: close\r\n\r\n")
+                            .getBytes(StandardCharsets.ISO_8859_1));
+                    do {
+                        outputStream.write(0);
+                        outputStream.flush();
+                    } while (!closed.await(100, TimeUnit.MILLISECONDS));
+                } catch (final IOException e) {
+                    // The server socket was closed at the end of the test, or the client hung up
+                } catch (final InterruptedException e) {
+                    return;
+                }
+            }
+        }
+
+        /**
+         * Read a request, up to the blank line that ends its headers.
+         *
+         * @param inputStream
+         *            the stream to read the request from.
+         * @throws IOException
+         *             if the request could not be read.
+         */
+        private static void readRequest(final InputStream inputStream) throws IOException {
+            var numConsecutiveNewlines = 0;
+            for (int nextByte; numConsecutiveNewlines < 2 && (nextByte = inputStream.read()) != -1;) {
+                if (nextByte == '\n') {
+                    numConsecutiveNewlines++;
+                } else if (nextByte != '\r') {
+                    numConsecutiveNewlines = 0;
+                }
+            }
+        }
+
+        /**
+         * Wait until the server has received a request.
+         *
+         * @throws InterruptedException
+         *             if the thread was interrupted while waiting.
+         */
+        void awaitRequest() throws InterruptedException {
+            requestReceived.await(30, TimeUnit.SECONDS);
+        }
+
+        /**
+         * The URL of the jarfile served by this server.
+         *
+         * @return the URL.
+         */
+        String jarURL() {
+            return "http://" + serverSocket.getInetAddress().getHostAddress() + ":" + serverSocket.getLocalPort()
+                    + "/stuck.jar";
+        }
+
+        @Override
+        public void close() throws IOException {
+            closed.countDown();
+            serverSocket.close();
+        }
+    }
+
+    /**
+     * Two classpath elements that are different, but that are read from the same jarfile -- here the jarfile, and a
+     * package root within it -- are opened by two threads, and the jarfile is downloaded once, by whichever thread
+     * reaches it first. If that thread never finishes downloading it, the other thread must give up after the
+     * worker timeout, rather than wait forever, since the waiting thread may be the calling thread, which is the
+     * thread that applies the worker timeout to the other threads.
+     *
+     * @param tempDir
+     *            the directory to make the classpath elements in.
+     * @throws Exception
+     *             if the classpath elements could not be made.
+     */
+    @Test
+    public void aThreadWaitingForAnotherThreadToOpenTheSameJarfileTimesOut(@TempDir final Path tempDir)
+            throws Exception {
+        // The calling thread opens "parent", and is held in the filter when it is asked about "other", the
+        // classpath element that "parent" names, until the worker thread has started downloading the jarfile. The
+        // calling thread then opens the package root of the jarfile, and waits for the worker thread to finish
+        // downloading it
+        makeDirWithClassPath(tempDir.resolve("parent"), "other/");
+        Files.createDirectories(tempDir.resolve("other"));
+        final var parentOpening = new CountDownLatch(1);
+
+        // Hold back the worker thread until the calling thread has taken the first work unit, "parent"
+        final var executorService = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS,
+                new LinkedBlockingQueue<>()) {
+            @Override
+            protected void beforeExecute(final Thread t, final Runnable r) {
+                try {
+                    parentOpening.await(30, TimeUnit.SECONDS);
+                } catch (final InterruptedException e) {
+                    t.interrupt();
+                }
+            }
+        };
+        try (var server = new TricklingJarServer()) {
+            final var jarURL = server.jarURL();
+            final var thrown = assertTimeoutPreemptively(Duration.ofSeconds(20),
+                    () -> catchThrowable(() -> new ClassGraph().enableRemoteJarScanning()
+                            .enableClasspathEntries(tempDir.resolve("parent").toString(), jarURL,
+                                    jarURL + "!/pkgroot")
+                            .filterClasspathElements(location -> {
+                                if (names(location, "other")) {
+                                    parentOpening.countDown();
+                                    try {
+                                        server.awaitRequest();
+                                    } catch (final InterruptedException e) {
+                                        Thread.currentThread().interrupt();
+                                    }
+                                }
+                                return true;
+                            }).setWorkerTimeout(Duration.ofMillis(500)).scan(executorService, 2).close()));
+            assertThat(thrown).isInstanceOf(ClassGraphException.class);
+            assertThat(thrown.getCause()).isInstanceOf(IOException.class)
+                    .hasMessageStartingWith(
+                            "Timed out after 500ms waiting for another thread to open " + jarURL + ".")
+                    .hasMessageContaining("ClassGraph#setWorkerTimeout(Duration)");
+        } finally {
+            parentOpening.countDown();
             executorService.shutdown();
             assertThat(executorService.awaitTermination(20, TimeUnit.SECONDS)).isTrue();
         }

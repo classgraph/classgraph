@@ -158,8 +158,11 @@ class Scanner {
         this.interruptionChecker = new InterruptionChecker();
         // The virtual filesystem owns the file handles, memory mappings and temporary files that everything read
         // during the scan is backed by. It is given no log node of its own, since each part of the scan passes the
-        // log node that what it reads should be logged under.
-        this.vfs = new Vfs(scanSpec.vfsSpec, interruptionChecker);
+        // log node that what it reads should be logged under. A thread that waits for another thread to open the
+        // same jarfile waits no longer than the worker timeout, as a thread waiting for another thread to open the
+        // same classpath element does, since the other thread may be stuck, and this may be the calling thread,
+        // which is the thread that applies the worker timeout to the other threads.
+        this.vfs = new Vfs(scanSpec.vfsSpec.copy().setOpenWaitTimeout(scanSpec.workerTimeout), interruptionChecker);
         this.numParallelTasks = numParallelTasks;
         this.topLevelLog = topLevelLog;
 
