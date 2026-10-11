@@ -2669,9 +2669,11 @@ class Classfile {
                 isRecord = true;
                 // Each record component has a field and an accessor method of the same name and type, which are
                 // read with the other fields and methods. Only the components' names are read here, since the
-                // order of the fields in a classfile is not specified, and the fields are sorted by name.
+                // order of the fields in a classfile is not specified, and the fields are sorted by name. A class
+                // should have only one Record attribute; if it has another, a well-formed one replaces the names
+                // read before it, and a malformed one keeps them.
                 recordComponentNames = readAnnotationAttribute(attributeNameCpIdx, attributeLength, "the class",
-                        null, earlier -> readRecordComponentNames());
+                        recordComponentNames, earlier -> readRecordComponentNames());
             } else if (constantPoolStringEquals(attributeNameCpIdx, "InnerClasses")) {
                 readInnerClassesAttribute();
             } else if (constantPoolStringEquals(attributeNameCpIdx, "Signature")) {

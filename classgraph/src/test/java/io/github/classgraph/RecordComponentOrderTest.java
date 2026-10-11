@@ -79,6 +79,28 @@ public class RecordComponentOrderTest {
      */
     private static byte[] recordClassfile(final int componentsCount, final int componentAttributeLength)
             throws IOException {
+        return recordClassfile(componentsCount, componentAttributeLength, /* secondComponentsCount = */ -1);
+    }
+
+    /**
+     * Write the classfile of the record {@code p.R}, which has the one component {@code int x}, and a
+     * {@code SourceFile} attribute after its {@code Record} attribute, optionally followed by a second
+     * {@code Record} attribute that also lists the one component {@code int x}.
+     *
+     * @param componentsCount
+     *            the {@code components_count} written in the {@code Record} attribute.
+     * @param componentAttributeLength
+     *            the {@code attribute_length} of an attribute of the component, or -1 for the component to have no
+     *            attributes.
+     * @param secondComponentsCount
+     *            the {@code components_count} written in the second {@code Record} attribute, or -1 for there to be
+     *            no second {@code Record} attribute.
+     * @return the bytes of the classfile.
+     * @throws IOException
+     *             if the classfile could not be written.
+     */
+    private static byte[] recordClassfile(final int componentsCount, final int componentAttributeLength,
+            final int secondComponentsCount) throws IOException {
         final var byteArrayOutputStream = new ByteArrayOutputStream();
         try (var out = new DataOutputStream(byteArrayOutputStream)) {
             out.writeInt(0xCAFEBABE);
@@ -115,7 +137,7 @@ public class RecordComponentOrderTest {
             out.writeShort(6); // "I"
             out.writeShort(0); // Number of attributes
             out.writeShort(0); // Number of methods
-            out.writeShort(2); // Number of attributes
+            out.writeShort(secondComponentsCount == -1 ? 2 : 3); // Number of attributes
             out.writeShort(7); // "Record"
             final var hasComponentAttribute = componentAttributeLength != -1;
             out.writeInt(2 + 6 + (hasComponentAttribute ? 6 : 0));
@@ -132,6 +154,14 @@ public class RecordComponentOrderTest {
             out.writeShort(8); // "SourceFile"
             out.writeInt(2);
             out.writeShort(9); // "R.java"
+            if (secondComponentsCount != -1) {
+                out.writeShort(7); // "Record"
+                out.writeInt(2 + 6);
+                out.writeShort(secondComponentsCount);
+                out.writeShort(5); // name_index: "x"
+                out.writeShort(6); // descriptor_index: "I"
+                out.writeShort(0); // attributes_count
+            }
         }
         return byteArrayOutputStream.toByteArray();
     }
@@ -182,5 +212,23 @@ public class RecordComponentOrderTest {
                 .isEqualTo("public final record p.R in R.java");
         assertThat(scanRecordClassfile(tempDir.resolve("negativeComponentAttributeLength"), recordClassfile(1, -2)))
                 .isEqualTo("public final record p.R in R.java");
+    }
+
+    /**
+     * A second {@code Record} attribute, which a class should not have, replaces the component names read from the
+     * first if it is well-formed, and is skipped, keeping them, if it is malformed.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if a file could not be written.
+     */
+    @Test
+    public void aMalformedSecondRecordAttributeKeepsTheComponentsOfTheFirst(@TempDir final Path tempDir)
+            throws IOException {
+        assertThat(scanRecordClassfile(tempDir.resolve("validSecond"), recordClassfile(1, -1, 1)))
+                .isEqualTo("public final record p.R(int x) in R.java");
+        assertThat(scanRecordClassfile(tempDir.resolve("malformedSecond"), recordClassfile(1, -1, 2)))
+                .isEqualTo("public final record p.R(int x) in R.java");
     }
 }

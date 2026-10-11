@@ -79,8 +79,10 @@ public class ImplicitSupertypeTest {
     }
 
     /**
-     * The components of a record are read from its field info, so if field info was not enabled, the component list
-     * is omitted rather than rendered empty -- and rendering the record does not throw.
+     * The names and order of the components of a record are read from its {@code Record} attribute, and their types
+     * from its field info, so if field info was not enabled, a record with components is rendered without its
+     * component list, and rendering it does not throw. (A record with no components is still rendered with
+     * {@code "()"}.)
      */
     @Test
     public void recordWithoutFieldInfoRendersNoComponents() {
