@@ -130,8 +130,8 @@ final class OffHeapMemory {
             return true;
         } catch (final InvocationTargetException e) {
             // invokeCleaner throws IllegalArgumentException if the buffer is a duplicate or a slice of the mapping,
-            // not the mapping itself. Method.invoke wraps whatever it throws. An Error, such as OutOfMemoryError, is
-            // not caught, as on the rest of the path that closes a root
+            // not the mapping itself. Method.invoke wraps whatever it throws. An Error, such as OutOfMemoryError,
+            // is not caught, as on the rest of the path that closes a root
             if (e.getCause() instanceof final Error error) {
                 throw error;
             }

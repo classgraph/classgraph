@@ -219,10 +219,10 @@ public final class ArchiveRoot extends VfsRoot {
         final var rootURIStr = getURI().toString();
         // A jarfile nested within another jarfile already has a "jar:" URI, and must not be given a second one.
         // Otherwise the root's URI is a "file:" URI, or the "http:" or "https:" URL of a remote jarfile, and the
-        // "jar:" scheme ends it at its first "!/". So a '!' followed by '/' in it, as at the end of a directory named
-        // "dir!", is percent-encoded: %21 is the only escape the scheme allows, and the "file:" URL handler decodes
-        // it again. Any other '!' is left as it is, since it cannot end the root's URI, and the JDK's own jar: URLs
-        // do not encode it
+        // "jar:" scheme ends it at its first "!/". So a '!' followed by '/' in it, as at the end of a directory
+        // named "dir!", is percent-encoded: %21 is the only escape the scheme allows, and the "file:" URL handler
+        // decodes it again. Any other '!' is left as it is, since it cannot end the root's URI, and the JDK's own
+        // jar: URLs do not encode it
         final var uriStr = (rootURIStr.startsWith("jar:") ? rootURIStr : "jar:" + rootURIStr.replace("!/", "%21/"))
                 + "!/" + URLPaths.encodePath(pathWithinRoot);
         try {

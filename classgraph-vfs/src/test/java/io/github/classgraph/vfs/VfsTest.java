@@ -954,8 +954,9 @@ public class VfsTest {
             // The root is named by the directory the symlink points at, rather than by the path it was opened from
             assertThat(root.getPath()).endsWith("/real").doesNotContain("/link");
             // So naming the directory directly reaches that same root, rather than walking it a second time. Only
-            // the canonical path is guaranteed to do so: the temporary directory is itself reached through a symlink
-            // on some platforms, and two paths that are both non-canonical are two different names for this purpose
+            // the canonical path is guaranteed to do so: the temporary directory is itself reached through a
+            // symlink on some platforms, and two paths that are both non-canonical are two different names for this
+            // purpose
             assertThat(vfs.open(root.getPath())).isSameAs(root);
             assertThat(vfs.open(realDir.getCanonicalPath())).isSameAs(root);
             assertThat(entryContent(root, "widget.txt")).isEqualTo(RESOURCE_CONTENT);
