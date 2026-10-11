@@ -96,13 +96,36 @@ public class PathSyntaxTest {
     }
 
     /**
-     * The filesystem cannot be consulted for a remote URL, so the first '!' in one is taken to be the separator.
+     * The filesystem cannot be consulted for a remote URL, so the first '!' in its path is taken to be the
+     * separator.
      */
     @Test
     public void theFirstPlingInARemoteURLIsTheSeparator() {
         assertThat(PathSyntax.indexOfNestedJarSeparator("http://example.com/dir!/x.jar!/pkg"))
                 .isEqualTo("http://example.com/dir".length());
         assertThat(PathSyntax.indexOfNestedJarSeparator("http://example.com/x.jar")).isEqualTo(-1);
+    }
+
+    /**
+     * A '!' is a legal character in the authority of a URL, both in its userinfo and in a registered host name, and
+     * it is never a nested jar separator there, since the authority does not name a file.
+     */
+    @Test
+    public void aPlingInTheAuthorityOfAURLIsNotTheSeparator() {
+        assertThat(PathSyntax.indexOfNestedJarSeparator("http://u!p@h/a.jar!/x"))
+                .isEqualTo("http://u!p@h/a.jar".length());
+        assertThat(PathSyntax.indexOfNestedJarSeparator("http://h!x/a.jar!/x"))
+                .isEqualTo("http://h!x/a.jar".length());
+        assertThat(PathSyntax.indexOfNestedJarSeparator("http://u!p@h/a.jar")).isEqualTo(-1);
+        assertThat(PathSyntax.indexOfNestedJarSeparator("http://u!p@h")).isEqualTo(-1);
+        assertThat(PathSyntax.lastIndexOfNestedJarSeparator("http://u!p@h/a.jar!/x"))
+                .isEqualTo("http://u!p@h/a.jar".length());
+        assertThat(PathSyntax.toJarUrlSeparators("http://u!p@h/a.jar!x")).isEqualTo("http://u!p@h/a.jar!/x");
+        // ... so a ".." after the jarfile's separator cannot climb out of the jarfile
+        assertThat(
+                PathSyntax.sanitizeEntryPath("http://u!p@h", "/a.jar!/b/../../x", /* removeInitialSlash = */ false,
+                        /* removeFinalSlash = */ true, /* collapseParentSegmentsInFirstSection = */ true))
+                .isEqualTo("/a.jar!/x");
     }
 
     /**

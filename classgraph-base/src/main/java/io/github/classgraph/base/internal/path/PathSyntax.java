@@ -395,10 +395,12 @@ public final class PathSyntax {
      * <p>
      * The filesystem cannot be consulted for non-{@code file:} URLs (e.g. {@code http:} jar URLs), so if no '!' is
      * preceded by an existing file and the path has a URL scheme, the syntactic rule applies instead, and the first
-     * '!' is taken to be the separator. The filesystem is tested before the path is read as a URL, and not after,
-     * because a relative path can itself begin with something shaped like a URL scheme: {@code ':'} is a legal
-     * filename character everywhere but Windows, so a directory named {@code foo:bar} cannot be told by syntax from
-     * a URL with the scheme {@code foo}. See {@link #hasURLScheme(String)}.
+     * '!' after the URL's authority is taken to be the separator (a '!' in the authority, such as in the userinfo
+     * of {@code http://user!name@host/x.jar!/pkg}, is an ordinary character). The filesystem is tested before the
+     * path is read as a URL, and not after, because a relative path can itself begin with something shaped like a
+     * URL scheme: {@code ':'} is a legal filename character everywhere but Windows, so a directory named
+     * {@code foo:bar} cannot be told by syntax from a URL with the scheme {@code foo}. See
+     * {@link #hasURLScheme(String)}.
      *
      * @param path
      *            the path, with any {@code "jar:"} and {@code "file:"} scheme prefixes already stripped.
@@ -427,7 +429,22 @@ public final class PathSyntax {
         // exists locally, it is a path whose every '!' is a literal filename character. Only if nothing local
         // answers to it is it read as a URL, and the syntactic rule used to find the separator.
         // (A path that names nothing at all cannot be told from a URL, but it fails to open either way.)
-        return URLPaths.startsWithURLScheme(path) && !new File(path).exists() ? firstPlingIdx : -1;
+        if (!URLPaths.startsWithURLScheme(path) || new File(path).exists()) {
+            return -1;
+        }
+        // A '!' is a legal character in the authority of a URL, in its userinfo or a registered host name, and is
+        // never a separator there, since the authority does not name a file. Taking it as the separator would put
+        // the separator outside the path, so that a ".." after the jarfile's own separator could climb out of it.
+        // A URL scheme cannot contain a ':', so the first ':' ends the scheme
+        var pathStartIdx = path.indexOf(':') + 1;
+        if (path.startsWith("//", pathStartIdx)) {
+            pathStartIdx = path.indexOf('/', pathStartIdx + 2);
+            if (pathStartIdx < 0) {
+                // The URL is all authority, with no path
+                return -1;
+            }
+        }
+        return path.indexOf('!', pathStartIdx);
     }
 
     /**
