@@ -225,6 +225,8 @@ public final class ArrayTypeSignature extends ReferenceTypeSignature {
      *      type.
      * @return a list of {@link AnnotationInfo} objects for the type annotations on this array type, or the empty
      *         list if none.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
      */
     @Override
     public AnnotationInfoList getTypeAnnotationInfo() {

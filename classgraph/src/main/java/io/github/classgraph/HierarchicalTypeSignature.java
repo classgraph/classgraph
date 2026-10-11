@@ -103,12 +103,44 @@ public abstract sealed class HierarchicalTypeSignature extends ScanResultObject
     }
 
     /**
+     * Throw {@link IllegalStateException} if this type signature came from a scan that did not enable annotation
+     * info. Type annotations are only read from the classfile when annotation info is enabled, so otherwise an
+     * empty list of type annotations would look like "no type annotations".
+     *
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
+     */
+    final void checkTypeAnnotationInfoEnabled() {
+        // A type signature that was never given a ScanResult did not come from a scan, so has no setting to check
+        final var scanRes = scanResult;
+        if (scanRes != null) {
+            scanRes.scanSpec.checkAnnotationInfoEnabled();
+        }
+    }
+
+    /**
+     * Test whether this type has any type annotations. Unlike {@link #getTypeAnnotationInfo()}, this does not throw
+     * if annotation info was not enabled, so it can be used when rendering a type signature.
+     *
+     * @return true if this type has any type annotations.
+     */
+    final boolean hasTypeAnnotations() {
+        synchronized (this) {
+            final var typeAnnotationList = typeAnnotations;
+            return typeAnnotationList != null && !typeAnnotationList.isEmpty();
+        }
+    }
+
+    /**
      * Get a list of {@link AnnotationInfo} objects for any type annotations on this type.
      *
      * @return a list of {@link AnnotationInfo} objects for any type annotations on this type, or the empty list if
      *         none.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
      */
     public AnnotationInfoList getTypeAnnotationInfo() {
+        checkTypeAnnotationInfoEnabled();
         synchronized (this) {
             final var typeAnnotationList = typeAnnotations;
             return typeAnnotationList == null ? AnnotationInfoList.EMPTY_LIST

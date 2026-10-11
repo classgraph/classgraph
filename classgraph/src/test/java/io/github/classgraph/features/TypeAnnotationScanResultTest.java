@@ -1,6 +1,7 @@
 package io.github.classgraph.features;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -111,6 +112,45 @@ public class TypeAnnotationScanResultTest {
             final MethodTypeSignature methodType = classInfo.getMethodInfo("method").get(0)
                     .getTypeSignatureOrTypeDescriptor();
             assertThat(methodType.getReceiverTypeAnnotationInfo()).isNotNull().isEmpty();
+        }
+    }
+
+    /**
+     * Type annotations are only read when annotation info is enabled, so without it the type annotation getters
+     * throw rather than return an empty list that looks like "no type annotations". Rendering a type signature,
+     * which checks whether a supertype is annotated, must still work.
+     */
+    @Test
+    public void typeAnnotationGettersThrowWithoutAnnotationInfo() {
+        try (var scanResult = new ClassGraph().enableClasspath()
+                .acceptPackages(TypeAnnotationScanResultTest.class.getPackage().getName()).enableClassInfo()
+                .enableFieldInfo().enableMethodInfo().ignoreClassVisibility().scan()) {
+            final var classInfo = scanResult.getClassInfo(Annotated.class.getName());
+            assertThat(classInfo).isNotNull();
+
+            final var fieldType = classInfo.getFieldInfo("field").getTypeSignatureOrTypeDescriptor();
+            assertThatThrownBy(fieldType::getTypeAnnotationInfo).isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("enableAnnotationInfo");
+
+            final var suffixType = (ClassRefTypeSignature) classInfo.getFieldInfo("suffixField")
+                    .getTypeSignatureOrTypeDescriptor();
+            assertThatThrownBy(suffixType::getSuffixTypeAnnotationInfo).isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("enableAnnotationInfo");
+            // The type argument of GenericOuter<String> is on a suffix, since GenericOuter is itself a nested class
+            final var typeArgument = suffixType.getSuffixTypeArguments().stream().flatMap(List::stream).findFirst()
+                    .orElseThrow();
+            assertThatThrownBy(typeArgument::getTypeAnnotationInfo).isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("enableAnnotationInfo");
+
+            final MethodTypeSignature methodType = classInfo.getMethodInfo("method").get(0)
+                    .getTypeSignatureOrTypeDescriptor();
+            assertThatThrownBy(methodType::getReceiverTypeAnnotationInfo).isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("enableAnnotationInfo");
+
+            final var genericClassInfo = scanResult.getClassInfo(GenericOuter.class.getName());
+            assertThat(genericClassInfo).isNotNull();
+            assertThat(genericClassInfo.getTypeSignature()).isNotNull();
+            assertThat(genericClassInfo.getTypeSignature().toString()).endsWith("GenericOuter<T>");
         }
     }
 
