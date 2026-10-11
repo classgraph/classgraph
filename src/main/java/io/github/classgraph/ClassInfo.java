@@ -109,17 +109,17 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
     private boolean isAnonymousClass;
 
     /**
-     * If true, this class is not an accepted class: it is known only because an accepted class refers to it, and
-     * its classfile was either not read at all, or read only because scanning was extended to the classes that
-     * accepted classes refer to.
+     * If true, this class is not an accepted class: it is known only because an accepted class refers to it,
+     * directly or through other external classes, and its classfile was either not read at all, or read only
+     * because scanning was extended to the classes that accepted classes refer to.
      *
      * If false, this class's classfile was read because the class itself is accepted.
      */
     protected boolean isExternalClass = true;
 
     /**
-     * Set to true when the class is actually scanned (as opposed to just referenced as a superclass, interface or
-     * annotation of a scanned class).
+     * Set to true when the class is actually scanned (as opposed to just referenced by a scanned class, for example
+     * as a superclass, interface, annotation, enclosing class or nested class).
      */
     protected boolean isScannedClass;
 
@@ -805,7 +805,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
                     classInfo = new ClassInfo(className, classModifiers, classfileResource));
         } else {
             // There was a previous placeholder ClassInfo class added, due to the class being referred
-            // to as a superclass, interface or annotation. The isScannedClass field should be false
+            // to by a class linked earlier, for example as a superclass, interface, annotation, enclosing
+            // class or nested class. The isScannedClass field should be false
             // in this case, since the actual class definition wasn't reached before now.
             if (classInfo.isScannedClass) {
                 // The class should not have been scanned more than once, because of classpath masking
@@ -1239,9 +1240,10 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * Checks if this is an external class.
      *
      * @return true if this class is an external class, i.e. is not itself an accepted class, and is known only
-     *         because an accepted class refers to it, for example as its superclass, an interface, an annotation or
-     *         an enclosing class. An external class may still have been scanned, since scanning is extended to the
-     *         classes that accepted classes refer to in these ways, when their package is not rejected.
+     *         because an accepted class refers to it, directly or through other external classes, for example as
+     *         its superclass, an interface, an annotation or an enclosing class (see
+     *         {@link ClassGraph#enableExternalClasses()} for the full list). An external class may still have been
+     *         scanned: see {@link ClassGraph#enableExternalClasses()}.
      */
     public boolean isExternalClass() {
         return isExternalClass;

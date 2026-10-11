@@ -959,12 +959,13 @@ public final class ScanResult implements Closeable {
      * Get the {@link ClassInfo} object for the named class, or null if there is none.
      *
      * <p>
-     * There is a {@link ClassInfo} object for each class found in the accepted packages, and also for classes
-     * outside them that the scan came across: the superclasses, interfaces, annotations, and outer and nested
-     * classes of the classes it read, and, if {@link ClassGraph#enableInterClassDependencies()} was called, every
-     * class that a class in the accepted packages refers to. So unlike {@link #getAllClasses()}, this can return an
-     * external class even if {@link ClassGraph#enableExternalClasses()} was not called, and
-     * {@link ClassInfo#isExternalClass()} then returns true.
+     * There is a {@link ClassInfo} object for each class found in the accepted packages, and also for each
+     * external class, which is a class outside them that the scan came across (see
+     * {@link ClassGraph#enableExternalClasses()} for which classes these are, including every class that a class
+     * it read refers to, if {@link ClassGraph#enableInterClassDependencies()} was called). So unlike
+     * {@link #getAllClasses()}, this can return an external class even if
+     * {@link ClassGraph#enableExternalClasses()} was not called, and {@link ClassInfo#isExternalClass()} then
+     * returns true.
      *
      * @param className
      *            The class name.

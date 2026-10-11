@@ -137,9 +137,10 @@ public class ScanSpec {
     public boolean enableInterClassDependencies;
 
     /**
-     * If true, allow external classes (classes outside of accepted packages) to be returned in the ScanResult, if
-     * they are directly referred to by an accepted class, as a superclass, implemented interface or annotation.
-     * Disabled by default.
+     * If true, allow external classes (classes that were not accepted, but that the scan came across while reading
+     * the accepted classes) to be returned in the ScanResult. See
+     * {@link io.github.classgraph.ClassGraph#enableExternalClasses()} for which classes these are. Disabled by
+     * default.
      */
     public boolean enableExternalClasses;
 
@@ -169,9 +170,10 @@ public class ScanSpec {
     public boolean disableRuntimeInvisibleAnnotations;
 
     /**
-     * If true, when classes have superclasses, implemented interfaces or annotations that are external classes,
-     * those classes are also scanned. (Even though this slows down scanning a bit, there is no API for disabling
-     * this currently, since disabling it can lead to problems -- see #261.)
+     * If true, when classes refer to external classes as a superclass, implemented interface, annotation,
+     * enclosing class, class named in an annotation parameter value, or thrown exception type, those classes are
+     * also scanned. (Even though this slows down scanning a bit, there is no API for disabling this currently,
+     * since disabling it can lead to problems -- see #261.)
      */
     public boolean extendScanningUpwardsToExternalClasses = true;
 

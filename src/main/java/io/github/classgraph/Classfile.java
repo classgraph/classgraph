@@ -288,7 +288,9 @@ class Classfile {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Extend scanning to a superclass, interface or annotation.
+     * Extend scanning to a class that this class refers to, if the class is external: schedule its classfile for
+     * reading, unless the class is {@code java.lang.Object}, is accepted, was already scheduled, was rejected by
+     * name, or has no classfile that can be found.
      *
      * @param className
      *            the class name
@@ -384,7 +386,8 @@ class Classfile {
     }
 
     /**
-     * Check if scanning needs to be extended upwards to an external superclass, interface or annotation.
+     * Check if scanning needs to be extended upwards to an external superclass, interface, annotation, enclosing
+     * class, class named in an annotation parameter value, or thrown exception type.
      *
      * @param log
      *            the log
@@ -2484,10 +2487,10 @@ class Classfile {
             }
         }
 
-        // Check if any superclasses, interfaces or annotations are external (non-accepted) classes
-        // that need to be scheduled for scanning, so that all of the "upwards" direction of the class
-        // graph is scanned for any accepted class, even if the superclasses / interfaces / annotations
-        // are not themselves accepted.
+        // Check if any superclasses, interfaces, annotations, enclosing classes, classes named in annotation
+        // parameter values, or thrown exception types are external (non-accepted) classes that need to be
+        // scheduled for scanning, so that all of the "upwards" direction of the class graph is scanned for any
+        // accepted class, even if those classes are not themselves accepted.
         if (scanSpec.extendScanningUpwardsToExternalClasses) {
             extendScanningUpwards(subLog);
             // If any external classes were found, schedule them for scanning

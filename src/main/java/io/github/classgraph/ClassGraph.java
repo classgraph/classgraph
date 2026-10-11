@@ -420,9 +420,45 @@ public class ClassGraph {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Causes ClassGraph to return classes that are not in the accepted packages, but that are directly referred to
-     * by classes within accepted packages as a superclass, implemented interface or annotation. (Automatically
-     * calls {@link #enableClassInfo()}.)
+     * Causes ClassGraph to return the external classes: the classes that were not accepted for scanning, but that
+     * the scan came across while reading the accepted classes. (Automatically calls {@link #enableClassInfo()}.)
+     *
+     * <p>
+     * Scanning is extended from each accepted class to the classes that it names as its superclass, an implemented
+     * interface or its enclosing class; as an annotation on the class or on one of its fields, methods or method
+     * parameters; as the enum class, the annotation class or the class given in an annotation parameter value,
+     * including the default value of a parameter; or as an exception type thrown by one of its methods. (The
+     * annotations count only if {@link #enableAnnotationInfo()} was called, and the annotations of fields only if
+     * {@link #enableFieldInfo()} was called too. The annotations of methods and method parameters, and the thrown
+     * exception types, count only if {@link #enableMethodInfo()} was called or the class is an annotation. Only
+     * public fields are read unless {@link #ignoreFieldVisibility()} is called, and only public methods unless
+     * {@link #ignoreMethodVisibility()} is called. The default values of the parameters of an annotation class are
+     * always read.) Scanning is then extended from each external class that was read, in the same ways. The
+     * classfile of an external class is read if it can be found, unless the class was rejected by name with
+     * {@link #rejectClasses(String...)}, or the class is not public and {@link #ignoreClassVisibility()} was not
+     * called. A classfile in a rejected package can be found in a directory, but not in a jarfile or a module. The
+     * classfile of {@code java.lang.Object} is never read as an external class.
+     *
+     * <p>
+     * Some external classes are known only by name, since their classfile was not read. These are a class that a
+     * class read by the scan names as its superclass (other than {@code java.lang.Object}), an implemented
+     * interface, an annotation or its enclosing class, but whose classfile was not read; and a class named in the
+     * {@code InnerClasses} attribute of a class read by the scan, unless its classfile was read for one of the
+     * reasons above. That attribute lists every nested class that the class refers to, with its enclosing class,
+     * not only the class' own nested and enclosing classes: a class with a field of type {@code java.util.Map.Entry}
+     * brings in {@code java.util.Map} and {@code java.util.Map$Entry}. (Entries that name no enclosing class, which
+     * are those of local and anonymous classes, are skipped, and so is the entry for
+     * {@code java.lang.invoke.MethodHandles$Lookup} that a class using {@code invokedynamic} has.) If
+     * {@link #enableInterClassDependencies()} is called, every class that a class read by the scan refers to is
+     * also known, by name only if its classfile was not read (such as {@code java.lang.String}). For a class known
+     * only by name, only its name and its place in the class graph are known, and {@link ClassInfo#getResource()}
+     * returns null.
+     *
+     * <p>
+     * External classes are found in this way whether or not this method is called, so that the part of the class
+     * graph above an accepted class is complete. This method makes them appear in results such as
+     * {@link ScanResult#getAllClasses()}. A class that was rejected, by name or by package, is not returned by
+     * {@link ScanResult#getAllClasses()}, even if this method is called.
      *
      * @return this (for method chaining).
      */
