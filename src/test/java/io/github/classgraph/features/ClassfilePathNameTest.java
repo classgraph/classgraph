@@ -247,4 +247,29 @@ public class ClassfilePathNameTest {
                     .as(classpathElement.toString()).containsExactly("my-pkg.Foo");
         }
     }
+
+    /**
+     * The path that is checked is the path relative to the package root, so a class beneath a package root whose
+     * path contains a dot, such as {@code build.out/classes}, is scanned. A classfile beneath a directory whose
+     * name contains a dot, but which is not a package root, is listed as a resource and not scanned.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if a file could not be written.
+     */
+    @Test
+    public void onlyThePathBeneathThePackageRootMustBeAClassName(@TempDir final Path tempDir) throws IOException {
+        final Path jar = writeJar(tempDir.resolve("app.jar"), orderedMap( //
+                "build.out/classes/p/Q.class", classfile("p/Q", "java/lang/Object"), //
+                "foo.bar/x/Y.class", classfile("x/Y", "java/lang/Object")));
+        try (ScanResult scanResult = new ClassGraph().enableClassInfo()
+                .overrideClasspath(jar + "!/build.out/classes").scan()) {
+            assertThat(scanResult.getAllClasses().getNames()).containsExactly("p.Q");
+        }
+        try (ScanResult scanResult = new ClassGraph().enableClassInfo().overrideClasspath(jar).scan()) {
+            assertThat(scanResult.getAllClasses().getNames()).isEmpty();
+            assertThat(scanResult.getResourcesWithPath("foo.bar/x/Y.class")).hasSize(1);
+        }
+    }
 }
