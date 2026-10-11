@@ -175,13 +175,12 @@ public class TypeAnnotationTargetTest {
      * Get the places named by the {@link At} annotations in a list of type annotations.
      *
      * @param annotations
-     *            the type annotations, or null if there are none.
+     *            the type annotations.
      * @return the places, in the order of the list.
      */
     private static List<String> places(final AnnotationInfoList annotations) {
-        return annotations == null ? List.of()
-                : annotations.stream().map(annotation -> (String) annotation.getParameterValues().getValue("value"))
-                        .toList();
+        return annotations.stream().map(annotation -> (String) annotation.getParameterValues().getValue("value"))
+                .toList();
     }
 
     /** Each class target is attached to the matching part of the class type signature. */
@@ -480,7 +479,7 @@ public class TypeAnnotationTargetTest {
             final var classInfo = scanResult.getClassInfo(className);
             assertThat(classInfo).isNotNull();
             final var resultType = classInfo.getMethodInfo("m").get(0).getTypeDescriptor().getResultType();
-            assertThat(resultType.getTypeAnnotationInfo()).isNullOrEmpty();
+            assertThat(resultType.getTypeAnnotationInfo()).isEmpty();
         }
     }
 }

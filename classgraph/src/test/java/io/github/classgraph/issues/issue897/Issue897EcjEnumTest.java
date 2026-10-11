@@ -31,8 +31,8 @@ public class Issue897EcjEnumTest {
      * Names of the base (non-nested-suffix) type annotations on a type signature, or empty if none.
      */
     private static List<String> baseTypeAnnotationNames(final MethodParameterInfo param) {
-        final var annotations = param.getTypeSignatureOrTypeDescriptor().getTypeAnnotationInfo();
-        return annotations == null ? List.of() : annotations.stream().map(AnnotationInfo::getName).toList();
+        return param.getTypeSignatureOrTypeDescriptor().getTypeAnnotationInfo().stream()
+                .map(AnnotationInfo::getName).toList();
     }
 
     /**
