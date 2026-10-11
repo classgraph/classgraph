@@ -126,17 +126,45 @@ public final class ModuleRoot extends VfsRoot {
                 // whose roots can still name a path once closed, so the URI is asked of a reader that is opened for
                 // this one lookup, and so is not left open by the closed root
                 try (var oneOffReader = ModuleReaderUtils.openModule(moduleReference)) {
-                    return ModuleReaderUtils.find(oneOffReader, pathWithinRoot);
+                    return encodeLocationInJarURI(ModuleReaderUtils.find(oneOffReader, pathWithinRoot));
                 }
             }
             try {
-                return ModuleReaderUtils.find(reader, pathWithinRoot);
+                return encodeLocationInJarURI(ModuleReaderUtils.find(reader, pathWithinRoot));
             } finally {
                 recycler.recycle(reader);
             }
         } catch (final IOException e) {
             throw new IllegalStateException(
                     "Could not form URI for " + getPath() + "/" + pathWithinRoot + " : " + e, e);
+        }
+    }
+
+    /**
+     * Percent-encode a {@code "!/"} in the module's location within a {@code "jar:"} URI that the module has named
+     * one of its resources by, as {@link #jarURIOf(String)} encodes it. The module reader of a modular jarfile
+     * names a resource {@code "jar:" + location + "!/" + path}, leaving a {@code "!/"} in the location, as at the
+     * end of a directory named "dir!", unencoded, so the JDK would end the jarfile's path there.
+     *
+     * @param uri
+     *            the URI the module named a resource by.
+     * @return the URI, with the module's location in it encoded if it is a {@code "jar:"} URI of a path within the
+     *         module's location, or else the URI unchanged.
+     */
+    private URI encodeLocationInJarURI(final URI uri) {
+        final var locationStr = moduleReference.location().map(URI::toString).orElse("");
+        final var uriStr = uri.toString();
+        final var jdkJarURIStr = "jar:" + locationStr;
+        if (!locationStr.contains("!/") || !uriStr.startsWith(jdkJarURIStr + "!/")) {
+            // There is nothing to encode, or the URI is not formed from the location, such as the "jrt:" URI of a
+            // module of the running JDK, or the "file:" URI of a resource of an exploded module
+            return uri;
+        }
+        final var encodedURIStr = jarURIOf(locationStr) + uriStr.substring(jdkJarURIStr.length());
+        try {
+            return new URI(encodedURIStr);
+        } catch (final URISyntaxException e) {
+            throw new IllegalStateException("Could not form URI for " + encodedURIStr + " : " + e, e);
         }
     }
 
@@ -158,8 +186,8 @@ public final class ModuleRoot extends VfsRoot {
             uriStr = pathWithinRoot.isEmpty() ? rootURIStr
                     : rootURIStr + (rootURIStr.endsWith("/") ? "" : "/") + entryPath;
         } else {
-            // A module packaged as a jarfile names its resources within the jarfile
-            uriStr = (rootURIStr.startsWith("jar:") ? "" : "jar:") + rootURIStr + "!/" + entryPath;
+            // A module packaged as a jarfile names its resources within the jarfile, as resolveURI names them
+            uriStr = jarURIOf(rootURIStr) + "!/" + entryPath;
         }
         try {
             // Built directly rather than through URLPaths#toURI(String), since the module's location is already a

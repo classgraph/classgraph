@@ -4,9 +4,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.module.ModuleFinder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Set;
 import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
 import java.util.stream.Stream;
@@ -182,6 +185,45 @@ public class AwkwardPathNamesTest {
             // The jarfile's part of the URL, given back to ClassGraph, names the same jarfile
             final var uriStr = resource.getURI().toString();
             assertThatScanFindsTheClass(uriStr.substring(0, uriStr.lastIndexOf("!/") + 2));
+        }
+    }
+
+    /**
+     * The URL of a resource within a module jarfile below a directory whose name ends in '!'. The module reader of
+     * the JDK leaves the '!' at the end of the directory name unescaped in the {@code "jar:"} URL it forms, which
+     * the JDK then splits at that '!', so ClassGraph has to escape it, as it does for a jarfile on the classpath.
+     *
+     * @param tempDir
+     *            a temporary directory to build in.
+     * @throws IOException
+     *             if the jarfile could not be built or read.
+     */
+    @Test
+    public void resourceURLOfAModuleJarBelowADirectoryEndingInBangCanBeRead(@TempDir final Path tempDir)
+            throws IOException {
+        final var jar = Files.createDirectories(tempDir.resolve("ends-with-bang!")).resolve("probe.jar");
+        final var resourcePath = "awkward/probe.txt";
+        final var resourceBytes = "probe".getBytes(StandardCharsets.UTF_8);
+        try (var jarOut = new JarOutputStream(Files.newOutputStream(jar))) {
+            jarOut.putNextEntry(new JarEntry(resourcePath));
+            jarOut.write(resourceBytes);
+            jarOut.closeEntry();
+        }
+        final var finder = ModuleFinder.of(jar);
+        final var bootLayer = ModuleLayer.boot();
+        final var moduleLayer = ModuleLayer.defineModulesWithOneLoader(
+                bootLayer.configuration().resolve(finder, ModuleFinder.of(), Set.of("probe")), List.of(bootLayer),
+                AwkwardPathNamesTest.class.getClassLoader()).layer();
+        try (var scanResult = new ClassGraph().enableNonSystemModules().enableModuleLayers(moduleLayer)
+                .acceptPaths("awkward").scan()) {
+            final var resource = scanResult.getResourcesWithPath(resourcePath).get(0);
+            final var connection = resource.getURL().openConnection();
+            // A cached JarFile is never closed, which would stop the temporary directory from being deleted on
+            // Windows
+            connection.setUseCaches(false);
+            try (var inputStream = connection.getInputStream()) {
+                assertThat(inputStream.readAllBytes()).isEqualTo(resourceBytes);
+            }
         }
     }
 
