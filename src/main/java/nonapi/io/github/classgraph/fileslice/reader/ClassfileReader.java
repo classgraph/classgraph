@@ -42,13 +42,13 @@ import io.github.classgraph.Resource;
 import nonapi.io.github.classgraph.fileslice.ArraySlice;
 import nonapi.io.github.classgraph.fileslice.FileSlice;
 import nonapi.io.github.classgraph.fileslice.Slice;
-import nonapi.io.github.classgraph.utils.FileUtils;
 import nonapi.io.github.classgraph.utils.StringUtils;
 
 /**
  * A {@link Slice} reader that works as either a {@link RandomAccessReader} or a {@link SequentialReader}. The file
- * is buffered up to the point it has been read so far. Reads in <b>big endian</b> order, as required by the
- * classfile format.
+ * is buffered up to the furthest point that has been read or skipped to, and a read or skip past 64MB, far beyond
+ * the length of any real classfile, throws {@link IOException}. Reads in <b>big endian</b> order, as required by
+ * the classfile format.
  */
 public class ClassfileReader implements RandomAccessReader, SequentialReader, Closeable {
     /** The underlying resource to close when {@link ClassfileReader#close()} is called. */
@@ -78,7 +78,8 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
     private int currIdx;
 
     /**
-     * The length of the classfile if known (because it is not deflated), or -1 if unknown (because it is deflated).
+     * The length of the classfile that its {@link Slice} declares, but no more than {@link #MAX_CLASSFILE_LENGTH},
+     * or -1 if the classfile is read from an {@link InputStream} of unknown length. The buffer is not grown past it.
      */
     private int classfileLengthHint = -1;
 
@@ -98,9 +99,18 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
     private static final int BUF_CHUNK_SIZE = 8192 - 8;
 
     /**
+     * The largest number of bytes of a classfile that are read. A classfile is buffered up to the furthest point
+     * that has been read or skipped to, and the lengths of the parts that are skipped are read out of the classfile
+     * itself, so without a limit one attribute that declares a length of almost 2GB makes the scanner inflate and
+     * buffer that much, from a deflated jar entry of a few megabytes. The largest classfile among the 1.28 million
+     * in a large Maven repository is 1.1MB, so a classfile that would need more than this is treated as corrupt.
+     */
+    private static final int MAX_CLASSFILE_LENGTH = 64 * 1024 * 1024;
+
+    /**
      * The largest buffer that is allocated in one go from the length hint, rather than by doubling. A zip entry can
-     * declare any uncompressed size it likes, so believing a declared length far enough to allocate it would let a
-     * small jar ask for gigabytes.
+     * declare any uncompressed size it likes, so believing a declared length far enough to allocate it would let
+     * every classfile of a small jar ask for the whole of {@link #MAX_CLASSFILE_LENGTH}.
      */
     private static final int MAX_DECLARED_LENGTH_TO_ALLOCATE = 16 * 1024 * 1024;
 
@@ -124,7 +134,7 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
             // If this is a deflated slice, need to read from an InflaterInputStream to fill buffer
             inflaterInputStream = slice.open();
             arr = new byte[INITIAL_BUF_SIZE];
-            classfileLengthHint = (int) Math.min(slice.inflatedLengthHint, FileUtils.MAX_BUFFER_SIZE);
+            classfileLengthHint = (int) Math.min(slice.inflatedLengthHint, MAX_CLASSFILE_LENGTH);
         } else {
             if (slice instanceof ArraySlice) {
                 // If slice is an ArraySlice, avoid copying by simply reusing the wrapped byte array
@@ -135,17 +145,19 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
                     arr = arraySlice.arr;
                 } else {
                     // ArraySlice covers only a partial array, and this class doesn't support a starting
-                    // offset, so copy the sliced part of the array to a new buffer
+                    // offset, so copy the sliced part of the array, as far as the limit, to a new buffer
+                    final int copyLength = (int) Math.min(arraySlice.sliceLength, MAX_CLASSFILE_LENGTH);
                     arr = Arrays.copyOfRange(arraySlice.arr, (int) arraySlice.sliceStartPos,
-                            (int) (arraySlice.sliceStartPos + arraySlice.sliceLength));
+                            (int) arraySlice.sliceStartPos + copyLength);
                 }
-                arrUsed = arr.length;
-                classfileLengthHint = arr.length;
+                // Only the bytes within the limit count as buffered, so that a read past it is rejected
+                arrUsed = Math.min(arr.length, MAX_CLASSFILE_LENGTH);
+                classfileLengthHint = arrUsed;
             } else {
                 // Otherwise this is a FileSlice -- need to fetch chunks of bytes using a random access reader
                 randomAccessReader = slice.randomAccessReader();
                 arr = new byte[INITIAL_BUF_SIZE];
-                classfileLengthHint = (int) Math.min(slice.sliceLength, FileUtils.MAX_BUFFER_SIZE);
+                classfileLengthHint = (int) Math.min(slice.sliceLength, MAX_CLASSFILE_LENGTH);
             }
         }
     }
@@ -195,21 +207,22 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
      */
     private void readTo(final int targetArrUsed) throws IOException {
         // Array does not need to grow larger than the length hint (if the uncompressed size of the zip entry
-        // is an underestimate, classfile will be truncated). If -1, assume 2GB is the max size.
-        final int maxArrLen = classfileLengthHint == -1 ? FileUtils.MAX_BUFFER_SIZE : classfileLengthHint;
+        // is an underestimate, classfile will be truncated). If -1, the buffer may grow as far as the limit.
+        final int maxArrLen = classfileLengthHint == -1 ? MAX_CLASSFILE_LENGTH : classfileLengthHint;
+        // Check the limit first, so that a read past it is reported as such whatever the classfile is read from.
+        // (A negative target is a position past 2GB that wrapped around.)
+        if (targetArrUsed > MAX_CLASSFILE_LENGTH || targetArrUsed < 0) {
+            throw new IOException("Tried to read past the limit of " + MAX_CLASSFILE_LENGTH
+                    + " bytes on the length of a classfile");
+        }
         if (inflaterInputStream == null && randomAccessReader == null) {
             // If neither inflaterInputStream nor randomAccessReader is set, then slice is an ArraySlice,
             // and array is already "fully loaded" (the ArraySlice's backing array is used as the buffer).
             throw new IOException("Tried to read past end of fixed array buffer");
         }
-        if (targetArrUsed > FileUtils.MAX_BUFFER_SIZE || targetArrUsed < 0) {
-            throw new IOException("Hit 2GB limit while trying to grow buffer array");
-        }
         if (arrUsed == maxArrLen) {
-            // The buffer already holds the whole of the classfile, so there is nothing left to read. (This is the
-            // 2GB limit only when the length of the classfile is unknown; when it is known, reporting it as such
-            // would send the reader of the message looking for a file thousands of times larger than the one that
-            // was actually read past the end of.)
+            // The buffer already holds the whole of the classfile, as far as its length hint, which is less than
+            // the limit, since a read past the limit was rejected above, so there is nothing left to read
             throw new IOException(END_OF_CLASSFILE);
         }
 
@@ -222,8 +235,8 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
                 // within the length hint, which is believed as far as one bounded allocation. The target says
                 // nothing about how long the classfile is: it is often read out of the classfile itself, such as
                 // the length of an attribute that is skipped, so growing straight to it would let one corrupt
-                // length make a 20kb classfile allocate 2GB. This loop grows the buffer again for as long as the
-                // classfile keeps arriving, so the buffer stays within about twice what has been read.
+                // length make a 20kb classfile allocate 64MB, the limit. This loop grows the buffer again for as
+                // long as the classfile keeps arriving, so the buffer stays within about twice what has been read.
                 final long maxStep = Math.max(Math.max((long) arrUsed + BUF_CHUNK_SIZE, 2L * arr.length),
                         Math.min(classfileLengthHint, MAX_DECLARED_LENGTH_TO_ALLOCATE));
                 arr = Arrays.copyOf(arr, (int) Math.min(
@@ -472,8 +485,9 @@ public class ClassfileReader implements RandomAccessReader, SequentialReader, Cl
         // buffer rather than being rejected here
         final long targetIdx = currIdx + (long) bytesToSkip;
         if (targetIdx > arrUsed) {
-            if (targetIdx > FileUtils.MAX_BUFFER_SIZE) {
-                throw new IOException("Tried to skip past the 2GB limit");
+            if (targetIdx > MAX_CLASSFILE_LENGTH) {
+                throw new IOException("Tried to skip past the limit of " + MAX_CLASSFILE_LENGTH
+                        + " bytes on the length of a classfile");
             }
             readTo((int) targetIdx);
         }

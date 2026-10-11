@@ -52,9 +52,8 @@ import nonapi.io.github.classgraph.utils.LogNode;
 import nonapi.io.github.classgraph.utils.StringUtils;
 
 /**
- * A classfile binary format parser. Implements its own buffering to avoid the overhead of using DataInputStream.
- * This class should only be used by a single thread at a time, but can be re-used to scan multiple classfiles in
- * sequence, to avoid re-allocating buffer memory.
+ * A classfile binary format parser. Each instance reads one classfile, in its constructor, through a
+ * {@link ClassfileReader}.
  *
  * <p>
  * See <a href="https://docs.oracle.com/javase/specs/jvms/se16/html/jvms-4.html">the class file format spec</a>.
@@ -2306,7 +2305,7 @@ class Classfile {
         this.stringInternMap = stringInternMap;
         this.scanSpec = scanSpec;
 
-        // Open a BufferedSequentialReader for the classfile
+        // Open a ClassfileReader for the classfile
         try (ClassfileReader classfileReader = classfileResource.openClassfile()) {
             reader = classfileReader;
 
