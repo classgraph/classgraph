@@ -130,11 +130,12 @@ public class ClassLoaderHandlerRegistry {
      *
      * <p>
      * Note that unlike {@link #ARCHIVE_PACKAGE_ROOT_PREFIXES}, {@code "classes"} and {@code "test-classes"} are
-     * both legal Java package names, so treating them as automatic package roots is a heuristic, not a certainty:
-     * a real package named {@code classes} is misread as a package root, and its classes are silently dropped
-     * (#929). The heuristic is nevertheless relied upon for general-purpose classloaders -- see
-     * {@code Issue420Test} and {@code Issue766Test} -- so it can only be removed once package roots are verified
-     * against the declared name of a classfile found beneath them, rather than assumed from the directory name.
+     * both legal Java package names, so treating them as automatic package roots is a heuristic, not a certainty.
+     * Each candidate package root is therefore checked against the first classfile found beneath it, and is not
+     * treated as a package root if the class name that classfile declares shows that the candidate is a package
+     * (#929). A real package named {@code classes} is still misread as a package root if there is no classfile
+     * beneath it, or if the first one cannot be read. The heuristic is relied upon for general-purpose
+     * classloaders -- see {@code Issue420Test} and {@code Issue766Test}.
      */
     public static final String[] DEFAULT_PACKAGE_ROOT_PREFIXES = {
             // Ant, Maven, Gradle and other build tool output dirs
