@@ -2035,15 +2035,11 @@ public final class ScanResult implements AutoCloseable {
                 // construction, so a getter on another thread that read one of them before this close finishes on
                 // a complete collection, rather than one emptied under it
                 classpathOrder = null;
-                final var allAcceptedResources = allAcceptedResourcesCached;
-                if (allAcceptedResources != null) {
-                    for (final Resource classpathResource : allAcceptedResources) {
-                        classpathResource.close();
-                    }
-                    // Drop the reference to the cached list rather than clearing it, since the list (or a map
-                    // containing it) may have been returned to the caller, and returned collections are unmodifiable
-                    allAcceptedResourcesCached = null;
-                }
+                // Drop the reference to the cached list rather than clearing it, since the list (or a map containing
+                // it) may have been returned to the caller, and returned collections are unmodifiable. The resources
+                // in it are not closed one by one: closing the virtual filesystem below closes every stream and
+                // buffer that was opened on any resource, whether or not the resource is in this list
+                allAcceptedResourcesCached = null;
                 pathToAcceptedResourcesCached = null;
                 // Don't clear classNameToClassInfo: just rely on the garbage collector to collect it once neither
                 // this ScanResult nor any ClassInfo (which refers back to this ScanResult) is reachable. This does
@@ -2058,11 +2054,10 @@ public final class ScanResult implements AutoCloseable {
                 moduleInfoInScanOrder = null;
                 fileToLastModified = null;
             } finally {
-                // The virtual filesystem should be closed last, since it needs to have all MappedByteBuffer refs
-                // dropped before it tries to delete any temporary files that were written to disk. It is what holds
-                // every file handle and memory mapping of the scan, so it is closed even if one of the resources
-                // above could not be closed -- this scan result is already marked as closed, so nothing else would
-                // close it
+                // The virtual filesystem holds every file handle, memory mapping and temporary file of the scan.
+                // Closing it closes every stream and buffer opened on a resource, then releases those. It is closed
+                // even if releasing anything above failed -- this scan result is already marked as closed, so
+                // nothing else would close it
                 try {
                     final var vfsCurr = vfs;
                     if (vfsCurr != null) {
