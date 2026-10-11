@@ -318,4 +318,44 @@ public class VersionSkewedAnnotationValueTest {
             assertThat(r.toString()).contains("p.R");
         }
     }
+
+    /**
+     * A {@code @Repeatable} whose class reference is not a valid type descriptor does not fail the scan. The class
+     * reference {@code Lp/Rs;} of the annotation {@code p.R} is replaced with a malformed descriptor, and with a
+     * type variable, which names no class.
+     */
+    @Test
+    public void repeatableWithMalformedClassRef() throws IOException {
+        for (final String malformedClassRef : new String[] { "Xp/Rs;", "TAbcd;" }) {
+            final var dir = Files.createDirectory(tempDir.resolve("classes-" + malformedClassRef.charAt(0)));
+            compile(dir, null, """
+                    package p;
+                    import java.lang.annotation.*;
+                    @Repeatable(Rs.class)
+                    @Retention(RetentionPolicy.RUNTIME)
+                    public @interface R {
+                    }
+                    """, """
+                    package p;
+                    import java.lang.annotation.*;
+                    @Retention(RetentionPolicy.RUNTIME)
+                    public @interface Rs {
+                        R[] value();
+                    }
+                    """, GOOD);
+            replaceInClassfile(dir.resolve("p/R.class"), "Lp/Rs;", malformedClassRef);
+            try (var scanResult = new ClassGraph().enableClasspathEntries(dir.toString()).enableClassInfo()
+                    .enableAnnotationInfo().scan()) {
+                assertThat(scanResult.getAllClasses().getNames()).containsExactlyInAnyOrder("p.Good", "p.R",
+                        "p.Rs");
+                final var r = scanResult.getClassInfo("p.R");
+                assertThat(r).isNotNull();
+                final var repeatable = r.getAllAnnotationInfo().get("java.lang.annotation.Repeatable");
+                assertThat(repeatable).isNotNull();
+                assertThat(repeatable.getParameterValues().getValue("value")).isInstanceOf(AnnotationClassRef.class)
+                        .hasToString(malformedClassRef + ".class");
+                assertThat(r.toString()).contains("p.R");
+            }
+        }
+    }
 }

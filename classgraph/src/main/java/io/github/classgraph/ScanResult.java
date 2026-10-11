@@ -267,7 +267,7 @@ public final class ScanResult implements AutoCloseable {
                         continue;
                     }
                     // A value that is not a class reference (an annotation classfile that javac did not write) is
-                    // ignored, as is a class reference whose type descriptor does not parse
+                    // ignored, as is a class reference whose type descriptor does not parse or is a type variable
                     if (metaAnnotation.getParameterValues()
                             .getValue("value") instanceof final AnnotationClassRef classRef) {
                         try {
