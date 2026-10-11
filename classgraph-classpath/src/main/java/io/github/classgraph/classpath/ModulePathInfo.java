@@ -122,8 +122,9 @@ public final class ModulePathInfo {
 
     /**
      * Holds the instance for this JVM. The command line is read when this class is initialized, which is the first
-     * time {@link #current()} is called, rather than when {@link ModulePathInfo} is loaded: reading it can cause an
-     * illegal access warning on some JREs, e.g. Adopt JDK 11 (#605), so it is read only if it is asked for.
+     * time {@link #current()} is called, rather than when {@link ModulePathInfo} is loaded, since calling
+     * {@code ManagementFactory.getRuntimeMXBean()} initializes the JDK's management support, which is wasted work
+     * unless the module path info is asked for (#605).
      */
     private static final class Current {
         /** The module path switches this JVM was launched with. */

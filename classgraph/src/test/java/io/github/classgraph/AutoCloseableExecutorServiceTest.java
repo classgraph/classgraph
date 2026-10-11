@@ -2,7 +2,9 @@ package io.github.classgraph;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.ArrayList;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -45,6 +47,31 @@ public class AutoCloseableExecutorServiceTest {
         assertThat(workerThread.get()).isNotNull();
         assertThat(workerThread.get().isDaemon()).isTrue();
         assertThat(workerThread.get().getName()).startsWith("ClassGraph-worker-");
+    }
+
+    /**
+     * The worker threads are created in the thread group of the thread that starts them, rather than each in a new
+     * thread group of its own (#931).
+     */
+    @Test
+    public void theWorkerThreadsAreInTheThreadGroupOfTheThreadThatStartsThem() throws Exception {
+        final var workerThreadGroups = new ArrayList<ThreadGroup>();
+        try (var executorService = new AutoCloseableExecutorService(2)) {
+            final var bothStarted = new CountDownLatch(2);
+            final var futures = new ArrayList<Future<ThreadGroup>>();
+            for (int i = 0; i < 2; i++) {
+                futures.add(executorService.submit(() -> {
+                    // Wait until both tasks are running, so that they run on two different worker threads
+                    bothStarted.countDown();
+                    bothStarted.await(10, TimeUnit.SECONDS);
+                    return Thread.currentThread().getThreadGroup();
+                }));
+            }
+            for (final var future : futures) {
+                workerThreadGroups.add(future.get());
+            }
+        }
+        assertThat(workerThreadGroups).containsOnly(Thread.currentThread().getThreadGroup());
     }
 
     /**
