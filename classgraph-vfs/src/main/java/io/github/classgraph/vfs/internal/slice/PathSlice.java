@@ -228,7 +228,7 @@ public final class PathSlice extends Slice {
         // by freeing its address range, so a sub slice that kept reading through a copy of the mapping would be
         // reading memory that is no longer there. The mapping always covers the whole file, and is addressed in
         // whole-file coordinates by way of sliceStartPos, in a sub slice as much as in the toplevel slice. A sub
-        // slice is therefore not registered with the vfs as open: it holds nothing of its own to release.
+        // slice therefore holds nothing of its own to release.
     }
 
     /**
