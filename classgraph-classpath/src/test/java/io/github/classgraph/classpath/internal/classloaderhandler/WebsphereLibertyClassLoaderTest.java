@@ -15,6 +15,7 @@ import org.junit.jupiter.api.io.TempDir;
 import com.ibm.ws.classloading.internal.AppClassLoader;
 import com.ibm.ws.classloading.internal.Container;
 import com.ibm.ws.classloading.internal.ContainerDelegate;
+import com.ibm.ws.classloading.internal.ParentLastClassLoader;
 import com.ibm.ws.classloading.internal.SmartClassPath;
 import com.ibm.ws.classloading.internal.ThreadContextClassLoader;
 import com.ibm.ws.classloading.internal.UniversalContainer;
@@ -219,6 +220,57 @@ public class WebsphereLibertyClassLoaderTest {
                         new AppClassLoader(new SmartClassPath(List.of(url(afterDir))), /* parent = */ null));
         assertThat(locations(classLoader)).containsExactly(location(beforeDir), location(appDir),
                 location(afterDir));
+    }
+
+    /**
+     * A parent-first application searches its "beforeApp" libraries before its parent, then its own classpath, then
+     * its "afterApp" libraries.
+     *
+     * @param tempDir
+     *            a temporary directory to create the application in.
+     * @throws IOException
+     *             if the application could not be created.
+     */
+    @Test
+    public void aParentFirstApplicationSearchesItsBeforeAppLibrariesBeforeItsParent(@TempDir final Path tempDir)
+            throws IOException {
+        final var parentDir = Files.createDirectory(tempDir.resolve("parent"));
+        final var beforeDir = Files.createDirectory(tempDir.resolve("before"));
+        final var appDir = Files.createDirectory(tempDir.resolve("app"));
+        final var afterDir = Files.createDirectory(tempDir.resolve("after"));
+        final var parent = new AppClassLoader(new SmartClassPath(List.of(url(parentDir))), /* parent = */ null);
+        final var classLoader = new AppClassLoader(new SmartClassPath(List.of(url(appDir))), parent)
+                .delegatingBeforeAppTo(
+                        new AppClassLoader(new SmartClassPath(List.of(url(beforeDir))), /* parent = */ null))
+                .delegatingAfterAppTo(
+                        new AppClassLoader(new SmartClassPath(List.of(url(afterDir))), /* parent = */ null));
+        assertThat(locations(classLoader)).containsExactly(location(beforeDir), location(parentDir),
+                location(appDir), location(afterDir));
+    }
+
+    /**
+     * A parent-last application searches its "beforeApp" libraries, its own classpath and its "afterApp" libraries
+     * before its parent.
+     *
+     * @param tempDir
+     *            a temporary directory to create the application in.
+     * @throws IOException
+     *             if the application could not be created.
+     */
+    @Test
+    public void aParentLastApplicationSearchesItsParentLast(@TempDir final Path tempDir) throws IOException {
+        final var parentDir = Files.createDirectory(tempDir.resolve("parent"));
+        final var beforeDir = Files.createDirectory(tempDir.resolve("before"));
+        final var appDir = Files.createDirectory(tempDir.resolve("app"));
+        final var afterDir = Files.createDirectory(tempDir.resolve("after"));
+        final var parent = new AppClassLoader(new SmartClassPath(List.of(url(parentDir))), /* parent = */ null);
+        final var classLoader = new ParentLastClassLoader(new SmartClassPath(List.of(url(appDir))), parent)
+                .delegatingBeforeAppTo(
+                        new AppClassLoader(new SmartClassPath(List.of(url(beforeDir))), /* parent = */ null))
+                .delegatingAfterAppTo(
+                        new AppClassLoader(new SmartClassPath(List.of(url(afterDir))), /* parent = */ null));
+        assertThat(locations(classLoader)).containsExactly(location(beforeDir), location(appDir),
+                location(afterDir), location(parentDir));
     }
 
     /**
