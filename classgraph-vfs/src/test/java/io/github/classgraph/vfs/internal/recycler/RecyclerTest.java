@@ -12,7 +12,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.Test;
 
-/** Tests for {@link Recycler} and {@link RecycleOnClose}. */
+/** Tests for {@link Recycler}. */
 public class RecyclerTest {
     /** An instance that records what the recycler did to it. */
     private static final class Recyclable implements AutoCloseable {
@@ -67,40 +67,6 @@ public class RecyclerTest {
             final var second = recycler.acquire();
             assertThat(second).isNotSameAs(first);
             assertThat(recycler.numAllocated).hasValue(2);
-        }
-    }
-
-    /** An instance acquired in a try-with-resources block is recycled when the block exits. */
-    @Test
-    public void anInstanceIsRecycledWhenTheBlockThatAcquiredItExits() {
-        try (var recycler = new RecyclableRecycler()) {
-            final Recyclable instance;
-            try (RecycleOnClose<Recyclable, RuntimeException> recycleOnClose = recycler.acquireRecycleOnClose()) {
-                instance = recycleOnClose.get();
-                assertThat(instance.numResets).isZero();
-            }
-            // The instance was recycled when the block exited, so it is handed out again rather than reallocated
-            assertThat(instance.numResets).isEqualTo(1);
-            assertThat(recycler.acquire()).isSameAs(instance);
-        }
-    }
-
-    /**
-     * Closing a {@link RecycleOnClose} twice recycles the instance once, rather than throwing the second time.
-     * Closing twice is legal for any {@link AutoCloseable}, and it happens whenever a caller closes one explicitly
-     * inside the try-with-resources block that also closes it.
-     */
-    @Test
-    public void closingARecycleOnCloseTwiceRecyclesTheInstanceOnce() {
-        try (var recycler = new RecyclableRecycler()) {
-            final RecycleOnClose<Recyclable, RuntimeException> recycleOnClose = recycler.acquireRecycleOnClose();
-            final var instance = recycleOnClose.get();
-            recycleOnClose.close();
-            assertThatCode(recycleOnClose::close).doesNotThrowAnyException();
-            // The instance went back into the pool once, not twice, so it is only handed out to one caller
-            assertThat(instance.numResets).isEqualTo(1);
-            assertThat(recycler.acquire()).isSameAs(instance);
-            assertThat(recycler.acquire()).isNotSameAs(instance);
         }
     }
 
@@ -164,7 +130,6 @@ public class RecyclerTest {
             }
         }) {
             assertThatThrownBy(recycler::acquire).isSameAs(cause);
-            assertThatThrownBy(recycler::acquireRecycleOnClose).isSameAs(cause);
         }
     }
 
@@ -240,19 +205,6 @@ public class RecyclerTest {
         // A pooled instance would be handed out again, whereas a closed one is discarded
         assertThat(recycler.acquire()).isNotSameAs(instance);
         assertThat(recycler.numAllocated).hasValue(2);
-    }
-
-    /** A try-with-resources block that outlives a force-close still closes its instance, and does not throw. */
-    @Test
-    public void aRecycleOnCloseBlockThatOutlivesAForceCloseDoesNotThrow() {
-        final var recycler = new RecyclableRecycler();
-        final RecycleOnClose<Recyclable, RuntimeException> recycleOnClose = recycler.acquireRecycleOnClose();
-        final var instance = recycleOnClose.get();
-
-        recycler.forceClose();
-
-        assertThatCode(recycleOnClose::close).doesNotThrowAnyException();
-        assertThat(instance.numCloses).isEqualTo(1);
     }
 
     /**
@@ -347,13 +299,16 @@ public class RecyclerTest {
             for (var i = 0; i < numThreads; i++) {
                 final var thread = new Thread(() -> {
                     for (var j = 0; j < 100; j++) {
-                        try (var recycleOnClose = recycler.acquireRecycleOnClose()) {
+                        final var instance = recycler.acquire();
+                        try {
                             synchronized (acquired) {
-                                acquired.add(recycleOnClose.get());
+                                acquired.add(instance);
                             }
                             allAcquired.await();
                         } catch (final Exception e) {
                             throw new RuntimeException(e);
+                        } finally {
+                            recycler.recycle(instance);
                         }
                     }
                 });
