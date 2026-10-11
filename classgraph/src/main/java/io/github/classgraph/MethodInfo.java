@@ -953,7 +953,8 @@ public final class MethodInfo extends ClassMemberInfo implements Comparable<Meth
     /**
      * Get a string representation of the method, in Java source syntax. A constructor is named after the class it
      * constructs, as {@link java.lang.reflect.Constructor#toString()} names it, rather than {@code "<init>"} (which
-     * is what {@link #getName()} returns). Static class initializer blocks are named {@code "<clinit>"}.
+     * is what {@link #getName()} returns). Static class initializer blocks are named {@code "<clinit>"}. If the
+     * type descriptor is needed but cannot be parsed, the raw type descriptor follows the method name.
      *
      * @param useSimpleNames
      *            if true, strip package and outer class names from class names
@@ -962,7 +963,14 @@ public final class MethodInfo extends ClassMemberInfo implements Comparable<Meth
      */
     @Override
     protected void toString(final boolean useSimpleNames, final StringBuilder buf) {
-        final var methodType = getTypeSignatureOrTypeDescriptor();
+        MethodTypeSignature methodType = null;
+        try {
+            methodType = getTypeSignatureOrTypeDescriptor();
+        } catch (final IllegalArgumentException e) {
+            // Only a corrupt classfile has a type descriptor that does not parse. Show the raw descriptor after the
+            // method name, in place of the type parameters, the return type and the parameter list, rather than
+            // throwing from toString()
+        }
 
         if (annotationInfo != null) {
             for (final AnnotationInfo annotation : annotationInfo) {
@@ -980,7 +988,7 @@ public final class MethodInfo extends ClassMemberInfo implements Comparable<Meth
             TypeUtils.modifiersToString(modifiers, ModifierType.METHOD, isDefault(), buf);
         }
 
-        final var typeParameters = methodType.getTypeParameters();
+        final List<TypeParameter> typeParameters = methodType == null ? List.of() : methodType.getTypeParameters();
         if (!typeParameters.isEmpty()) {
             if (!buf.isEmpty()) {
                 buf.append(' ');
@@ -996,7 +1004,7 @@ public final class MethodInfo extends ClassMemberInfo implements Comparable<Meth
         }
 
         final var isConstructor = isConstructor();
-        if (!isConstructor) {
+        if (!isConstructor && methodType != null) {
             if (!buf.isEmpty()) {
                 buf.append(' ');
             }
@@ -1012,7 +1020,11 @@ public final class MethodInfo extends ClassMemberInfo implements Comparable<Meth
         final var displayedName = isConstructor ? declaringClassName : name;
         buf.append(useSimpleNames ? ClassInfo.getSimpleName(displayedName) : displayedName);
 
-        toStringParameterList(useSimpleNames, buf);
+        if (methodType != null) {
+            toStringParameterList(useSimpleNames, buf);
+        } else {
+            buf.append(typeDescriptorStr);
+        }
 
         toStringThrowsClause(methodType, useSimpleNames, buf);
     }
@@ -1092,16 +1104,18 @@ public final class MethodInfo extends ClassMemberInfo implements Comparable<Meth
      * Append the {@code throws} clause of the method to the buffer, if the method declares any thrown exceptions.
      *
      * @param methodType
-     *            the type signature of the method, or its type descriptor if it has no type signature
+     *            the type signature of the method, or its type descriptor if it has no type signature, or null if
+     *            the type descriptor is needed and cannot be parsed
      * @param useSimpleNames
      *            if true, strip package and outer class names from class names
      * @param buf
      *            the buffer to append to
      */
-    private void toStringThrowsClause(final MethodTypeSignature methodType, final boolean useSimpleNames,
+    private void toStringThrowsClause(final @Nullable MethodTypeSignature methodType, final boolean useSimpleNames,
             final StringBuilder buf) {
         // When the throws signature is present, it includes both generic type variables and class names
-        final var throwsSignatures = methodType.getThrowsSignatures();
+        final List<ClassRefOrTypeVariableSignature> throwsSignatures = methodType == null ? List.of()
+                : methodType.getThrowsSignatures();
         if (!throwsSignatures.isEmpty()) {
             buf.append(" throws ");
             for (var i = 0; i < throwsSignatures.size(); i++) {

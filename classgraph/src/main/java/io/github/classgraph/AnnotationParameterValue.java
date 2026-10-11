@@ -304,9 +304,16 @@ public final class AnnotationParameterValue extends ScanResultObject
             if (annotationMethodList.size() > 1) {
                 return null;
             }
-            // Get the result type of the method with the same name as the annotation parameter
-            final var annotationMethodResultTypeSig = annotationMethodList.get(0).getTypeSignatureOrTypeDescriptor()
-                    .getResultType();
+            // Get the result type of the method with the same name as the annotation parameter. If its type
+            // descriptor does not parse (only a corrupt classfile has such a descriptor), its type is unknown, so
+            // leave the value unconverted too.
+            final TypeSignature annotationMethodResultTypeSig;
+            try {
+                annotationMethodResultTypeSig = annotationMethodList.get(0).getTypeSignatureOrTypeDescriptor()
+                        .getResultType();
+            } catch (final IllegalArgumentException e) {
+                return null;
+            }
             if (!(annotationMethodResultTypeSig instanceof final ArrayTypeSignature arrayTypeSig)
                     || arrayTypeSig.getNumDimensions() != 1) {
                 return null;

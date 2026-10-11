@@ -375,7 +375,8 @@ public final class FieldInfo extends ClassMemberInfo implements Comparable<Field
 
     /**
      * Append a string representation of the field to a buffer. The modifiers can be omitted, so that the same code
-     * can render a record component, which has the same shape as a field but no modifiers of its own.
+     * can render a record component, which has the same shape as a field but no modifiers of its own. If the type
+     * descriptor is needed but cannot be parsed, the raw type descriptor is shown in place of the type.
      *
      * @param includeModifiers
      *            if true, include the field's modifiers
@@ -405,8 +406,18 @@ public final class FieldInfo extends ClassMemberInfo implements Comparable<Field
         if (!buf.isEmpty() && buf.charAt(buf.length() - 1) != ' ' && buf.charAt(buf.length() - 1) != '(') {
             buf.append(' ');
         }
-        getTypeSignatureOrTypeDescriptor().toStringInternal(useSimpleNames,
-                /* annotationsToExclude = */ annotationInfo, buf);
+        TypeSignature fieldType = null;
+        try {
+            fieldType = getTypeSignatureOrTypeDescriptor();
+        } catch (final IllegalArgumentException e) {
+            // Only a corrupt classfile has a type descriptor that does not parse. Show the raw descriptor in
+            // place of the type rather than throwing from toString()
+        }
+        if (fieldType != null) {
+            fieldType.toStringInternal(useSimpleNames, /* annotationsToExclude = */ annotationInfo, buf);
+        } else {
+            buf.append(typeDescriptorStr);
+        }
 
         buf.append(' ');
         buf.append(name);
