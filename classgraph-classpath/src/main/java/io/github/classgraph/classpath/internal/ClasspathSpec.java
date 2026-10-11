@@ -178,7 +178,8 @@ public class ClasspathSpec {
     /**
      * Add a classpath element {@link URL} filter. The provided filter should return true if the {@link URL} passed
      * to it is a classpath element that should be scanned. The filter is applied to the same classpath elements as
-     * the filters added by {@link #filterClasspathElements(Predicate)}.
+     * the filters added by {@link #filterClasspathElements(Predicate)}, except a classpath element whose path has
+     * no {@link URL} form, which is tested only by the path filters.
      *
      * @param filter
      *            The filter to apply to the {@link URL} of all discovered classpath elements, to decide which
@@ -224,7 +225,9 @@ public class ClasspathSpec {
      *
      * @param classpathElementURL
      *            the {@link URL} of the classpath element, or null if it was not given as a {@link URL}, in which
-     *            case the {@link URL} filters are given the {@link URL} of the classpath element path
+     *            case the {@link URL} filters are given the {@link URL} of the classpath element path. If that path
+     *            has no {@link URL} form, such as the {@link java.nio.file.Path#toUri()} form of a path in a
+     *            filesystem whose URI scheme has no URL handler, the {@link URL} filters are skipped.
      * @param classpathElementPath
      *            the resolved path of the classpath element, or null if it has none
      * @return true if the classpath element passes every filter

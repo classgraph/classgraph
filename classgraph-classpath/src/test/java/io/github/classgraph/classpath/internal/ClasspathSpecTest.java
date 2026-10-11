@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.function.Predicate;
 
 import org.junit.jupiter.api.Test;
@@ -94,6 +95,31 @@ public class ClasspathSpecTest {
         assertThat(original.getClassLoaderHandlers()).containsExactly(handler);
         assertThat(original.isNonSystemModulesEnabled()).isFalse();
         assertThat(original.isParentModuleLayersIgnored()).isFalse();
+    }
+
+    /**
+     * A classpath element whose path has no URL form, such as the {@code Path#toUri()} form of a path in a
+     * filesystem whose URI scheme has no URL handler, is not tested by the URL filters, only by the path filters.
+     */
+    @Test
+    public void anElementWithNoURLFormIsTestedOnlyByThePathFilters() {
+        final var urlsTested = new ArrayList<URL>();
+        final var classpathSpec = new ClasspathSpec();
+        classpathSpec.filterClasspathElementsByURL(url -> {
+            urlsTested.add(url);
+            return false;
+        });
+        // A plain path is converted to a file: URL and rejected by the URL filter
+        assertThat(classpathSpec.acceptsClasspathElement(null, "/lib/a.jar")).isFalse();
+        assertThat(urlsTested).hasSize(1);
+        // No URL handler is registered for this scheme, so the path cannot be converted to a URL
+        urlsTested.clear();
+        assertThat(classpathSpec.acceptsClasspathElement(null, "nohandlerscheme://fs/cp")).isTrue();
+        assertThat(urlsTested).isEmpty();
+        // The path filters still apply
+        classpathSpec.filterClasspathElements(path -> !path.startsWith("nohandlerscheme:"));
+        assertThat(classpathSpec.acceptsClasspathElement(null, "nohandlerscheme://fs/cp")).isFalse();
+        assertThat(urlsTested).isEmpty();
     }
 
     /** A string that is not a URL scheme is rejected, rather than being stored where it can never match. */
