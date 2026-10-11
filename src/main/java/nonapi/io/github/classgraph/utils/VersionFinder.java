@@ -75,7 +75,7 @@ public final class VersionFinder {
     /** Java minor version -- 0 for "11.0.4" */
     public static final int JAVA_MINOR_VERSION;
 
-    /** Java minor version -- 4 for "11.0.4" */
+    /** Java update version -- 4 for "11.0.4", 391 for "1.8.0_391" */
     public static final int JAVA_SUB_VERSION;
 
     /** Java is EA release -- true for "11-ea", etc. */

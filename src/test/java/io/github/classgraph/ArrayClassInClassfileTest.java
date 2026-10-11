@@ -17,10 +17,13 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import nonapi.io.github.classgraph.utils.VersionFinder;
+
 /**
  * An array class cannot be the superclass, an interface, a nested class or an enclosing class of a class. The JVM
- * refuses to load a class whose superclass, interface or {@code InnerClasses} outer class is an array class, but it
- * loads a class whose {@code InnerClasses} inner class or {@code EnclosingMethod} class is one. A scan skips the
+ * refuses to load a class whose superclass, interface or {@code InnerClasses} outer class is an array class (the
+ * last only from JDK-8270404, which JDK 16 and JDK updates before October 2021 do not have), but it loads a class
+ * whose {@code InnerClasses} inner class or {@code EnclosingMethod} class is one. A scan skips the
  * first kind of class, and ignores the array class in the second. Neither fails the scan, even when the array's
  * element class has a name that a type signature cannot express: JVMS 4.2.1 allows a class to be named
  * {@code a<}.
@@ -38,6 +41,20 @@ public class ArrayClassInClassfileTest {
         Class<?> define(final byte[] classfile) {
             return defineClass(null, classfile, 0, classfile.length);
         }
+    }
+
+    /**
+     * Whether the running JVM is known to refuse a class whose {@code InnerClasses} outer class is an array class.
+     * JDK-8270404 added that check in JDK 18 and in the October 2021 updates of JDK 8 (8u312), 11 (11.0.13) and 17
+     * (17.0.1). JDK 16 never received it.
+     *
+     * @return true if the JVM is known to refuse such a class, false if it may load it.
+     */
+    private static boolean jvmRefusesArrayOuterClass() {
+        final int major = VersionFinder.JAVA_MAJOR_VERSION;
+        final int update = VersionFinder.JAVA_SUB_VERSION;
+        return major >= 18 || (major == 17 && update >= 1) || (major == 11 && update >= 13)
+                || (major == 8 && update >= 312);
     }
 
     /**
@@ -137,9 +154,9 @@ public class ArrayClassInClassfileTest {
     }
 
     /**
-     * A class whose superclass, interface or {@code InnerClasses} outer class is an array class is skipped, as the
-     * JVM refuses to load it. The scan still finds the other classes, whether or not the element class has a name
-     * that a type signature can express.
+     * A class whose superclass, interface or {@code InnerClasses} outer class is an array class is skipped, as
+     * current JVMs refuse to load it. The scan still finds the other classes, whether or not the element class has
+     * a name that a type signature can express.
      *
      * @param tempDir
      *            a temporary directory.
@@ -155,12 +172,16 @@ public class ArrayClassInClassfileTest {
                 classfile("p/Bad", "[Ljava/lang/Object;", null, null), //
                 classfile("p/Bad", "java/lang/Object", "[La<;", null), //
                 classfile("p/Bad", "java/lang/Object", "[I", null), //
+                // Only a JVM with JDK-8270404 throws ClassFormatError for an array outer class
                 classfile("p/Bad", "java/lang/Object", null, "InnerClasses", "p/Bad", "[La<;"), //
                 classfile("p/Bad", "java/lang/Object", null, "InnerClasses", "p/Bad", "[Ljava/lang/String;"));
+        final int firstOuterClassIdx = 5;
         for (int i = 0; i < badClassfiles.size(); i++) {
             final byte[] badClassfile = badClassfiles.get(i);
-            assertThatThrownBy(() -> new ByteClassLoader().define(badClassfile)).as("classfile " + i)
-                    .isInstanceOf(ClassFormatError.class);
+            if (i < firstOuterClassIdx || jvmRefusesArrayOuterClass()) {
+                assertThatThrownBy(() -> new ByteClassLoader().define(badClassfile)).as("classfile " + i)
+                        .isInstanceOf(ClassFormatError.class);
+            }
             final Path dir = writeClasses(tempDir.resolve("dir" + i), badClassfile);
             try (ScanResult scanResult = new ClassGraph().enableClassInfo().overrideClasspath(dir.toString())
                     .scan()) {

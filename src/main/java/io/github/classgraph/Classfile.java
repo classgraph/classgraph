@@ -2285,9 +2285,10 @@ class Classfile {
                             throw new ClassfileFormatException("Inner and outer class name cannot be the same");
                         }
                         // An array class cannot be a nested or an enclosing class (JVMS 4.7.6). The JVM refuses
-                        // to load a class whose entry names an array as the outer class, but not one whose entry
-                        // names an array as the inner class. That entry is ignored, so it does not change the
-                        // class info of the array class, which other classes share.
+                        // to load a class whose entry names an array as the outer class (from JDK-8270404, in
+                        // JDK 18 and the October 2021 updates of JDK 8, 11 and 17; JDK 16 loads it), but not one
+                        // whose entry names an array as the inner class. That entry is ignored, so it does not
+                        // change the class info of the array class, which other classes share.
                         if (outerClassName.startsWith("[")) {
                             throw new ClassfileFormatException("Class " + className
                                     + " has an InnerClasses entry whose outer class is an array class: "
