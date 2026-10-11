@@ -83,15 +83,31 @@ public final class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
 
     /**
      * Construct a new unmodifiable {@link AnnotationInfoList} from a completed collection of {@link AnnotationInfo}
-     * objects. The collection is copied, and the annotations are sorted by name.
+     * objects. The collection is copied, and the annotations are sorted by name. Annotations of the same name, such
+     * as the repeats of a repeatable annotation, keep the order they have in the collection.
      *
      * @param annotationInfoCollection
      *            the annotations to add to the list. All of them are treated as directly present on the annotated
      *            item, rather than as meta-annotations.
      */
     public AnnotationInfoList(final Collection<AnnotationInfo> annotationInfoCollection) {
-        this(CollectionUtils.sortCopy(
+        this(sortCopyByName(
                 Objects.requireNonNull(annotationInfoCollection, "annotationInfoCollection must not be null")));
+    }
+
+    /**
+     * Copy a collection of annotations, and sort the copy by name. The sort is stable, so annotations of the same
+     * name, such as the repeats of a repeatable annotation, keep the order they have in the collection, as in the
+     * JDK, rather than being sorted by their parameter values.
+     *
+     * @param annotations
+     *            the annotations
+     * @return a copy of the annotations, sorted by name
+     */
+    static List<AnnotationInfo> sortCopyByName(final Collection<AnnotationInfo> annotations) {
+        final List<AnnotationInfo> sorted = new ArrayList<>(annotations);
+        CollectionUtils.sortIfNotEmpty(sorted, Comparator.comparing(AnnotationInfo::getName));
+        return sorted;
     }
 
     /**
@@ -400,11 +416,8 @@ public final class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
                 Comparator.comparing(AnnotationInfo::getName).thenComparing(
                         (final AnnotationInfo ai) -> directness.getOrDefault(ai, Directness.META_ANNOTATION)));
         // The direct annotations are sorted by name only, with the same stable sort, for the same reason
-        List<AnnotationInfo> directAnnotationsSorted = List.of();
-        if (directAnnotationInfo != null) {
-            directAnnotationsSorted = new ArrayList<>(directAnnotationInfo);
-            CollectionUtils.sortIfNotEmpty(directAnnotationsSorted, Comparator.comparing(AnnotationInfo::getName));
-        }
+        final List<AnnotationInfo> directAnnotationsSorted = directAnnotationInfo == null ? List.of()
+                : sortCopyByName(directAnnotationInfo);
         return new AnnotationInfoList(reachableAnnotationInfo, directAnnotationsSorted);
     }
 
