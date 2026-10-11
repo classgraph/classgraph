@@ -340,7 +340,16 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
             // the scan be the one to find out
             return pathElementStr;
         }
-        if (!Files.isReadable(canonicalPath)) {
+        boolean isReadable;
+        try {
+            isReadable = Files.isReadable(canonicalPath);
+        } catch (final SecurityException e) {
+            // A security manager refused to let the file be read, so the scan would be refused too. (toRealPath
+            // tests only the path it is given, so this is reached when a symbolic link may be read, but the file it
+            // points to may not.)
+            isReadable = false;
+        }
+        if (!isReadable) {
             if (log != null) {
                 log.log("Classpath element cannot be read, skipping: " + pathElementStr);
             }
@@ -423,16 +432,9 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
             if (pathElementStrResolved.endsWith(suffix)) {
                 // A path that names an existing file or directory as it is written, such as
                 // "/x/app!/WEB-INF/classes" where "app!" is a directory holding an unpacked war, is scanned as it
-                // is, since its '!' is part of a directory name, not a nested jar separator (#903)
-                boolean existsAsWritten;
-                try {
-                    existsAsWritten = new File(pathElementStrResolved).exists();
-                } catch (final SecurityException e) {
-                    // A security manager refused to let the file be tested, so the path is taken not to exist, and
-                    // the package root is stripped
-                    existsAsWritten = false;
-                }
-                if (existsAsWritten) {
+                // is, since its '!' is part of a directory name, not a nested jar separator (#903). A path that a
+                // security manager refuses to let be tested is taken not to exist, and the package root is stripped
+                if (FileUtils.exists(new File(pathElementStrResolved))) {
                     break;
                 }
                 // Strip off automatic package root suffix
@@ -466,8 +468,7 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
                     } else {
                         pathElementWithoutSuffix = Path.of(pathElementStrWithoutSuffix);
                     }
-                } catch (final InvalidPathException | SecurityException e) {
-                    // A SecurityException is a security manager's refusal to let the filesystem be tested
+                } catch (final InvalidPathException e) {
                     pathElementWithoutSuffix = pathElementStrWithoutSuffix;
                 }
             } else if (!URLPaths.startsWithURLScheme(pathElementStrWithoutSuffix)) {
@@ -488,9 +489,7 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
                             ? URLPaths.toURI(pathElementStrWithoutSuffix)
                             : URLPaths.toURI(Path.of(pathElementStrWithoutSuffix));
                     pathElementWithoutSuffix = pathElement instanceof URL ? uri.toURL() : uri;
-                } catch (InvalidPathException | IllegalStateException | SecurityException
-                        | MalformedURLException e) {
-                    // A SecurityException is a security manager's refusal to let the filesystem be tested
+                } catch (InvalidPathException | IllegalStateException | MalformedURLException e) {
                     pathElementWithoutSuffix = pathElementStrWithoutSuffix;
                 }
             } else {
@@ -623,7 +622,7 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
 
         // Check the path before the "/*" suffix is a directory
         final var baseDir = new File(baseDirPath);
-        if (!baseDir.exists()) {
+        if (!FileUtils.exists(baseDir)) {
             if (log != null) {
                 log.log("Directory does not exist for wildcard classpath element: " + baseDirPath);
             }
@@ -728,11 +727,11 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
         // As in the java launcher, a path ending in '*' is not a wildcard if a file with that exact name exists
         // (Windows does not allow '*' in a file name, so this only applies elsewhere)
         if ((pathElementStr.endsWith("/*") || pathElementStr.endsWith("\\*"))
-                && !new File(pathElementStr).exists()) {
+                && !FileUtils.exists(new File(pathElementStr))) {
             hasWildcardSuffix = true;
             pathElementStr = pathElementStr.substring(0, pathElementStr.length() - 2);
             // Leave pathElementURL null, so that wildcards can be handled below
-        } else if ("*".equals(pathElementStr) && !new File(pathElementStr).exists()) {
+        } else if ("*".equals(pathElementStr) && !FileUtils.exists(new File(pathElementStr))) {
             // Reached when the current directory path is empty, because user.dir could not be read. "." rather than
             // "" names the current directory, since before JDK 25 new File("") does not exist and lists nothing
             hasWildcardSuffix = true;

@@ -1,11 +1,13 @@
 package io.github.classgraph.base.internal.path;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.Permission;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledOnOs;
@@ -183,6 +185,50 @@ public class PathSyntaxTest {
         assertThat(PathSyntax.hasURLScheme("dir/x.jar")).isFalse();
         // A Windows drive designation is a single character, and a scheme is at least two
         assertThat(PathSyntax.hasURLScheme("C:/dir/x.jar")).isFalse();
+    }
+
+    /**
+     * A path that a security manager refuses to let be tested is taken to name nothing, as it is by the checks in
+     * {@link FileUtils}, rather than letting the {@link SecurityException} escape. A file that cannot be read
+     * cannot be the outermost jarfile of a classpath element, and a URL does not name a local file anyway.
+     */
+    @Test
+    @SuppressWarnings("removal")
+    public void aPathThatASecurityManagerRefusesToTestNamesNothing(@TempDir final Path tempDir) throws IOException {
+        // A jar in a directory whose name ends in '!', where the path before that '!' may not be tested
+        final var jarInDir = Files.write(Files.createDirectory(tempDir.resolve("denied-dir!")).resolve("x.jar"),
+                new byte[] { 'P', 'K' });
+        final var jarInDirPath = jarInDir.toString().replace(File.separatorChar, '/');
+        final var denyingSecurityManager = new SecurityManager() {
+            @Override
+            public void checkPermission(final Permission perm) {
+                // Allow everything else, including removing this SecurityManager again
+            }
+
+            @Override
+            public void checkRead(final String file) {
+                if (file.endsWith("denied-dir") || file.startsWith("http:")) {
+                    throw new SecurityException("Read access denied: " + file);
+                }
+            }
+        };
+        try {
+            System.setSecurityManager(denyingSecurityManager);
+        } catch (final UnsupportedOperationException e) {
+            assumeTrue(false, "Cannot install a SecurityManager");
+        }
+        try {
+            assertThat(PathSyntax.indexOfNestedJarSeparator(jarInDirPath)).isEqualTo(-1);
+            assertThat(PathSyntax.indexOfNestedJarSeparator(jarInDirPath + "!/pkg"))
+                    .isEqualTo(jarInDirPath.length());
+            // Neither a prefix of a URL nor the whole URL may be tested, so the first '!' after the authority is
+            // the separator, as it is when nothing local answers to the URL
+            assertThat(PathSyntax.indexOfNestedJarSeparator("http://example.com/x.jar!/pkg"))
+                    .isEqualTo("http://example.com/x.jar".length());
+            assertThat(PathSyntax.hasURLScheme("http://example.com/x.jar")).isTrue();
+        } finally {
+            System.setSecurityManager(null);
+        }
     }
 
     /** The leafname is everything after the last path separator, and before the nested jar separator. */

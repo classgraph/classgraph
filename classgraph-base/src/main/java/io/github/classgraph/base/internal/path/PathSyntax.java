@@ -400,7 +400,8 @@ public final class PathSyntax {
      * preceding path names an existing regular file (which must be the outermost jarfile). If no '!' is preceded by
      * an existing file, and the path has no URL scheme, the path contains no separator, and any '!' in it is a
      * literal filename character. Which of the later '!' characters separate is then decided by how this one is
-     * spelled -- see {@link #isNestedJarSeparatorAt(String, int, int)}.
+     * spelled -- see {@link #isNestedJarSeparatorAt(String, int, int)}. A path that a security manager refuses to
+     * let be tested is taken to name nothing, as it is by {@link FileUtils}, since it could not be read either.
      *
      * <p>
      * The filesystem cannot be consulted for non-{@code file:} URLs (e.g. {@code http:} jar URLs), so if no '!' is
@@ -448,7 +449,7 @@ public final class PathSyntax {
             // N.B. the path is not resolved via FastPathResolver here, since that calls #sanitizeEntryPath, which
             // calls this method -- a relative path is resolved by java.io.File against the current directory, which
             // is the same base path anyway
-            if (fileToTest(path, plingIdx, collapseParentSegmentsFromIdx).isFile()) {
+            if (FileUtils.isFile(fileToTest(path, plingIdx, collapseParentSegmentsFromIdx))) {
                 return plingIdx;
             }
             plingIdx = path.indexOf('!', plingIdx + 1);
@@ -459,7 +460,7 @@ public final class PathSyntax {
         // answers to it is it read as a URL, and the syntactic rule used to find the separator.
         // (A path that names nothing at all cannot be told from a URL, but it fails to open either way.)
         if (!URLPaths.startsWithURLScheme(path)
-                || fileToTest(path, path.length(), collapseParentSegmentsFromIdx).exists()) {
+                || FileUtils.exists(fileToTest(path, path.length(), collapseParentSegmentsFromIdx))) {
             return -1;
         }
         // A '!' is a legal character in the authority of a URL, in its userinfo or a registered host name, and is
@@ -568,7 +569,8 @@ public final class PathSyntax {
      * The ambiguity is resolved the same way {@link #indexOfNestedJarSeparator(String)} resolves the one around
      * {@code '!'}: by testing the filesystem. A path whose outermost element exists locally names that file or
      * directory, and is not a URL. Only if nothing exists there is the path read as a URL, which is also the only
-     * case in which the scheme could have been of any use.
+     * case in which the scheme could have been of any use. A path that a security manager refuses to let be tested
+     * is taken to name nothing, and so is read as a URL.
      *
      * @param path
      *            the path, with any {@code "jar:"} and {@code "file:"} scheme prefixes already stripped.
@@ -581,7 +583,7 @@ public final class PathSyntax {
         }
         // Only the outermost element of the path could carry a scheme, so that is the part to test for existence
         final var sepIdx = indexOfNestedJarSeparator(path);
-        return !new File(sepIdx < 0 ? path : path.substring(0, sepIdx)).exists();
+        return !FileUtils.exists(new File(sepIdx < 0 ? path : path.substring(0, sepIdx)));
     }
 
     // -------------------------------------------------------------------------------------------------------------

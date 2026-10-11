@@ -13,6 +13,7 @@ import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
+import java.security.Permission;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -82,6 +83,39 @@ public class ClasspathOrderTest {
      */
     private List<String> locations() {
         return classpathOrder.getOrder().stream().map(Entry::location).toList();
+    }
+
+    /**
+     * Install a security manager that does not allow a path ending with any of the given strings to be read, and
+     * allows everything else. The test is skipped if a security manager cannot be installed, which is the case from
+     * JDK 18 on unless the JVM is started with {@code -Djava.security.manager=allow}. The test removes the security
+     * manager again.
+     *
+     * @param deniedPathSuffixes
+     *            the ends of the paths that may not be read.
+     */
+    @SuppressWarnings("removal")
+    private static void installSecurityManagerDenyingReadOf(final String... deniedPathSuffixes) {
+        final var denyingSecurityManager = new SecurityManager() {
+            @Override
+            public void checkPermission(final Permission perm) {
+                // Allow everything else, including removing this SecurityManager again
+            }
+
+            @Override
+            public void checkRead(final String file) {
+                for (final String deniedPathSuffix : deniedPathSuffixes) {
+                    if (file.endsWith(deniedPathSuffix)) {
+                        throw new SecurityException("Read access denied: " + file);
+                    }
+                }
+            }
+        };
+        try {
+            System.setSecurityManager(denyingSecurityManager);
+        } catch (final UnsupportedOperationException e) {
+            abort("Cannot install a SecurityManager");
+        }
     }
 
     /**
@@ -1056,5 +1090,86 @@ public class ClasspathOrderTest {
         final var classLoader = getClass().getClassLoader();
         final var entry = new Entry("/a/b.jar", "/a/b.jar", classLoader.toString(), List.of(), List.of());
         assertThat(entry).hasToString("/a/b.jar [" + classLoader + "]");
+    }
+
+    /**
+     * A classpath entry for an archive in a directory whose name ends in '!' is added as it would be with no
+     * security manager installed, when a security manager refuses to let the path before that '!' be tested, or the
+     * path that still ends in the package root suffix. The path before the '!' is tested to find out whether the
+     * '!' is a nested jar separator, and a path that may not be tested is taken to name nothing, so the '!' is not
+     * a separator, which is the same answer the filesystem gives when it can be asked.
+     */
+    @ParameterizedTest
+    @CsvSource({ "String", "File", "URI", "URL", "Path" })
+    @SuppressWarnings("removal")
+    public void aSecurityManagerThatRefusesToLetAPathBeTestedDoesNotChangeTheEntry(final String type,
+            @TempDir final Path tempDir) throws Exception {
+        final var warPath = Files.createDirectory(tempDir.resolve("denied-dir!")).resolve("app.war");
+        try (var zipFs = FileSystems.newFileSystem(warPath, Map.of("create", "true"))) {
+            Files.createDirectories(zipFs.getPath("/WEB-INF/classes"));
+        }
+        final var war = resolve(warPath.toRealPath().toString());
+        classpathOrder.setPackageRootPrefixes(List.of("WEB-INF/classes/"), null);
+        try (var zipFs = FileSystems.newFileSystem(warPath)) {
+            final var uri = new URI(
+                    "jar:" + Path.of(war).toUri().toString().replace("!/", "%21/") + "!/WEB-INF/classes");
+            final Object pathElement = switch (type) {
+            case "String" -> war + "!/WEB-INF/classes";
+            case "File" -> new File(war + "!/WEB-INF/classes");
+            case "URI" -> uri;
+            case "URL" -> uri.toURL();
+            default -> zipFs.getPath("/WEB-INF/classes");
+            };
+            installSecurityManagerDenyingReadOf("denied-dir", "classes");
+            try {
+                assertThat(classpathOrder.addClasspathEntry(pathElement, null, null)).isTrue();
+            } finally {
+                System.setSecurityManager(null);
+            }
+        }
+        assertThat(locations()).containsExactly(war);
+    }
+
+    /**
+     * A wildcarded classpath entry that a security manager refuses to let be tested is taken not to name a file of
+     * that exact name, so it is still a wildcard, and a wildcarded directory that a security manager refuses to let
+     * be tested adds nothing, rather than letting the {@link SecurityException} escape.
+     */
+    @Test
+    @SuppressWarnings("removal")
+    public void aSecurityManagerThatRefusesToLetAWildcardBeTestedDoesNotStopItsExpansion(
+            @TempDir final Path tempDir) throws IOException {
+        final var jar = createFile(tempDir.resolve("a.jar"));
+        final var deniedDir = Files.createDirectory(tempDir.resolve("denied-dir"));
+        createFile(deniedDir.resolve("b.jar"));
+        installSecurityManagerDenyingReadOf("*", "denied-dir");
+        try {
+            assertThat(classpathOrder.addClasspathEntry(tempDir + "/*", null, null)).isTrue();
+            assertThat(classpathOrder.addClasspathEntry(deniedDir + "/*", null, null)).isFalse();
+        } finally {
+            System.setSecurityManager(null);
+        }
+        assertThat(entryObjects()).containsExactly(jar);
+    }
+
+    /**
+     * A classpath element whose canonical path a security manager refuses to let be read is skipped as unreadable,
+     * rather than letting the {@link SecurityException} escape, since the canonical path is the one the classpath
+     * element is opened by.
+     */
+    @Test
+    @DisabledOnOs(value = OS.WINDOWS, disabledReason = "Creating a symbolic link requires a privilege on Windows")
+    @SuppressWarnings("removal")
+    public void aClasspathElementWhoseCanonicalPathMayNotBeReadIsSkipped(@TempDir final Path tempDir)
+            throws IOException {
+        createFile(tempDir.resolve("denied.jar"));
+        final var link = Files.createSymbolicLink(tempDir.resolve("link.jar"), tempDir.resolve("denied.jar"));
+        installSecurityManagerDenyingReadOf("denied.jar");
+        try {
+            assertThat(classpathOrder.addClasspathEntry(link.toString(), null, null)).isFalse();
+        } finally {
+            System.setSecurityManager(null);
+        }
+        assertThat(classpathOrder.getOrder()).isEmpty();
     }
 }

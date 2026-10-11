@@ -134,6 +134,22 @@ public final class FileUtils {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Check if a {@link File} exists. If a security manager refuses to let the file be tested, the file is taken
+     * not to exist, since it could not be read either.
+     *
+     * @param file
+     *            A {@link File}.
+     * @return true if the file exists.
+     */
+    public static boolean exists(final File file) {
+        try {
+            return file.exists();
+        } catch (final SecurityException e) {
+            return false;
+        }
+    }
+
+    /**
      * Check if a {@link File} exists and can be read.
      *
      * @param file
@@ -209,6 +225,22 @@ public final class FileUtils {
             return false;
         }
         return Files.isRegularFile(path);
+    }
+
+    /**
+     * Check if a {@link File} is a regular file. If a security manager refuses to let the file be tested, the file
+     * is taken not to be one, since it could not be read either.
+     *
+     * @param file
+     *            A {@link File}.
+     * @return true if the file is a regular file.
+     */
+    public static boolean isFile(final File file) {
+        try {
+            return file.isFile();
+        } catch (final SecurityException e) {
+            return false;
+        }
     }
 
     /**
