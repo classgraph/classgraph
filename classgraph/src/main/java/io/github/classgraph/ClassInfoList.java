@@ -71,6 +71,14 @@ public final class ClassInfoList extends MappableInfoList<ClassInfo> {
     /** Whether to sort by name. */
     private final boolean sortByName;
 
+    /**
+     * The list returned by {@link #directOnly()}: this list when it was constructed with every class directly
+     * related, otherwise built on the first call. Two threads that call {@link #directOnly()} at the same time may
+     * each build an equal list, which is harmless: the built list holds its classes in final fields, so a thread
+     * that reads it through this field sees it fully constructed.
+     */
+    private @Nullable ClassInfoList directOnlyList;
+
     /** An unmodifiable empty {@link ClassInfoList}. */
     static final ClassInfoList EMPTY_LIST = new ClassInfoList(Set.of(), /* sortByName = */ false);
 
@@ -104,6 +112,7 @@ public final class ClassInfoList extends MappableInfoList<ClassInfo> {
             // set can be shared rather than copied. Every caller either builds the set for this list alone, or
             // reaches this constructor through ClassInfoList(Collection), which copies the caller's collection.
             this.directlyRelatedClasses = reachableClasses;
+            directOnlyList = this;
         } else {
             // Drop any directly-related class that is not reachable, so that directOnly() can never return a class
             // that this list does not contain. #exclude() removes a class from the reachable classes whenever the
@@ -158,6 +167,9 @@ public final class ClassInfoList extends MappableInfoList<ClassInfo> {
         super(sortByName ? CollectionUtils.sortCopy(reachableClasses) : reachableClasses);
         this.sortByName = sortByName;
         directlyRelatedClasses = new LinkedHashSet<>(reachableClasses);
+        // Rebuilding the direct list from directlyRelatedClasses would drop any duplicate, so this list is its own
+        // direct list
+        directOnlyList = this;
     }
 
     /**
@@ -189,7 +201,13 @@ public final class ClassInfoList extends MappableInfoList<ClassInfo> {
      * @return The list of directly-related classes.
      */
     public ClassInfoList directOnly() {
-        return new ClassInfoList(directlyRelatedClasses, sortByName);
+        // Read the field once, so that another thread cannot change it between the check and the return
+        var direct = directOnlyList;
+        if (direct == null) {
+            direct = new ClassInfoList(directlyRelatedClasses, sortByName);
+            directOnlyList = direct;
+        }
+        return direct;
     }
 
     // -------------------------------------------------------------------------------------------------------------

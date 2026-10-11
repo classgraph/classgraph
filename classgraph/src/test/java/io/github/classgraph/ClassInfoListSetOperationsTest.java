@@ -52,6 +52,24 @@ public class ClassInfoListSetOperationsTest {
         }
     }
 
+    /**
+     * {@code directOnly()} returns the same list on every call, and a list whose classes are all directly related
+     * is its own direct list.
+     */
+    @Test
+    public void directOnlyReturnsTheSameList() {
+        try (var scanResult = scan()) {
+            final var baseSubclasses = scanResult.getClassInfo(Base.class.getName()).getAllSubclasses();
+            final var direct = baseSubclasses.directOnly();
+            assertThat(direct.getNames()).containsExactly(Middle.class.getName());
+            assertThat(baseSubclasses.directOnly()).isSameAs(direct);
+            assertThat(direct.directOnly()).isSameAs(direct);
+
+            final var leafOnly = new ClassInfoList(List.of(scanResult.getClassInfo(Leaf.class.getName())));
+            assertThat(leafOnly.directOnly()).isSameAs(leafOnly);
+        }
+    }
+
     /** A class that both lists relate to directly survives {@code union()} and {@code intersect()}. */
     @Test
     public void unionAndIntersectKeepDirectlyRelatedClassesWithinTheList() {
