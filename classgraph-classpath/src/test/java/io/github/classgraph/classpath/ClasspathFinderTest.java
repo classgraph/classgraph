@@ -1260,6 +1260,36 @@ public class ClasspathFinderTest {
         }
     }
 
+    /**
+     * A jarfile fetched from a URL can only name a classpath element in its {@code Class-Path} manifest attribute
+     * by a relative URL that resolves to a path below the directory the jarfile was fetched from with no ".." left
+     * in it, as for the JVM's own classloader, so an entry with ".." in a file name, or one that is not a valid
+     * relative URL, is ignored, while a ".." segment that resolution removes is still followed.
+     *
+     * @param tempDir
+     *            a temporary directory to build the jarfile in.
+     * @throws IOException
+     *             if the jarfile could not be built, or the server could not be started.
+     */
+    @Test
+    public void aJarFetchedFromAURLCannotNameAnEntryTheJVMWouldIgnore(@TempDir final Path tempDir)
+            throws IOException {
+        final var jarBytes = Files.readAllBytes(writeJarWithManifest(tempDir.resolve("served.jar"), "Class-Path",
+                "a..b.jar sub/..c/d.jar x[1].jar sub/../kept.jar declared.jar").toPath());
+        final var server = serve("/dir/served.jar", jarBytes);
+        try {
+            final var jarURL = "http://" + server.getAddress().getHostString() + ":" + server.getAddress().getPort()
+                    + "/dir/served.jar";
+            try (var classpath = new ClasspathFinder().allowURLScheme("http")
+                    .enableClasspathEntries((Object) jarURL).find()) {
+                assertThat(classpath.getLocations()).containsExactly(jarURL,
+                        jarURL.replace("served.jar", "kept.jar"), jarURL.replace("served.jar", "declared.jar"));
+            }
+        } finally {
+            server.stop(0);
+        }
+    }
+
     /** Closing the result more than once has no further effect. */
     @Test
     public void theClassPathCanBeClosedTwice(@TempDir final Path tempDir) throws IOException {
