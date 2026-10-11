@@ -116,6 +116,34 @@ public class Issue420Test {
     }
 
     /**
+     * A directory in Jimfs named as a classpath entry by its URI, its URL or the string form of either is scanned.
+     *
+     * @throws IOException
+     *             If an I/O exception occurred.
+     * @throws URISyntaxException
+     *             If a URI is bad.
+     */
+    @Test
+    public void testScanningDirNamedByUri() throws IOException, URISyntaxException {
+        try (var memFs = Jimfs.newFileSystem()) {
+            final var classFilePath = "io/github/classgraph/issues/issue146/CompiledWithJDK8.class";
+            final var classFile = Path.of(Issue420Test.class.getClassLoader().getResource(classFilePath).toURI());
+            final var memFsDir = memFs.getPath("/classes");
+            final var memFsClassFile = memFsDir.resolve(classFilePath);
+            Files.createDirectories(memFsClassFile.getParent());
+            Files.copy(classFile, memFsClassFile);
+            final var uri = memFsDir.toUri();
+            for (final Object classpathEntry : new Object[] { uri, uri.toURL(), uri.toString() }) {
+                try (var scanResult = new ClassGraph().enableClasspathEntries(classpathEntry).enableClassInfo()
+                        .scan()) {
+                    assertThat(scanResult.getClassInfo("io.github.classgraph.issues.issue146.CompiledWithJDK8"))
+                            .as("scanning %s", classpathEntry).isNotNull();
+                }
+            }
+        }
+    }
+
+    /**
      * Test accessing a package hierarchy rooted at the default dir of "work/" in Jimfs.
      *
      * @throws IOException
