@@ -177,7 +177,11 @@ class Scanner implements Callable<ScanResult> {
         this.interruptionChecker = executorService instanceof AutoCloseableExecutorService
                 ? ((AutoCloseableExecutorService) executorService).interruptionChecker
                 : new InterruptionChecker();
-        this.nestedJarHandler = new NestedJarHandler(scanSpec, interruptionChecker, reflectionUtils);
+        // A thread that waits for another thread to open the same jarfile waits no longer than the worker timeout,
+        // as a thread waiting for another thread to open the same classpath element does, since the other thread
+        // may be stuck, and this may be the calling thread, which applies the worker timeout to the other threads
+        this.nestedJarHandler = new NestedJarHandler(scanSpec, interruptionChecker, reflectionUtils,
+                workerTimeoutNanos);
         this.numParallelTasks = numParallelTasks;
         this.workerTimeoutNanos = workerTimeoutNanos;
         this.scanResultProcessor = scanResultProcessor;

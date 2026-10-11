@@ -61,6 +61,9 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Pattern;
 import java.util.zip.DataFormatException;
@@ -73,6 +76,8 @@ import io.github.classgraph.ModuleRef;
 import io.github.classgraph.ScanResult;
 import nonapi.io.github.classgraph.concurrency.InterruptionChecker;
 import nonapi.io.github.classgraph.concurrency.SingletonMap;
+import nonapi.io.github.classgraph.concurrency.SingletonMap.NewInstanceException;
+import nonapi.io.github.classgraph.concurrency.SingletonMap.NullSingletonException;
 import nonapi.io.github.classgraph.fileslice.ArraySlice;
 import nonapi.io.github.classgraph.fileslice.FileSlice;
 import nonapi.io.github.classgraph.fileslice.Slice;
@@ -219,7 +224,7 @@ public class NestedJarHandler {
                                 // different paths is opened once
                                 final File canonicalFile = FileUtils.canonicalize(new File(nestedJarPath));
                                 // Get or create a PhysicalZipFile instance for the canonical file
-                                physicalZipFile = canonicalFileToPhysicalZipFileMap.get(canonicalFile, log);
+                                physicalZipFile = getSingleton(canonicalFileToPhysicalZipFileMap, canonicalFile, log);
                             } catch (final NullSingletonException | NewInstanceException e) {
                                 // If getting PhysicalZipFile failed, re-wrap in IOException, chaining the cause
                                 // as well as naming it in the message, so that the reason is reachable from the
@@ -238,7 +243,7 @@ public class NestedJarHandler {
                         final ZipFileSlice topLevelSlice = new ZipFileSlice(physicalZipFile);
                         LogicalZipFile logicalZipFile;
                         try {
-                            logicalZipFile = zipFileSliceToLogicalZipFileMap.get(topLevelSlice, log);
+                            logicalZipFile = getSingleton(zipFileSliceToLogicalZipFileMap, topLevelSlice, log);
                         } catch (final NullSingletonException | NewInstanceException e) {
                             // Chain the cause, as well as naming it in the message, so that the reason is
                             // reachable from the stack trace
@@ -269,8 +274,8 @@ public class NestedJarHandler {
                         // '!'-section shorter with each recursion frame.
                         Entry<LogicalZipFile, String> parentLogicalZipFileAndPackageRoot;
                         try {
-                            parentLogicalZipFileAndPackageRoot = nestedPathToLogicalZipFileAndPackageRootMap
-                                    .get(parentPath, log);
+                            parentLogicalZipFileAndPackageRoot = getSingleton(
+                                    nestedPathToLogicalZipFileAndPackageRootMap, parentPath, log);
                         } catch (final NullSingletonException | NewInstanceException e) {
                             // Chain the cause, as well as naming it in the message, so that the reason is
                             // reachable from the stack trace
@@ -368,7 +373,7 @@ public class NestedJarHandler {
 
                         final ZipFileSlice childZipEntrySlice;
                         try {
-                            childZipEntrySlice = fastZipEntryToZipFileSliceMap.get(childZipEntry, log);
+                            childZipEntrySlice = getSingleton(fastZipEntryToZipFileSliceMap, childZipEntry, log);
                         } catch (final NullSingletonException | NewInstanceException e) {
                             // Chain the cause, as well as naming it in the message, so that the reason is
                             // reachable from the stack trace
@@ -384,7 +389,7 @@ public class NestedJarHandler {
                         // Get or create a new LogicalZipFile for the child zipfile
                         LogicalZipFile childLogicalZipFile;
                         try {
-                            childLogicalZipFile = zipFileSliceToLogicalZipFileMap.get(childZipEntrySlice,
+                            childLogicalZipFile = getSingleton(zipFileSliceToLogicalZipFileMap, childZipEntrySlice,
                                     zipSliceLog);
                         } catch (final NullSingletonException | NewInstanceException e) {
                             // Chain the cause, as well as naming it in the message, so that the reason is
@@ -463,6 +468,12 @@ public class NestedJarHandler {
     /** The interruption checker. */
     public InterruptionChecker interruptionChecker;
 
+    /**
+     * The maximum number of nanoseconds that a thread opening a jarfile waits for another thread that is already
+     * opening it, or {@link Long#MAX_VALUE} to wait indefinitely.
+     */
+    private final long openWaitTimeoutNanos;
+
     /** The default size of a file buffer. */
     private static final int DEFAULT_BUFFER_SIZE = 16384;
 
@@ -489,9 +500,76 @@ public class NestedJarHandler {
      */
     public NestedJarHandler(final ScanSpec scanSpec, final InterruptionChecker interruptionChecker,
             final ReflectionUtils reflectionUtils) {
+        this(scanSpec, interruptionChecker, reflectionUtils, /* openWaitTimeoutNanos = */ Long.MAX_VALUE);
+    }
+
+    /**
+     * A handler for nested jars.
+     *
+     * @param scanSpec
+     *            The {@link ScanSpec}.
+     * @param interruptionChecker
+     *            the interruption checker
+     * @param reflectionUtils
+     *            the {@link ReflectionUtils} instance
+     * @param openWaitTimeoutNanos
+     *            the maximum number of nanoseconds that a thread opening a jarfile waits for another thread that is
+     *            already opening it, or {@link Long#MAX_VALUE} to wait indefinitely
+     */
+    public NestedJarHandler(final ScanSpec scanSpec, final InterruptionChecker interruptionChecker,
+            final ReflectionUtils reflectionUtils, final long openWaitTimeoutNanos) {
         this.scanSpec = scanSpec;
         this.interruptionChecker = interruptionChecker;
         this.reflectionUtils = reflectionUtils;
+        this.openWaitTimeoutNanos = openWaitTimeoutNanos;
+    }
+
+    /**
+     * Get the value for a key from one of the singleton maps of this handler, waiting no longer than the timeout
+     * given to the constructor if another thread is creating the value. That thread may be stuck reading a
+     * jarfile from a filesystem or network, and the waiting thread may be the thread that called the scan, which is
+     * the thread that applies the worker timeout to the other threads, so without a limit the whole scan could hang.
+     *
+     * <p>
+     * On timeout, the timeout is recorded in the {@link InterruptionChecker} as well as thrown as an
+     * {@link IOException}. The caller treats an {@link IOException} as a jarfile that cannot be read, and skips
+     * the classpath element, but the jarfile may be fine, so the scan must fail at its next check rather than give
+     * incomplete results.
+     *
+     * @param <K>
+     *            the key type
+     * @param <V>
+     *            the value type
+     * @param singletonMap
+     *            the singleton map
+     * @param key
+     *            the key
+     * @param log
+     *            the log
+     * @return the non-null value
+     * @throws IOException
+     *             if the value could not be created, or another thread was creating it and did not finish within
+     *             the timeout
+     * @throws InterruptedException
+     *             if the thread was interrupted
+     * @throws NullSingletonException
+     *             if creating the value failed, on this call or an earlier one
+     * @throws NewInstanceException
+     *             if creating the value threw an exception, on this call or an earlier one
+     */
+    public <K, V> V getSingleton(final SingletonMap<K, V, IOException> singletonMap, final K key,
+            final LogNode log)
+            throws IOException, InterruptedException, NullSingletonException, NewInstanceException {
+        try {
+            return singletonMap.get(key, log, /* newInstanceFactory = */ null, openWaitTimeoutNanos);
+        } catch (final TimeoutException e) {
+            final String message = "Timed out after " + TimeUnit.NANOSECONDS.toMillis(openWaitTimeoutNanos)
+                    + "ms waiting for another thread to open " + key
+                    + ". The other thread may be blocked reading it from a filesystem or network (call "
+                    + "ClassGraph#setWorkerTimeout(long, TimeUnit) to allow more time)";
+            interruptionChecker.setExecutionException(new ExecutionException(new IllegalStateException(message, e)));
+            throw new IOException(message, e);
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------

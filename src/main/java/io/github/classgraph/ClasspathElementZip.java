@@ -171,8 +171,8 @@ class ClasspathElementZip extends ClasspathElement {
             // Get LogicalZipFile for innermost nested jarfile
             Entry<LogicalZipFile, String> logicalZipFileAndPackageRoot;
             try {
-                logicalZipFileAndPackageRoot = nestedJarHandler.nestedPathToLogicalZipFileAndPackageRootMap
-                        .get(rawPath, subLog);
+                logicalZipFileAndPackageRoot = nestedJarHandler.getSingleton(
+                        nestedJarHandler.nestedPathToLogicalZipFileAndPackageRootMap, rawPath, subLog);
             } catch (final NullSingletonException | NewInstanceException e) {
                 // Generally thrown on the second and subsequent attempt to call .get(), after the first failed,
                 // or newInstance() threw an exception

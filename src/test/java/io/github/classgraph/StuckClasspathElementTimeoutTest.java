@@ -204,4 +204,59 @@ public class StuckClasspathElementTimeoutTest {
             }
         }
     }
+
+    /**
+     * Two classpath elements that are different, but that are read from the same jarfile -- here the jarfile, and
+     * a package root within it -- are opened by two threads, and the jarfile is downloaded once, by whichever
+     * thread reaches it first. If that thread never finishes downloading it, the other thread must give up after
+     * the worker timeout rather than wait forever, since the waiting thread may be the calling thread, which is the
+     * thread that applies the worker timeout to the other threads.
+     *
+     * <p>
+     * The worker thread opens the remote jarfile, the first classpath element, and is stuck downloading it. The
+     * executor's {@code execute} holds the calling thread until then, as in
+     * {@link #aThreadWaitingForAStuckClasspathElementTimesOut(Path)}. The calling thread then opens the package
+     * root, which is a different classpath element, so it does not wait for the worker thread to open the
+     * classpath element, but it does wait for the worker thread to download the jarfile that the package root is
+     * in.
+     *
+     * @throws Exception
+     *             if the server could not be started.
+     */
+    @Test
+    public void aThreadWaitingForAnotherThreadToOpenTheSameJarfileTimesOut() throws Exception {
+        try (final TricklingHttpServer server = new TricklingHttpServer()) {
+            final String stuckJarURL = server.jarURL();
+
+            // Hold the calling thread in execute until the worker thread is stuck downloading the remote jarfile
+            final ThreadPoolExecutor executorService = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS,
+                    new LinkedBlockingQueue<Runnable>()) {
+                @Override
+                public void execute(final Runnable command) {
+                    super.execute(command);
+                    try {
+                        server.requestReceived.await(10, TimeUnit.SECONDS);
+                    } catch (final InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                }
+            };
+            try {
+                final Throwable thrown = assertTimeoutPreemptively(Duration.ofSeconds(20),
+                        () -> catchThrowable(() -> new ClassGraph()
+                                .overrideClasspath(stuckJarURL, stuckJarURL + "!/pkgroot").enableURLScheme("http")
+                                .setWorkerTimeout(500, TimeUnit.MILLISECONDS).scan(executorService, 2).close()));
+                assertThat(server.requestReceived.getCount()).isZero();
+                assertThat(thrown).isInstanceOf(ClassGraphException.class);
+                assertThat(thrown.getCause()).isInstanceOf(IllegalStateException.class)
+                        .hasMessageStartingWith(
+                                "Timed out after 500ms waiting for another thread to open " + stuckJarURL + ".")
+                        .hasMessageContaining("ClassGraph#setWorkerTimeout(long, TimeUnit)");
+            } finally {
+                server.close();
+                executorService.shutdown();
+                assertThat(executorService.awaitTermination(20, TimeUnit.SECONDS)).isTrue();
+            }
+        }
+    }
 }
