@@ -656,7 +656,11 @@ public final class ClassGraph {
      * <p>
      * The filter is applied to every classpath element, in the same way as
      * {@link #filterClasspathElements(Predicate)}. A classpath element that was not given as a {@link URL} is
-     * passed as the {@code file:} URL of its path, or as a {@code jar:file:} URL if it is nested in a jarfile.
+     * passed as the URL of its path: a {@code file:} URL, a {@code jar:file:} URL if it is nested in a jarfile, or
+     * the URL of {@link java.nio.file.Path#toUri()} for a {@link java.nio.file.Path} in another filesystem. A
+     * classpath element whose path has no URL form, such as a {@code Path} in a filesystem whose URI scheme has no
+     * URL handler, is not tested by the URL filters, only by the filters added by
+     * {@link #filterClasspathElements(Predicate)}.
      *
      * @param classpathElementURLFilter
      *            The filter to apply to the {@link URL} of each discovered classpath element.
