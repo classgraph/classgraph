@@ -59,9 +59,9 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * The classpath element filters apply to the classpath elements that another classpath element declares -- the
- * entries of its manifest's {@code Class-Path} attribute and the jarfiles in its lib dirs -- as well as to the ones
- * named directly, and a classpath element that a filter rejects is not opened, so the classpath elements that it
- * declares are not scanned either.
+ * entries of its manifest's {@code Class-Path} and {@code Bundle-ClassPath} attributes and the jarfiles in its lib
+ * dirs -- as well as to the ones named directly, and a classpath element that a filter rejects is not opened, so
+ * the classpath elements that it declares are not scanned either.
  */
 public class ClasspathElementFilterChildrenTest {
     /**
@@ -312,5 +312,32 @@ public class ClasspathElementFilterChildrenTest {
                 .registerClassLoaderHandler(new LibDirHandler(classLoader, outer))
                 .filterClasspathElements(path -> !path.endsWith("outer.jar!/lib/rejected.jar"))))
                 .containsExactly("kept.txt");
+    }
+
+    /**
+     * A path filter rejects a jarfile named by an OSGi bundle jar's {@code Bundle-ClassPath} manifest entry, by the
+     * path of the nested jarfile, in which the bundle jar is separated from the path within it by {@code "!/"}.
+     */
+    @Test
+    public void aPathFilterRejectsABundleClassPathEntry(@TempDir final Path tempDir) throws IOException {
+        final var kept = Files.readAllBytes(writeJar(tempDir.resolve("kept.jar"), "kept.txt", null));
+        final var rejected = Files.readAllBytes(writeJar(tempDir.resolve("rejected.jar"), "rejected.txt", null));
+        final var manifest = new Manifest();
+        manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
+        manifest.getMainAttributes().putValue("Bundle-ClassPath", ".,kept.jar,rejected.jar");
+        final var bundle = tempDir.resolve("bundle.jar");
+        try (var jarOut = new JarOutputStream(Files.newOutputStream(bundle), manifest)) {
+            jarOut.putNextEntry(new ZipEntry("bundle.txt"));
+            jarOut.closeEntry();
+            jarOut.putNextEntry(new ZipEntry("kept.jar"));
+            jarOut.write(kept);
+            jarOut.closeEntry();
+            jarOut.putNextEntry(new ZipEntry("rejected.jar"));
+            jarOut.write(rejected);
+            jarOut.closeEntry();
+        }
+        assertThat(scannedTextResources(new ClassGraph().enableClasspathEntries(bundle.toFile())
+                .filterClasspathElements(path -> !path.endsWith("bundle.jar!/rejected.jar"))))
+                .containsExactly("bundle.txt", "kept.txt");
     }
 }
