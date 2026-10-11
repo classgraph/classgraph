@@ -321,7 +321,7 @@ class Classfile {
                 Resource classResource = null;
                 ClasspathElement foundInClasspathElt = null;
                 for (final ClasspathElement classpathOrderElt : classpathOrder) {
-                    classResource = classpathOrderElt.getResource(classfilePath);
+                    classResource = classpathOrderElt.getResourceDuringScan(classfilePath);
                     if (classResource != null) {
                         foundInClasspathElt = classpathOrderElt;
                         break;

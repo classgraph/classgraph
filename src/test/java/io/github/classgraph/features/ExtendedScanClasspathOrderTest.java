@@ -202,4 +202,40 @@ public class ExtendedScanClasspathOrderTest {
             }
         }
     }
+
+    /**
+     * Directories that come before the copy of an external class, and do not hold its package, are passed over,
+     * whether the package directory is missing or is a file, and a package root within a directory is searched.
+     *
+     * @param tempDir
+     *            a temporary directory to compile into.
+     * @throws IOException
+     *             if a source file could not be written.
+     */
+    @Test
+    public void directoriesWithoutThePackageArePassedOver(@TempDir final Path tempDir) throws IOException {
+        final Path markers = compileMarkers(tempDir);
+        final Path lib1 = compileBase(tempDir.resolve("lib1"), markers, "MarkerA", "");
+        final Path app = compileBase(tempDir.resolve("app"), markers, "MarkerB", "app");
+        final Path emptyDir = Files.createDirectories(tempDir.resolve("empty"));
+        final Path extIsAFile = Files.createDirectories(tempDir.resolve("extfile"));
+        Files.createFile(extIsAFile.resolve("ext"));
+        final Path warClasses = Files.createDirectories(tempDir.resolve("war/WEB-INF/classes/ext"));
+        Files.copy(lib1.resolve("ext/Base.class"), warClasses.resolve("Base.class"));
+
+        try (ScanResult scanResult = new ClassGraph().overrideClasspath(emptyDir, extIsAFile, lib1, app, markers)
+                .enableClassInfo().acceptPackages("app").scan()) {
+            assertThat(baseCopy(scanResult)).isEqualTo("lib1");
+            assertThat(scanResult.getClassesImplementing("ext.MarkerA").getNames()).containsExactly("app.Sub",
+                    "ext.Base");
+        }
+        try (ScanResult scanResult = new ClassGraph()
+                .overrideClasspath(emptyDir, tempDir.resolve("war"), app, markers).enableClassInfo()
+                .acceptPackages("app").scan()) {
+            assertThat(scanResult.getClassInfo("ext.Base").getClasspathElementFile())
+                    .isEqualTo(tempDir.resolve("war/WEB-INF/classes").toFile());
+            assertThat(scanResult.getClassesImplementing("ext.MarkerA").getNames()).containsExactly("app.Sub",
+                    "ext.Base");
+        }
+    }
 }

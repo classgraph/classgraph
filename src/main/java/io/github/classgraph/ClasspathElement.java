@@ -719,6 +719,21 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
     abstract Resource getResource(final String relativePath);
 
     /**
+     * Get the {@link Resource} for a given relative path while the scan is running. This returns what
+     * {@link #getResource(String)} returns, but may assume that the classpath element does not change during the
+     * scan, so it may remember what it learned from earlier calls. Scanning calls it to find the classfile of an
+     * external class, once in each classpath element before the one holding the classfile.
+     *
+     * @param relativePath
+     *            The relative path of the {@link Resource} to return.
+     * @return The {@link Resource} for the given relative path, or null if relativePath does not exist in this
+     *         classpath element.
+     */
+    Resource getResourceDuringScan(final String relativePath) {
+        return getResource(relativePath);
+    }
+
+    /**
      * Get the URI for this classpath element.
      *
      * @return the URI for the classpath element.

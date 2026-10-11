@@ -49,8 +49,10 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
@@ -79,6 +81,12 @@ class ClasspathElementDir extends ClasspathElement {
 
     /** Used to ensure that recursive scanning doesn't get into an infinite loop due to a link cycle. */
     private final Set<Path> scannedCanonicalPaths = new HashSet<>();
+
+    /**
+     * Whether each directory that {@link #getResourceDuringScan(String)} has looked in exists, keyed by its path
+     * relative to the classpath element root.
+     */
+    private final Map<String, Boolean> parentDirExistsDuringScan = new ConcurrentHashMap<>();
 
     /** The nested jar handler. */
     private final NestedJarHandler nestedJarHandler;
@@ -446,6 +454,38 @@ class ClasspathElementDir extends ClasspathElement {
     Resource getResource(final String relativePath) {
         final Path resourcePath = classpathEltPath.resolve(relativePath);
         return FileUtils.canReadAndIsFile(resourcePath) ? newResource(resourcePath, null) : null;
+    }
+
+    /**
+     * Get the {@link Resource} for a given relative path while the scan is running. A file can only exist if its
+     * parent directory does, so whether each parent directory exists is looked up once per scan, rather than
+     * looking up every file in a package that this directory does not hold.
+     *
+     * @param relativePath
+     *            The relative path of the {@link Resource} to return.
+     * @return The {@link Resource} for the given relative path, or null if relativePath does not exist in this
+     *         classpath element.
+     */
+    @Override
+    Resource getResourceDuringScan(final String relativePath) {
+        final int lastSlashIdx = relativePath.lastIndexOf('/');
+        if (lastSlashIdx > 0) {
+            final String parentDir = relativePath.substring(0, lastSlashIdx);
+            Boolean parentDirExists = parentDirExistsDuringScan.get(parentDir);
+            if (parentDirExists == null) {
+                try {
+                    parentDirExists = Files.isDirectory(classpathEltPath.resolve(parentDir));
+                } catch (final SecurityException e) {
+                    // Cannot tell, so look up the file itself
+                    parentDirExists = true;
+                }
+                parentDirExistsDuringScan.put(parentDir, parentDirExists);
+            }
+            if (!parentDirExists) {
+                return null;
+            }
+        }
+        return getResource(relativePath);
     }
 
     /**
