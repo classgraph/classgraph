@@ -365,6 +365,57 @@ public class VfsEntryLookupCaseTest {
     }
 
     /**
+     * A module exploded into a directory that a SecurityManager will not let be read, though it lets the files
+     * within it be read, still answers a lookup for a file within it, as the module reader does, rather than the
+     * lookup failing with a {@link SecurityException}. The directory cannot be checked for a case-folded match, so
+     * the name is taken to be the one the file is stored under, as for a module that is not a directory. A
+     * SecurityManager can only be installed on JDK 17, so this test is skipped on later JDKs.
+     *
+     * @param tempDir
+     *            a temporary directory to build in.
+     * @throws IOException
+     *             if the directory could not be built or read.
+     */
+    @Test
+    @SuppressWarnings("removal")
+    public void anExplodedModuleWhoseDirectoryASecurityManagerWillNotReadStillFindsItsFiles(
+            @TempDir final Path tempDir) throws IOException {
+        final var dir = makeDir(tempDir.resolve("module"), STORED_NAME);
+        try (var vfs = new Vfs()) {
+            final var root = vfs.open(explodedModule(dir));
+            // The directory of the module, spelled as the root names it
+            final var deniedPath = Objects.requireNonNull(root.getNioPath()).toString();
+            final var denyingSecurityManager = new SecurityManager() {
+                @Override
+                public void checkPermission(final Permission perm) {
+                    // Allow everything else, including removing this SecurityManager again
+                }
+
+                @Override
+                public void checkRead(final String file) {
+                    if (file.equals(deniedPath)) {
+                        throw new SecurityException("Read access denied: " + file);
+                    }
+                }
+            };
+            try {
+                System.setSecurityManager(denyingSecurityManager);
+            } catch (final UnsupportedOperationException e) {
+                assumeTrue(false, "Cannot install a SecurityManager");
+            }
+            try {
+                final var entry = root.getEntry(STORED_NAME);
+                assertThat(entry).isNotNull();
+                assertThat(new String(Objects.requireNonNull(entry).load(), StandardCharsets.UTF_8))
+                        .isEqualTo(CONTENT);
+                assertThat(root.getEntry("Com/Xyz/Missing.txt")).isNull();
+            } finally {
+                System.setSecurityManager(null);
+            }
+        }
+    }
+
+    /**
      * A module exploded into a directory that is reached through a symbolic link answers a lookup the same way a
      * directory root over the same directory does. The case check compares the real path of the file with the
      * directory, so it has to be given the real path of the directory too.

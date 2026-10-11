@@ -416,7 +416,18 @@ public final class ModuleRoot extends VfsRoot {
         var dir = canonicalModuleDir;
         if (dir == null) {
             final var moduleDir = getNioPath();
-            if (moduleDir == null || !Files.isDirectory(moduleDir)) {
+            if (moduleDir == null) {
+                return null;
+            }
+            try {
+                if (!Files.isDirectory(moduleDir)) {
+                    return null;
+                }
+            } catch (final SecurityException e) {
+                // A directory that a SecurityManager will not let be read cannot be checked for a case-folded match,
+                // so the module reader's answer is taken as it is, as for a module that is not a directory. (Once
+                // the directory is known, FileUtils#canonicalize falls back to an ancestor or to the path itself
+                // rather than throwing.)
                 return null;
             }
             try {
