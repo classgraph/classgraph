@@ -156,7 +156,7 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
      * A directory in a filesystem other than the default one is named by its URI, with the URI scheme removed,
      * since the string form of such a path names nothing outside its own filesystem. A directory {@code "/dir"}
      * within a mounted zipfile {@code "/a/b.zip"}, whose URI is {@code "jar:file:///a/b.zip!/dir"}, is named
-     * {@code "/a/b.zip!/dir"}.
+     * {@code "/a/b.zip!/dir"}, and the top directory {@code "/"} of that zipfile is named {@code "/a/b.zip!/"}.
      *
      * @return the path of the root.
      */
@@ -1294,9 +1294,12 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
     /**
      * Returns the path this root reports itself at: the path of the directory or jarfile that backs it, with the
      * package root appended if it was opened at one, or the name of a module. This is what {@link #toString()}
-     * returns, and for a root opened by path, it fully names the root, so it is one of the keys {@link Vfs} caches
-     * the root under. A module is cached by its {@link java.lang.module.ModuleReference} instead, and is written as
-     * {@code "jrt:/<module>"} in a {@code "cgvfs:"} URI, where its bare name would name a relative directory: see
+     * returns, and for a root opened by a path in the default filesystem, it fully names the root, so it is one of
+     * the keys {@link Vfs} caches the root under. A root opened through a {@link java.nio.file.Path} in another
+     * filesystem is cached only under the URI of that path, since the path it reports names the file that
+     * filesystem is backed by, not that filesystem. A module is cached by its
+     * {@link java.lang.module.ModuleReference} instead, and is written as {@code "jrt:/<module>"} in a
+     * {@code "cgvfs:"} URI, where its bare name would name a relative directory: see
      * {@link VfsFileSystemProvider#cgvfsPathOf(VfsRoot)}.
      *
      * @return the path of this root, with the package root appended if there is one.
