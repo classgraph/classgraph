@@ -190,7 +190,7 @@ public final class ArchiveRoot extends VfsRoot {
         }
         try {
             ownedZipFile.close();
-        } catch (final IOException | RuntimeException | Error e) {
+        } catch (final IOException | RuntimeException e) {
             if (log != null) {
                 log.log("Could not release the resources opened to read " + getPath() + " : " + e);
             }

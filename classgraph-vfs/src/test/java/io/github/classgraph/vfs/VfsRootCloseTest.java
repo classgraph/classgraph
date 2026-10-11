@@ -41,6 +41,11 @@ import java.lang.module.ModuleReader;
 import java.lang.module.ModuleReference;
 import java.net.URI;
 import java.nio.ByteBuffer;
+import java.nio.MappedByteBuffer;
+import java.nio.channels.FileChannel;
+import java.nio.channels.FileLock;
+import java.nio.channels.ReadableByteChannel;
+import java.nio.channels.WritableByteChannel;
 import java.nio.file.ClosedFileSystemException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -55,6 +60,7 @@ import java.util.zip.CRC32;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
+import io.github.classgraph.vfs.internal.slice.PathSlice;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -194,6 +200,121 @@ class VfsRootCloseTest {
             root.close();
             root.close();
             assertThatThrownBy(root::getEntries).hasMessageContaining("after the root has been closed");
+        }
+    }
+
+    /**
+     * A close reports a resource that cannot be released to the log rather than throwing, but an {@link Error}
+     * thrown while releasing a jarfile is not a failure to release it, and must reach the caller rather than be
+     * logged and dropped -- the same as an {@link Error} thrown while closing a buffer or stream the root handed
+     * out.
+     */
+    @Test
+    void anErrorThrownWhileReleasingAJarfileReachesTheCaller(@TempDir final Path tempDir) throws Exception {
+        final var jarFile = tempDir.resolve("test.jar");
+        Files.write(jarFile, jarBytes());
+        try (var vfs = new Vfs()) {
+            final var root = (ArchiveRoot) vfs.open(jarFile);
+            final var slice = (PathSlice) root.zipFile().slice;
+            final var fileChannelField = PathSlice.class.getDeclaredField("fileChannel");
+            fileChannelField.setAccessible(true);
+            final var realFileChannel = (FileChannel) Objects.requireNonNull(fileChannelField.get(slice));
+            fileChannelField.set(slice, new FileChannelThatThrowsOnClose());
+            try {
+                assertThatThrownBy(root::close).isInstanceOf(OutOfMemoryError.class).hasMessage("thrown by close");
+                assertThat(root.isClosed()).isTrue();
+            } finally {
+                // The close released everything but the channel it was given in place of this one
+                realFileChannel.close();
+            }
+        }
+    }
+
+    /** A {@link FileChannel} that throws {@link OutOfMemoryError} when it is closed, and supports nothing else. */
+    private static final class FileChannelThatThrowsOnClose extends FileChannel {
+        @Override
+        protected void implCloseChannel() {
+            throw new OutOfMemoryError("thrown by close");
+        }
+
+        @Override
+        public int read(final ByteBuffer dst) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public long read(final ByteBuffer[] dsts, final int offset, final int length) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public int write(final ByteBuffer src) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public long write(final ByteBuffer[] srcs, final int offset, final int length) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public long position() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public FileChannel position(final long newPosition) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public long size() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public FileChannel truncate(final long size) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void force(final boolean metaData) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public long transferTo(final long position, final long count, final WritableByteChannel target) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public long transferFrom(final ReadableByteChannel src, final long position, final long count) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public int read(final ByteBuffer dst, final long position) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public int write(final ByteBuffer src, final long position) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public MappedByteBuffer map(final MapMode mode, final long position, final long size) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public FileLock lock(final long position, final long size, final boolean shared) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public FileLock tryLock(final long position, final long size, final boolean shared) {
+            throw new UnsupportedOperationException();
         }
     }
 

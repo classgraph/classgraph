@@ -289,7 +289,7 @@ public final class ModuleRoot extends VfsRoot {
                 moduleReaderRecycler = null;
                 // forceClose closes the pooled readers and any reader still on loan -- a thread midway through a
                 // read gets an exception from the closed reader, which is what reading a closed root does -- and
-                // never throws
+                // throws no exception
                 recycler.forceClose();
             }
         }
