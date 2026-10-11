@@ -870,6 +870,37 @@ public class ClasspathOrderTest {
     }
 
     /**
+     * A handler's classpath object is expanded into the same classpath entries as the same object passed to
+     * {@code enableClasspathEntries} is. An array of primitives names no classpath element, so on both it is read
+     * by its string form; the handler path used to add each of its elements as a path instead.
+     */
+    @Test
+    public void handlerAndUserEntriesAreExpandedTheSameWay() {
+        final List<Object> cyclicList = new ArrayList<>();
+        cyclicList.add("c.jar");
+        cyclicList.add(cyclicList);
+        final var ints = new int[] { 1, 2 };
+        final var nested = List.of(new Object[] { new SelfIterable("a.jar"), ints, cyclicList }, "b.jar");
+
+        final var scanSourceSpec = new ScanSourceSpec();
+        scanSourceSpec.enableClasspathEntries(List.of(nested));
+        final List<Object> userEntries = ((ScanSourceSpec.NamedClasspathEntries) scanSourceSpec
+                .getClasspathSources().get(0)).classpathEntries();
+        assertThat(userEntries).containsExactly("a.jar", ints.toString(), "c.jar", "b.jar");
+
+        // The path filter sees every classpath element the handler path tries to add, before it is looked for
+        final List<String> handlerPaths = new ArrayList<>();
+        classpathSpec.filterClasspathElements(path -> {
+            handlerPaths.add(path);
+            return false;
+        });
+        assertThat(classpathOrder.addClasspathEntry(nested, null, null)).isFalse();
+        assertThat(handlerPaths).containsExactlyElementsOf(userEntries.stream()
+                .map(entry -> FastPathResolver.resolveFilePath(FileUtils.currDirPath(), entry.toString()))
+                .toList());
+    }
+
+    /**
      * The location of a classpath element is its resolved path, whatever object the classpath element arrived as. A
      * {@link Path} spells a path with the platform's separator, so its own string form uses backslashes on Windows,
      * and is relative if the path it was built from was relative; a {@link URI} keeps its {@code file:} scheme.

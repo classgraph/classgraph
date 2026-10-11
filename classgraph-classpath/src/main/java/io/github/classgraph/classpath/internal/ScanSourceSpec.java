@@ -33,14 +33,12 @@ import java.net.URI;
 import java.net.URL;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Enumeration;
-import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Set;
+import java.util.Objects;
 import java.util.stream.BaseStream;
 
 import io.github.classgraph.base.LogNode;
@@ -173,77 +171,36 @@ public class ScanSourceSpec {
      */
     public void enableClasspathEntries(final List<?> classpathEntries) {
         final List<Object> normalized = new ArrayList<>(classpathEntries.size());
-        // Compared by identity, since the hashCode() of a collection that contains itself overflows the stack
-        final Set<Object> expanding = Collections.newSetFromMap(new IdentityHashMap<>());
         for (final Object classpathEntry : classpathEntries) {
-            addClasspathEntry(classpathEntry, normalized, expanding);
+            // The containers are expanded now rather than at scan time, so that a mutable collection cannot change
+            // what it names in between
+            ClasspathEntryFlattener.forEachEntry(classpathEntry, entry -> {
+                // A caller that runs no null checker of its own can still pass a null element, at any depth
+                Objects.requireNonNull(entry, "classpathEntries element must not be null");
+                if (entry instanceof ClassLoader) {
+                    throw new IllegalArgumentException(
+                            "Need to pass ClassLoader instances to enableClassLoaders, not enableClasspathEntries");
+                }
+                if (!(entry instanceof Iterable<?>) && (entry instanceof BaseStream<?, ?>
+                        || entry instanceof Iterator<?> || entry instanceof Enumeration<?>)) {
+                    // A one-shot sequence that is not an Iterable would be read by its string form, which names no
+                    // file, so the classpath elements it holds would be silently left out
+                    throw new IllegalArgumentException("Need to collect a " + entry.getClass().getName()
+                            + " into a collection before passing it to enableClasspathEntries");
+                }
+                // A classpath element of a type the classpath order understands is kept as it is, so that the
+                // filesystem of a Path and the scheme of a URL or URI are not lost. Anything else, including an
+                // Iterable that yields itself, as an Ant Resource does, is read by its string form, which is taken
+                // now rather than at scan time, so that a mutable object cannot change what it names in between
+                return normalized.add(entry instanceof String || entry instanceof URL || entry instanceof URI
+                        || entry instanceof File || entry instanceof Path ? entry : entry.toString());
+            });
         }
         // Tested after expanding, so that collections and arrays that hold no classpath element are rejected too
         if (normalized.isEmpty()) {
             throw new IllegalArgumentException("At least one classpath entry must be provided");
         }
         classpathSources.add(new NamedClasspathEntries(normalized));
-    }
-
-    /**
-     * Add a classpath element to a list, replacing an {@link Iterable} or array by its own elements.
-     *
-     * @param classpathEntry
-     *            the classpath element.
-     * @param normalized
-     *            the list to add the classpath entries to.
-     * @param expanding
-     *            the {@link Iterable}s and arrays that are being expanded by the callers of this call, compared by
-     *            identity.
-     * @throws NullPointerException
-     *             if the classpath element is, or contains, null.
-     * @throws IllegalArgumentException
-     *             if the classpath element is, or contains, a {@link ClassLoader}, a {@link BaseStream} (any
-     *             {@code Stream}, {@code IntStream}, {@code LongStream} or {@code DoubleStream}), an
-     *             {@link Iterator} or an {@link Enumeration} that is not an {@link Iterable}.
-     */
-    private static void addClasspathEntry(final Object classpathEntry, final List<Object> normalized,
-            final Set<Object> expanding) {
-        // A caller that runs no null checker of its own can still pass a null element, at any depth
-        Assert.notNull(classpathEntry, "classpathEntries element");
-        if (classpathEntry instanceof ClassLoader) {
-            throw new IllegalArgumentException(
-                    "Need to pass ClassLoader instances to enableClassLoaders, not enableClasspathEntries");
-        }
-        if (classpathEntry instanceof String || classpathEntry instanceof URL || classpathEntry instanceof URI
-                || classpathEntry instanceof File || classpathEntry instanceof Path) {
-            // A classpath element of a type the classpath order understands is kept as it is, so that the
-            // filesystem of a Path and the scheme of a URL or URI are not lost. A Path is an Iterable of its own
-            // name elements, so it has to be tested for before Iterable is
-            normalized.add(classpathEntry);
-        } else if (classpathEntry instanceof Iterable<?> || classpathEntry instanceof Object[]) {
-            if (expanding.add(classpathEntry)) {
-                // The elements are read now rather than at scan time, so that a mutable collection cannot change
-                // what it names in between
-                final Iterable<?> elements = classpathEntry instanceof final Object[] array ? Arrays.asList(array)
-                        : (Iterable<?>) classpathEntry;
-                for (final Object element : elements) {
-                    addClasspathEntry(element, normalized, expanding);
-                }
-                expanding.remove(classpathEntry);
-            } else if (!(classpathEntry instanceof Collection<?> || classpathEntry instanceof Object[])) {
-                // An Iterable that is not a collection, and that yields itself, stands for one classpath element,
-                // which its string form names. An Ant Resource is such an Iterable
-                normalized.add(classpathEntry.toString());
-            }
-            // A collection or array that contains itself, directly or through another one, is not expanded again:
-            // every entry it holds is already being added by the call that is expanding it
-        } else if (classpathEntry instanceof BaseStream<?, ?> || classpathEntry instanceof Iterator<?>
-                || classpathEntry instanceof Enumeration<?>) {
-            // A one-shot sequence that is not an Iterable would be read by its string form, which names no file,
-            // so the classpath elements it holds would be silently left out
-            throw new IllegalArgumentException("Need to collect a " + classpathEntry.getClass().getName()
-                    + " into a collection before passing it to enableClasspathEntries");
-        } else {
-            // Anything else is read by its string form, which is taken now rather than at scan time, so that a
-            // mutable object cannot change what it names in between
-            normalized.add(classpathEntry.toString());
-        }
     }
 
     /**
