@@ -696,6 +696,52 @@ public class GraphVizDotFileTest {
                 .doesNotContain(edge("Holder", "Colored"), edge("Colored", "Holder"));
     }
 
+    /** A class whose only annotated members are members that its class node does not list. */
+    public static class UnlistedAnnotated implements Serializable {
+        /** Not listed, since it is an implementation detail of serialization. */
+        @Colored(Color.RED)
+        private static final long serialVersionUID = 1L;
+
+        /** Not listed, since every class has it. */
+        @Colored(Color.RED)
+        @Override
+        public String toString() {
+            return "";
+        }
+
+        /** Not listed, since every class has it. */
+        @Colored(Color.RED)
+        @Override
+        public int hashCode() {
+            return 0;
+        }
+
+        /** Not listed, since every class has it. */
+        @Colored(Color.RED)
+        @Override
+        public boolean equals(@Colored(Color.GREEN) final Object obj) {
+            return obj == this;
+        }
+    }
+
+    /**
+     * A class is not joined to an annotation that is only on members its class node does not list, as it is not
+     * joined to the types of those members.
+     */
+    @Test
+    public void annotationsOfUnlistedMembersAreNotJoinedToTheClass() {
+        try (var unlistedScanResult = new ClassGraph().enableClasspath()
+                .acceptClasses(Color.class.getName(), Colored.class.getName(), UnlistedAnnotated.class.getName())
+                .enableClassInfo().enableFieldInfo().enableMethodInfo().enableAnnotationInfo()
+                .ignoreClassVisibility().ignoreFieldVisibility().ignoreMethodVisibility().scan()) {
+            final var dotFile = graph(unlistedScanResult, new GraphVizDotFileOptions());
+            // Both classes have a node, so only the members the annotation is on keep them from being joined
+            assertThat(dotFile).contains("\"" + FIXTURE + "UnlistedAnnotated\"[shape=",
+                    "\"" + FIXTURE + "Colored\"[shape=");
+            assertThat(dotFile).doesNotContain(edge("UnlistedAnnotated", "Colored"));
+        }
+    }
+
     /** A class for which the compiler generates synthetic and bridge members. */
     // This fixture is graphed, not called, so its members and their parameters are never used
     @SuppressWarnings("unused")

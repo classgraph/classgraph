@@ -1025,7 +1025,9 @@ public final class GraphVizDotFile {
      * parameter directly annotated by it, so that the annotation edges can be drawn without having to ask each
      * annotation which classes it annotates (which would also return the classes reached through a meta-annotation,
      * or through {@link java.lang.annotation.Inherited @Inherited} -- those classes are still reachable from the
-     * annotation along a path of edges in the graph).
+     * annotation along a path of edges in the graph). As for the type edges, only the fields, methods and method
+     * parameters that are listed in a class node are read: an annotation on {@code toString()} or
+     * {@code serialVersionUID}, for example, does not join the class to the annotation.
      *
      * @param scanResult
      *            the scan result the classes came from
@@ -1034,8 +1036,8 @@ public final class GraphVizDotFile {
      * @param classAnnotations
      *            populated with annotation name to the classes it directly annotates
      * @param memberAnnotations
-     *            populated with annotation name to the classes with a field, method or method parameter it directly
-     *            annotates, listing each class once however many of its members the annotation is on
+     *            populated with annotation name to the classes with a listed field, method or method parameter it
+     *            directly annotates, listing each class once however many of its members the annotation is on
      */
     private static void indexAnnotations(final ScanResult scanResult, final List<ClassInfo> allVisibleClasses,
             final Map<String, List<ClassInfo>> classAnnotations,
@@ -1049,18 +1051,18 @@ public final class GraphVizDotFile {
             }
             final Set<String> memberAnnotationNames = new HashSet<>();
             if (scanResult.isFieldInfoEnabled()) {
-                for (final FieldInfo fi : ci.getDeclaredFieldInfo()) {
+                for (final FieldInfo fi : fieldsToShow(ci.getDeclaredFieldInfo())) {
                     for (final AnnotationInfo ai : fi.getAllAnnotationInfo().directOnly()) {
                         memberAnnotationNames.add(ai.getName());
                     }
                 }
             }
             if (scanResult.isMethodInfoEnabled()) {
-                for (final MethodInfo mi : ci.getDeclaredMethodAndConstructorInfo()) {
+                for (final MethodInfo mi : methodsToShow(ci.getDeclaredMethodAndConstructorInfo())) {
                     for (final AnnotationInfo ai : mi.getAllAnnotationInfo().directOnly()) {
                         memberAnnotationNames.add(ai.getName());
                     }
-                    for (final MethodParameterInfo mpi : mi.getParameterInfo()) {
+                    for (final MethodParameterInfo mpi : parametersToShow(mi)) {
                         for (final AnnotationInfo ai : mpi.getAllAnnotationInfo().directOnly()) {
                             memberAnnotationNames.add(ai.getName());
                         }
@@ -1081,7 +1083,7 @@ public final class GraphVizDotFile {
 
     /**
      * Append the edges from the classes an annotation annotates to the annotation: one edge for each class it
-     * annotates directly, and one for each class with a field, method or method parameter it annotates.
+     * annotates directly, and one for each class with a listed field, method or method parameter it annotates.
      *
      * @param annotationNode
      *            the annotation to append edges for
