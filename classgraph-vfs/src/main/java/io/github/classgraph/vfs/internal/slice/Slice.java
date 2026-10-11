@@ -295,7 +295,9 @@ public abstract class Slice implements AutoCloseable {
         try {
             return spillToTempFile(inputStream, tempFile, prefix, vfs, log);
         } catch (final IOException | RuntimeException | Error e) {
-            TempFile.delete(tempFile);
+            if (!TempFile.delete(tempFile)) {
+                TempFile.deleteOnExit(tempFile);
+            }
             throw e;
         }
     }

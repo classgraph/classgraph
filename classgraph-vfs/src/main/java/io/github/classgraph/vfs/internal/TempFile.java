@@ -46,8 +46,14 @@ import io.github.classgraph.base.internal.path.PathSyntax;
  * not close it.
  *
  * <p>
- * {@link File#deleteOnExit()} is not used: the JDK keeps every path passed to it until the JVM exits, even after
- * the file has been deleted, so a long-running JVM that scans repeatedly would accumulate them without limit.
+ * A temporary file is scheduled for deletion when the JVM exits, with {@link File#deleteOnExit()}, only if deleting
+ * it failed and it is still there, which happens mainly on Windows, when the file is still memory-mapped. Temporary
+ * files are not all scheduled that way when they are created, because the JDK keeps every path passed to
+ * {@link File#deleteOnExit()} until the JVM exits, even after the file has been deleted, so a long-running JVM that
+ * scans repeatedly would accumulate them without limit. A failed delete is rare, so the paths kept for it are few.
+ * Deleting the file when the JVM exits is best effort: it succeeds only if whatever kept the file mapped has
+ * released it by then, since a mapping that is still held when the JVM exits is only released when the process
+ * ends, after the JVM has tried to delete the files scheduled for deletion.
  */
 public final class TempFile {
     /** Not instantiable. */
@@ -169,6 +175,30 @@ public final class TempFile {
             Files.delete(tempFile.toPath());
             return true;
         } catch (final IOException _) {
+            return false;
+        }
+    }
+
+    /**
+     * Schedule a temporary file that could not be deleted for deletion when the JVM exits, if the file is still
+     * there. Call this only once the last attempt to delete the file has failed, since the JDK keeps the path until
+     * the JVM exits, even if the file is deleted before then.
+     *
+     * @param tempFile
+     *            the temp file
+     * @return true if the file is still there and was scheduled for deletion; false if the file is gone, or if the
+     *         JVM is already exiting and deleting the files scheduled for deletion, in which case it is too late to
+     *         schedule another.
+     */
+    public static boolean deleteOnExit(final File tempFile) {
+        if (!tempFile.exists()) {
+            return false;
+        }
+        try {
+            tempFile.deleteOnExit();
+            return true;
+        } catch (final IllegalStateException _) {
+            // "Shutdown in progress": the JVM has started deleting the files scheduled for deletion
             return false;
         }
     }
