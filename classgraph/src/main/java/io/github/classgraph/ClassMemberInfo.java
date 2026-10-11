@@ -321,8 +321,8 @@ public abstract sealed class ClassMemberInfo extends ScanResultObject implements
      *
      * <p>
      * As with {@link ClassInfo#getClassDependencies()}, {@code java.lang.Object} is left out, and so are classes
-     * outside the accepted packages unless {@link ClassGraph#enableExternalClasses()} was called before scanning.
-     * The declaring class is included if the member refers to it.
+     * outside the accepted packages unless {@link ClassGraph#enableExternalClasses()} was called before scanning,
+     * and rejected classes. The declaring class is included if the member refers to it.
      *
      * @return A {@link ClassInfoList} of the classes referenced by this class member, or the empty list if none.
      */

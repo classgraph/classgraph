@@ -181,6 +181,40 @@ public class RejectedIntermediateClassTest {
     }
 
     /**
+     * A rejected class is never returned as a superclass, a dependency or a member of a package, even when external
+     * classes are enabled, as for the lists of superclasses.
+     *
+     * @param enableExternalClasses
+     *            whether to enable external classes.
+     */
+    @ParameterizedTest
+    @ValueSource(booleans = { false, true })
+    public void rejectedClassIsNeverReturned(final boolean enableExternalClasses) {
+        var classGraph = new ClassGraph().enableClasspath().enableClassInfo().enableInterClassDependencies()
+                .acceptPackages(ROOT_PACKAGE).rejectPackages(REJECTED_PACKAGE);
+        if (enableExternalClasses) {
+            classGraph = classGraph.enableExternalClasses();
+        }
+        try (var scanResult = classGraph.scan()) {
+            final var impl = scanResult.getClassInfo(Impl.class.getName());
+            assertThat(impl.getSuperclass()).isNull();
+            assertThat(impl.getAllSuperclasses().getNames()).doesNotContain(Base.class.getName());
+            assertThat(impl.getClassDependencies().getNames()).doesNotContain(Base.class.getName());
+            assertThat(scanResult.getClassDependencyMap().get(impl).getNames())
+                    .doesNotContain(Base.class.getName());
+            assertThat(scanResult.getReverseClassDependencyMap().keySet()).extracting(ClassInfo::getName)
+                    .doesNotContain(Base.class.getName());
+            assertThat(scanResult.getPackageInfo(REJECTED_PACKAGE)).isNull();
+            assertThat(scanResult.getPackageInfo().getNames()).doesNotContain(REJECTED_PACKAGE);
+            // The rejected class can still be looked up by name, and it is still reached by the predicates
+            final var base = scanResult.getClassInfo(Base.class.getName());
+            assertThat(base).isNotNull();
+            assertThat(base.getPackageInfo()).isNull();
+            assertThat(impl.extendsSuperclass(Base.class)).isTrue();
+        }
+    }
+
+    /**
      * The type descriptor of a class lists a rejected interface, so that each type annotation in the classfile,
      * which names the interface it applies to by its index in the classfile's list of interfaces, stays on the
      * right interface.

@@ -999,8 +999,8 @@ public final class ScanResult implements AutoCloseable {
      * that class (i.e. returns a map from dependents to dependencies). Note that you need to call
      * {@link ClassGraph#enableInterClassDependencies()} before {@link ClassGraph#scan()} for this method to work.
      * You should also call {@link ClassGraph#enableExternalClasses()} before {@link ClassGraph#scan()} if you want
-     * non-accepted classes to appear in the result. See also {@link #getReverseClassDependencyMap()}, which inverts
-     * the map.
+     * non-accepted classes to appear in the result. Rejected classes never appear in the result. See also
+     * {@link #getReverseClassDependencyMap()}, which inverts the map.
      *
      * @return A map from a {@link ClassInfo} object for each accepted class to a list of the classes referenced by
      *         that class (i.e. returns a map from dependents to dependencies), sorted by class name. Each map value
@@ -1025,7 +1025,8 @@ public final class ScanResult implements AutoCloseable {
      * a map from dependencies to dependents). Note that you need to call
      * {@link ClassGraph#enableInterClassDependencies()} before {@link ClassGraph#scan()} for this method to work.
      * You should also call {@link ClassGraph#enableExternalClasses()} before {@link ClassGraph#scan()} if you want
-     * non-accepted classes to appear in the result. See also {@link #getClassDependencyMap}.
+     * non-accepted classes to appear in the result. Rejected classes never appear in the result. See also
+     * {@link #getClassDependencyMap}.
      *
      * @return A map from a {@link ClassInfo} object for each dependency class (accepted or not) to a list of the
      *         accepted classes that referenced that class as a dependency (i.e. returns a map from dependencies to
@@ -1056,12 +1057,11 @@ public final class ScanResult implements AutoCloseable {
      *
      * @param refdClassInfo
      *            the referenced class.
-     * @return false for {@code java.lang.Object}, and for an external class unless
+     * @return false for {@code java.lang.Object}, for a rejected class, and for an external class unless
      *         {@link ClassGraph#enableExternalClasses()} was called before scanning; otherwise true.
      */
     boolean isListedAsDependency(final ClassInfo refdClassInfo) {
-        return !"java.lang.Object".equals(refdClassInfo.getName())
-                && (!refdClassInfo.isExternalClass() || scanSpec.enableExternalClasses);
+        return !"java.lang.Object".equals(refdClassInfo.getName()) && refdClassInfo.isReported(scanSpec);
     }
 
     // -------------------------------------------------------------------------------------------------------------
