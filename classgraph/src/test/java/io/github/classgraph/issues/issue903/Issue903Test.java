@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.net.JarURLConnection;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -114,6 +115,40 @@ class Issue903Test {
         try (var scanResult = new ClassGraph().enableClasspathEntries(outerJar.getPath() + "!/lib/inner.jar")
                 .acceptPaths("issue903").scan()) {
             assertThat(scanResult.getAllResources().getPaths()).containsExactly(RESOURCE_PATH);
+        }
+    }
+
+    /**
+     * A jarfile nested inside a jarfile that is in a directory whose name ends in '!'. The "!/" of the directory
+     * name is not a separator, so the URL of the nested jarfile, and of a resource in it, must not let the JDK's
+     * jar URL handler take it for one.
+     */
+    @Test
+    void nestedJarInJarInDirectoryWithTrailingBangInName(@TempDir final Path tempDir) throws Exception {
+        final var dir = new File(tempDir.toFile(), "build!");
+        assertThat(dir.mkdir()).isTrue();
+        final var innerJar = new File(tempDir.toFile(), "inner.jar");
+        writeResourceJar(innerJar);
+        final var innerJarBytes = Files.readAllBytes(innerJar.toPath());
+        final var outerJar = new File(dir, "outer.jar");
+        try (var out = new FileOutputStream(outerJar); var zip = new ZipOutputStream(out)) {
+            zip.putNextEntry(new ZipEntry("lib/inner.jar"));
+            zip.write(innerJarBytes);
+            zip.closeEntry();
+        }
+        try (var scanResult = new ClassGraph().enableClasspathEntries(outerJar.getPath() + "!/lib/inner.jar")
+                .acceptPaths("issue903").scan()) {
+            final var resources = scanResult.getAllResources();
+            assertThat(resources.getPaths()).containsExactly(RESOURCE_PATH);
+            final var resource = resources.get(0);
+            final var outerJarPath = outerJar.getCanonicalFile().toPath();
+            final var classpathEltConnection = (JarURLConnection) resource.getClasspathElementURL()
+                    .openConnection();
+            assertThat(Path.of(classpathEltConnection.getJarFileURL().toURI())).isEqualTo(outerJarPath);
+            assertThat(classpathEltConnection.getEntryName()).isEqualTo("lib/inner.jar");
+            final var resourceConnection = (JarURLConnection) resource.getURL().openConnection();
+            assertThat(Path.of(resourceConnection.getJarFileURL().toURI())).isEqualTo(outerJarPath);
+            assertThat(resourceConnection.getEntryName()).isEqualTo("lib/inner.jar!/" + RESOURCE_PATH);
         }
     }
 

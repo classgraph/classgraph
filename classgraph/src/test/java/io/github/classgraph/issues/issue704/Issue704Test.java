@@ -177,6 +177,46 @@ public class Issue704Test {
     }
 
     /**
+     * A symlink in a directory whose name ends in '!' is followed as any other symlink is: the "!/" of the
+     * directory name is part of the path, not a nested jar separator, so the whole path is canonicalized.
+     *
+     * @param tempDir
+     *            the temp dir.
+     * @throws Exception
+     *             if the test jar or module layer could not be created.
+     */
+    @Test
+    public void sameFileReachedThroughASymlinkInADirectoryWhoseNameEndsInBangIsReturnedOnce(
+            @TempDir final File tempDir) throws Exception {
+        final var realDir = new File(tempDir, "real");
+        realDir.mkdirs();
+        final var bangDir = new File(tempDir, "build!");
+        bangDir.mkdirs();
+        final var symlinkedDir = bangDir.toPath().resolve("symlink");
+        try {
+            Files.createSymbolicLink(symlinkedDir, realDir.toPath());
+        } catch (IOException | UnsupportedOperationException | SecurityException e) {
+            // Symlinks are not supported (e.g. on Windows without developer mode enabled)
+            assumeTrue(false, "Could not create a symlink");
+        }
+        final var jarFile = buildJar(realDir, "issue704g.jar", "MATCH (n) RETURN n;");
+        final var symlinkedJarFile = symlinkedDir.resolve(jarFile.getName()).toFile();
+        final var moduleLayer = defineModuleLayer(symlinkedJarFile);
+        assertThat(moduleLayer).isNotNull();
+
+        try (var classLoader = new URLClassLoader(new URL[] { jarFile.toURI().toURL() }, /* parent = */ null);
+                var scanResult = new ClassGraph() //
+                        .enableNonSystemModules() //
+                        .enableModuleLayers(moduleLayer) //
+                        .enableClassLoaders(classLoader) //
+                        .acceptPaths("stuff") //
+                        .scan()) {
+            assertThat(scanResult.getAllResources().getURIs()).hasSize(1);
+            assertThat(classpathURIsMatching(scanResult, "issue704g.jar")).hasSize(1);
+        }
+    }
+
+    /**
      * A symlink to a jar is not a jar in its own right, it is another way to reach the same jar, so a jar reached
      * both directly and through a symlink to it should still be returned once.
      *

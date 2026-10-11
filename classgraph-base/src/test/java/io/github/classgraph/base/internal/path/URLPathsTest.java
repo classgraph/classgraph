@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.JarURLConnection;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -94,6 +95,31 @@ public class URLPathsTest {
         // Only the '!' that separates the jar from the path within it is a separator
         assertThat(URLPaths.normalizeURLPath(jarPath + "!/probepkg/Probe.class")).startsWith("jar:file:///")
                 .endsWith("/with!bang/x.jar!/probepkg/Probe.class");
+    }
+
+    /**
+     * A directory whose name ends in '!' puts a {@code "!/"} in the path of the outermost jarfile, where the
+     * {@code "jar:"} URL scheme would end that path, so it is percent-encoded in the URL of a path nested within
+     * the jarfile.
+     *
+     * @param tempDir
+     *            a temporary directory to hold the jarfile.
+     * @throws Exception
+     *             if the jarfile cannot be written or the URL cannot be formed.
+     */
+    @Test
+    public void bangAtTheEndOfADirectoryNameIsEncodedInAJarURL(@TempDir final Path tempDir) throws Exception {
+        final var dir = Files.createDirectories(tempDir.resolve("build!"));
+        final var jarPath = slashes(Files.createFile(dir.resolve("outer.jar")));
+        // Nothing is nested, so the path is a "file:" URL, in which "!/" is an ordinary part of the path
+        assertThat(URLPaths.normalizeURLPath(jarPath)).startsWith("file:///").endsWith("/build!/outer.jar");
+        final var nestedURL = URLPaths.normalizeURLPath(jarPath + "!/lib/inner.jar");
+        assertThat(nestedURL).startsWith("jar:file:///").endsWith("/build%21/outer.jar!/lib/inner.jar");
+        // ... so the JDK's jar URL handler finds the jarfile and the entry within it
+        final var jarURLConnection = (JarURLConnection) URLPaths.toURI(jarPath + "!/lib/inner.jar").toURL()
+                .openConnection();
+        assertThat(Path.of(jarURLConnection.getJarFileURL().toURI())).isEqualTo(dir.resolve("outer.jar"));
+        assertThat(jarURLConnection.getEntryName()).isEqualTo("lib/inner.jar");
     }
 
     /**
