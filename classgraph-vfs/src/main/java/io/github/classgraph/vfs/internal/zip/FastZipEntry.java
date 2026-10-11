@@ -435,9 +435,9 @@ public class FastZipEntry implements Comparable<FastZipEntry> {
 
     @Override
     public String toString() {
-        // Just the path, not a URL: the zipfile this entry belongs to is not necessarily a file (it can be a jarfile
-        // downloaded into memory, or a jarfile nested inside another one), and a nested jarfile's path holds more
-        // than one "!/" separator, which no jar URL is allowed to hold. VfsEntry#getURI(), through
+        // Just the path, not a URL: the zipfile this entry belongs to is not necessarily a file (it can be a
+        // jarfile downloaded into memory, or a jarfile nested inside another one), and a nested jarfile's path
+        // holds more than one "!/" separator, which no jar URL is allowed to hold. VfsEntry#getURI(), through
         // ArchiveRoot#resolveURI(String), is what forms the URI of an entry.
         return getPath();
     }

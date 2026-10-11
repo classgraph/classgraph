@@ -199,8 +199,8 @@ public class RandomAccessOrSequentialReaderTest {
             final var zipEntry = new ZipEntry(ENTRY_NAME);
             zipEntry.setMethod(compressionMethod);
             if (compressionMethod == ZipEntry.STORED) {
-                // A stored entry's size and CRC have to be known before its content is written, since they go in the
-                // local file header, which precedes it
+                // A stored entry's size and CRC have to be known before its content is written, since they go in
+                // the local file header, which precedes it
                 final var crc = new CRC32();
                 crc.update(content);
                 zipEntry.setSize(content.length);

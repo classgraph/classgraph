@@ -114,8 +114,9 @@ public final class ManifestParser {
                 }
                 buf = Arrays.copyOf(buf, (int) Math.min(buf.length * 2L, MAX_MAIN_SECTION_SIZE));
             }
-            // The buffer has just been grown if it was full, so the read has room, and so returns at least one byte,
-            // or -1 at the end of the stream, even from a stream that returns zero from a read (see readAtLeastOne)
+            // The buffer has just been grown if it was full, so the read has room, and so returns at least one
+            // byte, or -1 at the end of the stream, even from a stream that returns zero from a read (see
+            // readAtLeastOne)
             final var numBytes = InputStreamUtils.readAtLeastOne(manifestInputStream, buf, numBytesRead,
                     buf.length - numBytesRead);
             final var atEndOfStream = numBytes < 0;

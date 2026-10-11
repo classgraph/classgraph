@@ -136,11 +136,12 @@ public final class DirRoot extends VfsRoot {
 
     @Override
     void walkImpl(final VfsVisitor visitor, final @Nullable LogNode log) throws IOException {
-        // Symlinks can make a directory tree cyclic, so record the canonical paths of the directories on the way down
-        // to the one being walked -- otherwise a directory that contains a symlink to one of its own ancestors makes
-        // this recursion run until it runs out of stack. Only those ancestors are recorded, not every directory
-        // walked so far, so that a directory reached a second time by another path that is not a cycle, such as a
-        // symlink to a sibling directory, is walked again under that path, as Files.walk does with FOLLOW_LINKS.
+        // Symlinks can make a directory tree cyclic, so record the canonical paths of the directories on the way
+        // down to the one being walked -- otherwise a directory that contains a symlink to one of its own ancestors
+        // makes this recursion run until it runs out of stack. Only those ancestors are recorded, not every
+        // directory walked so far, so that a directory reached a second time by another path that is not a cycle,
+        // such as a symlink to a sibling directory, is walked again under that path, as Files.walk does with
+        // FOLLOW_LINKS.
         walkRecursively(dir, "", visitor, new HashSet<>(), log);
     }
 

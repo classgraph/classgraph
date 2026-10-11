@@ -488,8 +488,8 @@ public final class RandomAccessOrSequentialReader implements RandomAccessReader,
                 // Nothing has been read yet, so there is nothing that growing could copy, and no reason to probe
                 grow(targetArrUsed);
             }
-            // The buffer has room, so the read returns at least one byte, or -1 at the end of the stream, even from a
-            // stream that returns zero from a read (see readAtLeastOne)
+            // The buffer has room, so the read returns at least one byte, or -1 at the end of the stream, even from
+            // a stream that returns zero from a read (see readAtLeastOne)
             final var numRead = InputStreamUtils.readAtLeastOne(inputStream, arr, arrUsed, arr.length - arrUsed);
             if (numRead < 0) {
                 eof = true;

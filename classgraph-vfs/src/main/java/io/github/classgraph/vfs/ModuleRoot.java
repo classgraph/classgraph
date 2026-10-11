@@ -345,10 +345,10 @@ public final class ModuleRoot extends VfsRoot {
                 continue;
             }
             // A module reader reports a modular jarfile's entry names exactly as they are stored. A name with a
-            // leading '/', a repeated separator, or a "." or ".." section in it is not one any path can be looked up
-            // by, and "../x" would name a file outside the module wherever the name is used to form a path, so the
-            // entry is left out. An archive root rewrites such a name instead, but a module reader can only open an
-            // entry by the name it is stored under
+            // leading '/', a repeated separator, or a "." or ".." section in it is not one any path can be looked
+            // up by, and "../x" would name a file outside the module wherever the name is used to form a path, so
+            // the entry is left out. An archive root rewrites such a name instead, but a module reader can only
+            // open an entry by the name it is stored under
             if (!isCanonicalEntryName(resourcePath)) {
                 if (log != null) {
                     log.log("Skipping module resource with a non-canonical name: " + resourcePath);
@@ -376,8 +376,8 @@ public final class ModuleRoot extends VfsRoot {
         if (name.isEmpty() || name.endsWith("/")) {
             return null;
         }
-        // A module reader finds a modular jarfile's entry by the name it is stored under, even one with a "." or ".."
-        // section in it, which listEntries leaves out, so such a name has to be turned away here
+        // A module reader finds a modular jarfile's entry by the name it is stored under, even one with a "." or
+        // ".." section in it, which listEntries leaves out, so such a name has to be turned away here
         if (!isCanonicalEntryName(name)) {
             return null;
         }
@@ -391,10 +391,10 @@ public final class ModuleRoot extends VfsRoot {
         } finally {
             recycler.recycle(moduleReader);
         }
-        // An exploded module is a directory, and a module reader reads one through the filesystem, so on Windows and
-        // macOS it answers a lookup for a name whose case does not match the name the file is stored under. This
-        // method matches names exactly, so such a match is not one. A module packaged as a modular jarfile carries
-        // its own exact namespace, whatever filesystem it is read from, as does a module of the running JDK
+        // An exploded module is a directory, and a module reader reads one through the filesystem, so on Windows
+        // and macOS it answers a lookup for a name whose case does not match the name the file is stored under.
+        // This method matches names exactly, so such a match is not one. A module packaged as a modular jarfile
+        // carries its own exact namespace, whatever filesystem it is read from, as does a module of the running JDK
         final var moduleDir = canonicalModuleDir();
         if (moduleDir != null && isCaseFoldedMatch(moduleDir, moduleDir.resolve(name))) {
             return null;
