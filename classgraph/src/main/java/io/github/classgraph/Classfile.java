@@ -32,6 +32,7 @@ import java.io.IOException;
 import java.io.Serial;
 import java.lang.reflect.Array;
 import java.lang.reflect.Modifier;
+import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -49,9 +50,10 @@ import io.github.classgraph.vfs.reader.RandomAccessOrSequentialReader;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A classfile binary format parser. Each instance parses one classfile, in its constructor, and holds what it read
- * until {@link #link} transfers it into {@link ClassInfo}, {@link PackageInfo} and {@link ModuleInfo} objects.
- * Instances are not threadsafe and are not reused.
+ * A classfile binary format parser. Each instance parses one classfile, in its constructor, through a
+ * {@link RandomAccessOrSequentialReader}, and holds what it read until {@link #link} transfers it into
+ * {@link ClassInfo}, {@link PackageInfo} and {@link ModuleInfo} objects. Instances are not threadsafe and are not
+ * reused.
  *
  * <p>
  * See <a href="https://docs.oracle.com/javase/specs/jvms/se26/html/jvms-4.html">the class file format spec</a>.
@@ -221,6 +223,15 @@ class Classfile {
 
     /** An empty array for the case where there are no annotations. */
     private static final AnnotationInfo[] NO_ANNOTATIONS = {};
+
+    /**
+     * The largest number of bytes of a classfile that are read. A classfile is buffered up to the furthest point
+     * that has been read or skipped to, and the lengths of the parts that are skipped are read out of the classfile
+     * itself, so without a limit one attribute that declares a length of almost 2GB makes the scanner inflate and
+     * buffer that much, from a deflated jar entry of a few megabytes. The largest classfile among the 1.28 million
+     * in a large Maven repository is 1.1MB, so a classfile that would need more than this is treated as corrupt.
+     */
+    private static final int MAX_CLASSFILE_LENGTH = 64 * 1024 * 1024;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -2625,7 +2636,8 @@ class Classfile {
 
         // Read the classfile through the virtual filesystem, which knows the fastest way to hand over the bytes of
         // the kind of classpath element the classfile is in
-        try (var classfileReader = new RandomAccessOrSequentialReader(classfileResource.getVfsEntry())) {
+        try (var classfileReader = new RandomAccessOrSequentialReader(classfileResource.getVfsEntry(),
+                ByteOrder.BIG_ENDIAN, MAX_CLASSFILE_LENGTH)) {
             reader = classfileReader;
 
             // Check magic number

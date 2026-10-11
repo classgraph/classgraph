@@ -894,7 +894,7 @@ public class RandomAccessOrSequentialReaderTest {
     private static final int TEST_BUFFER_LIMIT = 100_000;
 
     /** The message the reader uses when the content runs on past the largest buffer it can grow. */
-    private static final String TOO_LARGE = "larger than the 2GB that can be buffered";
+    private static final String TOO_LARGE = "larger than the " + TEST_BUFFER_LIMIT + " bytes that can be buffered";
 
     /**
      * An {@link InputStream} of a given number of bytes, which does not hold them: the tests below read past the
@@ -1052,6 +1052,41 @@ public class RandomAccessOrSequentialReaderTest {
                     .hasMessage("Tried to read past the end of the content");
             assertThat(reader.bufferLength()).isLessThanOrEqualTo(2 * contentLength);
         }
+    }
+
+    /**
+     * A reader given a limit on how much of an entry it may buffer reads the entry up to the limit, and rejects a
+     * read or skip past it without buffering any further, even though the entry goes on past the limit. A caller
+     * reading content whose format bounds its size, such as a classfile, uses this so that a length read out of a
+     * crafted entry cannot make it inflate and buffer gigabytes.
+     *
+     * @throws IOException
+     *             if the content could not be read.
+     */
+    @Test
+    public void aReaderWithALengthLimitDoesNotBufferPastIt() throws IOException {
+        final var maxLength = 20_000;
+        final var content = content(40_000);
+        final var entry = entry(vfs.open(jar(content, ZipEntry.DEFLATED), "limited.jar"));
+        try (var reader = new RandomAccessOrSequentialReader(entry, ByteOrder.BIG_ENDIAN, maxLength)) {
+            reader.skip(maxLength - 4);
+            assertThat(reader.readInt()).isEqualTo(ByteBuffer.wrap(content).getInt(maxLength - 4));
+            assertThatThrownBy(() -> reader.skip(1)).isInstanceOf(IOException.class)
+                    .hasMessage("Tried to skip past the " + maxLength + " bytes that can be buffered");
+            assertThatThrownBy(reader::length).isInstanceOf(IOException.class)
+                    .hasMessage("Content is larger than the " + maxLength + " bytes that can be buffered");
+            assertThat(reader.bufferLength()).isLessThanOrEqualTo(maxLength);
+        }
+        // An entry that declares a length past the limit, but holds less than the limit, is read in full
+        final var shortContent = content(maxLength - 5000);
+        final var jarBytes = jar(shortContent, ZipEntry.DEFLATED);
+        setDeclaredUncompressedSize(jarBytes, 2 * maxLength);
+        final var overstatedEntry = entry(vfs.open(jarBytes, "overstated.jar"));
+        try (var reader = new RandomAccessOrSequentialReader(overstatedEntry, ByteOrder.BIG_ENDIAN, maxLength)) {
+            assertThat(reader.length()).isEqualTo(shortContent.length);
+        }
+        assertThatThrownBy(() -> new RandomAccessOrSequentialReader(entry, ByteOrder.BIG_ENDIAN, 0))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     /**
