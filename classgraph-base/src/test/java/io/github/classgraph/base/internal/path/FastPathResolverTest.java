@@ -553,6 +553,35 @@ public class FastPathResolverTest {
     }
 
     /**
+     * A relative path ending in a nested jar separator names the root of the jarfile, so the separator is stripped
+     * once the path is resolved against the base path, as it is from an absolute path. Whether the trailing '!' is
+     * a separator can only be decided once the base path is known.
+     *
+     * @param tempDir
+     *            a temporary directory
+     * @throws IOException
+     *             if the jarfile could not be created
+     */
+    @Test
+    public void aTrailingNestedJarSeparatorOfARelativePathIsStripped(@TempDir final Path tempDir)
+            throws IOException {
+        final var jarPath = Files.createFile(tempDir.resolve("x.jar")).toString().replace(File.separatorChar, '/');
+        final var basePath = jarPath.substring(0, jarPath.length() - "/x.jar".length());
+        assertThat(FastPathResolver.resolve(null, jarPath + "!/")).isEqualTo(jarPath);
+        assertThat(FastPathResolver.resolve(basePath, "x.jar!/")).isEqualTo(jarPath);
+        assertThat(FastPathResolver.resolve(basePath, "x.jar!")).isEqualTo(jarPath);
+        // The result does not depend on whether some other segment of the path had to be sanitized. The directory
+        // has to exist, since on Linux and macOS the filesystem only finds "sub/../x.jar" if "sub" exists
+        Files.createDirectory(tempDir.resolve("sub"));
+        assertThat(FastPathResolver.resolve(basePath, "sub/../x.jar!/")).isEqualTo(jarPath);
+        // A path within the jarfile keeps its separator
+        assertThat(FastPathResolver.resolve(basePath, "x.jar!/a")).isEqualTo(jarPath + "!/a");
+        // The same holds against a URL base path, whose first '!' is a separator by the rule for URLs
+        assertThat(FastPathResolver.resolve("http://h/dir", "y.jar!/")).isEqualTo("http://h/dir/y.jar");
+        assertThat(FastPathResolver.resolve("http://h/dir", "y.jar!/a")).isEqualTo("http://h/dir/y.jar!/a");
+    }
+
+    /**
      * The path of a remote URL names nothing on the local disk, so which of its '!' characters is a nested jar
      * separator is decided by the rule for URLs, and does not depend on which local files happen to exist at the
      * same path.
