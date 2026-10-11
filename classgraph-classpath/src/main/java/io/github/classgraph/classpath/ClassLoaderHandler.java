@@ -212,7 +212,9 @@ public interface ClassLoaderHandler {
      *
      * @return the package root prefixes, each a relative path ending in a slash, such as
      *         {@code "WEB-INF/classes/"}. ClassGraph normalizes each prefix to that form, reading a backslash as a
-     *         slash and removing leading slashes, and drops a prefix that names no dir, such as {@code ""}.
+     *         slash, removing leading slashes, and resolving {@code "."}, {@code ".."} and empty segments without
+     *         going above the root of the classpath element. It drops a null prefix, a prefix that names no dir,
+     *         such as {@code ""} or {@code "../"}, and a prefix that repeats an earlier one.
      */
     default List<String> getPackageRootPrefixes() {
         return NO_PACKAGE_ROOT_PREFIXES;
@@ -237,8 +239,10 @@ public interface ClassLoaderHandler {
      * change made to it afterward has no effect.
      *
      * @return the lib dir prefixes, each a relative path ending in a slash, such as {@code "WEB-INF/lib/"}.
-     *         ClassGraph normalizes each prefix to that form, reading a backslash as a slash and removing leading
-     *         slashes, and drops a prefix that names no dir, such as {@code ""}.
+     *         ClassGraph normalizes each prefix to that form, reading a backslash as a slash, removing leading
+     *         slashes, and resolving {@code "."}, {@code ".."} and empty segments without going above the root of
+     *         the classpath element. It drops a null prefix, a prefix that names no dir, such as {@code ""} or
+     *         {@code "../"}, and a prefix that repeats an earlier one.
      */
     default List<String> getLibDirPrefixes() {
         return NO_LIB_DIR_PREFIXES;
