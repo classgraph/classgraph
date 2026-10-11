@@ -233,8 +233,8 @@ public abstract sealed class VfsEntry permits ArchiveEntry, DirEntry, ModuleEntr
      * It is read as UTC, so if the zipfile was written in another time zone, the time returned is off by that time
      * zone's offset. (java.util.zip.ZipFile reads it instead in the default time zone of the JVM.) It also counts
      * seconds in steps of two, so it can be up to two seconds earlier than the time the file was written. An entry
-     * that also has an extended timestamp extra field, which is in UTC to the second, gets its time from that
-     * field.
+     * that also has an extended timestamp extra field or an Info-ZIP Unix extra field, which are in UTC to the
+     * second, gets its time from that field.
      *
      * @return the last modified time in milliseconds since the epoch, or 0 if the root does not record it, which is
      *         the case for a module resource.
