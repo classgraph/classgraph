@@ -18,6 +18,16 @@ jobs:
       matrix:
         os: [ ubuntu-latest, windows-latest, macos-latest ]
         java: [ '17', '18', '19', '20', '21', '22', '23', '24', '25', '26' ]
+        # Windows Server 2022 refuses to delete a file that is mapped through FileChannel#open, and
+        # windows-latest (Windows Server 2025) does not, so this is the only runner on which a test that
+        # leaves a jarfile mapped fails, when its @TempDir cannot be deleted. There are two JDKs because
+        # a mapping is released in two ways: by Unsafe::invokeCleaner below JDK 22, and by closing its
+        # Arena from JDK 22 on.
+        include:
+          - os: windows-2022
+            java: '17'
+          - os: windows-2022
+            java: '26'
     steps:
     - uses: actions/checkout@v7
     - name: Set up JDK
@@ -27,7 +37,7 @@ jobs:
         java-version: ${{ matrix.java }}
         # Cache ~/.m2/repository and (as a separate entry, keyed on
         # .mvn/wrapper/maven-wrapper.properties) ~/.m2/wrapper/dists, so that the Maven
-        # distribution and the dependencies are not re-downloaded by all 30 matrix jobs on
+        # distribution and the dependencies are not re-downloaded by all 32 matrix jobs on
         # every run. repo.maven.apache.org rate-limits (HTTP 429), which has failed builds.
         cache: 'maven'
     - name: print Java version
@@ -61,7 +71,7 @@ jobs:
     - name: Check formatting
       run: ./mvnw --no-transfer-progress -B formatter:validate
 
-  # Javadoc is checked here rather than by all 30 matrix jobs, under the oldest and the newest JDK
+  # Javadoc is checked here rather than by all 32 matrix jobs, under the oldest and the newest JDK
   # the build supports. doclint is configured to fail the build on a warning, so this job goes red
   # for a missing @param or a broken {@link}, and it needs both ends of the range because doclint
   # gains checks as the JDK moves on: the same sources that draw no warning under one release can
