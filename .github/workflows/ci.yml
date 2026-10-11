@@ -198,8 +198,8 @@ jobs:
             source_path+=(--module-source-path "$name=$module/src/main/java")
             modules="$modules${modules:+,}$name"
         done
-        # -Xmaxwarns: the JSpecify warnings alone number about 160, and javac prints only the first
-        # 100 warnings by default, so one after those would be lost.
+        # -Xmaxwarns: the JSpecify warnings alone number more than 100, and javac prints only the
+        # first 100 warnings by default, so one after those would be lost.
         if ! javac -Xlint:exports -Xmaxwarns 100000 -proc:none -d "$(mktemp -d)" "${source_path[@]}" \
                 --module-path "$module_path" --module "$modules" > "$log" 2>&1; then
             cat "$log"
