@@ -681,10 +681,11 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Determine if this classpath element is valid. If it is not valid, sets skipClasspathElement. For
-     * {@link ClasspathElementZip}, may also open or extract inner jars, and also causes jarfile manifests to be
-     * read to look for Class-Path entries. If nested jars or Class-Path entries are found, they are added to the
-     * work queue. This method is only run once per classpath element, from a single thread.
+     * Open this classpath element, and determine if it is valid. If it is not valid, sets skipClasspathElement. For
+     * {@link ClasspathElementZip}, may also open or extract inner jars, and reads the manifest for the module name
+     * and for the Class-Path and Bundle-ClassPath entries. Adds the classpath elements that this one contains or
+     * refers to (package roots, manifest entries, and the jarfiles in lib dirs) to the work queue. This method is
+     * only run once per classpath element, from a single thread.
      *
      * @param workQueue
      *            the work queue
