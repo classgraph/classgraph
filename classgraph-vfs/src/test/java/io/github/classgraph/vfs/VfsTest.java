@@ -963,6 +963,65 @@ public class VfsTest {
     }
 
     /**
+     * A relative path is resolved against the current directory, so a {@code ".."} at its start climbs out of the
+     * current directory, as it does for the JVM, rather than being dropped.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the jarfile could not be written.
+     */
+    @Test
+    public void aRelativePathCanClimbOutOfTheCurrentDirectory(@TempDir final File tempDir) throws IOException {
+        final var jarFile = new File(tempDir, "widget.jar");
+        writeJar(jarFile, "com/xyz/widget.txt");
+        final Path relativePath;
+        try {
+            relativePath = Path.of("").toRealPath().relativize(jarFile.toPath().toRealPath());
+        } catch (final IllegalArgumentException e) {
+            // On Windows, the temporary directory can be on a different drive from the current directory
+            abort("No relative path reaches the temporary directory: " + e);
+            return;
+        }
+        final var relativePathStr = relativePath.toString().replace(File.separatorChar, '/');
+        assertThat(relativePathStr).startsWith("../");
+
+        try (var vfs = new Vfs()) {
+            final var root = vfs.open(relativePathStr);
+            assertThat(root.getPath()).isEqualTo(jarFile.getCanonicalPath().replace(File.separatorChar, '/'));
+            assertThat(vfs.open(relativePath)).isSameAs(root);
+            assertThat(vfs.open(relativePathStr + "!/com")).isNotNull();
+        }
+    }
+
+    /**
+     * A {@code ".."} that follows a symlinked directory names the parent of the directory the symlink points at, as
+     * it does for the JVM on Linux and macOS, rather than the directory that holds the symlink.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the jarfile could not be written.
+     */
+    @Test
+    @DisabledOnOs(value = OS.WINDOWS,
+            disabledReason = "Windows resolves \"..\" lexically, before following symlinks")
+    public void aParentSegmentAfterASymlinkIsResolvedByTheFilesystem(@TempDir final File tempDir)
+            throws IOException {
+        final var realParentDir = new File(tempDir, "a");
+        final var realDir = new File(realParentDir, "b");
+        assertThat(realDir.mkdirs()).isTrue();
+        final var jarFile = new File(realParentDir, "widget.jar");
+        writeJar(jarFile, "com/xyz/widget.txt");
+        final var linkedDir = createSymbolicLinkOrSkip(new File(tempDir, "link").toPath(), realDir.toPath());
+
+        try (var vfs = new Vfs()) {
+            final var root = vfs.open(linkedDir + "/../widget.jar");
+            assertThat(root.getPath()).isEqualTo(jarFile.getCanonicalPath());
+        }
+    }
+
+    /**
      * A directory or jarfile opened at its own path, and then again through a symlink that reaches it, is opened
      * once: the second name reaches the root that the first one opened, rather than a second view of the same
      * directory or jarfile.

@@ -353,8 +353,8 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
             return FastPathResolver.decodePercentEncoding(rawPath);
         }
         if (FastPathResolver.resolveDecodesPercentEncoding(rawPath)) {
-            // A path written with a "file:" or "jar:" scheme is left alone, since FastPathResolver#resolve decodes
-            // that one itself when Vfs#open resolves it: decoding it here as well would look for a file whose name
+            // A path written with a "file:" or "jar:" scheme is left alone, since FastPathResolver decodes that one
+            // itself when Vfs#open resolves it: decoding it here as well would look for a file whose name
             // contains the three characters "%20" under a name with a space in it instead
             return rawPath;
         }
@@ -376,7 +376,7 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
      * encoding exactly once.
      *
      * <p>
-     * Unlike the path of a root, this is never resolved by {@link FastPathResolver#resolve(String)}: it is split on
+     * Unlike the path of a root, this is never resolved by {@link Vfs#resolvePath(String)}: it is split on
      * {@code '/'} alone, so a backslash is an ordinary character of a name, and {@code "%5C"} is decoded to one.
      * {@code "%2F"} is still kept as it is written, since a slash would be a separator.
      *
@@ -627,7 +627,7 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
      */
     private static Collection<String> keysOf(final VfsFileSystem fileSystem, final String requestedPath) {
         final var keys = new LinkedHashSet<String>(4);
-        keys.add(FastPathResolver.resolve(requestedPath));
+        keys.add(Vfs.resolvePath(requestedPath));
         // Not the path the root reports itself at, which for a module is its bare name: that would claim the key
         // of a relative directory of the same name, and getFileSystem and getPath would return the module's
         // filesystem for that directory
@@ -665,7 +665,7 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
         // download a remote jarfile, or extract a nested one, again on every such call only to discard it.
         // register() checks again, which catches a second open that races this one, and a filesystem already open
         // under another name of the same root
-        final var key = FastPathResolver.resolve(path);
+        final var key = Vfs.resolvePath(path);
         if (FILESYSTEMS_BY_PATH.containsKey(key)) {
             throw new FileSystemAlreadyExistsException(
                     "A filesystem is already open at " + key + "; close it before opening another");
@@ -747,7 +747,7 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
     @Override
     public FileSystem getFileSystem(final URI uri) {
         final var path = pathOf(uri);
-        final var fileSystem = FILESYSTEMS_BY_PATH.get(FastPathResolver.resolve(path));
+        final var fileSystem = FILESYSTEMS_BY_PATH.get(Vfs.resolvePath(path));
         if (fileSystem == null) {
             throw new FileSystemNotFoundException("No filesystem is open at " + path
                     + "; create one with FileSystems#newFileSystem, or open it through Vfs#open");
@@ -780,7 +780,7 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
         var separatorIdx = rawPath.length();
         while (separatorIdx > 0) {
             final var prefix = rawPath.substring(0, separatorIdx);
-            final var fileSystem = FILESYSTEMS_BY_PATH.get(FastPathResolver.resolve(rootPathOf(prefix)));
+            final var fileSystem = FILESYSTEMS_BY_PATH.get(Vfs.resolvePath(rootPathOf(prefix)));
             if (fileSystem != null) {
                 final var entryName = separatorIdx == rawPath.length() ? ""
                         : entryNameOf(rawPath.substring(separatorIdx + "!/".length()));
