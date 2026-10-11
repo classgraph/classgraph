@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
@@ -408,6 +409,63 @@ public class ClasspathFinderTest {
         @Override
         public File next() {
             return files.next();
+        }
+    }
+
+    /**
+     * An {@link Iterator} that is also an {@link Iterable} that yields only itself, as an Ant {@code Resource}
+     * does, is one classpath element, read by its {@code toString()}, rather than rejected as an iterator.
+     */
+    @Test
+    public void anIteratorThatYieldsItselfIsOneClasspathElement(@TempDir final Path tempDir) throws IOException {
+        final var jar = writeJarWithManifest(tempDir.resolve("a.jar"));
+        try (var classpath = new ClasspathFinder().enableClasspathEntries(List.of(new SelfIterator(jar))).find()) {
+            assertThat(classpath.getLocations()).containsExactly(location(jar));
+        }
+    }
+
+    /**
+     * An {@link Iterator} that is its own {@link Iterable}, and yields itself once.
+     */
+    private static final class SelfIterator implements Iterable<Object>, Iterator<Object> {
+        /** The file that {@link #toString()} names. */
+        private final File file;
+
+        /** Whether this iterator has yielded itself. */
+        private boolean yielded;
+
+        /**
+         * Constructor.
+         *
+         * @param file
+         *            the file that {@link #toString()} names.
+         */
+        SelfIterator(final File file) {
+            this.file = file;
+        }
+
+        @Override
+        public Iterator<Object> iterator() {
+            return this;
+        }
+
+        @Override
+        public boolean hasNext() {
+            return !yielded;
+        }
+
+        @Override
+        public Object next() {
+            if (yielded) {
+                throw new NoSuchElementException();
+            }
+            yielded = true;
+            return this;
+        }
+
+        @Override
+        public String toString() {
+            return file.toString();
         }
     }
 
