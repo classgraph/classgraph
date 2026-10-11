@@ -943,12 +943,9 @@ public class RandomAccessOrSequentialReaderTest {
      * at the limit and reporting the end of the content. A caller streaming an entry through a channel cannot tell
      * a short read at the limit apart from the real end of the entry, so reporting one would hand back a silently
      * truncated copy of a longer entry.
-     *
-     * @throws IOException
-     *             if the content could not be read.
      */
     @Test
-    public void contentLongerThanTheBufferIsNotSilentlyTruncated() throws IOException {
+    public void contentLongerThanTheBufferIsNotSilentlyTruncated() {
         try (var reader = limitedReader(TEST_BUFFER_LIMIT * 4L)) {
             final var block = new byte[8192];
             assertThatThrownBy(() -> {
@@ -1167,12 +1164,9 @@ public class RandomAccessOrSequentialReaderTest {
     /**
      * An offset that is not within the destination at all is a mistake on the caller's part, and is reported rather
      * than answered with the zero that a destination which is merely full is answered with.
-     *
-     * @throws IOException
-     *             if the content could not be read.
      */
     @Test
-    public void anOffsetOutsideTheDestinationIsRejected() throws IOException {
+    public void anOffsetOutsideTheDestinationIsRejected() {
         try (var reader = new RandomAccessOrSequentialReader(new ByteArrayInputStream(PATTERN))) {
             final var dstArr = new byte[4];
             final var dstBuf = ByteBuffer.allocate(4);
@@ -1191,12 +1185,9 @@ public class RandomAccessOrSequentialReaderTest {
      * A read-only destination buffer is reported as an {@link IOException} naming what is wrong with it, the same
      * way the three addressable readers report it, rather than as the "out of bounds" message that used to stand in
      * for it.
-     *
-     * @throws IOException
-     *             if the content could not be read.
      */
     @Test
-    public void aReadOnlyDestinationBufferIsRejected() throws IOException {
+    public void aReadOnlyDestinationBufferIsRejected() {
         try (var reader = new RandomAccessOrSequentialReader(new ByteArrayInputStream(PATTERN))) {
             final var dstBuf = ByteBuffer.allocate(PATTERN.length).asReadOnlyBuffer();
             assertThatThrownBy(() -> reader.read(0, dstBuf, 0, PATTERN.length)).isInstanceOf(IOException.class)

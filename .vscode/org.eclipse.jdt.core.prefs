@@ -92,10 +92,12 @@ org.eclipse.jdt.core.compiler.problem.includeNullInfoFromAsserts=enabled
 
 # An unused parameter or a "throws" clause that the body never triggers is the author's own mistake when the
 # method is free-standing, but it is imposed from outside when the method overrides or implements something,
-# so only free-standing methods are reported. A parameter or exception named by the Javadoc is documented,
-# which is a use.
+# so only free-standing methods are reported. A parameter named by the Javadoc is documented, which is a use.
+# An exception named by a @throws tag is not: documenting an exception that the body cannot throw does not make
+# it thrown, and only makes callers handle a failure that cannot happen. A test fixture whose "throws" clause is
+# what the test scans declares @SuppressWarnings("unused"), with a comment saying so.
 org.eclipse.jdt.core.compiler.problem.unusedDeclaredThrownExceptionExemptExceptionAndThrowable=enabled
-org.eclipse.jdt.core.compiler.problem.unusedDeclaredThrownExceptionIncludeDocCommentReference=enabled
+org.eclipse.jdt.core.compiler.problem.unusedDeclaredThrownExceptionIncludeDocCommentReference=disabled
 org.eclipse.jdt.core.compiler.problem.unusedDeclaredThrownExceptionWhenOverriding=disabled
 org.eclipse.jdt.core.compiler.problem.unusedParameterIncludeDocCommentReference=enabled
 org.eclipse.jdt.core.compiler.problem.unusedParameterWhenImplementingAbstract=disabled

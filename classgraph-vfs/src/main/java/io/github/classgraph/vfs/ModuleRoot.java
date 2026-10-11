@@ -409,8 +409,7 @@ public final class ModuleRoot extends VfsRoot {
      * directory reached through a symbolic link, or on Windows through an 8.3 short name, would otherwise never
      * contain the real path of any of its files, and the case check would never fire.
      *
-     * @return the canonical path of the module directory, or the path it was reached through if it cannot be
-     *         canonicalized, or null if the module is not exploded into a directory.
+     * @return the canonical path of the module directory, or null if the module is not exploded into a directory.
      */
     private @Nullable Path canonicalModuleDir() {
         var dir = canonicalModuleDir;
@@ -419,13 +418,7 @@ public final class ModuleRoot extends VfsRoot {
             if (moduleDir == null || !Files.isDirectory(moduleDir)) {
                 return null;
             }
-            try {
-                dir = FileUtils.canonicalize(moduleDir);
-            } catch (final IOException _) {
-                // A directory whose canonical path cannot be found is checked against the path it was reached
-                // through, as DirRoot does
-                dir = moduleDir;
-            }
+            dir = FileUtils.canonicalize(moduleDir);
             // Two threads racing here each compute the same path, which is harmless
             canonicalModuleDir = dir;
         }

@@ -486,11 +486,7 @@ class Scanner {
 
         // Canonicalize Path objects so the same file is opened only once
         if (classpathEntryObjNormalized instanceof final Path normalizedPath) {
-            try {
-                classpathEntryObjNormalized = FileUtils.canonicalize(normalizedPath);
-            } catch (final IOException _) {
-                // The path could not be canonicalized -- use it as given
-            }
+            classpathEntryObjNormalized = FileUtils.canonicalize(normalizedPath);
         }
 
         return classpathEntryObjNormalized;

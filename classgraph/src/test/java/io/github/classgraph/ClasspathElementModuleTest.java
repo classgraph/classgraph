@@ -347,12 +347,9 @@ public class ClasspathElementModuleTest {
      * to read it fails the same way -- a resource left marked as open by the first attempt would throw
      * {@link IllegalStateException} instead. Each failed attempt also returns its {@link ModuleReader} to the
      * recycler, rather than leaving it checked out, so no further readers have to be opened.
-     *
-     * @throws IOException
-     *             if the virtual filesystem could not be closed.
      */
     @Test
-    public void aResourceInAModuleThatCannotBeReadFailsTheSameWayEveryTime() throws IOException {
+    public void aResourceInAModuleThatCannotBeReadFailsTheSameWayEveryTime() {
         final var moduleReadersOpened = new AtomicInteger();
         // A virtual filesystem of this test's own, so that the readers it opens for the unreadable module are closed
         // as soon as the test is over

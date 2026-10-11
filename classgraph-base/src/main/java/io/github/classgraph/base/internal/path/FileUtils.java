@@ -333,13 +333,15 @@ public final class FileUtils {
      * Nothing below the closest existing ancestor exists, so nothing there can be a symlink, which is what makes it
      * safe to resolve the rest lexically.
      *
+     * <p>
+     * A path that cannot be canonicalized at all is not reported as an error: if not even the filesystem root can
+     * be canonicalized, the whole path is resolved lexically.
+     *
      * @param path
      *            A {@link Path}.
      * @return the canonical form of the path.
-     * @throws IOException
-     *             if the path could not be canonicalized.
      */
-    public static Path canonicalize(final Path path) throws IOException {
+    public static Path canonicalize(final Path path) {
         try {
             return path.toRealPath();
         } catch (final IOException | RuntimeException _) {
