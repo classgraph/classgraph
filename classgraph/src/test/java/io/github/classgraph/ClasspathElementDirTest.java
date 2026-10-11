@@ -6,6 +6,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+import javax.tools.ToolProvider;
+
 import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -98,5 +100,40 @@ public class ClasspathElementDirTest {
         // A package "directory" that is a regular file holds no classfiles
         createFile(tempDir.resolve("notadir"));
         assertThat(classpathElement.getResourceDuringScan("notadir/C.class")).isNull();
+    }
+
+    /**
+     * What a directory classpath element learned about its package directories while looking up external classes is
+     * dropped when the classfiles have been scanned, so that it is not kept for as long as the {@link ScanResult}
+     * is. The classpath element is read from the {@link ClassInfo} of a scanned class, and once the scan is over, a
+     * classfile created in a package directory that was missing during the scan is found.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if a file could not be written.
+     */
+    @Test
+    public void missingPackageDirsAreForgottenAfterTheScan(@TempDir final Path tempDir) throws IOException {
+        // p.A in the first directory extends q.B in the second, so looking up q.B looks in the first directory
+        // first, and finds that it has no package q
+        final var dir1 = tempDir.resolve("dir1");
+        final var dir2 = Files.createDirectories(tempDir.resolve("dir2"));
+        final var srcDir = Files.createDirectories(tempDir.resolve("src"));
+        Files.writeString(srcDir.resolve("A.java"), "package p; public class A extends q.B {}");
+        Files.writeString(srcDir.resolve("B.java"), "package q; public class B {}");
+        final var compiler = ToolProvider.getSystemJavaCompiler();
+        assertThat(compiler).as("the tests must be run on a JDK, not a JRE").isNotNull();
+        assertThat(compiler.run(/* in = */ null, /* out = */ null, /* err = */ null, "-d", dir1.toString(),
+                srcDir.resolve("A.java").toString(), srcDir.resolve("B.java").toString())).as("javac exit code")
+                .isZero();
+        Files.move(dir1.resolve("q"), dir2.resolve("q"));
+        try (var scanResult = new ClassGraph().enableClassInfo().enableExternalClasses().acceptPackages("p")
+                .enableClasspathEntries(dir1, dir2).scan()) {
+            final var classInfo = scanResult.getClassInfo("p.A");
+            assertThat(classInfo.getSuperclass().getName()).isEqualTo("q.B");
+            createFile(dir1.resolve("q/C.class"));
+            assertThat(classInfo.classpathElement.getResourceDuringScan("q/C.class")).isNotNull();
+        }
     }
 }

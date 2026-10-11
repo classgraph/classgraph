@@ -843,6 +843,15 @@ abstract sealed class ClasspathElement implements Comparable<ClasspathElement>
     }
 
     /**
+     * Drop whatever {@link #getResourceDuringScan(String)} remembered, so that it is not kept for as long as the
+     * {@link ScanResult} is. Called once the classfiles have been scanned, after which nothing calls
+     * {@link #getResourceDuringScan(String)}.
+     */
+    void clearScanCaches() {
+        // Nothing is remembered by default
+    }
+
+    /**
      * Get the URI for this classpath element.
      *
      * @return the URI for the classpath element.
