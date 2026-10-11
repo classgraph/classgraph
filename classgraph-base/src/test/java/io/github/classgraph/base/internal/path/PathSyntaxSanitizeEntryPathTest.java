@@ -83,6 +83,34 @@ public class PathSyntaxSanitizeEntryPathTest {
     }
 
     /**
+     * A section that is empty from the start, such as the one after a trailing nested jar separator, is dropped
+     * together with the '!' before it, the same as a section left empty by {@code ".."}, and whether or not any
+     * other part of the path needs sanitizing.
+     *
+     * @param tempDir
+     *            a temporary directory to write the jarfile into
+     * @throws IOException
+     *             if the jarfile could not be written
+     */
+    @Test
+    public void anEmptySectionIsDroppedWithItsSeparator(@TempDir final Path tempDir) throws IOException {
+        final var jar = Files.write(tempDir.resolve("x.jar"), new byte[] { 'P', 'K' }).toString()
+                .replace(File.separatorChar, '/');
+        final var dir = jar.substring(0, jar.length() - "/x.jar".length());
+        assertThat(sanitize(jar + "!")).isEqualTo(jar);
+        assertThat(sanitize(jar + "!/")).isEqualTo(jar);
+        assertThat(sanitize(dir + "//x.jar!")).isEqualTo(jar);
+        assertThat(sanitize(jar + "!/!/a")).isEqualTo(jar + "!/a");
+        assertThat(sanitize(jar + "!/a!/")).isEqualTo(jar + "!/a");
+        // The empty segment between a '/' and the separator is dropped too. The filesystem reads the path before the
+        // '!' as the jarfile, trailing '/' and all, so the '!' is a separator
+        assertThat(sanitize(jar + "/!/a")).isEqualTo(sanitize(jar + "/!/./a")).isEqualTo(jar + "!/a");
+        // A section that is not empty is kept, and so is the separator before it
+        assertThat(sanitize(jar + "!/a")).isEqualTo(jar + "!/a");
+        assertThat(sanitize(jar + "!a")).isEqualTo(jar + "!a");
+    }
+
+    /**
      * A '!' after a path that names no file is an ordinary filename character (#903), so {@code ".."} after it
      * collapses the segment it is part of like any other.
      */

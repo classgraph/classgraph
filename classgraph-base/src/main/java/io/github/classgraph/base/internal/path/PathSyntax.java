@@ -193,7 +193,9 @@ public final class PathSyntax {
 
     /**
      * Check whether a path contains any segment that has to be removed, i.e. a {@code ".."} segment, a {@code "."}
-     * segment, or an empty segment.
+     * segment, or an empty segment, or a section after a nested jar separator that has no segments, which
+     * {@link #appendSanitizedSegments(String, int, boolean, StringBuilder)} drops together with the separator
+     * before it.
      *
      * @param path
      *            The path to check.
@@ -212,6 +214,7 @@ public final class PathSyntax {
         var lastSepIdx = -1;
         var prevC = '\0';
         var inFirstSection = true;
+        var sectionHasSegment = false;
         for (int i = 0, ii = pathLen + 1; i < ii; i++) {
             // The end of the path ends the last segment. It is detected by its index, not by the '\0' stand-in
             // character, since '\0' is an ordinary character within a path. At the end of the path, a segment of
@@ -224,6 +227,8 @@ public final class PathSyntax {
                 if (
                 // Found empty segment "//" or "!!"
                 (segmentLength == 0 && prevC == c)
+                        // Found empty segment "/!"
+                        || (segmentLength == 0 && isSectionMarker && prevC == '/')
                         // Found segment "."
                         || (segmentLength == 1 && path.charAt(i - 1) == '.')
                         // Found segment ".." that has to be collapsed
@@ -231,8 +236,17 @@ public final class PathSyntax {
                                 && (collapseParentSegmentsInFirstSection || !inFirstSection))) {
                     return true;
                 }
+                if (segmentLength > 0) {
+                    sectionHasSegment = true;
+                }
+                // Found a last section, after a nested jar separator, with no segments, as in a trailing "!" or "!/".
+                // An earlier section with no segments, as in "!/!/", ends in an empty segment, found above
+                if (atEnd && !inFirstSection && !sectionHasSegment) {
+                    return true;
+                }
                 if (isSectionMarker) {
                     inFirstSection = false;
+                    sectionHasSegment = false;
                 }
                 lastSepIdx = i;
             }
