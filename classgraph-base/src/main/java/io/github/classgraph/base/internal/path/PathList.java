@@ -334,7 +334,8 @@ public final class PathList {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Append a path element to a buffer.
+     * Append a path element to a buffer, escaping any path separator in it. The caller appends the separator that
+     * goes before the element.
      *
      * @param pathElt
      *            the path element
@@ -342,9 +343,6 @@ public final class PathList {
      *            the buffer to append to
      */
     private static void appendPathElt(final Object pathElt, final StringBuilder buf) {
-        if (!buf.isEmpty()) {
-            buf.append(File.pathSeparatorChar);
-        }
         // Escape any rogue path separators, as long as file separator is not '\\' (on Windows, if there are any
         // extra ';' characters in a path element, there's really nothing we can do to escape them, since they can't
         // be escaped as "\\;") (Use String.replace() rather than String.replaceAll(), so that both arguments are
@@ -367,7 +365,14 @@ public final class PathList {
      */
     public static String join(final Iterable<?> pathElts) {
         final StringBuilder buf = new StringBuilder();
+        var first = true;
         for (final Object pathElt : pathElts) {
+            // Test for the first element rather than for an empty buffer, so that an empty first element is not
+            // lost: ["", "/a"] joins to ":/a", just as ["/a", ""] joins to "/a:"
+            if (!first) {
+                buf.append(File.pathSeparatorChar);
+            }
+            first = false;
             appendPathElt(pathElt, buf);
         }
         return buf.toString();

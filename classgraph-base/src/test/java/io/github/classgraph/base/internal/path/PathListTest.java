@@ -35,6 +35,20 @@ public class PathListTest {
         assertThat(PathList.split(joined, ':', null)).containsExactly("/a/b", "/c", "/d");
     }
 
+    /**
+     * Every path element after the first is preceded by a path separator, even when the first element is empty, so
+     * an empty element is kept in the same way wherever it is in the list.
+     */
+    @Test
+    public void emptyPathElementsAreJoinedTheSameWayAnywhereInTheList() {
+        final var sep = File.pathSeparator;
+        assertThat(PathList.join(List.of("", "/a"))).isEqualTo(sep + "/a");
+        assertThat(PathList.join(List.of("/a", ""))).isEqualTo("/a" + sep);
+        assertThat(PathList.join(List.of("", ""))).isEqualTo(sep);
+        assertThat(PathList.join(List.of(""))).isEmpty();
+        assertThat(PathList.join(List.of())).isEmpty();
+    }
+
     /** URL path elements are still not split at the ':' of their scheme. */
     @Test
     public void urlPathElementsAreNotSplitAtTheirScheme() {
