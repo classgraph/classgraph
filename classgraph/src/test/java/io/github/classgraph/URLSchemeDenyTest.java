@@ -142,11 +142,14 @@ class URLSchemeDenyTest {
     @Test
     void aDeniedSchemeThatAFilesystemProviderServesIsNotRead() throws IOException, URISyntaxException {
         try (FileSystem memFs = Jimfs.newFileSystem()) {
-            final var jarPath = copyResource("multi-release-jar.jar", memFs.getPath("/lib/multi-release-jar.jar"));
+            // The paths are made absolute from the working directory of the filesystem, since Jimfs follows the
+            // path syntax of the platform, and on Windows an absolute path needs a drive letter
+            final var jarPath = copyResource("multi-release-jar.jar",
+                    memFs.getPath("lib/multi-release-jar.jar").toAbsolutePath());
             final var jarURI = jarPath.toUri();
             final var classFile = "io/github/classgraph/issues/issue146/CompiledWithJDK8.class";
-            copyResource(classFile, memFs.getPath("/classes/" + classFile));
-            final var dirPath = memFs.getPath("/classes");
+            copyResource(classFile, memFs.getPath("classes/" + classFile));
+            final var dirPath = memFs.getPath("classes").toAbsolutePath();
             final var dirURI = dirPath.toUri();
             final var dirClassName = "io.github.classgraph.issues.issue146.CompiledWithJDK8";
             for (final Object jarEntry : new Object[] { jarURI, jarURI.toURL(), jarURI.toString(), jarPath }) {
