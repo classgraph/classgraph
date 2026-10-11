@@ -218,12 +218,12 @@ public class ClasspathSpec {
                 return new File(classpathElementPath).toURI().toURL();
             }
             // A nested path "outer.jar!/inner" becomes the jar URL "jar:file:/outer.jar!/inner". The inner path is
-            // percent-encoded as File#toURI() encodes the outer path, so that a '%', ' ', '?' or '#' in it is
-            // decoded back to the same character rather than to an escape, a query or a fragment. Every separator
-            // is spelled "!/", as a jar URL requires, since a separator may be a bare '!', or a trailing '!' whose
-            // '/' was stripped (the path before the outermost separator is unchanged by that). A "!/" in the outer
-            // path, as at the end of a directory named "dir!", is percent-encoded, as ArchiveRoot#resolveURI
-            // encodes it, since the "jar:" scheme would otherwise end the outer path there
+            // percent-encoded with URLPaths#encodePath, so that a '%', ' ', '?' or '#' in it is decoded back to the
+            // same character rather than to an escape, a query or a fragment. Every separator is spelled "!/", as a
+            // jar URL requires, since a separator may be a bare '!', or a trailing '!' whose '/' was stripped (the
+            // path before the outermost separator is unchanged by that). A "!/" in the outer path, as at the end of
+            // a directory named "dir!", is percent-encoded, as ArchiveRoot#resolveURI encodes it, since the "jar:"
+            // scheme would otherwise end the outer path there
             return new URL("jar:"
                     + new File(classpathElementPath.substring(0, nestedPathIdx)).toURI().toString().replace("!/",
                             "%21/")
