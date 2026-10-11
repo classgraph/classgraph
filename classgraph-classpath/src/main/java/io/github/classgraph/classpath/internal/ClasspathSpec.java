@@ -208,9 +208,11 @@ public class ClasspathSpec {
             if (nestedPathIdx < 0) {
                 return new File(classpathElementPath).toURI().toURL();
             }
-            // A nested path "outer.jar!/inner" becomes the jar URL "jar:file:/outer.jar!/inner"
+            // A nested path "outer.jar!/inner" becomes the jar URL "jar:file:/outer.jar!/inner". The inner path is
+            // percent-encoded as File#toURI() encodes the outer path, so that a '%', ' ', '?' or '#' in it is
+            // decoded back to the same character rather than to an escape, a query or a fragment
             return new URL("jar:" + new File(classpathElementPath.substring(0, nestedPathIdx)).toURI()
-                    + classpathElementPath.substring(nestedPathIdx));
+                    + URLPaths.encodePath(classpathElementPath.substring(nestedPathIdx)));
         } catch (final MalformedURLException | IllegalArgumentException | IOError | SecurityException e) {
             return null;
         }

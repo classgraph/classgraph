@@ -3,6 +3,7 @@ package io.github.classgraph.classpath.internal;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
+import java.io.File;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.function.Predicate;
@@ -120,6 +121,31 @@ public class ClasspathSpecTest {
         classpathSpec.filterClasspathElements(path -> !path.startsWith("nohandlerscheme:"));
         assertThat(classpathSpec.acceptsClasspathElement(null, "nohandlerscheme://fs/cp")).isFalse();
         assertThat(urlsTested).isEmpty();
+    }
+
+    /**
+     * The URL that the URL filters are given for a nested classpath element names the same inner path as the
+     * element's path, even when that inner path holds characters a URL has to escape.
+     *
+     * @throws Exception
+     *             if the URL cannot be converted to a URI.
+     */
+    @Test
+    public void theURLOfANestedElementEscapesItsInnerPath() throws Exception {
+        final var outerPath = new File("out er.jar").getAbsolutePath();
+        final var innerPath = "/in ner/a%41b?c#d.jar";
+        final var urlsTested = new ArrayList<URL>();
+        final var classpathSpec = new ClasspathSpec();
+        classpathSpec.filterClasspathElementsByURL(url -> {
+            urlsTested.add(url);
+            return true;
+        });
+        assertThat(classpathSpec.acceptsClasspathElement(null, outerPath + "!" + innerPath)).isTrue();
+        assertThat(urlsTested).hasSize(1);
+        final var uri = urlsTested.get(0).toURI();
+        assertThat(uri.getScheme()).isEqualTo("jar");
+        assertThat(uri.getSchemeSpecificPart())
+                .isEqualTo("file:" + new File(outerPath).toURI().getPath() + "!" + innerPath);
     }
 
     /** A string that is not a URL scheme is rejected, rather than being stored where it can never match. */
