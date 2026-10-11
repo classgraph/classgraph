@@ -247,6 +247,29 @@ public class FastPathResolverTest {
     }
 
     /**
+     * A URL whose scheme is not followed by a slash, such as {@code "custom:a/b"} or {@code "url:jrt:/java.base"},
+     * is still a URL. It must keep its scheme, and must not be resolved against the base path as if it were a
+     * relative file path, which would turn it into a file path such as {@code "/base/custom:a/b"} that no longer
+     * names the URL.
+     */
+    @Test
+    public void aUrlWithNoSlashAfterTheSchemeIsStillAUrl() {
+        assertThat(FastPathResolver.resolve("custom:a/b")).isEqualTo("custom:a/b");
+        assertThat(FastPathResolver.resolve("/base", "custom:a/b")).isEqualTo("custom:a/b");
+        assertThat(FastPathResolver.resolveFilePath("/base", "custom:a/b")).isEqualTo("custom:a/b");
+        assertThat(FastPathResolver.resolveFilePath("/base", "url:jrt:/java.base/x"))
+                .isEqualTo("url:jrt:/java.base/x");
+        assertThat(FastPathResolver.resolveFilePath("/base", "wsjar:file:/a/b.jar"))
+                .isEqualTo("wsjar:file:/a/b.jar");
+        // A ".." segment is resolved within the URL's path, and the scheme is kept
+        assertThat(FastPathResolver.resolve("custom:a/../b.jar")).isEqualTo("custom:b.jar");
+        // The scheme is lowercased, as for a scheme followed by slashes
+        assertThat(FastPathResolver.resolve("CUSTOM:a/b")).isEqualTo("custom:a/b");
+        // A single letter followed by ':' is still a Windows drive designation
+        assertThat(resolveAsWindows("C:/base", "D:a/b")).isEqualTo("D:a/b");
+    }
+
+    /**
      * On Windows, a URL with a custom scheme and an empty authority keeps the slash before a drive designation in
      * its path. The rules for drive designations apply to file paths, and dropping the slash would turn the drive
      * into the authority, so {@code "custom:///C:/a/b"} would name the path {@code "/a/b"} on the host

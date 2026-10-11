@@ -47,15 +47,17 @@ public final class FastPathResolver {
     private static final Pattern PERCENT_ESCAPES = Pattern.compile("([%][0-9a-fA-F][0-9a-fA-F])+");
 
     /**
-     * Match custom URLs that are followed by one or two slashes. The scheme grammar is the one in RFC 3986: a
-     * letter, then any number of letters, digits, {@code '+'}, {@code '-'} and {@code '.'} -- digits included, so
-     * that a scheme such as {@code "s3:"} is recognized. At least two characters are required, so that a Windows
-     * drive designation such as {@code "C:/dir"} is read as a drive and not as a scheme, matching
+     * Match the scheme of a custom URL, with the slashes that follow it, of which there may be none, one or two. A
+     * URL needs no slash after its scheme ({@code "custom:a/b"}, or {@code "url:jrt:/java.base"}), and without one
+     * it is still a URL, not a relative file path. The scheme grammar is the one in RFC 3986: a letter, then any
+     * number of letters, digits, {@code '+'}, {@code '-'} and {@code '.'} -- digits included, so that a scheme such
+     * as {@code "s3:"} is recognized. At least two characters are required, so that a Windows drive designation
+     * such as {@code "C:/dir"} is read as a drive and not as a scheme, matching
      * {@link URLPaths#startsWithURLScheme(String)}. A single-letter scheme is unusable in practice for exactly that
      * reason, so nothing is given up by not recognizing one: off Windows, {@code "C:/dir"} is then resolved as an
      * ordinary relative path, which does not exist, so the classpath element is logged and skipped during scanning.
      */
-    private static final Pattern SCHEME_ONE_OR_TWO_SLASHES = Pattern.compile("^[a-zA-Z][a-zA-Z0-9+\\-.]+:/{1,2}");
+    private static final Pattern SCHEME_AND_SLASHES = Pattern.compile("^[a-zA-Z][a-zA-Z0-9+\\-.]+:/{0,2}");
 
     /**
      * The separator that Tomcat uses in a {@code "war:"} URL between the path of the WAR file and the path within
@@ -397,14 +399,14 @@ public final class FastPathResolver {
             } else {
                 // Preserve the number of slashes on custom URL schemes (#420)
                 final var relPath = parsed.startIdx == 0 ? path : path.substring(parsed.startIdx);
-                final var matcher = SCHEME_ONE_OR_TWO_SLASHES.matcher(relPath);
+                final var matcher = SCHEME_AND_SLASHES.matcher(relPath);
                 if (matcher.find()) {
                     matchedPrefix = true;
                     final var match = matcher.group();
                     parsed.startIdx += match.length();
                     // A scheme is case-insensitive, and its canonical form is lowercase (RFC 3986 section 3.1), so
                     // lowercase it, as the schemes that are recognized by name above are. The match is a scheme
-                    // followed by ':' and one or two slashes, so this changes nothing but the scheme
+                    // followed by ':' and at most two slashes, so this changes nothing but the scheme
                     parsed.prefix = match.toLowerCase(Locale.ROOT);
                     // Treat the part after the protocol as an absolute path, so the rest of the URL is not treated
                     // as a directory relative to the current directory.
