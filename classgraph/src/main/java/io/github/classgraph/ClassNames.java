@@ -106,18 +106,55 @@ final class ClassNames {
      * @return true if the classfile is to be scanned.
      */
     static boolean isScannableClassfilePath(final String classfilePath) {
-        if (classfilePath.startsWith("META-INF/")) {
+        // isClassfilePath already rejects a path whose file name is empty, i.e. one ending in "/.class"
+        return !classfilePath.startsWith("META-INF/")
+                && hasLegalSegments(classfilePath, classfilePath.length() - CLASSFILE_EXTENSION_LENGTH, '/');
+    }
+
+    /**
+     * Check whether the name of a class that a classfile refers to, read from its constant pool with {@code '/'}
+     * replaced by {@code '.'}, is a legal class name: a sequence of segments separated by {@code '.'}, none of them
+     * empty, and none of them containing {@code ';'} or {@code '['} (JVMS 4.2.1). An array class name, which starts
+     * with {@code '['}, is not a legal class name in this sense. A {@code '.'} that the classfile wrote in place of
+     * a {@code '/'} cannot be told apart from a separator once {@code '/'} has been replaced, so it is accepted: it
+     * gives the name of the same class as the name with {@code '/'}.
+     *
+     * @param className
+     *            the class name, with {@code '.'} as the separator.
+     * @return true if the class name is legal.
+     */
+    static boolean isLegalClassName(final String className) {
+        return hasLegalSegments(className, className.length(), '.');
+    }
+
+    /**
+     * Check whether the start of a string is a sequence of segments separated by a separator character, none of
+     * them empty, and none of them containing {@code '.'}, {@code ';'} or {@code '['} (other than as the
+     * separator).
+     *
+     * @param name
+     *            the string.
+     * @param end
+     *            the end of the part of the string to check.
+     * @param separator
+     *            the separator character.
+     * @return true if the part of the string is a sequence of legal segments.
+     */
+    private static boolean hasLegalSegments(final String name, final int end, final char separator) {
+        if (end == 0) {
             return false;
         }
-        final var classNameEnd = classfilePath.length() - CLASSFILE_EXTENSION_LENGTH;
-        for (var i = 0; i < classNameEnd; i++) {
-            final var c = classfilePath.charAt(i);
-            // A '/' at the start of the path, or right after another '/', ends an empty segment
-            if (c == '.' || c == ';' || c == '[' || c == '/' && (i == 0 || classfilePath.charAt(i - 1) == '/')) {
+        for (var i = 0; i < end; i++) {
+            final var c = name.charAt(i);
+            if (c == separator) {
+                // A separator at the start or end, or right after another separator, ends an empty segment
+                if (i == 0 || i == end - 1 || name.charAt(i - 1) == separator) {
+                    return false;
+                }
+            } else if (c == '.' || c == ';' || c == '[') {
                 return false;
             }
         }
-        // isClassfilePath already rejects a path whose file name is empty, i.e. one ending in "/.class"
         return true;
     }
 
