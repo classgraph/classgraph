@@ -1104,9 +1104,12 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
             }
             // An interruption during the close arrives as this thread's status, restored by the interrupted step
             // rather than recorded anywhere: asking the garbage collector to unmap a file that a slice could not
-            // unmap reports one that way, being a static utility with no checker to reach. checkAndReturn() is
-            // what routes it into the shared checker, so that every other thread reading through this Vfs stops
-            if (interruptionChecker.checkAndReturn()) {
+            // unmap reports one that way, being a static utility with no checker to reach. Record it in the shared
+            // checker, so that every other thread reading through this Vfs stops. An interruption that another
+            // thread recorded in the checker earlier is not raised on this thread: the thread closing a ScanResult
+            // may have nothing to do with a thread that was interrupted while it read through the ScanResult, and
+            // a failed scan must not interrupt the thread that called scan() unless the scan was interrupted
+            if (Thread.currentThread().isInterrupted()) {
                 interruptionChecker.interrupt();
             }
         } finally {
