@@ -3,6 +3,7 @@ package io.github.classgraph.classpath.internal.classloaderhandler;
 import static io.github.classgraph.classpath.Locations.location;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -270,6 +271,26 @@ public class TomcatWebappClassLoaderTest {
                 .addResourceSets(new DirResourceSet("/static", staticDir.toString(), "/"));
         assertThat(locations(new WebappClassLoaderBase(root, /* parent = */ null)))
                 .containsExactly(location(classesDir));
+    }
+
+    /**
+     * A webapp directory or WAR file whose name holds the system path separator character is one classpath element,
+     * not split into two at that character.
+     *
+     * @param tempDir
+     *            a temporary directory to create the webapp in.
+     * @throws IOException
+     *             if the webapp could not be created.
+     */
+    @Test
+    public void aWebappWhosePathHoldsThePathSeparatorIsNotSplit(@TempDir final Path tempDir) throws IOException {
+        final var webappDir = tempDir.resolve("web" + File.pathSeparator + "app");
+        final var classesDir = Files.createDirectories(webappDir.resolve("WEB-INF/classes"));
+        final var war = Files.createFile(tempDir.resolve("my" + File.pathSeparator + "app.war"));
+        final var root = new StandardRoot().addResourceSets(new DirResourceSet("/", webappDir.toString(), "/"),
+                new WarResourceSet("/", war.toString()));
+        assertThat(locations(new WebappClassLoaderBase(root, /* parent = */ null)))
+                .containsExactly(location(classesDir), location(war) + "!/WEB-INF/classes");
     }
 
     /**
