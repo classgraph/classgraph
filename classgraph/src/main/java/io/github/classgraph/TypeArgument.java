@@ -128,7 +128,7 @@ public final class TypeArgument extends HierarchicalTypeSignature {
             // annotations of its own: they are on its type signature.)
             final var useSiteTypeAnnotations = typeVariable.typeAnnotations;
             return useSiteTypeAnnotations == null || useSiteTypeAnnotations.isEmpty() ? substitution
-                    : substitution.withTypeAnnotationsPrepended(useSiteTypeAnnotations);
+                    : substitution.withTypeAnnotationsPrepended(useSiteTypeAnnotations.asList());
         }
         final var substitutedTypeSignature = typeSig.substituteTypeVariables(substitutions);
         if (substitutedTypeSignature != typeSig

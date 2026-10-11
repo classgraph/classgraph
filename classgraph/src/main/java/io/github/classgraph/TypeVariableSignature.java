@@ -208,7 +208,7 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
         // that replaces the type variable
         final var useSiteTypeAnnotations = typeAnnotations;
         return useSiteTypeAnnotations == null || useSiteTypeAnnotations.isEmpty() ? typeSignature
-                : typeSignature.withTypeAnnotationsPrepended(useSiteTypeAnnotations);
+                : typeSignature.withTypeAnnotationsPrepended(useSiteTypeAnnotations.asList());
     }
 
     @Override

@@ -34,7 +34,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
-import io.github.classgraph.base.internal.utils.CollectionUtils;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -56,10 +55,7 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
     private final List<ClassRefOrTypeVariableSignature> throwsSignatures;
 
     /** Any type annotation(s) on an explicit receiver parameter. */
-    private @Nullable List<AnnotationInfo> receiverTypeAnnotations;
-
-    /** The value returned by {@link #getReceiverTypeAnnotationInfo()}, or null if it has not been built yet. */
-    private @Nullable AnnotationInfoList receiverTypeAnnotationInfoRef;
+    private @Nullable TypeAnnotations receiverTypeAnnotations;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -134,12 +130,9 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
     void addReceiverTypeAnnotation(final AnnotationInfo annotationInfo) {
         var receiverTypeAnnotationList = receiverTypeAnnotations;
         if (receiverTypeAnnotationList == null) {
-            receiverTypeAnnotations = receiverTypeAnnotationList = new ArrayList<>(1);
+            receiverTypeAnnotations = receiverTypeAnnotationList = new TypeAnnotations();
         }
-        // Set the ScanResult as the annotation is added, for the same reason as in
-        // HierarchicalTypeSignature#addTypeAnnotation
-        annotationInfo.setScanResult(scanResult);
-        receiverTypeAnnotationList.add(annotationInfo);
+        receiverTypeAnnotationList.add(annotationInfo, scanResult);
     }
 
     /**
@@ -150,17 +143,9 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
      */
     public AnnotationInfoList getReceiverTypeAnnotationInfo() {
         synchronized (this) {
-            if (receiverTypeAnnotationInfoRef == null) {
-                final var receiverTypeAnnotationList = receiverTypeAnnotations;
-                if (receiverTypeAnnotationList == null) {
-                    // Not cached, so that a type annotation added later is still seen
-                    return AnnotationInfoList.EMPTY_LIST;
-                }
-                // The order of type annotations in a classfile is not specified, so sort them by name
-                receiverTypeAnnotationInfoRef = new AnnotationInfoList(
-                        CollectionUtils.sortCopy(receiverTypeAnnotationList));
-            }
-            return receiverTypeAnnotationInfoRef;
+            final var receiverTypeAnnotationList = receiverTypeAnnotations;
+            return receiverTypeAnnotationList == null ? AnnotationInfoList.EMPTY_LIST
+                    : receiverTypeAnnotationList.getAnnotationInfo();
         }
     }
 
@@ -192,9 +177,7 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
         }
         final var receiverTypeAnnotationList = receiverTypeAnnotations;
         if (receiverTypeAnnotationList != null) {
-            for (final AnnotationInfo annotationInfo : receiverTypeAnnotationList) {
-                annotationInfo.setScanResult(scanResult);
-            }
+            receiverTypeAnnotationList.setScanResult(scanResult);
         }
     }
 
