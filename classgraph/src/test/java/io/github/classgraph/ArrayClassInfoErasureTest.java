@@ -147,7 +147,8 @@ public class ArrayClassInfoErasureTest {
 
     /**
      * An {@link ArrayClassInfo} made before the scan result is set is not kept: once the scan result is set, the
-     * array type gets the shared instance, named after the erasure of its type variable.
+     * array type gets the shared instance, named after the erasure of its type variable, and its name agrees with
+     * the class name of the array type.
      *
      * @throws TypeSignatureParseException
      *             if a type signature does not parse
@@ -159,10 +160,13 @@ public class ArrayClassInfoErasureTest {
                 /* definingClassName = */ null);
         // Without a scan result, the erasure of T cannot be found
         assertThat(arrayOfT.getArrayClassInfo().getName()).isEqualTo("java.lang.Object[]");
+        assertThat(arrayOfT.getClassName()).isEqualTo("java.lang.Object[]");
         assertThat(listArray.getArrayClassInfo().getName()).isEqualTo("java.util.List[]");
         try (var scanResult = scan()) {
             arrayOfT.setScanResult(scanResult);
             listArray.setScanResult(scanResult);
+            assertThat(arrayOfT.getClassName()).isEqualTo("java.lang.Number[]");
+            assertThat(arrayOfT.getArrayClassInfo().getName()).isEqualTo(arrayOfT.getClassName());
             assertThat(arrayOfT.getArrayClassInfo()).isSameAs(arrayClassInfo(scanResult, "a"));
             assertThat(arrayOfT.getArrayClassInfo().getName()).isEqualTo("java.lang.Number[]");
             assertThat(listArray.getArrayClassInfo()).isSameAs(arrayClassInfo(scanResult, "c"));
