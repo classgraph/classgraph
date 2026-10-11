@@ -34,7 +34,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.module.ModuleReference;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
+import java.nio.file.FileSystemNotFoundException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
@@ -45,6 +47,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.IdentityHashMap;
 import java.util.Iterator;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -142,10 +145,11 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      * The roots that have been opened from a path, keyed by every path that names each -- the path as it was
      * opened, its canonical form, and the path the root reports itself at -- so that one directory or jarfile named
      * several ways is opened once. A root opened through a {@link Path} in a non-default filesystem is keyed only
-     * by the URI of that path. Two threads that ask for the same path at the same time build the root only once,
-     * since a lookup for a key whose root is still being built blocks until it is ready. The enclosing jarfiles of
-     * a nested jarfile are opened through this same cache, one frame of re-entry per {@code "!"} section, so each
-     * of them is a root in its own right, cached under its own path.
+     * by the URI of that path, and by the URL it was opened by, if it was opened by one. Two threads that ask for
+     * the same path at the same time build the root only once, since a lookup for a key whose root is still being
+     * built blocks until it is ready. The enclosing jarfiles of a nested jarfile are opened through this same
+     * cache, one frame of re-entry per {@code "!"} section, so each of them is a root in its own right, cached
+     * under its own path.
      */
     private final SingletonMap<String, VfsRoot> rootsByPath = new SingletonMap<>(closed);
 
@@ -237,11 +241,13 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      * <p>
      * The path may name a directory or a jarfile in the local filesystem, or a URL with any scheme the JVM has a
      * URL stream handler or a filesystem provider for, other than one denied by
-     * {@link VfsSpec#denyURLScheme(String)}. A jarfile nested within another jarfile is named by separating the
-     * enclosing jarfile from the nested one with {@code "!/"}, to any depth, e.g.
-     * {@code "outer.jar!/lib/inner.jar"}. A trailing {@code "!/"} section that does not name a nested jarfile names
-     * a package root within the jarfile instead, e.g. {@code "spring-boot-app.jar!/BOOT-INF/classes"}, in which
-     * case only the entries under that root are reported, with the root stripped from their names.
+     * {@link VfsSpec#denyURLScheme(String)}. A URL names a directory if the filesystem provider installed for its
+     * scheme serves a directory there, and a jarfile otherwise; an http or https URL always names a jarfile. A
+     * jarfile nested within another jarfile is named by separating the enclosing jarfile from the nested one with
+     * {@code "!/"}, to any depth, e.g. {@code "outer.jar!/lib/inner.jar"}. A trailing {@code "!/"} section that
+     * does not name a nested jarfile names a package root within the jarfile instead, e.g.
+     * {@code "spring-boot-app.jar!/BOOT-INF/classes"}, in which case only the entries under that root are reported,
+     * with the root stripped from their names.
      *
      * <p>
      * A relative path is resolved against the current directory. A {@code ".."} segment in the part of the path
@@ -423,12 +429,22 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      * that is the key it was just found by, or another root already holds that key. The root is handed the action
      * that takes the alias back out of the cache, so that closing the root removes it.
      *
+     * <p>
+     * A root read through a {@link Path} in a non-default filesystem is never recorded under the path it reports
+     * itself at, for the reason {@link #openThroughCache(String, boolean, SingletonMap.NewInstanceFactory)} gives:
+     * that path can name the storage behind the filesystem rather than the filesystem. Such a root is reached by a
+     * path string when that string is a URL that the filesystem's provider serves.
+     *
      * @param root
      *            the root that was just opened or found in the cache.
      * @param openedKey
      *            the key it was opened or found by.
      */
     private void registerAlias(final VfsRoot root, final String openedKey) {
+        final var nioPath = root.getNioPath();
+        if (nioPath != null && nioPath.getFileSystem() != FileSystems.getDefault()) {
+            return;
+        }
         final var reportedPath = root.reportedPath();
         // putIfAbsent refuses silently once this Vfs is closed, which is correct here: the caches of a closed Vfs
         // stay empty
@@ -589,7 +605,6 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
         final var logNode = outerLog == null ? null : outerLog.log("Opening " + resolvedPath);
         final var lastPlingIdx = PathSyntax.lastIndexOfNestedJarSeparator(resolvedPath);
         if (lastPlingIdx < 0) {
-            // A path with a URL scheme names a jarfile to download, so it cannot be a directory
             if (!PathSyntax.hasURLScheme(resolvedPath)) {
                 Path dir;
                 try {
@@ -625,6 +640,19 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
                 }
                 return recordPathKey(resolvedPath, adopt(new ArchiveRoot(this, /* container = */ null,
                         JarOpener.openJarFile(canonicalFile, this, logNode))));
+            }
+            // A path with a URL scheme names a directory if the filesystem provider installed for its scheme
+            // serves one there, and a jarfile otherwise
+            final var dirAtURL = directoryAtURL(resolvedPath);
+            if (dirAtURL != null) {
+                if (dirAtURL.getFileSystem() == FileSystems.getDefault()) {
+                    // Open the directory under its local path, which is where open(Path) opens it too
+                    return recordPathKey(resolvedPath, openReentrant(resolvePath(dirAtURL.toString()), outerLog));
+                }
+                // Open the directory under the key open(Path) opens it under, unless that is this path itself
+                final var pathKey = dirAtURL.toUri().toString();
+                return recordPathKey(resolvedPath, pathKey.equals(resolvedPath) ? adopt(new DirRoot(this, dirAtURL))
+                        : openInOtherFilesystem(dirAtURL, pathKey, outerLog));
             }
             return recordPathKey(resolvedPath, adopt(new ArchiveRoot(this, /* container = */ null,
                     JarOpener.openJarFromURL(resolvedPath, this, logNode))));
@@ -675,6 +703,33 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
     }
 
     /**
+     * Find the directory that a path with a URL scheme names through the filesystem provider installed for its
+     * scheme, if there is one. An http or https URL is never looked up as a {@link Path}, since it names a jarfile
+     * to download, and a scheme that {@link VfsSpec#denyURLScheme(String)} denied is not looked up either, so that
+     * opening the path as a jarfile refuses it.
+     *
+     * @param url
+     *            the path, in the form {@link #resolvePath(String)} returns it, which has a URL scheme.
+     * @return the directory, or null if the path does not name a directory through an installed filesystem
+     *         provider.
+     */
+    private @Nullable Path directoryAtURL(final String url) {
+        final var scheme = url.substring(0, url.indexOf(':')).toLowerCase(Locale.ROOT);
+        if ("http".equals(scheme) || "https".equals(scheme) || vfsSpec.getDeniedURLSchemes().contains(scheme)) {
+            return null;
+        }
+        try {
+            final var path = Path.of(new URI(url));
+            return Files.isDirectory(path) ? path : null;
+        } catch (final URISyntaxException | IllegalArgumentException | FileSystemNotFoundException _) {
+            // The path is not a URI, no filesystem provider is installed for its scheme, the provider has no
+            // filesystem open that holds it, or the provider rejected it. Opening it as a jarfile reports why it
+            // could not be read
+            return null;
+        }
+    }
+
+    /**
      * Open a directory or a jarfile named by a {@link File}.
      *
      * @param file
@@ -709,21 +764,40 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
         // filesystem, and could collide with a path in the default one
         final var key = path.toUri().toString();
         checkNotClosed(key);
-        // Read the log node once, since it is volatile and the factory below may run on another thread
-        final var logCurr = log;
         try {
-            // Open the path itself, rather than taking its URI apart again and looking for a file of that name
-            return openThroughCache(key, /* aliasReportedPath = */ false, () -> {
-                final var logNode = logCurr == null ? null : logCurr.log("Opening " + key);
-                return recordPathKey(key,
-                        Files.isDirectory(path) ? adopt(new DirRoot(this, path))
-                                : adopt(new ArchiveRoot(this, /* container = */ null,
-                                        JarOpener.openJarFromPath(path, this, logNode))));
-            });
+            return openInOtherFilesystem(path, key, log);
         } catch (final InterruptedException e) {
             interruptionChecker.interrupt();
             throw new IOException("Interrupted while opening " + key, e);
         }
+    }
+
+    /**
+     * Open a directory or a jarfile named by a {@link Path} in a filesystem other than the default one, through
+     * {@link #rootsByPath}.
+     *
+     * @param path
+     *            the directory or jarfile to open.
+     * @param key
+     *            the cache key, which is the URI of the path.
+     * @param outerLog
+     *            the log node to log under, or null to skip logging.
+     * @return the opened root.
+     * @throws IOException
+     *             if the path could not be opened or read, or if this {@link Vfs} has been closed.
+     * @throws InterruptedException
+     *             if the thread was interrupted.
+     */
+    private VfsRoot openInOtherFilesystem(final Path path, final String key, final @Nullable LogNode outerLog)
+            throws IOException, InterruptedException {
+        // Open the path itself, rather than taking its URI apart again and looking for a file of that name
+        return openThroughCache(key, /* aliasReportedPath = */ false, () -> {
+            final var logNode = outerLog == null ? null : outerLog.log("Opening " + key);
+            return recordPathKey(key,
+                    Files.isDirectory(path) ? adopt(new DirRoot(this, path))
+                            : adopt(new ArchiveRoot(this, /* container = */ null,
+                                    JarOpener.openJarFromPath(path, this, logNode))));
+        });
     }
 
     /**
@@ -732,7 +806,8 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      * @param uri
      *            the {@link URI} to open. A {@code "jar:"} or {@code "file:"} URI names something in the local
      *            filesystem; any other scheme is opened if the JVM has a URL stream handler or a filesystem
-     *            provider for it and {@link VfsSpec#denyURLScheme(String)} has not denied it.
+     *            provider for it and {@link VfsSpec#denyURLScheme(String)} has not denied it, as a directory if
+     *            that provider serves one there, and as a jarfile otherwise.
      * @return the opened root.
      * @throws IOException
      *             if the {@link URI} could not be opened or read, or if this {@link Vfs} has been closed.
@@ -747,8 +822,9 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      *
      * @param url
      *            the {@link URL} to open. A {@code "jar:"} or {@code "file:"} URL names something in the local
-     *            filesystem; any other scheme is opened if the JVM has a handler for it and
-     *            {@link VfsSpec#denyURLScheme(String)} has not denied it.
+     *            filesystem; any other scheme is opened if {@link VfsSpec#denyURLScheme(String)} has not denied it,
+     *            as a directory if the filesystem provider installed for that scheme serves one there, and as a
+     *            jarfile otherwise.
      * @return the opened root.
      * @throws IOException
      *             if the {@link URL} could not be opened or read, or if this {@link Vfs} has been closed.

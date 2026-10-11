@@ -169,6 +169,31 @@ public class ClasspathEntryTest {
     }
 
     /**
+     * A directory in a filesystem other than the default one, named by its URI, its URL or the string form of
+     * either, is opened as that directory.
+     *
+     * @throws IOException
+     *             if the directory could not be written or read.
+     */
+    @Test
+    public void aDirectoryInAnotherFilesystemNamedByAUrlIsOpenedAsADirectory() throws IOException {
+        try (FileSystem fileSystem = Jimfs.newFileSystem(Configuration.unix())) {
+            final var dir = fileSystem.getPath("/classes");
+            Files.createDirectories(dir.resolve(ENTRY_PATH).getParent());
+            Files.write(dir.resolve(ENTRY_PATH), new byte[0]);
+
+            for (final Object classpathElement : new Object[] { dir.toUri(), dir.toUri().toURL(),
+                    dir.toUri().toString() }) {
+                try (var classpath = findClasspath(classpathElement)) {
+                    final var entry = classpath.getEntries().get(0);
+                    assertThat(entry.open(classpath.getVfs())).extracting(VfsEntry::getPathFromRoot)
+                            .containsExactly(ENTRY_PATH);
+                }
+            }
+        }
+    }
+
+    /**
      * A classpath element named by a URI, or a URI string, whose scheme has no URL handler is kept in the form it
      * was found in. It used to be turned into a "file:" URL naming a file below the current directory, such as
      * "file:/cwd/custom:/host/lib.jar", which does not exist.
