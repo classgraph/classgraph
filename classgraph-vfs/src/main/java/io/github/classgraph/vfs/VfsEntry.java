@@ -307,12 +307,13 @@ public abstract sealed class VfsEntry permits ArchiveEntry, DirEntry, ModuleEntr
 
     /**
      * Open this entry's content as an {@link InputStream}, for {@link #open()} to wrap in the check that refuses to
-     * read once the root is closed. The stream this returns checks at most the {@link Vfs}, not the root.
+     * read once the root is closed. {@link #open()} checks that the root is not closed before it calls this, so
+     * this need not check again. The stream this returns checks at most the {@link Vfs}, not the root.
      *
      * @return the content of the entry, as a stream, which the caller owns and must close.
      * @throws IOException
-     *             if the entry could not be read, or if the root, or the {@link Vfs} that opened it, has been
-     *             closed.
+     *             if the entry could not be read, which can be because the root, or the {@link Vfs} that opened it,
+     *             has been closed since {@link #open()} checked.
      */
     abstract InputStream openUnchecked() throws IOException;
 

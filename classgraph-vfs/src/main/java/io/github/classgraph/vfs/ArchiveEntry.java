@@ -125,7 +125,6 @@ final class ArchiveEntry extends VfsEntry {
 
     @Override
     InputStream openUnchecked() throws IOException {
-        getRoot().checkNotClosed(getPath());
         return zipEntry.open();
     }
 
