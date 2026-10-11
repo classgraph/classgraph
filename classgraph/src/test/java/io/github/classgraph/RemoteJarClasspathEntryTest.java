@@ -151,4 +151,27 @@ class RemoteJarClasspathEntryTest {
             assertThat(scanPaths("jar:" + server.jarURL() + "!/")).containsExactly(RESOURCE_PATH);
         }
     }
+
+    /**
+     * A remote jar too large to hold in RAM is read from a temporary file, which is deleted when the scan is
+     * closed. {@link ClassGraph#getClasspathFiles()} closes its scan before it returns, so it does not list that
+     * file, while {@link ClassGraph#getClasspathURIs()} still lists the jar by its URL.
+     *
+     * @throws IOException
+     *             if the jar could not be built or served
+     */
+    @Test
+    void aRemoteJarReadFromATemporaryFileIsNotListedOnceTheScanIsClosed() throws IOException {
+        try (var server = new JarHttpServer(buildJar())) {
+            final var classGraph = new ClassGraph().enableRemoteJarScanning().setMaxBufferedJarRAMSize(0)
+                    .enableClasspathEntries((Object) URI.create(server.jarURL()).toURL());
+            try (var scanResult = classGraph.scan()) {
+                assertThat(scanResult.getClasspathFiles()).singleElement()
+                        .satisfies(file -> assertThat(file).exists());
+            }
+            assertThat(classGraph.getClasspathFiles()).isEmpty();
+            assertThat(classGraph.getClasspath()).isEmpty();
+            assertThat(classGraph.getClasspathURIs()).containsExactly(URI.create(server.jarURL()));
+        }
+    }
 }
