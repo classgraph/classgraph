@@ -68,10 +68,10 @@ public interface ClasspathOrder {
      * The object may be a {@link String} path, {@link URL}, {@link URI}, {@link File} or {@link Path}, or an array
      * or {@link Iterable} of any of those, nested to any depth. A {@link Path} is one classpath entry, although it
      * is an {@link Iterable} of its name elements. A {@link Path} keeps its own filesystem, so it need not be on
-     * the default filesystem; do not convert it to a string first. Anything else is converted with
-     * {@link Object#toString()}. An array or {@link Iterable} that is met again while its own elements are being
-     * added is not expanded again: an array or {@link java.util.Collection} is skipped, and any other
-     * {@link Iterable} is converted with {@link Object#toString()}.
+     * the default filesystem; do not convert it to a string first. Anything else, including an array of primitives,
+     * is converted with {@link Object#toString()}. An array or {@link Iterable} that is met again while its own
+     * elements are being added is not expanded again: an array or {@link java.util.Collection} is skipped, and any
+     * other {@link Iterable} is converted with {@link Object#toString()}.
      *
      * <p>
      * A {@link String} is always one path, and is never split at the system path separator character. Pass a string
@@ -109,8 +109,9 @@ public interface ClasspathOrder {
      * Add classpath entries from an object obtained by reflection, of a type that is only known at runtime. The
      * object may be a {@link URL}, {@link URI}, {@link File}, {@link Path} or {@link String} (holding a single
      * path, or several paths separated by the system path separator character), or an array or {@link Iterable} of
-     * any of those, nested to any depth. Anything else is converted with {@link Object#toString()}, and the result
-     * is split at the system path separator character, as a {@link String} is.
+     * any of those, nested to any depth. Anything else, including an array of primitives, is converted with
+     * {@link Object#toString()}, and the result is split at the system path separator character, as a
+     * {@link String} is.
      *
      * <p>
      * This differs from {@link #addClasspathEntry(Object, ClassLoader, ClassGraphLog)} only in splitting strings,
