@@ -415,8 +415,9 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
      * Create a {@link Vfs} configured by an env map, and open one root of it.
      *
      * @param env
-     *            the env map, which may hold a {@link VfsSpec} under {@code "vfsSpec"}. Any other key is ignored,
-     *            since a caller that also drives zipfs passes the keys zipfs takes.
+     *            the env map, which may hold a {@link VfsSpec} under {@code "vfsSpec"}. The {@link VfsSpec} is
+     *            copied when the {@link Vfs} is created, so changing it afterward does not change the filesystem.
+     *            Any other key is ignored, since a caller that also drives zipfs passes the keys zipfs takes.
      * @param opener
      *            opens the root.
      * @return the opened root, whose {@link Vfs} was created by this method and is owned by the root's filesystem
@@ -651,8 +652,9 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
      * <p>
      * Two options are read out of the env map: {@code "vfsSpec"}, a {@link VfsSpec} to read storage with, and
      * {@code "layer"}, the {@link ModuleLayer} to resolve a {@code "jrt:/<module>"} URI in, which defaults to
-     * {@link ModuleLayer#boot()}. Any other key is ignored rather than rejected, so that a caller which drives both
-     * this provider and zipfs from one env map does not have to strip the keys zipfs takes.
+     * {@link ModuleLayer#boot()}. The {@link VfsSpec} is copied when the filesystem is created, so changing it
+     * afterward does not change the filesystem. Any other key is ignored rather than rejected, so that a caller
+     * which drives both this provider and zipfs from one env map does not have to strip the keys zipfs takes.
      *
      * @throws FileSystemAlreadyExistsException
      *             if a filesystem created by this method is already open at that path.
