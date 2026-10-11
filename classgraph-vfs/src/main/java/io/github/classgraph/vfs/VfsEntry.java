@@ -392,12 +392,12 @@ public abstract sealed class VfsEntry permits ArchiveEntry, DirEntry, ModuleEntr
         }
 
         @Override
-        public void mark(final int readlimit) {
+        public synchronized void mark(final int readlimit) {
             inputStream.mark(readlimit);
         }
 
         @Override
-        public void reset() throws IOException {
+        public synchronized void reset() throws IOException {
             checkRootNotClosed();
             inputStream.reset();
         }
