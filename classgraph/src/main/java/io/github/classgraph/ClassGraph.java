@@ -1868,7 +1868,9 @@ public final class ClassGraph {
      *             if a config option was enabled without the config option that reads it.
      */
     public List<File> getClasspathFiles() {
-        return withClasspathScanResult(ScanResult::getClasspathFiles);
+        // A jarfile downloaded from a URL into a temporary file is listed by that file, which is deleted when the
+        // ScanResult is closed, before this returns, so a file that is gone by then is left out
+        return withClasspathScanResult(ScanResult::getClasspathFiles).stream().filter(File::exists).toList();
     }
 
     /**
