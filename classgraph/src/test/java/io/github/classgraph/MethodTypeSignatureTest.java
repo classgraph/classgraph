@@ -80,6 +80,16 @@ public class MethodTypeSignatureTest {
         public void annotatedReceiver(@Receiver Methods this) {
             // Does nothing
         }
+
+        /**
+         * A method with an annotated explicit receiver parameter followed by a formal parameter.
+         *
+         * @param count
+         *            unused.
+         */
+        public void annotatedReceiverAndParameter(@Receiver Methods this, final int count) {
+            // Does nothing
+        }
     }
 
     /** A type annotation for an explicit receiver parameter. */
@@ -286,6 +296,24 @@ public class MethodTypeSignatureTest {
             assertThat(plain.getReceiverTypeAnnotationInfo()).isEmpty();
             assertThat(annotatedReceiver).isNotEqualTo(plain);
             assertThat(plain).isNotEqualTo(annotatedReceiver);
+        }
+    }
+
+    /**
+     * The type annotations on an explicit receiver parameter are rendered before the parameter types, as a first
+     * parameter named {@code this}, so two method types that are not equal do not render the same.
+     */
+    @Test
+    public void receiverTypeAnnotationsAreRenderedAsAFirstParameter() {
+        try (var scanResult = scanFixture()) {
+            final var plain = methodInfo(scanResult, "plain").getTypeSignatureOrTypeDescriptor();
+            final var annotatedReceiver = methodInfo(scanResult, "annotatedReceiver")
+                    .getTypeSignatureOrTypeDescriptor();
+            assertThat(plain).hasToString("void ()");
+            assertThat(annotatedReceiver).hasToString("void (@" + Receiver.class.getName() + " this)");
+            assertThat(annotatedReceiver.toStringWithSimpleNames()).isEqualTo("void (@Receiver this)");
+            assertThat(methodInfo(scanResult, "annotatedReceiverAndParameter").getTypeSignatureOrTypeDescriptor()
+                    .toStringWithSimpleNames()).isEqualTo("void (@Receiver this, int)");
         }
     }
 
