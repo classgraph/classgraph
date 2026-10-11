@@ -23,6 +23,12 @@ import org.junit.jupiter.api.io.TempDir;
  * The uncompressed size that a zip entry declares is only a hint for the size of the buffer it is inflated into,
  * since a zipfile can declare any size. A deflated entry that declares far more than it holds must not make every
  * reader of it allocate a buffer of the declared size.
+ *
+ * <p>
+ * The jarfiles these tests write are small, but {@code openingANestedJarfileDoesNotAllocateMoreThanItMayInflateTo}
+ * opens a nested jarfile of 254 MB of zeros, which is longer than
+ * {@link VfsSpec#DEFAULT_MAX_BUFFERED_JAR_RAM_SIZE}, so it is inflated into a temporary file of about 254 MB in
+ * {@code java.io.tmpdir}, which is deleted when the test closes its {@link Vfs}.
  */
 public class DeclaredUncompressedSizeTest {
     /** The uncompressed size that the entries declare: 16 MB, the most a declared size could allocate up front. */
@@ -270,6 +276,7 @@ public class DeclaredUncompressedSizeTest {
             zipOut.closeEntry();
         }
         overstateUncompressedSize(outerJar, "lib/inner.jar", /* compressedSize = */ 0);
+        assertThat(100L * Files.size(outerJar)).isLessThan(numZeros);
 
         try (var vfs = new Vfs()) {
             vfs.open(outerJar.toString());

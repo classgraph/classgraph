@@ -24,6 +24,14 @@ import org.junit.jupiter.api.io.TempDir;
  * A deflated nested jarfile is inflated before it is read, so a small jarfile could otherwise inflate to fill the
  * heap or the temporary directory. The jarfiles nested within a jarfile may inflate to at most 100 times its
  * length, or 256 MB if that is more, all together.
+ *
+ * <p>
+ * The jarfiles these tests write are small, but opening the jarfiles nested in them inflates them. A nested jarfile
+ * longer than {@link VfsSpec#DEFAULT_MAX_BUFFERED_JAR_RAM_SIZE} is inflated into a temporary file in
+ * {@code java.io.tmpdir}, so {@code aNestedJarfileThatInflatesTooFarIsRefused} writes up to 256 MB there before the
+ * nested jarfile is refused, and {@code closingANestedJarfileGivesBackItsShareOfTheLimit} writes 144 MB, one file
+ * at a time. {@code manyNestedJarfilesShareOneLimit} keeps nested jarfiles of 16 MB each in the heap, up to 256 MB
+ * in all, until it closes its {@link Vfs}.
  */
 public class NestedJarInflationLimitTest {
     /** The size of the chunks a jarfile entry is written in, so that no test holds a whole entry in memory. */
@@ -35,8 +43,9 @@ public class NestedJarInflationLimitTest {
     /**
      * Write a jarfile holding other jarfiles as deflated entries, each of which holds one stored entry,
      * {@code zeros.bin}, of zeros, and so deflates to about a thousandth of its length. The nested jarfiles are
-     * written straight into the entries, so that a test of a limit of hundreds of megabytes writes no file of that
-     * size.
+     * written straight into the entries, so that a test of a limit of hundreds of megabytes does not write a nested
+     * jarfile of that size before it writes the jarfile that holds it. Opening a nested jarfile may still inflate
+     * it into a temporary file of that size.
      *
      * @param jarFile
      *            the jarfile to write.
