@@ -27,6 +27,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import io.github.classgraph.vfs.Vfs;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Tests for the classpath element of a module, and for the resources read from it. A module is read through a
@@ -293,6 +294,20 @@ public class ClasspathElementModuleTest {
     }
 
     /**
+     * A module whose location is not a {@code "file:"} URI, or is a {@code "file:"} URI that does not name a file,
+     * is located by that URI, and is not a file.
+     */
+    @Test
+    public void aModuleWhoseLocationIsNotAFileUriIsNotAFile() {
+        for (final var location : List.of(URI.create("mem:/located.module"),
+                URI.create("file:/located.module.jar?version=1"))) {
+            final var classpathElement = classpathElementFor(moduleReferenceAt("located.module", location));
+            assertThat(classpathElement.getURI()).isEqualTo(location);
+            assertThat(classpathElement.getFile()).as("%s", location).isNull();
+        }
+    }
+
+    /**
      * Two classpath elements are the same classpath element when they are for the same module, since a module can
      * only be scanned once however many times it is reached.
      */
@@ -381,8 +396,21 @@ public class ClasspathElementModuleTest {
      * @return the module reference.
      */
     private static ModuleReference moduleReferenceWithNoLocation(final String moduleName) {
+        return moduleReferenceAt(moduleName, /* location = */ null);
+    }
+
+    /**
+     * A module reference that reports the given location, and that cannot be read.
+     *
+     * @param moduleName
+     *            the name of the module.
+     * @param location
+     *            the location of the module, or null for none.
+     * @return the module reference.
+     */
+    private static ModuleReference moduleReferenceAt(final String moduleName, final @Nullable URI location) {
         final var descriptor = ModuleDescriptor.newModule(moduleName).build();
-        return new ModuleReference(descriptor, /* location = */ null) {
+        return new ModuleReference(descriptor, location) {
             @Override
             public ModuleReader open() {
                 throw new UnsupportedOperationException();
