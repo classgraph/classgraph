@@ -607,6 +607,20 @@ public class FastPathResolverTest {
     }
 
     /**
+     * A '!' in the authority of a URL, such as in its userinfo, is not a nested jar separator, so a ".." after the
+     * jarfile's own separator still cannot climb out of the jarfile.
+     */
+    @Test
+    public void aPlingInTheAuthorityOfAUrlIsNotTheSeparator() {
+        assertThat(FastPathResolver.resolve(null, "http://u!p@h/a.jar!/b/../../x"))
+                .isEqualTo("http://u!p@h/a.jar!/x");
+        assertThat(FastPathResolver.resolve("http://u!p@h/dir", "a.jar!/b/../../x"))
+                .isEqualTo("http://u!p@h/dir/a.jar!/x");
+        assertThat(FastPathResolver.resolve(null, "jar:http://u!p@h/a.jar!/b/../../x"))
+                .isEqualTo("http://u!p@h/a.jar!/x");
+    }
+
+    /**
      * Any separator after an authority beyond the first is an empty path segment, and is collapsed like any other.
      * The path that follows an authority never starts a UNC path, whose doubled separator is kept on Windows, so
      * the two must not be confused.
