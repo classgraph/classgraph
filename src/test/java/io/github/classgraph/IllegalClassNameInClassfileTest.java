@@ -22,8 +22,8 @@ import nonapi.io.github.classgraph.utils.VersionFinder;
  * them containing {@code '.'}, {@code ';'} or {@code '['} (JVMS 4.2.1). A classfile that breaks this rule must not
  * make the scan fail, or give a class with an empty name. The JVM refuses to load a class that uses such a name as
  * its superclass, an interface, or a nested or enclosing class (JDK 8 checks only for an empty name, ';' and '[',
- * not for an empty segment), and the scan skips that class. A name that only records a dependency is skipped, and
- * the class is kept. A class whose annotation type has an illegal name, which the JVM does not check, is skipped.
+ * not for an empty segment), and the scan skips that class. A name that only records a dependency, and an
+ * annotation whose type has an illegal name, which the JVM does not check, are skipped, and the class is kept.
  */
 public class IllegalClassNameInClassfileTest {
     /** A classloader that defines a class from the bytes of its classfile. */
@@ -51,13 +51,16 @@ public class IllegalClassNameInClassfileTest {
      *            the name of the interface the class implements, or null for none.
      * @param attributeName
      *            {@code "InnerClasses"}, {@code "EnclosingMethod"}, {@code "RuntimeVisibleAnnotations"},
+     *            {@code "RuntimeInvisibleAnnotations"}, {@code "RuntimeVisibleParameterAnnotations"},
      *            {@code "Exceptions"}, or null for no attribute.
      * @param attributeNames
      *            for {@code InnerClasses}, the names of the inner and the outer class of its one entry; for
-     *            {@code EnclosingMethod}, the name of the enclosing class; for {@code RuntimeVisibleAnnotations},
-     *            the type descriptor of its one annotation; for {@code Exceptions}, the name of the exception class
-     *            thrown by the method {@code m()}. For no attribute, the names held by {@code CONSTANT_Class}
-     *            entries that nothing refers to.
+     *            {@code EnclosingMethod}, the name of the enclosing class; for {@code RuntimeVisibleAnnotations}
+     *            and {@code RuntimeInvisibleAnnotations}, the type descriptors of its annotations, which have no
+     *            elements; for {@code RuntimeVisibleParameterAnnotations}, the type descriptors of the annotations,
+     *            which have no elements, on the one parameter of the method {@code m(int)}; for {@code Exceptions},
+     *            the name of the exception class thrown by the method {@code m()}. For no attribute, the names held
+     *            by {@code CONSTANT_Class} entries that nothing refers to.
      * @return the bytes of the classfile.
      * @throws IOException
      *             if the classfile could not be written.
@@ -65,7 +68,9 @@ public class IllegalClassNameInClassfileTest {
     private static byte[] classfile(final String internalName, final String superclassName,
             final String interfaceName, final String attributeName, final String... attributeNames)
             throws IOException {
-        final boolean isAnnotation = "RuntimeVisibleAnnotations".equals(attributeName);
+        final boolean isAnnotation = "RuntimeVisibleAnnotations".equals(attributeName)
+                || "RuntimeInvisibleAnnotations".equals(attributeName);
+        final boolean isParameterAnnotation = "RuntimeVisibleParameterAnnotations".equals(attributeName);
         final boolean isExceptions = "Exceptions".equals(attributeName);
         // A CONSTANT_Utf8 and a CONSTANT_Class for each class name, so the class ref for name i is at 2 + 2i
         final List<String> classNames = new ArrayList<>(Arrays.asList(internalName, superclassName));
@@ -73,14 +78,17 @@ public class IllegalClassNameInClassfileTest {
             classNames.add(interfaceName);
         }
         final int firstAttributeClassIdx = classNames.size();
-        if (!isAnnotation) {
+        if (!isAnnotation && !isParameterAnnotation) {
             classNames.addAll(Arrays.asList(attributeNames));
         }
-        // Then CONSTANT_Utf8 entries for the annotation type descriptor, or for the method name and descriptor,
-        // and for the attribute name
+        // Then CONSTANT_Utf8 entries for the annotation type descriptors, for the method name and descriptor, and
+        // for the attribute name
         final List<String> strings = new ArrayList<>();
-        if (isAnnotation) {
-            strings.add(attributeNames[0]);
+        if (isAnnotation || isParameterAnnotation) {
+            strings.addAll(Arrays.asList(attributeNames));
+        }
+        if (isParameterAnnotation) {
+            strings.addAll(Arrays.asList("m", "(I)V"));
         } else if (isExceptions) {
             strings.addAll(Arrays.asList("m", "()V"));
         }
@@ -115,16 +123,26 @@ public class IllegalClassNameInClassfileTest {
                 out.writeShort(0);
             }
             out.writeShort(0); // Number of fields
-            if (isExceptions) {
+            if (isExceptions || isParameterAnnotation) {
                 out.writeShort(1); // Number of methods
                 out.writeShort(0x0401); // ACC_PUBLIC | ACC_ABSTRACT
-                out.writeShort(firstStringCpIdx); // "m"
-                out.writeShort(firstStringCpIdx + 1); // "()V"
+                out.writeShort(attributeNameCpIdx - 2); // "m"
+                out.writeShort(attributeNameCpIdx - 1); // "()V" or "(I)V"
                 out.writeShort(1); // attributes_count
                 out.writeShort(attributeNameCpIdx);
-                out.writeInt(2 + 2);
-                out.writeShort(1); // number_of_exceptions
-                out.writeShort(2 + 2 * firstAttributeClassIdx);
+                if (isExceptions) {
+                    out.writeInt(2 + 2);
+                    out.writeShort(1); // number_of_exceptions
+                    out.writeShort(2 + 2 * firstAttributeClassIdx);
+                } else {
+                    out.writeInt(1 + 2 + 4 * attributeNames.length);
+                    out.writeByte(1); // num_parameters
+                    out.writeShort(attributeNames.length); // num_annotations
+                    for (int i = 0; i < attributeNames.length; i++) {
+                        out.writeShort(firstStringCpIdx + i); // type_index
+                        out.writeShort(0); // num_element_value_pairs
+                    }
+                }
                 out.writeShort(0); // Number of attributes
             } else {
                 out.writeShort(0); // Number of methods
@@ -134,10 +152,12 @@ public class IllegalClassNameInClassfileTest {
                     out.writeShort(1);
                     out.writeShort(attributeNameCpIdx);
                     if (isAnnotation) {
-                        out.writeInt(2 + 4);
-                        out.writeShort(1); // num_annotations
-                        out.writeShort(firstStringCpIdx); // type_index
-                        out.writeShort(0); // num_element_value_pairs
+                        out.writeInt(2 + 4 * attributeNames.length);
+                        out.writeShort(attributeNames.length); // num_annotations
+                        for (int i = 0; i < attributeNames.length; i++) {
+                            out.writeShort(firstStringCpIdx + i); // type_index
+                            out.writeShort(0); // num_element_value_pairs
+                        }
                     } else if (attributeName.equals("InnerClasses")) {
                         out.writeInt(2 + 8);
                         out.writeShort(1); // number_of_classes
@@ -260,9 +280,9 @@ public class IllegalClassNameInClassfileTest {
     }
 
     /**
-     * A class whose annotation type has an illegal name is skipped, and the scan does not fail. The JVM loads such a
-     * class, since it does not check annotation type names, but the classfile reader cannot skip one annotation on
-     * its own. No class is created for the annotation type, so in particular no class has an empty name.
+     * An annotation whose type has an illegal name is skipped, and the class and its other annotations are kept, as
+     * the JVM loads such a class and leaves out an annotation whose type it cannot find. No class is created for the
+     * annotation type, so in particular no class has an empty name.
      *
      * @param tempDir
      *            a temporary directory.
@@ -270,21 +290,59 @@ public class IllegalClassNameInClassfileTest {
      *             if a file could not be written.
      */
     @Test
-    public void aClassWithAnAnnotationWhoseTypeHasAnIllegalNameIsSkipped(@TempDir final Path tempDir)
+    public void anAnnotationWhoseTypeHasAnIllegalNameIsSkipped(@TempDir final Path tempDir) throws IOException {
+        final List<String> illegalNames = Arrays.asList("L;", "Lp/A;;", "Lp//A;");
+        int dirIdx = 0;
+        for (final String attributeName : Arrays.asList("RuntimeVisibleAnnotations",
+                "RuntimeInvisibleAnnotations")) {
+            for (final String illegalName : illegalNames) {
+                final String desc = attributeName + " " + illegalName;
+                final byte[] badClassfile = classfile("p/Bad", "java/lang/Object", null, attributeName, "Lp/Good;",
+                        illegalName);
+                assertThat(new ByteClassLoader().define(badClassfile).getName()).as(desc).isEqualTo("p.Bad");
+                final Path dir = writeClasses(tempDir.resolve("dir" + dirIdx++), badClassfile);
+                try (ScanResult scanResult = new ClassGraph().enableClassInfo().enableAnnotationInfo()
+                        .enableExternalClasses().overrideClasspath(dir.toString()).scan()) {
+                    assertThat(scanResult.getAllClasses().getNames()).as(desc)
+                            .containsExactlyInAnyOrder("p.Bad", "p.Good");
+                    assertThat(scanResult.getClassInfo("p.Bad").getAnnotationInfo().getNames()).as(desc)
+                            .containsExactly("p.Good");
+                }
+            }
+        }
+    }
+
+    /**
+     * A method parameter annotation whose type has an illegal name is skipped, and the parameter's other annotations
+     * are kept, with no null left in their place.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if a file could not be written.
+     */
+    @Test
+    public void aParameterAnnotationWhoseTypeHasAnIllegalNameIsSkipped(@TempDir final Path tempDir)
             throws IOException {
-        final List<byte[]> badClassfiles = Arrays.asList( //
-                classfile("p/Bad", "java/lang/Object", null, "RuntimeVisibleAnnotations", "L;"), //
-                classfile("p/Bad", "java/lang/Object", null, "RuntimeVisibleAnnotations", "Lp/A;;"), //
-                classfile("p/Bad", "java/lang/Object", null, "RuntimeVisibleAnnotations", "Lp//A;"));
-        for (int i = 0; i < badClassfiles.size(); i++) {
-            final byte[] badClassfile = badClassfiles.get(i);
-            assertThat(new ByteClassLoader().define(badClassfile).getName()).as("classfile " + i)
-                    .isEqualTo("p.Bad");
-            final Path dir = writeClasses(tempDir.resolve("dir" + i), badClassfile);
-            try (ScanResult scanResult = new ClassGraph().enableClassInfo().enableAnnotationInfo()
-                    .enableExternalClasses().overrideClasspath(dir.toString()).scan()) {
-                assertThat(scanResult.getAllClasses().getNames()).as("classfile " + i)
-                        .containsExactly("p.Good");
+        int dirIdx = 0;
+        for (final String illegalName : Arrays.asList("L;", "Lp/A;;", "Lp//A;")) {
+            for (final List<String> typeDescriptors : Arrays.asList(Arrays.asList("Lp/Good;", illegalName),
+                    Arrays.asList(illegalName, "Lp/Good;"))) {
+                final String desc = String.valueOf(typeDescriptors);
+                final byte[] badClassfile = classfile("p/Bad", "java/lang/Object", null,
+                        "RuntimeVisibleParameterAnnotations", typeDescriptors.toArray(new String[0]));
+                assertThat(new ByteClassLoader().define(badClassfile).getName()).as(desc).isEqualTo("p.Bad");
+                final Path dir = writeClasses(tempDir.resolve("dir" + dirIdx++), badClassfile);
+                try (ScanResult scanResult = new ClassGraph().enableClassInfo().enableMethodInfo()
+                        .enableAnnotationInfo().enableExternalClasses().overrideClasspath(dir.toString()).scan()) {
+                    assertThat(scanResult.getAllClasses().getNames()).as(desc)
+                            .containsExactlyInAnyOrder("p.Bad", "p.Good");
+                    final MethodParameterInfo[] parameterInfo = scanResult.getClassInfo("p.Bad")
+                            .getMethodInfo("m").get(0).getParameterInfo();
+                    assertThat(parameterInfo).as(desc).hasSize(1);
+                    assertThat(parameterInfo[0].getAnnotationInfo()).as(desc).doesNotContainNull();
+                    assertThat(parameterInfo[0].getAnnotationInfo().getNames()).as(desc).containsExactly("p.Good");
+                }
             }
         }
     }

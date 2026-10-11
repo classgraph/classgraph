@@ -1004,20 +1004,25 @@ class Classfile {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Returned by {@link #readAnnotationElementValue()} in place of a nested annotation whose class name is
+     * illegal, or of an array that holds one.
+     */
+    private static final Object ILLEGAL_ANNOTATION = new Object();
+
+    /**
      * Read annotation entry from classfile.
      *
-     * @return the annotation, as an {@link AnnotationInfo} object.
+     * @return the annotation, as an {@link AnnotationInfo} object, or null if the class name of the annotation, or
+     *         of an annotation nested in it, is illegal.
      * @throws IOException
      *             If an IO exception occurs.
      */
     private AnnotationInfo readAnnotation() throws IOException {
-        // Lcom/xyz/Annotation; -> com.xyz.Annotation. The JVM does not check the name, but a ClassInfo is created
-        // for the type of an annotation on a class, method, field or parameter. An annotation cannot be skipped on
-        // its own here, so an illegal name makes the whole classfile be skipped.
+        // Lcom/xyz/Annotation; -> com.xyz.Annotation. The JVM does not check the name, and leaves out an annotation
+        // whose class it cannot find. A ClassInfo is created for the type of an annotation, so an annotation whose
+        // class name is illegal is read, to step over it, and then left out in the same way.
         final String annotationClassName = getConstantPoolClassDescriptor(reader.readUnsignedShort());
-        if (annotationClassName != null) {
-            checkClassName(annotationClassName, "annotation class name");
-        }
+        boolean isLegal = annotationClassName != null && isLegalClassName(annotationClassName);
         final int numElementValuePairs = reader.readUnsignedShort();
         AnnotationParameterValueList paramVals = null;
         if (numElementValuePairs > 0) {
@@ -1025,10 +1030,14 @@ class Classfile {
             for (int i = 0; i < numElementValuePairs; i++) {
                 final String paramName = getConstantPoolString(reader.readUnsignedShort());
                 final Object paramValue = readAnnotationElementValue();
-                paramVals.add(new AnnotationParameterValue(paramName, paramValue));
+                if (paramValue == ILLEGAL_ANNOTATION) {
+                    isLegal = false;
+                } else {
+                    paramVals.add(new AnnotationParameterValue(paramName, paramValue));
+                }
             }
         }
-        return new AnnotationInfo(annotationClassName, paramVals);
+        return isLegal ? new AnnotationInfo(annotationClassName, paramVals) : null;
     }
 
     /**
@@ -1111,18 +1120,24 @@ class Classfile {
             final String classRefStr = getConstantPoolString(classRefCpIdx);
             return new AnnotationClassRef(classRefStr == null || entryTag[classRefCpIdx] == 1 ? classRefStr
                     : constantPoolClassNameToTypeDescriptor(classRefStr));
-        case '@':
+        case '@': {
             // Complex (nested) annotation. Return type is AnnotationInfo.
-            return readAnnotation();
+            final AnnotationInfo nestedAnnotation = readAnnotation();
+            return nestedAnnotation == null ? ILLEGAL_ANNOTATION : nestedAnnotation;
+        }
         case '[':
             // Return type is Object[] (of nested annotation element values)
             final int count = reader.readUnsignedShort();
             final Object[] arr = new Object[count];
+            boolean isLegal = true;
             for (int i = 0; i < count; ++i) {
                 // Nested annotation element value
                 arr[i] = readAnnotationElementValue();
+                if (arr[i] == ILLEGAL_ANNOTATION) {
+                    isLegal = false;
+                }
             }
-            return arr;
+            return isLegal ? arr : ILLEGAL_ANNOTATION;
         default:
             throw new ClassfileFormatException("Class " + className + " has unknown annotation element type tag '"
                     + ((char) tag) + "': element size unknown, cannot continue reading class. "
@@ -1714,7 +1729,9 @@ class Classfile {
                             }
                             for (int k = 0; k < fieldAnnotationCount; k++) {
                                 final AnnotationInfo fieldAnnotation = readAnnotation();
-                                fieldAnnotationInfo.add(fieldAnnotation);
+                                if (fieldAnnotation != null) {
+                                    fieldAnnotationInfo.add(fieldAnnotation);
+                                }
                             }
                         }
                     } else if (scanSpec.enableAnnotationInfo //
@@ -1742,6 +1759,9 @@ class Classfile {
                                 }
                                 final List<TypePathNode> typePath = readTypePath();
                                 final AnnotationInfo annotationInfo = readAnnotation();
+                                if (annotationInfo == null) {
+                                    continue;
+                                }
                                 fieldTypeAnnotationDecorators.add(new TypeAnnotationDecorator() {
                                     @Override
                                     public void decorate(final TypeSignature typeSignature) {
@@ -1831,7 +1851,9 @@ class Classfile {
                             }
                             for (int k = 0; k < methodAnnotationCount; k++) {
                                 final AnnotationInfo annotationInfo = readAnnotation();
-                                methodAnnotationInfo.add(annotationInfo);
+                                if (annotationInfo != null) {
+                                    methodAnnotationInfo.add(annotationInfo);
+                                }
                             }
                         }
                     } else if (scanSpec.enableAnnotationInfo
@@ -1862,8 +1884,16 @@ class Classfile {
                                 } else {
                                     methodParameterAnnotations[paramIdx] = new AnnotationInfo[numAnnotations];
                                 }
+                                int numParamAnnotations = annStartIdx;
                                 for (int annIdx = 0; annIdx < numAnnotations; annIdx++) {
-                                    methodParameterAnnotations[paramIdx][annStartIdx + annIdx] = readAnnotation();
+                                    final AnnotationInfo annotationInfo = readAnnotation();
+                                    if (annotationInfo != null) {
+                                        methodParameterAnnotations[paramIdx][numParamAnnotations++] = annotationInfo;
+                                    }
+                                }
+                                if (numParamAnnotations < methodParameterAnnotations[paramIdx].length) {
+                                    methodParameterAnnotations[paramIdx] = Arrays
+                                            .copyOf(methodParameterAnnotations[paramIdx], numParamAnnotations);
                                 }
                             } else if (methodParameterAnnotations[paramIdx] == null) {
                                 methodParameterAnnotations[paramIdx] = NO_ANNOTATIONS;
@@ -1961,6 +1991,9 @@ class Classfile {
                                 }
                                 final List<TypePathNode> typePath = readTypePath();
                                 final AnnotationInfo annotationInfo = readAnnotation();
+                                if (annotationInfo == null) {
+                                    continue;
+                                }
                                 methodTypeAnnotationDecorators.add(new MethodTypeAnnotationDecorator() {
                                     @Override
                                     public void decorate(final MethodTypeSignature methodTypeSignature) {
@@ -2060,12 +2093,15 @@ class Classfile {
                         // Add type params to method type signature
                         methodTypeSignatureStr = getConstantPoolString(reader.readUnsignedShort());
                     } else if (constantPoolStringEquals(attributeNameCpIdx, "AnnotationDefault")) {
-                        if (annotationParamDefaultValues == null) {
-                            annotationParamDefaultValues = new AnnotationParameterValueList();
+                        // Get annotation parameter default value
+                        final Object defaultValue = readAnnotationElementValue();
+                        if (defaultValue != ILLEGAL_ANNOTATION) {
+                            if (annotationParamDefaultValues == null) {
+                                annotationParamDefaultValues = new AnnotationParameterValueList();
+                            }
+                            this.annotationParamDefaultValues
+                                    .add(new AnnotationParameterValue(methodName, defaultValue));
                         }
-                        this.annotationParamDefaultValues.add(new AnnotationParameterValue(methodName,
-                                // Get annotation parameter default value
-                                readAnnotationElementValue()));
                     } else if (constantPoolStringEquals(attributeNameCpIdx, "Exceptions")) {
                         final int exceptionCount = reader.readUnsignedShort();
                         thrownExceptionNames = new String[exceptionCount];
@@ -2143,7 +2179,10 @@ class Classfile {
                         classAnnotations = new AnnotationInfoList();
                     }
                     for (int m = 0; m < annotationCount; m++) {
-                        classAnnotations.add(readAnnotation());
+                        final AnnotationInfo annotationInfo = readAnnotation();
+                        if (annotationInfo != null) {
+                            classAnnotations.add(annotationInfo);
+                        }
                     }
                 }
             } else if (scanSpec.enableAnnotationInfo //
@@ -2190,6 +2229,9 @@ class Classfile {
                         }
                         final List<TypePathNode> typePath = readTypePath();
                         final AnnotationInfo annotationInfo = readAnnotation();
+                        if (annotationInfo == null) {
+                            continue;
+                        }
                         classTypeAnnotationDecorators.add(new ClassTypeAnnotationDecorator() {
                             @Override
                             public void decorate(final ClassTypeSignature classTypeSignature) {
