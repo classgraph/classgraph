@@ -71,7 +71,8 @@ final class EquinoxClasspathManagerReader {
     }
 
     /**
-     * Add the classpath entry of a {@code BundleFile}, and of every {@code BundleFile} it wraps or is chained to.
+     * Add the classpath entry of a {@code BundleFile}, and of every {@code BundleFile} it wraps or is chained to. A
+     * {@code BundleFileWrapper} adds no entry of its own, only those of the {@code BundleFile} it delegates to.
      *
      * @param bundlefile
      *            the {@code BundleFile}, or null (ignored)
@@ -89,12 +90,20 @@ final class EquinoxClasspathManagerReader {
             final @Nullable ClassGraphLog log) {
         // Don't get stuck in infinite loop
         if (bundlefile != null && visited.add(bundlefile)) {
+            // A framework extension can install a ClassLoaderHook that replaces a bundle file with a
+            // BundleFileWrapper around it (Storage#wrapBundleFile), and Equinox puts the wrappers in a
+            // BundleFileWrapperChain, which is a BundleFileWrapper too. A wrapper holds the bundle file it delegates
+            // to in its "bundleFile" field, and copies only that bundle file's base file, not its "cp" or
+            // "nestedDirName". So a wrapper's own base file is the whole bundle jar or directory, not the classpath
+            // element within it: add only the bundle file it delegates to, below.
+            // type BundleFile
+            final var delegate = ReflectionUtils.getFieldVal(false, bundlefile, "bundleFile");
             // type File
             var baseFile = ReflectionUtils.getFieldVal(false, bundlefile, "basefile");
             if (baseFile == null) {
                 baseFile = ReflectionUtils.invokeMethod(false, bundlefile, "getBaseFile");
             }
-            if (baseFile != null) {
+            if (delegate == null && baseFile != null) {
                 var foundClassPathElement = false;
                 for (final String fieldName : BUNDLE_FILE_SUBPATH_FIELD_NAMES) {
                     final var fieldVal = ReflectionUtils.getFieldVal(false, bundlefile, fieldName);
@@ -137,12 +146,8 @@ final class EquinoxClasspathManagerReader {
                     classpathOrderOut, log);
             addBundleFile(ReflectionUtils.getFieldVal(false, bundlefile, "next"), visited, classLoader,
                     classpathOrderOut, log);
-            // A framework extension can install a ClassLoaderHook that replaces a bundle file with a
-            // BundleFileWrapper around it (Storage#wrapBundleFile). The wrapper copies only the "basefile" field of
-            // the bundle file it wraps, not its "cp" or "nestedDirName", so without following the delegate held in
-            // the wrapper's "bundleFile" field, the sub-path within the bundle would be lost.
-            addBundleFile(ReflectionUtils.getFieldVal(false, bundlefile, "bundleFile"), visited, classLoader,
-                    classpathOrderOut, log);
+            // A BundleFileWrapper holds the BundleFile it delegates to in "bundleFile"
+            addBundleFile(delegate, visited, classLoader, classpathOrderOut, log);
         }
     }
 

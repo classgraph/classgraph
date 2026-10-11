@@ -166,8 +166,8 @@ public class EquinoxClassLoaderTest {
 
     /**
      * A framework extension can install a hook that wraps a bundle file in a {@code BundleFileWrapper}. The wrapper
-     * copies only the base file of the bundle file it wraps, so the bundle file it delegates to has to be read as
-     * well, or the classpath element within the bundle would be lost.
+     * copies only the base file of the bundle file it wraps, so the bundle file it delegates to is on the classpath
+     * in its place, and the wrapper's base file, which is the whole bundle directory, is not.
      *
      * @param tempDir
      *            a temporary directory to create the bundle in.
@@ -181,7 +181,26 @@ public class EquinoxClassLoaderTest {
         final var classesDir = Files.createDirectory(bundleDir.resolve("bin"));
         final var wrapper = new BundleFileWrapper(new DirBundleFile(bundleDir.toFile()).serving("bin"));
         final var classLoader = new EquinoxClassLoader(new ClasspathManager(new ClasspathEntry(wrapper)));
-        assertThat(locations(classLoader)).containsExactly(location(bundleDir), location(classesDir));
+        assertThat(locations(classLoader)).containsExactly(location(classesDir));
+    }
+
+    /**
+     * When a hook wraps the bundle file of a directory nested inside a bundle jar, the nested directory is on the
+     * classpath as a path within the jar, and the jar itself, which is the wrapper's base file, is not.
+     *
+     * @param tempDir
+     *            a temporary directory to create the bundle in.
+     * @throws IOException
+     *             if the bundle could not be created.
+     */
+    @Test
+    public void aWrappedDirectoryNestedInsideABundleJarDoesNotPutTheJarOnTheClasspath(@TempDir final Path tempDir)
+            throws IOException {
+        final var bundleJar = Files.createFile(tempDir.resolve("bundle.jar"));
+        final var wrapper = new BundleFileWrapper(
+                new NestedDirBundleFile(bundleJar.toFile(), new ZipBundleFile(bundleJar.toFile()), "bin"));
+        final var classLoader = new EquinoxClassLoader(new ClasspathManager(new ClasspathEntry(wrapper)));
+        assertThat(locations(classLoader)).containsExactly(location(bundleJar) + "!/bin");
     }
 
     /**
