@@ -395,4 +395,26 @@ class VfsCloseTest {
         // checkAndReturn() interrupts this thread again when the shared flag is set, so clear it once more
         Thread.interrupted();
     }
+
+    /**
+     * An interruption that another thread recorded in the shared interruption checker earlier is not raised on the
+     * thread that closes the {@link Vfs}. That thread may have nothing to do with the interrupted one: after a
+     * scan, a thread interrupted while it opened a root through the {@code ScanResult} records the interruption,
+     * and a different thread closes the {@code ScanResult} later.
+     *
+     * @throws InterruptedException
+     *             if the test thread was interrupted while waiting for the other thread.
+     */
+    @Test
+    void anInterruptionRecordedByAnotherThreadIsNotRaisedOnTheClosingThread() throws InterruptedException {
+        final var interruptionChecker = new InterruptionChecker();
+        final var vfs = new Vfs(new VfsSpec(), interruptionChecker);
+        final var otherThread = new Thread(interruptionChecker::interrupt);
+        otherThread.start();
+        otherThread.join();
+
+        vfs.close(/* log = */ null);
+
+        assertThat(Thread.interrupted()).isFalse();
+    }
 }
