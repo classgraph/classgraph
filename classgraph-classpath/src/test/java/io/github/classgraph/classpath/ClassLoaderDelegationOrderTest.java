@@ -290,4 +290,32 @@ public class ClassLoaderDelegationOrderTest {
         assertThat(findWithParentClassLoadersIgnored(tempDir, Reach.PEER_THEN_PARENT))
                 .containsExactly(location(tempDir.resolve("forwarding")));
     }
+
+    /**
+     * A classloader that is named in one call to {@link ClasspathFinder#enableClassLoaders(ClassLoader...)} and
+     * reached as a parent of a classloader named in a later call still counts as a parent, so
+     * {@link ClasspathFinder#ignoreParentClassLoaders()} leaves it out, just as it does when both classloaders are
+     * named in the same call.
+     *
+     * @param tempDir
+     *            a temporary directory to create the classpath elements in
+     * @throws IOException
+     *             if the classpath elements could not be created
+     */
+    @Test
+    public void ignoringParentClassLoadersLeavesOutAParentNamedInAnEarlierCall(@TempDir final Path tempDir)
+            throws IOException {
+        final var targetDir = Files.createDirectory(tempDir.resolve("target"));
+        final var forwardingDir = Files.createDirectory(tempDir.resolve("forwarding"));
+        try (var target = new URLClassLoader(new URL[] { targetDir.toUri().toURL() }, /* parent = */ null);
+                var forwarding = new ForwardingClassLoader(new URL[] { forwardingDir.toUri().toURL() }, target);
+                var oneCall = new ClasspathFinder().registerClassLoaderHandler(new ForwardingHandler(Reach.PARENT))
+                        .enableClassLoaders(target, forwarding).ignoreParentClassLoaders().find();
+                var twoCalls = new ClasspathFinder().registerClassLoaderHandler(new ForwardingHandler(Reach.PARENT))
+                        .enableClassLoaders(target).enableClassLoaders(forwarding).ignoreParentClassLoaders()
+                        .find()) {
+            assertThat(oneCall.getLocations()).containsExactly(location(forwardingDir));
+            assertThat(twoCalls.getLocations()).containsExactly(location(forwardingDir));
+        }
+    }
 }

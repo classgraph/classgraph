@@ -29,11 +29,11 @@
 package io.github.classgraph.classpath.internal;
 
 import java.util.List;
+import java.util.Set;
 
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.path.PathList;
 import io.github.classgraph.classpath.ClassLoaderHandler;
-import io.github.classgraph.classpath.internal.ScanSourceSpec.ClasspathSource;
 import io.github.classgraph.classpath.internal.ScanSourceSpec.ClasspathString;
 import io.github.classgraph.classpath.internal.ScanSourceSpec.DetectedClassLoaders;
 import io.github.classgraph.classpath.internal.ScanSourceSpec.NamedClassLoaders;
@@ -165,12 +165,33 @@ public class ClassLoaderProbe {
         // Every classloader source shares one classloader order, so that a classloader that more than one source
         // reaches is only searched once, at the first position it is reached at
         final var classLoaderOrder = new ClassLoaderOrderBuilder(userClassLoaderHandlers);
-        var numClassLoadersSearched = 0;
 
-        // Search the classpath sources in the order the caller enabled them in. The switch has no default case, so
-        // adding a new kind of source is a compile error until the source is given a case here.
-        for (final ClasspathSource classpathSource : scanSourceSpec.getClasspathSources()) {
-            switch (classpathSource) {
+        // Find the classloader order of every classloader source before the classpath entries of any of them are
+        // added, so that a classloader one source names and a later source reaches as a parent is known to be a
+        // parent when ignoreParentClassLoaders() is applied, however the classloaders were split between calls.
+        // classLoaderOrderEnd[i] is the number of classloaders in the order once source i has been searched.
+        final var classpathSources = scanSourceSpec.getClasspathSources();
+        final var classLoaderOrderEnd = new int[classpathSources.size()];
+        for (var i = 0; i < classpathSources.size(); i++) {
+            switch (classpathSources.get(i)) {
+            case NamedClasspathEntries _,ClasspathString _ -> {
+                // Not a classloader source
+            }
+            case final NamedClassLoaders namedClassLoaders ->
+                findClassLoaderOrder(namedClassLoaders.classLoaders(), classLoaderOrder, classLoaderProbeLog);
+            case DetectedClassLoaders _ ->
+                findClassLoaderOrder(environmentClassLoaders, classLoaderOrder, classLoaderProbeLog);
+            }
+            classLoaderOrderEnd[i] = classLoaderOrder.getClassLoaderOrder().size();
+        }
+        final var classLoaderOrderEntries = classLoaderOrder.getClassLoaderOrder();
+        final var allParentClassLoaders = classLoaderOrder.getAllParentClassLoaders();
+
+        // Search the classpath sources in the order the caller enabled them in. Each classloader source adds the
+        // classpath entries of the classloaders it added to the classloader order. The switches have no default
+        // case, so adding a new kind of source is a compile error until the source is given a case in each.
+        for (var i = 0; i < classpathSources.size(); i++) {
+            switch (classpathSources.get(i)) {
             case final NamedClasspathEntries namedClasspathEntries ->
                 addNamedClasspathEntries(namedClasspathEntries.classpathEntries(), classLoaderProbeLog);
             case final ClasspathString classpathString -> {
@@ -180,12 +201,10 @@ public class ClassLoaderProbe {
                         List.of(PathList.split(classpathString.classpath(), classpathSpec.getAllowedURLSchemes())),
                         classLoaderProbeLog);
             }
-            case final NamedClassLoaders namedClassLoaders ->
-                numClassLoadersSearched = addClassLoaderClasspathEntries(namedClassLoaders.classLoaders(),
-                        classpathSpec, classLoaderOrder, numClassLoadersSearched, classLoaderProbeLog);
-            case DetectedClassLoaders _ ->
-                numClassLoadersSearched = addClassLoaderClasspathEntries(environmentClassLoaders, classpathSpec,
-                        classLoaderOrder, numClassLoadersSearched, classLoaderProbeLog);
+            case NamedClassLoaders _,DetectedClassLoaders _ -> addClassLoaderClasspathEntries(
+                    classLoaderOrderEntries.subList(i == 0 ? 0 : classLoaderOrderEnd[i - 1],
+                            classLoaderOrderEnd[i]),
+                    classpathSpec, allParentClassLoaders, classLoaderProbeLog);
             }
         }
     }
@@ -214,42 +233,46 @@ public class ClassLoaderProbe {
     }
 
     /**
-     * Find the unique classloaders that the given classloaders delegate to, in delegation order, then add the
-     * classpath entries that each of them loads from, using the {@code ClassLoaderHandler} registered for the
-     * classloader.
+     * Find the unique classloaders that the given classloaders delegate to, in delegation order. This appends to
+     * the shared classloader order, so a classloader an earlier source already reached is not listed again.
      *
      * @param classLoaders
      *            the classloaders to search
-     * @param classpathSpec
-     *            the {@link ClasspathSpec}
      * @param classLoaderOrder
      *            the classloader order, which is shared by all the classloader sources
-     * @param numClassLoadersSearched
-     *            the number of classloaders in {@code classLoaderOrder} that an earlier source already searched
      * @param log
      *            the log node, or null to skip logging
-     * @return the new number of classloaders in {@code classLoaderOrder} that have been searched
      */
-    private int addClassLoaderClasspathEntries(final List<ClassLoader> classLoaders,
-            final ClasspathSpec classpathSpec, final ClassLoaderOrderBuilder classLoaderOrder,
-            final int numClassLoadersSearched, final @Nullable LogNode log) {
-        // Find the unique classloaders these classloaders delegate to, in delegation order. This appends to the
-        // shared classloader order, so a classloader an earlier source already reached is not listed again.
+    private static void findClassLoaderOrder(final List<ClassLoader> classLoaders,
+            final ClassLoaderOrderBuilder classLoaderOrder, final @Nullable LogNode log) {
         final var classloaderOrderLog = log == null ? null
                 : log.log("Finding unique classloaders in delegation order");
         for (final ClassLoader classLoader : classLoaders) {
             classLoaderOrder.delegateToPeer(classLoader, classloaderOrderLog);
         }
+    }
 
-        // Get all parent classloaders
-        final var allParentClassLoaders = classLoaderOrder.getAllParentClassLoaders();
-
-        // Get the classpath entries from each of the classloaders this source added to the order
-        final var classLoaderOrderEntries = classLoaderOrder.getClassLoaderOrder();
+    /**
+     * Add the classpath entries that each of the given classloaders loads from, using the
+     * {@code ClassLoaderHandler} registered for the classloader.
+     *
+     * @param handledClassLoaders
+     *            the classloaders that one classloader source added to the classloader order, in delegation order,
+     *            with the handlers to run for each
+     * @param classpathSpec
+     *            the {@link ClasspathSpec}
+     * @param allParentClassLoaders
+     *            every classloader that any classloader source reached as the parent of another
+     * @param log
+     *            the log node, or null to skip logging
+     */
+    private void addClassLoaderClasspathEntries(
+            final List<ClassLoaderOrderBuilder.HandledClassLoader> handledClassLoaders,
+            final ClasspathSpec classpathSpec, final Set<ClassLoader> allParentClassLoaders,
+            final @Nullable LogNode log) {
         final var classloaderURLLog = log == null ? null
                 : log.log("Obtaining URLs from classloaders in delegation order");
-        for (final var handledClassLoader : classLoaderOrderEntries.subList(numClassLoadersSearched,
-                classLoaderOrderEntries.size())) {
+        for (final var handledClassLoader : handledClassLoaders) {
             final var classLoader = handledClassLoader.classLoader();
             for (final ClassLoaderHandler classLoaderHandler : handledClassLoader.handlers()) {
                 if (classpathSpec.isParentClassLoadersIgnored() && allParentClassLoaders.contains(classLoader)) {
@@ -292,6 +315,5 @@ public class ClassLoaderProbe {
                 }
             }
         }
-        return classLoaderOrderEntries.size();
     }
 }
