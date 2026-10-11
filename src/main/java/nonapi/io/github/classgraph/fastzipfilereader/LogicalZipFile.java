@@ -578,7 +578,8 @@ public class LogicalZipFile extends ZipFileSlice {
         }
 
         // Read entries into a byte array, if central directory is smaller than 2GB. If central directory
-        // is larger than 2GB, need to read each entry field from the file directly using ZipFileSliceReader.
+        // is larger than 2GB, need to read each entry field directly from the zipfile, through a
+        // RandomAccessReader over a slice of this zipfile's slice.
         RandomAccessReader cenReader;
         if (cenSize > FileUtils.MAX_BUFFER_SIZE) {
             // Create a slice that covers the central directory (this allows a central directory larger than
