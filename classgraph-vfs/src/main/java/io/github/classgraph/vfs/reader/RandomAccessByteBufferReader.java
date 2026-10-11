@@ -52,7 +52,8 @@ import org.jspecify.annotations.Nullable;
  * {@link IOException}, the same documented way as reading from a closed {@link java.nio.channels.FileChannel}: the
  * {@link IllegalStateException} that a buffer of a closed arena throws is translated, and a check passed to
  * {@link #RandomAccessByteBufferReader(ByteBuffer, long, long, ByteOrder, BooleanSupplier)} is asked before each
- * read whether the storage has been released.
+ * read of the buffer whether the storage has been released. (A bulk read of zero bytes, or into a full destination,
+ * returns 0 without reading the buffer, so it does not ask.)
  */
 public final class RandomAccessByteBufferReader implements RandomAccessReader {
     /** The byte buffer. */
@@ -121,9 +122,9 @@ public final class RandomAccessByteBufferReader implements RandomAccessReader {
      *            the byte order to read multi-byte values in. Pass {@link ByteOrder#nativeOrder()} for content
      *            written in the byte order of the machine this is running on.
      * @param isReleased
-     *            whether the storage the buffer is a view of has been released, which is asked before each read, so
-     *            that a read after the release throws {@link IOException}; or null if the storage cannot be
-     *            released while this reader is in use.
+     *            whether the storage the buffer is a view of has been released, which is asked before each read of
+     *            the buffer, so that a read after the release throws {@link IOException}; or null if the storage
+     *            cannot be released while this reader is in use.
      * @throws IndexOutOfBoundsException
      *             if the slice is not within the buffer's capacity.
      */
