@@ -302,7 +302,8 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
      * {@code U extends Comparable<U>}.
      *
      * @return the class name of the erasure of this type variable, or "java.lang.Object" if the type variable has
-     *         no bound, or cannot be resolved.
+     *         no bound, cannot be resolved, or has bounds that form a cycle, or if its leftmost bound is an array
+     *         type, which Java source cannot declare and only a hand-written classfile can contain.
      */
     String getErasedClassName() {
         var typeVariableSignature = this;
@@ -325,6 +326,9 @@ public final class TypeVariableSignature extends ClassRefOrTypeVariableSignature
             } else if (bound instanceof final TypeVariableSignature boundTypeVariableSignature) {
                 typeVariableSignature = boundTypeVariableSignature;
             } else {
+                // No bound, or an array type bound. An array bound is not followed, since ArrayTypeSignature
+                // uses the result as the name of its element class, and only removes the "[]" suffixes of its own
+                // dimensions from its class name to find that element class again.
                 break;
             }
         }
