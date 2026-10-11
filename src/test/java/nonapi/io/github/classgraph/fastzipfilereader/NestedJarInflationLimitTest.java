@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map.Entry;
 import java.util.Random;
 import java.util.zip.CRC32;
+import java.util.zip.Deflater;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -27,40 +28,55 @@ import nonapi.io.github.classgraph.scanspec.ScanSpec;
 /**
  * A deflated nested jarfile is inflated before it is read, so a small jarfile could otherwise inflate to fill the
  * heap or the temporary directory. The jarfiles nested within a jarfile may inflate to at most 100 times its
- * length, all together.
+ * length, or 256 MB if that is more, all together.
  */
 public class NestedJarInflationLimitTest {
     /** The size of the chunks a jarfile entry is written in, so that no test holds a whole entry in memory. */
     private static final int CHUNK_SIZE = 64 * 1024;
 
     /**
-     * Write a jarfile holding one stored entry, {@code zeros.bin}, of zeros, which deflates to about a thousandth
-     * of its length when the jarfile is nested, deflated, within another.
+     * Write a jarfile holding other jarfiles as deflated entries, each of which holds one stored entry,
+     * {@code zeros.bin}, of zeros, and so deflates to about a thousandth of its length. The nested jarfiles are
+     * written straight into the entries, so that a test of a limit of hundreds of megabytes writes no file of that
+     * size.
      *
      * @param jarFile
      *            the jarfile to write.
+     * @param entryNames
+     *            the names of the entries.
      * @param numZeros
-     *            the length of the entry, a multiple of {@link #CHUNK_SIZE}.
+     *            the length of {@code zeros.bin} in each nested jarfile, a multiple of {@link #CHUNK_SIZE}.
      * @throws IOException
      *             if the jarfile could not be written.
      */
-    private static void writeJarOfZeros(final File jarFile, final long numZeros) throws IOException {
+    private static void writeJarOfDeflatedJarsOfZeros(final File jarFile, final List<String> entryNames,
+            final long numZeros) throws IOException {
         final byte[] chunk = new byte[CHUNK_SIZE];
         final CRC32 crc = new CRC32();
         for (long i = 0; i < numZeros; i += CHUNK_SIZE) {
             crc.update(chunk);
         }
         try (ZipOutputStream zipOut = new ZipOutputStream(new FileOutputStream(jarFile))) {
-            final ZipEntry entry = new ZipEntry("zeros.bin");
-            entry.setMethod(ZipEntry.STORED);
-            entry.setSize(numZeros);
-            entry.setCompressedSize(numZeros);
-            entry.setCrc(crc.getValue());
-            zipOut.putNextEntry(entry);
-            for (long i = 0; i < numZeros; i += CHUNK_SIZE) {
-                zipOut.write(chunk);
+            // Zeros still deflate to about a 200th of their length at the fastest level, which takes a third of
+            // the time of the default level
+            zipOut.setLevel(Deflater.BEST_SPEED);
+            for (final String entryName : entryNames) {
+                zipOut.putNextEntry(new ZipEntry(entryName));
+                // Not closed, since closing it would close zipOut: finish() writes its central directory
+                final ZipOutputStream nestedZipOut = new ZipOutputStream(zipOut);
+                final ZipEntry entry = new ZipEntry("zeros.bin");
+                entry.setMethod(ZipEntry.STORED);
+                entry.setSize(numZeros);
+                entry.setCompressedSize(numZeros);
+                entry.setCrc(crc.getValue());
+                nestedZipOut.putNextEntry(entry);
+                for (long i = 0; i < numZeros; i += CHUNK_SIZE) {
+                    nestedZipOut.write(chunk);
+                }
+                nestedZipOut.closeEntry();
+                nestedZipOut.finish();
+                zipOut.closeEntry();
             }
-            zipOut.closeEntry();
         }
     }
 
@@ -134,17 +150,41 @@ public class NestedJarInflationLimitTest {
     }
 
     /**
-     * A nested jarfile that inflates to about a thousand times its compressed size is refused, both when it would
-     * be inflated into RAM and when it would be spilled to a temporary file.
+     * Nested jarfiles that inflate to about a thousand times their compressed size open, however small the jarfile
+     * they are nested within, as long as together they inflate to no more than the minimum limit. Such a jarfile
+     * holds a large file that compresses very well, such as a sparse database used as a test fixture.
+     */
+    @Test
+    public void nestedJarfilesWithinTheMinimumLimitOpen(@TempDir final File tempDir) throws Exception {
+        final long numZeros = 8L * 1024 * 1024;
+        final List<String> entryNames = Arrays.asList("lib/a.jar", "lib/b.jar");
+        final File outerJar = new File(tempDir, "outer.jar");
+        writeJarOfDeflatedJarsOfZeros(outerJar, entryNames, numZeros);
+        assertThat(2 * numZeros).isGreaterThan(100L * outerJar.length());
+
+        final NestedJarHandler nestedJarHandler = newNestedJarHandler(new ScanSpec().maxBufferedJarRAMSize);
+        try {
+            for (final String entryName : entryNames) {
+                final LogicalZipFile nestedJar = open(nestedJarHandler, outerJar.getPath() + "!/" + entryName);
+                assertThat(nestedJar.entries).hasSize(1);
+                assertThat(nestedJar.entries.get(0).uncompressedSize).isEqualTo(numZeros);
+            }
+        } finally {
+            nestedJarHandler.close(/* log = */ null);
+        }
+    }
+
+    /**
+     * A nested jarfile that inflates to about a thousand times its compressed size, and to more than the minimum
+     * limit, is refused, whether it would be inflated into RAM or spilled to a temporary file. (It is spilled
+     * either way, since it is longer than the default maximum it would be inflated into RAM up to.)
      */
     @Test
     public void aNestedJarfileThatInflatesTooFarIsRefused(@TempDir final File tempDir) throws Exception {
-        final File bombJar = new File(tempDir, "bomb-inner.jar");
-        writeJarOfZeros(bombJar, 32L * 1024 * 1024);
         final File outerJar = new File(tempDir, "outer.jar");
-        writeJarOfDeflatedJars(outerJar, Collections.singletonList("lib/inflation-limit-bomb-inner.jar"),
-                Collections.singletonList(bombJar));
-        assertThat(outerJar.length()).isLessThan(100L * 1024);
+        writeJarOfDeflatedJarsOfZeros(outerJar, Collections.singletonList("lib/inflation-limit-bomb-inner.jar"),
+                NestedJarInflationAllowance.MIN_MAX_BYTES + CHUNK_SIZE);
+        assertThat(100L * outerJar.length()).isLessThan(NestedJarInflationAllowance.MIN_MAX_BYTES);
 
         for (final int maxBufferedJarRAMSize : new int[] { new ScanSpec().maxBufferedJarRAMSize, 0 }) {
             final NestedJarHandler nestedJarHandler = newNestedJarHandler(maxBufferedJarRAMSize);
@@ -171,17 +211,13 @@ public class NestedJarInflationLimitTest {
      */
     @Test
     public void manyNestedJarfilesShareOneLimit(@TempDir final File tempDir) throws Exception {
-        final long numZeros = 4L * 1024 * 1024;
-        final File innerJar = new File(tempDir, "inner.jar");
-        writeJarOfZeros(innerJar, numZeros);
+        final long numZeros = 16L * 1024 * 1024;
         final List<String> entryNames = new ArrayList<>();
-        final List<File> nestedJarFiles = new ArrayList<>();
         for (int i = 0; i < 20; i++) {
             entryNames.add("lib/inner" + i + ".jar");
-            nestedJarFiles.add(innerJar);
         }
         final File outerJar = new File(tempDir, "outer.jar");
-        writeJarOfDeflatedJars(outerJar, entryNames, nestedJarFiles);
+        writeJarOfDeflatedJarsOfZeros(outerJar, entryNames, numZeros);
 
         final NestedJarHandler nestedJarHandler = newNestedJarHandler(new ScanSpec().maxBufferedJarRAMSize);
         try {
@@ -190,14 +226,14 @@ public class NestedJarInflationLimitTest {
             for (final String entryName : entryNames) {
                 try {
                     open(nestedJarHandler, outerJar.getPath() + "!/" + entryName);
-                    totalInflated += innerJar.length();
+                    totalInflated += numZeros;
                 } catch (final Exception e) {
                     assertThat(rootCause(e)).hasMessageContaining("100 times");
                     numRefused++;
                 }
             }
             assertThat(numRefused).isPositive();
-            assertThat(totalInflated).isLessThanOrEqualTo(100L * outerJar.length());
+            assertThat(totalInflated).isLessThanOrEqualTo(NestedJarInflationAllowance.MIN_MAX_BYTES);
         } finally {
             nestedJarHandler.close(/* log = */ null);
         }

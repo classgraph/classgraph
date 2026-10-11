@@ -36,8 +36,9 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * The number of bytes that the deflated jarfiles nested within a toplevel zipfile may still inflate to, all
  * together and at any depth of nesting. It starts at {@value #MAX_INFLATION_RATIO} times the length of the toplevel
- * zipfile, and is shared by the toplevel zipfile and every zipfile inflated out of it. Nothing is given back, since
- * an inflated zipfile is kept until the {@link NestedJarHandler} is closed.
+ * zipfile, or {@value #MIN_MAX_BYTES} bytes if that is more, and is shared by the toplevel zipfile and every
+ * zipfile inflated out of it. Nothing is given back, since an inflated zipfile is kept until the
+ * {@link NestedJarHandler} is closed.
  *
  * <p>
  * Without a limit, a small crafted jarfile could fill the heap or the temporary directory, since deflate compresses
@@ -53,6 +54,13 @@ final class NestedJarInflationAllowance {
      * together.
      */
     static final long MAX_INFLATION_RATIO = 100L;
+
+    /**
+     * The number of bytes that the jarfiles nested within a toplevel zipfile may always inflate to, all together,
+     * however short the toplevel zipfile is, so that a small jarfile holding a large file that compresses very well,
+     * such as a sparse database or disk image used as a test fixture, is not refused.
+     */
+    static final long MIN_MAX_BYTES = 256L * 1024 * 1024;
 
     /** The path of the toplevel zipfile, for the error message. */
     private final String toplevelPath;
@@ -74,7 +82,7 @@ final class NestedJarInflationAllowance {
     NestedJarInflationAllowance(final String toplevelPath, final long toplevelLength) {
         this.toplevelPath = toplevelPath;
         this.maxBytes = toplevelLength > Long.MAX_VALUE / MAX_INFLATION_RATIO ? Long.MAX_VALUE
-                : toplevelLength * MAX_INFLATION_RATIO;
+                : Math.max(toplevelLength * MAX_INFLATION_RATIO, MIN_MAX_BYTES);
         this.bytesLeft = new AtomicLong(maxBytes);
     }
 
@@ -130,7 +138,8 @@ final class NestedJarInflationAllowance {
                 if (left < numBytes) {
                     throw new IOException("Nested jar " + nestedJarPath + " was not inflated, since the jarfiles"
                             + " nested within " + toplevelPath + " would inflate to more than " + maxBytes
-                            + " bytes in all, which is " + MAX_INFLATION_RATIO + " times its length");
+                            + " bytes in all, which is the larger of " + MAX_INFLATION_RATIO
+                            + " times its length and " + MIN_MAX_BYTES + " bytes");
                 }
             } while (!bytesLeft.compareAndSet(left, left - numBytes));
         }
