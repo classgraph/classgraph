@@ -169,7 +169,8 @@ final class FileMapping {
     }
 
     /**
-     * Close an arena, unmapping any file mapped with it. The mapping must no longer be in use by any thread.
+     * Close an arena, unmapping any file mapped with it. A thread that is still reading the mapping does not stop
+     * the arena from closing: its read throws {@link IllegalStateException} instead.
      *
      * @param arena
      *            the arena to close.
@@ -183,8 +184,8 @@ final class FileMapping {
             arena.close();
             return true;
         } catch (final RuntimeException e) {
-            // IllegalStateException, if the arena has already been closed, or if another thread is accessing
-            // memory in it at this moment
+            // IllegalStateException, if the arena has already been closed, or if an I/O operation on a buffer in
+            // the arena is in progress (such as a channel write from the buffer), which holds the arena open
             if (log != null) {
                 log.log("Could not close arena: " + e);
             }
