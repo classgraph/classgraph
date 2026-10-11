@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
+import io.github.classgraph.Classfile.ClassContainment;
 import io.github.classgraph.Classfile.TypePathNode;
 import org.jspecify.annotations.Nullable;
 
@@ -161,7 +162,8 @@ public final class BaseTypeSignature extends TypeSignature {
     // -------------------------------------------------------------------------------------------------------------
 
     @Override
-    void addTypeAnnotation(final List<TypePathNode> typePath, final AnnotationInfo annotationInfo) {
+    void addTypeAnnotation(final List<TypePathNode> typePath, final AnnotationInfo annotationInfo,
+            final List<ClassContainment> unlinkedInnerClasses) {
         if (typePath.isEmpty()) {
             addTypeAnnotation(annotationInfo);
         } else {

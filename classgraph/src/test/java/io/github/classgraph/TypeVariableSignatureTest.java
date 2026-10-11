@@ -467,7 +467,7 @@ public class TypeVariableSignatureTest {
         try (var scanResult = scan()) {
             final var typeVariable = typeVariable(scanResult, "classBounded");
             final var typePath = List.of(new Classfile.TypePathNode((short) 0, (short) 0));
-            assertThatThrownBy(() -> typeVariable.addTypeAnnotation(typePath, null))
+            assertThatThrownBy(() -> typeVariable.addTypeAnnotation(typePath, null, List.of()))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessage("Type variable should have empty typePath");
         }

@@ -34,6 +34,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
+import io.github.classgraph.Classfile.ClassContainment;
 import io.github.classgraph.Classfile.TypePathNode;
 import org.jspecify.annotations.Nullable;
 
@@ -192,8 +193,12 @@ public final class TypeArgument extends HierarchicalTypeSignature {
      *            The type path, relative to this type argument.
      * @param annotationInfo
      *            The annotation to add.
+     * @param unlinkedInnerClasses
+     *            The {@code InnerClasses} entries for inner classes that the classfile the annotation was read from
+     *            did not link (see {@link ClassInfo#getUnlinkedInnerClasses()}).
      */
-    void addTypeAnnotation(final List<TypePathNode> typePath, final AnnotationInfo annotationInfo) {
+    void addTypeAnnotation(final List<TypePathNode> typePath, final AnnotationInfo annotationInfo,
+            final List<ClassContainment> unlinkedInnerClasses) {
         if (typePath.isEmpty() && wildcard != Wildcard.NONE) {
             // Annotation before wildcard
             addTypeAnnotation(annotationInfo);
@@ -202,14 +207,15 @@ public final class TypeArgument extends HierarchicalTypeSignature {
             // null in a corrupt classfile (#758).
             final var typeSig = typeSignature;
             if (typeSig != null) {
-                typeSig.addTypeAnnotation(typePath.subList(1, typePath.size()), annotationInfo);
+                typeSig.addTypeAnnotation(typePath.subList(1, typePath.size()), annotationInfo,
+                        unlinkedInnerClasses);
             }
         } else {
             // Annotation is on a type argument of a parameterized type. TypeSignature can be null in a corrupt
             // classfile (#758).
             final var typeSig = typeSignature;
             if (typeSig != null) {
-                typeSig.addTypeAnnotation(typePath, annotationInfo);
+                typeSig.addTypeAnnotation(typePath, annotationInfo, unlinkedInnerClasses);
             }
         }
     }

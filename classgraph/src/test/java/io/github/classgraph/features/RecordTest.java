@@ -34,7 +34,8 @@ public class RecordTest {
             final var fieldInfo = classInfoList.get(0).getFieldInfo("x");
             assertThat(fieldInfo).isNotNull();
             // A record's classfile has an InnerClasses entry for MethodHandles$Lookup, because its bootstrap
-            // methods take a Lookup; that entry does not link the record, or MethodHandles, to Lookup
+            // methods take a Lookup; that entry is not linked, since Lookup is neither nested in the record nor
+            // brought into the class graph by it
             assertThat(classInfoList.get(0).hasNestedClasses()).isFalse();
             assertThat(classInfoList.get(0).isNestedClass()).isFalse();
             assertThat(scanResult.getClassInfo("java.lang.invoke.MethodHandles$Lookup")).isNull();
@@ -43,9 +44,33 @@ public class RecordTest {
     }
 
     /**
-     * The InnerClasses entry for {@code MethodHandles$Lookup} is dropped from the classfiles of the classes that
-     * use it, but not from the classfiles of MethodHandles and the classes nested in it, where it describes the
-     * real nesting.
+     * A record depends on {@code MethodHandles$Lookup}, since its bootstrap methods take a Lookup, so with
+     * inter-class dependencies enabled, the record's InnerClasses entry for Lookup is linked, as for any other
+     * nested class that is a dependency.
+     *
+     * @throws Exception
+     *             the exception
+     */
+    @Test
+    public void recordDependsOnMethodHandlesLookup() throws Exception {
+        try (var classLoader = new URLClassLoader(new URL[] { jarURL });
+                var scanResult = new ClassGraph().enableClassLoaders(classLoader).acceptPackages("pkg")
+                        .enableClassInfo().enableInterClassDependencies().enableExternalClasses()
+                        .ignoreClassVisibility().scan()) {
+            final var record = scanResult.getClassInfo("pkg.Record");
+            assertThat(record.getClassDependencies().getNames()).contains("java.lang.invoke.MethodHandles$Lookup");
+            assertThat(record.hasNestedClasses()).isFalse();
+            assertThat(record.isNestedClass()).isFalse();
+            final var lookup = scanResult.getClassInfo("java.lang.invoke.MethodHandles$Lookup");
+            assertThat(lookup.getResource()).isNull();
+            assertThat(lookup.isMemberClass()).isTrue();
+            assertThat(lookup.getEnclosingClasses().getNames()).containsExactly("java.lang.invoke.MethodHandles");
+        }
+    }
+
+    /**
+     * The InnerClasses entry for {@code MethodHandles$Lookup} in the classfiles of MethodHandles and the classes
+     * nested in it describes the real nesting.
      */
     @Test
     public void methodHandlesLookupIsNestedInMethodHandles() {

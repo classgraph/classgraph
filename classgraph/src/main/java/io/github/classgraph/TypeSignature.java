@@ -36,6 +36,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
+import io.github.classgraph.Classfile.ClassContainment;
 import io.github.classgraph.Classfile.TypePathNode;
 import io.github.classgraph.base.internal.utils.Assert;
 import org.jspecify.annotations.Nullable;
@@ -481,8 +482,12 @@ public abstract sealed class TypeSignature extends HierarchicalTypeSignature
      *            The type path, relative to this type.
      * @param annotationInfo
      *            The annotation to add.
+     * @param unlinkedInnerClasses
+     *            The {@code InnerClasses} entries for inner classes that the classfile the annotation was read from
+     *            did not link (see {@link ClassInfo#getUnlinkedInnerClasses()}).
      * @throws IllegalArgumentException
      *             if the type path does not lead to a type within this type.
      */
-    abstract void addTypeAnnotation(List<TypePathNode> typePath, AnnotationInfo annotationInfo);
+    abstract void addTypeAnnotation(List<TypePathNode> typePath, AnnotationInfo annotationInfo,
+            List<ClassContainment> unlinkedInnerClasses);
 }

@@ -33,6 +33,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
+import io.github.classgraph.Classfile.ClassContainment;
 import io.github.classgraph.Classfile.TypePathNode;
 import org.jspecify.annotations.Nullable;
 
@@ -206,7 +207,8 @@ public final class ArrayTypeSignature extends ReferenceTypeSignature {
     }
 
     @Override
-    void addTypeAnnotation(final List<TypePathNode> typePath, final AnnotationInfo annotationInfo) {
+    void addTypeAnnotation(final List<TypePathNode> typePath, final AnnotationInfo annotationInfo,
+            final List<ClassContainment> unlinkedInnerClasses) {
         if (typePath.isEmpty()) {
             addTypeAnnotation(annotationInfo);
         } else {
@@ -214,7 +216,8 @@ public final class ArrayTypeSignature extends ReferenceTypeSignature {
             if (head.typePathKind() != 0 || head.typeArgumentIdx() != 0) {
                 throw new IllegalArgumentException("typePath element contains bad values: " + head);
             }
-            nestedType.addTypeAnnotation(typePath.subList(1, typePath.size()), annotationInfo);
+            nestedType.addTypeAnnotation(typePath.subList(1, typePath.size()), annotationInfo,
+                    unlinkedInnerClasses);
         }
     }
 

@@ -151,7 +151,8 @@ public class BaseTypeSignatureTest {
     public void aTypeAnnotationOnABaseTypeMustHaveAnEmptyTypePath() {
         final var intSignature = new BaseTypeSignature('I');
         final var typePath = List.of(new Classfile.TypePathNode((short) 0, (short) 0));
-        assertThatThrownBy(() -> intSignature.addTypeAnnotation(typePath, new AnnotationInfo("Ann", null)))
+        assertThatThrownBy(
+                () -> intSignature.addTypeAnnotation(typePath, new AnnotationInfo("Ann", null), List.of()))
                 .isInstanceOf(IllegalArgumentException.class).hasMessage("Base type should have empty typePath");
         assertThat(intSignature.getTypeAnnotationInfo()).isEmpty();
     }

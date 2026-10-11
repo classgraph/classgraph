@@ -36,6 +36,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
+import io.github.classgraph.Classfile.ClassContainment;
 import io.github.classgraph.Classfile.TypePathNode;
 import org.jspecify.annotations.Nullable;
 
@@ -304,7 +305,8 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
     }
 
     @Override
-    void addTypeAnnotation(final List<TypePathNode> typePath, final AnnotationInfo annotationInfo) {
+    void addTypeAnnotation(final List<TypePathNode> typePath, final AnnotationInfo annotationInfo,
+            final List<ClassContainment> unlinkedInnerClasses) {
         // Find how many deeper nested levels to descend to
         var numDeeperNestedLevels = 0;
         var nextTypeArgIdx = -1;
@@ -337,14 +339,29 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
                 skipSuffix = false;
             } else {
                 // For suffix path X.Y, classes are not nested if Y is static
-                final var outerClassInfo = scanResult().getClassInfo(typePrefix);
+                final var outerClassName = typePrefix;
                 typePrefix = typePrefix + '$' + suffixes.get(suffixIdx + 1);
+                final var outerClassInfo = scanResult().getClassInfo(outerClassName);
                 final var innerClassInfo = scanResult().getClassInfo(typePrefix);
-                skipSuffix = outerClassInfo == null || innerClassInfo == null
-                        || outerClassInfo.isInterfaceOrAnnotation() //
-                        || innerClassInfo.isInterfaceOrAnnotation() //
-                        || innerClassInfo.isStatic() //
-                        || !outerClassInfo.nestedClassesIncludingExternal().contains(innerClassInfo);
+                if (outerClassInfo != null && innerClassInfo != null) {
+                    skipSuffix = outerClassInfo.isInterfaceOrAnnotation() //
+                            || innerClassInfo.isInterfaceOrAnnotation() //
+                            || innerClassInfo.isStatic() //
+                            || !outerClassInfo.nestedClassesIncludingExternal().contains(innerClassInfo);
+                } else {
+                    // A nested class that the classfile only names in a type may have no ClassInfo (see
+                    // ClassInfo#getUnlinkedInnerClasses()), so look for the classfile's InnerClasses entry for it,
+                    // which was kept if Y is an inner class of X
+                    var isInnerClass = false;
+                    for (final ClassContainment entry : unlinkedInnerClasses) {
+                        if (entry.innerClassName().equals(typePrefix)
+                                && entry.outerClassName().equals(outerClassName)) {
+                            isInnerClass = true;
+                            break;
+                        }
+                    }
+                    skipSuffix = !isInnerClass;
+                }
             }
             if (!skipSuffix) {
                 // Found nested classes
@@ -374,7 +391,8 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
                 // nested type, and this has to be handled recursively on the remaining part of the type path
                 final var remainingTypePath = typePath.subList(numDeeperNestedLevels + 1, typePath.size());
                 // Add type annotation to type argument
-                typeArgumentList.get(nextTypeArgIdx).addTypeAnnotation(remainingTypePath, annotationInfo);
+                typeArgumentList.get(nextTypeArgIdx).addTypeAnnotation(remainingTypePath, annotationInfo,
+                        unlinkedInnerClasses);
             }
         }
     }

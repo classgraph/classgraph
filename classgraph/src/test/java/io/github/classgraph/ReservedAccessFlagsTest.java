@@ -126,8 +126,9 @@ public class ReservedAccessFlagsTest {
                 classfile("p/Outer", 0x0021, new InnerClassEntry("p/Outer$In", "p/Outer", 0x08E2),
                         new InnerClassEntry("p/Outer$Ext", "p/Outer", 0x0889),
                         new InnerClassEntry("q/Lib$Nested", "q/Lib", 0x0104)));
+        // p/Outer only names q/Lib$Nested, so q.Lib$Nested is in the class graph only if dependencies are enabled
         try (var scanResult = new ClassGraph().enableClassInfo().ignoreClassVisibility()
-                .enableClasspathEntries(tempDir).scan()) {
+                .enableInterClassDependencies().enableClasspathEntries(tempDir).scan()) {
             final var top = scanResult.getClassInfo("p.Top");
             assertThat(top).isNotNull();
             assertThat(top.getModifiers()).isEqualTo(0x0001);

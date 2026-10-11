@@ -127,7 +127,9 @@ public class StaleClientModifiersTest {
     }
 
     /**
-     * Scan with one thread, so that the classfiles are linked in classpath order.
+     * Scan with one thread, so that the classfiles are linked in classpath order. Inter-class dependencies are
+     * enabled, so that the client's {@code InnerClasses} entries for the nested classes that it names only in the
+     * types of its fields are linked too.
      *
      * @param classpath
      *            the classpath, in order.
@@ -137,8 +139,8 @@ public class StaleClientModifiersTest {
      */
     private static ScanResult scan(final List<Path> classpath, final String... rejectedClasses) {
         return new ClassGraph().enableClasspathEntries(classpath).enableClassInfo().enableMethodInfo()
-                .enableFieldInfo().enableAnnotationInfo().acceptPackages("lib", "client")
-                .rejectClasses(rejectedClasses).scan(1);
+                .enableFieldInfo().enableAnnotationInfo().enableInterClassDependencies()
+                .acceptPackages("lib", "client").rejectClasses(rejectedClasses).scan(1);
     }
 
     /**
@@ -210,9 +212,10 @@ public class StaleClientModifiersTest {
 
     /**
      * When neither a nested class nor its enclosing class is scanned, the only {@code InnerClasses} entries for the
-     * nested class are those of client classfiles, which can disagree about its access level. Here one client is
-     * compiled against version 1 of the library, in which {@code Prot} is {@code protected}, and another against
-     * version 2, in which it is {@code public}. The widest access level is kept, whichever client is linked first.
+     * nested class are those of client classfiles, which can disagree about its access level. Here a nested class
+     * of one client, compiled against version 1 of the library, in which {@code Prot} is {@code protected}, extends
+     * {@code Prot}, and so does a nested class of another client, compiled against version 2, in which it is
+     * {@code public}. The widest access level is kept, whichever client is linked first.
      *
      * @param tempDir
      *            a temporary directory to compile into.
@@ -224,7 +227,8 @@ public class StaleClientModifiersTest {
             throws IOException {
         final var libV1 = compile(tempDir.resolve("v1"), "lib", LIB_V1, null);
         final var libV2 = compile(tempDir.resolve("v2"), "lib", LIB_V2, null);
-        final var client = Map.of("D", "public class D extends lib.Outer { Prot p; }");
+        final var client = Map.of("D",
+                "public class D extends lib.Outer { public static class E extends Prot {} }");
         final var clientV1 = compile(tempDir.resolve("client1"), "client1", client, libV1);
         final var clientV2 = compile(tempDir.resolve("client2"), "client2", client, libV2);
         for (final var classpath : List.of(List.of(clientV1, clientV2), List.of(clientV2, clientV1))) {
