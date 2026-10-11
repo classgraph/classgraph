@@ -37,6 +37,7 @@ import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermission;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -118,6 +119,39 @@ class TempFilenameSanitizationTest {
     }
 
     /**
+     * Start a child JVM, wait at most 5 minutes for it to exit, and check that it exited with status 0. The child
+     * JVM is killed if it runs for longer.
+     *
+     * @param processBuilder
+     *            the child JVM to start, with its standard error merged into its standard output.
+     * @return everything the child JVM wrote to stdout and stderr.
+     * @throws IOException
+     *             if the child JVM could not be started, or its output could not be read.
+     * @throws InterruptedException
+     *             if the thread was interrupted while waiting for the child JVM.
+     */
+    private static String runChildJvm(final ProcessBuilder processBuilder)
+            throws IOException, InterruptedException {
+        // The output goes to a file rather than a pipe, so that a child JVM that hangs cannot block the read, and the
+        // timeout still applies. The file is not put in the child JVM's temporary directory, which the tests check
+        // is left empty.
+        final var outputFile = Files.createTempFile("child-jvm", ".out");
+        try {
+            final var process = processBuilder.redirectOutput(outputFile.toFile()).start();
+            final var finished = process.waitFor(5, TimeUnit.MINUTES);
+            if (!finished) {
+                process.destroyForcibly().waitFor();
+            }
+            final var output = new String(Files.readAllBytes(outputFile), StandardCharsets.UTF_8);
+            assertThat(finished).as("Child JVM did not finish in 5 minutes. Output:%n%s", output).isTrue();
+            assertThat(process.exitValue()).as("Child JVM output:%n%s", output).isZero();
+            return output;
+        } finally {
+            Files.deleteIfExists(outputFile);
+        }
+    }
+
+    /**
      * Run in a child JVM: create and delete a temporary file for a nested jar with a non-ASCII name, and print the
      * encoding that filenames are stored in, then the name of the temporary file.
      */
@@ -163,12 +197,7 @@ class TempFilenameSanitizationTest {
         processBuilder.environment().keySet().removeIf(name -> name.startsWith("LC_"));
         processBuilder.environment().put("LC_ALL", "C");
         processBuilder.environment().put("LANG", "C");
-        final var process = processBuilder.start();
-        final String output;
-        try (var inputStream = process.getInputStream()) {
-            output = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
-        }
-        assertThat(process.waitFor()).as("Child JVM output:%n%s", output).isZero();
+        final var output = runChildJvm(processBuilder);
         // Read the last two lines, since the JVM may print a notice such as "Picked up JAVA_TOOL_OPTIONS" first
         final var outputLines = output.lines().toList();
         assertThat(outputLines).as("Child JVM output:%n%s", output).hasSizeGreaterThanOrEqualTo(2);
@@ -232,12 +261,7 @@ class TempFilenameSanitizationTest {
         processBuilder.environment().keySet().removeIf(name -> name.startsWith("LC_"));
         processBuilder.environment().put("LC_ALL", "C");
         processBuilder.environment().put("LANG", "C");
-        final var process = processBuilder.start();
-        final String output;
-        try (var inputStream = process.getInputStream()) {
-            output = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
-        }
-        assertThat(process.waitFor()).as("Child JVM output:%n%s", output).isZero();
+        final var output = runChildJvm(processBuilder);
         // Read the last three lines, since the JVM may print a notice such as "Picked up JAVA_TOOL_OPTIONS" first
         final var outputLines = output.lines().toList();
         assertThat(outputLines).as("Child JVM output:%n%s", output).hasSizeGreaterThanOrEqualTo(3);

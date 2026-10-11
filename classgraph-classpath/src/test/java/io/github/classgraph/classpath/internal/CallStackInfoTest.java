@@ -3,11 +3,12 @@ package io.github.classgraph.classpath.internal;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
+
+import io.github.classgraph.classpath.ChildJvm;
 
 /** Tests for {@link CallStackInfo}. */
 public class CallStackInfoTest {
@@ -85,12 +86,7 @@ public class CallStackInfoTest {
                 ProcessHandle.current().info().command()
                         .orElseGet(() -> Path.of(System.getProperty("java.home"), "bin", "java").toString()),
                 "-Xbootclasspath/a:" + classpath, "-cp", classpath, CallStackInfoPrinter.class.getName());
-        final var process = new ProcessBuilder(command).redirectErrorStream(true).start();
-        final String output;
-        try (var inputStream = process.getInputStream()) {
-            output = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
-        }
-        assertThat(process.waitFor()).as("Child JVM output:%n%s", output).isZero();
+        final var output = ChildJvm.run(new ProcessBuilder(command));
         // The child JVM can print JVM warnings too, so the output is searched by line rather than matched whole
         assertThat(output.lines()).as("Child JVM output:%n%s", output).contains("classLoader=null")
                 .anyMatch(line -> line.startsWith("frame="

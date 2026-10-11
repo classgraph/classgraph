@@ -11,7 +11,6 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -215,13 +214,7 @@ public class ClasspathFinderTest {
                 ProcessHandle.current().info().command()
                         .orElseGet(() -> Path.of(System.getProperty("java.home"), "bin", "java").toString()),
                 "-cp", System.getProperty("java.class.path"), CurrentDirWildcardPrinter.class.getName());
-        final var process = new ProcessBuilder(command).directory(tempDir.toFile()).redirectErrorStream(true)
-                .start();
-        final String output;
-        try (var inputStream = process.getInputStream()) {
-            output = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
-        }
-        assertThat(process.waitFor()).as("Child JVM output:%n%s", output).isZero();
+        final var output = ChildJvm.run(new ProcessBuilder(command).directory(tempDir.toFile()));
         assertThat(output.lines()).as("Child JVM output:%n%s", output).containsExactly(location(jar));
     }
 
