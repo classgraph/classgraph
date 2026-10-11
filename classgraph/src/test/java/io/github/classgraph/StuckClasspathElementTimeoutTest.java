@@ -17,6 +17,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -81,15 +82,26 @@ public class StuckClasspathElementTimeoutTest {
         makeDirWithClassPath(tempDir.resolve("parent"), "stuck/");
         makeDirWithClassPath(tempDir.resolve("stuck"), "other/");
         Files.createDirectories(tempDir.resolve("other"));
+        // Set when the calling thread submits the worker thread, which it does after the classpath elements named
+        // directly, including "stuck", have been tested against the filter, and before it takes its first work unit
+        final var workQueueStarted = new AtomicBoolean();
+        final var parentOpening = new CountDownLatch(1);
+        final var workerOpeningStuck = new CountDownLatch(1);
         final var releaseWorker = new CountDownLatch(1);
 
-        // Delay the start of each worker thread, so that the calling thread takes the first work unit, "parent"
+        // Hold back the worker thread until the calling thread has taken the first work unit, "parent"
         final var executorService = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS,
                 new LinkedBlockingQueue<>()) {
             @Override
+            public void execute(final Runnable command) {
+                workQueueStarted.set(true);
+                super.execute(command);
+            }
+
+            @Override
             protected void beforeExecute(final Thread t, final Runnable r) {
                 try {
-                    Thread.sleep(300);
+                    parentOpening.await(30, TimeUnit.SECONDS);
                 } catch (final InterruptedException e) {
                     t.interrupt();
                 }
@@ -103,12 +115,14 @@ public class StuckClasspathElementTimeoutTest {
                                             tempDir.resolve("stuck").toString())
                                     .filterClasspathElements(location -> {
                                         try {
-                                            if (names(location, "stuck")) {
-                                                // Hold the calling thread on "parent" until the worker thread has started
-                                                // opening "stuck"
-                                                Thread.sleep(1000);
+                                            if (names(location, "stuck") && workQueueStarted.get()) {
+                                                // The calling thread is opening "parent". Hold it there until the
+                                                // worker thread has started opening "stuck"
+                                                parentOpening.countDown();
+                                                workerOpeningStuck.await(30, TimeUnit.SECONDS);
                                             } else if (names(location, "other")) {
                                                 // The worker thread is stuck opening "stuck"
+                                                workerOpeningStuck.countDown();
                                                 releaseWorker.await(30, TimeUnit.SECONDS);
                                             }
                                         } catch (final InterruptedException e) {
@@ -121,6 +135,8 @@ public class StuckClasspathElementTimeoutTest {
                     .hasMessageStartingWith("Timed out after 500ms waiting for another thread to open the "
                             + "classpath element " + tempDir.resolve("stuck").toRealPath());
         } finally {
+            parentOpening.countDown();
+            workerOpeningStuck.countDown();
             releaseWorker.countDown();
             executorService.shutdown();
             assertThat(executorService.awaitTermination(20, TimeUnit.SECONDS)).isTrue();
