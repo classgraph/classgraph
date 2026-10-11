@@ -109,8 +109,8 @@ class Classfile {
     private boolean isRecord;
 
     /**
-     * The names of the record components, in declaration order, or null if this class is not a record, field info
-     * is not enabled, or the {@code Record} attribute is malformed.
+     * The names of the record components, in declaration order, or null if this class is not a record or the
+     * {@code Record} attribute is malformed. They are read whether or not field info is enabled.
      */
     private @Nullable List<String> recordComponentNames;
 
@@ -2663,15 +2663,13 @@ class Classfile {
                         classTypeAnnotations, this::readClassTypeAnnotations);
             } else if (constantPoolStringEquals(attributeNameCpIdx, "Record")) {
                 isRecord = true;
-                if (scanSpec.enableFieldInfo) {
-                    // Each record component has a field of the same name and type, but the fields are sorted by
-                    // name, so read only the names of the components, which give their declaration order. A
-                    // malformed attribute loses only that order, not the class.
-                    recordComponentNames = readAnnotationAttribute(attributeNameCpIdx, attributeLength, "the class",
-                            recordComponentNames, this::readRecordComponentNames);
-                } else {
-                    reader().skip(attributeLength);
-                }
+                // Each record component has a field of the same name and type, but the fields are sorted by name,
+                // so read only the names of the components, which give their declaration order. They are read
+                // even if field info is not enabled, so that a record with no components can be told apart from a
+                // record whose components are not known. A malformed attribute loses only the names, not the
+                // class.
+                recordComponentNames = readAnnotationAttribute(attributeNameCpIdx, attributeLength, "the class",
+                        recordComponentNames, this::readRecordComponentNames);
             } else if (constantPoolStringEquals(attributeNameCpIdx, "InnerClasses")) {
                 readInnerClassesAttribute();
             } else if (constantPoolStringEquals(attributeNameCpIdx, "Signature")) {

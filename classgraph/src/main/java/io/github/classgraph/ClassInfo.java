@@ -107,8 +107,8 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     private boolean isRecord;
 
     /**
-     * The names of the record components, in declaration order, or null if this class is not a record, or they were
-     * not read.
+     * The names of the record components, in declaration order, or null if this class is not a record, or its
+     * {@code Record} attribute was malformed. They are read whether or not field info is enabled.
      */
     private @Nullable List<String> recordComponentNames;
 
@@ -4441,10 +4441,11 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      * <p>
      * The record components are listed in declaration order, which is the order of the record's {@code Record}
      * attribute, and each is rendered from the instance field of the same name, since the fields are sorted by
-     * name. (A record may also declare static fields, which are not components.) If field info was not enabled
-     * during the scan, the {@code Record} attribute was malformed, or the field of a component was not visible to
-     * the scan, then the whole component list is omitted rather than rendered in part or empty, since that would
-     * wrongly state which components the record has. A record with no components renders {@code "()"}.
+     * name. (A record may also declare static fields, which are not components.) If the {@code Record} attribute
+     * was malformed, or the field of a component is not known, because field info was not enabled during the scan
+     * or the field was not visible to the scan, then the whole component list is omitted rather than rendered in
+     * part or empty, since that would wrongly state which components the record has. A record with no components
+     * renders {@code "()"}, whether or not field info was enabled.
      *
      * @param useSimpleNames
      *            if true, strip package and outer class names from class names
@@ -4452,8 +4453,8 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      *            the buffer to append to
      */
     void appendRecordComponents(final boolean useSimpleNames, final StringBuilder buf) {
-        // The component names are only read if field info is enabled. The field list is null if the class has no
-        // fields, so it is null for a record with no components and no static fields.
+        // The component names are read whether or not field info is enabled. The field list is null if field info
+        // is not enabled, or if the class has no fields, as for a record with no components and no static fields.
         final var componentNames = recordComponentNames;
         final var fields = fieldInfo;
         if (!isRecord || componentNames == null) {
