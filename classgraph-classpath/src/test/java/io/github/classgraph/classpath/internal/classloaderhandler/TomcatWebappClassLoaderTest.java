@@ -507,6 +507,11 @@ public class TomcatWebappClassLoaderTest {
      * well, or its {@code index.jsp} and {@code WEB-INF/web.xml} are scanned too, which the classloader cannot
      * load.
      *
+     * <p>
+     * Real Tomcat lists these as {@code war:file:.../app.war*}{@code /...} URLs. The test uses the equivalent
+     * {@code jar:file:.../app.war!/...} URLs instead, since the test JVM can build those without the URL stream
+     * handler that Tomcat registers for the {@code war:} protocol.
+     *
      * @param tempDir
      *            a temporary directory to create the webapp in.
      * @throws IOException
@@ -516,11 +521,11 @@ public class TomcatWebappClassLoaderTest {
     public void aPackedWarIsNotOnTheClasspathThroughTheUrlsOfTheWebappClassLoader(@TempDir final Path tempDir)
             throws IOException {
         final var war = Files.createFile(tempDir.resolve("app.war"));
-        final var classesJar = new JarWarResourceSet("/WEB-INF/classes", war.toString(),
+        final var dependencyJar = new JarWarResourceSet("/WEB-INF/classes", war.toString(),
                 "WEB-INF/lib/dependency.jar", "/");
-        classesJar.setClassLoaderOnly(true);
+        dependencyJar.setClassLoaderOnly(true);
         final var root = new StandardRoot().addResourceSets(new WarResourceSet("/", war.toString()))
-                .addResourceSets(classesJar);
+                .addResourceSets(dependencyJar);
         final var urls = new URL[] { URI.create("jar:" + war.toUri() + "!/WEB-INF/classes/").toURL(),
                 URI.create("jar:" + war.toUri() + "!/WEB-INF/lib/dependency.jar").toURL() };
         assertThat(locations(new WebappClassLoaderBase(root, urls, /* parent = */ null))).containsExactly(

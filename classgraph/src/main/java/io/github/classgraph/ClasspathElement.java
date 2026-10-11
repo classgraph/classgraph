@@ -820,10 +820,10 @@ abstract sealed class ClasspathElement implements Comparable<ClasspathElement>
      *         classpath element, or is a path that the scan skips (see {@link #isSkippedPath(String)}).
      */
     // N.B. this deliberately ignores the accept and reject criteria, because it is how the class graph is extended
-    // upwards through classes that the scan did not accept (Classfile#findClassfile). Callers that must not report
-    // a rejected resource filter the result with ScanSpec#resourcePathIsRejected(String). It returns a new Resource
-    // on every call, rather than one of the acceptedResources, so that a caller can open what it returns while the
-    // accepted Resource for the same path is open.
+    // upwards through classes that the scan did not accept (Classfile#findClassfile, through getResourceDuringScan).
+    // Callers that must not report a rejected resource filter the result with ScanSpec#resourcePathIsRejected(String).
+    // It returns a new Resource on every call, rather than one of the acceptedResources, so that a caller can open
+    // what it returns while the accepted Resource for the same path is open.
     abstract @Nullable Resource getResource(final String relativePath);
 
     /**

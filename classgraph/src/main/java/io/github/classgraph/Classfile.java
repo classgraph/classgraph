@@ -467,7 +467,8 @@ class Classfile {
         }
         // Otherwise the first copy in classpath order wins, as for classpath masking. The modules that are being
         // scanned come before all traditional classpath elements in classpathOrder. This is O(N) for each external
-        // class, but each external class is looked up only once.
+        // class, but each external class is looked up only once, and a directory classpath element that does not
+        // hold the class's package looks up the package directory only once per scan.
         for (final ClasspathElement classpathOrderElt : classpathOrder) {
             final var classResource = classpathOrderElt.getResourceDuringScan(classfilePath);
             if (classResource != null) {
@@ -1284,7 +1285,8 @@ class Classfile {
     /**
      * Read annotation element value from classfile.
      *
-     * @return the annotation element value
+     * @return the annotation element value, or {@link #ILLEGAL_ANNOTATION} if it is an annotation whose class name
+     *         is illegal, or an array or annotation that holds one.
      * @throws IOException
      *             If an IO exception occurs.
      * @throws ClassfileFormatException
@@ -1307,7 +1309,8 @@ class Classfile {
      * Read the contents of an annotation element value from classfile, at the nesting depth set by
      * {@link #readAnnotationElementValue()}.
      *
-     * @return the annotation element value
+     * @return the annotation element value, or {@link #ILLEGAL_ANNOTATION} if it is an annotation whose class name
+     *         is illegal, or an array or annotation that holds one.
      * @throws IOException
      *             If an IO exception occurs.
      */
@@ -2306,6 +2309,7 @@ class Classfile {
                 // Get annotation parameter default value, or null if the attribute is malformed
                 final var defaultValue = this.<@Nullable Object> readAnnotationAttribute(attributeNameCpIdx,
                         attributeLength, "method " + methodName, null, _ -> readAnnotationElementValue());
+                // A default value that is an annotation with an illegal class name, or holds one, is dropped
                 if (defaultValue != null && defaultValue != ILLEGAL_ANNOTATION) {
                     if (annotationParamDefaultValues == null) {
                         annotationParamDefaultValues = new ArrayList<>();
@@ -2398,6 +2402,7 @@ class Classfile {
                     }
                 }
                 if (numParamAnnotations < mergedParameterAnnotations[paramIdx].length) {
+                    // Drop the slots of annotations whose class name is illegal
                     mergedParameterAnnotations[paramIdx] = Arrays.copyOf(mergedParameterAnnotations[paramIdx],
                             numParamAnnotations);
                 }
