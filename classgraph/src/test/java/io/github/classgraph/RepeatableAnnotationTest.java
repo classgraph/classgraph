@@ -11,6 +11,8 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Collection;
+import java.util.List;
 
 import javax.tools.ToolProvider;
 
@@ -270,6 +272,24 @@ public class RepeatableAnnotationTest {
         // The first repeat written is the one returned for the name
         assertThat(annotations.get(Tag.class.getName())).isSameAs(repeats.get(0));
         assertThat(annotations.asMap().get(Tag.class.getName())).isSameAs(repeats.get(0));
+    }
+
+    /**
+     * The public constructor sorts the annotations by name, and keeps annotations of the same name in the order of
+     * the given collection, rather than sorting them by their parameter values.
+     */
+    @Test
+    public void thePublicConstructorKeepsTheOrderOfAnnotationsOfTheSameName() {
+        final var annotations = annotationsOn(TaggedTwice.class);
+        final var second = annotations.getRepeatable(Tag.class).get(0);
+        final var first = annotations.getRepeatable(Tag.class).get(1);
+        final var notRepeatable = annotations.get(NotRepeatable.class.getName());
+        // Typed as a Collection, so that the public constructor is called, rather than the package-private one
+        // that takes a List that is already sorted
+        final Collection<AnnotationInfo> collection = List.of(second, notRepeatable, first);
+        final var list = new AnnotationInfoList(collection);
+        assertThat(list).containsExactly(notRepeatable, second, first);
+        assertThat(list.directOnly()).containsExactly(notRepeatable, second, first);
     }
 
     /**
