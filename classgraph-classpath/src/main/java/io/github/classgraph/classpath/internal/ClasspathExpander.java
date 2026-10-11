@@ -28,7 +28,9 @@
  */
 package io.github.classgraph.classpath.internal;
 
+import java.io.File;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -263,15 +265,18 @@ public final class ClasspathExpander {
             // separates the entries. A file: URL is decoded by the resolver.
             final var urlPath = hasURLScheme ? relativePath : FastPathResolver.decodePercentEncoding(relativePath);
             final var resolved = FastPathResolver.resolve(parentDir, urlPath);
-            if (isFetchedFromURL && !resolved.startsWith(parentDir + "/")) {
-                // An absolute path, or a relative path that climbs above the directory the jarfile was fetched from.
-                // (The JVM resolves a path that starts with '/' against the root of the server, and follows it if it
-                // lies below the jarfile's directory. Such a path is ignored here instead, which never follows an
-                // entry that the JVM would not.)
+            if (isFetchedFromURL && (!isValidRelativeURL(relativePath) || !resolved.startsWith(parentDir + "/")
+                    || resolved.indexOf("..", parentDir.length()) >= 0)) {
+                // An entry that is not a valid relative URL, an absolute path, a relative path that climbs above the
+                // directory the jarfile was fetched from, or a path below it with ".." anywhere in it, even within a
+                // name such as "a..b.jar": the JVM ignores all but the absolute path. (The JVM resolves a path that
+                // starts with '/' against the root of the server, and follows it if it lies below the jarfile's
+                // directory. Such a path is ignored here instead, which never follows an entry that the JVM would
+                // not.)
                 if (log != null) {
                     log.log("Ignoring Class-Path entry " + relativePath + " of " + containerPath
                             + ", since a jarfile fetched from a URL can only name paths below the directory it was"
-                            + " fetched from");
+                            + " fetched from, by a valid relative URL with no \"..\" in it");
                 }
                 continue;
             }
@@ -280,6 +285,24 @@ public final class ClasspathExpander {
                     : outerPath + (resolved.startsWith("/") ? "!" : "!/") + resolved;
             childEntries.add(new ChildEntry(ChildEntryOrigin.CLASS_PATH_MANIFEST_ENTRY, location,
                     outerPath != null ? null : siblingPath(containerNioPath, parentDir, location)));
+        }
+    }
+
+    /**
+     * Whether a {@code Class-Path} entry with no URL scheme is a valid relative URL, as the JVM's own classloader
+     * requires of an entry of a jarfile fetched from a URL. An entry such as {@code "x[1].jar"} is not, so the JVM
+     * ignores it.
+     *
+     * @param relativePath
+     *            the {@code Class-Path} entry.
+     * @return true if the entry is a valid relative URL.
+     */
+    private static boolean isValidRelativeURL(final String relativePath) {
+        try {
+            // The JVM replaces the platform's file separator with '/' first, so a '\' is accepted on Windows
+            return !URI.create(relativePath.replace(File.separatorChar, '/')).isAbsolute();
+        } catch (final IllegalArgumentException e) {
+            return false;
         }
     }
 
