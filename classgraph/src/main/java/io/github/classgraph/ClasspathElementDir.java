@@ -454,8 +454,8 @@ final class ClasspathElementDir extends ClasspathElement {
     /**
      * Get the directory {@link File}.
      *
-     * @return The classpath element directory as a {@link File}, or null if this classpath element is not backed by
-     *         a directory (should not happen).
+     * @return The classpath element directory as a {@link File}, or null if the directory is in a filesystem that
+     *         supports the {@link Path} API but not the {@link File} API.
      */
     @Override
     public @Nullable File getFile() {

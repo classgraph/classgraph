@@ -4070,10 +4070,12 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      * {@link #getModuleReference}.)
      *
      * @return The {@link File} for the classpath element package root dir or jar that this class was found within,
-     *         or null if this class was found in a module backed by a "jrt:" URI, or a module with an unknown
-     *         location. May also return null if the classpath element was an http/https URL, and the jar was
-     *         downloaded directly to RAM, rather than to a temp file on disk (e.g. if the temp dir is not
-     *         writeable).
+     *         or null if this class was found in a module backed by a "jrt:" URI, or a module whose location is
+     *         unknown or is not an existing file, or in a directory or jar in a filesystem that supports the
+     *         {@link java.nio.file.Path} API but not the {@link File} API. A jar downloaded from a URL, such as an
+     *         http or https URL, is held in RAM, and this returns null for it, unless it is larger than
+     *         {@link ClassGraph#setMaxBufferedJarRAMSize(int)} allows: it is then written to a temporary file, and
+     *         this returns that file, which is deleted when the {@link ScanResult} is closed.
      * @throws IllegalStateException
      *             if the classpath element is not known for this class, because this {@link ClassInfo} is a
      *             placeholder for a class that was referenced by a scanned class but was not itself scanned.

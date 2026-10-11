@@ -1856,7 +1856,9 @@ public final class ClassGraph {
      * returned: a classpath element is found only if it was enabled with {@link #enableClasspath()},
      * {@link #enableClassLoaders(ClassLoader...)} or {@link #enableClasspathEntries(Object...)}, and was not
      * narrowed out by an {@code accept} or {@code reject} method. Classpath elements that do not exist as a file or
-     * directory are not included in the returned list.
+     * directory are not included in the returned list, and nor is a classpath element that has no {@link File}, as
+     * described for {@link Resource#getClasspathElementFile()}, but {@link #getClasspathURIs()} lists it if it has
+     * a location URI.
      *
      * @return a {@code List<File>} consisting of the unique enabled directories and jarfiles, in classpath
      *         resolution order.
