@@ -442,6 +442,20 @@ public class ClasspathOrderTest {
         assertThat(entryObjects()).containsExactlyInAnyOrder(jarA, jarB, hiddenJar, dirJar);
     }
 
+    /**
+     * As in the java launcher, a "/*" suffix is not a wildcard when a file of that exact name exists: the entry
+     * names that file, and the other jarfiles in the directory are not added. (Windows does not allow '*' in a file
+     * name.)
+     */
+    @Test
+    @DisabledOnOs(OS.WINDOWS)
+    public void aFileNamedStarIsNotAWildcard(@TempDir final Path tempDir) throws IOException {
+        final var star = createFile(tempDir.resolve("*"));
+        createFile(tempDir.resolve("a.jar"));
+        assertThat(classpathOrder.addClasspathEntry(tempDir + "/*", null, null)).isTrue();
+        assertThat(entryObjects()).containsExactly(star);
+    }
+
     /** A "/*" suffix on anything but a readable directory adds nothing. */
     @Test
     public void wildcardsOnAnythingButADirectoryAreRejected(@TempDir final Path tempDir) throws IOException {
