@@ -598,9 +598,10 @@ class Classfile {
         }
 
         // An external class was only read so that an accepted class' own declarations can be reported, so it is not
-        // listed as a member of its package or module (this keeps PackageInfo and ModuleInfo in step with
-        // ScanResult#getAllClasses(), which leaves external classes out)
-        final var listAsMember = !isExternalClass || scanSpec.enableExternalClasses;
+        // listed as a member of its package or module unless external classes were enabled, and a rejected class
+        // never is (this keeps PackageInfo and ModuleInfo in step with ScanResult#getAllClasses(), which leaves
+        // these classes out)
+        final var listAsMember = classInfo != null && classInfo.isReported(scanSpec);
 
         // Get or create PackageInfo, if this is not a module descriptor (the module descriptor's package is "")
         PackageInfo packageInfo = null;
@@ -621,7 +622,7 @@ class Classfile {
         }
 
         // Get or create ModuleInfo, if there is a module name and there is something to record in it (packageInfo
-        // is null above exactly when this is an external class that is not being listed as a member)
+        // is null above exactly when this is a class that is not being listed as a member)
         final var moduleName = classpathElement.getModuleName();
         if (moduleName != null && (isModuleDescriptor || packageInfo != null)) {
             // Get or create the ModuleInfo object for this classpath element. It is keyed by classpath element, not

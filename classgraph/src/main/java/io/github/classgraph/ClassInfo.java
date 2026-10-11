@@ -988,8 +988,19 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      */
     private ClassInfoList excludeExternalClasses(final ClassInfoList classInfoList) {
         final var scanSpec = scanResult().scanSpec;
-        return classInfoList.filter(classInfo -> (!classInfo.isExternalClass || scanSpec.enableExternalClasses)
-                && !scanSpec.classOrPackageIsRejected(classInfo.name));
+        return classInfoList.filter(classInfo -> classInfo.isReported(scanSpec));
+    }
+
+    /**
+     * Whether this class may be returned to the caller by a query: a class that was rejected, by name or by
+     * package, never is, and an external class is only if {@link ClassGraph#enableExternalClasses()} was called.
+     *
+     * @param scanSpec
+     *            the scan spec
+     * @return true if this class may be returned to the caller.
+     */
+    boolean isReported(final ScanSpec scanSpec) {
+        return (!isExternalClass || scanSpec.enableExternalClasses) && !scanSpec.classOrPackageIsRejected(name);
     }
 
     /**
@@ -1048,9 +1059,7 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
             // A set that is traversed further keeps the external and rejected classes. A set that is returned to the
             // caller keeps an external (non-accepted) class only if external classes were enabled, and never keeps
             // a class that is rejected, or that is in a rejected package.
-            final var acceptClass = !excludeExternalClasses
-                    || ((!classInfo.isExternalClass || scanSpec.enableExternalClasses)
-                            && !scanSpec.classOrPackageIsRejected(classInfo.name));
+            final var acceptClass = !excludeExternalClasses || classInfo.isReported(scanSpec);
             if (includeType && acceptClass) {
                 // Class passed accept criteria
                 classInfoSetFiltered.add(classInfo);
@@ -1365,7 +1374,9 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      * module name derived from the jar's filename. See {@link ModuleInfo#getModuleReference()}.
      *
      * @return the {@link ModuleInfo} object for the class, or null if the class did not come from a module or a
-     *         jarfile.
+     *         jarfile, if the classfile of the class was not read, or if the class is not listed as a member of its
+     *         module: a rejected class, or an external class unless {@link ClassGraph#enableExternalClasses()} was
+     *         called.
      */
     public @Nullable ModuleInfo getModuleInfo() {
         return moduleInfo;
@@ -1374,7 +1385,9 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     /**
      * Get the {@link PackageInfo} object for the class.
      *
-     * @return the {@link PackageInfo} object for the package that contains the class.
+     * @return the {@link PackageInfo} object for the package that contains the class, or null if the classfile of
+     *         the class was not read, or if the class is not listed as a member of its package: a rejected class,
+     *         or an external class unless {@link ClassGraph#enableExternalClasses()} was called.
      */
     public @Nullable PackageInfo getPackageInfo() {
         return packageInfo;
@@ -2269,15 +2282,14 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      * <p>
      * An external superclass -- a superclass that was read only in order to complete the class graph above this
      * class -- is returned only if {@link ClassGraph#enableExternalClasses()} was called; otherwise null is
-     * returned.
+     * returned. A rejected superclass is never returned, as for {@link #getAllSuperclasses()}: null is returned
+     * instead, even if {@link ClassGraph#enableExternalClasses()} was called.
      *
      * @return the superclass of this class, or null if none.
      */
     public @Nullable ClassInfo getSuperclass() {
         final var superclass = superclassIncludingExternal();
-        return superclass != null && superclass.isExternalClass && !scanResult().scanSpec.enableExternalClasses
-                ? null
-                : superclass;
+        return superclass != null && !superclass.isReported(scanResult().scanSpec) ? null : superclass;
     }
 
     /**
@@ -4216,7 +4228,8 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      * and the exceptions that the methods throw), by the annotations directly on this class, and, for an annotation
      * class, by the default values of its parameters. The members and {@link java.lang.annotation.Inherited}
      * annotations that this class inherits, and the meta-annotations of its annotations, belong to other classes,
-     * so their dependencies are found by asking those classes, not this one. {@code java.lang.Object} is left out.
+     * so their dependencies are found by asking those classes, not this one. {@code java.lang.Object} is left out,
+     * and so is a rejected class, even if {@link ClassGraph#enableExternalClasses()} was called.
      *
      * @return A {@link ClassInfoList} of {@link ClassInfo} objects for the classes referenced by this class. Note
      *         that you need to call {@link ClassGraph#enableInterClassDependencies()} before

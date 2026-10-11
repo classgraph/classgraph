@@ -1435,11 +1435,12 @@ public class GraphVizDotFileTest {
      */
     @Test
     public void aClassThatWasNotScannedIsOnlyLabeledWithAKindThatIsKnown() {
-        // Supplier is rejected, since otherwise the scan would read its classfile, as the classfile of an interface
-        // that an accepted class implements
+        // The module java.base is rejected, since otherwise the scan would read the classfile of Supplier, as the
+        // classfile of an interface that an accepted class implements. Supplier itself is not rejected, since a
+        // rejected class is never listed as a dependency.
         try (var externalScanResult = new ClassGraph().enableClasspath().acceptClasses(ExternalUser.class.getName())
-                .rejectClasses(Supplier.class.getName()).enableClassInfo().enableFieldInfo()
-                .enableInterClassDependencies().enableExternalClasses().scan()) {
+                .rejectModules("java.base").enableClassInfo().enableFieldInfo().enableInterClassDependencies()
+                .enableExternalClasses().scan()) {
             final var supplier = externalScanResult.getClassInfo(Supplier.class.getName());
             final var map = externalScanResult.getClassInfo(Map.class.getName());
             assertThat(supplier.getResource()).isNull();
