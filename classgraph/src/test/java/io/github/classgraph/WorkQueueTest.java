@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -17,10 +18,12 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.IntStream;
 
 import io.github.classgraph.WorkQueue.WorkUnitProcessor;
@@ -414,6 +417,94 @@ public class WorkQueueTest {
             } finally {
                 releaseWorker.countDown();
             }
+        }
+    }
+
+    /**
+     * A thread that stops because a failure was recorded in the interruption checker stops the threads that are
+     * waiting for more work too, even while another thread is stuck on a work unit. Otherwise a waiting worker
+     * holds a thread of the caller's {@link ExecutorService} for as long as the stuck work unit takes, and a
+     * waiting calling thread, which waits indefinitely when there is no worker timeout, does not return at all.
+     * This is the case when a thread times out waiting for another thread that is stuck opening a classpath
+     * element: it records the timeout, finishes its work unit normally, and stops at its next check.
+     *
+     * @throws Exception
+     *             if the test was interrupted.
+     */
+    @Test
+    public void aRecordedFailureStopsTheThreadsThatAreWaitingForWork() throws Exception {
+        final var interruptionChecker = new InterruptionChecker();
+        final Set<Thread> poolThreads = ConcurrentHashMap.newKeySet();
+        final var executorService = new ThreadPoolExecutor(2, 2, 0, TimeUnit.SECONDS, new LinkedBlockingQueue<>(),
+                runnable -> {
+                    final var thread = new Thread(runnable);
+                    poolThreads.add(thread);
+                    return thread;
+                });
+        // Released at the end of the test, so that the stuck work unit can finish
+        final var releaseStuckWorkUnit = new CountDownLatch(1);
+        final var stuckThread = new AtomicReference<Thread>();
+        final var stuckThreadStarted = new CountDownLatch(1);
+        final var failureRecorded = new CountDownLatch(1);
+        final var workQueueStopped = new CountDownLatch(1);
+        final var runWorkQueueThread = new AtomicReference<Thread>();
+        final var callingThread = new Thread(() -> {
+            runWorkQueueThread.set(Thread.currentThread());
+            try {
+                WorkQueue.runWorkQueue(List.of(1, 2), executorService, interruptionChecker,
+                        /* numParallelTasks = */ 3, /* workerTimeoutNanos = */ Long.MAX_VALUE, /* log = */ null,
+                        (workUnit, workQueue, log) -> {
+                            final var currentThread = Thread.currentThread();
+                            // The first worker thread to take a work unit gets stuck on it. The calling thread
+                            // never does, since then runWorkQueue could not return until the work unit finished
+                            if (poolThreads.contains(currentThread)
+                                    && stuckThread.compareAndSet(null, currentThread)) {
+                                stuckThreadStarted.countDown();
+                                releaseStuckWorkUnit.await();
+                                return;
+                            }
+                            // Wait until the third thread is waiting for more work, then record a failure and
+                            // finish this work unit normally
+                            assertThat(stuckThreadStarted.await(10, TimeUnit.SECONDS)).isTrue();
+                            final var otherThreads = new HashSet<>(poolThreads);
+                            otherThreads.add(runWorkQueueThread.get());
+                            otherThreads.remove(currentThread);
+                            otherThreads.remove(stuckThread.get());
+                            assertThat(otherThreads).hasSize(1);
+                            final var idleThread = otherThreads.iterator().next();
+                            final var deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+                            while (idleThread.getState() != Thread.State.WAITING) {
+                                assertThat(System.nanoTime()).as("time waiting for the idle thread")
+                                        .isLessThan(deadline);
+                                Thread.onSpinWait();
+                            }
+                            interruptionChecker.setExecutionException(
+                                    new ExecutionException(new IllegalStateException("test")));
+                            failureRecorded.countDown();
+                        });
+            } catch (final InterruptedException | ExecutionException e) {
+                // The failure that the work queue stopped for
+            } finally {
+                workQueueStopped.countDown();
+            }
+        });
+        try {
+            callingThread.start();
+            assertThat(failureRecorded.await(10, TimeUnit.SECONDS)).as("failure recorded").isTrue();
+
+            // runWorkQueue returns, and the only pool thread still busy is the one that is stuck
+            assertThat(workQueueStopped.await(10, TimeUnit.SECONDS)).as("runWorkQueue returned").isTrue();
+            final var deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+            while (executorService.getActiveCount() > 1 && System.nanoTime() < deadline) {
+                Thread.onSpinWait();
+            }
+            assertThat(executorService.getActiveCount()).as("busy pool threads").isEqualTo(1);
+        } finally {
+            releaseStuckWorkUnit.countDown();
+            executorService.shutdown();
+            assertThat(executorService.awaitTermination(10, TimeUnit.SECONDS)).isTrue();
+            callingThread.join(TimeUnit.SECONDS.toMillis(10));
+            assertThat(callingThread.isAlive()).isFalse();
         }
     }
 
