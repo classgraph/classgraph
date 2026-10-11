@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
- * Tests for {@link PathSyntax#sanitizeEntryPath(String, boolean, boolean)} and
+ * Tests for {@link PathSyntax#sanitizeEntryPath(String, String, boolean, boolean, boolean)} and
  * {@link PathSyntax#sanitizeRelativePath(String, boolean)}: {@code "."} and {@code ".."} segments and empty
  * segments must be normalized away, wherever they appear in the path -- including as the final segment, where they
  * are not followed by a separator.
@@ -28,7 +28,8 @@ public class PathSyntaxSanitizeEntryPathTest {
      * @return the sanitized path
      */
     private static String sanitize(final String path) {
-        return PathSyntax.sanitizeEntryPath(path, /* removeInitialSlash = */ false, /* removeFinalSlash = */ false);
+        return PathSyntax.sanitizeEntryPath(/* prefix = */ "", path, /* removeInitialSlash = */ false,
+                /* removeFinalSlash = */ false, /* collapseParentSegmentsInFirstSection = */ true);
     }
 
     /**
@@ -112,11 +113,11 @@ public class PathSyntaxSanitizeEntryPathTest {
      */
     @Test
     public void pathNormalizingToRootDoesNotThrowWhenStrippingBothSlashes() {
-        assertThat(PathSyntax.sanitizeEntryPath("/..", true, true)).isEmpty();
-        assertThat(PathSyntax.sanitizeEntryPath("/.", true, true)).isEmpty();
-        assertThat(PathSyntax.sanitizeEntryPath("/../..", true, true)).isEmpty();
-        assertThat(PathSyntax.sanitizeEntryPath("//..", true, true)).isEmpty();
-        assertThat(PathSyntax.sanitizeEntryPath("/a/..", true, true)).isEmpty();
+        assertThat(PathSyntax.sanitizeRelativePath("/..", true)).isEmpty();
+        assertThat(PathSyntax.sanitizeRelativePath("/.", true)).isEmpty();
+        assertThat(PathSyntax.sanitizeRelativePath("/../..", true)).isEmpty();
+        assertThat(PathSyntax.sanitizeRelativePath("//..", true)).isEmpty();
+        assertThat(PathSyntax.sanitizeRelativePath("/a/..", true)).isEmpty();
     }
 
     /** Empty segments ({@code "//"}) are collapsed. */
