@@ -1865,6 +1865,10 @@ public class VfsFileSystemTest {
                     .hasMessage("path must not be null");
             assertThatThrownBy(() -> provider.checkAccess(null)).isInstanceOf(NullPointerException.class)
                     .hasMessage("path must not be null");
+            assertThatThrownBy(() -> provider.checkAccess(path, AccessMode.READ, null))
+                    .isInstanceOf(NullPointerException.class).hasMessage("access mode must not be null");
+            assertThatThrownBy(() -> provider.checkAccess(path, AccessMode.WRITE, null))
+                    .isInstanceOf(NullPointerException.class).hasMessage("access mode must not be null");
             assertThatThrownBy(() -> provider.readAttributes(null, BasicFileAttributes.class))
                     .isInstanceOf(NullPointerException.class).hasMessage("path must not be null");
             assertThatThrownBy(() -> provider.isSameFile(null, path)).isInstanceOf(NullPointerException.class)

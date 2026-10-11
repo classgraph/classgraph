@@ -990,6 +990,10 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
     @Override
     public void checkAccess(final Path path, final AccessMode... modes) throws IOException {
         final var vfsPath = check(path);
+        // Reject a null mode before answering for any other mode, as the JDK's providers do
+        for (final var mode : modes) {
+            Objects.requireNonNull(mode, "access mode must not be null");
+        }
         for (final var mode : modes) {
             if (mode == AccessMode.WRITE || mode == AccessMode.EXECUTE) {
                 throw new AccessDeniedException(path.toString(), null,
