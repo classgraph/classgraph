@@ -997,6 +997,11 @@ public final class ClassGraph {
      * {@link #rejectPaths(String...)} applied to the same directories, and like it, it does not enable the reading
      * of class information: without {@link #enableClassInfo()}, the scan reads resources only.
      *
+     * <p>
+     * A class in a rejected package is never returned in the results of a query, but it is still read if a class
+     * that is scanned extends it, implements it or is annotated with it, as described for
+     * {@link #rejectClasses(String...)}.
+     *
      * @param packageNames
      *            The fully-qualified names of packages to reject (using '.' as a separator). May include glob
      *            wildcards: {@code '*'} matches within a single package segment only, and {@code "**"}, used as a
@@ -1114,6 +1119,13 @@ public final class ClassGraph {
      * <p>
      * This leaves the named classes out of what is being scanned; like the {@code accept} methods, it never adds
      * anything to the scan.
+     *
+     * <p>
+     * A rejected class is never returned in the results of a query, but if a class that is scanned extends it,
+     * implements it or is annotated with it, the rejected class is still read, so that the queries reach the
+     * classes beyond it: for example, {@link ScanResult#getAllClassesImplementing(String)} still finds a class
+     * whose rejected superclass implements the interface. The same holds for the classes in a package rejected with
+     * {@link #rejectPackages(String...)}.
      *
      * <p>
      * A class name is another way of writing a classfile path, so like {@link #rejectPaths(String...)}, this does

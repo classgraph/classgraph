@@ -72,20 +72,32 @@ public class RejectedIntermediateClassTest {
             "hasAnnotation: true", //
             "hasMethodAnnotation: true");
 
+    /** What a scan rejects. */
+    private enum Reject {
+        /** Nothing. */
+        NOTHING,
+        /** The package of {@link Base}, with {@link ClassGraph#rejectPackages(String...)}. */
+        PACKAGE,
+        /** The class {@link Base}, with {@link ClassGraph#rejectClasses(String...)}. */
+        CLASS
+    }
+
     /**
      * Scan the fixture classes.
      *
      * @param reject
-     *            whether to reject the package of {@link Base}.
+     *            what to reject.
      * @param enableExternalClasses
      *            whether to enable external classes.
      * @return the scan result.
      */
-    private static ScanResult scan(final boolean reject, final boolean enableExternalClasses) {
+    private static ScanResult scan(final Reject reject, final boolean enableExternalClasses) {
         var classGraph = new ClassGraph().enableClasspath().enableClassInfo().enableMethodInfo()
                 .enableAnnotationInfo().acceptPackages(ROOT_PACKAGE);
-        if (reject) {
+        if (reject == Reject.PACKAGE) {
             classGraph = classGraph.rejectPackages(REJECTED_PACKAGE);
+        } else if (reject == Reject.CLASS) {
+            classGraph = classGraph.rejectClasses(Base.class.getName());
         }
         if (enableExternalClasses) {
             classGraph = classGraph.enableExternalClasses();
@@ -127,11 +139,11 @@ public class RejectedIntermediateClassTest {
     @ParameterizedTest
     @ValueSource(booleans = { false, true })
     public void queriesReachThroughARejectedSuperclass(final boolean enableExternalClasses) {
-        try (var scanResult = scan(/* reject = */ true, enableExternalClasses)) {
+        try (var scanResult = scan(Reject.PACKAGE, enableExternalClasses)) {
             assertThat(queryResults(scanResult)).isEqualTo(RESULTS_WITHOUT_BASE);
         }
         // The same answers, with the rejected class added, when it is not rejected
-        try (var scanResult = scan(/* reject = */ false, enableExternalClasses)) {
+        try (var scanResult = scan(Reject.NOTHING, enableExternalClasses)) {
             assertThat(queryResults(scanResult)).containsExactly( //
                     "getAllClassesImplementing: [" + Impl.class.getName() + ", " + Base.class.getName() + "]", //
                     "getClassesWithAnnotation: [" + Impl.class.getName() + ", " + Base.class.getName() + "]", //
@@ -142,6 +154,25 @@ public class RejectedIntermediateClassTest {
                     "implementsInterface: true", //
                     "hasAnnotation: true", //
                     "hasMethodAnnotation: true");
+        }
+    }
+
+    /**
+     * A superclass rejected by name is traversed like a superclass in a rejected package: the queries reach the
+     * classes beyond it, and it is never returned.
+     *
+     * @param enableExternalClasses
+     *            whether to enable external classes.
+     */
+    @ParameterizedTest
+    @ValueSource(booleans = { false, true })
+    public void queriesReachThroughASuperclassRejectedByName(final boolean enableExternalClasses) {
+        try (var scanResult = scan(Reject.CLASS, enableExternalClasses)) {
+            assertThat(queryResults(scanResult)).isEqualTo(RESULTS_WITHOUT_BASE);
+            final var impl = scanResult.getClassInfo(Impl.class.getName());
+            assertThat(impl.extendsSuperclass(Base.class)).isTrue();
+            assertThat(impl.getSuperclass()).isNull();
+            assertThat(scanResult.getAllClasses().getNames()).doesNotContain(Base.class.getName());
         }
     }
 
@@ -169,7 +200,7 @@ public class RejectedIntermediateClassTest {
     @ParameterizedTest
     @ValueSource(booleans = { false, true })
     public void predicatesIncludeRejectedSupertypes(final boolean enableExternalClasses) {
-        try (var scanResult = scan(/* reject = */ true, enableExternalClasses)) {
+        try (var scanResult = scan(Reject.PACKAGE, enableExternalClasses)) {
             final var impl = scanResult.getClassInfo(Impl.class.getName());
             assertThat(impl.extendsSuperclass(Base.class)).isTrue();
             assertThat(impl.getAllSuperclasses().getNames()).doesNotContain(Base.class.getName());
@@ -227,14 +258,14 @@ public class RejectedIntermediateClassTest {
     public void typeDescriptorKeepsARejectedInterface(final boolean enableExternalClasses) {
         final String expectedDescriptor;
         final String expectedToString;
-        try (var scanResult = scan(/* reject = */ false, enableExternalClasses)) {
+        try (var scanResult = scan(Reject.NOTHING, enableExternalClasses)) {
             final var twoIfaces = scanResult.getClassInfo(TwoIfaces.class.getName());
             expectedDescriptor = twoIfaces.getTypeDescriptor().toString();
             expectedToString = twoIfaces.toString();
         }
         assertThat(expectedDescriptor).contains("implements @" + TA.class.getName() + " " + GenIface.class.getName()
                 + ", @" + TB.class.getName() + " " + Other.class.getName());
-        try (var scanResult = scan(/* reject = */ true, enableExternalClasses)) {
+        try (var scanResult = scan(Reject.PACKAGE, enableExternalClasses)) {
             final var twoIfaces = scanResult.getClassInfo(TwoIfaces.class.getName());
             assertThat(twoIfaces.getTypeDescriptor().toString()).isEqualTo(expectedDescriptor);
             assertThat(twoIfaces.toString()).isEqualTo(expectedToString);
