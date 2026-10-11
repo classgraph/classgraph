@@ -46,6 +46,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.jar.Attributes;
 import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
@@ -157,6 +158,10 @@ public class StuckClasspathElementTimeoutTest {
      * server has received the request. The calling thread then reaches the remote jarfile again, through the
      * manifest of the local jarfile, and waits for the worker thread to finish opening it.
      *
+     * <p>
+     * The scan fails about one worker timeout after the worker thread got stuck. Once the calling thread has timed
+     * out, it does not wait for the stuck worker thread for a second worker timeout before failing the scan.
+     *
      * @param tempDir
      *            the directory to make the local jarfile in.
      * @throws Exception
@@ -175,6 +180,7 @@ public class StuckClasspathElementTimeoutTest {
             }
 
             // Hold the calling thread in execute until the worker thread is stuck downloading the remote jarfile
+            final AtomicLong workerStuckNanos = new AtomicLong();
             final ThreadPoolExecutor executorService = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS,
                     new LinkedBlockingQueue<Runnable>()) {
                 @Override
@@ -185,18 +191,22 @@ public class StuckClasspathElementTimeoutTest {
                     } catch (final InterruptedException e) {
                         Thread.currentThread().interrupt();
                     }
+                    workerStuckNanos.set(System.nanoTime());
                 }
             };
             try {
                 final Throwable thrown = assertTimeoutPreemptively(Duration.ofSeconds(20),
                         () -> catchThrowable(() -> new ClassGraph()
                                 .overrideClasspath(stuckJarURL, parentJar.toString()).enableURLScheme("http")
-                                .setWorkerTimeout(500, TimeUnit.MILLISECONDS).scan(executorService, 2).close()));
+                                .setWorkerTimeout(1, TimeUnit.SECONDS).scan(executorService, 2).close()));
+                final long failedAfterNanos = System.nanoTime() - workerStuckNanos.get();
                 assertThat(server.requestReceived.getCount()).isZero();
                 assertThat(thrown).isInstanceOf(ClassGraphException.class);
                 assertThat(thrown.getCause()).isInstanceOf(IllegalStateException.class)
-                        .hasMessageStartingWith("Timed out after 500ms waiting for another thread to open the "
+                        .hasMessageStartingWith("Timed out after 1000ms waiting for another thread to open the "
                                 + "classpath element " + stuckJarURL);
+                // One worker timeout, not two
+                assertThat(failedAfterNanos).isLessThan(TimeUnit.MILLISECONDS.toNanos(1500));
             } finally {
                 server.close();
                 executorService.shutdown();

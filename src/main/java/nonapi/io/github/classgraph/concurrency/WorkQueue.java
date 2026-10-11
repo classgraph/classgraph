@@ -442,10 +442,12 @@ public class WorkQueue<T> implements AutoCloseable {
      */
     @Override
     public void close() throws ExecutionException {
-        // Once a worker has failed or timed out, here or while the calling thread was waiting for more work, the
-        // remaining workers are only polled rather than each waited on for the full timeout, since the failure is
-        // reported however long they take to finish
-        long timeoutNanos = timedOutWaitingForWork ? 0L : workerTimeoutNanos;
+        // Once a worker has failed or timed out, here, while the calling thread was waiting for more work, or on
+        // any thread that recorded its failure in the InterruptionChecker, the remaining workers are only polled
+        // rather than each waited on for the full timeout, since the failure is reported however long they take to
+        // finish
+        long timeoutNanos = timedOutWaitingForWork || interruptionChecker.getExecutionException() != null ? 0L
+                : workerTimeoutNanos;
         for (Worker worker; (worker = workerTasks.poll()) != null;) {
             // If the ExecutorService did not have a free thread to start a worker on, claiming the worker here
             // stops it running the work loop if it is started later, so there is nothing to wait for. Waiting for

@@ -226,4 +226,48 @@ public class WorkQueueTest {
         assertThat(processed).hasSize(numWorkers + 1);
         assertThat(interruptionChecker.getExecutionException()).isNull();
     }
+
+    /**
+     * Once a failure has been recorded in the {@link InterruptionChecker}, {@link WorkQueue#close()} only polls a
+     * worker that is still running, rather than waiting for it for the whole worker timeout, since the failure is
+     * reported however long the worker takes to finish. This is what happens when the calling thread fails because
+     * it timed out waiting for a worker thread to open a classpath element: the worker is stuck, and waiting for it
+     * again would double the time the scan takes to fail.
+     */
+    @Test
+    public void aRecordedFailureStopsCloseWaitingForAStuckWorker() {
+        final InterruptionChecker interruptionChecker = new InterruptionChecker();
+        // Released at the end of the test, so that the stuck worker thread can finish
+        final CountDownLatch releaseWorker = new CountDownLatch(1);
+        // Counted down once the worker thread is stuck, so that the calling thread cannot take both work units
+        final CountDownLatch workerIsStuck = new CountDownLatch(1);
+        final IllegalStateException failure = new IllegalStateException("the calling thread failed");
+
+        try (AutoCloseableExecutorService executorService = new AutoCloseableExecutorService(2)) {
+            try {
+                final Thread callingThread = Thread.currentThread();
+                final long startNanos = System.nanoTime();
+                final Throwable thrown = catchThrowable(() -> WorkQueue.runWorkQueue(Arrays.asList(1, 2),
+                        executorService, interruptionChecker, /* numParallelTasks = */ 2,
+                        TimeUnit.SECONDS.toNanos(5), /* log = */ (LogNode) null, (workUnit, workQueue, log) -> {
+                            if (Thread.currentThread() == callingThread) {
+                                assertThat(workerIsStuck.await(10, TimeUnit.SECONDS)).isTrue();
+                                interruptionChecker.setExecutionException(new ExecutionException(failure));
+                                throw failure;
+                            }
+                            workerIsStuck.countDown();
+                            releaseWorker.await();
+                        }));
+                final long elapsedNanos = System.nanoTime() - startNanos;
+
+                assertThat(InterruptionChecker.getCause(thrown)).isSameAs(failure);
+                assertThat(InterruptionChecker.getCause(interruptionChecker.getExecutionException()))
+                        .isSameAs(failure);
+                // Waiting for the stuck worker would take the whole 5s timeout
+                assertThat(elapsedNanos).isLessThan(TimeUnit.SECONDS.toNanos(2));
+            } finally {
+                releaseWorker.countDown();
+            }
+        }
+    }
 }
