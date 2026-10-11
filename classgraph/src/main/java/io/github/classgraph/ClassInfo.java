@@ -623,17 +623,15 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     }
 
     /**
-     * Add the type annotations of the class, which are added to the class type signature or type descriptor when it
-     * is parsed.
+     * Set the type annotations of the class, which are added to the class type signature or type descriptor when it
+     * is parsed. Called once per class, from {@code Classfile#linkClassInfo}, after {@link #addScannedClass}, which
+     * rejects a second classfile for the same class.
      *
      * @param classTypeAnnotations
-     *            the {@link TypeAnnotation} instances read from the classfile.
+     *            the {@link TypeAnnotation} instances read from the classfile. The list is kept, not copied.
      */
-    void addTypeAnnotations(final List<TypeAnnotation<ClassTypeSignature>> classTypeAnnotations) {
-        if (typeAnnotationsToApply == null) {
-            typeAnnotationsToApply = new ArrayList<>();
-        }
-        typeAnnotationsToApply.addAll(classTypeAnnotations);
+    void setTypeAnnotations(final List<TypeAnnotation<ClassTypeSignature>> classTypeAnnotations) {
+        this.typeAnnotationsToApply = classTypeAnnotations;
     }
 
     // -------------------------------------------------------------------------------------------------------------

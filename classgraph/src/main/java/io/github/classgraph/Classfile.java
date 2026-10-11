@@ -703,7 +703,7 @@ class Classfile {
             classInfo.addReferencedClassNames(refdClassNames);
         }
         if (classTypeAnnotations != null) {
-            classInfo.addTypeAnnotations(classTypeAnnotations);
+            classInfo.setTypeAnnotations(classTypeAnnotations);
         }
         return classInfo;
     }
