@@ -422,7 +422,9 @@ public final class ScanResult implements Closeable {
 
     /**
      * Returns the list of File objects for unique classpath elements (directories or jarfiles), in classloader
-     * resolution order.
+     * resolution order. A classpath element that has no {@link File}, as described for
+     * {@link Resource#getClasspathElementFile()}, is left out, but {@link #getClasspathURIs()} lists it if it has a
+     * location URI.
      *
      * @return The unique classpath elements.
      */

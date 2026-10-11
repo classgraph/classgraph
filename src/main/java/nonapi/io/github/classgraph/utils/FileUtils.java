@@ -726,7 +726,8 @@ public final class FileUtils {
      *            A {@link Path}.
      * @return the canonical form of the path.
      * @throws IOException
-     *             if the path could not be canonicalized.
+     *             never: a path that cannot be canonicalized is resolved lexically instead. The exception is still
+     *             declared so that callers that catch it continue to compile.
      */
     public static Path canonicalize(final Path path) throws IOException {
         try {

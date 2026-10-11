@@ -1208,8 +1208,8 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      * A class found in a jar on the traditional classpath is in the unnamed module at runtime, but still gets a
      * {@link ModuleInfo}, named after the module that the jar declares in its module descriptor or in the
      * {@code Automatic-Module-Name} attribute of its manifest, or else after the automatic module name derived from
-     * the jar's filename. A class found in a directory gets a {@link ModuleInfo} only if the directory contains a
-     * {@code module-info.class} file.
+     * the jar's filename, if the module system can derive a legal module name from it. A class found in a
+     * directory gets a {@link ModuleInfo} only if the directory contains a {@code module-info.class} file.
      *
      * @return the {@link ModuleInfo} object for the class, or null if the classpath element that the class was found
      *         in has no module name.
@@ -3612,9 +3612,10 @@ public class ClassInfo extends ScanResultObject implements Comparable<ClassInfo>
      *
      * @return The {@link File} for the classpath element package root dir or jar that this class was found within,
      *         or null if this class was found in a module backed by a "jrt:" URI, or a module with an unknown
-     *         location. May also return null if the classpath element was an http/https URL, and the jar was
-     *         downloaded directly to RAM, rather than to a temp file on disk (e.g. if the temp dir is not
-     *         writeable).
+     *         location, or in a directory or jar in a filesystem that supports the {@link java.nio.file.Path} API
+     *         but not the {@link File} API. May also return null if the classpath element was an http/https URL,
+     *         and the jar was downloaded directly to RAM, rather than to a temp file on disk (e.g. if the temp dir
+     *         is not writeable).
      */
     public File getClasspathElementFile() {
         if (classpathElement == null) {

@@ -187,9 +187,10 @@ public abstract class Resource implements Closeable, Comparable<Resource> {
      *
      * @return The {@link File} for the classpath element package root dir or jar that this {@link Resource} was
      *         found within, or null if this {@link Resource} was found in a module backed by a "jrt:" URI, or a
-     *         module with an unknown location. May also return null if the classpath element was an http/https URL,
-     *         and the jar was downloaded directly to RAM, rather than to a temp file on disk (e.g. if the temp dir
-     *         is not writeable).
+     *         module with an unknown location, or in a directory or jar in a filesystem that supports the
+     *         {@link java.nio.file.Path} API but not the {@link File} API. May also return null if the classpath
+     *         element was an http/https URL, and the jar was downloaded directly to RAM, rather than to a temp file
+     *         on disk (e.g. if the temp dir is not writeable).
      */
     public File getClasspathElementFile() {
         return classpathElement.getFile();

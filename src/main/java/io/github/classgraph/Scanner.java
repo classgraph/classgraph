@@ -489,7 +489,7 @@ class Scanner implements Callable<ScanResult> {
                         } catch (final FileSystemNotFoundException e) {
                             // This is a custom URL scheme without a backing FileSystem
                         }
-                    } // else this is a remote jar URL
+                    } // else this is a multi-section "jar:" URL, which names a path within a jarfile
 
                 } catch (final MalformedURLException e) {
                     // Try creating URI if URL creation fails, in case there is a URI-only scheme
@@ -596,7 +596,8 @@ class Scanner implements Callable<ScanResult> {
                     // Determine if classpath entry is a jar or dir
                     final boolean isJar;
                     if (workUnit.classpathEntryObj instanceof URL || workUnit.classpathEntryObj instanceof URI) {
-                        // URLs and URIs always point to jars
+                        // A URL or URI that normalization did not turn into a Path is opened as a jarfile at that
+                        // URL or URI
                         isJar = true;
                     } else if (workUnit.classpathEntryObj instanceof Path) {
                         final Path path = (Path) workUnit.classpathEntryObj;

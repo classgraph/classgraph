@@ -1099,7 +1099,7 @@ public class ClassGraph {
     }
 
     /**
-     * Specifically reject one or more specific classes, preventing them from being scanned even if they are in a
+     * Specifically reject one or more specific classes, preventing them from being scanned even if they are in an
      * accepted package.
      *
      * <p>
