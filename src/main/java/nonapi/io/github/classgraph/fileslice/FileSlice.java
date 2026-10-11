@@ -262,11 +262,13 @@ public class FileSlice extends Slice {
      * A mapping outlives the call that reads from it -- a {@link RandomAccessByteBufferReader} keeps a duplicate
      * for the life of the reader, and {@link #read()} hands a slice of it to the caller -- so a mapping can still
      * be being read when the {@link io.github.classgraph.ScanResult} that owns it is closed. On JDK 22 and later
-     * it is released by closing the arena the file was mapped in, which makes a thread that is still reading it
-     * throw a recoverable {@link IllegalStateException}. Below JDK 22 there are no arenas, and the only method
-     * that can unmap a file, {@code Unsafe::invokeCleaner}, frees the address range whether or not anything is
-     * still reading it, so the file is unmapped there only once every view of the mapping that the caller could
-     * still read has been released -- see {@link #close()}.
+     * it is released by closing the arena the file was mapped in. If another thread is in the middle of an access
+     * to the mapping as the arena closes, such as a bulk copy out of it, the close waits for that access to
+     * finish, and the access then throws a recoverable {@link IllegalStateException} instead of returning, as does
+     * any later access. Below JDK 22 there are no arenas, and the only method that can unmap a file,
+     * {@code Unsafe::invokeCleaner}, frees the address range whether or not anything is still reading it, so the
+     * file is unmapped there only once every view of the mapping that the caller could still read has been
+     * released -- see {@link #close()}.
      *
      * @return the mapped byte buffer.
      * @throws IOException
@@ -612,9 +614,11 @@ public class FileSlice extends Slice {
      *
      * <p>
      * On JDK 22 and later this unmaps the file by closing the arena that mapped it, and does so even if another
-     * thread is still reading it: that read throws {@link IllegalStateException}, which the readers translate into
-     * {@link IOException}. An arena that will not close leaves the file mapped for the rest of the life of the
-     * JVM, so that too is left to the garbage collector to do what it can with.
+     * thread is still reading it. If that thread is in the middle of an access to the mapping, such as a bulk copy
+     * out of it, the close waits for the access to finish before it unmaps the file, and the access then throws
+     * {@link IllegalStateException} instead of returning, which the readers translate into {@link IOException}. An
+     * arena that will not close leaves the file mapped for the rest of the life of the JVM, so that too is left to
+     * the garbage collector to do what it can with.
      *
      * <p>
      * Below JDK 22 there is no arena, and the only method that can unmap a file, {@code Unsafe::invokeCleaner},
@@ -640,7 +644,8 @@ public class FileSlice extends Slice {
                 mappingReleased = true;
                 if (arena != null) {
                     // On JDK 22+ the file is unmapped by closing the arena it was mapped in, which unmaps it
-                    // the moment this slice is closed (see mapFile())
+                    // as this slice is closed, once any access to it in progress in another thread has finished
+                    // (see mapFile())
                     synchronized (this) {
                         unmapped = true;
                     }

@@ -1136,8 +1136,11 @@ public final class FileUtils {
 
     /**
      * Close an arena obtained from {@link #openArena(ReflectionUtils)}, freeing any direct {@link ByteBuffer}s
-     * allocated from it and unmapping any files mapped with it. The buffers must no longer be in use by any
-     * thread.
+     * allocated from it and unmapping any files mapped with it. A thread that is in the middle of an access to one
+     * of those buffers does not stop the arena from closing: the close waits for that access to finish, and the
+     * access then throws {@link IllegalStateException} instead of returning. Apart from a second close, what makes
+     * closing fail is an I/O operation in progress on a buffer in the arena (such as a channel write from the
+     * buffer), which holds the arena open.
      *
      * @param arena
      *            the arena to close.
