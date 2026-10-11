@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.module.ModuleDescriptor;
+import java.lang.module.ModuleFinder;
 import java.lang.module.ModuleReader;
 import java.lang.module.ModuleReference;
 import java.net.URI;
@@ -260,8 +261,8 @@ public class DefaultPackageInClasspathModuleTest {
 
     /**
      * A module on the module path cannot contain classes in the default package, so a classfile in the root of a
-     * module, other than {@code module-info.class}, is not scanned. The module system refuses to load such a
-     * module, so the module here is read through a {@link ModuleReader} of the test's own.
+     * module, other than {@code module-info.class}, is not scanned. The module system refuses to load such a module
+     * from a directory, so the module here is read through a {@link ModuleReader} of the test's own.
      *
      * @throws IOException
      *             if the fixture could not be written, or the virtual filesystem could not be closed.
@@ -285,6 +286,40 @@ public class DefaultPackageInClasspathModuleTest {
             classpathElement.scanPaths(/* log = */ null);
             assertThat(classpathElement.acceptedClassfileResources).extracting(Resource::getPath)
                     .containsExactlyInAnyOrder("module-info.class", "p/Bar.class");
+        }
+    }
+
+    /**
+     * A classfile in the root of a module is not scanned, but it is still a resource of the module, so a filter on
+     * the resource paths that a classpath element contains has to see it, as it does for a jarfile or directory on
+     * the classpath: an accept filter on its path selects the module, and a reject filter excludes it. The
+     * {@code jar} tool writes a {@code ModulePackages} attribute into the module descriptor, so the module system
+     * does not list the packages of the jarfile itself, and accepts a modular jarfile with a classfile in its root.
+     *
+     * @throws IOException
+     *             if the fixture could not be written.
+     */
+    @Test
+    public void aDefaultPackageClassfileInAModuleIsOfferedToTheClasspathElementFilter() throws IOException {
+        final var moduleClassesDir = writeDir("module-jar-classes", /* withModuleInfo = */ true, null);
+        final var jar = fixturesDir.resolve("module-path-module.jar");
+        final var jarTool = java.util.spi.ToolProvider.findFirst("jar").orElseThrow();
+        assertThat(jarTool.run(System.out, System.err, "--create", "--file", jar.toString(), "-C",
+                moduleClassesDir.toString(), ".")).as("jar exit code").isZero();
+        final var finder = ModuleFinder.of(jar);
+        final var bootLayer = ModuleLayer.boot();
+        final var configuration = bootLayer.configuration().resolve(finder, ModuleFinder.of(), Set.of("m"));
+        final var moduleLayer = ModuleLayer.defineModulesWithOneLoader(configuration, List.of(bootLayer),
+                DefaultPackageInClasspathModuleTest.class.getClassLoader()).layer();
+        try (var scanResult = new ClassGraph().enableNonSystemModules().enableModuleLayers(moduleLayer)
+                .ignoreParentModuleLayers().acceptClasspathElementsContainingResourcePath("Foo.class")
+                .enableClassInfo().scan()) {
+            assertThat(scanResult.getAllClasses().getNames()).containsExactly(PACKAGE_CLASS);
+        }
+        try (var scanResult = new ClassGraph().enableNonSystemModules().enableModuleLayers(moduleLayer)
+                .ignoreParentModuleLayers().rejectClasspathElementsContainingResourcePath("Foo.class")
+                .enableClassInfo().scan()) {
+            assertThat(scanResult.getClassInfo(PACKAGE_CLASS)).isNull();
         }
     }
 

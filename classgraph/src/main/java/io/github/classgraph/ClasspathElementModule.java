@@ -230,14 +230,15 @@ final class ClasspathElementModule extends ClasspathElement {
                         return true;
                     }
 
-                    if (isDefaultPackageClassfile(relativePath)) {
-                        return true;
-                    }
-
-                    // Accept/reject classpath elements based on file resource paths
+                    // Accept/reject classpath elements based on file resource paths, including the paths of files
+                    // that are not themselves scanned
                     if (!checkResourcePathAcceptReject(relativePath, subLog)) {
                         // The whole classpath element is rejected, so stop scanning the rest of it
                         return false;
+                    }
+
+                    if (isDefaultPackageClassfile(relativePath)) {
+                        return true;
                     }
 
                     if (parentMatchStatus == ScanSpecPathMatch.HAS_REJECTED_PATH_PREFIX && subLog != null) {
