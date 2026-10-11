@@ -84,8 +84,7 @@ class AutoCloseableExecutorService extends ThreadPoolExecutor {
             // Restore the interrupt status that throwing InterruptedException cleared, so that the caller still
             // sees the interruption. terminated is still false, so the tasks that are still running are
             // interrupted below. Nothing is recorded in the scan's interruption checker: the scan has already
-            // ended, and the ScanResult it returned keeps that checker, so marking it would make closing the
-            // ScanResult interrupt whichever thread closes it
+            // ended, so nothing checks it any more
             Thread.currentThread().interrupt();
         }
         if (!terminated) {
