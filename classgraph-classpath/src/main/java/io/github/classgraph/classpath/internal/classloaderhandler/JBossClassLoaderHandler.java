@@ -266,6 +266,12 @@ class JBossClassLoaderHandler implements ClassLoaderHandler {
         final var module = ReflectionUtils.invokeMethod(false, classLoader, "getModule");
         final var callerModuleLoader = ReflectionUtils.invokeMethod(false, module, "getCallerModuleLoader");
         final Set<@Nullable Object> visitedModules = new HashSet<>();
+        // This adds the roots of every module that the module loader has loaded, then of every module listed in
+        // this module's paths map, but not in the order that JBoss searches them. JBoss loads a class from the
+        // first loader in the list that the paths map holds for the class's package, and the module map (a
+        // ConcurrentHashMap) and the paths map (a HashMap) are both unordered, so the module order here is
+        // arbitrary. Only the set of modules found is reliable: when two modules contain the same class, the copy
+        // that is found first here may not be the copy that JBoss loads.
         @SuppressWarnings("unchecked")
         final var moduleMap = (Map<Object, Object>) ReflectionUtils.getFieldVal(false, callerModuleLoader,
                 "moduleMap");
