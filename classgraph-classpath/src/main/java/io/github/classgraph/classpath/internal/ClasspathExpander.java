@@ -228,9 +228,11 @@ public final class ClasspathExpander {
         }
         // A Class-Path entry is resolved against the directory that contains the classpath element, which for a
         // jarfile nested inside another jarfile is a directory within the jarfile that contains it. Resolving it
-        // there rather than against the whole path is what keeps a ".." from climbing out of that jarfile.
+        // there rather than against the whole path is what keeps a ".." from climbing out of that jarfile. A "!/"
+        // before the outermost jarfile, as at the end of a directory named "dir!", is not a separator, so the
+        // separators are found by testing the filesystem, as they were when the path was resolved.
         final var containerPath = container.getPath();
-        final var separatorIdx = containerPath.lastIndexOf("!/");
+        final var separatorIdx = PathSyntax.lastIndexOfNestedJarSeparator(containerPath);
         final var outerPath = separatorIdx < 0 ? null : containerPath.substring(0, separatorIdx);
         final var parentDir = PathSyntax
                 .getParentDirPath(separatorIdx < 0 ? containerPath : containerPath.substring(separatorIdx + 2));
