@@ -493,6 +493,33 @@ public class ClasspathOrderTest {
         assertThat(locations()).containsExactly(jarA);
     }
 
+    /**
+     * The directory that a wildcarded classpath entry names is not itself a classpath element (the java launcher
+     * never adds it), so it is not tested against the path filters: only the jarfiles it is expanded into are. A
+     * filter that accepts only jarfiles keeps every jarfile in the directory.
+     */
+    @Test
+    public void pathFiltersAreNotAppliedToAWildcardedDirectory(@TempDir final Path tempDir) throws IOException {
+        final var jarA = createFile(tempDir.resolve("a.jar"));
+        final var jarB = createFile(tempDir.resolve("b.jar"));
+        classpathSpec.filterClasspathElements(path -> path.endsWith(".jar"));
+        assertThat(classpathOrder.addClasspathEntry(tempDir + "/*", null, null)).isTrue();
+        assertThat(locations()).containsExactlyInAnyOrder(jarA, jarB);
+    }
+
+    /**
+     * The directory that a wildcarded classpath entry names is not tested against the URL filters either: only the
+     * jarfiles it is expanded into are.
+     */
+    @Test
+    public void urlFiltersAreNotAppliedToAWildcardedDirectory(@TempDir final Path tempDir) throws IOException {
+        final var jarA = createFile(tempDir.resolve("a.jar"));
+        final var jarB = createFile(tempDir.resolve("b.jar"));
+        classpathSpec.filterClasspathElementsByURL(url -> url.getPath().endsWith(".jar"));
+        assertThat(classpathOrder.addClasspathEntry(tempDir + "/*", null, null)).isTrue();
+        assertThat(locations()).containsExactlyInAnyOrder(jarA, jarB);
+    }
+
     /** A URL classpath entry is kept as a {@link URL}, so that its scheme can be handled during scanning. */
     @Test
     public void urlClasspathEntriesAreKeptAsURLs() throws Exception {

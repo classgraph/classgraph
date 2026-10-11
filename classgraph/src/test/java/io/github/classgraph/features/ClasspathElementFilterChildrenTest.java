@@ -209,6 +209,21 @@ public class ClasspathElementFilterChildrenTest {
                 .filterClasspathElements(path -> !path.endsWith("b.jar")))).containsExactly("a.txt");
     }
 
+    /**
+     * The filters are given each jarfile that a wildcarded directory is expanded into, not the directory itself, so
+     * a filter that accepts only jarfiles scans every jarfile in the directory.
+     */
+    @Test
+    public void aFilterIsNotGivenTheDirectoryOfAWildcard(@TempDir final Path tempDir) throws IOException {
+        writeJar(tempDir.resolve("a.jar"), "a.txt", null);
+        writeJar(tempDir.resolve("b.jar"), "b.txt", null);
+        assertThat(scannedTextResources(new ClassGraph().enableClasspathEntries(tempDir + "/*")
+                .filterClasspathElements(path -> path.endsWith(".jar")))).containsExactly("a.txt", "b.txt");
+        assertThat(scannedTextResources(new ClassGraph().enableClasspathEntries(tempDir + "/*")
+                .filterClasspathElementsByURL(url -> url.getPath().endsWith(".jar"))))
+                .containsExactly("a.txt", "b.txt");
+    }
+
     /** A {@link ClassLoaderHandler} that declares the lib dir {@code lib/} for the classloader it is given. */
     private static final class LibDirHandler implements ClassLoaderHandler {
         /** The classloader to handle. */
