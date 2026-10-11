@@ -140,8 +140,11 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
      *
      * @return type annotations on the explicit receiver parameter, or the empty list if none (including when the
      *         method has no explicit receiver parameter).
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
      */
     public AnnotationInfoList getReceiverTypeAnnotationInfo() {
+        checkTypeAnnotationInfoEnabled();
         synchronized (this) {
             final var receiverTypeAnnotationList = receiverTypeAnnotations;
             return receiverTypeAnnotationList == null ? AnnotationInfoList.EMPTY_LIST

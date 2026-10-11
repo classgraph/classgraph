@@ -256,8 +256,11 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
      *
      * @return The list of lists of type annotations for the suffixes (nested classes), one list per suffix, with an
      *         empty list for a suffix that has no type annotations. The result is empty if there are no suffixes.
+     * @throws IllegalStateException
+     *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
      */
     public List<AnnotationInfoList> getSuffixTypeAnnotationInfo() {
+        checkTypeAnnotationInfoEnabled();
         synchronized (this) {
             final var typeAnnotations = suffixTypeAnnotations;
             if (typeAnnotations == null) {

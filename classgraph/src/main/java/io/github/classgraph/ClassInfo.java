@@ -4366,7 +4366,7 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      * @return true if the supertype is implicit and unannotated, so should be omitted
      */
     boolean isImplicitSupertype(final ClassRefTypeSignature supertypeSignature) {
-        return supertypeSignature.getTypeAnnotationInfo().isEmpty()
+        return !supertypeSignature.hasTypeAnnotations()
                 && isImplicitSupertype(supertypeSignature.getFullyQualifiedClassName());
     }
 
