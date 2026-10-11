@@ -57,27 +57,16 @@ final class AutomaticModuleName {
      * {@link java.lang.module.ModuleFinder#of(java.nio.file.Path...)}.
      *
      * @param jarPath
-     *            The jar path, as normalized by {@code FastPathResolver}: directory separators are '/' on every
-     *            platform, and nested jar separators are "!/".
+     *            The path of the jarfile, as normalized by {@code FastPathResolver}: directory separators are '/'
+     *            on every platform, and nested jar separators are "!/". The path must not end in a package root:
+     *            the only "!/" separators it may hold are those between a jarfile and a jarfile nested within it.
      * @return The automatic module name, or the empty string if the module system could not derive a name for the
      *         jarfile.
      */
     static String derive(final String jarPath) {
-        // If jar path does not end in a file extension (with ".jar" most likely), strip off everything after the
-        // last nested jar separator, in order to remove package root. The path has already been resolved, so every
-        // separator in it is spelled "!/" -- a '!' with anything else after it belongs to a file or entry name
-        // (#903)
-        var endIdx = jarPath.length();
-        final var lastPlingIdx = jarPath.lastIndexOf("!/");
-        if (lastPlingIdx > 0
-                // If there is no '.' after the last '/' (if any) after the last '!'
-                && jarPath.lastIndexOf('.') <= Math.max(lastPlingIdx, jarPath.lastIndexOf('/'))) {
-            // Then truncate at last '!'
-            endIdx = lastPlingIdx;
-        }
-        // The jar is named by the innermost segment of what is left, which is the name of the innermost nested
-        // jarfile for a nested jar path, and the leafname of the path otherwise
-        var moduleName = PathSyntax.lastSegment(jarPath.substring(0, endIdx));
+        // The jar is named by the last segment of its path, which is the name of the innermost nested jarfile for
+        // a nested jar path, and the leafname of the path otherwise
+        var moduleName = PathSyntax.lastSegment(jarPath);
 
         // Remove the ".jar" extension, but not a leading '.' of a name that is nothing but an extension
         final var lastDotIdx = moduleName.lastIndexOf('.');

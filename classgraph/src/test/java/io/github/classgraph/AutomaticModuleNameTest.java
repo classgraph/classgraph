@@ -8,7 +8,9 @@ import java.lang.module.FindException;
 import java.lang.module.ModuleFinder;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.jar.JarOutputStream;
+import java.util.zip.ZipEntry;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -28,13 +30,81 @@ public class AutomaticModuleNameTest {
         assertThat(AutomaticModuleName.derive("/a/b/my_lib.jar")).isEqualTo("my.lib");
         // Leading, trailing and repeated dots are all collapsed away
         assertThat(AutomaticModuleName.derive("/a/b/-foo--bar-.jar")).isEqualTo("foo.bar");
-        // A jar nested inside another jar is named after the inner jar
+        // A jar nested inside another jar is named after the inner jar, whether or not its name has an extension
         assertThat(AutomaticModuleName.derive("/a/outer.jar!/BOOT-INF/lib/inner-1.0.jar")).isEqualTo("inner");
-        // A package root within a jar is named after the jar that contains it, not after the package root
-        assertThat(AutomaticModuleName.derive("/a/outer.jar!/BOOT-INF/classes")).isEqualTo("outer");
-        // A '!' that is not followed by '/' is part of a name, not a separator, so it ends neither (#903)
-        assertThat(AutomaticModuleName.derive("/a/outer.jar!/dir!name/classes")).isEqualTo("outer");
+        assertThat(AutomaticModuleName.derive("/a/outer.jar!/lib/inner")).isEqualTo("inner");
+        // A '!' that is not followed by '/' is part of a name, not a separator (#903)
         assertThat(AutomaticModuleName.derive("/a/outer.jar!/lib/we!rd-1.0.jar")).isEqualTo("we.rd");
+        // A jar without an extension, in a directory whose name ends in '!', is named after the jar
+        assertThat(AutomaticModuleName.derive("/a/build!/foo")).isEqualTo("foo");
+    }
+
+    /**
+     * A package root within a jarfile is in the module of the jarfile, so it is named after the jarfile, not after
+     * the package root.
+     *
+     * @param dir
+     *            a directory to write the jarfile to.
+     * @throws IOException
+     *             if the jarfile could not be written.
+     */
+    @Test
+    public void aPackageRootIsNamedAfterItsJarfile(@TempDir final Path dir) throws IOException {
+        final var jar = writeJar(dir.resolve("outer-1.0.jar"), "BOOT-INF/classes/");
+        assertThat(moduleNamesOf(jar + "!/BOOT-INF/classes")).containsExactly("outer");
+    }
+
+    /**
+     * A jarfile without an extension, in a directory whose name ends in '!', is named after the jarfile, not after
+     * the directory.
+     *
+     * @param dir
+     *            a directory to write the jarfile to.
+     * @throws IOException
+     *             if the jarfile could not be written.
+     */
+    @Test
+    public void aJarWithoutAnExtensionIsNamedAfterItself(@TempDir final Path dir) throws IOException {
+        final var jar = writeJar(Files.createDirectory(dir.resolve("build!")).resolve("foo"), "");
+        assertThat(moduleNamesOf(jar.toString())).containsExactly("foo");
+    }
+
+    /**
+     * Write a jarfile that holds a copy of this class's classfile.
+     *
+     * @param jar
+     *            the jarfile to write.
+     * @param entryPrefix
+     *            a prefix to store the classfile under, or the empty string to store it at the root of the jarfile.
+     * @return the jarfile.
+     * @throws IOException
+     *             if the jarfile could not be written.
+     */
+    private static Path writeJar(final Path jar, final String entryPrefix) throws IOException {
+        final var classfilePath = AutomaticModuleNameTest.class.getName().replace('.', '/') + ".class";
+        try (var jarOut = new JarOutputStream(Files.newOutputStream(jar));
+                var in = AutomaticModuleNameTest.class.getClassLoader().getResourceAsStream(classfilePath)) {
+            assertThat(in).isNotNull();
+            jarOut.putNextEntry(new ZipEntry(entryPrefix + classfilePath));
+            in.transferTo(jarOut);
+            jarOut.closeEntry();
+        }
+        return jar;
+    }
+
+    /**
+     * Scan one classpath element, and return the names of the modules the scan found.
+     *
+     * @param classpathEntry
+     *            the classpath element to scan.
+     * @return the module names.
+     */
+    private static List<String> moduleNamesOf(final String classpathEntry) {
+        try (var scanResult = new ClassGraph().enableClasspathEntries(List.of(classpathEntry)).enableClassInfo()
+                .scan()) {
+            assertThat(scanResult.getAllClasses().getNames()).contains(AutomaticModuleNameTest.class.getName());
+            return scanResult.getModuleInfo().stream().map(ModuleInfo::getName).toList();
+        }
     }
 
     /**
