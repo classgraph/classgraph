@@ -564,15 +564,19 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
             try {
                 pathElementURL = new URL(urlStr);
             } catch (final MalformedURLException e) {
+                // The path is not a valid URL, usually because no URL handler is registered for its scheme. It is
+                // only a local file if a file of that name exists, such as "lib:/x.jar" in a directory named "lib:"
+                // in the current directory. Otherwise, turning it into a "file:" URL would name a file below the
+                // current directory that does not exist, such as "file:/cwd/custom:/host/x.jar", so the classpath
+                // element is left in the form it was given. (A security manager may refuse to let the file be
+                // checked or resolved, which also leaves the classpath element in that form)
+                final var file = new File(pathElementStr);
                 try {
-                    pathElementURL = new File(urlStr).toURI().toURL();
-                } catch (final MalformedURLException | IllegalArgumentException | IOError | SecurityException e1) {
-                    // Final fallback -- try just using the raw string as a URL
-                    try {
-                        pathElementURL = new URL(pathElementStr);
-                    } catch (final MalformedURLException e2) {
-                        // Fall through
+                    if (file.exists()) {
+                        pathElementURL = file.toURI().toURL();
                     }
+                } catch (final MalformedURLException | IllegalArgumentException | IOError | SecurityException e1) {
+                    // Fall through
                 }
             }
         }

@@ -616,6 +616,26 @@ public class ClasspathOrderTest {
                 "http://example.com/100%25.jar", "http://example.com/%252x%41.jar");
     }
 
+    /**
+     * A classpath entry whose URL scheme has no URL handler is recorded as the object it arrived as, not as a
+     * "file:" URL naming a file below the current directory, and since it has no URL form, the URL filters are
+     * skipped rather than being given that "file:" URL.
+     */
+    @Test
+    public void entriesWithNoUrlHandlerAreNotTurnedIntoFileURLs() {
+        final var urlsFiltered = new ArrayList<URL>();
+        classpathSpec.filterClasspathElementsByURL(urlsFiltered::add);
+        final var uri = URI.create("custom://host/a.jar");
+        assertThat(classpathOrder.addClasspathEntry(uri.toString(), null, null)).isTrue();
+        assertThat(entryObjects()).containsExactly(uri.toString());
+        assertThat(locations()).containsExactly(uri.toString());
+        final var uriOrder = new ClasspathOrderBuilder(classpathSpec);
+        assertThat(uriOrder.addClasspathEntry(uri, null, null)).isTrue();
+        assertThat(uriOrder.getOrder()).singleElement().returns(uri, Entry::classpathEntryObj)
+                .returns(uri.toString(), Entry::location);
+        assertThat(urlsFiltered).isEmpty();
+    }
+
     /** A {@link File} classpath entry is recorded as the {@link File} object it arrived as. */
     @Test
     public void fileClasspathEntriesAreRecordedAsFiles(@TempDir final Path tempDir) throws IOException {
