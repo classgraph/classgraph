@@ -396,7 +396,7 @@ public final class RandomAccessOrSequentialReader implements RandomAccessReader,
      * allocating two gigabytes. Must be called before anything is read.
      *
      * @param maxBufferSize
-     *            the limit to apply in place of the largest array the JVM can allocate.
+     *            the limit to apply in place of the one the constructor set.
      */
     // Package-private rather than private so that only a test in this package can call it
     void setMaxBufferSize(final int maxBufferSize) {
@@ -447,8 +447,9 @@ public final class RandomAccessOrSequentialReader implements RandomAccessReader,
      * length the content declares for itself, which is believed as far as one bounded allocation. The target says
      * nothing about how long the content is: it is often read out of the content itself, such as the length of a
      * classfile attribute that is skipped, so growing straight to it would let one corrupt length make a 20kb
-     * classfile allocate 2GB. {@link #readTo(long)} grows the buffer again for as long as the content keeps
-     * arriving, so the buffer stays within about twice the content that has been read.
+     * classfile allocate as much as the limit on the buffer allows. {@link #readTo(long)} grows the buffer again
+     * for as long as the content keeps arriving, so the buffer stays within about twice the content that has been
+     * read.
      *
      * @param targetArrUsed
      *            the number of bytes the current read is trying to reach.

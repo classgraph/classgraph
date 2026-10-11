@@ -261,6 +261,21 @@ public final class FastZipEntry implements Comparable<FastZipEntry> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
+     * Get the compressed size of the entry, but no more than the number of bytes from the entry's local header to
+     * the end of the zipfile. The entry's data follows its local header, so it cannot occupy more than that. A
+     * deflated entry whose compressed size runs past the end of the zipfile is still read, to the end of its
+     * deflate stream (see {@link #getRawSlice()}), so for such an entry the compressed size says nothing about how
+     * many bytes the entry really holds, while this is an upper bound on it. Unlike {@link #getRawSlice()}, this
+     * does not read the local header.
+     *
+     * @return the compressed size, cut short at the end of the zipfile.
+     */
+    public long getCompressedSizeWithinZipfile() {
+        // Compared by subtraction, which cannot overflow: locHeaderPos lies within the zipfile
+        return Math.min(compressedSize, parentLogicalZipFile.slice.sliceLength - locHeaderPos);
+    }
+
+    /**
      * Lazily get the slice of the zipfile that holds the entry's stored bytes -- this is deferred until zip entry
      * data needs to be read, in order to avoid randomly seeking within zipfile for every entry as the central
      * directory is read.
