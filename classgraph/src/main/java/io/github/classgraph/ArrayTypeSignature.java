@@ -367,11 +367,13 @@ public final class ArrayTypeSignature extends ReferenceTypeSignature {
                         classInfo = newClassInfo;
                     }
                 }
+                arrayClassInfo = classInfo;
             } else {
-                // scanResult is not yet available, create an uncached instance of an ArrayClassInfo for this type
+                // scanResult is not yet available, so return a new ArrayClassInfo without keeping it. The shared
+                // instance is then used once the scan result is set (and the erasure of a type variable element
+                // type can only be found then).
                 classInfo = new ArrayClassInfo(erased());
             }
-            arrayClassInfo = classInfo;
         }
         return classInfo;
     }

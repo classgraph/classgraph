@@ -145,6 +145,30 @@ public class ArrayClassInfoErasureTest {
         }
     }
 
+    /**
+     * An {@link ArrayClassInfo} made before the scan result is set is not kept: once the scan result is set, the
+     * array type gets the shared instance, named after the erasure of its type variable.
+     *
+     * @throws TypeSignatureParseException
+     *             if a type signature does not parse
+     */
+    @Test
+    public void arrayClassInfoMadeBeforeTheScanResultIsSetIsNotKept() throws TypeSignatureParseException {
+        final var arrayOfT = (ArrayTypeSignature) TypeSignature.parse("[TT;", G.class.getName());
+        final var listArray = (ArrayTypeSignature) TypeSignature.parse("[Ljava/util/List;",
+                /* definingClassName = */ null);
+        // Without a scan result, the erasure of T cannot be found
+        assertThat(arrayOfT.getArrayClassInfo().getName()).isEqualTo("java.lang.Object[]");
+        assertThat(listArray.getArrayClassInfo().getName()).isEqualTo("java.util.List[]");
+        try (var scanResult = scan()) {
+            arrayOfT.setScanResult(scanResult);
+            listArray.setScanResult(scanResult);
+            assertThat(arrayOfT.getArrayClassInfo()).isSameAs(arrayClassInfo(scanResult, "a"));
+            assertThat(arrayOfT.getArrayClassInfo().getName()).isEqualTo("java.lang.Number[]");
+            assertThat(listArray.getArrayClassInfo()).isSameAs(arrayClassInfo(scanResult, "c"));
+        }
+    }
+
     /** Looking up an array of a type variable does not change the {@link ArrayClassInfo} of the declaring class. */
     @Test
     public void arrayOfATypeVariableDoesNotTakeOverTheDeclaringClassArray() {
