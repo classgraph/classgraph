@@ -681,7 +681,6 @@ public final class ScanResult implements AutoCloseable {
                 for (final ClasspathElement classpathElt : classpathOrder()) {
                     acceptedResourcesList.addAll(classpathElt.acceptedResources);
                 }
-                // Set atomically for thread safety
                 allAcceptedResourcesCached = allAcceptedResources = new ResourceList(acceptedResourcesList);
             }
             return allAcceptedResources;
@@ -706,7 +705,6 @@ public final class ScanResult implements AutoCloseable {
         synchronized (this) {
             var pathToAcceptedResources = pathToAcceptedResourcesCached;
             if (pathToAcceptedResources == null) {
-                // Set atomically for thread safety
                 pathToAcceptedResourcesCached = pathToAcceptedResources = getAllResources().asMap();
             }
             return pathToAcceptedResources;
