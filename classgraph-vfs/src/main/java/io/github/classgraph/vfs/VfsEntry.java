@@ -217,7 +217,9 @@ public abstract sealed class VfsEntry permits ArchiveEntry, DirEntry, ModuleEntr
 
     /**
      * Returns the number of bytes this entry occupies in its root, i.e. its size after compression. For an entry
-     * that is not stored compressed, this is the same as {@link #getLength()}.
+     * that is not stored compressed, this is the same as {@link #getLength()}. For a zip entry whose central
+     * directory declares a compressed size that runs past the end of the zipfile, this is cut short at the end of
+     * the zipfile.
      *
      * @return the stored size in bytes, or -1 if it is not known.
      */

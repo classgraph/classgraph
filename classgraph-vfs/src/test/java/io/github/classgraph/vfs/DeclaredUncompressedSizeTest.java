@@ -15,6 +15,7 @@ import java.util.zip.CRC32;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
+import io.github.classgraph.vfs.reader.RandomAccessOrSequentialReader;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -78,14 +79,14 @@ public class DeclaredUncompressedSizeTest {
      *            the jarfile.
      * @param entryName
      *            the name of the entry.
-     * @param compressedSizePastTheEnd
-     *            if true, also overwrite the compressed size that the central directory declares with a size that
-     *            runs far past the end of the jarfile.
+     * @param compressedSize
+     *            if not zero, also overwrite the compressed size that the central directory declares with this
+     *            size, read as an unsigned 32-bit value.
      * @throws IOException
      *             if the jarfile could not be read or written.
      */
     private static void overstateUncompressedSize(final Path jarFile, final String entryName,
-            final boolean compressedSizePastTheEnd) throws IOException {
+            final int compressedSize) throws IOException {
         final var bytes = Files.readAllBytes(jarFile);
         final var buf = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN);
         final var nameBytes = entryName.getBytes(StandardCharsets.UTF_8);
@@ -94,8 +95,8 @@ public class DeclaredUncompressedSizeTest {
                     && ByteBuffer.wrap(bytes, i + 46, nameBytes.length).equals(ByteBuffer.wrap(nameBytes))) {
                 assertThat(buf.getInt(i + 24)).isLessThan(DECLARED_SIZE);
                 buf.putInt(i + 24, DECLARED_SIZE);
-                if (compressedSizePastTheEnd) {
-                    buf.putInt(i + 20, 0xfffffff0);
+                if (compressedSize != 0) {
+                    buf.putInt(i + 20, compressedSize);
                 }
                 Files.write(jarFile, bytes);
                 return;
@@ -142,7 +143,7 @@ public class DeclaredUncompressedSizeTest {
         final var content = "small".getBytes(StandardCharsets.UTF_8);
         final var jarFile = tempDir.resolve("overstated.jar");
         writeJar(jarFile, "small.bin", content, /* storedName = */ null, /* storedContent = */ null);
-        overstateUncompressedSize(jarFile, "small.bin", /* compressedSizePastTheEnd = */ false);
+        overstateUncompressedSize(jarFile, "small.bin", /* compressedSize = */ 0);
 
         try (var vfs = new Vfs()) {
             final var entry = vfs.open(jarFile.toString()).getEntry("small.bin");
@@ -164,13 +165,38 @@ public class DeclaredUncompressedSizeTest {
         final var content = "small".getBytes(StandardCharsets.UTF_8);
         final var jarFile = tempDir.resolve("overstated-csize.jar");
         writeJar(jarFile, "small.bin", content, /* storedName = */ null, /* storedContent = */ null);
-        overstateUncompressedSize(jarFile, "small.bin", /* compressedSizePastTheEnd = */ true);
+        overstateUncompressedSize(jarFile, "small.bin", /* compressedSize = */ 0xfffffff0);
 
         try (var vfs = new Vfs()) {
             final var entry = vfs.open(jarFile.toString()).getEntry("small.bin");
-            assertThat(entry.getCompressedSize()).isEqualTo(0xfffffff0L);
+            // The compressed size the entry declares is cut short at the end of the jarfile
+            assertThat(entry.getCompressedSize()).isLessThanOrEqualTo(Files.size(jarFile));
             final var allocatedBefore = allocatedBytes();
             assertThat(entry.load()).isEqualTo(content);
+            assertThat(allocatedBytes() - allocatedBefore).isLessThan(MAX_ALLOCATED_BYTES);
+        }
+    }
+
+    /**
+     * A small deflated entry whose compressed size runs past the end of the jarfile, and whose declared compressed
+     * size could inflate to its declared uncompressed size, does not allocate its declared uncompressed size when
+     * it is read through a {@link RandomAccessOrSequentialReader}, since only the bytes left in the jarfile can be
+     * inflated.
+     */
+    @Test
+    public void readingASmallEntryWhoseCompressedSizeRunsPastTheEndDoesNotAllocateItsDeclaredSize(
+            @TempDir final Path tempDir) throws IOException {
+        final var content = "small".getBytes(StandardCharsets.UTF_8);
+        final var jarFile = tempDir.resolve("overstated-csize.jar");
+        writeJar(jarFile, "small.bin", content, /* storedName = */ null, /* storedContent = */ null);
+        overstateUncompressedSize(jarFile, "small.bin", /* compressedSize = */ DECLARED_SIZE);
+
+        try (var vfs = new Vfs()) {
+            final var entry = vfs.open(jarFile.toString()).getEntry("small.bin");
+            final var allocatedBefore = allocatedBytes();
+            try (var reader = new RandomAccessOrSequentialReader(entry)) {
+                assertThat(reader.length()).isEqualTo(content.length);
+            }
             assertThat(allocatedBytes() - allocatedBefore).isLessThan(MAX_ALLOCATED_BYTES);
         }
     }
@@ -190,7 +216,7 @@ public class DeclaredUncompressedSizeTest {
         final var outerJar = tempDir.resolve("outer.jar");
         writeJar(outerJar, "lib/inner.jar", Files.readAllBytes(innerJar), "padding.bin",
                 randomBytes(DECLARED_SIZE / 50, 1));
-        overstateUncompressedSize(outerJar, "lib/inner.jar", /* compressedSizePastTheEnd = */ false);
+        overstateUncompressedSize(outerJar, "lib/inner.jar", /* compressedSize = */ 0);
 
         try (var vfs = new Vfs()) {
             vfs.open(outerJar.toString());
@@ -216,7 +242,7 @@ public class DeclaredUncompressedSizeTest {
         final var outerJar = tempDir.resolve("outer.jar");
         writeJar(outerJar, "lib/inner.jar", Files.readAllBytes(innerJar), /* storedName = */ null,
                 /* storedContent = */ null);
-        overstateUncompressedSize(outerJar, "lib/inner.jar", /* compressedSizePastTheEnd = */ false);
+        overstateUncompressedSize(outerJar, "lib/inner.jar", /* compressedSize = */ 0);
         assertThat(100L * Files.size(outerJar)).isLessThan(MAX_ALLOCATED_BYTES);
 
         try (var vfs = new Vfs()) {
