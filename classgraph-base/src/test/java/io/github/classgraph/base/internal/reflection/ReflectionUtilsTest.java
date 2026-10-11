@@ -96,7 +96,49 @@ public class ReflectionUtilsTest {
         private void throwsAnException() {
             throw new UnsupportedOperationException("thrown by the method");
         }
+
+        /** A method that runs out of memory. */
+        private void runsOutOfMemory() {
+            throw OUT_OF_MEMORY;
+        }
+
+        /**
+         * A method with one argument that runs out of memory.
+         *
+         * @param arg
+         *            the argument.
+         */
+        private void runsOutOfMemory(final String arg) {
+            throw OUT_OF_MEMORY;
+        }
+
+        /** A static method that runs out of memory. */
+        private static void staticRunsOutOfMemory() {
+            throw OUT_OF_MEMORY;
+        }
+
+        /**
+         * A static method with one argument that runs out of memory.
+         *
+         * @param arg
+         *            the argument.
+         */
+        private static void staticRunsOutOfMemory(final String arg) {
+            throw OUT_OF_MEMORY;
+        }
     }
+
+    /**
+     * The error that the fixture methods throw to stand for the JVM running out of memory, created in advance so
+     * that a test can check that this same error object reaches the caller.
+     */
+    private static final OutOfMemoryError OUT_OF_MEMORY = new OutOfMemoryError("thrown by the method");
+
+    /**
+     * The error that the static initializer of {@link FailsToInitialize} throws, created in advance for the same
+     * reason as {@link #OUT_OF_MEMORY}.
+     */
+    private static final StackOverflowError STACK_OVERFLOW = new StackOverflowError("thrown by the initializer");
 
     /** A private field is read by name, whether it is declared by the object's class or by a superclass. */
     @Test
@@ -217,6 +259,31 @@ public class ReflectionUtilsTest {
     }
 
     /**
+     * A {@link VirtualMachineError} thrown by the invoked method, such as {@link OutOfMemoryError}, reaches the
+     * caller as itself, whatever the throwException argument: it says that the JVM is failing, not that the method
+     * could not be invoked, so it must not be turned into a null that a classloader handler takes to mean that a
+     * classloader has no classpath.
+     */
+    @Test
+    public void aVirtualMachineErrorThrownByTheInvokedMethodIsRethrown() {
+        final var obj = new Sub();
+        for (final boolean throwException : new boolean[] { false, true }) {
+            assertThatThrownBy(() -> ReflectionUtils.invokeMethod(throwException, obj, "runsOutOfMemory"))
+                    .isSameAs(OUT_OF_MEMORY);
+            assertThatThrownBy(
+                    () -> ReflectionUtils.invokeMethod(throwException, obj, "runsOutOfMemory", String.class, "x"))
+                    .isSameAs(OUT_OF_MEMORY);
+            assertThatThrownBy(() -> ReflectionUtils.invokeMethod(throwException, obj, "runsOutOfMemory",
+                    new Class<?>[] { String.class }, new Object[] { "x" })).isSameAs(OUT_OF_MEMORY);
+            assertThatThrownBy(
+                    () -> ReflectionUtils.invokeStaticMethod(throwException, Sub.class, "staticRunsOutOfMemory"))
+                    .isSameAs(OUT_OF_MEMORY);
+            assertThatThrownBy(() -> ReflectionUtils.invokeStaticMethod(throwException, Sub.class,
+                    "staticRunsOutOfMemory", String.class, "x")).isSameAs(OUT_OF_MEMORY);
+        }
+    }
+
+    /**
      * A null argument yields null, or an exception, according to the throwException argument, rather than throwing
      * a {@link NullPointerException} out of the middle of a classloader handler.
      */
@@ -305,5 +372,37 @@ public class ReflectionUtilsTest {
                 ClassLoader.getPlatformClassLoader())).isNull();
         // A null classloader is the bootstrap classloader, which can see the classes of java.base
         assertThat(ReflectionUtils.classForNameOrNull("java.lang.String", null)).isEqualTo(String.class);
+    }
+
+    /** A class whose static initializer fails with a {@link VirtualMachineError}. */
+    public static class FailsToInitialize {
+        /** Constructor. */
+        public FailsToInitialize() {
+        }
+
+        static {
+            if (STACK_OVERFLOW != null) {
+                throw STACK_OVERFLOW;
+            }
+        }
+    }
+
+    /**
+     * A {@link VirtualMachineError} thrown while a class is loaded or initialized reaches the caller as itself,
+     * rather than being reported as a class that could not be found.
+     */
+    @Test
+    public void aVirtualMachineErrorThrownWhileLoadingAClassIsRethrown() {
+        assertThatThrownBy(() -> ReflectionUtils.classForNameOrNull(FailsToInitialize.class.getName()))
+                .isSameAs(STACK_OVERFLOW);
+
+        final var outOfMemoryLoader = new ClassLoader(ReflectionUtilsTest.class.getClassLoader()) {
+            @Override
+            protected Class<?> loadClass(final String name, final boolean resolve) throws ClassNotFoundException {
+                throw OUT_OF_MEMORY;
+            }
+        };
+        assertThatThrownBy(() -> ReflectionUtils.classForNameOrNull("some.Class", outOfMemoryLoader))
+                .isSameAs(OUT_OF_MEMORY);
     }
 }

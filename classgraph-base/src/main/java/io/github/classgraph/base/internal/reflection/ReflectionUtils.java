@@ -34,7 +34,15 @@ import java.lang.reflect.Modifier;
 
 import org.jspecify.annotations.Nullable;
 
-/** Reflection utility methods that can be used by ClassLoaderHandlers. */
+/**
+ * Reflection utility methods that can be used by ClassLoaderHandlers.
+ *
+ * <p>
+ * Every public method here turns a failure into null or an {@link IllegalArgumentException}, except a
+ * {@link VirtualMachineError} such as {@link OutOfMemoryError} or {@link StackOverflowError}, which is rethrown as
+ * itself even if the member that was invoked threw it: it says that the JVM is failing, not that a classloader has
+ * no classpath to report.
+ */
 public final class ReflectionUtils {
     /**
      * The reflection driver, chosen once per JVM: the Narcissus driver if the Narcissus library is on the classpath
@@ -118,7 +126,9 @@ public final class ReflectionUtils {
     }
 
     /**
-     * Report a failure, either by throwing or by returning null.
+     * Report a failure, either by throwing or by returning null. A cause that is a {@link VirtualMachineError}, or
+     * an {@link java.lang.reflect.InvocationTargetException} wrapping one, is rethrown as that error instead,
+     * whatever the value of throwException.
      *
      * @param throwException
      *            If true, throw an {@link IllegalArgumentException}; otherwise return null.
@@ -132,6 +142,9 @@ public final class ReflectionUtils {
      */
     private static @Nullable Object fail(final boolean throwException, final String message,
             final @Nullable Throwable cause) throws IllegalArgumentException {
+        if (cause != null) {
+            ReflectionDriver.rethrowIfVirtualMachineError(cause);
+        }
         if (throwException) {
             throw new IllegalArgumentException(message, cause);
         }
@@ -365,11 +378,14 @@ public final class ReflectionUtils {
      * @param className
      *            The class name to load.
      * @return The class of the requested name, or null if an exception was thrown while trying to load the class.
+     * @throws VirtualMachineError
+     *             if one was thrown while trying to load or initialize the class.
      */
     public static @Nullable Class<?> classForNameOrNull(final String className) {
         try {
             return REFLECTION_DRIVER.findClass(className);
-        } catch (final Throwable _) {
+        } catch (final Throwable t) {
+            ReflectionDriver.rethrowIfVirtualMachineError(t);
             return null;
         }
     }
@@ -389,12 +405,15 @@ public final class ReflectionUtils {
      * @param classLoader
      *            The classloader to find the class in, or null to use the bootstrap classloader.
      * @return The class of the requested name, or null if an exception was thrown while trying to load the class.
+     * @throws VirtualMachineError
+     *             if one was thrown while trying to load the class.
      */
     public static @Nullable Class<?> classForNameOrNull(final String className,
             final @Nullable ClassLoader classLoader) {
         try {
             return REFLECTION_DRIVER.findClass(className, classLoader);
-        } catch (final Throwable _) {
+        } catch (final Throwable t) {
+            ReflectionDriver.rethrowIfVirtualMachineError(t);
             return null;
         }
     }
