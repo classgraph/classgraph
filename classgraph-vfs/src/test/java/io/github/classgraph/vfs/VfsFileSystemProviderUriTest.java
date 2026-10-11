@@ -369,6 +369,45 @@ public class VfsFileSystemProviderUriTest {
     }
 
     /**
+     * A relative path that starts with {@code ".."} names the file the JVM reaches through it, both when it is
+     * opened and when a filesystem is looked up by it, rather than the file that dropping the {@code ".."} would
+     * name in the current directory.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the jarfile could not be read.
+     */
+    @Test
+    public void aRelativePathThatClimbsOutOfTheCurrentDirectoryIsFound(@TempDir final Path tempDir)
+            throws IOException {
+        final var jarFile = tempDir.resolve("library.jar").toFile();
+        writeJar(jarFile);
+        final String relativePath;
+        try {
+            relativePath = Path.of("").toRealPath().relativize(jarFile.toPath().toRealPath()).toString();
+        } catch (final IllegalArgumentException e) {
+            // On Windows, the temporary directory can be on a different drive from the current directory
+            assumeTrue(false, "No relative path reaches the temporary directory: " + e);
+            return;
+        }
+        final var uri = cgvfsUri(relativePath);
+        assertThat(uri.toString()).startsWith("cgvfs:../");
+
+        try (var fs = FileSystems.newFileSystem(uri, Map.of())) {
+            assertThat(Files.readAllBytes(fs.getPath("/root.txt"))).isEqualTo(contentOf("root.txt"));
+            assertThat(FileSystems.getFileSystem(uri)).isSameAs(fs);
+            assertThat(Path.of(URI.create(uri + "!/root.txt")).getFileSystem()).isSameAs(fs);
+            // The same path without its leading ".." segments names a file in the current directory, which is not
+            // open
+            final var withoutParentSegments = cgvfsUri(
+                    relativePath.replace(File.separatorChar, '/').replaceFirst("^(\\.\\./)+", ""));
+            assertThatThrownBy(() -> FileSystems.getFileSystem(withoutParentSegments))
+                    .isInstanceOf(FileSystemNotFoundException.class);
+        }
+    }
+
+    /**
      * Closing the root of a filesystem created from a URI, or the {@link Vfs} behind it, from outside the
      * filesystem -- which no public method allows, but reflection does -- frees the name just as closing the
      * filesystem does: the closed filesystem is no longer found by URI, and the path can be opened again. Closing

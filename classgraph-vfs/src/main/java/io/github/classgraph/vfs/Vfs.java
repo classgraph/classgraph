@@ -238,6 +238,12 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      * which case only the entries under that root are reported, with the root stripped from their names.
      *
      * <p>
+     * A relative path is resolved against the current directory. A {@code ".."} segment in the part of the path
+     * that names a file on disk is resolved by the filesystem, as it is when the JVM opens the same path, so it can
+     * climb out of the current directory, and after a symlinked directory it names the parent of the directory the
+     * symlink points at.
+     *
+     * <p>
      * A directory or jarfile is opened once however it is named, so the same {@link VfsRoot} is returned for a
      * plain path, for the {@code "file:"} or {@code "jar:"} URL of the same thing, for a path that reaches it
      * through a symlink, and, on Windows, for a path written with backslashes rather than forward slashes, or one
@@ -276,7 +282,7 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
         // The resolved path is the cache key, not the path as it was written: the same directory or jarfile can be
         // named as a plain path, as a "file:" or "jar:" URL, with a trailing separator, or -- on Windows -- with
         // backslashes rather than forward slashes, and all of those name one thing that is opened once
-        final var resolvedPath = FastPathResolver.resolve(path);
+        final var resolvedPath = resolvePath(path);
         try {
             return openThroughCache(resolvedPath, () -> openRootUncached(resolvedPath, logNode));
         } catch (final InterruptedException e) {
@@ -289,6 +295,23 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
     }
 
     /**
+     * Resolve a path to the form that {@link #open(String)} caches it under, leaving a {@code ".."} segment in the
+     * part of the path that names a file on disk for the filesystem to resolve. Collapsing such a segment textually
+     * would drop a leading {@code ".."} from a relative path, so that {@code "../x.jar"} named {@code "x.jar"} in
+     * the current directory, and would name the wrong file after a symlinked directory. A relative path is left
+     * relative, for the filesystem to resolve against the current directory: resolving it here would also prefix
+     * the current directory to a URL whose scheme is not followed by {@code "//"}, such as
+     * {@code "url:jrt:/java.base"}, which would then no longer be read as a URL.
+     *
+     * @param path
+     *            the path to resolve.
+     * @return the resolved path.
+     */
+    static String resolvePath(final String path) {
+        return FastPathResolver.resolveFilePath(/* resolveBasePath = */ null, path);
+    }
+
+    /**
      * Look a key up in {@link #rootsByPath}, building the root if no thread has opened that key yet, and return the
      * root open at that key. {@link InterruptedException} is deliberately let through raw rather than being wrapped
      * in an {@link IOException} here: a build that opens the jarfile enclosing a nested one re-enters this method,
@@ -296,8 +319,8 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      * the calling thread as a failure of the path it was opening. Only the public {@code open} methods convert it.
      *
      * @param key
-     *            the cache key: a path in the form {@link FastPathResolver#resolve(String)} returns, or the URI of
-     *            a {@link Path} in a non-default filesystem.
+     *            the cache key: a path in the form {@link #resolvePath(String)} returns, or the URI of a
+     *            {@link Path} in a non-default filesystem.
      * @param factory
      *            builds the root if no thread has opened that key yet.
      * @return the root open at that key.
@@ -350,7 +373,7 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      * canonical form; the cache allows the re-entry, since each frame locks only its own key.
      *
      * @param key
-     *            the cache key, in the form {@link FastPathResolver#resolve(String)} returns.
+     *            the cache key, in the form {@link #resolvePath(String)} returns.
      * @param logNode
      *            the log node that a build logs to, or null to skip logging.
      * @return the root open at that key.
@@ -521,7 +544,7 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      * spelling, so that both spellings share one root.
      *
      * @param resolvedPath
-     *            the path to open, in the form {@link FastPathResolver#resolve(String)} returns it.
+     *            the path to open, in the form {@link #resolvePath(String)} returns it.
      * @param outerLog
      *            the log node to log under, or null to skip logging.
      * @return the opened root.
