@@ -4,11 +4,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
 import java.io.File;
+import java.net.JarURLConnection;
 import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.function.Predicate;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.jspecify.annotations.Nullable;
 
 import io.github.classgraph.base.ClassGraphLog;
@@ -127,12 +131,16 @@ public class ClasspathSpecTest {
      * The URL that the URL filters are given for a nested classpath element names the same inner path as the
      * element's path, even when that inner path holds characters a URL has to escape.
      *
+     * @param tempDir
+     *            a temporary directory to hold the outer jarfile.
      * @throws Exception
      *             if the URL cannot be converted to a URI.
      */
     @Test
-    public void theURLOfANestedElementEscapesItsInnerPath() throws Exception {
-        final var outerPath = new File("out er.jar").getAbsolutePath();
+    public void theURLOfANestedElementEscapesItsInnerPath(@TempDir final Path tempDir) throws Exception {
+        // The '!' is a separator only if the path before it names an existing file
+        final var outerPath = Files.write(tempDir.resolve("out er.jar"), new byte[] { 'P', 'K' }).toString()
+                .replace(File.separatorChar, '/');
         final var innerPath = "/in ner/a%41b?c#d.jar";
         final var urlsTested = new ArrayList<URL>();
         final var classpathSpec = new ClasspathSpec();
@@ -146,6 +154,45 @@ public class ClasspathSpecTest {
         assertThat(uri.getScheme()).isEqualTo("jar");
         assertThat(uri.getSchemeSpecificPart())
                 .isEqualTo("file:" + new File(outerPath).toURI().getPath() + "!" + innerPath);
+    }
+
+    /**
+     * The URL that the URL filters are given for a jarfile in a directory whose name ends in '!' is the file URL of
+     * the jarfile, since that '!' is part of the directory name, not a nested jar separator. A '!' that does follow
+     * a jarfile is a separator, however it is spelled.
+     *
+     * @param tempDir
+     *            a temporary directory to hold the jarfiles.
+     * @throws Exception
+     *             if a file cannot be written or a URL cannot be formed.
+     */
+    @Test
+    public void theURLOfAJarInADirectoryWhoseNameEndsInAPlingIsAFileURL(@TempDir final Path tempDir)
+            throws Exception {
+        final var jarPath = Files
+                .write(Files.createDirectory(tempDir.resolve("build!")).resolve("lib.jar"), new byte[] { 'P', 'K' })
+                .toString().replace(File.separatorChar, '/');
+        final var urlsTested = new ArrayList<URL>();
+        final var classpathSpec = new ClasspathSpec();
+        classpathSpec.filterClasspathElementsByURL(url -> {
+            urlsTested.add(url);
+            return true;
+        });
+        assertThat(classpathSpec.acceptsClasspathElement(null, jarPath)).isTrue();
+        assertThat(urlsTested).containsExactly(new File(jarPath).toURI().toURL());
+
+        // A trailing '!' and a '!' with no '/' after it, both of which ClassGraph accepts, are separators, and
+        // are given to the URL filters in the "!/" form that a jar URL requires. The "!/" of the directory name
+        // is percent-encoded in a jar URL, since the jar URL would otherwise end the jarfile's path there.
+        final var jarURL = "jar:" + new File(jarPath).toURI().toString().replace("build!/", "build%21/");
+        urlsTested.clear();
+        assertThat(classpathSpec.acceptsClasspathElement(null, jarPath + "!")).isTrue();
+        assertThat(classpathSpec.acceptsClasspathElement(null, jarPath + "!inner.jar")).isTrue();
+        assertThat(urlsTested).extracting(URL::toString).containsExactly(jarURL + "!/", jarURL + "!/inner.jar");
+        // ... so the JDK's jar URL handler finds the jarfile and the entry within it
+        final var jarURLConnection = (JarURLConnection) urlsTested.get(1).openConnection();
+        assertThat(Path.of(jarURLConnection.getJarFileURL().toURI())).isEqualTo(Path.of(jarPath));
+        assertThat(jarURLConnection.getEntryName()).isEqualTo("inner.jar");
     }
 
     /** A string that is not a URL scheme is rejected, rather than being stored where it can never match. */

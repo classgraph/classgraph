@@ -42,6 +42,7 @@ import java.util.Set;
 import java.util.function.Predicate;
 
 import io.github.classgraph.base.LogNode;
+import io.github.classgraph.base.internal.path.PathSyntax;
 import io.github.classgraph.base.internal.path.URLPaths;
 import io.github.classgraph.base.internal.utils.Assert;
 import io.github.classgraph.classpath.ClassLoaderHandler;
@@ -207,15 +208,24 @@ public class ClasspathSpec {
                 // The path is already a URL, such as a manifest Class-Path entry that names a remote jarfile
                 return new URL(classpathElementPath);
             }
-            final var nestedPathIdx = classpathElementPath.indexOf("!/");
+            // A '!' before the outermost jarfile belongs to a directory name, as in "/work/build!/lib.jar", so the
+            // outermost separator is found by testing the filesystem, as it was when the path was resolved
+            final var nestedPathIdx = PathSyntax.indexOfNestedJarSeparator(classpathElementPath);
             if (nestedPathIdx < 0) {
                 return new File(classpathElementPath).toURI().toURL();
             }
             // A nested path "outer.jar!/inner" becomes the jar URL "jar:file:/outer.jar!/inner". The inner path is
             // percent-encoded as File#toURI() encodes the outer path, so that a '%', ' ', '?' or '#' in it is
-            // decoded back to the same character rather than to an escape, a query or a fragment
-            return new URL("jar:" + new File(classpathElementPath.substring(0, nestedPathIdx)).toURI()
-                    + URLPaths.encodePath(classpathElementPath.substring(nestedPathIdx)));
+            // decoded back to the same character rather than to an escape, a query or a fragment. Every separator
+            // is spelled "!/", as a jar URL requires, since a separator may be a bare '!', or a trailing '!' whose
+            // '/' was stripped (the path before the outermost separator is unchanged by that). A "!/" in the outer
+            // path, as at the end of a directory named "dir!", is percent-encoded, as ArchiveRoot#resolveURI
+            // encodes it, since the "jar:" scheme would otherwise end the outer path there
+            return new URL("jar:"
+                    + new File(classpathElementPath.substring(0, nestedPathIdx)).toURI().toString().replace("!/",
+                            "%21/")
+                    + URLPaths.encodePath(
+                            PathSyntax.toJarUrlSeparators(classpathElementPath).substring(nestedPathIdx)));
         } catch (final MalformedURLException | IllegalArgumentException | IOError | SecurityException e) {
             return null;
         }
