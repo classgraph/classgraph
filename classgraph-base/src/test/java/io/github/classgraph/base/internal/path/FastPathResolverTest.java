@@ -570,15 +570,40 @@ public class FastPathResolverTest {
         assertThat(FastPathResolver.resolve(null, jarPath + "!/")).isEqualTo(jarPath);
         assertThat(FastPathResolver.resolve(basePath, "x.jar!/")).isEqualTo(jarPath);
         assertThat(FastPathResolver.resolve(basePath, "x.jar!")).isEqualTo(jarPath);
-        // The result does not depend on whether some other segment of the path had to be sanitized. The directory
-        // has to exist, since on Linux and macOS the filesystem only finds "sub/../x.jar" if "sub" exists
-        Files.createDirectory(tempDir.resolve("sub"));
+        // The result does not depend on whether some other segment of the path had to be sanitized
         assertThat(FastPathResolver.resolve(basePath, "sub/../x.jar!/")).isEqualTo(jarPath);
         // A path within the jarfile keeps its separator
         assertThat(FastPathResolver.resolve(basePath, "x.jar!/a")).isEqualTo(jarPath + "!/a");
         // The same holds against a URL base path, whose first '!' is a separator by the rule for URLs
         assertThat(FastPathResolver.resolve("http://h/dir", "y.jar!/")).isEqualTo("http://h/dir/y.jar");
         assertThat(FastPathResolver.resolve("http://h/dir", "y.jar!/a")).isEqualTo("http://h/dir/y.jar!/a");
+    }
+
+    /**
+     * {@link FastPathResolver#resolve(String, String)} collapses {@code ".."} textually, so whether a '!' is a
+     * nested jar separator is decided by the file the collapsed path names, and does not depend on whether a
+     * directory that a {@code ".."} removes exists. (On Linux and macOS the filesystem only finds
+     * {@code "nosuchdir/../x.jar"} if {@code "nosuchdir"} exists, while on Windows it collapses the path
+     * lexically.)
+     *
+     * @param tempDir
+     *            a temporary directory
+     * @throws IOException
+     *             if the jarfile could not be created
+     */
+    @Test
+    public void theSeparatorAfterACollapsedParentSegmentDoesNotDependOnTheRemovedDirectory(
+            @TempDir final Path tempDir) throws IOException {
+        final var jarPath = Files.createFile(tempDir.resolve("x.jar")).toString().replace(File.separatorChar, '/');
+        final var basePath = jarPath.substring(0, jarPath.length() - "/x.jar".length());
+        assertThat(FastPathResolver.resolve(basePath, "nosuchdir/../x.jar!/")).isEqualTo(jarPath);
+        assertThat(FastPathResolver.resolve(basePath, "nosuchdir/../x.jar!/../a")).isEqualTo(jarPath + "!/a");
+        assertThat(FastPathResolver.resolve(null, basePath + "/nosuchdir/../x.jar!/../a"))
+                .isEqualTo(jarPath + "!/a");
+        // A '!' that does not follow a file is still an ordinary character
+        assertThat(FastPathResolver.resolve(basePath, "nosuchdir/../y.jar!/../a")).isEqualTo(basePath + "/a");
+        // resolveFilePath leaves the ".." for the filesystem to resolve, so there the filesystem decides
+        assertThat(FastPathResolver.resolveFilePath(basePath, "x.jar!/../a")).isEqualTo(jarPath + "!/a");
     }
 
     /**

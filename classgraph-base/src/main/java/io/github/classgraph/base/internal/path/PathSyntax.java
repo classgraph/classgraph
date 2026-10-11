@@ -105,8 +105,12 @@ public final class PathSyntax {
 
         // A '!' is only a nested jar separator if the path before it names an existing jarfile -- it is otherwise a
         // legal filename character, and must not be treated as a path hierarchy root (#903). A separator that falls
-        // within the prefix is not in the path at all
-        final var nestedJarSepIdx = Math.max(-1, indexOfNestedJarSeparator(prefix + path) - prefix.length());
+        // within the prefix is not in the path at all. If ".." is collapsed textually, the file that decides this
+        // is the one the collapsed path names, not the one the filesystem finds by resolving "..", which on Linux
+        // and macOS only exists if the directory that ".." removes exists too
+        final var nestedJarSepIdx = Math.max(-1, indexOfNestedJarSeparator(prefix + path,
+                /* collapseParentSegmentsFromIdx = */ collapseParentSegmentsInFirstSection ? prefix.length() : -1)
+                - prefix.length());
         return sanitize(path, nestedJarSepIdx, removeInitialSlash, removeFinalSlash,
                 collapseParentSegmentsInFirstSection);
     }
@@ -414,6 +418,25 @@ public final class PathSyntax {
      */
     // #903
     public static int indexOfNestedJarSeparator(final String path) {
+        return indexOfNestedJarSeparator(path, /* collapseParentSegmentsFromIdx = */ -1);
+    }
+
+    /**
+     * Find the index of the outermost nested jar separator ('!') in a path, as
+     * {@link #indexOfNestedJarSeparator(String)} does, optionally testing the filesystem with {@code ".."} segments
+     * collapsed textually.
+     *
+     * @param path
+     *            the path, with any {@code "jar:"} and {@code "file:"} scheme prefixes already stripped.
+     * @param collapseParentSegmentsFromIdx
+     *            if non-negative, the index in the path from which {@code ".."} segments are collapsed textually
+     *            before the filesystem is tested, as
+     *            {@link #sanitizeEntryPath(String, String, boolean, boolean, boolean)} collapses them; the part of
+     *            the path before it is a URL prefix that is never collapsed. If -1, the path is tested as written,
+     *            and the filesystem resolves any {@code ".."} segment.
+     * @return the index of the outermost nested jar separator, or -1 if there is none.
+     */
+    private static int indexOfNestedJarSeparator(final String path, final int collapseParentSegmentsFromIdx) {
         final var firstPlingIdx = path.indexOf('!');
         if (firstPlingIdx < 0) {
             return -1;
@@ -425,7 +448,7 @@ public final class PathSyntax {
             // N.B. the path is not resolved via FastPathResolver here, since that calls #sanitizeEntryPath, which
             // calls this method -- a relative path is resolved by java.io.File against the current directory, which
             // is the same base path anyway
-            if (new File(path.substring(0, plingIdx)).isFile()) {
+            if (fileToTest(path, plingIdx, collapseParentSegmentsFromIdx).isFile()) {
                 return plingIdx;
             }
             plingIdx = path.indexOf('!', plingIdx + 1);
@@ -435,7 +458,8 @@ public final class PathSyntax {
         // exists locally, it is a path whose every '!' is a literal filename character. Only if nothing local
         // answers to it is it read as a URL, and the syntactic rule used to find the separator.
         // (A path that names nothing at all cannot be told from a URL, but it fails to open either way.)
-        if (!URLPaths.startsWithURLScheme(path) || new File(path).exists()) {
+        if (!URLPaths.startsWithURLScheme(path)
+                || fileToTest(path, path.length(), collapseParentSegmentsFromIdx).exists()) {
             return -1;
         }
         // A '!' is a legal character in the authority of a URL, in its userinfo or a registered host name, and is
@@ -451,6 +475,28 @@ public final class PathSyntax {
             }
         }
         return path.indexOf('!', pathStartIdx);
+    }
+
+    /**
+     * Get the file to test for whether a prefix of a path names a file.
+     *
+     * @param path
+     *            the path.
+     * @param endIdx
+     *            the end index of the prefix of the path to test.
+     * @param collapseParentSegmentsFromIdx
+     *            if non-negative, the index in the path from which {@code ".."} segments are collapsed textually;
+     *            if -1, the prefix is tested as written.
+     * @return the file to test.
+     */
+    private static File fileToTest(final String path, final int endIdx, final int collapseParentSegmentsFromIdx) {
+        if (collapseParentSegmentsFromIdx < 0 || collapseParentSegmentsFromIdx >= endIdx) {
+            return new File(path.substring(0, endIdx));
+        }
+        return new File(path.substring(0, collapseParentSegmentsFromIdx)
+                + sanitize(path.substring(collapseParentSegmentsFromIdx, endIdx), /* nestedJarSepIdx = */ -1,
+                        /* removeInitialSlash = */ false, /* removeFinalSlash = */ false,
+                        /* collapseParentSegmentsInFirstSection = */ true));
     }
 
     /**
