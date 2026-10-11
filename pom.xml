@@ -707,6 +707,15 @@
 						<!-- (below) covers all five modules in one run, so there the links are correct by -->
 						<!-- construction, and that is what the documentation site should serve. -->
 						<detectOfflineLinks>false</detectOfflineLinks>
+						<!-- Run Javadoc every time, rather than skipping it as "up to date". The plugin skips a -->
+						<!-- run when the command line and the file times it records match the previous run's, -->
+						<!-- but it never records the time of a source file: only those of the files directly -->
+						<!-- inside the output directory and inside each -classpath and -sourcepath directory. So -->
+						<!-- after an edit to a source file, a second run without "clean" was skipped, and a -->
+						<!-- doclint error that the edit introduced went unreported. An empty element does not -->
+						<!-- switch the check off (the default path still applies), so each Maven run is given a -->
+						<!-- file name of its own, from the time it started, and never finds a previous run's data. -->
+						<staleDataPath>${project.build.directory}/javadoc-stale-data/${session.startTime.time}.txt</staleDataPath>
 					</configuration>
 					<executions>
 						<execution>
