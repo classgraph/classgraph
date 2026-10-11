@@ -79,9 +79,9 @@ public final class VfsSpec {
     private volatile boolean multiReleaseVersionsEnabled = DEFAULT_ENABLE_MULTI_RELEASE_VERSIONS;
 
     /**
-     * URL schemes that jarfiles may not be fetched from. Every scheme the JVM has a handler for is allowed unless
-     * it appears here. Only ever assigned an unmodifiable set, so that a reader can iterate it while another thread
-     * denies a further scheme, and so that a copy can share it.
+     * URL schemes that a jarfile or directory may not be opened from. Every scheme the JVM has a handler for is
+     * allowed unless it appears here. Only ever assigned an unmodifiable set, so that a reader can iterate it while
+     * another thread denies a further scheme, and so that a copy can share it.
      */
     private volatile Set<String> deniedURLSchemes = Set.of();
 
@@ -233,17 +233,24 @@ public final class VfsSpec {
     }
 
     /**
-     * Refuse to fetch jarfiles from URLs with the given scheme. Every scheme is allowed by default, so this is only
-     * needed to take one away.
+     * Refuse to open a jarfile or directory named by a URL with the given scheme. Every scheme is allowed by
+     * default, so this is only needed to take one away.
      *
      * <p>
      * A {@link Vfs} opens whatever the JVM can open. A scheme is openable because the JDK ships a
      * {@link java.net.URLStreamHandler} for it ({@code file}, {@code jar}, {@code http}, {@code https},
      * {@code ftp}, {@code mailto}, {@code jrt} and {@code jmod}), or because something registered a handler or a
      * {@link java.nio.file.spi.FileSystemProvider} for it. Denying a scheme is how a caller that reads paths it
-     * does not control keeps a jarfile from being fetched over one -- {@code ClassGraph} denies the four schemes
-     * whose handlers connect over a network ({@code http}, {@code https}, {@code ftp} and {@code mailto}, which
-     * connects to a mail server even though it cannot fetch a jarfile) for exactly that reason.
+     * does not control keeps anything from being read over one -- {@code ClassGraph} denies the four schemes whose
+     * handlers connect over a network ({@code http}, {@code https}, {@code ftp} and {@code mailto}, which connects
+     * to a mail server even though it cannot fetch a jarfile) for exactly that reason. A path with a denied scheme
+     * is refused even if a {@link java.nio.file.spi.FileSystemProvider} installed for the scheme serves a directory
+     * there.
+     *
+     * <p>
+     * The scheme is checked when a path given as a string, {@link java.net.URL} or {@link java.net.URI} is opened.
+     * It is not checked for a {@link java.nio.file.Path}, which {@link Vfs#open(java.nio.file.Path)} reads through
+     * its own filesystem, nor for a path that the {@link Vfs} has already opened under the same name.
      *
      * <p>
      * Denying {@code file:} or {@code jar:} has no effect. A {@code file:} URL names a local file, and a
@@ -272,8 +279,9 @@ public final class VfsSpec {
     }
 
     /**
-     * Allow jarfiles to be fetched from URLs with the given scheme again, undoing a {@link #denyURLScheme(String)}.
-     * Every scheme is allowed by default, so this is only needed to take back a scheme that was denied.
+     * Allow a jarfile or directory named by a URL with the given scheme to be opened again, undoing a
+     * {@link #denyURLScheme(String)}. Every scheme is allowed by default, so this is only needed to take back a
+     * scheme that was denied.
      *
      * <p>
      * A jarfile fetched from a URL is downloaded in full before its entries can be read, since a zipfile's central
@@ -305,8 +313,8 @@ public final class VfsSpec {
     }
 
     /**
-     * The URL schemes that jarfiles may not be fetched from. Every other scheme the JVM has a handler for is
-     * allowed, as are {@code file:} and {@code jar:}, which denying has no effect on.
+     * The URL schemes that a jarfile or directory may not be opened from. Every other scheme the JVM has a handler
+     * for is allowed, as are {@code file:} and {@code jar:}, which denying has no effect on.
      *
      * @return the denied schemes, sorted by scheme name, as an unmodifiable set, which is empty if no scheme has
      *         been denied.
