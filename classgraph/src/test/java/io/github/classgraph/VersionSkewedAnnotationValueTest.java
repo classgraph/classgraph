@@ -276,6 +276,162 @@ public class VersionSkewedAnnotationValueTest {
     }
 
     /**
+     * Default values that form a cycle, which javac refuses to compile (JLS 9.6.1), but which the JVM loads: the
+     * default of {@code A.v} is {@code @B}, and a second version of {@code B} gives {@code B.w} the default
+     * {@code @A}. Filling in the defaults never ends, so an annotation that is already being printed is shown
+     * without its values when it is reached again, and {@code hashCode} and {@code equals} return.
+     */
+    @Test
+    public void defaultValueCycle() throws IOException {
+        final var v1Dir = Files.createDirectory(tempDir.resolve("v1"));
+        compile(v1Dir, null, """
+                package p;
+                import java.lang.annotation.*;
+                @Retention(RetentionPolicy.RUNTIME)
+                public @interface A {
+                    B v() default @B;
+                }
+                """, """
+                package p;
+                import java.lang.annotation.*;
+                @Retention(RetentionPolicy.RUNTIME)
+                public @interface B {
+                }
+                """, """
+                package p;
+                @A
+                public class User {
+                }
+                """, """
+                package p;
+                @A(v = @B)
+                public class User2 {
+                }
+                """, GOOD);
+        Files.delete(v1Dir.resolve("p/B.class"));
+        // javac refuses to compile B.w against A, since it finds the cycle, so compile B.w against a stand-in
+        // annotation Q, then rename Q to A in the classfile
+        final var standInDir = Files.createDirectory(tempDir.resolve("standIn"));
+        compile(standInDir, null, """
+                package p;
+                public @interface Q {
+                }
+                """);
+        final var v2Dir = Files.createDirectory(tempDir.resolve("v2"));
+        compile(v2Dir, standInDir, """
+                package p;
+                import java.lang.annotation.*;
+                @Retention(RetentionPolicy.RUNTIME)
+                public @interface B {
+                    Q w() default @Q;
+                }
+                """);
+        replaceInClassfile(v2Dir.resolve("p/B.class"), "()Lp/Q;", "()Lp/A;");
+        replaceInClassfile(v2Dir.resolve("p/B.class"), "Lp/Q;", "Lp/A;");
+        try (var scanResult = new ClassGraph().enableClasspathEntries(v1Dir.toString(), v2Dir.toString())
+                .enableClassInfo().enableMethodInfo().enableAnnotationInfo().scan()) {
+            final var user = scanResult.getClassInfo("p.User");
+            assertThat(user).isNotNull();
+            final var annotation = user.getAllAnnotationInfo().get("p.A");
+            assertThat(annotation).isNotNull();
+            // The default value @B is printed twice: the second time, it is already being printed
+            assertThat(annotation.toString()).isEqualTo("@p.A(v=@p.B(w=@p.A(v=@p.B(...))))");
+            assertThat(user.toString()).contains("@p.A(v=@p.B(w=@p.A(v=@p.B(...))))");
+            final var user2 = scanResult.getClassInfo("p.User2");
+            assertThat(user2).isNotNull();
+            final var annotation2 = user2.getAllAnnotationInfo().get("p.A");
+            assertThat(annotation2).isNotNull();
+            // The @B given at the use site is a different object from the default value @B, so the cycle is cut
+            // at the default value @A
+            assertThat(annotation2.toString()).isEqualTo("@p.A(v=@p.B(w=@p.A(v=@p.B(w=@p.A(...)))))");
+            assertThat(annotation2).isEqualTo(annotation).hasSameHashCodeAs(annotation);
+            assertThat(annotation2.compareTo(annotation)).isZero();
+        }
+    }
+
+    /**
+     * Default values that form a cycle through values given inside other default values: the default of {@code A.v}
+     * is {@code @B(w = @A)}, and the default of {@code B.w} is {@code @A(v = @B)}. Comparing {@code @A(v = @B)}
+     * with {@code @A} compares, in turn, the default value {@code @A(v = @B)} with the {@code @A} inside the
+     * default value {@code @B(w = @A)}, then the {@code @B} inside the first with the default value
+     * {@code @B(w = @A)}, then the same two {@code @A} again, without ever reaching the same parameter value on
+     * both sides. Both annotations expand to the same infinite annotation, so they are equal.
+     */
+    @Test
+    public void defaultValueCycleThroughGivenValues() throws IOException {
+        // javac refuses to compile A.v and B.w against each other, since it finds the cycle, so compile A and B
+        // against stand-in annotations Q and R, then rename them in the classfiles
+        final var v1Dir = Files.createDirectory(tempDir.resolve("v1"));
+        compile(v1Dir, null, """
+                package p;
+                public @interface Q {
+                }
+                """, """
+                package p;
+                public @interface B {
+                    Q w() default @Q;
+                }
+                """, """
+                package p;
+                import java.lang.annotation.*;
+                @Retention(RetentionPolicy.RUNTIME)
+                public @interface A {
+                    B v() default @B(w = @Q);
+                }
+                """, """
+                package p;
+                @A
+                public class User {
+                }
+                """, """
+                package p;
+                @A(v = @B)
+                public class User2 {
+                }
+                """, GOOD);
+        Files.delete(v1Dir.resolve("p/Q.class"));
+        Files.delete(v1Dir.resolve("p/B.class"));
+        replaceInClassfile(v1Dir.resolve("p/A.class"), "Lp/Q;", "Lp/A;");
+        final var v2Dir = Files.createDirectory(tempDir.resolve("v2"));
+        compile(v2Dir, null, """
+                package p;
+                public @interface R {
+                }
+                """, """
+                package p;
+                public @interface Q {
+                    R v();
+                }
+                """, """
+                package p;
+                public @interface B {
+                    Q w() default @Q(v = @R);
+                }
+                """);
+        Files.delete(v2Dir.resolve("p/R.class"));
+        Files.delete(v2Dir.resolve("p/Q.class"));
+        replaceInClassfile(v2Dir.resolve("p/B.class"), "()Lp/Q;", "()Lp/A;");
+        replaceInClassfile(v2Dir.resolve("p/B.class"), "Lp/Q;", "Lp/A;");
+        replaceInClassfile(v2Dir.resolve("p/B.class"), "Lp/R;", "Lp/B;");
+        try (var scanResult = new ClassGraph().enableClasspathEntries(v1Dir.toString(), v2Dir.toString())
+                .enableClassInfo().enableMethodInfo().enableAnnotationInfo().scan()) {
+            final var user = scanResult.getClassInfo("p.User");
+            assertThat(user).isNotNull();
+            final var annotation = user.getAllAnnotationInfo().get("p.A");
+            assertThat(annotation).isNotNull();
+            final var user2 = scanResult.getClassInfo("p.User2");
+            assertThat(user2).isNotNull();
+            final var annotation2 = user2.getAllAnnotationInfo().get("p.A");
+            assertThat(annotation2).isNotNull();
+            assertThat(annotation2.compareTo(annotation)).isZero();
+            assertThat(annotation.compareTo(annotation2)).isZero();
+            assertThat(annotation2).isEqualTo(annotation).hasSameHashCodeAs(annotation);
+            assertThat(annotation.toString()).isEqualTo("@p.A(v=@p.B(w=@p.A(v=@p.B(...))))");
+            assertThat(annotation2.toString()).isEqualTo("@p.A(v=@p.B(w=@p.A(v=@p.B(w=@p.A(...)))))");
+        }
+    }
+
+    /**
      * Compile {@link #TAGGED} against {@link #TAGS_V1}, then replace the container with a second version.
      *
      * @param tagsV2

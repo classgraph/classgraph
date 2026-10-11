@@ -29,7 +29,10 @@
 package io.github.classgraph;
 
 import java.lang.reflect.Array;
-import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.IdentityHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -372,6 +375,21 @@ public final class AnnotationParameterValue extends ScanResultObject
 
     @Override
     public int compareTo(final AnnotationParameterValue other) {
+        return compareTo(other, new ArrayList<>());
+    }
+
+    /**
+     * Compare annotation parameter values, as in {@link #compareTo(AnnotationParameterValue)}.
+     *
+     * @param other
+     *            the parameter value to compare with
+     * @param comparedPairs
+     *            the pairs of annotations compared so far, as in
+     *            {@link AnnotationInfo#compareTo(AnnotationInfo, List)}
+     * @return a negative number, zero or a positive number if this parameter value sorts before, the same as or
+     *         after the other parameter value
+     */
+    int compareTo(final AnnotationParameterValue other, final List<AnnotationInfo[]> comparedPairs) {
         if (other == this) {
             return 0;
         }
@@ -380,29 +398,28 @@ public final class AnnotationParameterValue extends ScanResultObject
             return diff;
         }
         // Read each value once, since another thread may replace it with its converted array between two reads
-        final var val = value;
-        final var otherVal = other.value;
-        if (Objects.deepEquals(val, otherVal)) {
-            return 0;
-        }
-        return compareValues(val, otherVal);
+        return compareValues(value, other.value, comparedPairs);
     }
 
     /**
      * Compare two annotation parameter values. Values of the same class are compared by their natural order, or by
-     * their string form if they have no natural order. Arrays are compared element by element, so an Object[] array
-     * that has not yet been converted to a primitive array compares equal to the converted array. Values of
-     * different classes cannot be compared with each other, so they are ordered by class name, which keeps the
-     * order transitive.
+     * their string form if they have no natural order and are not equal. Arrays are compared element by element, so
+     * an Object[] array that has not yet been converted to a primitive array compares equal to the converted array.
+     * Values of different classes cannot be compared with each other, so they are ordered by class name, which
+     * keeps the order transitive.
      *
      * @param v0
      *            the first value, or null.
      * @param v1
      *            the second value, or null.
+     * @param comparedPairs
+     *            the pairs of annotations compared so far, as in
+     *            {@link AnnotationInfo#compareTo(AnnotationInfo, List)}
      * @return the result of the comparison.
      */
     @SuppressWarnings("unchecked")
-    private static int compareValues(final @Nullable Object v0, final @Nullable Object v1) {
+    private static int compareValues(final @Nullable Object v0, final @Nullable Object v1,
+            final List<AnnotationInfo[]> comparedPairs) {
         if (v0 == null || v1 == null) {
             return (v0 == null ? 0 : 1) - (v1 == null ? 0 : 1);
         }
@@ -412,7 +429,7 @@ public final class AnnotationParameterValue extends ScanResultObject
             final var len0 = Array.getLength(v0);
             final var len1 = Array.getLength(v1);
             for (var i = 0; i < Math.min(len0, len1); i++) {
-                final var diff = compareValues(Array.get(v0, i), Array.get(v1, i));
+                final var diff = compareValues(Array.get(v0, i), Array.get(v1, i), comparedPairs);
                 if (diff != 0) {
                     return diff;
                 }
@@ -423,10 +440,12 @@ public final class AnnotationParameterValue extends ScanResultObject
             return isArray0 ? -1 : 1;
         } else if (v0.getClass() != v1.getClass()) {
             return v0.getClass().getName().compareTo(v1.getClass().getName());
+        } else if (v0 instanceof final AnnotationInfo annotationInfo) {
+            return annotationInfo.compareTo((AnnotationInfo) v1, comparedPairs);
         } else if (v0 instanceof Comparable) {
             return ((Comparable<Object>) v0).compareTo(v1);
         } else {
-            return v0.toString().compareTo(v1.toString());
+            return v0.equals(v1) ? 0 : v0.toString().compareTo(v1.toString());
         }
     }
 
@@ -443,8 +462,8 @@ public final class AnnotationParameterValue extends ScanResultObject
 
     /**
      * Check whether two annotation parameter values are equal, consistently with
-     * {@link #compareValues(Object, Object)}. Arrays are compared by their contents, and an Object[] array that has
-     * not yet been converted to a primitive array or a String[] array equals the converted array.
+     * {@link #compareValues(Object, Object, List)}. Arrays are compared by their contents, and an Object[] array
+     * that has not yet been converted to a primitive array or a String[] array equals the converted array.
      *
      * @param v0
      *            the first value, or null.
@@ -455,26 +474,63 @@ public final class AnnotationParameterValue extends ScanResultObject
     private static boolean valuesEqual(final @Nullable Object v0, final @Nullable Object v1) {
         if (v0 != null && v1 != null && v0.getClass() != v1.getClass() && v0.getClass().isArray()
                 && v1.getClass().isArray()) {
-            return compareValues(v0, v1) == 0;
+            return compareValues(v0, v1, new ArrayList<>()) == 0;
         }
         return Objects.deepEquals(v0, v1);
     }
 
     @Override
     public int hashCode() {
-        // N.B. wrap the value in an array, so that Arrays#deepHashCode hashes an array-valued parameter by its
-        // contents, matching equals(Object). A primitive array hashes each element the same way as the boxed
-        // value, so an Object[] array that has not yet been converted hashes the same as the converted array.
-        return name.hashCode() * 31 + Arrays.deepHashCode(new Object[] { value });
+        return name.hashCode() * 31 + hashValue(value);
+    }
+
+    /**
+     * Hash an annotation parameter value, consistently with {@link #valuesEqual(Object, Object)}. An array is
+     * hashed by its contents, and a primitive array hashes each element the same way as the boxed value, so an
+     * Object[] array that has not yet been converted hashes the same as the converted array. A nested annotation is
+     * hashed by its name only, since hashing its parameter values, which include default values, would never end if
+     * the default values form a cycle (see {@link AnnotationInfo#toString(boolean, StringBuilder, Set)}).
+     *
+     * @param val
+     *            the value, or null.
+     * @return the hash code.
+     */
+    private static int hashValue(final @Nullable Object val) {
+        if (val instanceof final AnnotationInfo annotationInfo) {
+            return annotationInfo.getName().hashCode();
+        } else if (val != null && val.getClass().isArray()) {
+            var h = 1;
+            for (int i = 0, n = Array.getLength(val); i < n; i++) {
+                h = h * 31 + hashValue(Array.get(val, i));
+            }
+            return h;
+        } else {
+            return Objects.hashCode(val);
+        }
     }
 
     // -------------------------------------------------------------------------------------------------------------
 
     @Override
     protected void toString(final boolean useSimpleNames, final StringBuilder buf) {
+        toString(useSimpleNames, buf, Collections.newSetFromMap(new IdentityHashMap<>()));
+    }
+
+    /**
+     * Write the parameter name and value to the buffer.
+     *
+     * @param useSimpleNames
+     *            if true, strip package and outer class names from class names
+     * @param buf
+     *            the buffer to append to
+     * @param enclosing
+     *            the annotations whose string representation is being written, as in
+     *            {@link AnnotationInfo#toString(boolean, StringBuilder, Set)}
+     */
+    void toString(final boolean useSimpleNames, final StringBuilder buf, final Set<AnnotationInfo> enclosing) {
         buf.append(name);
         buf.append("=");
-        toStringParamValueOnly(useSimpleNames, buf);
+        toStringParamValueOnly(useSimpleNames, buf, enclosing);
     }
 
     /**
@@ -486,11 +542,16 @@ public final class AnnotationParameterValue extends ScanResultObject
      *            if true, strip package and outer class names from class names
      * @param buf
      *            the buffer to append to
+     * @param enclosing
+     *            the annotations whose string representation is being written, as in
+     *            {@link AnnotationInfo#toString(boolean, StringBuilder, Set)}
      */
-    private static void toString(final @Nullable Object val, final boolean useSimpleNames,
-            final StringBuilder buf) {
+    private static void toString(final @Nullable Object val, final boolean useSimpleNames, final StringBuilder buf,
+            final Set<AnnotationInfo> enclosing) {
         if (val == null) {
             buf.append("null");
+        } else if (val instanceof final AnnotationInfo annotationInfo) {
+            annotationInfo.toString(useSimpleNames, buf, enclosing);
         } else if (val instanceof final ScanResultObject scanResultObject) {
             scanResultObject.toString(useSimpleNames, buf);
         } else if (val instanceof final Byte byteVal) {
@@ -514,8 +575,12 @@ public final class AnnotationParameterValue extends ScanResultObject
      *            if true, strip package and outer class names from class names
      * @param buf
      *            the buffer to append to
+     * @param enclosing
+     *            the annotations whose string representation is being written, as in
+     *            {@link AnnotationInfo#toString(boolean, StringBuilder, Set)}
      */
-    void toStringParamValueOnly(final boolean useSimpleNames, final StringBuilder buf) {
+    void toStringParamValueOnly(final boolean useSimpleNames, final StringBuilder buf,
+            final Set<AnnotationInfo> enclosing) {
         final var paramVal = value;
         if (paramVal != null && paramVal.getClass().isArray()) {
             buf.append('{');
@@ -523,11 +588,11 @@ public final class AnnotationParameterValue extends ScanResultObject
                 if (j > 0) {
                     buf.append(", ");
                 }
-                toString(Array.get(paramVal, j), useSimpleNames, buf);
+                toString(Array.get(paramVal, j), useSimpleNames, buf, enclosing);
             }
             buf.append('}');
         } else {
-            toString(paramVal, useSimpleNames, buf);
+            toString(paramVal, useSimpleNames, buf, enclosing);
         }
     }
 }
