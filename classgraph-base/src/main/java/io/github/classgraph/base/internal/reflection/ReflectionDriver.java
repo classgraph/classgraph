@@ -30,6 +30,7 @@ package io.github.classgraph.base.internal.reflection;
 
 import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Member;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -63,6 +64,30 @@ abstract class ReflectionDriver {
     /** Only the drivers in this package can extend this class. */
     ReflectionDriver() {
         // Empty
+    }
+
+    /**
+     * Rethrow a {@link VirtualMachineError}, such as {@link OutOfMemoryError} or {@link StackOverflowError}, as
+     * itself, including one that a reflective call wrapped in an {@link InvocationTargetException}. Such an error
+     * says that the JVM is failing, not that a member could not be read or a class could not be loaded, so a caller
+     * that turns failures into null or into a skipped member must call this first: otherwise a classloader handler
+     * would take the null to mean that the classloader has no classpath, and the scan would silently miss its
+     * classpath entries.
+     *
+     * @param throwable
+     *            the throwable that was caught.
+     * @throws VirtualMachineError
+     *             if the throwable is one, or is a chain of {@link InvocationTargetException} that wraps one.
+     */
+    static void rethrowIfVirtualMachineError(final Throwable throwable) throws VirtualMachineError {
+        @Nullable
+        Throwable cause = throwable;
+        while (cause instanceof final InvocationTargetException invocationTargetException) {
+            cause = invocationTargetException.getCause();
+        }
+        if (cause instanceof final VirtualMachineError vmError) {
+            throw vmError;
+        }
     }
 
     /** The methods and fields of a class, its superclasses and its interfaces, indexed by name. */
@@ -116,7 +141,8 @@ abstract class ReflectionDriver {
          * Cache the declared methods and fields of a class or interface. Methods and fields are read separately, so
          * that if one of the two cannot be read, the other is still cached. {@link LinkageError} is caught as well
          * as {@link Exception}, since {@link Class#getDeclaredMethods()} throws {@link NoClassDefFoundError} if a
-         * method names a class that cannot be loaded.
+         * method names a class that cannot be loaded. A {@link VirtualMachineError} is not skipped, including one
+         * that the Narcissus driver receives wrapped in an {@link InvocationTargetException}.
          *
          * @param cls
          *            the class or interface to cache the declared members of
@@ -127,6 +153,7 @@ abstract class ReflectionDriver {
                     cacheMethod(m);
                 }
             } catch (final Exception | LinkageError e) {
+                rethrowIfVirtualMachineError(e);
                 // Skip
             }
             try {
@@ -134,6 +161,7 @@ abstract class ReflectionDriver {
                     cacheField(f);
                 }
             } catch (final Exception | LinkageError e) {
+                rethrowIfVirtualMachineError(e);
                 // Skip
             }
         }

@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.io.IOException;
 import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
@@ -335,6 +336,33 @@ public class ReflectionDriverTest {
         assertThat(noMethods.findField(Fixture.class, obj, "instanceField").getName()).isEqualTo("instanceField");
         assertThatThrownBy(() -> noMethods.findMethod(Fixture.class, obj, "instanceMethod"))
                 .isInstanceOf(NoSuchMethodException.class);
+    }
+
+    /**
+     * A {@link VirtualMachineError} thrown while the members of a class are read is not skipped like an ordinary
+     * failure, which would report the members as not found. The Narcissus driver calls Narcissus through
+     * {@link Method#invoke}, so it receives such an error wrapped in an {@link InvocationTargetException}.
+     */
+    @Test
+    void aVirtualMachineErrorWhileReadingMembersIsRethrown() {
+        final Fixture obj = new Fixture();
+        final OutOfMemoryError outOfMemory = new OutOfMemoryError("thrown while reading the members");
+        final ReflectionDriver outOfMemoryReadingMethods = new StandardReflectionDriver() {
+            @Override
+            Method[] getDeclaredMethods(final Class<?> cls) throws Exception {
+                throw new InvocationTargetException(outOfMemory);
+            }
+        };
+        assertThatThrownBy(() -> outOfMemoryReadingMethods.findMethod(Fixture.class, obj, "instanceMethod"))
+                .isSameAs(outOfMemory);
+        final ReflectionDriver outOfMemoryReadingFields = new StandardReflectionDriver() {
+            @Override
+            Field[] getDeclaredFields(final Class<?> cls) throws Exception {
+                throw new InvocationTargetException(outOfMemory);
+            }
+        };
+        assertThatThrownBy(() -> outOfMemoryReadingFields.findField(Fixture.class, obj, "instanceField"))
+                .isSameAs(outOfMemory);
     }
 
     /** A class that {@link #loaderWithoutMissingType()} refuses to load. */

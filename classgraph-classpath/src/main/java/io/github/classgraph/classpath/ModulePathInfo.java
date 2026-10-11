@@ -142,7 +142,11 @@ public final class ModulePathInfo {
          * If the java.management module is not present in the deployed runtime, or the runtime does not contain the
          * java.lang.management package (e.g. the Android build system), the arguments cannot be read, and an empty
          * list is returned (#404). This must not throw, since an exception here would make every call to
-         * {@link ModulePathInfo#current()} fail.
+         * {@link ModulePathInfo#current()} fail. Only a {@link VirtualMachineError}, such as
+         * {@link OutOfMemoryError}, gets through: {@link ReflectionUtils} rethrows it rather than reporting it as
+         * missing arguments. It escapes the static initializer of this holder class, so the call to
+         * {@link ModulePathInfo#current()} that ran the initializer throws it, and every later call throws
+         * {@link NoClassDefFoundError}.
          *
          * @return the arguments, or an empty list if they could not be read.
          */
