@@ -746,14 +746,17 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
     /**
      * Open a directory or a jarfile named by a {@link Path}. The {@link Path} may be in a filesystem other than the
      * default one, e.g. in a zipfile mounted with {@link FileSystems#newFileSystem(Path, ClassLoader)}. A path in
-     * another filesystem is read through that filesystem whatever the scheme of its URI, even one that
-     * {@link VfsSpec#denyURLScheme(String)} denied, since the caller has already chosen the filesystem.
+     * another filesystem is read through that filesystem, unless {@link VfsSpec#denyURLScheme(String)} denied the
+     * scheme of its URI, in which case it is refused, as it is when it is named by that URI. For a path in a
+     * zipfile mounted as a filesystem, whose URI is a {@code jar:} URI, the scheme checked is that of the
+     * filesystem that holds the zipfile.
      *
      * @param path
      *            the directory or jarfile to open.
      * @return the opened root.
      * @throws IOException
-     *             if the path could not be opened or read, or if this {@link Vfs} has been closed.
+     *             if the path could not be opened or read, if the scheme of its URI has been denied, or if this
+     *             {@link Vfs} has been closed.
      */
     public VfsRoot open(final Path path) throws IOException {
         Assert.notNull(path, "path");
@@ -766,6 +769,13 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
         // filesystem, and could collide with a path in the default one
         final var key = path.toUri().toString();
         checkNotClosed(key);
+        // A path in a filesystem whose scheme has been denied is refused, as it is when it is named by its URI.
+        // The URI of a path in a mounted zipfile is a "jar:" URI, which resolving strips down to the location of
+        // the zipfile, so what is checked is the scheme of the filesystem that holds the zipfile, if it has one
+        final var resolvedKey = resolvePath(key);
+        if (PathSyntax.hasURLScheme(resolvedKey)) {
+            JarOpener.checkURLSchemeNotDenied(resolvedKey, this);
+        }
         try {
             return openInOtherFilesystem(path, key, log);
         } catch (final InterruptedException e) {

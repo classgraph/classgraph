@@ -105,19 +105,34 @@ public final class JarOpener {
      */
     public static OpenedJar openJarFromURL(final String url, final Vfs vfs, final @Nullable LogNode log)
             throws IOException {
-        // URL schemes are case-insensitive, and are denied in lowercase, so the scheme has to be lowercased
-        // before it is looked up -- otherwise "HTTP://host/x.jar" is fetched even though "http" was denied
-        final var scheme = url.substring(0, url.indexOf(':')).toLowerCase(Locale.ROOT);
         // Whatever the JVM can open is opened, so only a scheme the caller took away is refused here. A
         // scheme that nothing has registered a URL stream handler or a filesystem provider for is left to the
         // download below, which reports the JVM's own reason for not being able to open it. ("file:" and "jar:"
         // never reach here -- FastPathResolver.resolve() has already stripped them.) The download checks the
         // scheme again once the URL is parsed, since the parser can read a different scheme from the same text
-        if (vfs.getVfsSpec().getDeniedURLSchemes().contains(scheme)) {
-            throw new IOException("Fetching a jarfile over \"" + scheme + ":\" is not allowed: " + url);
-        }
+        checkURLSchemeNotDenied(url, vfs);
         // Read the jar from the URL into RAM, or into a temporary file if it is too large for RAM
         return readCentralDirectory(JarURLDownloader.downloadJarFromURL(url, vfs, log), vfs, log);
+    }
+
+    /**
+     * Refuse a URL whose scheme {@link io.github.classgraph.vfs.VfsSpec#denyURLScheme(String)} denied, whether it
+     * names a jarfile or a directory.
+     *
+     * @param url
+     *            the URL, with any {@code "jar:"} prefix already stripped, which has a URL scheme.
+     * @param vfs
+     *            the {@link Vfs} that is opening the URL, whose denied URL schemes are checked.
+     * @throws IOException
+     *             if the URL's scheme has been denied.
+     */
+    public static void checkURLSchemeNotDenied(final String url, final Vfs vfs) throws IOException {
+        // URL schemes are case-insensitive, and are denied in lowercase, so the scheme has to be lowercased
+        // before it is looked up -- otherwise "HTTP://host/x.jar" is fetched even though "http" was denied
+        final var scheme = url.substring(0, url.indexOf(':')).toLowerCase(Locale.ROOT);
+        if (vfs.getVfsSpec().getDeniedURLSchemes().contains(scheme)) {
+            throw new IOException("The URL scheme \"" + scheme + ":\" has been denied: " + url);
+        }
     }
 
     /**

@@ -1404,10 +1404,10 @@ public final class ClassGraph {
 
     /**
      * Refuse to read a classpath element named by a {@link URL} or {@link java.net.URI} with the specified URL
-     * scheme. The jarfile or directory it names is not read, so neither its classes nor the classpath elements it
-     * declares are found, and it is left out of {@link ScanResult#getClasspathURIs()}. This holds even if a
-     * {@link java.nio.file.spi.FileSystemProvider} is installed for the scheme. A classpath element given as a
-     * {@link java.nio.file.Path} is read through its own filesystem whatever its scheme.
+     * scheme, or given as a {@link java.nio.file.Path} whose URI has that scheme. The jarfile or directory it names
+     * is not read, so neither its classes nor the classpath elements it declares are found, and it is left out of
+     * {@link ScanResult#getClasspathURIs()}. This holds even if a {@link java.nio.file.spi.FileSystemProvider} is
+     * installed for the scheme.
      *
      * <p>
      * {@code http}, {@code https}, {@code ftp} and {@code mailto} are refused already -- see {@link #ClassGraph()}.

@@ -151,13 +151,13 @@ public class ProviderUriDirectoryTest {
         final var uri = ProviderOnlySchemeFileSystemProvider.uriOf(dir);
         try (var vfs = new Vfs(new VfsSpec().denyURLScheme(ProviderOnlySchemeFileSystemProvider.SCHEME))) {
             assertThatThrownBy(() -> vfs.open(uri)).isInstanceOf(IOException.class).hasMessageContaining(
-                    "Fetching a jarfile over \"" + ProviderOnlySchemeFileSystemProvider.SCHEME + ":\"");
+                    "The URL scheme \"" + ProviderOnlySchemeFileSystemProvider.SCHEME + ":\" has been denied");
         }
         try (var fileSystem = Jimfs.newFileSystem(Configuration.unix());
                 var vfs = new Vfs(new VfsSpec().denyURLScheme("jimfs"))) {
             final var jimfsDir = writeDir(fileSystem.getPath("/classes"));
             assertThatThrownBy(() -> vfs.open(jimfsDir.toUri())).isInstanceOf(IOException.class)
-                    .hasMessageContaining("Fetching a jarfile over \"jimfs:\"");
+                    .hasMessageContaining("The URL scheme \"jimfs:\" has been denied");
         }
     }
 

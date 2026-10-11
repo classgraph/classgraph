@@ -378,8 +378,12 @@ public class JarURLDownloaderTest {
     @Test
     public void aDeniedSchemeIsRefusedBehindAUrlPrefix() {
         try (var jrtDeniedVfs = new Vfs(new VfsSpec().denyURLScheme("jrt"))) {
-            for (final var url : new String[] { "jrt:/java.base/java/lang/Object.class",
-                    "url:jrt:/java.base/java/lang/Object.class", "URL:jrt:/java.base/java/lang/Object.class",
+            // Spelled plainly, the scheme is refused before anything is parsed or downloaded
+            assertThatThrownBy(() -> jrtDeniedVfs.open("jrt:/java.base/java/lang/Object.class"))
+                    .isInstanceOf(IOException.class)
+                    .hasMessageContaining("The URL scheme \"jrt:\" has been denied");
+            for (final var url : new String[] { "url:jrt:/java.base/java/lang/Object.class",
+                    "URL:jrt:/java.base/java/lang/Object.class",
                     "jar:url:jrt:/java.base/java/lang/Object.class" }) {
                 assertThatThrownBy(() -> jrtDeniedVfs.open(url)).as(url).isInstanceOf(IOException.class)
                         .hasMessageContaining("Fetching a jarfile over \"jrt:\" is not allowed");

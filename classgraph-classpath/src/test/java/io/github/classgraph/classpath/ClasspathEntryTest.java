@@ -139,8 +139,8 @@ public class ClasspathEntryTest {
 
     /**
      * A classpath element found as a {@link Path} in a filesystem other than the default one is opened through that
-     * filesystem rather than through its location, so it is still reached by a {@link Vfs} that refuses to fetch
-     * anything over its location's URL scheme.
+     * filesystem. A {@link Vfs} that denies the scheme of that filesystem refuses it, whether it is opened by its
+     * {@link Path} or by its location.
      */
     @Test
     public void aClasspathElementInAnotherFilesystemIsOpenedThroughThatFilesystem() throws IOException {
@@ -154,15 +154,10 @@ public class ClasspathEntryTest {
                 assertThat(entry.open(classpath.getVfs())).extracting(VfsEntry::getPathFromRoot)
                         .containsExactly(ENTRY_PATH);
                 try (var denyingVfs = new Vfs(new VfsSpec().denyURLScheme("jimfs"))) {
-                    // Nothing is fetched over a denied scheme, so the location alone does not reach the element
-                    assertThatThrownBy(() -> denyingVfs.open(entry.getLocation())).isInstanceOf(IOException.class);
-                    // Opening the Path reads through its own filesystem, which fetches nothing, so the element is
-                    // still reached -- which is the whole reason the Path is kept, rather than the element being
-                    // flattened to its location and that being parsed back
-                    final var root = entry.open(denyingVfs);
-                    assertThat(root).extracting(VfsEntry::getPathFromRoot).containsExactly(ENTRY_PATH);
-                    // A root that is already open is not fetched again, so the location now names it
-                    assertThat(denyingVfs.open(entry.getLocation())).isSameAs(root);
+                    assertThatThrownBy(() -> entry.open(denyingVfs)).isInstanceOf(IOException.class)
+                            .hasMessageContaining("The URL scheme \"jimfs:\" has been denied");
+                    assertThatThrownBy(() -> denyingVfs.open(entry.getLocation())).isInstanceOf(IOException.class)
+                            .hasMessageContaining("The URL scheme \"jimfs:\" has been denied");
                 }
             }
         }
