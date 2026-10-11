@@ -206,7 +206,7 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      * The type annotations to add to the {@link ClassTypeSignature} instance.
      */
     @Nullable
-    List<TypeAnnotation<ClassTypeSignature>> typeAnnotationDecorators;
+    List<TypeAnnotation<ClassTypeSignature>> typeAnnotationsToApply;
 
     /**
      * Names of classes referenced by this class in class refs and type signatures in the constant pool of the
@@ -580,14 +580,14 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      * Add the type annotations of the class, which are added to the class type signature or type descriptor when it
      * is parsed.
      *
-     * @param classTypeAnnotationDecorators
+     * @param classTypeAnnotations
      *            the {@link TypeAnnotation} instances read from the classfile.
      */
-    void addTypeDecorators(final List<TypeAnnotation<ClassTypeSignature>> classTypeAnnotationDecorators) {
-        if (typeAnnotationDecorators == null) {
-            typeAnnotationDecorators = new ArrayList<>();
+    void addTypeAnnotations(final List<TypeAnnotation<ClassTypeSignature>> classTypeAnnotations) {
+        if (typeAnnotationsToApply == null) {
+            typeAnnotationsToApply = new ArrayList<>();
         }
-        typeAnnotationDecorators.addAll(classTypeAnnotationDecorators);
+        typeAnnotationsToApply.addAll(classTypeAnnotations);
     }
 
     // -------------------------------------------------------------------------------------------------------------
@@ -3808,7 +3808,7 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
                 try {
                     typeSignature = ClassTypeSignature.parse(typeSignatureStr, this);
                     typeSignature.setScanResult(scanResult);
-                    decorateType(typeSignature);
+                    applyTypeAnnotations(typeSignature);
                 } catch (final TypeSignatureParseException e) {
                     throw new IllegalArgumentException("Invalid type signature for class " + getName()
                             + " in classpath element " + getClasspathElementURI() + " : " + typeSignatureStr, e);
@@ -3840,11 +3840,11 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      * skipped, rather than making the whole class type unreadable.
      *
      * @param classType
-     *            the class type signature or synthetic type descriptor to decorate.
+     *            the class type signature or synthetic type descriptor to add the type annotations to.
      */
     // #897
-    private void decorateType(final ClassTypeSignature classType) {
-        TypeAnnotation.applyAll(typeAnnotationDecorators, classType);
+    private void applyTypeAnnotations(final ClassTypeSignature classType) {
+        TypeAnnotation.applyAll(typeAnnotationsToApply, classType);
     }
 
     /**
@@ -3890,7 +3890,7 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
                 typeDescriptor = new ClassTypeSignature(this, superclassIncludingExternal(),
                         allSuperinterfacesIncludingExternal().directOnly());
                 typeDescriptor.setScanResult(scanResult);
-                decorateType(typeDescriptor);
+                applyTypeAnnotations(typeDescriptor);
             }
         }
         return typeDescriptor;

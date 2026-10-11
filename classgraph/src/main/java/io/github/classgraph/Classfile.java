@@ -161,7 +161,7 @@ class Classfile {
     /**
      * The type annotations to add to the {@link ClassTypeSignature} instance.
      */
-    private @Nullable List<TypeAnnotation<ClassTypeSignature>> classTypeAnnotationDecorators;
+    private @Nullable List<TypeAnnotation<ClassTypeSignature>> classTypeAnnotations;
 
     /** Why each malformed annotation attribute that was skipped could not be read, or null if none was skipped. */
     private @Nullable List<String> skippedAttributeMessages;
@@ -690,8 +690,8 @@ class Classfile {
         if (refdClassNames != null) {
             classInfo.addReferencedClassNames(refdClassNames);
         }
-        if (classTypeAnnotationDecorators != null) {
-            classInfo.addTypeDecorators(classTypeAnnotationDecorators);
+        if (classTypeAnnotations != null) {
+            classInfo.addTypeAnnotations(classTypeAnnotations);
         }
         return classInfo;
     }
@@ -1857,7 +1857,7 @@ class Classfile {
         final var fieldTypeDescriptor = requireConstantPoolString(getConstantPoolString(fieldTypeDescriptorCpIdx),
                 "field type descriptor");
 
-        List<TypeAnnotation<TypeSignature>> fieldTypeAnnotationDecorators = null;
+        List<TypeAnnotation<TypeSignature>> fieldTypeAnnotations = null;
         String fieldTypeSignatureStr = null;
         Object fieldConstValue = null;
         List<AnnotationInfo> fieldAnnotationInfo = null;
@@ -1881,9 +1881,8 @@ class Classfile {
                 fieldAnnotationInfo = readAnnotationAttribute(attributeNameCpIdx, attributeLength,
                         "field " + fieldName, fieldAnnotationInfo, this::readAnnotations);
             } else if (isTypeAnnotationsAttribute(attributeNameCpIdx)) {
-                fieldTypeAnnotationDecorators = readAnnotationAttribute(attributeNameCpIdx, attributeLength,
-                        "field " + fieldName, fieldTypeAnnotationDecorators,
-                        this::readFieldTypeAnnotationDecorators);
+                fieldTypeAnnotations = readAnnotationAttribute(attributeNameCpIdx, attributeLength,
+                        "field " + fieldName, fieldTypeAnnotations, this::readFieldTypeAnnotations);
             } else {
                 // No match, just skip attribute
                 reader().skip(attributeLength);
@@ -1895,7 +1894,7 @@ class Classfile {
                 fieldInfoList = new ArrayList<>();
             }
             fieldInfoList.add(new FieldInfo(className, fieldName, fieldModifierFlags, fieldTypeDescriptor,
-                    fieldTypeSignatureStr, fieldConstValue, fieldAnnotationInfo, fieldTypeAnnotationDecorators));
+                    fieldTypeSignatureStr, fieldConstValue, fieldAnnotationInfo, fieldTypeAnnotations));
         }
     }
 
@@ -1915,7 +1914,7 @@ class Classfile {
      * @throws ClassfileFormatException
      *             if a type annotation has a target type that is not permitted in a field.
      */
-    private @Nullable List<TypeAnnotation<TypeSignature>> readFieldTypeAnnotationDecorators(
+    private @Nullable List<TypeAnnotation<TypeSignature>> readFieldTypeAnnotations(
             final @Nullable List<TypeAnnotation<TypeSignature>> typeAnnotationList)
             throws IOException, ClassfileFormatException {
         final var annotationCount = reader().readUnsignedShort();
@@ -1993,7 +1992,7 @@ class Classfile {
                 "method type descriptor");
         final var attributesCount = reader().readUnsignedShort();
 
-        List<TypeAnnotation<MethodTypeSignature>> methodTypeAnnotationDecorators = null;
+        List<TypeAnnotation<MethodTypeSignature>> methodTypeAnnotations = null;
         String methodTypeSignatureStr = null;
         List<AnnotationInfo> methodAnnotationInfo = null;
         AnnotationInfo[][] methodParameterAnnotations = null;
@@ -2014,9 +2013,8 @@ class Classfile {
                 methodParameterAnnotations = readAnnotationAttribute(attributeNameCpIdx, attributeLength,
                         "method " + methodName, methodParameterAnnotations, this::readMethodParameterAnnotations);
             } else if (isTypeAnnotationsAttribute(attributeNameCpIdx)) {
-                methodTypeAnnotationDecorators = readAnnotationAttribute(attributeNameCpIdx, attributeLength,
-                        "method " + methodName, methodTypeAnnotationDecorators,
-                        this::readMethodTypeAnnotationDecorators);
+                methodTypeAnnotations = readAnnotationAttribute(attributeNameCpIdx, attributeLength,
+                        "method " + methodName, methodTypeAnnotations, this::readMethodTypeAnnotations);
             } else if (constantPoolStringEquals(attributeNameCpIdx, "MethodParameters")) {
                 // Read method parameters. For Java, these are only produced in JDK8+, and only if the commandline
                 // switch `-parameters` is provided at compiletime.
@@ -2069,7 +2067,7 @@ class Classfile {
         }
         methodInfoList.add(new MethodInfo(className, methodName, methodAnnotationInfo, methodModifierFlags,
                 methodTypeDescriptor, methodTypeSignatureStr, methodParameterNames, methodParameterModifiers,
-                methodParameterAnnotations, methodHasBody, minLineNum, maxLineNum, methodTypeAnnotationDecorators,
+                methodParameterAnnotations, methodHasBody, minLineNum, maxLineNum, methodTypeAnnotations,
                 thrownExceptionNames));
     }
 
@@ -2149,7 +2147,7 @@ class Classfile {
      * @throws ClassfileFormatException
      *             if a type annotation has a target type that is not permitted in a method.
      */
-    private @Nullable List<TypeAnnotation<MethodTypeSignature>> readMethodTypeAnnotationDecorators(
+    private @Nullable List<TypeAnnotation<MethodTypeSignature>> readMethodTypeAnnotations(
             final @Nullable List<TypeAnnotation<MethodTypeSignature>> typeAnnotationList)
             throws IOException, ClassfileFormatException {
         final var annotationCount = reader().readUnsignedShort();
@@ -2368,8 +2366,8 @@ class Classfile {
                 classAnnotations = readAnnotationAttribute(attributeNameCpIdx, attributeLength, "the class",
                         classAnnotations, this::readAnnotations);
             } else if (isTypeAnnotationsAttribute(attributeNameCpIdx)) {
-                classTypeAnnotationDecorators = readAnnotationAttribute(attributeNameCpIdx, attributeLength,
-                        "the class", classTypeAnnotationDecorators, this::readClassTypeAnnotationDecorators);
+                classTypeAnnotations = readAnnotationAttribute(attributeNameCpIdx, attributeLength, "the class",
+                        classTypeAnnotations, this::readClassTypeAnnotations);
             } else if (constantPoolStringEquals(attributeNameCpIdx, "Record")) {
                 isRecord = true;
                 // No need to read record_components_info entries -- there is a 1:1 correspondence between record
@@ -2413,7 +2411,7 @@ class Classfile {
      * @throws ClassfileFormatException
      *             if a type annotation has a target type that is not permitted in a class.
      */
-    private @Nullable List<TypeAnnotation<ClassTypeSignature>> readClassTypeAnnotationDecorators(
+    private @Nullable List<TypeAnnotation<ClassTypeSignature>> readClassTypeAnnotations(
             final @Nullable List<TypeAnnotation<ClassTypeSignature>> typeAnnotationList)
             throws IOException, ClassfileFormatException {
         final var annotationCount = reader().readUnsignedShort();

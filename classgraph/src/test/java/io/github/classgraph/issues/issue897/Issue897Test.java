@@ -178,9 +178,9 @@ public class Issue897Test {
     }
 
     /**
-     * Test that a constructor of a <i>generic</i> inner class can be decorated without throwing. The implicit
-     * enclosing-instance parameter is detected here via the descriptor/signature parameter-count difference, and a
-     * direct {@link MethodInfo#getTypeDescriptor()} call previously threw
+     * Test that a constructor of a <i>generic</i> inner class can have its type annotations added without throwing.
+     * The implicit enclosing-instance parameter is detected here via the descriptor/signature parameter-count
+     * difference, and a direct {@link MethodInfo#getTypeDescriptor()} call previously threw
      * {@link java.util.ConcurrentModificationException} because the implicit-prefix strip/restore used a
      * {@link java.util.List#subList} view that was invalidated by mutation of the backing list.
      */
