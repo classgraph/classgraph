@@ -1129,6 +1129,10 @@ public final class GraphVizDotFile {
      * is not public is drawn as a node of its own only if {@link ClassGraph#ignoreClassVisibility()} was also
      * called, as for any other class.
      *
+     * <p>
+     * Classes, fields, methods and method parameters that the compiler generated, rather than ones declared in the
+     * source code, are left out of the graph.
+     *
      * @param scanResult
      *            the {@link ScanResult} the classes came from.
      * @param classes
@@ -1152,9 +1156,12 @@ public final class GraphVizDotFile {
         final var buf = new StringBuilder(1024 * 1024);
         appendDotFileHeader(options, buf);
 
-        final var standardClassNodes = classes.getStandardClasses();
-        final var interfaceNodes = classes.getInterfaces();
-        final var annotationNodes = classes.getAnnotations();
+        // A class that the compiler generated, such as the class javac writes to hold the table of a switch on an
+        // enum, is left out, as are the members the compiler generated
+        final var declaredClasses = classes.filter(ci -> !ci.isSynthetic());
+        final var standardClassNodes = declaredClasses.getStandardClasses();
+        final var interfaceNodes = declaredClasses.getInterfaces();
+        final var annotationNodes = declaredClasses.getAnnotations();
 
         appendClassNodes(scanResult, standardClassNodes, "box", STANDARD_CLASS_COLOR, options, buf);
         appendClassNodes(scanResult, interfaceNodes, "diamond", INTERFACE_COLOR, options, buf);
@@ -1276,6 +1283,10 @@ public final class GraphVizDotFile {
      * returned graph shows inter-class dependencies only. You must have called
      * {@link ClassGraph#enableInterClassDependencies()} before scanning to use this method.
      *
+     * <p>
+     * A class that the compiler generated, rather than one declared in the source code, is left out of the graph,
+     * whether it is one of {@code classes} or a dependency of one of them.
+     *
      * @param scanResult
      *            the {@link ScanResult} the classes came from.
      * @param classes
@@ -1300,11 +1311,17 @@ public final class GraphVizDotFile {
         final var buf = new StringBuilder(1024 * 1024);
         appendDotFileHeader(options, buf);
 
+        // A class that the compiler generated is left out, whether it is listed or is a dependency of a listed class
+        final var declaredClasses = classes.filter(ci -> !ci.isSynthetic());
         // Sorted by class name, so that the output does not depend on hash order
-        final Set<ClassInfo> allVisibleNodes = new TreeSet<>(classes);
+        final Set<ClassInfo> allVisibleNodes = new TreeSet<>(declaredClasses);
         if (options.showUnlistedDependencies) {
-            for (final ClassInfo ci : classes) {
-                allVisibleNodes.addAll(ci.getClassDependencies());
+            for (final ClassInfo ci : declaredClasses) {
+                for (final ClassInfo dep : ci.getClassDependencies()) {
+                    if (!dep.isSynthetic()) {
+                        allVisibleNodes.add(dep);
+                    }
+                }
             }
         }
 
@@ -1319,10 +1336,10 @@ public final class GraphVizDotFile {
         }
 
         buf.append('\n');
-        for (final ClassInfo ci : classes) {
+        for (final ClassInfo ci : declaredClasses) {
             for (final ClassInfo dep : ci.getClassDependencies()) {
                 // An edge is only drawn if the dependency has a node of its own -- when unlisted dependencies are
-                // shown, every dependency was given a node above, so every edge is drawn
+                // shown, every dependency that the compiler did not generate was given a node above
                 if (allVisibleNodes.contains(dep)) {
                     // class --> dep
                     appendEdge(ci.getName(), dep.getName(), "[arrowsize=2.5]", buf);

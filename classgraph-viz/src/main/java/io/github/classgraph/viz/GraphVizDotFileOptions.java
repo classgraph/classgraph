@@ -309,8 +309,8 @@ public final class GraphVizDotFileOptions {
 
     /**
      * In the inter-class dependency graph, also give a node to each class that a listed class depends on but that
-     * is not in the list of classes to graph, so that every dependency edge of the listed classes is drawn. (This
-     * is the default.)
+     * is not in the list of classes to graph, so that every dependency edge of the listed classes is drawn, except
+     * an edge to a class that the compiler generated, which is never given a node. (This is the default.)
      *
      * <p>
      * An external class (see {@link io.github.classgraph.ClassInfo#isExternalClass()}) is a dependency only if
