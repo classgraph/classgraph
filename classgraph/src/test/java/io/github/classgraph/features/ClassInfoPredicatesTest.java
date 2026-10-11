@@ -88,6 +88,16 @@ public class ClassInfoPredicatesTest {
         }
     }
 
+    /** A class with a static initializer block. */
+    static class WithStaticInitializer {
+        /** A field that is set by the static initializer block. */
+        static final Object STATIC_FIELD = new Object();
+    }
+
+    /** A subclass that has no static initializer block of its own. */
+    static class SubclassOfWithStaticInitializer extends WithStaticInitializer {
+    }
+
     /** The scan result the classes under test come from. */
     private static ScanResult scanResult;
 
@@ -180,6 +190,30 @@ public class ClassInfoPredicatesTest {
 
         // The superclass does not have the methods of its subclasses
         assertThat(classInfo(Base.class).hasMethod("derivedMethod")).isFalse();
+    }
+
+    /**
+     * A constructor ({@code "<init>"}) or static initializer block ({@code "<clinit>"}) is found by name, as it is
+     * by {@link ClassInfo#getDeclaredMethodInfo(String)} and {@link ClassInfo#getMethodInfo(String)}, but only on
+     * the class that declares it, since neither is inherited.
+     */
+    @Test
+    public void aConstructorOrStaticInitializerIsFoundByNameOnlyOnItsOwnClass() {
+        final var derived = classInfo(Derived.class);
+        assertThat(derived.getDeclaredMethodInfo("<init>")).isNotEmpty();
+        assertThat(derived.hasDeclaredMethod("<init>")).isTrue();
+        assertThat(derived.hasMethod("<init>")).isTrue();
+
+        final var withStaticInitializer = classInfo(WithStaticInitializer.class);
+        assertThat(withStaticInitializer.getDeclaredMethodInfo("<clinit>")).isNotEmpty();
+        assertThat(withStaticInitializer.hasDeclaredMethod("<clinit>")).isTrue();
+        assertThat(withStaticInitializer.hasMethod("<clinit>")).isTrue();
+
+        // The static initializer block of a superclass is not inherited
+        final var subclass = classInfo(SubclassOfWithStaticInitializer.class);
+        assertThat(subclass.getMethodInfo("<clinit>")).isEmpty();
+        assertThat(subclass.hasDeclaredMethod("<clinit>")).isFalse();
+        assertThat(subclass.hasMethod("<clinit>")).isFalse();
     }
 
     /**
