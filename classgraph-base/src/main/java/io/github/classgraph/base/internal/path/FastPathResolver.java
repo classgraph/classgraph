@@ -679,7 +679,7 @@ public final class FastPathResolver {
             prefix += authority;
             final var path = pathAfterAuthority(pathStr, authority);
             pathResolved = "/".equals(path) || isDriveRoot ? path
-                    : PathSyntax.sanitizeEntryPath(path, /* removeInitialSlash = */ false,
+                    : PathSyntax.sanitizeEntryPath(prefix, path, /* removeInitialSlash = */ false,
                             /* removeFinalSlash = */ true,
                             /* collapseParentSegmentsInFirstSection = */ !leaveParentSegments);
         } else {
@@ -693,8 +693,9 @@ public final class FastPathResolver {
             final var authority = urlAuthority(parsedBasePath.prefix, basePathRaw);
             prefix = parsedBasePath.prefix + authority;
             final var basePath = pathAfterAuthority(basePathRaw, authority);
-            pathResolved = PathSyntax.sanitizeEntryPath(basePath + (basePath.endsWith("/") ? "" : "/") + pathStr,
-                    /* removeInitialSlash = */ false, /* removeFinalSlash = */ true,
+            pathResolved = PathSyntax.sanitizeEntryPath(prefix,
+                    basePath + (basePath.endsWith("/") ? "" : "/") + pathStr, /* removeInitialSlash = */ false,
+                    /* removeFinalSlash = */ true,
                     /* collapseParentSegmentsInFirstSection = */ !leaveParentSegments);
         }
 

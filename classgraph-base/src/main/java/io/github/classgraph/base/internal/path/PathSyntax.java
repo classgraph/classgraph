@@ -84,18 +84,23 @@ public final class PathSyntax {
      */
     public static String sanitizeEntryPath(final String path, final boolean removeInitialSlash,
             final boolean removeFinalSlash) {
-        return sanitizeEntryPath(path, removeInitialSlash, removeFinalSlash,
+        return sanitizeEntryPath(/* prefix = */ "", path, removeInitialSlash, removeFinalSlash,
                 /* collapseParentSegmentsInFirstSection = */ true);
     }
 
     /**
      * Sanitize a path on the host against "zip slip" vulnerability, by removing path segments if ".." is found in
      * the URL, but without allowing navigation above the path hierarchy root. Each nested jar separator '!' starts
-     * a new path hierarchy root; which '!' characters are separators is decided by testing the filesystem (see
-     * {@link #indexOfNestedJarSeparator(String)}). Also removes "." and empty path segments ("//"). To sanitize a
-     * path within a directory or archive, where '!' is always an ordinary character, use
+     * a new path hierarchy root; which '!' characters are separators is decided by testing the filesystem, or for a
+     * URL by syntax (see {@link #indexOfNestedJarSeparator(String)}). Also removes "." and empty path segments
+     * ("//"). To sanitize a path within a directory or archive, where '!' is always an ordinary character, use
      * {@link #sanitizeRelativePath(String, boolean)}.
      *
+     * @param prefix
+     *            The scheme prefix and authority that were split off the front of the path and are not sanitized,
+     *            such as {@code "http://host"}, or the empty string if the path is a filesystem path. Whether a '!'
+     *            is a nested jar separator depends on whether the path is a URL, so the separator is found in the
+     *            path with its prefix, so that the path of a remote URL is not tested as if it were a local path.
      * @param path
      *            The path to sanitize.
      * @param removeInitialSlash
@@ -114,15 +119,16 @@ public final class PathSyntax {
      *            name from escaping the archive.
      * @return The sanitized path.
      */
-    public static String sanitizeEntryPath(final String path, final boolean removeInitialSlash,
+    public static String sanitizeEntryPath(final String prefix, final String path, final boolean removeInitialSlash,
             final boolean removeFinalSlash, final boolean collapseParentSegmentsInFirstSection) {
         if (path.isEmpty()) {
             return "";
         }
 
         // A '!' is only a nested jar separator if the path before it names an existing jarfile -- it is otherwise a
-        // legal filename character, and must not be treated as a path hierarchy root (#903)
-        final var nestedJarSepIdx = indexOfNestedJarSeparator(path);
+        // legal filename character, and must not be treated as a path hierarchy root (#903). A separator that falls
+        // within the prefix is not in the path at all
+        final var nestedJarSepIdx = Math.max(-1, indexOfNestedJarSeparator(prefix + path) - prefix.length());
         return sanitize(path, nestedJarSepIdx, removeInitialSlash, removeFinalSlash,
                 collapseParentSegmentsInFirstSection);
     }
