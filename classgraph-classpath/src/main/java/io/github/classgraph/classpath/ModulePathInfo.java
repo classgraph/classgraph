@@ -141,19 +141,20 @@ public final class ModulePathInfo {
          * <p>
          * When ClassGraph is on the classpath of a runtime image without the java.management module (e.g. one
          * launched with {@code --limit-modules java.base}), the reference to {@code ManagementFactory} fails to
-         * resolve when it is first run, the arguments cannot be read, and an empty list is returned (#404). This
-         * must not throw, since an exception here would make every call to {@link ModulePathInfo#current()} fail.
-         * Only {@link NoClassDefFoundError} is caught, so another error, such as {@link OutOfMemoryError}, gets
-         * through: it escapes the static initializer of this holder class, the call to
-         * {@link ModulePathInfo#current()} that ran the initializer throws it, and every later call throws
-         * {@link NoClassDefFoundError}.
+         * resolve when it is first run, the arguments cannot be read, and an empty list is returned (#404). The
+         * same holds when java.management is present but cannot be initialized, e.g. because its native library is
+         * missing from the runtime image. This must not throw, since an error here would make every call to
+         * {@link ModulePathInfo#current()} fail. Only {@link LinkageError} is caught, which covers both cases, so
+         * another error, such as {@link OutOfMemoryError}, gets through: it escapes the static initializer of this
+         * holder class, the call to {@link ModulePathInfo#current()} that ran the initializer throws it, and every
+         * later call throws {@link NoClassDefFoundError}.
          *
          * @return the arguments, or an empty list if they could not be read.
          */
         private static List<String> readInputArguments() {
             try {
                 return ManagementFactory.getRuntimeMXBean().getInputArguments();
-            } catch (final NoClassDefFoundError _) {
+            } catch (final LinkageError _) {
                 return List.of();
             }
         }
