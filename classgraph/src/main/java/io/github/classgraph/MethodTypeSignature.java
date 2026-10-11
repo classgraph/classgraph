@@ -40,6 +40,10 @@ import org.jspecify.annotations.Nullable;
  * The generic type signature of a method: its type parameters, parameter types, result type, and thrown exception
  * types. This corresponds to the {@code MethodSignature} production of the signature grammar in section 4.7.9.1 of
  * the JVM Specification.
+ *
+ * <p>
+ * {@link #toString()} renders the type annotations of an explicit receiver parameter, if any, as a first parameter
+ * named {@code this} without its type, for example {@code void (@A this, int)}.
  */
 public final class MethodTypeSignature extends HierarchicalTypeSignature {
     /** The method type parameters. */
@@ -248,8 +252,20 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
         resultType.toString(useSimpleNames, buf);
 
         buf.append(" (");
+        // The type of an explicit receiver parameter is the declaring class, which this signature does not hold, so
+        // only its type annotations are rendered, as a first parameter named "this"
+        var hasReceiver = false;
+        final var receiverTypeAnnotationList = receiverTypeAnnotations;
+        if (receiverTypeAnnotationList != null && !receiverTypeAnnotationList.isEmpty()) {
+            for (final AnnotationInfo annotationInfo : receiverTypeAnnotationList) {
+                annotationInfo.toString(useSimpleNames, buf);
+                buf.append(' ');
+            }
+            buf.append("this");
+            hasReceiver = true;
+        }
         for (var i = 0; i < parameterTypeSignatures.size(); i++) {
-            if (i > 0) {
+            if (i > 0 || hasReceiver) {
                 buf.append(", ");
             }
             parameterTypeSignatures.get(i).toString(useSimpleNames, buf);
