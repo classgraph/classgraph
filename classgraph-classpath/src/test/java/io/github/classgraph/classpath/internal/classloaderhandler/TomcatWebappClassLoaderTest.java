@@ -291,8 +291,9 @@ public class TomcatWebappClassLoaderTest {
     }
 
     /**
-     * A webapp classloader that delegates to its parent first, which is Tomcat's default, contributes its parent's
-     * classpath elements before its own, since that is the order in which a duplicated class is resolved.
+     * A webapp classloader that delegates to its parent first, which is what {@code <Context delegate="true">}
+     * does, contributes its parent's classpath elements before its own, since that is the order in which a
+     * duplicated class is resolved.
      *
      * @param tempDir
      *            a temporary directory to create the webapp in.
@@ -314,9 +315,30 @@ public class TomcatWebappClassLoaderTest {
     }
 
     /**
-     * A webapp classloader configured to look in the webapp before delegating to its parent -- which is what
-     * {@code <Context delegate="false">} does, and is the Servlet specification's delegation order -- contributes
+     * A webapp classloader that looks in the webapp before delegating to its parent -- which is Tomcat's default,
+     * what {@code <Context delegate="false">} does, and the Servlet specification's delegation order -- contributes
      * its own classpath elements first.
+     *
+     * @param tempDir
+     *            a temporary directory to create the webapp in.
+     * @throws IOException
+     *             if the webapp could not be created.
+     */
+    @Test
+    public void aWebappContributesItsOwnClasspathFirstByDefault(@TempDir final Path tempDir) throws IOException {
+        final var sharedDir = Files.createDirectories(tempDir.resolve("shared"));
+        final var webappDir = tempDir.resolve("webapp");
+        final var classesDir = Files.createDirectories(webappDir.resolve("WEB-INF/classes"));
+        final var root = new StandardRoot().addResourceSets(new DirResourceSet("/", webappDir.toString(), "/"));
+        try (var parent = new URLClassLoader(new URL[] { sharedDir.toUri().toURL() }, /* parent = */ null)) {
+            assertThat(locations(new WebappClassLoaderBase(root, parent))).containsExactly(location(classesDir),
+                    location(sharedDir));
+        }
+    }
+
+    /**
+     * A webapp classloader set explicitly to look in the webapp before delegating to its parent contributes its own
+     * classpath elements first.
      *
      * @param tempDir
      *            a temporary directory to create the webapp in.

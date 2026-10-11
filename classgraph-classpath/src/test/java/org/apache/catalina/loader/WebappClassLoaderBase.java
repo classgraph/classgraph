@@ -13,8 +13,11 @@ public class WebappClassLoaderBase extends URLClassLoader {
     /** The {@code WebResourceRoot} of the webapp. */
     public final Object resources;
 
-    /** True if this classloader delegates to its parent before looking in the webapp. */
-    public boolean delegate = true;
+    /**
+     * True if this classloader delegates to its parent before looking in the webapp. False by default, as in the
+     * real class.
+     */
+    public boolean delegate;
 
     /**
      * Get the value of the {@code delegate} field.
