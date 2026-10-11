@@ -309,6 +309,12 @@ public class ClasspathOrder {
                 break;
             }
         }
+        if (hasSuffix && classpathEntryUniqueResolvedPaths.contains(pathElementStr)) {
+            // The same path was already added with its suffix kept, by a handler that does not treat the suffix
+            // as a package root, such as the Tomcat handler for "app.war!/WEB-INF/classes". Stripping the suffix
+            // now would add the whole outer jarfile as well
+            return false;
+        }
         if (pathElement instanceof URL || pathElement instanceof URI || pathElement instanceof Path
                 || pathElement instanceof File) {
             Object pathElementWithoutSuffix = pathElement;

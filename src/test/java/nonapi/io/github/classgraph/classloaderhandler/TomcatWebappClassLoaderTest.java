@@ -463,4 +463,25 @@ public class TomcatWebappClassLoaderTest {
         assertThat(locations(new WebappClassLoaderBase(root, urls, /* parent = */ null)))
                 .containsExactly(location(classesDir), location(urlDir));
     }
+
+    /**
+     * The webapp classloader of a packed WAR file also lists the WAR's {@code WEB-INF/classes} dir among its URLs.
+     * The handler for {@link URLClassLoader} reads that URL too, and treats {@code WEB-INF/classes} as a package
+     * root, but the WAR file itself must not be added as a classpath element, or its {@code index.jsp} and
+     * {@code WEB-INF/web.xml} are scanned too, which the classloader cannot load.
+     *
+     * @param tempDir
+     *            a temporary directory to create the webapp in.
+     * @throws IOException
+     *             if the webapp could not be created.
+     */
+    @Test
+    public void aPackedWarIsNotOnTheClasspathThroughTheUrlsOfTheWebappClassLoader(@TempDir final Path tempDir)
+            throws IOException {
+        final Path war = Files.createFile(tempDir.resolve("app.war"));
+        final StandardRoot root = new StandardRoot().addResourceSets(new WarResourceSet("/", war.toString()));
+        final URL[] urls = new URL[] { new URL("jar:" + war.toUri() + "!/WEB-INF/classes/") };
+        assertThat(locations(new WebappClassLoaderBase(root, urls, /* parent = */ null)))
+                .containsExactly(location(war) + "!/WEB-INF/classes");
+    }
 }

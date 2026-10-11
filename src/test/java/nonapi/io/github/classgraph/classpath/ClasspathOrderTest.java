@@ -84,6 +84,24 @@ public class ClasspathOrderTest {
     }
 
     /**
+     * A path within a jarfile that was added with no package root prefixes is a duplicate when it is added again
+     * with a package root prefix that matches its suffix. Stripping the suffix the second time would add the whole
+     * jarfile as well, as happened for a Tomcat webapp, whose classloader is read by both the Tomcat handler and the
+     * handler for {@link java.net.URLClassLoader}.
+     */
+    @Test
+    public void aPathWithinAJarfileAddedWithoutPackageRootsDoesNotAddTheJarfileLater() {
+        final ScanSpec scanSpec = new ScanSpec();
+        final ClasspathOrder classpathOrder = new ClasspathOrder(scanSpec, new ReflectionUtils());
+        final String path = FastPathResolver.resolveFilePath(FileUtils.currDirPath(), "app.war!/WEB-INF/classes");
+        classpathOrder.setPackageRootPrefixes(new String[0]);
+        assertThat(classpathOrder.addClasspathEntry(path, null, scanSpec, null)).isTrue();
+        classpathOrder.setPackageRootPrefixes(new String[] { "WEB-INF/classes/" });
+        assertThat(classpathOrder.addClasspathEntry(path, null, scanSpec, null)).isFalse();
+        assertThat(classpathOrder.getClasspathEntryUniqueResolvedPaths()).containsExactly(path);
+    }
+
+    /**
      * A "/*" suffix adds only the directory entries whose names end in ".jar" or ".JAR", as the java launcher does.
      * The launcher decides by the name alone, so a hidden jarfile and a directory named like a jarfile are added
      * too, and a subdirectory, a zipfile or a ".Jar" file is not.
