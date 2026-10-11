@@ -586,11 +586,8 @@ public class ClasspathOrderBuilder implements ClasspathOrder {
      */
     private boolean addWildcardedDirEntries(final String baseDirPath, final @Nullable ClassLoader classLoader,
             final @Nullable ClassGraphLog log) {
-        // A wildcarded classpath entry of any type (a String, File, URL, URI or Path) has been reduced to the path of
-        // its directory by now, so the user's URL filters are given a URL built from that path
-        if (!passesFilters(/* pathElementURL = */ null, baseDirPath, baseDirPath, log)) {
-            return false;
-        }
+        // The directory itself is not tested against the user's filters, since it is not a classpath element (the
+        // java launcher never adds it to the classpath): each jarfile in it is tested instead, below
 
         // Check the path before the "/*" suffix is a directory
         final var baseDir = new File(baseDirPath);
