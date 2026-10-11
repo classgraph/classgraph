@@ -18,6 +18,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import io.github.classgraph.base.internal.path.FastPathResolver;
+import io.github.classgraph.base.internal.path.URLPaths;
 
 /**
  * Scans real directories and jarfiles whose paths contain the characters that have to be escaped in a URL, and
@@ -108,6 +109,49 @@ public class AwkwardPathNamesTest {
             connection.setUseCaches(false);
             try (var inputStream = connection.getInputStream()) {
                 assertThat(inputStream.readAllBytes()).isNotEmpty();
+            }
+        }
+    }
+
+    /**
+     * A jarfile nested within a jarfile, and a package root within a jarfile, each named by its path and by its
+     * {@code "jar:"} URL, where the awkward name is a directory within the outer jarfile, and the outer jarfile is
+     * either in a plain directory or in a directory with the same awkward name. The scanner decodes such a
+     * classpath element to a path and then turns it back into a {@code "jar:"} URL, which used to leave a '%' in
+     * the path unescaped, so the URL was decoded again when it was opened and named a file or entry that does not
+     * exist.
+     *
+     * <p>
+     * A name ending in '!' is only used for the directory that holds the outer jarfile. Within a jarfile, every
+     * {@code "!/"} after the outermost separator is a nested jar separator, so a directory entry whose name ends in
+     * '!' cannot be named in a classpath element, however the path is spelled.
+     *
+     * @param dirName
+     *            the awkward directory name.
+     * @param tempDir
+     *            a temporary directory to build in.
+     * @throws IOException
+     *             if the classpath elements could not be built.
+     */
+    @ParameterizedTest
+    @MethodSource("awkwardNames")
+    public void nestedClasspathElementInAnAwkwardPathIsScanned(final String dirName, @TempDir final Path tempDir)
+            throws IOException {
+        final var jar = makeJar(tempDir, dirName);
+        final var entryDirName = dirName.endsWith("!") ? "plain" : dirName;
+        for (final Path outerJar : List.of(tempDir.resolve("outer.jar"), jar.resolveSibling("outer.jar"))) {
+            try (var jarOut = new JarOutputStream(Files.newOutputStream(outerJar))) {
+                jarOut.putNextEntry(new JarEntry(entryDirName + "/lib/inner.jar"));
+                jarOut.write(Files.readAllBytes(jar));
+                jarOut.closeEntry();
+                jarOut.putNextEntry(new JarEntry(entryDirName + "/classes/" + CLASSFILE_PATH));
+                jarOut.write(classfileBytes());
+                jarOut.closeEntry();
+            }
+            for (final String nestedPath : List.of("/lib/inner.jar", "/classes")) {
+                assertThatScanFindsTheClass(outerJar + "!/" + entryDirName + nestedPath);
+                assertThatScanFindsTheClass(
+                        "jar:" + outerJar.toUri() + "!/" + URLPaths.encodePath(entryDirName) + nestedPath);
             }
         }
     }
