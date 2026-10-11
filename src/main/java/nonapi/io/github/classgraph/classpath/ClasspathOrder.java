@@ -610,17 +610,18 @@ public class ClasspathOrder {
     }
 
     /**
-     * Add classpath entries, separated by the system path separator character.
+     * Add classpath entries.
      *
      * @param overrideClasspath
-     *            a list of delimited path {@link String}, {@link URL}, {@link URI} or {@link File} objects.
+     *            a list of path {@link String}, {@link URL}, {@link URI} or {@link File} objects, each one classpath
+     *            entry, which is not split.
      * @param classLoader
      *            the ClassLoader that this classpath was obtained from.
      * @param scanSpec
      *            the scan spec
      * @param log
      *            the LogNode instance to use if logging in verbose mode.
-     * @return true (and add the classpath element) if pathElement is not null or empty, otherwise return false.
+     * @return true if {@code overrideClasspath} is not null or empty, otherwise false.
      */
     public boolean addClasspathEntries(final List<Object> overrideClasspath, final ClassLoader classLoader,
             final ScanSpec scanSpec, final LogNode log) {
@@ -645,7 +646,7 @@ public class ClasspathOrder {
      *            the scan spec
      * @param log
      *            the LogNode instance to use if logging in verbose mode.
-     * @return true (and add the classpath element) if pathElement is not null or empty, otherwise return false.
+     * @return true if {@code pathStr} contains at least one path element, otherwise false.
      */
     public boolean addClasspathPathStr(final String pathStr, final ClassLoader classLoader, final ScanSpec scanSpec,
             final LogNode log) {

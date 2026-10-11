@@ -499,7 +499,8 @@ public class ClassGraph {
      * A single {@link Path} is treated as one classpath entry, not as a sequence of its name elements.
      *
      * @param overrideClasspathElements
-     *            The custom classpath to use for scanning, with path elements separated by File.pathSeparatorChar.
+     *            The custom classpath elements to use for scanning. Each element is one classpath entry, and is not
+     *            split on File.pathSeparatorChar.
      * @return this (for method chaining).
      */
     public ClassGraph overrideClasspath(final Iterable<?> overrideClasspathElements) {
@@ -528,7 +529,8 @@ public class ClassGraph {
      * String, File or Path.
      *
      * @param overrideClasspathElements
-     *            The custom classpath to use for scanning, with path elements separated by File.pathSeparatorChar.
+     *            The custom classpath elements to use for scanning. Each element is one classpath entry, and is not
+     *            split on File.pathSeparatorChar.
      * @return this (for method chaining).
      */
     public ClassGraph overrideClasspath(final Object... overrideClasspathElements) {
