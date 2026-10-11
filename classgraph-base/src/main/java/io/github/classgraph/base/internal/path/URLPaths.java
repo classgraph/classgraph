@@ -279,18 +279,17 @@ public final class URLPaths {
         // "/dir!/bang/x.jar", which names a different file and cannot be opened. Every separator that is one has to
         // be spelled "!/" here, since that is what the "jar:" URL scheme requires
         // #903
-        final var hasNestedJarSeparator = PathSyntax.indexOfNestedJarSeparator(urlPathNormalized) >= 0;
-        if (hasNestedJarSeparator) {
-            urlPathNormalized = PathSyntax.toJarUrlSeparators(urlPathNormalized);
+        final var nestedJarSepIdx = PathSyntax.indexOfNestedJarSeparator(urlPathNormalized);
+        if (nestedJarSepIdx < 0) {
+            return encodePath(toFileURL(urlPathNormalized));
         }
-
-        urlPathNormalized = toFileURL(urlPathNormalized);
-
-        // Prepend "jar:" if the path really does name something nested inside a jarfile
-        if (hasNestedJarSeparator) {
-            urlPathNormalized = "jar:" + urlPathNormalized;
-        }
-        return encodePath(urlPathNormalized);
+        // The path really does name something nested inside a jarfile, so it is a "jar:" URL. The scheme ends the
+        // path of the outermost jarfile at its first "!/", so a "!/" before the outermost separator, as at the end
+        // of a directory named "dir!", is percent-encoded, as ArchiveRoot#resolveURI encodes it. That is done after
+        // encodePath, which would encode the '%' a second time. (Everything before the outermost separator is
+        // unchanged by toJarUrlSeparators.)
+        return encodePath("jar:" + toFileURL(urlPathNormalized.substring(0, nestedJarSepIdx))).replace("!/", "%21/")
+                + encodePath(PathSyntax.toJarUrlSeparators(urlPathNormalized).substring(nestedJarSepIdx));
     }
 
     /**

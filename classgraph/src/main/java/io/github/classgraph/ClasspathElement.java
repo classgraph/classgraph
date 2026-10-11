@@ -505,13 +505,16 @@ abstract sealed class ClasspathElement implements Comparable<ClasspathElement>
     private static String getFileIdentityKey(final URI uri, final Map<String, String> canonicalPathCache) {
         final var uriStr = uri.toString();
         // Find the file part of the URI: "file:<path>", or "jar:file:<path>!/<entry>" (for a jar within a jar,
-        // <path> is the path of the outermost jar, and everything from the first "!/" is part of the entry)
-        final var filePartStartIdx = uriStr.startsWith("file:") ? 5 : uriStr.startsWith("jar:file:") ? 9 : -1;
+        // <path> is the path of the outermost jar, and everything from the first "!/" is part of the entry). A
+        // "file:" URI names nothing nested, so a "!/" in it, as at the end of a directory named "dir!", is part of
+        // the path. A "jar:file:" URI that ClassGraph forms has any such "!/" in <path> percent-encoded as "%21/"
+        final var isJarURI = uriStr.startsWith("jar:file:");
+        final var filePartStartIdx = uriStr.startsWith("file:") ? 5 : isJarURI ? 9 : -1;
         if (filePartStartIdx < 0) {
             // Not a file URI, so there is no path to canonicalize
             return uriStr;
         }
-        final var nestedPathStartIdx = uriStr.indexOf("!/", filePartStartIdx);
+        final var nestedPathStartIdx = isJarURI ? uriStr.indexOf("!/", filePartStartIdx) : -1;
         final var filePart = nestedPathStartIdx < 0 ? uriStr.substring(filePartStartIdx)
                 : uriStr.substring(filePartStartIdx, nestedPathStartIdx);
         final var nestedPath = nestedPathStartIdx < 0 ? "" : uriStr.substring(nestedPathStartIdx);
