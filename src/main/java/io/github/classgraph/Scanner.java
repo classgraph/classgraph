@@ -58,6 +58,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import io.github.classgraph.ClassGraph.FailureHandler;
 import io.github.classgraph.ClassGraph.ScanResultProcessor;
@@ -624,7 +626,9 @@ class Scanner implements Callable<ScanResult> {
 
                     // Create a ClasspathElementZip or ClasspathElementDir from the classpath entry
                     // Use a singleton map to ensure that classpath elements are only opened once
-                    // per unique Path, URL, or URI
+                    // per unique Path, URL, or URI. If another thread is opening the same classpath element, wait
+                    // for it for no longer than the worker timeout, since that thread may be stuck, and this may be
+                    // the calling thread, which is the thread that applies the worker timeout to the other threads
                     final ClasspathElement classpathElement = classpathEntryObjToClasspathEntrySingletonMap.get(
                             workUnit.classpathEntryObj, log,
                             // A NewInstanceFactory is used here because workUnit has to be passed in,
@@ -654,7 +658,7 @@ class Scanner implements Callable<ScanResult> {
 
                                     return classpathElt;
                                 }
-                            });
+                            }, workerTimeoutNanos);
 
                     // Register this work unit's reference to the classpath element. This has to be done for every
                     // work unit that references the classpath element, rather than only within newInstance() above,
@@ -679,6 +683,17 @@ class Scanner implements Callable<ScanResult> {
                 } catch (final InterruptedException e) {
                     // Don't swallow interruption in the catch-all handler below
                     throw e;
+                } catch (final TimeoutException e) {
+                    // The classpath element is not invalid, so it must not be skipped by the catch-all handler
+                    // below: skipping it would silently drop this reference to it if the other thread does finish
+                    // opening it. Fail the scan instead, as the work queue does when a worker thread does not
+                    // finish in time
+                    throw new IllegalStateException("Timed out after "
+                            + TimeUnit.NANOSECONDS.toMillis(workerTimeoutNanos)
+                            + "ms waiting for another thread to open the classpath element "
+                            + workUnit.classpathEntryObj
+                            + ". The other thread may be blocked reading it from a filesystem or network (call "
+                            + "ClassGraph#setWorkerTimeout(long, TimeUnit) to allow more time)", e);
                 } catch (final Exception e) {
                     if (log != null) {
                         log.log("Skipping invalid classpath entry " + workUnit.classpathEntryObj + " : "
