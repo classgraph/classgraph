@@ -49,6 +49,10 @@ class CxfContainerClassLoaderHandler implements ClassLoaderHandler {
     @Override
     public void findClassLoaderOrder(final ClassLoader classLoader, final ClassLoaderOrder classLoaderOrder,
             final LogNode log) {
+        // CxfContainerClassLoader loads CXF's own classes (org.apache.cxf.*) from the container's classloader first
+        // and then from the webapp's classloader, and loads every other class from the webapp's classloader only.
+        // The webapp's classloader normally delegates to the container's, so listing the container first is a
+        // close approximation; a classloader order cannot express a different order for each package.
         try {
             classLoaderOrder.delegateTo(
                     Class.forName("org.apache.openejb.server.cxf.transport.util.CxfUtil").getClassLoader(),
@@ -56,7 +60,8 @@ class CxfContainerClassLoaderHandler implements ClassLoaderHandler {
         } catch (LinkageError | ClassNotFoundException e) {
             // Ignore
         }
-        // tccl = TomcatClassLoader
+        // tccl() returns the webapp's classloader that the current thread set, or the container's classloader if
+        // the current thread set none
         classLoaderOrder.delegateTo(
                 (ClassLoader) classLoaderOrder.reflectionUtils.invokeMethod(false, classLoader, "tccl"),
                 /* isParent = */ false, log);
