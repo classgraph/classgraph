@@ -387,7 +387,7 @@ public class ScanSourceSpec {
         if (log != null) {
             final var subLog = log.log("ScanSourceSpec:");
             subLog.log("classpathSources: " + classpathSources);
-            subLog.log("searchDetectedModuleLayers: " + searchesDetectedModuleLayers(classpathSpec));
+            subLog.log("searchesDetectedModuleLayers: " + searchesDetectedModuleLayers(classpathSpec));
             subLog.log("namedModuleLayers: " + namedModuleLayers);
         }
     }
