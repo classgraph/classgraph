@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assumptions.abort;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.JarURLConnection;
 import java.net.URI;
 import java.net.URL;
 import java.nio.file.FileSystems;
@@ -280,6 +281,123 @@ public class ClasspathOrderTest {
         final var entryObj = entryObjects().get(0);
         assertThat(entryObj).isExactlyInstanceOf(asURL ? URL.class : URI.class);
         assertThat(entryObj.toString()).isEqualTo("jar:" + Path.of(jar).toUri() + "!/app.war");
+    }
+
+    /**
+     * A classpath entry given as a "jar:" {@link URI} or {@link URL} for an archive in a directory whose name ends
+     * in '!' becomes the "file:" URI or URL of the archive once its package root suffix has been stripped. The "!/"
+     * at the end of the directory name is not a nested jar separator, so the archive is not nested inside anything,
+     * and a "jar:" URI split there would name an entry of a jarfile named after the directory instead.
+     */
+    @ParameterizedTest
+    @CsvSource({ "URI", "URL" })
+    public void strippingAPackageRootSuffixFromAnArchiveInADirectoryNamedWithAPlingGivesTheArchive(
+            final String type, @TempDir final Path tempDir) throws Exception {
+        final var war = createFile(Files.createDirectory(tempDir.resolve("build!")).resolve("app.war"));
+        classpathOrder.setPackageRootPrefixes(List.of("WEB-INF/classes/"), null);
+        // The "!/" of the directory name is percent-encoded, since the "jar:" scheme would otherwise end the
+        // archive's path there
+        final var uri = new URI(
+                "jar:" + Path.of(war).toUri().toString().replace("!/", "%21/") + "!/WEB-INF/classes");
+        final Object pathElement = "URI".equals(type) ? uri : uri.toURL();
+        assertThat(classpathOrder.addClasspathEntry(pathElement, null, null)).isTrue();
+        assertThat(locations()).containsExactly(war);
+
+        final var entryObj = entryObjects().get(0);
+        assertThat(entryObj).isExactlyInstanceOf(pathElement.getClass());
+        final var entryURI = entryObj instanceof final URL entryURL ? entryURL.toURI() : (URI) entryObj;
+        assertThat(entryURI.getScheme()).isEqualTo("file");
+        assertThat(Path.of(entryURI)).isEqualTo(Path.of(war));
+        // The scanner opens a classpath entry that is not a Path by resolving its string form
+        assertThat(FastPathResolver.resolveFilePath(FileUtils.currDirPath(), entryObj.toString())).isEqualTo(war);
+    }
+
+    /**
+     * A classpath entry given as a "jar:" {@link URI} or {@link URL} for an archive nested inside a jarfile in a
+     * directory whose name ends in '!' keeps its "jar:" scheme once its package root suffix has been stripped, and
+     * the "!/" at the end of the directory name stays percent-encoded, so that the JDK's jar URL handler finds the
+     * outer jarfile rather than a jarfile named after the directory.
+     */
+    @ParameterizedTest
+    @CsvSource({ "URI", "URL" })
+    public void strippingAPackageRootSuffixFromANestedArchiveInADirectoryNamedWithAPlingKeepsTheJarScheme(
+            final String type, @TempDir final Path tempDir) throws Exception {
+        final var jar = createFile(Files.createDirectory(tempDir.resolve("build!")).resolve("outer.jar"));
+        classpathOrder.setPackageRootPrefixes(List.of("WEB-INF/classes/"), null);
+        final var jarURI = "jar:" + Path.of(jar).toUri().toString().replace("!/", "%21/");
+        final var uri = new URI(jarURI + "!/app.war!/WEB-INF/classes");
+        final Object pathElement = "URI".equals(type) ? uri : uri.toURL();
+        assertThat(classpathOrder.addClasspathEntry(pathElement, null, null)).isTrue();
+        assertThat(locations()).containsExactly(jar + "!/app.war");
+
+        final var entryObj = entryObjects().get(0);
+        assertThat(entryObj).isExactlyInstanceOf(pathElement.getClass());
+        assertThat(entryObj.toString()).isEqualTo(jarURI + "!/app.war");
+        final var jarURLConnection = (JarURLConnection) (entryObj instanceof final URL entryURL ? entryURL
+                : ((URI) entryObj).toURL()).openConnection();
+        assertThat(Path.of(jarURLConnection.getJarFileURL().toURI())).isEqualTo(Path.of(jar));
+        assertThat(jarURLConnection.getEntryName()).isEqualTo("app.war");
+    }
+
+    /**
+     * A classpath entry given as a {@link Path} in a zip filesystem opened on a zipfile in a directory whose name
+     * ends in '!' becomes the {@link Path} of the zipfile on the default filesystem once its package root suffix
+     * has been stripped, as it does for a zipfile in any other directory. The "!/" at the end of the directory name
+     * is not a nested jar separator, so the zipfile is not nested inside another archive.
+     */
+    @Test
+    public void strippingAPackageRootSuffixFromAZipFilesystemPathInADirectoryNamedWithAPlingGivesTheZipfile(
+            @TempDir final Path tempDir) throws IOException {
+        final var warPath = Files.createDirectory(tempDir.resolve("build!")).resolve("app.war");
+        try (var zipFs = FileSystems.newFileSystem(warPath, Map.of("create", "true"))) {
+            Files.createDirectories(zipFs.getPath("/WEB-INF/classes"));
+        }
+        final var war = resolve(warPath.toRealPath().toString());
+        classpathOrder.setPackageRootPrefixes(List.of("WEB-INF/classes/"), null);
+        try (var zipFs = FileSystems.newFileSystem(warPath)) {
+            assertThat(classpathOrder.addClasspathEntry(zipFs.getPath("/WEB-INF/classes"), null, null)).isTrue();
+        }
+        assertThat(locations()).containsExactly(war);
+        final var entryObj = entryObjects().get(0);
+        assertThat(entryObj).isInstanceOf(Path.class);
+        assertThat(((Path) entryObj).getFileSystem()).isSameAs(FileSystems.getDefault());
+        assertThat(entryObj).isEqualTo(Path.of(war));
+    }
+
+    /**
+     * A classpath entry naming a package root directory below a directory whose name ends in '!', such as
+     * {@code "/x/app!/WEB-INF/classes"} for an unpacked war in a directory named {@code "app!"}, is a directory on
+     * disk, not an archive entry, so the package root is not stripped from it, and it is not dropped.
+     */
+    @Test
+    public void aPackageRootDirectoryBelowADirectoryNamedWithAPlingIsNotStripped(@TempDir final Path tempDir)
+            throws IOException {
+        final var classesDir = resolve(
+                Files.createDirectories(tempDir.resolve("app!/WEB-INF/classes")).toRealPath().toString());
+        classpathOrder.setPackageRootPrefixes(List.of("WEB-INF/classes/"), null);
+        assertThat(classpathOrder.addClasspathEntry(classesDir, null, null)).isTrue();
+        assertThat(locations()).containsExactly(classesDir);
+    }
+
+    /**
+     * A classpath entry given as a {@link URI} or {@link URL} that leaves a directory once its package root suffix
+     * has been stripped, such as {@code "file:/x/dir!/classes"} for a directory {@code "/x/dir"}, becomes the URI
+     * or URL of that directory ending in '/', which is how the scanner reports a directory, and which
+     * {@code java.net.URLClassLoader} needs in order to read the URL as a directory rather than as a jarfile.
+     */
+    @ParameterizedTest
+    @CsvSource({ "URI", "URL" })
+    public void strippingAPackageRootSuffixThatLeavesADirectoryGivesTheDirectoryEndingInASlash(final String type,
+            @TempDir final Path tempDir) throws Exception {
+        final var dirURI = Files.createDirectory(tempDir.resolve("dir")).toUri().toString();
+        classpathOrder.setPackageRootPrefixes(List.of("classes/"), null);
+        final var uri = new URI(dirURI.substring(0, dirURI.length() - 1) + "!/classes");
+        final Object pathElement = "URI".equals(type) ? uri : uri.toURL();
+        assertThat(classpathOrder.addClasspathEntry(pathElement, null, null)).isTrue();
+
+        final var entryObj = entryObjects().get(0);
+        assertThat(entryObj).isExactlyInstanceOf(pathElement.getClass());
+        assertThat(entryObj.toString()).isEqualTo("URI".equals(type) ? dirURI : new URI(dirURI).toURL().toString());
     }
 
     /**
