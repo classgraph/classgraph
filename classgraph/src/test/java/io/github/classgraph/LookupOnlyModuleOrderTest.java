@@ -30,6 +30,42 @@ import org.junit.jupiter.api.io.TempDir;
  */
 public class LookupOnlyModuleOrderTest {
     /**
+     * Separate scans preserve independent JVM namespaces; a combined scan intentionally keeps the first name.
+     *
+     * @param tempDir
+     *            the fixture directory.
+     * @throws Exception
+     *             if compilation or classloading fails.
+     */
+    @Test
+    public void independentNamespacesRequireSeparateScans(@TempDir final Path tempDir) throws Exception {
+        final var first = defineLayer(compileModule(tempDir, "namespace-first", "independent",
+                "public class Base { public void first() {} }", "Base"));
+        final var second = defineLayer(compileModule(tempDir, "namespace-second", "independent",
+                "public class Base { public void second() {} }", "Base"));
+        final var firstClass = first.findLoader(MODULE_NAME).loadClass("independent.Base");
+        final var secondClass = second.findLoader(MODULE_NAME).loadClass("independent.Base");
+        assertThat(firstClass).isNotSameAs(secondClass);
+        assertThat(firstClass.getName()).isEqualTo(secondClass.getName());
+        final var layers = List.of(first, second);
+        final var methods = List.of("first", "second");
+        for (var i = 0; i < layers.size(); i++) {
+            try (var result = new ClassGraph().enableModuleLayers(layers.get(i)).enableNonSystemModules()
+                    .ignoreParentModuleLayers().acceptPackages("independent").enableClassInfo().enableMethodInfo()
+                    .scan()) {
+                assertThat(result.getClassInfo("independent.Base").getDeclaredMethodInfo().getNames())
+                        .containsExactly(methods.get(i));
+            }
+        }
+        try (var result = new ClassGraph().enableModuleLayers(first, second).enableNonSystemModules()
+                .ignoreParentModuleLayers().acceptPackages("independent").enableClassInfo().enableMethodInfo()
+                .scan()) {
+            assertThat(result.getClassInfo("independent.Base").getDeclaredMethodInfo().getNames())
+                    .containsExactly("first");
+        }
+    }
+
+    /**
      * A package in the first layer must not hide different classes in the same package of a later layer.
      *
      * @param tempDir
