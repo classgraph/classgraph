@@ -136,9 +136,12 @@ public final class TempFile {
      * control list of the temporary directory.
      *
      * <p>
-     * The directory is left to the JDK, as for every other temporary file. On JDK 17 and later the JDK uses the
-     * value the {@code java.io.tmpdir} system property had when the JVM started, whatever it has been changed to
-     * since, and reads it with its own permissions.
+     * The file is created in the JDK's temporary directory, which is the value that the {@code java.io.tmpdir}
+     * system property had when the JVM started: the JDK reads the property only then, so a later change to it has
+     * no effect. The JDK resolves that directory in the static initializer of its temporary file helper, on the
+     * first call to {@link Files#createTempFile(String, String, java.nio.file.attribute.FileAttribute...)}. If that
+     * fails, the first call throws {@link ExceptionInInitializerError} and every later call in the JVM throws
+     * {@link NoClassDefFoundError}; both are thrown here as an {@link IOException}.
      *
      * @param leafname
      *            The sanitized leafname to end the temporary filename with.
@@ -154,14 +157,11 @@ public final class TempFile {
             return Files.createTempFile(PathSyntax.TEMP_FILENAME_PREFIX,
                     PathSyntax.TEMP_FILENAME_LEAF_SEPARATOR + leafname).toFile();
         } catch (final ExceptionInInitializerError | NoClassDefFoundError e) {
-            // The JDK's helper class resolves the temporary directory in its static initializer. If that fails, it
-            // throws ExceptionInInitializerError the first time, and NoClassDefFoundError every time after, since
-            // the class can never be initialized in this JVM. This happens when the temporary directory cannot be
-            // represented in the encoding used for filenames, as for a non-ASCII directory name when the JVM is
-            // started under the C or POSIX locale on Linux.
-            throw new IOException("The JDK could not set up its temporary directory, which is the value of the "
-                    + "java.io.tmpdir system property when the JVM started, perhaps because that path cannot be "
-                    + "represented in the encoding used for filenames", e);
+            // As happens when the JVM is started under the C or POSIX locale on Linux with a temporary directory
+            // that has a non-ASCII name
+            throw new IOException("The JDK could not set up its temporary directory, which is the value that the "
+                    + "java.io.tmpdir system property had when the JVM started, perhaps because that path cannot "
+                    + "be represented in the encoding used for filenames", e);
         }
     }
 
