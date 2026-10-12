@@ -457,8 +457,11 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
      * @return the filesystem view of the root.
      * @throws FileSystemAlreadyExistsException
      *             if a filesystem is already open at that path.
+     * @throws IOException
+     *             if cleanup of a failed registration cannot close an opened handle.
      */
-    private static FileSystem registeredFileSystemOf(final VfsRoot root, final String requestedPath) {
+    private static FileSystem registeredFileSystemOf(final VfsRoot root, final String requestedPath)
+            throws IOException {
         // The Vfs was created by openRoot, and this filesystem is the only reference the caller is given to it, so
         // the filesystem owns it, and closing the filesystem closes it
         final var fileSystem = root.asOwningFileSystem(requestedPath);
@@ -811,7 +814,8 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
     public InputStream newInputStream(final Path path, final OpenOption... options) throws IOException {
         // Arrays.asList rather than Set.of, because a repeated open option is accepted, not rejected
         checkReadOnly(Arrays.asList(options));
-        return entryOf(check(path)).open();
+        final var vfsPath = check(path);
+        return vfsPath.vfsFileSystem().openInputStream(entryOf(vfsPath));
     }
 
     @Override
@@ -822,7 +826,8 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
             throw new UnsupportedOperationException(
                     "File attributes are not supported by this read-only filesystem");
         }
-        return VfsFileChannel.open(entryOf(check(path)));
+        final var vfsPath = check(path);
+        return VfsFileChannel.open(entryOf(vfsPath), vfsPath.vfsFileSystem());
     }
 
     /**
@@ -843,7 +848,8 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
             throw new UnsupportedOperationException(
                     "File attributes are not supported by this read-only filesystem");
         }
-        return VfsFileChannel.open(entryOf(check(path)));
+        final var vfsPath = check(path);
+        return VfsFileChannel.open(entryOf(vfsPath), vfsPath.vfsFileSystem());
     }
 
     @Override
@@ -868,7 +874,7 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
             final var child = dir.resolve(fileSystem.getPath(childName));
             children.add(child);
         }
-        return new VfsDirectoryStream(children, filter);
+        return fileSystem.register(new VfsDirectoryStream(children, filter, fileSystem));
     }
 
     /**
@@ -884,6 +890,9 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
         /** The caller's filter, invoked only when the iterator needs another child. */
         private final Filter<? super Path> filter;
 
+        /** The filesystem view that tracks this stream. */
+        private final VfsFileSystem owner;
+
         /** Whether {@link #iterator()} has been called. */
         private final AtomicBoolean iteratorReturned = new AtomicBoolean();
 
@@ -897,10 +906,14 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
          *            the children of the directory.
          * @param filter
          *            the filter applied during iteration.
+         * @param owner
+         *            the filesystem view.
          */
-        VfsDirectoryStream(final List<Path> children, final Filter<? super Path> filter) {
+        VfsDirectoryStream(final List<Path> children, final Filter<? super Path> filter,
+                final VfsFileSystem owner) {
             this.children = children;
             this.filter = filter;
+            this.owner = owner;
         }
 
         @Override
@@ -949,6 +962,7 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
         @Override
         public void close() {
             closed = true;
+            owner.unregister(this);
         }
     }
 

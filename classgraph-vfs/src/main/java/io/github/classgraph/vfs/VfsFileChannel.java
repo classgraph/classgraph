@@ -67,8 +67,10 @@ final class VfsFileChannel extends FileChannel {
      *            the content and its release action.
      * @param root
      *            the root that tracks and closes the channel.
+     * @param owner
+     *            the filesystem view that also owns the channel's lifetime.
      */
-    private record OpenState(VfsEntry.RandomAccessContent content, VfsRoot root) {
+    private record OpenState(VfsEntry.RandomAccessContent content, VfsRoot root, VfsFileSystem owner) {
     }
 
     /**
@@ -87,11 +89,15 @@ final class VfsFileChannel extends FileChannel {
      * @param content
      *            the content of the entry.
      * @param root
-     *            the root the entry was read from. {@link #open(VfsEntry)} registers this channel with the root --
-     *            this constructor does not, so that the channel is not published before it is built.
+     *            the root the entry was read from. {@link #open(VfsEntry, VfsFileSystem)} registers this channel
+     *            with the root -- this constructor does not, so that the channel is not published before it is
+     *            built.
+     * @param owner
+     *            the filesystem view.
      */
-    private VfsFileChannel(final VfsEntry.RandomAccessContent content, final VfsRoot root) {
-        state = new AtomicReference<>(new OpenState(content, root));
+    private VfsFileChannel(final VfsEntry.RandomAccessContent content, final VfsRoot root,
+            final VfsFileSystem owner) {
+        state = new AtomicReference<>(new OpenState(content, root, owner));
     }
 
     /**
@@ -101,16 +107,18 @@ final class VfsFileChannel extends FileChannel {
      *
      * @param entry
      *            the entry.
+     * @param owner
+     *            the filesystem view that owns the returned handle.
      * @return the channel, which the caller owns and must close.
      * @throws IOException
      *             if the entry could not be read, or its root has been closed.
      */
-    static VfsFileChannel open(final VfsEntry entry) throws IOException {
+    static VfsFileChannel open(final VfsEntry entry, final VfsFileSystem owner) throws IOException {
         final var root = entry.getRoot();
         final var content = entry.openRandomAccess();
         final VfsFileChannel channel;
         try {
-            channel = new VfsFileChannel(content, root);
+            channel = new VfsFileChannel(content, root, owner);
         } catch (final RuntimeException | Error e) {
             // The caller never sees the channel if this throws, so nothing else would release the content
             content.closeAction().run();
@@ -122,7 +130,7 @@ final class VfsFileChannel extends FileChannel {
             channel.close();
             throw new IOException("Cannot read " + entry.getPath() + " after the root has been closed");
         }
-        return channel;
+        return owner.register(channel);
     }
 
     @Override
@@ -338,6 +346,7 @@ final class VfsFileChannel extends FileChannel {
         final var open = state.getAndSet(null);
         if (open != null) {
             open.root().untrackOpenHandle(this);
+            open.owner().unregister(this);
             open.content().closeAction().run();
         }
     }

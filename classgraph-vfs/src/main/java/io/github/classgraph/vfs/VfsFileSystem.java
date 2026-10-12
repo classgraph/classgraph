@@ -29,7 +29,9 @@
 package io.github.classgraph.vfs;
 
 import java.io.IOError;
+import java.io.Closeable;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.nio.file.ClosedFileSystemException;
 import java.nio.file.FileStore;
@@ -42,6 +44,9 @@ import java.nio.file.attribute.FileAttributeView;
 import java.nio.file.attribute.FileStoreAttributeView;
 import java.nio.file.attribute.UserPrincipalLookupService;
 import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -49,6 +54,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
@@ -83,11 +89,13 @@ final class VfsFileSystem extends FileSystem {
     /** True once {@link #close()} has been called on this view. */
     private final AtomicBoolean closed = new AtomicBoolean();
 
+    /** Handles opened through this view, tracked by identity and guarded by this set's monitor. */
+    private final Set<Closeable> openHandles = Collections.newSetFromMap(new IdentityHashMap<>());
+
     /**
-     * What this filesystem owns and must release when it is closed, or null if it owns nothing. Only a filesystem
-     * that {@link VfsFileSystemProvider} created owns anything. A filesystem created by
-     * {@link VfsRoot#asFileSystem()} owns nothing -- the caller already holds the {@link Vfs}, and closes it
-     * themselves.
+     * The underlying VFS this filesystem owns, or null for a borrowed root. Only a filesystem that
+     * {@link VfsFileSystemProvider} created owns the underlying VFS. A filesystem created by
+     * {@link VfsRoot#asFileSystem()} closes its own handles, but leaves the caller's VFS open.
      */
     private final @Nullable Ownership ownership;
 
@@ -131,7 +139,7 @@ final class VfsFileSystem extends FileSystem {
      * @param root
      *            the root to view as a filesystem.
      * @param ownership
-     *            what the filesystem owns and must release when it is closed, or null if it owns nothing.
+     *            the underlying VFS to release when closed, or null for a borrowed root.
      */
     VfsFileSystem(final VfsRoot root, final @Nullable Ownership ownership) {
         this.root = root;
@@ -158,6 +166,183 @@ final class VfsFileSystem extends FileSystem {
     void ensureOpen() {
         if (!isOpen()) {
             throw new ClosedFileSystemException();
+        }
+    }
+
+    /**
+     * Register a handle atomically with respect to closure, closing it ourselves if closure won the race.
+     *
+     * @param <T>
+     *            the handle type.
+     * @param handle
+     *            the newly opened handle.
+     * @return the registered handle.
+     * @throws IOException
+     *             if an unregistrable handle could not be closed.
+     * @throws ClosedFileSystemException
+     *             if the view or root has closed.
+     */
+    <T extends Closeable> T register(final T handle) throws IOException {
+        final boolean registered;
+        synchronized (openHandles) {
+            registered = isOpen() && root.trackOpenHandle(handle);
+            if (registered) {
+                openHandles.add(handle);
+            }
+        }
+        if (!registered) {
+            handle.close();
+            throw new ClosedFileSystemException();
+        }
+        return handle;
+    }
+
+    /**
+     * Remove a handle from both owners when it closes.
+     *
+     * @param handle
+     *            the closed handle.
+     */
+    void unregister(final Closeable handle) {
+        synchronized (openHandles) {
+            openHandles.remove(handle);
+        }
+        root.untrackOpenHandle(handle);
+    }
+
+    /**
+     * Open a stream whose lifetime belongs to this view as well as to its root.
+     *
+     * @param entry
+     *            the entry to read.
+     * @return the registered stream.
+     * @throws IOException
+     *             if the entry could not be opened.
+     */
+    InputStream openInputStream(final VfsEntry entry) throws IOException {
+        final var stream = entry.open();
+        try {
+            return register(new ViewInputStream(stream, this, entry.getPath()));
+        } catch (final RuntimeException | Error e) {
+            try {
+                stream.close();
+            } catch (final IOException closeFailure) {
+                e.addSuppressed(closeFailure);
+            }
+            throw e;
+        }
+    }
+
+    /** A stream that drops its delegate and owner when closed, and rejects further reads even for RAM content. */
+    private static final class ViewInputStream extends InputStream {
+        /** The resources retained only while open. */
+        private final AtomicReference<@Nullable OpenStream> state;
+
+        /** Whether the original stream supports marks, independent of its lifetime. */
+        private final boolean supportsMark;
+
+        /** The reported entry path, retained without retaining its root. */
+        private final String path;
+
+        /** The reason for closure, including the original root-close diagnostic when appropriate. */
+        private volatile String closedMessage = "Stream closed";
+
+        /**
+         * The open stream's resources.
+         *
+         * @param delegate
+         *            the root's stream.
+         * @param owner
+         *            the owning view.
+         */
+        private record OpenStream(InputStream delegate, VfsFileSystem owner) {
+        }
+
+        /**
+         * Constructor.
+         *
+         * @param delegate
+         *            the root's stream.
+         * @param owner
+         *            the owning view.
+         * @param path
+         *            the reported entry path.
+         */
+        ViewInputStream(final InputStream delegate, final VfsFileSystem owner, final String path) {
+            this.path = path;
+            supportsMark = delegate.markSupported();
+            state = new AtomicReference<>(new OpenStream(delegate, owner));
+        }
+
+        /**
+         * Capture the open delegate for a read.
+         *
+         * @return the delegate.
+         * @throws IOException
+         *             if the stream has closed.
+         */
+        private InputStream delegate() throws IOException {
+            final var open = state.get();
+            if (open == null) {
+                throw new IOException(closedMessage);
+            }
+            return open.delegate();
+        }
+
+        @Override
+        public int read() throws IOException {
+            return delegate().read();
+        }
+
+        @Override
+        public int read(final byte[] bytes, final int offset, final int length) throws IOException {
+            return delegate().read(bytes, offset, length);
+        }
+
+        @Override
+        public long skip(final long count) throws IOException {
+            return delegate().skip(count);
+        }
+
+        @Override
+        public int available() throws IOException {
+            return delegate().available();
+        }
+
+        @Override
+        public synchronized void mark(final int readlimit) {
+            final var open = state.get();
+            if (open != null) {
+                open.delegate().mark(readlimit);
+            }
+        }
+
+        @Override
+        public synchronized void reset() throws IOException {
+            delegate().reset();
+        }
+
+        @Override
+        public boolean markSupported() {
+            return supportsMark;
+        }
+
+        @Override
+        public void close() throws IOException {
+            final var current = state.get();
+            if (current != null) {
+                closedMessage = "Cannot read " + path
+                        + (current.owner().getRoot().isClosed() ? " after the root has been closed"
+                                : " after the stream has been closed");
+            }
+            final var open = state.getAndSet(null);
+            if (open != null) {
+                try {
+                    open.delegate().close();
+                } finally {
+                    open.owner().unregister(this);
+                }
+            }
         }
     }
 
@@ -328,9 +513,10 @@ final class VfsFileSystem extends FileSystem {
      * A filesystem is a view of a {@link VfsRoot}, and the two do not close each other. This closes the view: after
      * it returns, neither this filesystem nor a {@link Path} of it can be read through, each throwing
      * {@link ClosedFileSystemException}, while the root it was a view of stays open and readable, as does every
-     * other view of it. The purely syntactic {@link Path} methods go on working, since they read nothing. Closing
-     * the root closes this view in the same one-way manner: the view then reports itself closed, but closing it was
-     * not what closed the root.
+     * other view of it. Streams, channels and directory streams opened through this view are closed, without
+     * closing handles opened directly through the root or through another view. The purely syntactic {@link Path}
+     * methods go on working, since they read nothing. Closing the root closes this view in the same one-way manner:
+     * the view then reports itself closed, but closing it was not what closed the root.
      *
      * <p>
      * The exception is a filesystem created by {@link java.nio.file.FileSystems#newFileSystem(URI, Map)} or
@@ -346,30 +532,63 @@ final class VfsFileSystem extends FileSystem {
      *
      * <p>
      * Closing an already-closed filesystem has no effect.
+     *
+     * @throws IOException
+     *             if an opened handle could not be closed; other handles are still closed.
      */
     @Override
-    public void close() {
+    public void close() throws IOException {
         // Stop the root handing out this view before anything else happens, so that a caller cannot be given a
         // filesystem that has already started closing. This cannot fail, so the rest of the close is still reached
         root.discardFileSystemView(this);
-        closed.set(true);
+        final List<Closeable> handlesToClose;
+        synchronized (openHandles) {
+            if (!closed.compareAndSet(false, true)) {
+                return;
+            }
+            handlesToClose = new ArrayList<>(openHandles);
+            openHandles.clear();
+        }
         // The index holds every entry of the root, so it is dropped rather than left reachable from a view that
         // can no longer be read through. An index that is being built concurrently is dropped by index() itself,
         // which re-checks after publishing it
         index = null;
-        // A view of a root the caller opened themselves owns nothing, and leaves the root and its Vfs open
+        // Close outside the tracking lock: each handle unregisters itself, and a concurrent root close may be
+        // closing the same handle. All close implementations are idempotent.
+        Throwable failure = null;
+        for (final var handle : handlesToClose) {
+            try {
+                handle.close();
+            } catch (final Throwable e) {
+                if (failure == null) {
+                    failure = e;
+                } else if (e instanceof VirtualMachineError && !(failure instanceof VirtualMachineError)) {
+                    e.addSuppressed(failure);
+                    failure = e;
+                } else if (failure != e) {
+                    failure.addSuppressed(e);
+                }
+            }
+        }
+        // A borrowed view leaves its root and Vfs open, but still owns the handles opened through the view.
         final var owned = ownership;
-        if (owned == null) {
-            return;
+        if (owned != null) {
+            // Free the name before the close can be observed as finished.
+            final var registeredPath = owned.registeredPath();
+            if (registeredPath != null) {
+                VfsFileSystemProvider.unregister(this, registeredPath);
+            }
+            owned.vfs().close();
         }
-        // Free the name for the next FileSystems#newFileSystem, before the close can be observed as finished
-        final var registeredPath = owned.registeredPath();
-        if (registeredPath != null) {
-            VfsFileSystemProvider.unregister(this, registeredPath);
+        if (failure instanceof final IOException io) {
+            throw io;
+        } else if (failure instanceof final RuntimeException runtime) {
+            throw runtime;
+        } else if (failure instanceof final Error error) {
+            throw error;
+        } else if (failure != null) {
+            throw new IOException(failure);
         }
-        // A filesystem created from a URI or a Path owns the Vfs that was created to open its root, and is the
-        // only reference the caller has to it. (Vfs#close is idempotent, so closing this filesystem twice is safe)
-        owned.vfs().close();
     }
 
     @Override
