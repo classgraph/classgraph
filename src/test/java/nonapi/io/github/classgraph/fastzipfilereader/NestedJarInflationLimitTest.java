@@ -29,6 +29,13 @@ import nonapi.io.github.classgraph.scanspec.ScanSpec;
  * A deflated nested jarfile is inflated before it is read, so a small jarfile could otherwise inflate to fill the
  * heap or the temporary directory. The jarfiles nested within a jarfile may inflate to at most 100 times its
  * length, or 256 MB if that is more, all together.
+ *
+ * <p>
+ * The tests therefore use up to about 256 MB of the temporary directory at a time, when
+ * {@link #aNestedJarfileThatInflatesTooFarIsRefused(File)} spills a nested jarfile to disk (measured on JDK 8:
+ * at most 266 MB), and hold up to about 256 MB of heap, when {@link #manyNestedJarfilesShareOneLimit(File)} keeps
+ * nested jarfiles in memory until the limit is reached: on JDK 8 that test passes with {@code -Xmx304m} and runs
+ * out of heap with {@code -Xmx288m}, and the other tests pass with {@code -Xmx64m}.
  */
 public class NestedJarInflationLimitTest {
     /** The size of the chunks a jarfile entry is written in, so that no test holds a whole entry in memory. */

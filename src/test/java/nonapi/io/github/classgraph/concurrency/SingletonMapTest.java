@@ -11,6 +11,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 import nonapi.io.github.classgraph.concurrency.SingletonMap.NewInstanceException;
 import nonapi.io.github.classgraph.concurrency.SingletonMap.NullSingletonException;
@@ -185,10 +186,12 @@ public class SingletonMapTest {
 
     /**
      * A thread waiting with a timeout for a value that another thread is still creating gets a
-     * {@link TimeoutException} once the timeout passes with no progress. The creation is not abandoned: a later call gets the value
-     * once the other thread finishes creating it, and {@code newInstance} is not called again.
+     * {@link TimeoutException} once the timeout passes with no progress. The creation is not abandoned: a later
+     * call gets the value once the other thread finishes creating it, and {@code newInstance} is not called again.
+     * (The JUnit time limit makes the test fail, rather than hang, if the timeout never fires.)
      */
     @Test
+    @Timeout(30)
     public void aWaiterGivesUpAfterItsTimeout() throws Exception {
         final CountDownLatch creatorInNewInstance = new CountDownLatch(1);
         final CountDownLatch letCreatorFinish = new CountDownLatch(1);

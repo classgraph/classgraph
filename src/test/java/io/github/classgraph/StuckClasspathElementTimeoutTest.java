@@ -312,6 +312,8 @@ public class StuckClasspathElementTimeoutTest {
      * {@link #aThreadWaitingForAStuckClasspathElementTimesOut(Path)}. The download makes progress the whole time,
      * so the scan must not time out, however long the download takes in all.
      *
+     * @param classGraph
+     *            the {@link ClassGraph} to scan with, configured with anything else the test needs.
      * @param server
      *            the server.
      * @param classpath
@@ -319,8 +321,8 @@ public class StuckClasspathElementTimeoutTest {
      * @throws Exception
      *             if the scan failed.
      */
-    private static void scanWhileTheDownloadMakesProgress(final SlowHttpServer server, final String... classpath)
-            throws Exception {
+    private static void scanWhileTheDownloadMakesProgress(final ClassGraph classGraph, final SlowHttpServer server,
+            final String... classpath) throws Exception {
         final ThreadPoolExecutor executorService = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS,
                 new LinkedBlockingQueue<Runnable>()) {
             @Override
@@ -335,7 +337,7 @@ public class StuckClasspathElementTimeoutTest {
         };
         try {
             assertTimeoutPreemptively(Duration.ofSeconds(20), () -> {
-                try (ScanResult scanResult = new ClassGraph().overrideClasspath((Object[]) classpath)
+                try (ScanResult scanResult = classGraph.overrideClasspath((Object[]) classpath)
                         .enableURLScheme("http").setWorkerTimeout(1, TimeUnit.SECONDS)
                         .scan(executorService, 2)) {
                     assertThat(scanResult.getResourcesWithLeafName("resource.txt")).isNotEmpty();
@@ -360,7 +362,24 @@ public class StuckClasspathElementTimeoutTest {
     @Test
     public void aThreadWaitingForASlowButProgressingWorkerDoesNotTimeOut() throws Exception {
         try (final SlowHttpServer server = new SlowHttpServer(jarWithOneResource())) {
-            scanWhileTheDownloadMakesProgress(server, server.jarURL());
+            scanWhileTheDownloadMakesProgress(new ClassGraph(), server, server.jarURL());
+        }
+    }
+
+    /**
+     * As {@link #aThreadWaitingForASlowButProgressingWorkerDoesNotTimeOut()}, but the remote jarfile is longer than
+     * the maximum RAM buffer size, so it is downloaded straight to a temporary file. Writing the download to disk
+     * reports progress as reading it into memory does, so the scan succeeds.
+     *
+     * @throws Exception
+     *             if the server could not be started.
+     */
+    @Test
+    public void aSlowDownloadThatSpillsToDiskDoesNotTimeOut() throws Exception {
+        final byte[] jar = jarWithOneResource();
+        try (final SlowHttpServer server = new SlowHttpServer(jar)) {
+            scanWhileTheDownloadMakesProgress(new ClassGraph().setMaxBufferedJarRAMSize(jar.length / 2), server,
+                    server.jarURL());
         }
     }
 
@@ -384,7 +403,7 @@ public class StuckClasspathElementTimeoutTest {
             try (JarOutputStream jarOut = new JarOutputStream(Files.newOutputStream(parentJar), manifest)) {
                 // The manifest is the only entry
             }
-            scanWhileTheDownloadMakesProgress(server, server.jarURL(), parentJar.toString());
+            scanWhileTheDownloadMakesProgress(new ClassGraph(), server, server.jarURL(), parentJar.toString());
         }
     }
 
@@ -398,7 +417,8 @@ public class StuckClasspathElementTimeoutTest {
     @Test
     public void aThreadWaitingForAnotherThreadToDownloadTheSameJarfileDoesNotTimeOut() throws Exception {
         try (final SlowHttpServer server = new SlowHttpServer(jarWithOneResource())) {
-            scanWhileTheDownloadMakesProgress(server, server.jarURL(), server.jarURL() + "!/pkgroot");
+            scanWhileTheDownloadMakesProgress(new ClassGraph(), server, server.jarURL(),
+                    server.jarURL() + "!/pkgroot");
         }
     }
 }

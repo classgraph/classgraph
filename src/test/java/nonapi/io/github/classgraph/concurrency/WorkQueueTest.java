@@ -15,11 +15,13 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 import nonapi.io.github.classgraph.concurrency.WorkQueue.WorkUnitProcessor;
 import nonapi.io.github.classgraph.utils.LogNode;
@@ -75,9 +77,10 @@ public class WorkQueueTest {
     /**
      * A worker that never finishes stops the work queue after the worker timeout when the calling thread has failed
      * and is waiting in {@link WorkQueue#close()} for the workers to finish, rather than blocking the calling
-     * thread forever. (Without the timeout, this test hangs.)
+     * thread forever. (Without the timeout, the JUnit time limit makes this test fail rather than hang.)
      */
     @Test
+    @Timeout(30)
     public void aWorkerThatNeverFinishesTimesOut() {
         final InterruptionChecker interruptionChecker = new InterruptionChecker();
         final Thread callingThread = Thread.currentThread();
@@ -131,6 +134,7 @@ public class WorkQueueTest {
      * {@link WorkQueue#close()}, which the calling thread does not reach until the work loop ends.
      */
     @Test
+    @Timeout(30)
     public void aStuckWorkerTimesOutWhileTheCallingThreadIsIdle() {
         final InterruptionChecker interruptionChecker = new InterruptionChecker();
         // Released at the end of the test, so that the stuck worker thread can finish
@@ -235,6 +239,7 @@ public class WorkQueueTest {
      * again would double the time the scan takes to fail.
      */
     @Test
+    @Timeout(30)
     public void aRecordedFailureStopsCloseWaitingForAStuckWorker() {
         final InterruptionChecker interruptionChecker = new InterruptionChecker();
         // Released at the end of the test, so that the stuck worker thread can finish
@@ -307,6 +312,49 @@ public class WorkQueueTest {
         }
 
         assertThat(processed).containsExactlyInAnyOrder(1, 2);
+        assertThat(interruptionChecker.getExecutionException()).isNull();
+    }
+
+    /**
+     * When the calling thread has failed and is waiting in {@link WorkQueue#close()} for a worker to finish, a
+     * worker that reports progress from inside a long work unit is waited for until it finishes, however long that
+     * takes, rather than being given up on after the worker timeout.
+     */
+    @Test
+    public void closeWaitsForAWorkerThatKeepsReportingProgress() {
+        final InterruptionChecker interruptionChecker = new InterruptionChecker();
+        final Thread callingThread = Thread.currentThread();
+        // Counted down once the worker thread has started its work unit, so that the calling thread then fails and
+        // reaches WorkQueue#close() while the worker is still running
+        final CountDownLatch workerStarted = new CountDownLatch(1);
+        final AtomicBoolean workerFinished = new AtomicBoolean();
+
+        final Throwable thrown;
+        final boolean workerFinishedWhenCloseReturned;
+        try (AutoCloseableExecutorService executorService = new AutoCloseableExecutorService(2)) {
+            // The worker's work unit takes 1000ms, four times the 250ms timeout, but reports progress every 25ms
+            thrown = catchThrowable(() -> WorkQueue.runWorkQueue(Arrays.asList(1, 2), executorService,
+                    interruptionChecker, /* numParallelTasks = */ 2, TimeUnit.MILLISECONDS.toNanos(250),
+                    /* log = */ (LogNode) null, (workUnit, workQueue, log) -> {
+                        if (Thread.currentThread() == callingThread) {
+                            assertThat(workerStarted.await(10, TimeUnit.SECONDS)).isTrue();
+                            throw new IllegalStateException("stopping the work queue");
+                        }
+                        workerStarted.countDown();
+                        for (int i = 0; i < 40; i++) {
+                            Thread.sleep(25);
+                            interruptionChecker.progress();
+                        }
+                        workerFinished.set(true);
+                    }));
+            // Read before the ExecutorService is closed, since closing it waits for the worker to finish
+            workerFinishedWhenCloseReturned = workerFinished.get();
+        }
+
+        assertThat(InterruptionChecker.getCause(thrown)).isInstanceOf(IllegalStateException.class)
+                .hasMessage("stopping the work queue");
+        // close() returned only once the worker had finished, and did not record a timeout
+        assertThat(workerFinishedWhenCloseReturned).isTrue();
         assertThat(interruptionChecker.getExecutionException()).isNull();
     }
 }

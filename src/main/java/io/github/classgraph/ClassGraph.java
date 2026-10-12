@@ -1541,9 +1541,9 @@ public class ClassGraph {
      * progress until it returns, and neither does reading a module.
      *
      * <p>
-     * Only time in which the JVM is running counts toward the timeout. A pause of the whole JVM, for example at a
-     * breakpoint in a debugger, after SIGSTOP, or while the machine is asleep, is counted as at most one second
-     * (or one tenth of the timeout, if that is shorter), so it does not make the scan time out.
+     * A pause of the whole JVM, for example at a breakpoint in a debugger, after SIGSTOP, or while the machine is
+     * asleep, is counted as at most one second (or one tenth of the timeout, if that is shorter), so a pause makes
+     * the scan time out only if the scan had already gone that close to the timeout with no progress.
      *
      * <p>
      * A scan that makes no progress cannot complete. The two known causes are a classloading deadlock, where the

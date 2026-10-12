@@ -183,8 +183,8 @@ public class WorkQueue<T> implements AutoCloseable {
      *            {@link Long#MAX_VALUE} to wait indefinitely. Progress is anything reported to
      *            {@link InterruptionChecker#progress()}: a work unit finishing on any thread, or a worker reporting
      *            progress from within a long work unit. The timeout applies once the calling thread has no work of
-     *            its own left to do, and while waiting for the workers to finish. Time during which the whole JVM
-     *            was paused, for example in a debugger, is not counted.
+     *            its own left to do, and while waiting for the workers to finish. A pause of the whole JVM, for
+     *            example in a debugger, counts as at most one slice of the wait: see {@link IdleTimeout}.
      * @param log
      *            The log.
      * @param workUnitProcessor
@@ -348,7 +348,8 @@ public class WorkQueue<T> implements AutoCloseable {
      * <p>
      * The timeout counts only time with no progress on any thread, so that the work queue is not stopped while
      * the other threads are still finishing work units, or are still making progress within a long work unit,
-     * such as a slow download. Time during which the whole JVM was paused is not counted.
+     * such as a slow download. A pause of the whole JVM counts as at most one slice of the wait: see
+     * {@link IdleTimeout}.
      *
      * @return the wrapper of the work unit, holding null for a poison pill.
      * @throws InterruptedException
