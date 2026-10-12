@@ -128,6 +128,50 @@ public class VfsPathUriTest {
     }
 
     /**
+     * Views loaded by plugins retain physical storage naming and underlying-scheme policy when wrapped.
+     *
+     * @param dir
+     *            the fixture directory.
+     * @throws Exception
+     *             if fixture creation, isolated loading, wrapping or reading fails.
+     */
+    @Test
+    public void isolatedPathsRetainStorageNamingAndSchemePolicy(@TempDir final Path dir) throws Exception {
+        final var jar = dir.resolve("test.jar");
+        try (var zip = new ZipOutputStream(Files.newOutputStream(jar))) {
+            zip.putNextEntry(new ZipEntry("payload"));
+            zip.write(7);
+            zip.closeEntry();
+        }
+        final var urls = new URL[] { Vfs.class.getProtectionDomain().getCodeSource().getLocation(),
+                LogNode.class.getProtectionDomain().getCodeSource().getLocation() };
+        try (var loader = new URLClassLoader(urls, ClassLoader.getPlatformClassLoader());
+                var storage = Jimfs.newFileSystem(Configuration.unix())) {
+            final var vfsClass = Class.forName(Vfs.class.getName(), true, loader);
+            try (var source = (AutoCloseable) vfsClass.getConstructor().newInstance();
+                    var reader = new Vfs();
+                    var denied = new Vfs(new VfsSpec().denyURLScheme("jimfs"))) {
+                final var root = vfsClass.getMethod("open", Path.class).invoke(source, dir);
+                final var view = (FileSystem) root.getClass().getMethod("asFileSystem").invoke(root);
+                final var wrapped = reader.open(view.getPath("/"));
+                assertThat(wrapped.getURI()).isEqualTo(dir.toRealPath().toUri());
+                assertThat(((VfsPath) wrapped.asFileSystem().getPath("/missing")).toStorageUri())
+                        .isEqualTo(dir.toRealPath().resolve("missing").toUri());
+                final var archive = reader.open(view.getPath("/test.jar"));
+                assertThat(archive.getURI()).isEqualTo(jar.toRealPath().toUri());
+                assertThat(Files.readAllBytes(archive.asFileSystem().getPath("/payload")))
+                        .containsExactly((byte) 7);
+                final var jimfsDir = Files.createDirectory(storage.getPath("/classes"));
+                final var foreignRoot = vfsClass.getMethod("open", Path.class).invoke(source, jimfsDir);
+                final var foreignView = (FileSystem) foreignRoot.getClass().getMethod("asFileSystem")
+                        .invoke(foreignRoot);
+                assertThatThrownBy(() -> denied.open(foreignView.getPath("/"))).isInstanceOf(IOException.class)
+                        .hasMessageContaining("The URL scheme \"jimfs:\" has been denied");
+            }
+        }
+    }
+
+    /**
      * Opening paths of a view retains storage naming and underlying-scheme checks, not the adapter's scheme.
      *
      * @throws IOException
