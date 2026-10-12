@@ -41,10 +41,12 @@ import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.AbstractMap.SimpleEntry;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
@@ -287,7 +289,18 @@ class Scanner {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Recursively perform a depth-first search of jar interdependencies, breaking cycles if necessary, to determine
+     * An explicit traversal step, optionally appending an element after its children.
+     *
+     * @param element
+     *            the classpath element.
+     * @param append
+     *            whether this is the postorder append step for an element with package roots.
+     */
+    private record ClasspathOrderStep(ClasspathElement element, boolean append) {
+    }
+
+    /**
+     * Perform an iterative depth-first search of jar interdependencies, breaking cycles if necessary, to determine
      * the final classpath element order.
      *
      * @param currClasspathElement
@@ -297,51 +310,48 @@ class Scanner {
      * @param order
      *            the classpath element order
      */
-    private static void findClasspathOrderRec(final ClasspathElement currClasspathElement,
+    private static void appendClasspathSubtree(final ClasspathElement currClasspathElement,
             final Set<ClasspathElement> visitedClasspathElts, final List<ClasspathElement> order) {
-        if (visitedClasspathElts.add(currClasspathElement)) {
-            // Sort child elements into the order they were listed in by this classpath element
-            final var childClasspathElementsSorted = CollectionUtils
-                    .sortCopy(currClasspathElement.childClasspathElements);
-
-            // A package root of this classpath element comes before it, and so does everything else this element
-            // declares: a classloader that has package roots loads classes from those and from the jarfiles they
-            // name, and not from the root of the element that holds them, so a class that a package root and the
-            // root of the element both hold has to be reported from the package root. (The root of the element is
-            // still scanned, since a jarfile can be built to be usable both ways -- run as a Spring Boot
-            // application, and put on the classpath as an ordinary library -- but it is scanned last of its own
-            // subtree, since it is the only part of that subtree the classloader never looks in.)
-            var hasPackageRoot = false;
-            for (final ClasspathElement.ChildClasspathElement childClasspathElt : childClasspathElementsSorted) {
-                if (!childClasspathElt.classpathElement().packageRootPrefix.isEmpty()) {
-                    hasPackageRoot = true;
-                    findClasspathOrderRec(childClasspathElt.classpathElement(), visitedClasspathElts, order);
+        final Deque<ClasspathOrderStep> pending = new ArrayDeque<>();
+        pending.push(new ClasspathOrderStep(currClasspathElement, false));
+        while (!pending.isEmpty()) {
+            final var step = pending.pop();
+            final var element = step.element();
+            if (step.append()) {
+                order.add(element);
+                continue;
+            }
+            if (!visitedClasspathElts.add(element)) {
+                continue;
+            }
+            final var children = CollectionUtils.sortCopy(element.childClasspathElements);
+            final var hasPackageRoot = children.stream()
+                    .anyMatch(child -> !child.classpathElement().packageRootPrefix.isEmpty());
+            // An element with package roots follows its entire subtree: package roots first, then its other
+            // dependencies, then the enclosing element. Ordinary elements instead precede their dependencies.
+            if (hasPackageRoot && !element.skipClasspathElement) {
+                pending.push(new ClasspathOrderStep(element, true));
+            }
+            for (var i = children.size() - 1; i >= 0; i--) {
+                final var child = children.get(i).classpathElement();
+                if (child.packageRootPrefix.isEmpty()) {
+                    pending.push(new ClasspathOrderStep(child, false));
                 }
             }
-
-            // The classpath order requires a preorder traversal of the DAG of classpath dependencies. Don't add a
-            // classpath element if it is marked to be skipped; whether or not it is skipped, keep recursing below,
-            // to add any child classpath elements that are not marked to be skipped.
-            if (!hasPackageRoot && !currClasspathElement.skipClasspathElement) {
-                order.add(currClasspathElement);
+            if (!hasPackageRoot && !element.skipClasspathElement) {
+                order.add(element);
             }
-
-            // Then the classpath elements that this one declares, in the order it listed them in
-            for (final ClasspathElement.ChildClasspathElement childClasspathElt : childClasspathElementsSorted) {
-                if (childClasspathElt.classpathElement().packageRootPrefix.isEmpty()) {
-                    findClasspathOrderRec(childClasspathElt.classpathElement(), visitedClasspathElts, order);
+            for (var i = children.size() - 1; i >= 0; i--) {
+                final var child = children.get(i).classpathElement();
+                if (!child.packageRootPrefix.isEmpty()) {
+                    pending.push(new ClasspathOrderStep(child, false));
                 }
-            }
-
-            // An element that has package roots comes after everything it declares, rather than before it
-            if (hasPackageRoot && !currClasspathElement.skipClasspathElement) {
-                order.add(currClasspathElement);
             }
         }
     }
 
     /**
-     * Recursively perform a depth-first traversal of child classpath elements, breaking cycles if necessary, to
+     * Perform an iterative depth-first traversal of child classpath elements, breaking cycles if necessary, to
      * determine the final classpath element order. This causes child classpath elements to be inserted in-place in
      * the classpath order, after the parent classpath element that contained them.
      *
@@ -357,7 +367,7 @@ class Scanner {
         final Set<ClasspathElement> visitedClasspathElts = new HashSet<>();
         final List<ClasspathElement> order = new ArrayList<>();
         for (final ClasspathElement elt : toplevelClasspathEltsSorted) {
-            findClasspathOrderRec(elt, visitedClasspathElts, order);
+            appendClasspathSubtree(elt, visitedClasspathElts, order);
         }
         return order;
     }
