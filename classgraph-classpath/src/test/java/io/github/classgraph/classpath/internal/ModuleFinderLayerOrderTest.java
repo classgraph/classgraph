@@ -14,6 +14,8 @@ import java.nio.file.Files;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.FutureTask;
+import java.util.concurrent.TimeUnit;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -30,6 +32,28 @@ import io.github.classgraph.base.LogNode;
  * layers in a chain the caller names.
  */
 public class ModuleFinderLayerOrderTest {
+
+    /** Module-layer parent depth must not consume the probing thread's call stack. */
+    @Test
+    public void deepParentLayersCanBeProbedWithASmallStack() throws Exception {
+        var layer = ModuleLayer.empty();
+        for (var i = 0; i < 1200; i++) {
+            final var configuration = layer.configuration().resolve(ModuleFinder.of(), ModuleFinder.of(), Set.of());
+            layer = ModuleLayer
+                    .defineModulesWithOneLoader(configuration, List.of(layer), getClass().getClassLoader()).layer();
+        }
+        final var deepest = layer;
+        final var task = new FutureTask<>(() -> nonSystemModuleNames(deepest));
+        final var thread = new Thread(null, task, "module-layer-small-stack", 256 * 1024);
+        thread.setDaemon(true);
+        thread.start();
+        try {
+            assertThat(task.get(30, TimeUnit.SECONDS)).isEmpty();
+        } finally {
+            thread.interrupt();
+            thread.join(5000);
+        }
+    }
 
     /** The name of the automatic module in the parent layer. Sorts <i>before</i> the child module's name. */
     private static final String PARENT_MODULE = "cgaparentmod";
