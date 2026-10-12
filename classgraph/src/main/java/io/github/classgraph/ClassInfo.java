@@ -638,8 +638,9 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      * Set the names of the record components.
      *
      * @param recordComponentNames
-     *            the names of the record components, in declaration order, or null if the class is not a record or
-     *            its {@code Record} attribute is malformed
+     *            the names of the record components, in declaration order, from the last well-formed {@code Record}
+     *            attribute of the class; or null if the class has no {@code Record} attribute, or if every
+     *            {@code Record} attribute it has is malformed
      */
     void setRecordComponentNames(final @Nullable List<String> recordComponentNames) {
         this.recordComponentNames = recordComponentNames;

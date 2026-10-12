@@ -362,8 +362,8 @@ public class IllegalClassNameInClassfileTest {
             """;
 
     /**
-     * The retention policies that the nested annotation tests are run with: {@code RUNTIME} annotations are read
-     * from the {@code RuntimeVisibleAnnotations} attribute, and {@code CLASS} annotations from the
+     * The retention policies that the nested annotation test is run with: {@code RUNTIME} annotations are read from
+     * the {@code RuntimeVisibleAnnotations} attribute, and {@code CLASS} annotations from the
      * {@code RuntimeInvisibleAnnotations} attribute.
      */
     private static final List<RetentionPolicy> RETENTION_POLICIES = List.of(RetentionPolicy.RUNTIME,
@@ -450,7 +450,9 @@ public class IllegalClassNameInClassfileTest {
 
     /**
      * An annotation default value that is a nested annotation with an illegal class name, or an array that holds
-     * one, is left out, and the other default values of the annotation are kept.
+     * one, is left out, and the other default values of the annotation are kept. Default values are read from the
+     * {@code AnnotationDefault} attribute of each method of the annotation class, whatever the retention policy of
+     * the annotation class, so this test is run with {@code RUNTIME} retention only.
      *
      * @param tempDir
      *            a temporary directory.
@@ -460,17 +462,14 @@ public class IllegalClassNameInClassfileTest {
     @Test
     public void anAnnotationDefaultHoldingAnAnnotationWithAnIllegalNameIsSkipped(@TempDir final Path tempDir)
             throws IOException {
-        for (final var retentionPolicy : RETENTION_POLICIES) {
-            final var classesDir = compileWithIllegalNestedAnnotations(tempDir, retentionPolicy);
-            try (var scanResult = new ClassGraph().enableClassInfo().enableMethodInfo().enableAnnotationInfo()
-                    .ignoreClassVisibility().enableClasspathEntries(classesDir).scan()) {
-                final var defaults = scanResult.getClassInfo("p.Defaults");
-                assertThat(defaults.getDeclaredMethodInfo().getNames()).as(retentionPolicy.name())
-                        .containsExactlyInAnyOrder("x", "one", "many");
-                final var defaultValues = defaults.getAnnotationDefaultParameterValues();
-                assertThat(defaultValues.getNames()).as(retentionPolicy.name()).containsExactly("x");
-                assertThat(defaultValues.getValue("x")).as(retentionPolicy.name()).isEqualTo(1);
-            }
+        final var classesDir = compileWithIllegalNestedAnnotations(tempDir, RetentionPolicy.RUNTIME);
+        try (var scanResult = new ClassGraph().enableClassInfo().enableMethodInfo().enableAnnotationInfo()
+                .ignoreClassVisibility().enableClasspathEntries(classesDir).scan()) {
+            final var defaults = scanResult.getClassInfo("p.Defaults");
+            assertThat(defaults.getDeclaredMethodInfo().getNames()).containsExactlyInAnyOrder("x", "one", "many");
+            final var defaultValues = defaults.getAnnotationDefaultParameterValues();
+            assertThat(defaultValues.getNames()).containsExactly("x");
+            assertThat(defaultValues.getValue("x")).isEqualTo(1);
         }
     }
 
