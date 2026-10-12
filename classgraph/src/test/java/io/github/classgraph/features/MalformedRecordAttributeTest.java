@@ -11,6 +11,7 @@ import java.nio.file.Path;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import io.github.classgraph.ClassGraph;
 
@@ -34,6 +35,25 @@ public class MalformedRecordAttributeTest {
      *             if the classfile could not be written.
      */
     private static byte[] recordClassfileBytes(final int componentsCount) throws IOException {
+        return recordClassfileBytes(componentsCount, /* secondComponentsCount = */ -1);
+    }
+
+    /**
+     * Generate a final record class {@code Rec} with one record component {@code int x}, whose {@code Record}
+     * attribute is followed by a {@code SourceFile} attribute, and optionally by a second {@code Record} attribute
+     * that also holds the one component {@code int x}.
+     *
+     * @param componentsCount
+     *            the {@code components_count} to write into the {@code Record} attribute, which holds one component
+     * @param secondComponentsCount
+     *            the {@code components_count} to write into the second {@code Record} attribute, which holds one
+     *            component, or -1 for there to be no second {@code Record} attribute
+     * @return the bytes of the classfile.
+     * @throws IOException
+     *             if the classfile could not be written.
+     */
+    private static byte[] recordClassfileBytes(final int componentsCount, final int secondComponentsCount)
+            throws IOException {
         final var byteArrayOutputStream = new ByteArrayOutputStream();
         try (var out = new DataOutputStream(byteArrayOutputStream)) {
             out.writeInt(0xCAFEBABE);
@@ -74,7 +94,7 @@ public class MalformedRecordAttributeTest {
 
             out.writeShort(0); // Number of methods
 
-            out.writeShort(2); // Number of attributes
+            out.writeShort(secondComponentsCount == -1 ? 2 : 3); // Number of attributes
             out.writeShort(7); // "Record"
             out.writeInt(8);
             out.writeShort(componentsCount);
@@ -84,6 +104,14 @@ public class MalformedRecordAttributeTest {
             out.writeShort(8); // "SourceFile"
             out.writeInt(2);
             out.writeShort(9); // sourcefile_index
+            if (secondComponentsCount != -1) {
+                out.writeShort(7); // "Record"
+                out.writeInt(8);
+                out.writeShort(secondComponentsCount);
+                out.writeShort(5); // name_index: "x"
+                out.writeShort(6); // descriptor_index: "I"
+                out.writeShort(0); // attributes_count
+            }
         }
         return byteArrayOutputStream.toByteArray();
     }
@@ -117,6 +145,32 @@ public class MalformedRecordAttributeTest {
             assertThat(classInfo.isRecord()).isTrue();
             assertThat(classInfo.getSourceFile()).isEqualTo(RECORD_NAME + ".java");
             assertThat(classInfo).hasToString(expectedToString);
+        }
+    }
+
+    /**
+     * A second {@code Record} attribute, which a class should not have, replaces the component names read from the
+     * first if it is well-formed, and is skipped, keeping them, if it is malformed.
+     *
+     * @param secondComponentsCount
+     *            the {@code components_count} written into the second {@code Record} attribute
+     * @param tempDir
+     *            a temporary directory to write the classfile to
+     * @throws IOException
+     *             if the classfile could not be written.
+     */
+    @ParameterizedTest
+    @ValueSource(ints = { 1, 2 })
+    public void aMalformedSecondRecordAttributeKeepsTheComponentsOfTheFirst(final int secondComponentsCount,
+            @TempDir final Path tempDir) throws IOException {
+        Files.write(tempDir.resolve(RECORD_NAME + ".class"), recordClassfileBytes(1, secondComponentsCount));
+        try (var scanResult = new ClassGraph().enableClassInfo().enableFieldInfo().ignoreFieldVisibility()
+                .enableClasspathEntries(tempDir).scan()) {
+            final var classInfo = scanResult.getClassInfo(RECORD_NAME);
+            assertThat(classInfo).isNotNull();
+            assertThat(classInfo.isRecord()).isTrue();
+            assertThat(classInfo.getSourceFile()).isEqualTo(RECORD_NAME + ".java");
+            assertThat(classInfo).hasToString("public final record Rec(int x)");
         }
     }
 }

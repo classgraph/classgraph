@@ -109,7 +109,7 @@ class Classfile {
     private boolean isRecord;
 
     /**
-     * The names of the record components, in declaration order, or null if this class is not a record or the
+     * The names of the record components, in declaration order, or null if this class is not a record or its
      * {@code Record} attribute is malformed. They are read whether or not field info is enabled.
      */
     private @Nullable List<String> recordComponentNames;
@@ -2672,9 +2672,10 @@ class Classfile {
                 // so read only the names of the components, which give their declaration order. They are read
                 // even if field info is not enabled, so that a record with no components can be told apart from a
                 // record whose components are not known. A malformed attribute loses only the names, not the
-                // class.
+                // class. A class should have only one Record attribute; if it has another, a well-formed one
+                // replaces the names read before it, and a malformed one keeps them.
                 recordComponentNames = readAnnotationAttribute(attributeNameCpIdx, attributeLength, "the class",
-                        recordComponentNames, this::readRecordComponentNames);
+                        recordComponentNames, _ -> readRecordComponentNames());
             } else if (constantPoolStringEquals(attributeNameCpIdx, "InnerClasses")) {
                 readInnerClassesAttribute();
             } else if (constantPoolStringEquals(attributeNameCpIdx, "Signature")) {
@@ -2779,33 +2780,24 @@ class Classfile {
     }
 
     /**
-     * Read the names of the record components from the class' {@code Record} attribute, in declaration order.
+     * Read the names of the record components from the {@code record_components_info} entries of the class'
+     * {@code Record} attribute (JVMS 4.7.30).
      *
-     * @param earlier
-     *            the names read from an earlier {@code Record} attribute, which a class should not have, and which
-     *            are replaced
-     * @return the names of the record components.
+     * @return the names of the record components, in declaration order.
      * @throws IOException
-     *             if an I/O exception occurs.
-     * @throws ClassfileFormatException
-     *             if a record component has no name.
+     *             if an I/O exception occurs, or the attribute is malformed.
      */
-    private List<String> readRecordComponentNames(final @Nullable List<String> earlier)
-            throws IOException, ClassfileFormatException {
+    private List<String> readRecordComponentNames() throws IOException {
         final var componentsCount = reader().readUnsignedShort();
         final List<String> componentNames = new ArrayList<>(componentsCount);
         for (var i = 0; i < componentsCount; i++) {
-            final var componentName = getConstantPoolString(reader().readUnsignedShort());
-            if (componentName == null) {
-                throw new ClassfileFormatException("record component " + i + " has no name");
-            }
-            componentNames.add(componentName);
+            componentNames.add(requireConstantPoolString(getConstantPoolString(reader().readUnsignedShort()),
+                    "record component name"));
             reader().skip(2); // descriptor_index
-            final var attributesCount = reader().readUnsignedShort();
-            for (var j = 0; j < attributesCount; j++) {
+            final var componentAttributesCount = reader().readUnsignedShort();
+            for (var j = 0; j < componentAttributesCount; j++) {
                 reader().skip(2); // attribute_name_index
-                final var attributeLength = reader().readInt();
-                reader().skip(attributeLength);
+                reader().skip(reader().readInt()); // attribute_length, then the attribute's contents
             }
         }
         return componentNames;
