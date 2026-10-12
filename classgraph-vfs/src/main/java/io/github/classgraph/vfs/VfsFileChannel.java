@@ -39,6 +39,7 @@ import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.jspecify.annotations.Nullable;
 
@@ -53,14 +54,22 @@ import org.jspecify.annotations.Nullable;
  * a thread that is reading does not close the channel.
  */
 final class VfsFileChannel extends FileChannel {
-    /** The content of the entry, released when this channel is closed. */
-    private final VfsEntry.RandomAccessContent content;
+    /**
+     * State retained only while open. A close detaches the reader, its content buffer, and the owning root without
+     * waiting for a read to release this channel's monitor. An in-flight read keeps its own local reference.
+     */
+    private final AtomicReference<@Nullable OpenState> state;
 
     /**
-     * The root the entry was read from, which closes this channel if it is still open when that root closes, so
-     * that a channel that reads a memory mapping stops holding that mapping open.
+     * Resources owned by an open channel.
+     *
+     * @param content
+     *            the content and its release action.
+     * @param root
+     *            the root that tracks and closes the channel.
      */
-    private final VfsRoot root;
+    private record OpenState(VfsEntry.RandomAccessContent content, VfsRoot root) {
+    }
 
     /**
      * The read position, which is allowed to be beyond the end of the content, where reads return end-of-file.
@@ -82,8 +91,7 @@ final class VfsFileChannel extends FileChannel {
      *            this constructor does not, so that the channel is not published before it is built.
      */
     private VfsFileChannel(final VfsEntry.RandomAccessContent content, final VfsRoot root) {
-        this.content = content;
-        this.root = root;
+        state = new AtomicReference<>(new OpenState(content, root));
     }
 
     /**
@@ -176,7 +184,8 @@ final class VfsFileChannel extends FileChannel {
         // The reader writes at an index and leaves the destination's position and limit alone, so the position is
         // advanced here over what it wrote, which is what the contract of this method asks for
         final var dstStart = dst.position();
-        final var numBytesRead = Math.max(content.reader().read(fromPosition, dst, dstStart, numBytes), 0);
+        final var numBytesRead = Math
+                .max(openState().content().reader().read(fromPosition, dst, dstStart, numBytes), 0);
         dst.position(dstStart + numBytesRead);
         // The reader returns -1, which Math#max above turned into 0, once the read starts at or past the end of the
         // content
@@ -223,7 +232,7 @@ final class VfsFileChannel extends FileChannel {
         // way to find out how long it is. That is what Files#readAllBytes and Files#readString do first, so those
         // read the entry once from beginning to end, and then copy it out of the reader's buffer. It is
         // synchronized for the same reason as a read is: it uses the reader, which one thread at a time may use.
-        return content.reader().length();
+        return openState().content().reader().length();
     }
 
     @Override
@@ -302,6 +311,21 @@ final class VfsFileChannel extends FileChannel {
     }
 
     /**
+     * Capture the state for one operation, so concurrent closure cannot turn a content access into a null read.
+     *
+     * @return the open state.
+     * @throws ClosedChannelException
+     *             if the channel has closed.
+     */
+    private OpenState openState() throws ClosedChannelException {
+        final var open = state.get();
+        if (open == null || !isOpen()) {
+            throw new ClosedChannelException();
+        }
+        return open;
+    }
+
+    /**
      * Release the content. {@link #close()} calls this at most once, whether the caller closes the channel or the
      * root closes it. This does not take the monitor of the channel, so a close does not wait for a read that is in
      * progress.
@@ -311,7 +335,10 @@ final class VfsFileChannel extends FileChannel {
         // Stop the root tracking this channel, so that a caller that closes its channels does not accumulate them
         // on the root for as long as it stays open. Harmless if the root is the one doing the closing, since it
         // drains its set before it closes what was in it
-        root.untrackOpenHandle(this);
-        content.closeAction().run();
+        final var open = state.getAndSet(null);
+        if (open != null) {
+            open.root().untrackOpenHandle(this);
+            open.content().closeAction().run();
+        }
     }
 }
