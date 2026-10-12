@@ -2007,16 +2007,7 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      */
     public boolean hasMethod(final String methodName) {
         Assert.notNull(methodName, "methodName");
-        if ("<init>".equals(methodName) || "<clinit>".equals(methodName)) {
-            // Constructors and static initializer blocks are not inherited
-            return hasDeclaredMethod(methodName);
-        }
-        for (final ClassInfo ci : getMethodOverrideOrder()) {
-            if (ci.hasDeclaredMethod(methodName)) {
-                return true;
-            }
-        }
-        return false;
+        return !getMethodInfoWithName(methodName).isEmpty();
     }
 
     /**
@@ -2091,8 +2082,8 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      */
     public boolean hasMethodAnnotation(final String methodAnnotationName) {
         Assert.notNull(methodAnnotationName, "methodAnnotationName");
-        for (final ClassInfo ci : getMethodOverrideOrder()) {
-            if (ci.hasDeclaredMethodAnnotation(methodAnnotationName)) {
+        for (final MethodInfo mi : getMethodInfo()) {
+            if (mi.hasAnnotation(methodAnnotationName)) {
                 return true;
             }
         }
@@ -2172,8 +2163,8 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      */
     public boolean hasMethodParameterAnnotation(final String methodParameterAnnotationName) {
         Assert.notNull(methodParameterAnnotationName, "methodParameterAnnotationName");
-        for (final ClassInfo ci : getMethodOverrideOrder()) {
-            if (ci.hasDeclaredMethodParameterAnnotation(methodParameterAnnotationName)) {
+        for (final MethodInfo mi : getMethodInfo()) {
+            if (mi.hasParameterAnnotation(methodParameterAnnotationName)) {
                 return true;
             }
         }
@@ -3029,6 +3020,11 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
         final Set<Entry<String, String>> nameAndTypeDescriptorSet = new HashSet<>();
         for (final ClassInfo ci : getMethodOverrideOrder()) {
             for (final MethodInfo mi : declaredMethodsOf.apply(ci)) {
+                // Scanning a declaration does not make it inheritable. In particular, static and private
+                // interface methods belong only to that interface, even when visibility checks are disabled.
+                if (ci != this && !ci.isInheritedMember(mi.getModifiers(), /* isField = */ false)) {
+                    continue;
+                }
                 // If method has not been overridden by method of same name and type descriptor
                 if (nameAndTypeDescriptorSet.add(new SimpleEntry<>(mi.getName(), mi.getTypeDescriptorString()))) {
                     // Add method to output order
@@ -3111,8 +3107,9 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     }
 
     /**
-     * Returns information on visible methods declared by this class, or by its interfaces or superclasses, that are
-     * not constructors. See also:
+     * Returns information on visible methods declared by this class or inherited from its interfaces or
+     * superclasses, that are not constructors. Private ancestor methods and static interface methods are never
+     * inherited, even if {@link ClassGraph#ignoreMethodVisibility()} was called. See also:
      *
      * <ul>
      * <li>{@link #getMethodInfo(String)}
