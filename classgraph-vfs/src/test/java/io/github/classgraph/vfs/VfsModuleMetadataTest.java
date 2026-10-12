@@ -12,6 +12,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Arrays;
 import java.util.Optional;
@@ -19,9 +20,30 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 /** Module metadata does not require a retained, array-sized resource buffer. */
 public class VfsModuleMetadataTest {
+    /**
+     * Reading one native file must not populate the root's cached recursive listing.
+     *
+     * @param dir
+     *            the fixture directory.
+     * @throws IOException
+     *             if fixture creation or lookup fails.
+     */
+    @Test
+    public void nativePointReadDoesNotCacheARecursiveListing(@TempDir final Path dir) throws IOException {
+        Files.writeString(dir.resolve("first"), "first");
+        try (var vfs = new Vfs()) {
+            final var root = vfs.open(dir);
+            assertThat(root.getEntry("missing")).isNull();
+            assertThat(Files.readString(root.asFileSystem().getPath("/first"))).isEqualTo("first");
+            Files.writeString(dir.resolve("second"), "second");
+            assertThat(root.getEntries()).extracting(VfsEntry::getPathFromRoot).containsExactly("first", "second");
+        }
+    }
+
     /**
      * Transfers beyond the array limit stream independently, preserve position, and stop at a partial target.
      *
@@ -162,7 +184,7 @@ public class VfsModuleMetadataTest {
 
                     @Override
                     public Stream<String> list() {
-                        return Stream.of("payload");
+                        throw new AssertionError("Point reads must not enumerate module resources");
                     }
 
                     @Override

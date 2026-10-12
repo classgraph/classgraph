@@ -356,8 +356,8 @@ final class VfsFileSystem extends FileSystem {
      *             if the entries of the root could not be listed.
      */
     private Index index() throws IOException {
-        // Every read of this filesystem's content goes through the index, including reads through a Path of it,
-        // so this is the one place that has to turn away access after a close
+        // Directory listings and aggregate file-store statistics need the index. Point lookups use the root's
+        // direct lookup instead, so reading one file does not enumerate the entire root.
         ensureOpen();
         var idx = index;
         if (idx != null) {
@@ -418,11 +418,12 @@ final class VfsFileSystem extends FileSystem {
      *            the entry name, relative to the root, with no leading {@code '/'}.
      * @return the entry, or null if there is no file with that name (in particular, if the name is a directory).
      * @throws IOException
-     *             if the entries of the root could not be listed.
+     *             if the entry could not be looked up.
      */
     @Nullable
     VfsEntry entry(final String name) throws IOException {
-        return index().entriesByName().get(name);
+        ensureOpen();
+        return root instanceof DirRoot dirRoot ? dirRoot.fileEntryForNio(name) : root.getEntry(name);
     }
 
     /**
@@ -449,7 +450,7 @@ final class VfsFileSystem extends FileSystem {
      *             if the entries of the root could not be listed.
      */
     boolean exists(final String name) throws IOException {
-        return isDirectory(name) || entry(name) != null;
+        return entry(name) != null || isDirectory(name);
     }
 
     /**

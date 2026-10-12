@@ -287,6 +287,23 @@ public final class DirRoot extends VfsRoot {
         if (name.isEmpty()) {
             return null;
         }
+        final var resolved = pathForNio(name);
+        return resolved != null && FileUtils.canReadAndIsFile(resolved)
+                ? new DirEntry(this, resolved, name, /* attributes = */ null)
+                : null;
+    }
+
+    /**
+     * Resolve an exact root-relative name without enumerating the directory or requiring read access.
+     *
+     * @param name
+     *            the root-relative name, or empty for the root itself.
+     * @return the native path, or null for a noncanonical or mismatched name.
+     * @throws IOException
+     *             if case-sensitive matching fails.
+     */
+    @Nullable
+    Path pathForNio(final String name) throws IOException {
         final Path resolved;
         try {
             resolved = dir.resolve(name).normalize();
@@ -296,7 +313,7 @@ public final class DirRoot extends VfsRoot {
         }
         // A name containing ".." must not be able to reach outside the root, and an absolute name must not be able
         // to replace it -- Path#resolve returns the argument unchanged if it is absolute
-        if (!resolved.startsWith(dir) || !FileUtils.canReadAndIsFile(resolved)) {
+        if (!resolved.startsWith(dir)) {
             return null;
         }
         // The name is matched exactly, whatever kind of root this is, so a name that reaches the file by some other
@@ -308,9 +325,28 @@ public final class DirRoot extends VfsRoot {
         }
         // The filesystems of Windows and macOS answer a lookup for a name whose case does not match the name the
         // file is stored under, and this method matches names exactly, so such a match is not one
-        if (isCaseFoldedMatch(dir, resolved)) {
+        if (Files.exists(resolved) && isCaseFoldedMatch(dir, resolved)) {
             return null;
         }
-        return new DirEntry(this, resolved, name, /* attributes = */ null);
+        return resolved;
+    }
+
+    /**
+     * Look up one file for a NIO view, including an unreadable file that still exists.
+     *
+     * @param name
+     *            the root-relative name.
+     * @return the file entry, or null if the name is not a regular file.
+     * @throws IOException
+     *             if case-sensitive matching fails.
+     */
+    @Nullable
+    VfsEntry fileEntryForNio(final String name) throws IOException {
+        final var path = pathForNio(name);
+        if (path == null) {
+            return null;
+        }
+        final var attributes = FileUtils.readAttributes(path);
+        return attributes.isRegularFile() ? new DirEntry(this, path, name, attributes) : null;
     }
 }
