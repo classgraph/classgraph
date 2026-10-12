@@ -84,7 +84,7 @@ class ClasspathElementDir extends ClasspathElement {
 
     /**
      * Whether each directory that {@link #getResourceDuringScan(String)} has looked in exists, keyed by its path
-     * relative to the classpath element root.
+     * relative to the classpath element root. It is cleared by {@link #classfileScanFinished()}.
      */
     private final Map<String, Boolean> parentDirExistsDuringScan = new ConcurrentHashMap<>();
 
@@ -486,6 +486,15 @@ class ClasspathElementDir extends ClasspathElement {
             }
         }
         return getResource(relativePath);
+    }
+
+    /**
+     * Forget which directories {@link #getResourceDuringScan(String)} found, so that the map does not stay
+     * reachable from the {@link ScanResult} for its whole life.
+     */
+    @Override
+    void classfileScanFinished() {
+        parentDirExistsDuringScan.clear();
     }
 
     /**

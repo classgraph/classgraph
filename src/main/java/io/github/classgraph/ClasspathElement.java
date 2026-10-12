@@ -734,6 +734,15 @@ abstract class ClasspathElement implements Comparable<ClasspathElement> {
     }
 
     /**
+     * Called once every classfile has been scanned. Nothing calls {@link #getResourceDuringScan(String)} after
+     * this point, so anything it remembered is released here, rather than being kept for as long as the
+     * {@link ScanResult} is open.
+     */
+    void classfileScanFinished() {
+        // Nothing is remembered by default
+    }
+
+    /**
      * Get the URI for this classpath element.
      *
      * @return the URI for the classpath element.
