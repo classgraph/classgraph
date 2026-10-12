@@ -113,10 +113,10 @@ final class FileMapping {
                 log.log("File " + file + " cannot be memory mapped: " + e + " (reading the file instead)");
             }
         } catch (IOException | OutOfMemoryError _) {
-            // Try running garbage collection, then try mapping the file again. (Garbage collection is what can free
-            // address space here: a mapping whose ByteBuffer is unreachable is unmapped by its Cleaner once the
-            // reference is cleared, which is a phantom-reference mechanism, not finalization. The collection has to
-            // be waited for, since the unmapping happens after the collection itself is over.)
+            // Retry after GC, which may free unrelated heap or cleaner-managed mappings made elsewhere in the
+            // process. Cleaner-managed mappings are released during reference processing, after collection.
+            // ClassGraph's own mappings use shared arenas: GC cannot release those, even when their Java objects
+            // become unreachable. They must be released explicitly by closing their owning arena.
             PathSlice.freeUnreachableBuffers();
             try {
                 byteBuffer = mapWholeFile(arena, fileChannel, fileLength);

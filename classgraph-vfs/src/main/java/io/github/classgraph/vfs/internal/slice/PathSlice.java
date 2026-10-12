@@ -634,14 +634,15 @@ public final class PathSlice extends Slice {
 
     /**
      * Ask the garbage collector to run, and wait for the references that the collection found to be processed, so
-     * that a mapping that nothing can reach any more is more likely to have been released by the time this returns.
+     * that an unreachable cleaner-managed mapping is more likely to have been released by the time this returns.
      *
      * <p>
      * This is best effort, and cannot be made reliable: a file is unmapped while the reference to its mapped buffer
      * is processed, and nothing can observe that a particular reference has been processed. That is why ClassGraph
      * maps a file in an arena and unmaps it explicitly rather than leaving it to this -- this is only for what an
-     * explicit unmapping cannot reach: an address range that has to be freed before a mapping can be retried, a
-     * mapping whose arena would not close, and a temporary file that Windows would not let ClassGraph delete. A JVM
+     * explicit unmapping cannot reach: unrelated memory or cleaner-managed mappings that could free address space
+     * before a retry, and third-party mappings of a temporary file that Windows would not let ClassGraph delete. A
+     * shared arena that failed to close cannot be recovered this way: GC does not close shared arenas. A JVM
      * started with {@code -XX:+DisableExplicitGC} ignores the request to collect altogether, in which case this
      * returns once the wait times out, having done nothing.
      *
