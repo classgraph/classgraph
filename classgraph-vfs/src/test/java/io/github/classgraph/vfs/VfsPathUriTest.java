@@ -2,6 +2,7 @@ package io.github.classgraph.vfs;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.io.IOException;
 import java.net.URL;
@@ -25,6 +26,33 @@ import io.github.classgraph.base.LogNode;
 /** Provider URIs and storage URIs have separate, explicit contracts. */
 public class VfsPathUriTest {
     /**
+     * A directory opened through an alias reports canonical storage, not the spelling of the supplied path.
+     *
+     * @param dir
+     *            the fixture directory.
+     * @throws IOException
+     *             if fixture creation or reading fails.
+     */
+    @Test
+    public void storageUrisCanonicalizeDirectoryAliases(@TempDir final Path dir) throws IOException {
+        final var target = Files.createDirectory(dir.resolve("target"));
+        Files.writeString(target.resolve("file"), "content");
+        final var alias = dir.resolve("alias");
+        try {
+            Files.createSymbolicLink(alias, target);
+        } catch (final IOException | UnsupportedOperationException e) {
+            assumeTrue(false, "Symbolic links unavailable: " + e);
+        }
+        try (var vfs = new Vfs()) {
+            final var root = vfs.open(alias);
+            final var path = (VfsPath) root.asFileSystem().getPath("/file");
+            assertThat(path.toStorageUri()).isEqualTo(target.resolve("file").toRealPath().toUri());
+            assertThat(path.toUri().getScheme()).isEqualTo("cgvfs");
+            assertThat(Files.readString(path)).isEqualTo("content");
+        }
+    }
+
+    /**
      * An archive opened through another VFS view keeps its physical storage name and remains readable.
      *
      * @param dir
@@ -42,7 +70,7 @@ public class VfsPathUriTest {
         }
         try (var source = new Vfs(); var reader = new Vfs()) {
             final var root = reader.open(source.open(dir).asFileSystem().getPath("/test.jar"));
-            assertThat(root.getURI()).isEqualTo(jar.toUri());
+            assertThat(root.getURI()).isEqualTo(jar.toRealPath().toUri());
             assertThat(Files.readAllBytes(root.asFileSystem().getPath("/payload"))).containsExactly((byte) 7);
         }
     }
@@ -65,7 +93,7 @@ public class VfsPathUriTest {
             final var uri = path.toUri();
             assertThat(uri.getScheme()).isEqualTo(path.getFileSystem().provider().getScheme());
             assertThat(path.toCgvfsUri()).isEqualTo(uri);
-            assertThat(path.toStorageUri()).isEqualTo(dir.resolve("file").toUri());
+            assertThat(path.toStorageUri()).isEqualTo(dir.resolve("file").toRealPath().toUri());
             assertThatThrownBy(() -> FileSystems.getFileSystem(uri))
                     .isInstanceOf(FileSystemNotFoundException.class);
             root.close();
