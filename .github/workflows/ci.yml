@@ -149,11 +149,13 @@ jobs:
         cache: 'maven'
     - name: Build ClassGraph
       run: ./mvnw --no-transfer-progress -B -q clean compile
-    - name: Compile the benchmark drivers
+    - name: Compile and test the benchmark drivers
       run: |
-        javac -Xlint:all -Werror -d "$(mktemp -d)" \
-            -cp classgraph/target/classes:classgraph-base/target/classes:classgraph-vfs/target/classes:classgraph-classpath/target/classes \
-            benchmark/*.java
+        set -eu
+        bench_test_dir="$(mktemp -d)"
+        bench_test_cp=classgraph/target/classes:classgraph-base/target/classes:classgraph-vfs/target/classes:classgraph-classpath/target/classes
+        javac -Xlint:all -Werror -d "$bench_test_dir" -cp "$bench_test_cp" benchmark/*.java
+        java -cp "$bench_test_dir:$bench_test_cp" BenchTest
 
   # Every unit test runs on the classpath (surefire sets useModulePath=false), so the module descriptors
   # are only ever checked by the compiler: a wrong "requires" or a missing "exports" would not be found
