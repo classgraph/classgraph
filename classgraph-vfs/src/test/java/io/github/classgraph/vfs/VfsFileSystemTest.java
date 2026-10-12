@@ -67,6 +67,29 @@ import io.github.classgraph.base.internal.path.FastPathResolver;
 
 /** Tests the read-only {@link FileSystem} view of a {@link VfsRoot}. */
 public class VfsFileSystemTest {
+    /**
+     * Even an empty scattering read checks the channel's lifecycle.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if the file cannot be written or opened.
+     */
+    @Test
+    public void closedChannelRejectsEmptyScatteringRead(@TempDir final Path tempDir) throws IOException {
+        Files.writeString(tempDir.resolve("file"), "content");
+        try (var vfs = new Vfs()) {
+            final var path = vfs.open(tempDir).asFileSystem().getPath("/file");
+            final var channel = FileChannel.open(path);
+            assertThat(channel.read(new ByteBuffer[0], 0, 0)).isZero();
+            channel.close();
+            assertThatThrownBy(() -> channel.read(new ByteBuffer[0], 0, 0))
+                    .isInstanceOf(ClosedChannelException.class);
+            assertThatThrownBy(() -> channel.read(new ByteBuffer[] { ByteBuffer.allocate(0) }, 0, 1))
+                    .isInstanceOf(ClosedChannelException.class);
+        }
+    }
+
     /** The names of the entries written into every root under test. */
     private static final List<String> ENTRY_NAMES = List.of("root.txt", "com/xyz/Widget.class",
             "com/xyz/Widget.txt", "com/xyz/sub/Nested.class", "com/abc/Other.class");
