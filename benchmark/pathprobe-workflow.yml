@@ -1,5 +1,8 @@
 name: Path handling probe
 
+permissions:
+  contents: read
+
 # Not an active workflow -- it is kept here, outside .github/workflows, so that it does not run on
 # every push. To run the path probe on all three operating systems again, copy this file into
 # .github/workflows, push the branch named below, compare the artifacts, then remove it again.
@@ -22,9 +25,9 @@ jobs:
         os: [ ubuntu-latest, windows-latest, macos-latest ]
         java: [ '25', '26' ]
     steps:
-    - uses: actions/checkout@v7
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
     - name: Set up JDK
-      uses: actions/setup-java@v5
+      uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
       with:
         distribution: 'zulu'
         java-version: ${{ matrix.java }}
@@ -46,7 +49,7 @@ jobs:
             | tee "probe-$RUNNER_OS-${{ matrix.java }}.txt"
     - name: Save the output, so the platforms can be diffed against each other
       if: always()
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
       with:
         name: probe-${{ matrix.os }}-${{ matrix.java }}
         path: probe-*.txt
