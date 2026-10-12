@@ -69,12 +69,12 @@ import org.jspecify.annotations.Nullable;
  * </pre>
  *
  * <p>
- * The methods that say where to scan come in pairs: the method with no arguments enables the sources found in the
- * current runtime environment ({@link #enableClasspath()}, {@link #enableSystemModules()},
- * {@link #enableNonSystemModules()}, {@link #enableDetectedModuleLayers()}), and the method that takes varargs
- * enables exactly the sources it is given ({@link #enableClassLoaders(ClassLoader...)},
- * {@link #enableModuleLayers(ModuleLayer...)}, {@link #enableClasspathEntries(Object...)}). Calling only the
- * varargs method scans only what it names, which is how the environment's own sources are left out.
+ * {@link #enableClasspath()} enables the classpath sources found in the runtime environment;
+ * {@link #enableClassLoaders(ClassLoader...)} and {@link #enableClasspathEntries(Object...)} name classpath sources
+ * explicitly. Calling both scans both kinds of source. Module kinds are enabled separately with
+ * {@link #enableSystemModules()} and {@link #enableNonSystemModules()}. {@link #enableModuleLayers(ModuleLayer...)}
+ * selects layers instead of the caller's layers, but must be accompanied by a module-kind method. Add
+ * {@link #enableDetectedModuleLayers()} to search the caller's layers as well as the named ones.
  *
  * <p>
  * The classpath sources are scanned in the order they were enabled in, and the modules are scanned before all of

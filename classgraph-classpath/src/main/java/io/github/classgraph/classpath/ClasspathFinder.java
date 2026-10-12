@@ -52,11 +52,13 @@ import io.github.classgraph.vfs.VfsSpec;
  *
  * <p>
  * Nothing is searched until it is enabled, so at least one of the {@code enable} methods has to be called for
- * anything to be found. They come in pairs: the method with no arguments enables the sources found in the
- * environment ({@link #enableClasspath()}, {@link #enableSystemModules()}), and the method that takes varargs
- * enables exactly the sources it is given ({@link #enableClassLoaders(ClassLoader...)},
- * {@link #enableModuleLayers(ModuleLayer...)}, {@link #enableClasspathEntries(Object...)}). Calling only the
- * varargs method searches only what it names, which is how the environment's own sources are left out.
+ * anything to be found. {@link #enableClasspath()} searches the environment's classpath sources;
+ * {@link #enableClassLoaders(ClassLoader...)} and {@link #enableClasspathEntries(Object...)} name sources
+ * explicitly. Calling both searches both kinds of source. {@link #enableSystemModules()} and
+ * {@link #enableNonSystemModules()} enable module kinds independently of layer selection:
+ * {@link #enableModuleLayers(ModuleLayer...)} replaces the caller's layers with named layers, but still requires a
+ * module-kind method. Add {@link #enableDetectedModuleLayers()} to search the caller's layers as well as the named
+ * ones.
  *
  * <p>
  * The classpath sources are searched in the order they were enabled in, and the modules are searched before all of

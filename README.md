@@ -78,14 +78,15 @@ See the [code examples](https://github.com/classgraph/classgraph/wiki/Code-examp
 
 ### What gets scanned
 
-Nothing is scanned unless it is enabled, so a scan with no `enable` method called finds nothing at all. The methods that say *where* to scan come in pairs:
+Nothing is scanned unless it is enabled, so a scan with no `enable` method called finds nothing at all. Classpath sources have two forms:
 
 | No arguments: scan what is in the environment | Varargs: scan exactly what is named |
 | --- | --- |
 | `enableClasspath()` -- every classpath element of every classloader that can be found -- the thread context classloader, the system classloader, the classloader of the class in any frame of the call stack, and the ancestors of all of those, including `java.class.path` | `enableClassLoaders(ClassLoader...)`, `enableClasspathEntries(Object...)` |
-| `enableSystemModules()`, `enableNonSystemModules()` -- the modules of the module layers that are visible to the caller | `enableModuleLayers(ModuleLayer...)` -- the modules of exactly the layers named |
 
-Call the no-argument method to scan what the running application can see. Call only the varargs method to scan *just* what you name, and nothing from the environment -- that is how a scan is confined to a single classloader, module layer or jarfile. Calling both scans the environment as well as what you named. Each call adds to the end of the list, so classpath sources are scanned in the order the calls were made, and modules are always scanned before any of them, since that is the order in which the JVM resolves a class.
+Call `enableClasspath()` to scan the running application's classpath, or only the varargs methods to name its classpath sources explicitly. Calling both adds both kinds of source. Each call adds to the end of the list, so classpath sources are scanned in the order the calls were made.
+
+Modules have two independent choices: `enableSystemModules()` and `enableNonSystemModules()` enable the kinds of module to scan; `enableModuleLayers(ModuleLayer...)` chooses the layers to look in. Naming layers does not enable either kind of module, so a module-kind method must also be called. Without named layers, enabled module kinds are looked for in the layers visible to the caller. Named layers replace that selection (and include their parents unless `ignoreParentModuleLayers()` is called); add `enableDetectedModuleLayers()` to search the caller's layers as well. Modules are always scanned before classpath sources.
 
 ```java
 // Scan the running application: its module path, then its classpath
@@ -96,6 +97,10 @@ new ClassGraph().enableClasspathEntries("/path/to/plugin.jar").scan();
 
 // Scan one classloader and nothing else
 new ClassGraph().enableClassLoaders(pluginClassLoader).ignoreParentClassLoaders().scan();
+
+// Scan non-system modules in a named layer, excluding its parent layers
+new ClassGraph().enableModuleLayers(pluginLayer).enableNonSystemModules()
+        .ignoreParentModuleLayers().scan();
 ```
 
 ### Capabilities
