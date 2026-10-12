@@ -115,7 +115,7 @@ class ClasspathElementDirTest {
             nestedJarHandler.close(/* log = */ null);
         }
         // Six entries in the directory (five files and sub), and two in sub
-        assertThat(progressCount.get()).isGreaterThanOrEqualTo(8);
+        assertThat(progressCount.get()).isEqualTo(8);
     }
 
     /**

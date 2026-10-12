@@ -411,12 +411,15 @@ public class SliceTest {
      * Each byte read by the single-byte {@link InputStream#read()}, which is how a stream that returns zero from a
      * read of a non-empty buffer is read, is reported as progress, as the bytes of a block read are, both while the
      * stream is buffered in RAM and while it is spilled to disk. Otherwise a thread waiting for a download that
-     * arrives this way could time out while the download is still making progress.
+     * arrives this way could time out while the download is still making progress. The timeout is for the same
+     * reason as in {@link #aStreamThatReturnsZeroIsSpilledToDiskInFull()}: the stream returns zero from every block
+     * read, so a regression could loop forever.
      *
      * @throws IOException
      *             if a stream could not be read
      */
     @Test
+    @Timeout(value = 60, threadMode = ThreadMode.SEPARATE_THREAD)
     public void eachByteOfASingleByteReadIsReportedAsProgress() throws IOException {
         for (final int maxBufferedJarRAMSize : new int[] { 64 * 1024 * 1024, CONTENT.length / 2 }) {
             final InputStream stream = new InputStream() {

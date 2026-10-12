@@ -34,6 +34,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -232,8 +233,10 @@ public class ExtendedScanClasspathOrderTest {
         try (ScanResult scanResult = new ClassGraph()
                 .overrideClasspath(emptyDir, tempDir.resolve("war"), app, markers).enableClassInfo()
                 .acceptPackages("app").scan()) {
-            assertThat(scanResult.getClassInfo("ext.Base").getClasspathElementFile())
-                    .isEqualTo(tempDir.resolve("war/WEB-INF/classes").toFile());
+            // The classpath element's path is canonical, and the temporary directory's may not be (an 8.3 short
+            // name on Windows, a symlink on macOS), so only the end of the path is compared
+            assertThat(scanResult.getClassInfo("ext.Base").getClasspathElementFile().toPath())
+                    .endsWith(Paths.get("war", "WEB-INF", "classes"));
             assertThat(scanResult.getClassesImplementing("ext.MarkerA").getNames()).containsExactly("app.Sub",
                     "ext.Base");
         }

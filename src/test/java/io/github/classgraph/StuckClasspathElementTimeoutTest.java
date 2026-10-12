@@ -217,15 +217,17 @@ public class StuckClasspathElementTimeoutTest {
                 final Throwable thrown = assertTimeoutPreemptively(Duration.ofSeconds(20),
                         () -> catchThrowable(() -> new ClassGraph()
                                 .overrideClasspath(stuckJarURL, parentJar.toString()).enableURLScheme("http")
-                                .setWorkerTimeout(1, TimeUnit.SECONDS).scan(executorService, 2).close()));
+                                .setWorkerTimeout(2, TimeUnit.SECONDS).scan(executorService, 2).close()));
                 final long failedAfterNanos = System.nanoTime() - workerStuckNanos.get();
                 assertThat(server.requestReceived.getCount()).isZero();
                 assertThat(thrown).isInstanceOf(ClassGraphException.class);
                 assertThat(thrown.getCause()).isInstanceOf(IllegalStateException.class)
-                        .hasMessageStartingWith("Timed out after 1000ms waiting for another thread to open the "
+                        .hasMessageStartingWith("Timed out after 2000ms waiting for another thread to open the "
                                 + "classpath element " + stuckJarURL);
-                // One worker timeout, not two
-                assertThat(failedAfterNanos).isLessThan(TimeUnit.MILLISECONDS.toNanos(1500));
+                // One worker timeout, not two. One takes about 2 s. Two take at least 4 s, which is less than the
+                // 5 s HTTP read timeout that would end the stuck download, so the bound leaves 1.8 s for a slow
+                // machine and still fails if the stuck worker is waited for a second time
+                assertThat(failedAfterNanos).isLessThan(TimeUnit.MILLISECONDS.toNanos(3800));
             } finally {
                 server.close();
                 executorService.shutdown();
