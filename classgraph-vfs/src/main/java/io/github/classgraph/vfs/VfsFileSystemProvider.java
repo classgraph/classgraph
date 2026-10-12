@@ -1170,10 +1170,24 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
     /**
      * The attributes of one file or directory of a virtual filesystem.
      *
-     * @param entry
-     *            the entry, or null if this is a directory synthesized from the names of the entries below it.
      */
-    private record VfsFileAttributes(@Nullable VfsEntry entry) implements BasicFileAttributes {
+    private static final class VfsFileAttributes implements BasicFileAttributes {
+        /** The entry, or null for a synthesized directory. */
+        private final @Nullable VfsEntry entry;
+
+        /** An unknown length is streamed only once per attribute snapshot, without retaining its content. */
+        private long computedSize = -1L;
+
+        /**
+         * Constructor.
+         *
+         * @param entry
+         *            the entry, or null for a directory.
+         */
+        VfsFileAttributes(final @Nullable VfsEntry entry) {
+            this.entry = entry;
+        }
+
         @Override
         public FileTime lastModifiedTime() {
             // A directory of a virtual filesystem has no modification time of its own, and neither does a module
@@ -1216,8 +1230,8 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
          * Returns the size of the file.
          *
          * <p>
-         * A module entry does not know its length, so it is read in full to find it, each time this is called,
-         * which needs its root to be open.
+         * A module entry does not know its length, so its stream is counted with bounded memory on first use, which
+         * needs its root to be open. The successful result is cached for this attribute snapshot.
          *
          * @return the size of the file in bytes, or 0 for a directory.
          * @throws UncheckedIOException
@@ -1227,7 +1241,7 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
          *             passes on whatever it throws.
          */
         @Override
-        public long size() {
+        public synchronized long size() {
             if (entry == null) {
                 return 0L;
             }
@@ -1237,12 +1251,24 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
             }
             // A module entry does not know its length without reading it. This is only paid by a caller that
             // actually asks for the size, not by every walk of the filesystem.
-            try (var content = entry.read()) {
-                final var byteBuffer = content.getByteBuffer();
-                return byteBuffer == null ? 0L : byteBuffer.remaining();
+            if (computedSize >= 0) {
+                return computedSize;
+            }
+            final long size;
+            try (var stream = entry.open()) {
+                final var buffer = new byte[16 * 1024];
+                var count = 0L;
+                int numRead;
+                while ((numRead = stream.read(buffer)) != -1) {
+                    count += numRead;
+                }
+                size = count;
             } catch (final IOException e) {
                 throw new UncheckedIOException(e);
             }
+            // Do not cache a failed read or close, so a caller can retry a transient failure.
+            computedSize = size;
+            return size;
         }
 
         @Override

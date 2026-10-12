@@ -619,15 +619,18 @@ public class VfsFileSystemTest {
     public void aSizeThatCannotBeReadThrowsAnException(@TempDir final Path tempDir) throws IOException {
         writeDir(tempDir);
         final BasicFileAttributes attrs;
+        final BasicFileAttributes unreadAttrs;
         try (var vfs = new Vfs()) {
             final var fileSystem = vfs.open(explodedModule(tempDir)).asFileSystem();
             final var path = fileSystem.getPath("/root.txt");
             attrs = Files.readAttributes(path, BasicFileAttributes.class);
             assertThat(attrs.size()).isEqualTo(contentOf("root.txt").length);
+            unreadAttrs = Files.readAttributes(path, BasicFileAttributes.class);
 
             // The filesystem still lists the entry, but it can no longer be read
             Files.delete(tempDir.resolve("root.txt"));
-            assertThatThrownBy(attrs::size).isInstanceOf(UncheckedIOException.class)
+            assertThat(attrs.size()).isEqualTo(contentOf("root.txt").length);
+            assertThatThrownBy(unreadAttrs::size).isInstanceOf(UncheckedIOException.class)
                     .hasCauseInstanceOf(IOException.class);
             assertThatThrownBy(() -> Files.size(path)).isInstanceOf(UncheckedIOException.class)
                     .hasCauseInstanceOf(IOException.class);
@@ -636,8 +639,9 @@ public class VfsFileSystemTest {
                 assertThatThrownBy(() -> Files.readAttributes(path, attributes)).isInstanceOf(IOException.class);
             }
         }
-        // Attributes kept past the close of the Vfs cannot read the size either
-        assertThatThrownBy(attrs::size).isInstanceOf(UncheckedIOException.class)
+        // A cached snapshot survives closure, but an unread size still needs the root to be open.
+        assertThat(attrs.size()).isEqualTo(contentOf("root.txt").length);
+        assertThatThrownBy(unreadAttrs::size).isInstanceOf(UncheckedIOException.class)
                 .hasCauseInstanceOf(IOException.class);
     }
 
