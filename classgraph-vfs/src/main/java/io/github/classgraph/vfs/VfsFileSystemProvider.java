@@ -40,6 +40,7 @@ import java.nio.file.AccessDeniedException;
 import java.nio.file.AccessMode;
 import java.nio.file.CopyOption;
 import java.nio.file.DirectoryStream;
+import java.nio.file.DirectoryIteratorException;
 import java.nio.file.DirectoryStream.Filter;
 import java.nio.file.FileStore;
 import java.nio.file.FileSystem;
@@ -74,7 +75,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 
 import io.github.classgraph.base.internal.path.FastPathResolver;
@@ -866,21 +866,23 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
         final List<Path> children = new ArrayList<>(childNames.size());
         for (final var childName : childNames) {
             final var child = dir.resolve(fileSystem.getPath(childName));
-            if (filter.accept(child)) {
-                children.add(child);
-            }
+            children.add(child);
         }
-        return new VfsDirectoryStream(children);
+        return new VfsDirectoryStream(children, filter);
     }
 
     /**
      * A {@link DirectoryStream} over a list of child paths that was built up front, so nothing is held open. It
      * hands out its iterator once, as {@link DirectoryStream#iterator()} requires, and that iterator reports the
-     * end of the directory once the stream is closed.
+     * end of the directory once the stream is closed, after any accepted child already buffered by hasNext().
+     * Filtering is lazy, and checked filter failures are reported at the iterator boundary.
      */
     private static final class VfsDirectoryStream implements DirectoryStream<Path> {
         /** The children of the directory. */
         private final List<Path> children;
+
+        /** The caller's filter, invoked only when the iterator needs another child. */
+        private final Filter<? super Path> filter;
 
         /** Whether {@link #iterator()} has been called. */
         private final AtomicBoolean iteratorReturned = new AtomicBoolean();
@@ -893,9 +895,12 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
          *
          * @param children
          *            the children of the directory.
+         * @param filter
+         *            the filter applied during iteration.
          */
-        VfsDirectoryStream(final List<Path> children) {
+        VfsDirectoryStream(final List<Path> children, final Filter<? super Path> filter) {
             this.children = children;
+            this.filter = filter;
         }
 
         @Override
@@ -903,25 +908,40 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
             if (closed || !iteratorReturned.compareAndSet(false, true)) {
                 throw new IllegalStateException("The iterator has already been returned, or the stream was closed");
             }
-            // DirectoryStream requires its iterator to be thread-safe. The entries are an immutable snapshot, and
-            // an atomic cursor lets multiple consumer threads share the one iterator without duplicates.
+            // Synchronize both filtering and consumption, so shared iterators cannot filter or return a child
+            // twice. Closing never discards an element already promised by hasNext().
             return new Iterator<>() {
-                private final AtomicInteger cursor = new AtomicInteger();
+                private int cursor;
+
+                private @Nullable Path buffered;
 
                 @Override
-                public boolean hasNext() {
-                    // A closed stream reads as if the end of the directory had been reached, as DirectoryStream
-                    // requires
-                    return !closed && cursor.get() < children.size();
+                public synchronized boolean hasNext() {
+                    if (buffered != null) {
+                        return true;
+                    }
+                    while (!closed && cursor < children.size()) {
+                        final var child = children.get(cursor++);
+                        try {
+                            if (filter.accept(child)) {
+                                buffered = child;
+                                return true;
+                            }
+                        } catch (final IOException e) {
+                            throw new DirectoryIteratorException(e);
+                        }
+                    }
+                    return false;
                 }
 
                 @Override
-                public Path next() {
-                    final int index = closed ? children.size() : cursor.getAndIncrement();
-                    if (index >= children.size()) {
+                public synchronized Path next() {
+                    if (!hasNext()) {
                         throw new NoSuchElementException();
                     }
-                    return children.get(index);
+                    final var next = Objects.requireNonNull(buffered);
+                    buffered = null;
+                    return next;
                 }
             };
         }

@@ -25,6 +25,7 @@ import java.nio.file.AccessDeniedException;
 import java.nio.file.AccessMode;
 import java.nio.file.ClosedFileSystemException;
 import java.nio.file.DirectoryStream;
+import java.nio.file.DirectoryIteratorException;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystemException;
 import java.nio.file.Files;
@@ -2058,8 +2059,7 @@ public class VfsFileSystemTest {
     }
 
     /**
-     * Once a directory stream is closed, an iterator taken from it before the close reports that there is nothing
-     * more to read, as {@link DirectoryStream} requires.
+     * Closing a directory stream preserves its promised element, then ends iteration.
      *
      * @param tempDir
      *            a temporary directory.
@@ -2077,8 +2077,55 @@ public class VfsFileSystemTest {
             final var iterator = stream.iterator();
             assertThat(iterator.hasNext()).isTrue();
             stream.close();
+            assertThat(iterator.hasNext()).isTrue();
+            assertThat(iterator.next()).isNotNull();
             assertThat(iterator.hasNext()).isFalse();
             assertThatThrownBy(iterator::next).isInstanceOf(NoSuchElementException.class);
+        }
+    }
+
+    /**
+     * Filters execute lazily, translating checked failures only at the iterator boundary.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if fixture files or streams cannot be opened.
+     */
+    @Test
+    public void directoryFiltersAreLazyAndFailuresBelongToIteration(@TempDir final Path tempDir)
+            throws IOException {
+        writeDir(tempDir);
+        try (var vfs = new Vfs()) {
+            final var dir = vfs.open(tempDir).asFileSystem().getPath("/com/xyz");
+            final var calls = new AtomicLong();
+            try (var stream = Files.newDirectoryStream(dir, child -> {
+                assertThat(child).isNotNull();
+                calls.incrementAndGet();
+                return true;
+            })) {
+                assertThat(calls.get()).isZero();
+                final var iterator = stream.iterator();
+                assertThat(iterator.hasNext()).isTrue();
+                assertThat(iterator.hasNext()).isTrue();
+                assertThat(iterator.next()).isNotNull();
+                assertThat(calls.get()).isEqualTo(1);
+            }
+            final var checked = new IOException("filter failure");
+            try (var stream = Files.newDirectoryStream(dir, child -> {
+                assertThat(child).isNotNull();
+                throw checked;
+            })) {
+                assertThatThrownBy(stream.iterator()::hasNext).isInstanceOf(DirectoryIteratorException.class)
+                        .hasCause(checked);
+            }
+            final var unchecked = new IllegalArgumentException("filter failure");
+            try (var stream = Files.newDirectoryStream(dir, child -> {
+                assertThat(child).isNotNull();
+                throw unchecked;
+            })) {
+                assertThatThrownBy(stream.iterator()::next).isSameAs(unchecked);
+            }
         }
     }
 
