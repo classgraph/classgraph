@@ -1,5 +1,6 @@
 package io.github.classgraph.vfs.internal;
 
+import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.nio.file.Path;
 
@@ -23,7 +24,41 @@ public final class StoragePaths {
      * @return its storage URI.
      */
     public static URI toURI(final Path path) {
-        return path instanceof VfsPath vfsPath ? vfsPath.toStorageUri() : URLPaths.toURI(path);
+        if (path instanceof VfsPath vfsPath) {
+            return vfsPath.toStorageUri();
+        }
+        if (isClassGraphPath(path)) {
+            // A plugin's copy has the same public API but a different class identity. Do not cache its Method or
+            // Class here: a strong cache would keep its classloader alive after all roots are closed.
+            try {
+                return (URI) path.getClass().getMethod("toStorageUri").invoke(path);
+            } catch (final NoSuchMethodException _) {
+                // Older copies predate URI separation: their toUri() already returns the storage URI.
+            } catch (final IllegalAccessException e) {
+                throw new IllegalStateException("Cannot access the virtual path's storage URI", e);
+            } catch (final InvocationTargetException e) {
+                final var cause = e.getCause();
+                if (cause instanceof RuntimeException runtimeException) {
+                    throw runtimeException;
+                }
+                if (cause instanceof Error error) {
+                    throw error;
+                }
+                throw new IllegalStateException("Cannot obtain the virtual path's storage URI", cause);
+            }
+        }
+        return URLPaths.toURI(path);
+    }
+
+    /**
+     * Recognize this loader's paths and isolated copies of the same public path class.
+     *
+     * @param path
+     *            the path to identify.
+     * @return whether it is a ClassGraph virtual path.
+     */
+    private static boolean isClassGraphPath(final Path path) {
+        return path instanceof VfsPath || path.getClass().getName().equals(VfsPath.class.getName());
     }
 
     /**
@@ -34,7 +69,7 @@ public final class StoragePaths {
      * @return the normalized storage name.
      */
     public static String pathStr(final Path path) {
-        if (!(path instanceof VfsPath)) {
+        if (!isClassGraphPath(path)) {
             return FileUtils.pathStr(path);
         }
         final var uri = toURI(path).toString();
