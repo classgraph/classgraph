@@ -996,8 +996,16 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
 
     // -------------------------------------------------------------------------------------------------------------
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>
+     * Native directory files use their underlying provider's identity, including symbolic links, hard links and
+     * different views. Archive and module files use the identity of their opened root and normalized entry name;
+     * independently opened roots are separate namespaces, even if they report the same storage URI.
+     */
     @Override
-    public boolean isSameFile(final Path path, final Path path2) {
+    public boolean isSameFile(final Path path, final Path path2) throws IOException {
         final var vfsPath = check(path);
         Assert.notNull(path2, "path2");
         vfsPath.vfsFileSystem().ensureOpen();
@@ -1005,7 +1013,20 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
         if (!(path2 instanceof final VfsPath vfsPath2)) {
             return false;
         }
-        return vfsPath.toAbsolutePath().normalize().equals(vfsPath2.toAbsolutePath().normalize());
+        final var fileSystem = vfsPath.vfsFileSystem();
+        final var fileSystem2 = vfsPath2.vfsFileSystem();
+        fileSystem2.ensureOpen();
+        if (vfsPath.equals(vfsPath2)) {
+            // Exact equality is the documented existence-check shortcut; normalized aliases are not equal paths.
+            return true;
+        }
+        checkAccess(vfsPath);
+        checkAccess(vfsPath2);
+        if (fileSystem.getRoot() instanceof DirRoot dirRoot && fileSystem2.getRoot() instanceof DirRoot dirRoot2) {
+            return Files.isSameFile(dirRoot.getNioPath().resolve(vfsPath.entryName()),
+                    dirRoot2.getNioPath().resolve(vfsPath2.entryName()));
+        }
+        return fileSystem.getRoot() == fileSystem2.getRoot() && vfsPath.entryName().equals(vfsPath2.entryName());
     }
 
     @Override
