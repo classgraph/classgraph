@@ -190,6 +190,30 @@ public class VfsRecursiveWrappingTest {
         }
     }
 
+    /** Cache eviction preserves ownership of a wrapper without acquiring ownership of its borrowed source. */
+    @Test
+    @SuppressWarnings("try")
+    public void evictedWrappersAreClosedByTheirOwnerButNotTheirSource(@TempDir final Path dir) throws IOException {
+        Files.writeString(dir.resolve("file.txt"), CONTENT);
+        try (var source = new Vfs(); var wrapper = new Vfs()) {
+            final var sourceView = source.open(dir).asFileSystem();
+            final var path = sourceView.getPath("/");
+            final var root = wrapper.open(path);
+            final var view = root.asFileSystem();
+            wrapper.evict(root);
+            assertThat(wrapper).isEmpty();
+            assertThat(Files.readString(view.getPath("/file.txt"))).isEqualTo(CONTENT);
+            final var replacement = wrapper.open(path);
+            assertThat(replacement).isNotSameAs(root);
+            final var replacementView = replacement.asFileSystem();
+            wrapper.close();
+            assertThat(view.isOpen()).isFalse();
+            assertThat(replacementView.isOpen()).isFalse();
+            assertThat(sourceView.isOpen()).isTrue();
+            assertThat(Files.readString(sourceView.getPath("/file.txt"))).isEqualTo(CONTENT);
+        }
+    }
+
     /** Distinct mounts of the same zip have independent lifetimes despite having identical path URIs. */
     @Test
     @SuppressWarnings("try")

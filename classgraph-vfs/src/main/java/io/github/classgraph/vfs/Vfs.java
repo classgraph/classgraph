@@ -1049,21 +1049,20 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
     }
 
     /**
-     * Remove a root from the cache of this {@link Vfs}, so that the memory its list of entries occupies can be
-     * reclaimed once nothing is using the root any more, and so that opening the same path again builds a new root.
+     * Remove a root from the lookup cache of this {@link Vfs}, so that opening the same path again builds a new
+     * root. This is cache invalidation, not resource release or removal from this {@link Vfs}'s ownership.
      *
      * <p>
      * This does not stop the root working. Anything still holding it -- another thread, or another part of the
      * program that opened the same path and got the same root back -- goes on reading through it exactly as before,
-     * and it becomes garbage only once the last of them lets go of it. Whatever the root itself owns is released
-     * when the root is closed, which {@link #close()} does to every root this {@link Vfs} has opened, evicted or
-     * not; to release a root's resources now rather than then, close the root instead of evicting it -- see
-     * {@link VfsRoot#close()}.
+     * and this {@link Vfs} still tracks it for cleanup. Whatever the root itself owns is released when the root is
+     * closed, which {@link #close()} does to every root this {@link Vfs} has opened, evicted or not; to release a
+     * root's resources now rather than then, close the root instead of evicting it -- see {@link VfsRoot#close()}.
      *
      * <p>
-     * There is no need to evict anything unless a long-lived {@link Vfs} opens a great many roots, since a
-     * {@link Vfs} holds every root it has opened until it is closed. Evicting a root that this {@link Vfs} does not
-     * have cached, because it was already evicted or was opened from a stream or a byte array, has no effect.
+     * To stop retaining a root and release its resources, close it: closing removes both cache and ownership
+     * registrations. Evicting a root that this {@link Vfs} does not have cached, because it was already evicted or
+     * was opened from a stream or a byte array, has no effect.
      *
      * @param root
      *            the root to remove from the cache.
