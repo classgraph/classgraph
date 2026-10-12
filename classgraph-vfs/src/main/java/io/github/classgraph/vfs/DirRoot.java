@@ -44,7 +44,7 @@ import java.util.Set;
 
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.path.FileUtils;
-import io.github.classgraph.base.internal.path.URLPaths;
+import io.github.classgraph.vfs.internal.StoragePaths;
 import io.github.classgraph.base.internal.utils.CollectionUtils;
 import org.jspecify.annotations.Nullable;
 
@@ -85,7 +85,7 @@ public final class DirRoot extends VfsRoot {
         // Windows -- through an 8.3 short name is recognized as the directory it really is, and read once
         this.dir = FileUtils.canonicalize(absoluteDir);
         try {
-            this.pathStr = FileUtils.pathStr(this.dir);
+            this.pathStr = StoragePaths.pathStr(this.dir);
         } catch (final IOError | SecurityException e) {
             throw new IOException("Could not form URI for " + this.dir + " : " + e, e);
         }
@@ -105,12 +105,12 @@ public final class DirRoot extends VfsRoot {
 
     @Override
     public URI getURI() {
-        return URLPaths.toURI(dir);
+        return StoragePaths.toURI(dir);
     }
 
     @Override
     public URI resolveURI(final String pathWithinRoot) {
-        return URLPaths.toURI(dir.resolve(pathWithinRoot));
+        return StoragePaths.toURI(dir.resolve(pathWithinRoot));
     }
 
     @Override
