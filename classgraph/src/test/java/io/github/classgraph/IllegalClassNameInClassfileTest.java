@@ -6,12 +6,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.lang.annotation.RetentionPolicy;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Pattern;
 
 import javax.tools.ToolProvider;
 
@@ -53,16 +53,16 @@ public class IllegalClassNameInClassfileTest {
      *            the name of the interface the class implements, or null for none.
      * @param attributeName
      *            {@code "InnerClasses"}, {@code "EnclosingMethod"}, {@code "RuntimeVisibleAnnotations"},
-     *            {@code "RuntimeInvisibleAnnotations"}, {@code "Exceptions"},
-     *            {@code "RuntimeVisibleParameterAnnotations"}, or null for no attribute.
+     *            {@code "RuntimeInvisibleAnnotations"}, {@code "RuntimeVisibleParameterAnnotations"},
+     *            {@code "Exceptions"}, or null for no attribute.
      * @param attributeNames
      *            for {@code InnerClasses}, the names of the inner and the outer class of its one entry; for
      *            {@code EnclosingMethod}, the name of the enclosing class; for {@code RuntimeVisibleAnnotations}
      *            and {@code RuntimeInvisibleAnnotations}, the type descriptors of its annotations, which have no
-     *            elements; for {@code Exceptions}, the name of the exception class thrown by the method
-     *            {@code m()}; for {@code RuntimeVisibleParameterAnnotations}, the type descriptors of the
-     *            annotations, which have no elements, on the one parameter of the method {@code m(int)}. For no
-     *            attribute, the names held by {@code CONSTANT_Class} entries that nothing refers to.
+     *            elements; for {@code RuntimeVisibleParameterAnnotations}, the type descriptors of the annotations,
+     *            which have no elements, on the one parameter of the method {@code m(int)}; for {@code Exceptions},
+     *            the name of the exception class thrown by the method {@code m()}. For no attribute, the names held
+     *            by {@code CONSTANT_Class} entries that nothing refers to.
      * @return the bytes of the classfile.
      * @throws IOException
      *             if the classfile could not be written.
@@ -72,8 +72,8 @@ public class IllegalClassNameInClassfileTest {
             final String... attributeNames) throws IOException {
         final var isAnnotation = "RuntimeVisibleAnnotations".equals(attributeName)
                 || "RuntimeInvisibleAnnotations".equals(attributeName);
-        final var isExceptions = "Exceptions".equals(attributeName);
         final var isParameterAnnotation = "RuntimeVisibleParameterAnnotations".equals(attributeName);
+        final var isExceptions = "Exceptions".equals(attributeName);
         // A CONSTANT_Utf8 and a CONSTANT_Class for each class name, so the class ref for name i is at 2 + 2i
         final List<String> classNames = new ArrayList<>(List.of(internalName, superclassName));
         if (interfaceName != null) {
@@ -83,16 +83,16 @@ public class IllegalClassNameInClassfileTest {
         if (!isAnnotation && !isParameterAnnotation) {
             classNames.addAll(List.of(attributeNames));
         }
-        // Then CONSTANT_Utf8 entries for the annotation type descriptors, then for the method name and descriptor,
-        // and for the attribute name
+        // Then CONSTANT_Utf8 entries for the method name and descriptor, for the annotation type descriptors, and
+        // for the attribute name
         final List<String> strings = new ArrayList<>();
-        if (isAnnotation || isParameterAnnotation) {
+        if (isAnnotation) {
             strings.addAll(List.of(attributeNames));
-        }
-        if (isExceptions) {
-            strings.addAll(List.of("m", "()V"));
         } else if (isParameterAnnotation) {
             strings.addAll(List.of("m", "(I)V"));
+            strings.addAll(List.of(attributeNames));
+        } else if (isExceptions) {
+            strings.addAll(List.of("m", "()V"));
         }
         if (attributeName != null) {
             strings.add(attributeName);
@@ -125,25 +125,30 @@ public class IllegalClassNameInClassfileTest {
                 out.writeShort(0);
             }
             out.writeShort(0); // Number of fields
-            if (isExceptions || isParameterAnnotation) {
+            if (isExceptions) {
                 out.writeShort(1); // Number of methods
                 out.writeShort(0x0401); // ACC_PUBLIC | ACC_ABSTRACT
-                out.writeShort(attributeNameCpIdx - 2); // "m"
-                out.writeShort(attributeNameCpIdx - 1); // The method descriptor
+                out.writeShort(firstStringCpIdx); // "m"
+                out.writeShort(firstStringCpIdx + 1); // "()V"
                 out.writeShort(1); // attributes_count
                 out.writeShort(attributeNameCpIdx);
-                if (isExceptions) {
-                    out.writeInt(2 + 2);
-                    out.writeShort(1); // number_of_exceptions
-                    out.writeShort(2 + 2 * firstAttributeClassIdx);
-                } else {
-                    out.writeInt(1 + 2 + 4 * attributeNames.length);
-                    out.writeByte(1); // num_parameters
-                    out.writeShort(attributeNames.length); // num_annotations
-                    for (var i = 0; i < attributeNames.length; i++) {
-                        out.writeShort(firstStringCpIdx + i); // type_index
-                        out.writeShort(0); // num_element_value_pairs
-                    }
+                out.writeInt(2 + 2);
+                out.writeShort(1); // number_of_exceptions
+                out.writeShort(2 + 2 * firstAttributeClassIdx);
+                out.writeShort(0); // Number of attributes
+            } else if (isParameterAnnotation) {
+                out.writeShort(1); // Number of methods
+                out.writeShort(0x0401); // ACC_PUBLIC | ACC_ABSTRACT
+                out.writeShort(firstStringCpIdx); // "m"
+                out.writeShort(firstStringCpIdx + 1); // "(I)V"
+                out.writeShort(1); // attributes_count
+                out.writeShort(attributeNameCpIdx);
+                out.writeInt(1 + 2 + 4 * attributeNames.length);
+                out.writeByte(1); // num_parameters
+                out.writeShort(attributeNames.length); // num_annotations
+                for (var i = 0; i < attributeNames.length; i++) {
+                    out.writeShort(firstStringCpIdx + 2 + i); // type_index
+                    out.writeShort(0); // num_element_value_pairs
                 }
                 out.writeShort(0); // Number of attributes
             } else {
@@ -294,7 +299,8 @@ public class IllegalClassNameInClassfileTest {
 
     /**
      * A method parameter annotation whose type has an illegal name is skipped, and the other annotations on the
-     * parameter are kept, whether they come before or after it, with no empty slot left in its place.
+     * parameter are kept, with no gap left where the skipped annotation was, whether the illegal annotation comes
+     * before or after the legal one.
      *
      * @param tempDir
      *            a temporary directory.
@@ -306,19 +312,25 @@ public class IllegalClassNameInClassfileTest {
             throws IOException {
         var dirIdx = 0;
         for (final var illegalName : List.of("L;", "Lp/A;;", "Lp//A;")) {
-            for (final var annotationTypes : List.of(new String[] { "Lp/Good;", illegalName },
-                    new String[] { illegalName, "Lp/Good;" })) {
-                final var desc = String.join(" ", annotationTypes);
-                final var badClassfile = classfile("p/Bad", "java/lang/Object", null,
-                        "RuntimeVisibleParameterAnnotations", annotationTypes);
+            // When the illegal annotation comes first, skipping it must move the legal one down
+            for (final var illegalFirst : List.of(true, false)) {
+                final var desc = illegalName + (illegalFirst ? " first" : " last");
+                final var badClassfile = illegalFirst
+                        ? classfile("p/Bad", "java/lang/Object", null, "RuntimeVisibleParameterAnnotations",
+                                illegalName, "Lp/Good;")
+                        : classfile("p/Bad", "java/lang/Object", null, "RuntimeVisibleParameterAnnotations",
+                                "Lp/Good;", illegalName);
                 assertThat(new ByteClassLoader().define(badClassfile).getName()).as(desc).isEqualTo("p.Bad");
                 final var dir = writeClasses(tempDir.resolve("dir" + dirIdx++), badClassfile);
                 try (var scanResult = new ClassGraph().enableClassInfo().enableMethodInfo().enableAnnotationInfo()
                         .enableExternalClasses().enableClasspathEntries(dir).scan()) {
+                    assertThat(scanResult.getAllClasses().getNames()).as(desc).containsExactlyInAnyOrder("p.Bad",
+                            "p.Good", "java.lang.Object");
                     final var parameterInfo = scanResult.getClassInfo("p.Bad").getMethodInfo("m").get(0)
                             .getParameterInfo();
                     assertThat(parameterInfo).as(desc).hasSize(1);
-                    assertThat(parameterInfo.get(0).annotationInfo).as(desc).doesNotContainNull();
+                    // The annotations as read from the classfile, before any meta-annotations are added
+                    assertThat(parameterInfo.get(0).annotationInfo).as(desc).hasSize(1).doesNotContainNull();
                     assertThat(parameterInfo.get(0).getAllAnnotationInfo().getNames()).as(desc)
                             .containsExactly("p.Good");
                 }
@@ -327,126 +339,138 @@ public class IllegalClassNameInClassfileTest {
     }
 
     /**
-     * Sources for the nested annotation tests. {@code p.In} is the annotation that is given an illegal class name,
-     * by {@link #renameIn(Path)}, in the classfiles that use it.
+     * Annotation types for the tests of nested annotations, and the classes that use them, with {@code %1$s} in
+     * place of the retention policy of the annotation types. The annotation {@code p.In} is given an illegal name
+     * in the classfiles of the classes that use it, by
+     * {@link #compileWithIllegalNestedAnnotations(Path, RetentionPolicy)}.
      */
-    private static final List<String> NESTED_ANNOTATION_SOURCES = List.of( //
-            "package p; public @interface Good {}", //
-            "package p; public @interface In {}", //
-            "package p; public @interface Holder { In[] value() default {}; }", //
-            "package p; public @interface Outer { In nested() default @In; Holder[] array() default {}; }", //
-            "package p; @Good @Outer(nested = @In) public abstract class BadNested {}", //
-            "package p; @Good @Outer(array = { @Holder, @Holder(@In) }) public abstract class BadArray {}", //
-            "package p; public @interface Defaults { int x() default 1; In nested() default @In; "
-                    + "In[] array() default { @In }; }");
-
-    /** The {@code CONSTANT_Utf8} entry that holds the type descriptor of {@code p.In}: tag, length, bytes. */
-    private static final String IN_DESCRIPTOR_ENTRY = "\u0001\u0000\u0006Lp/In;";
+    private static final String NESTED_ANNOTATION_SOURCES = """
+            package p;
+            import java.lang.annotation.*;
+            @Retention(RetentionPolicy.%1$s) @interface Good {}
+            @Retention(RetentionPolicy.%1$s) @interface In {}
+            @Retention(RetentionPolicy.%1$s) @interface Outer { In value(); }
+            @Retention(RetentionPolicy.%1$s) @interface Holder { In[] value() default {}; }
+            @Retention(RetentionPolicy.%1$s) @interface Holders { Holder[] value(); }
+            @Retention(RetentionPolicy.%1$s) @interface Defaults {
+                int x() default 1;
+                In one() default @In;
+                In[] many() default { @In };
+            }
+            @Outer(@In) @Good class NestedIllegal {}
+            @Holder({ @In }) @Good @Holders({ @Holder, @Holder(@In) }) class ArrayHoldsIllegal {}
+            """;
 
     /**
-     * The same entry with an illegal class name of the same length, so the constant pool keeps its layout. A method
-     * descriptor such as {@code ()Lp/In;} is a different entry, and is not changed.
+     * The retention policies that the nested annotation tests are run with: {@code RUNTIME} annotations are read
+     * from the {@code RuntimeVisibleAnnotations} attribute, and {@code CLASS} annotations from the
+     * {@code RuntimeInvisibleAnnotations} attribute.
      */
-    private static final String ILLEGAL_DESCRIPTOR_ENTRY = "\u0001\u0000\u0006Lp/I;;";
+    private static final List<RetentionPolicy> RETENTION_POLICIES = List.of(RetentionPolicy.RUNTIME,
+            RetentionPolicy.CLASS);
+
+    /** The classes whose classfiles refer to {@code p.In}, and in which its name is made illegal. */
+    private static final List<String> CLASSES_USING_IN = List.of("NestedIllegal", "ArrayHoldsIllegal", "Defaults");
 
     /**
-     * Compile {@link #NESTED_ANNOTATION_SOURCES}, then give {@code p.In} an illegal class name in the classfiles of
-     * {@code p.BadNested}, {@code p.BadArray} and {@code p.Defaults}.
+     * Compile {@link #NESTED_ANNOTATION_SOURCES} with the given retention policy, then replace the type descriptor
+     * {@code Lp/In;} in the constant pool of each class in {@link #CLASSES_USING_IN} with the illegal
+     * {@code Lp/I;;}, which has the same length. The whole constant pool entry is matched, including its tag and
+     * length, so that a method descriptor such as {@code ()Lp/In;}, which is a separate entry, is left unchanged.
      *
      * @param tempDir
      *            a temporary directory.
-     * @return the directory that holds the classfiles.
+     * @param retentionPolicy
+     *            the retention policy of the annotation types.
+     * @return the directory holding the classfiles.
      * @throws IOException
-     *             if a file could not be written.
+     *             if a file could not be read or written.
      */
-    private static Path compileNestedAnnotationClasses(final Path tempDir) throws IOException {
-        final var srcDir = Files.createDirectories(tempDir.resolve("src/p"));
-        final var classesDir = Files.createDirectories(tempDir.resolve("classes"));
-        final List<String> args = new ArrayList<>(List.of("-d", classesDir.toString()));
-        for (final var source : NESTED_ANNOTATION_SOURCES) {
-            final var nameMatcher = Pattern.compile("(?:class|@interface) (\\w+)").matcher(source);
-            assertThat(nameMatcher.find()).as(source).isTrue();
-            final var srcFile = srcDir.resolve(nameMatcher.group(1) + ".java");
-            Files.writeString(srcFile, source);
-            args.add(srcFile.toString());
-        }
+    private static Path compileWithIllegalNestedAnnotations(final Path tempDir,
+            final RetentionPolicy retentionPolicy) throws IOException {
+        final var dir = tempDir.resolve(retentionPolicy.name());
+        final var srcFile = dir.resolve("src/p/Sources.java");
+        Files.createDirectories(srcFile.getParent());
+        Files.writeString(srcFile, NESTED_ANNOTATION_SOURCES.formatted(retentionPolicy.name()));
+        final var classesDir = Files.createDirectories(dir.resolve("classes"));
         final var compiler = ToolProvider.getSystemJavaCompiler();
         assertThat(compiler).as("the tests must be run on a JDK, not a JRE").isNotNull();
-        assertThat(compiler.run(null, null, null, args.toArray(new String[0]))).as("javac exit code").isZero();
-        for (final var className : List.of("BadNested", "BadArray", "Defaults")) {
-            renameIn(classesDir.resolve("p/" + className + ".class"));
+        assertThat(compiler.run(/* in = */ null, /* out = */ null, /* err = */ null, "-d", classesDir.toString(),
+                srcFile.toString())).as("javac exit code").isZero();
+        final var from = "\u0001\u0000\u0006Lp/In;";
+        final var to = "\u0001\u0000\u0006Lp/I;;";
+        for (final var className : CLASSES_USING_IN) {
+            final var classfile = classesDir.resolve("p/" + className + ".class");
+            final var bytes = Files.readAllBytes(classfile);
+            // ISO-8859-1 maps each byte to one char, so string positions are byte positions
+            final var str = new String(bytes, StandardCharsets.ISO_8859_1);
+            final var idx = str.indexOf(from);
+            assertThat(idx).as(className).isNotNegative();
+            assertThat(str.indexOf(from, idx + 1)).as(className).isNegative();
+            System.arraycopy(to.getBytes(StandardCharsets.ISO_8859_1), 0, bytes, idx, to.length());
+            Files.write(classfile, bytes);
         }
         return classesDir;
     }
 
     /**
-     * Replace the {@code CONSTANT_Utf8} entry {@link #IN_DESCRIPTOR_ENTRY} in a classfile with
-     * {@link #ILLEGAL_DESCRIPTOR_ENTRY}.
-     *
-     * @param classfile
-     *            the classfile.
-     * @throws IOException
-     *             if the classfile could not be read or written.
-     */
-    private static void renameIn(final Path classfile) throws IOException {
-        final var bytes = Files.readAllBytes(classfile);
-        // ISO-8859-1 maps each byte to one char, so string positions are byte positions
-        final var str = new String(bytes, StandardCharsets.ISO_8859_1);
-        final var idx = str.indexOf(IN_DESCRIPTOR_ENTRY);
-        assertThat(idx).as(classfile.toString()).isNotNegative();
-        assertThat(str.indexOf(IN_DESCRIPTOR_ENTRY, idx + 1)).as(classfile.toString()).isNegative();
-        System.arraycopy(ILLEGAL_DESCRIPTOR_ENTRY.getBytes(StandardCharsets.ISO_8859_1), 0, bytes, idx,
-                ILLEGAL_DESCRIPTOR_ENTRY.length());
-        Files.write(classfile, bytes);
-    }
-
-    /**
-     * An annotation that holds a nested annotation whose type has an illegal name, directly or in an array, is
-     * skipped as a whole, even if the array also holds legal annotations, and the other annotations of the class
-     * are kept. The JVM loads such a class.
+     * An annotation whose element value is a nested annotation with an illegal class name, or an array that holds
+     * one, cannot be represented, so it is skipped like an annotation whose own class name is illegal. The class
+     * and its other annotations are kept, as the JVM loads such a class.
      *
      * @param tempDir
      *            a temporary directory.
      * @throws IOException
-     *             if a file could not be written.
+     *             if a file could not be read or written.
      */
     @Test
-    public void anAnnotationThatHoldsAnAnnotationWhoseTypeHasAnIllegalNameIsSkipped(@TempDir final Path tempDir)
+    public void anAnnotationHoldingANestedAnnotationWithAnIllegalNameIsSkipped(@TempDir final Path tempDir)
             throws IOException {
-        final var dir = compileNestedAnnotationClasses(tempDir);
-        for (final var className : List.of("p.BadNested", "p.BadArray")) {
-            final var classfile = Files.readAllBytes(dir.resolve(className.replace('.', '/') + ".class"));
-            assertThat(new ByteClassLoader().define(classfile).getName()).isEqualTo(className);
-        }
-        try (var scanResult = new ClassGraph().enableClassInfo().enableAnnotationInfo().enableClasspathEntries(dir)
-                .scan()) {
-            for (final var className : List.of("p.BadNested", "p.BadArray")) {
-                assertThat(scanResult.getClassInfo(className).getAllAnnotationInfo().getNames()).as(className)
-                        .containsExactly("p.Good");
+        for (final var retentionPolicy : RETENTION_POLICIES) {
+            final var classesDir = compileWithIllegalNestedAnnotations(tempDir, retentionPolicy);
+            for (final var className : List.of("NestedIllegal", "ArrayHoldsIllegal")) {
+                final var classfile = Files.readAllBytes(classesDir.resolve("p/" + className + ".class"));
+                assertThat(new ByteClassLoader().define(classfile).getName()).as(retentionPolicy + " " + className)
+                        .isEqualTo("p." + className);
+            }
+            try (var scanResult = new ClassGraph().enableClassInfo().enableAnnotationInfo().ignoreClassVisibility()
+                    .enableClasspathEntries(classesDir).scan()) {
+                assertThat(scanResult.getAllClasses().getNames()).as(retentionPolicy.name())
+                        .noneMatch(name -> name.contains(";"));
+                // @Outer(@In), where @In has an illegal name, comes before @Good
+                assertThat(scanResult.getClassInfo("p.NestedIllegal").getAllAnnotationInfo().getNames())
+                        .as(retentionPolicy.name()).containsExactly("p.Good");
+                // @Holder({@In}) holds an illegal annotation in an array, and @Holders({@Holder, @Holder(@In)})
+                // holds an array with a legal annotation and one that holds an illegal annotation
+                assertThat(scanResult.getClassInfo("p.ArrayHoldsIllegal").getAllAnnotationInfo().getNames())
+                        .as(retentionPolicy.name()).containsExactly("p.Good");
             }
         }
     }
 
     /**
-     * The default value of an annotation element that is an annotation whose type has an illegal name, or an array
-     * that holds one, is left out, and the other default values of the annotation are kept.
+     * An annotation default value that is a nested annotation with an illegal class name, or an array that holds
+     * one, is left out, and the other default values of the annotation are kept.
      *
      * @param tempDir
      *            a temporary directory.
      * @throws IOException
-     *             if a file could not be written.
+     *             if a file could not be read or written.
      */
     @Test
-    public void aDefaultValueThatHoldsAnAnnotationWhoseTypeHasAnIllegalNameIsLeftOut(@TempDir final Path tempDir)
+    public void anAnnotationDefaultHoldingAnAnnotationWithAnIllegalNameIsSkipped(@TempDir final Path tempDir)
             throws IOException {
-        final var dir = compileNestedAnnotationClasses(tempDir);
-        try (var scanResult = new ClassGraph().enableClassInfo().enableMethodInfo().enableAnnotationInfo()
-                .enableClasspathEntries(dir).scan()) {
-            final var defaults = scanResult.getClassInfo("p.Defaults");
-            assertThat(defaults.getDeclaredMethodInfo().getNames()).containsExactlyInAnyOrder("x", "nested",
-                    "array");
-            assertThat(defaults.getAnnotationDefaultParameterValues().getNames()).containsExactly("x");
-            assertThat(defaults.getAnnotationDefaultParameterValues().getValue("x")).isEqualTo(1);
+        for (final var retentionPolicy : RETENTION_POLICIES) {
+            final var classesDir = compileWithIllegalNestedAnnotations(tempDir, retentionPolicy);
+            try (var scanResult = new ClassGraph().enableClassInfo().enableMethodInfo().enableAnnotationInfo()
+                    .ignoreClassVisibility().enableClasspathEntries(classesDir).scan()) {
+                final var defaults = scanResult.getClassInfo("p.Defaults");
+                assertThat(defaults.getDeclaredMethodInfo().getNames()).as(retentionPolicy.name())
+                        .containsExactlyInAnyOrder("x", "one", "many");
+                final var defaultValues = defaults.getAnnotationDefaultParameterValues();
+                assertThat(defaultValues.getNames()).as(retentionPolicy.name()).containsExactly("x");
+                assertThat(defaultValues.getValue("x")).as(retentionPolicy.name()).isEqualTo(1);
+            }
         }
     }
 

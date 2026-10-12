@@ -103,9 +103,10 @@ public class ClasspathElementDirTest {
     }
 
     /**
-     * What a directory classpath element learned about its package directories during the scan is forgotten once
-     * the classfiles have been scanned, since the scan result keeps the classpath element for as long as it is
-     * open.
+     * What a directory classpath element learned about its package directories while looking up external classes is
+     * dropped when the classfiles have been scanned, so that it is not kept for as long as the {@link ScanResult}
+     * is. The classpath element is read from the {@link ClassInfo} of a scanned class, and once the scan is over, a
+     * classfile created in a package directory that was missing during the scan is found.
      *
      * @param tempDir
      *            a temporary directory.
@@ -113,32 +114,26 @@ public class ClasspathElementDirTest {
      *             if a file could not be written.
      */
     @Test
-    public void packageDirsAreForgottenAfterTheScan(@TempDir final Path tempDir) throws IOException {
-        // p.A, in the first directory, extends q.B, in the second, so the scan looks for q/B.class in the first
-        // directory, and finds that it has no directory q
-        final var srcDir = tempDir.resolve("src");
-        final var firstDir = tempDir.resolve("first");
-        final var secondDir = tempDir.resolve("second");
-        Files.createDirectories(srcDir);
-        final var sourceA = Files.writeString(srcDir.resolve("A.java"), "package p; public class A extends q.B {}");
-        final var sourceB = Files.writeString(srcDir.resolve("B.java"), "package q; public class B {}");
+    public void missingPackageDirsAreForgottenAfterTheScan(@TempDir final Path tempDir) throws IOException {
+        // p.A in the first directory extends q.B in the second, so looking up q.B looks in the first directory
+        // first, and finds that it has no package q
+        final var dir1 = tempDir.resolve("dir1");
+        final var dir2 = Files.createDirectories(tempDir.resolve("dir2"));
+        final var srcDir = Files.createDirectories(tempDir.resolve("src"));
+        Files.writeString(srcDir.resolve("A.java"), "package p; public class A extends q.B {}");
+        Files.writeString(srcDir.resolve("B.java"), "package q; public class B {}");
         final var compiler = ToolProvider.getSystemJavaCompiler();
         assertThat(compiler).as("the tests must be run on a JDK, not a JRE").isNotNull();
-        assertThat(
-                compiler.run(null, null, null, "-d", firstDir.toString(), sourceA.toString(), sourceB.toString()))
-                .as("javac exit code").isZero();
-        Files.createDirectories(secondDir);
-        Files.move(firstDir.resolve("q"), secondDir.resolve("q"));
-
+        assertThat(compiler.run(/* in = */ null, /* out = */ null, /* err = */ null, "-d", dir1.toString(),
+                srcDir.resolve("A.java").toString(), srcDir.resolve("B.java").toString())).as("javac exit code")
+                .isZero();
+        Files.move(dir1.resolve("q"), dir2.resolve("q"));
         try (var scanResult = new ClassGraph().enableClassInfo().enableExternalClasses().acceptPackages("p")
-                .enableClasspathEntries(firstDir, secondDir).scan()) {
-            final var classInfoA = scanResult.getClassInfo("p.A");
-            assertThat(classInfoA.getSuperclass().getName()).isEqualTo("q.B");
-
-            // A classfile in a package directory created after the scan is found, so the classpath element no
-            // longer remembers that the directory was missing
-            createFile(firstDir.resolve("q/C.class"));
-            assertThat(classInfoA.classpathElement.getResourceDuringScan("q/C.class")).isNotNull();
+                .enableClasspathEntries(dir1, dir2).scan()) {
+            final var classInfo = scanResult.getClassInfo("p.A");
+            assertThat(classInfo.getSuperclass().getName()).isEqualTo("q.B");
+            createFile(dir1.resolve("q/C.class"));
+            assertThat(classInfo.classpathElement.getResourceDuringScan("q/C.class")).isNotNull();
         }
     }
 }
