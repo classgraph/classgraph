@@ -1146,7 +1146,7 @@ class Scanner {
         // Only scanning classfiles looks up external classes, so what the classpath elements remembered while doing
         // that is no longer needed, and is not kept for the life of the ScanResult
         for (final ClasspathElement classpathElement : finalClasspathEltOrder) {
-            classpathElement.clearScanCaches();
+            classpathElement.classfileScanFinished();
         }
 
         // Link the Classfile objects to produce ClassInfo objects. This needs to be done from a single thread.
