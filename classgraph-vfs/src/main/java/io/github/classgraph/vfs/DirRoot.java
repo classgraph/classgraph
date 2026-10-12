@@ -35,9 +35,11 @@ import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Deque;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -50,6 +52,19 @@ import org.jspecify.annotations.Nullable;
 
 /** A directory in a filesystem. */
 public final class DirRoot extends VfsRoot {
+    /**
+     * A directory to enter, or a canonical ancestor to remove after its children have been visited.
+     *
+     * @param path
+     *            the directory to enter, or the canonical ancestor to remove for an exit step.
+     * @param namePrefix
+     *            the root-relative directory name with a trailing slash, or empty for the root or an exit step.
+     * @param exiting
+     *            whether this step removes an ancestor after its children have been visited.
+     */
+    private record WalkStep(Path path, String namePrefix, boolean exiting) {
+    }
+
     /** The directory, canonicalized. */
     private final Path dir;
 
@@ -132,11 +147,11 @@ public final class DirRoot extends VfsRoot {
     void walkImpl(final VfsVisitor visitor, final @Nullable LogNode log) throws IOException {
         // Symlinks can make a directory tree cyclic, so record the canonical paths of the directories on the way
         // down to the one being walked -- otherwise a directory that contains a symlink to one of its own ancestors
-        // makes this recursion run until it runs out of stack. Only those ancestors are recorded, not every
+        // makes the traversal never finish. Only those ancestors are recorded, not every
         // directory walked so far, so that a directory reached a second time by another path that is not a cycle,
         // such as a symlink to a sibling directory, is walked again under that path, as Files.walk does with
         // FOLLOW_LINKS.
-        walkRecursively(dir, "", visitor, new HashSet<>(), log);
+        walkIteratively(visitor, log);
     }
 
     @Override
@@ -154,53 +169,55 @@ public final class DirRoot extends VfsRoot {
     }
 
     /**
-     * Walk the files under a directory, recursing into its subdirectories.
+     * Walk the files under this root without consuming call-stack space for each directory level.
      *
-     * @param currDir
-     *            the directory to walk.
-     * @param namePrefix
-     *            the name of {@code currDir} relative to the root, with a trailing {@code '/'}, or the empty string
-     *            for the root itself.
      * @param visitor
      *            the visitor to hand the entries to.
-     * @param visitedDirs
-     *            the canonical paths of the directories that enclose {@code currDir} on the path the walk took to
-     *            reach it. On return, the set holds the same paths it held on entry.
      * @param log
      *            the log node, or null to not log.
      * @return true to go on walking, or false if the visitor asked for the walk to stop.
      */
-    private boolean walkRecursively(final Path currDir, final String namePrefix, final VfsVisitor visitor,
-            final Set<Path> visitedDirs, final @Nullable LogNode log) {
-        // Ask before listing, since not listing an unwanted directory is the whole point of asking
-        if (!visitor.enterDirectory(namePrefix.isEmpty() ? "/" : namePrefix)) {
-            return true;
-        }
-        final Path canonicalDir;
-        try {
-            canonicalDir = currDir.toRealPath();
-        } catch (final IOException | SecurityException e) {
-            // A directory that cannot be resolved is skipped, rather than aborting the whole listing
-            if (log != null) {
-                log.log("Could not canonicalize path: " + currDir + " : " + e);
+    private boolean walkIteratively(final VfsVisitor visitor, final @Nullable LogNode log) {
+        final Set<Path> visitedDirs = new HashSet<>();
+        final Deque<WalkStep> pending = new ArrayDeque<>();
+        pending.push(new WalkStep(dir, "", false));
+        while (!pending.isEmpty()) {
+            final var step = pending.pop();
+            if (step.exiting) {
+                visitedDirs.remove(step.path);
+                continue;
             }
-            return true;
-        }
-        if (!visitedDirs.add(canonicalDir)) {
-            if (log != null) {
-                log.log("Reached symlink cycle, stopping recursion: " + currDir);
+            final var currDir = step.path;
+            final var namePrefix = step.namePrefix;
+            // Ask before listing, since not listing an unwanted directory is the whole point of asking.
+            if (!visitor.enterDirectory(namePrefix.isEmpty() ? "/" : namePrefix)) {
+                continue;
             }
-            return true;
+            final Path canonicalDir;
+            try {
+                canonicalDir = currDir.toRealPath();
+            } catch (final IOException | SecurityException e) {
+                if (log != null) {
+                    log.log("Could not canonicalize path: " + currDir + " : " + e);
+                }
+                continue;
+            }
+            if (!visitedDirs.add(canonicalDir)) {
+                if (log != null) {
+                    log.log("Reached symlink cycle, stopping traversal: " + currDir);
+                }
+                continue;
+            }
+            pending.push(new WalkStep(canonicalDir, "", true));
+            if (!walkChildren(currDir, namePrefix, visitor, pending, log)) {
+                return false;
+            }
         }
-        try {
-            return walkChildren(currDir, namePrefix, visitor, visitedDirs, log);
-        } finally {
-            visitedDirs.remove(canonicalDir);
-        }
+        return true;
     }
 
     /**
-     * Walk the files directly in a directory, then recurse into its subdirectories.
+     * Walk the files directly in a directory, then schedule its subdirectories in traversal order.
      *
      * @param currDir
      *            the directory to walk.
@@ -209,15 +226,14 @@ public final class DirRoot extends VfsRoot {
      *            for the root itself.
      * @param visitor
      *            the visitor to hand the entries to.
-     * @param visitedDirs
-     *            the canonical paths of {@code currDir} and of the directories that enclose it on the path the walk
-     *            took to reach it.
+     * @param pending
+     *            the traversal stack, with the directory's exit step already queued.
      * @param log
      *            the log node, or null to not log.
      * @return true to go on walking, or false if the visitor asked for the walk to stop.
      */
     private boolean walkChildren(final Path currDir, final String namePrefix, final VfsVisitor visitor,
-            final Set<Path> visitedDirs, final @Nullable LogNode log) {
+            final Deque<WalkStep> pending, final @Nullable LogNode log) {
         final List<Path> children = new ArrayList<>();
         try (var dirStream = Files.newDirectoryStream(currDir)) {
             for (final Path child : dirStream) {
@@ -252,10 +268,9 @@ public final class DirRoot extends VfsRoot {
                 return false;
             }
         }
-        for (final Path subDir : subDirs) {
-            if (!walkRecursively(subDir, namePrefix + subDir.getFileName() + "/", visitor, visitedDirs, log)) {
-                return false;
-            }
+        for (var i = subDirs.size() - 1; i >= 0; i--) {
+            final var subDir = subDirs.get(i);
+            pending.push(new WalkStep(subDir, namePrefix + subDir.getFileName() + "/", false));
         }
         return true;
     }
