@@ -17,7 +17,8 @@ import java.util.stream.Collectors;
  * used to run as two arms in one JVM, is recorded at
  * https://github.com/classgraph/classgraph/wiki/Memory-Mapping-Benchmark .
  *
- * Run with: java -cp <classgraph-classes> Bench.java <jar-dir> <warm|cold> <numRuns> <evict-command|none>
+ * Run with: java -cp <classgraph-classes> Bench.java <jar-dir> <warm|cold> <numRuns> <evict-command|none> Use
+ * "none" only for warm runs. Cold runs require a real cache-eviction command.
  */
 public class Bench {
     /** The classpath to scan: every jar in the directory named by the first argument. */
@@ -34,11 +35,29 @@ public class Bench {
      *
      * @param args
      *            the jar directory, "warm" or "cold", the number of runs, and the eviction command (which may be
-     *            several arguments, or the single argument "none")
+     *            several arguments, or the single argument "none" in warm mode). The run count must be positive.
      * @throws Exception
      *             if the benchmark could not be run
      */
     public static void main(final String[] args) throws Exception {
+        if (args.length < 4) {
+            throw new IllegalArgumentException(
+                    "Usage: Bench <jar-dir> <warm|cold> <positive-numRuns> <evict-command|none>");
+        }
+        if (!args[1].equals("warm") && !args[1].equals("cold")) {
+            throw new IllegalArgumentException("Mode must be warm or cold");
+        }
+        final boolean cold = args[1].equals("cold");
+        final int numRuns = Integer.parseInt(args[2]);
+        if (numRuns <= 0) {
+            throw new IllegalArgumentException("Number of runs must be positive");
+        }
+        if (cold && args.length == 4 && args[3].equals("none")) {
+            throw new IllegalArgumentException(
+                    "Cold runs require a cache-eviction command; use warm mode with none");
+        }
+        // Reset this even when the driver is invoked again in the same JVM after a cold run.
+        evictCommand = cold ? java.util.Arrays.copyOfRange(args, 3, args.length) : null;
         final List<Path> jars;
         try (var files = Files.list(Path.of(args[0]))) {
             jars = files.filter(f -> f.toString().endsWith(".jar")).sorted().collect(Collectors.toList());
@@ -48,12 +67,6 @@ public class Bench {
         for (final Path jar : jars) {
             corpusBytes += Files.size(jar);
         }
-        final boolean cold = args[1].equals("cold");
-        final int numRuns = Integer.parseInt(args[2]);
-        if (cold) {
-            evictCommand = java.util.Arrays.copyOfRange(args, 3, args.length);
-        }
-
         final List<Double> times = new ArrayList<>();
         for (int i = 0; i < numRuns; i++) {
             times.add(scan());
