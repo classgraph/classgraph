@@ -400,9 +400,9 @@ The ordinary invocation fatal-error probe correctly propagated `OutOfMemoryError
 
 ## Additional requested verification
 
-R05 follow-up: classpath-container expansion now uses explicit iterator frames and identity-based ancestor guards. `ClasspathEntryFlattenerTest` covers 12,000 alternating array/collection levels on a 256 KiB-stack thread, cyclic arrays and collections, repeated aliases, self-yielding resources, atomic paths/primitive arrays/nulls, and action failures. Main commit `dcbdd5032`; v5 backport `a040fcb38`. `ModuleFinderLayerOrderTest` adds a 1,200-layer small-stack regression, preserving the existing parent/child ordering tests. `VfsDeepDirectoryTest` exercises both visitor walking and cached enumeration of a 1,000-level tree without host path-length restrictions. A pre-fix v5 probe reproduced `StackOverflowError`; the full main reactor passed after all three traversal fixes. A real 1,000-level native directory tree also passed targeted verification; the portable regression uses Jimfs to keep CI fast.
+R05 follow-up: classpath-container expansion now uses explicit iterator frames and identity-based ancestor guards. `ClasspathEntryFlattenerTest` covers 12,000 alternating array/collection levels on a 256 KiB-stack thread, cyclic arrays and collections, repeated aliases, self-yielding resources, atomic paths/primitive arrays/nulls, and action failures. Main commit `93a3cae68`; v5 backport `5102f7ed0`. `ModuleFinderLayerOrderTest` adds a 1,200-layer small-stack regression, preserving the existing parent/child ordering tests. `VfsDeepDirectoryTest` exercises both visitor walking and cached enumeration of a 1,000-level tree without host path-length restrictions. A pre-fix v5 probe reproduced `StackOverflowError`; the full main reactor passed after all three traversal fixes. A real 1,000-level native directory tree also passed targeted verification; the portable regression uses Jimfs to keep CI fast.
 
-- [x] Exercise recursive `classgraph-vfs` wrapping: `VfsRecursiveWrappingTest` covers three layers over native directories, native archives, archive package roots, and RAM-backed archives; repeated self-wrapping in one `Vfs`; provider-owned views; independently closing source views; and separate zip mounts with identical URIs. Reading, listing, metadata, cache reuse, and borrowed ownership are checked.
+- [x] Exercise recursive `classgraph-vfs` wrapping: `VfsRecursiveWrappingTest` covers three layers over native directories, native archives, archive package roots, and RAM-backed archives; eight layers over a module with counted metadata lookups; repeated self-wrapping in one `Vfs`; provider-owned views; independently closing source views; evicted-wrapper ownership; and separate zip mounts with identical URIs. Reading, listing, metadata, lookup scaling, cache reuse, and borrowed ownership are checked.
 
 ### R25 — Recursive wrappers and independent filesystem mounts alias in the root cache
 
@@ -412,15 +412,25 @@ The fix keys non-default filesystem paths by filesystem identity and provider UR
 
 ## Remediation log
 
+### R27 — Recursive filesystem views multiply metadata lookups
+
+The deeper module-backed wrapping test found that `DirRoot.pathForNio()` rechecked existence and real-path case at every layer, even when its backing path was already a `VfsPath` in ClassGraph's case-sensitive namespace. Each redundant check traversed the inner views again, producing exponential lookup work. Reading one resource through eight view layers required **9,841** module-resource URI lookups in the pre-fix regression.
+
+The follow-up fix delegates exact-name validation to the source view for `VfsPath` backing paths, while retaining the existing checks for native and foreign-provider paths. `deepModuleWrappersDoNotMultiplyResourceLookups` verifies the content and bounds those lookups by `4 * (depth + 1)` (36 at eight layers), avoiding a timing-dependent assertion. The pre-fix test failed on the lookup count; after the fix, all eight recursive-wrapping tests and the existing native/virtual filesystem tests passed. This optimization applies to v6/v5, not the legacy v4 API. Its implementation, test and report update form a separate follow-up fix commit.
+
 ### Additional documentation consistency finding (R26)
 
 The final VFS documentation pass found a misleading eviction promise in the Javadoc, README, tests' explanatory comments, and wiki: eviction was said to permit reclamation of a root and its entry list once callers released it. In fact, `Vfs.openRoots` deliberately retains evicted roots until they or their owning `Vfs` close, so that owner shutdown still releases every root's resources. Documentation now distinguishes cache invalidation from ownership/resource release. A new recursive-wrapper regression verifies that eviction permits a replacement root, leaves both roots usable until owner shutdown, and never transfers ownership of the borrowed source filesystem. No production behavior or API is changed by this clarification.
 
 The same documentation pass aligns the README and VFS wiki reference with provider/storage URI separation, borrowed view handle closure, live native directories, direct file lookups, successful module-size snapshot caching, and recursive wrapping. The porting guide also explains these contracts and the deliberate v4 inheritance/namespace differences.
 
-Main documentation/ownership follow-up: `d13f7c844`, v5 `f423fe7d4`, with a new eviction/borrowed-wrapper regression and full main reactor verification plus targeted JDK 17 verification. Fresh clean builds after the implementation fixes also passed on the minimum supported runtimes: main on JDK 25 (2,665 tests), v5 on JDK 17 (2,694 tests), and v4 on JDK 8 (938 tests), with zero failures/errors. These clean-build counts precede the final documentation-only follow-up's additional ownership test. R25 now has seven recursive-wrapping/ownership tests across its implementation and documentation follow-up commits.
+Main documentation/ownership follow-up: `0e9f19ae8`, v5 `f0bfc8c37`, with a new eviction/borrowed-wrapper regression and full main reactor verification plus targeted JDK 17 verification. Fresh clean builds after the implementation fixes also passed on the minimum supported runtimes: main on JDK 25 (2,665 tests), v5 on JDK 17 (2,694 tests), and v4 on JDK 8 (938 tests), with zero failures/errors. These clean-build counts precede the documentation-only follow-up's additional ownership test and the subsequent R27 module-lookup regression. The additional recursive-wrapping/ownership verification now comprises eight tests.
 
 Each implementation fix has its own commit and focused regression coverage; documentation-only findings use documentation/source verification instead. The commits below identify implementation milestones and their backports. Publication is gated one commit at a time per branch: all checks for the preceding pushed revision must pass before the next fix is pushed.
+
+One corrective exception was necessary: R11's link-cycle regression exposed its dependency on R08 on Windows, whose native attributes do not provide file keys. The JDK walker then relies on `isSameFile`, so R08 was published to repair that intermediate revision; all three Windows jobs and the full main Java CI passed afterward. The unpublished v5 sequence was reordered to land R08 before R11.
+
+A subsequent R07 test-only correction (`2020082bd` on main, folded into the v5 R07 backport) compares storage URIs against real paths: macOS's `/var` alias and Windows short temporary-directory names need not retain their original spelling after canonicalization. A new symlink-alias regression verifies canonical storage naming, provider URI separation, and readable contents. Production behavior is unchanged.
 
 | Finding | Main commit | v5 backport | Disposition |
 | --- | --- | --- | --- |
@@ -430,11 +440,11 @@ Each implementation fix has its own commit and focused regression coverage; docu
 | R04 | `035daf3ef` | `90b6baef6` | Views own and close their handles; ownership, replacement, close-race and error-draining tests added. |
 | R05 | `174619d03` | `f30d92d76` | Iterative manifest dependency ordering; 1,200-jar small-stack regression. Additional inspected traversals addressed separately below. |
 | R06 | `f6bddbb81` | `f4ecb58df` | Filtering preserves duplicate declaration entries. |
-| R07 | `605195bbe` | `cb13e9299` | Provider `toUri()` separated from explicit `toStorageUri()`; internal storage naming, provider round-trips, borrowed/uninstalled views, archive and non-default-filesystem regressions. |
-| R08 | `2fccfc0b7` | `862520e5b` | Actual file identity and both view lifetimes checked; missing files, links, independent archives and native views covered. |
+| R07 | `605195bbe` | `a022d9cba` | Provider `toUri()` separated from explicit `toStorageUri()`; internal storage naming, provider round-trips, borrowed/uninstalled views, archive and non-default-filesystem regressions. |
+| R08 | `2fccfc0b7` | `43d6841ac` | Actual file identity and both view lifetimes checked; missing files, links, independent archives and native views covered. |
 | R09 | `42515f083` | `d420b007a` | Cross-filesystem relativization rejected. |
 | R10 | `94ec34b27` | `a5ad79f8a` | Directory filtering is lazy; buffered iterator entries survive stream close under the NIO contract. |
-| R11 | `7ac4f9452` | `073a81d2e` | Native directory namespace and attributes are live; empty directories, mutations, symlinks and walk cycles covered. |
+| R11 | `7ac4f9452` | `947039d56` | Native directory namespace and attributes are live; empty directories, mutations, symlinks and walk cycles covered. |
 | R12 | `1b86bed5c` | `dff8107e5` | Closed channels detach content, root and owner state. |
 | R13 | `c41a5eab5` | `28645f0f7` | Transfers use a bounded independent stream; large offsets, partial writes, EOF and unchanged channel position covered. |
 | R14 | `7f5ac01d1` | `5daf64958` | Individual file lookups avoid whole-root enumeration; native mutations and modules that reject enumeration covered. |
@@ -447,8 +457,8 @@ Each implementation fix has its own commit and focused regression coverage; docu
 | R21 | `fe75f7eb8` | `18e34dbe8` | Intentional name-based graph identity is documented and tested with separate loader namespaces; no incompatible identity-model rewrite. |
 | R22 | `801b3ea49` | `303e2ed49` | Actions pinned to immutable revisions with a validation gate; v5-only workflows included. |
 | R24 | `9a88f50d3` | `de88883f6` | Benchmark modes and eviction arguments validated; `none` handled explicitly. |
-| R25 | `2698e8b3d` | `2a307e7e1` | Recursive views and independently mounted filesystems receive distinct cache identities; six new tests cover wrapping and lifetimes. |
+| R25 | `89da9c3d2` | `807a38472` | Recursive views and independently mounted filesystems receive distinct cache identities; six new tests cover wrapping and lifetimes. |
 
-Additional R05 commits: iterative classpath-container expansion (`dcbdd5032`, v5 `a040fcb38`), module-layer traversal (`0162c74ea`, v5 `c46703fc9`), and filesystem directory traversal (`72a48a133`, v5 `36af8a318`), with the depth and contract tests described above. All three sites identified for further inspection in the original review have been addressed. The directory traversal backport preserves v5's Security Manager handling and passed its full JDK 17 reactor.
+Additional R05 commits: iterative classpath-container expansion (`93a3cae68`, v5 `5102f7ed0`), module-layer traversal (`7886f8572`, v5 `84efb99a4`), and filesystem directory traversal (`5873edc82`, v5 `6574bafd5`), with the depth and contract tests described above. All three sites identified for further inspection in the original review have been addressed. The directory traversal backport preserves v5's Security Manager handling and passed its full JDK 17 reactor.
 
 The legacy v4 branch receives bugfix-only adaptations, not the new NIO API or changed inheritance/query semantics: fatal-driver initialization propagation (`0b3ca7d83`) and iterative manifest ordering (`099aa255d`). Both passed their JDK 8 tests and all branch CI checks. The porting guide explains the deliberately different v4 member-query behavior.

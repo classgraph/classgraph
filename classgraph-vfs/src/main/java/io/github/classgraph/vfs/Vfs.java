@@ -358,8 +358,8 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      * the calling thread as a failure of the path it was opening. Only the public {@code open} methods convert it.
      *
      * @param key
-     *            the cache key: a path in the form {@link #resolvePath(String)} returns, or the URI of a
-     *            {@link Path} in a non-default filesystem.
+     *            the cache key: a path in the form {@link #resolvePath(String)} returns, or the filesystem identity
+     *            and provider URI of a {@link Path} in a non-default filesystem.
      * @param aliasReportedPath
      *            whether to also record the root under the path it reports itself at. This is false for a root
      *            opened through a {@link Path} in a non-default filesystem, whose reported path names the file the
@@ -833,7 +833,7 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      * @param path
      *            the directory or jarfile to open.
      * @param key
-     *            the cache key, which is the URI of the path.
+     *            the cache key, containing the source filesystem identity and the path's provider URI.
      * @param outerLog
      *            the log node to log under, or null to skip logging.
      * @return the opened root.
