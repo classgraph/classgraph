@@ -672,9 +672,9 @@ public class NestedJarHandler {
             filenameBase = filenameBase.substring(startIdx);
         }
         // The directory is left to the JDK, as for every other temporary file. Before JDK 16, the JDK reads the
-        // java.io.tmpdir system property during the first call to Files.createTempFile or
-        // Files.createTempDirectory in the JVM, and this call may be that one, so the property is checked first. From JDK 16, the JDK uses the value given when the JVM
-        // started, which ClassGraph cannot change, so there is nothing to check.
+        // java.io.tmpdir system property during the first call to Files.createTempFile or Files.createTempDirectory
+        // in the JVM, and this call may be that one, so the property is checked first. From JDK 16, the JDK uses
+        // the value given when the JVM started, which ClassGraph cannot change, so there is nothing to check.
         if (VersionFinder.JAVA_MAJOR_VERSION < 16) {
             checkTempDirPropertyBeforeJdk16();
         }
@@ -729,13 +729,12 @@ public class NestedJarHandler {
      * the JVM started, so changing the property later has no effect, and this check is not made. Before JDK 16, the
      * initializer uses the value the property has when it runs, during the first call to
      * {@code Files.createTempFile} or {@code Files.createTempDirectory} in the JVM. That call may be ClassGraph's,
-     * so on those JDKs a
-     * cleared property, or a value that is not a valid path, gives an {@link IOException} here, which leaves the
-     * helper class usable by the rest of the application once the property is set to a valid value again. If the
-     * property was cleared after the initializer ran, the JDK would still create the file, but ClassGraph cannot
-     * tell whether the initializer has run, so that case gives an {@link IOException} too. If a security manager
-     * does not let ClassGraph read the property, the check is skipped, since the JDK reads it with its own
-     * permissions.
+     * so on those JDKs a cleared property, or a value that is not a valid path, gives an {@link IOException} here,
+     * which leaves the helper class usable by the rest of the application once the property is set to a valid
+     * value again. If the property was cleared after the initializer ran, the JDK would still create the file, but
+     * ClassGraph cannot tell whether the initializer has run, so that case gives an {@link IOException} too. If a
+     * security manager does not let ClassGraph read the property, the check is skipped, since the JDK reads it with
+     * its own permissions.
      *
      * @throws IOException
      *             If the property is not set, or is not a valid path.

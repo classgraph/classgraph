@@ -517,8 +517,9 @@ public class TempFilenameSanitizationTest {
     /**
      * Before JDK 16, the JDK resolves the temporary directory from the {@code java.io.tmpdir} system property at the
      * first call to {@code Files.createTempFile}, and if the property has been cleared, that method can never create
-     * a temporary file again in this JVM. Creating a temporary file for a nested jar must throw an {@link IOException} without
-     * asking the JDK, so that the JDK can still create temporary files once the property is set again.
+     * a temporary file again in this JVM. Creating a temporary file for a nested jar must throw an
+     * {@link IOException} without asking the JDK, so that the JDK can still create temporary files once the
+     * property is set again.
      *
      * @param tempDir
      *            the temporary directory of the child JVM.
