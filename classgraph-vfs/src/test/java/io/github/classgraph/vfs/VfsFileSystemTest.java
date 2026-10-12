@@ -632,8 +632,8 @@ public class VfsFileSystemTest {
             assertThat(attrs.size()).isEqualTo(contentOf("root.txt").length);
             assertThatThrownBy(unreadAttrs::size).isInstanceOf(UncheckedIOException.class)
                     .hasCauseInstanceOf(IOException.class);
-            assertThatThrownBy(() -> Files.size(path)).isInstanceOf(UncheckedIOException.class)
-                    .hasCauseInstanceOf(IOException.class);
+            // A fresh point lookup detects removal, rather than reusing the directory index's stale entry.
+            assertThatThrownBy(() -> Files.size(path)).isInstanceOf(NoSuchFileException.class);
             // The methods that read attributes by name declare IOException, so they throw it as it is
             for (final var attributes : List.of("size", "*", "basic:size,isDirectory")) {
                 assertThatThrownBy(() -> Files.readAttributes(path, attributes)).isInstanceOf(IOException.class);
