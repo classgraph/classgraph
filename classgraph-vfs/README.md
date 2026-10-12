@@ -25,7 +25,7 @@ the settings a `Vfs` is constructed with, `CloseableByteBuffer` wraps a buffer y
 and `VfsVisitor` is the callback that `VfsRoot#walk()` takes. Those six types are the API you call.
 Two more are public only because `java.nio.file` needs them to be: `VfsFileSystemProvider`, which
 `ServiceLoader` instantiates to serve the `cgvfs:` URL scheme, and `VfsPath`, the `Path` of a
-filesystem view, whose one addition to `Path` is `toCgvfsUri()`. `Vfs` also has two public members
+filesystem view, which adds `toStorageUri()` and the `toCgvfsUri()` alias for `toUri()`. `Vfs` also has two public members
 that are not part of the API, since they name types from packages that are not exported to every
 module: a constructor that takes a type which, on the module path, only ClassGraph's own modules can
 obtain, and `inflaterRecycler()`, which the virtual filesystem's internal packages read through. See
@@ -124,10 +124,10 @@ Each root is reported once, however many paths it was opened by, and a root that
 stream or a byte array rather than opened from a path is not among them, since it is not cached.
 
 A `Vfs` holds every root it has opened until it is closed, which matters only for a long-lived `Vfs`
-that opens a great many of them. `vfs.evict(root)` drops one from the cache, so that the memory its
-entry list occupies can be reclaimed and the next `vfs.open()` of the same path builds a new root.
-It does not stop the evicted root working: anything still holding it goes on reading through it, and
-it becomes garbage only when the last holder lets go.
+that opens a great many of them. `vfs.evict(root)` drops one from the lookup cache, so the next
+`vfs.open()` of the same path builds a new root. It does not close or release the evicted root:
+the `Vfs` still tracks it for eventual cleanup, and anything holding it can continue reading.
+To release a root's resources and remove its ownership registration now, close that root.
 
 ## Reading through `java.nio.file.Files`
 
@@ -151,14 +151,16 @@ cannot open a module, and it cannot open a jarfile that was never written to dis
 name a nested jarfile: given `jar:file:/path/to/outer.jar!/BOOT-INF/lib/inner.jar` it keeps only the
 part before the first `!/`, and silently opens `outer.jar` instead, so the entries of `inner.jar`
 are not there. Nesting can be reached by opening each level in turn and handing the inner `Path` to
-the next, but that requires knowing the depth in advance, and each level is read into memory
+the next, but that requires managing a filesystem for each level, and each level is read into memory
 whether or not anything is read from it.
 
 The separator is `/` and the root directory is `/`, whichever kind of root it is a view of. Files
 are read with `Files.newInputStream`, `Files.newByteChannel`, `FileChannel.open`,
 `Files.readAllBytes` and `Files.readString`; directories are listed with `Files.newDirectoryStream`, `Files.list` and
-`Files.walk`, and are synthesized from the names of the entries below them, since a jarfile need not
-contain an entry for every directory whose contents it holds. `getPathMatcher` supports both `glob:`
+`Files.walk`. Native directory roots expose live directories, including empty ones, and native
+attributes and symlink semantics. Archive and module directories are synthesized from entry names,
+since their storage need not record every directory. Individual file lookups do not enumerate the
+whole root. `getPathMatcher` supports both `glob:`
 and `regex:`. `basic` is the only attribute view.
 
 It is a read-only filesystem: everything that would write -- `Files.delete`, `Files.write`,
@@ -166,14 +168,20 @@ It is a read-only filesystem: everything that would write -- `Files.delete`, `Fi
 `newByteChannel` with a write option -- throws `ReadOnlyFileSystemException`.
 
 `root.asFileSystem()` returns the same view every time, until that view is closed. A filesystem is a
-view of its root, and the two do not close each other: `fs.close()` closes only the view, leaving
+view of its root: `fs.close()` closes the view and its own streams, channels and directory streams, leaving
 the root and the `Vfs` open and readable, and the next `root.asFileSystem()` hands out a fresh view.
 Closing the root, or the `Vfs` that opened it, closes every view of it in the same one-way manner --
 `isOpen()` returns false, every read through the filesystem throws `ClosedFileSystemException` as
 `java.nio.file.FileSystem` specifies, and `asFileSystem()` and `entry.asPath()` throw
-`ClosedFileSystemException`, since there is nothing left to hand out a view of. Release the file
-handles, memory mappings and temporary files by closing the root or the `Vfs`, not by closing a
-view.
+`ClosedFileSystemException`, since there is nothing left to hand out a view of. Closing a borrowed
+view does not release the root's shared backing storage, mappings or temporary files; close the
+root or the `Vfs` to release those.
+
+A view can itself be wrapped: `wrapper.open(root.asFileSystem().getPath("/"))` opens a directory
+backed by that filesystem, and its resulting view can be wrapped again. The source filesystem is
+borrowed and must remain open while the wrapper is used. Closing the wrapper does not close the
+source. Cache identity includes the filesystem instance, so separate views remain independent
+even if their storage URIs match.
 
 The one exception is a filesystem that `FileSystems.newFileSystem` created, for a `cgvfs:` URI or
 for a directory: it created the `Vfs` behind it, and is the only reference you have to it, so
@@ -236,13 +244,13 @@ module name against instead of the boot layer. Only one module of a given name c
 `newFileSystem` at a time, whatever its layer; to read two at once, open each with
 `vfs.openModule(name, layer).asFileSystem()`.
 
-`VfsPath.toCgvfsUri()` writes a path back out as a `cgvfs:` URI, and throws
-`FileSystemNotFoundException` if the scheme is not installed in this JVM, rather than handing back a
-URI that nothing could resolve. (`ServiceLoader` only finds the provider if `classgraph-vfs` is
-loaded by the system class loader, so the scheme is silently absent inside a servlet container, a
-Spring Boot fat jar or an OSGi bundle, which load it in a child loader.) `Path.toUri()` is
-unchanged, and still returns the `file:`, `jar:` or `jrt:` URI of the underlying storage, which
-names the same bytes to code that has never heard of ClassGraph.
+`VfsPath.toUri()` writes a `cgvfs:` URI matching its provider; `toCgvfsUri()` is an alias. Forming
+either URI does not require an installed provider or an open filesystem. `Paths.get(uri)` resolves
+back to an equal path only while a filesystem registered by `FileSystems.newFileSystem(uri, env)`
+remains open; borrowed views are not registered. Provider lookup may be unavailable when
+ClassGraph is loaded by a child classloader, such as in a servlet container, Spring Boot fat jar
+or OSGi bundle. `VfsPath.toStorageUri()` instead returns the underlying `file:`, `jar:`, `jrt:` or
+other storage URI, which does not identify the filesystem view or its lifetime.
 
 ## What it reads that `java.util.zip` does not
 

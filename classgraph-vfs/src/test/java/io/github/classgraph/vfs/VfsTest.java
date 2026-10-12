@@ -1606,10 +1606,10 @@ public class VfsTest {
     }
 
     /**
-     * A single root can be evicted from the cache without closing the whole virtual filesystem, so that the memory
-     * its entry list occupies can be reclaimed and the same path opens a fresh root. Eviction does not stop the
-     * evicted root working, since a {@link Vfs} hands the same root to everything that opened the same path, and
-     * one holder must not be able to take it away from the others.
+     * A single root can be evicted from the lookup cache without closing the whole virtual filesystem, so that the
+     * same path opens a fresh root. Eviction does not release ownership or stop the evicted root working, since a
+     * {@link Vfs} hands the same root to everything that opened the same path, and one holder must not be able to
+     * take it away from the others.
      *
      * @param tempDir
      *            a temporary directory to write the jarfile into.
