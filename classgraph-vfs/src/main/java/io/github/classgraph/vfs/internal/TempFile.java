@@ -138,10 +138,12 @@ public final class TempFile {
      * <p>
      * The file is created in the JDK's temporary directory, which is the value that the {@code java.io.tmpdir}
      * system property had when the JVM started: the JDK reads the property only then, so a later change to it has
-     * no effect. The JDK resolves that directory in the static initializer of its temporary file helper, on the
-     * first call to {@link Files#createTempFile(String, String, java.nio.file.attribute.FileAttribute...)}. If that
-     * fails, the first call throws {@link ExceptionInInitializerError} and every later call in the JVM throws
-     * {@link NoClassDefFoundError}; both are thrown here as an {@link IOException}.
+     * no effect. The JDK resolves that directory in the static initializer of its temporary file helper, which runs
+     * on the first call in the JVM to any {@code Files.createTempFile} or {@code Files.createTempDirectory} method,
+     * whether by this class or by other code. If that initializer fails, the call that ran it throws
+     * {@link ExceptionInInitializerError}, and every later call to either method throws
+     * {@link NoClassDefFoundError}. So the call here gets {@link NoClassDefFoundError} if other code made the first
+     * call. Both are thrown here as an {@link IOException}.
      *
      * @param leafname
      *            The sanitized leafname to end the temporary filename with.

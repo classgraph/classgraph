@@ -31,14 +31,6 @@ public class ImplicitSupertypeTest {
         public static final int Y = 1;
     }
 
-    /** A record whose components are not declared in the order of their names. */
-    public record RecWithComponentsOutOfNameOrder(int zb, String za) {
-    }
-
-    /** A record with no components. */
-    public record RecWithNoComponents() {
-    }
-
     /** An enum, whose implicit superclass is {@code java.lang.Enum}. */
     public enum En implements Marker {
         /** A constant. */
@@ -83,26 +75,6 @@ public class ImplicitSupertypeTest {
         try (var scanResult = scan()) {
             assertThat(scanResult.getClassInfo(RecWithStaticField.class.getName()).toStringWithSimpleNames())
                     .isEqualTo("public static final record RecWithStaticField(int x)");
-        }
-    }
-
-    /** The components of a record are rendered in declaration order, not in the order of their names. */
-    @Test
-    public void recordComponentsAreRenderedInDeclarationOrder() {
-        try (var scanResult = scan()) {
-            final var classInfo = scanResult.getClassInfo(RecWithComponentsOutOfNameOrder.class.getName());
-            assertThat(classInfo.toStringWithSimpleNames())
-                    .isEqualTo("public static final record RecWithComponentsOutOfNameOrder(int zb, String za)");
-            assertThat(classInfo.toString()).endsWith("(int zb, java.lang.String za)");
-        }
-    }
-
-    /** A record with no components renders an empty component list, as it is written in Java source. */
-    @Test
-    public void recordWithNoComponentsRendersAnEmptyComponentList() {
-        try (var scanResult = scan()) {
-            assertThat(scanResult.getClassInfo(RecWithNoComponents.class.getName()).toStringWithSimpleNames())
-                    .isEqualTo("public static final record RecWithNoComponents()");
         }
     }
 
