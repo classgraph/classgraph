@@ -715,13 +715,18 @@ class Scanner {
                 // The classpath element is not invalid, so it must not be skipped by the catch-all handler below:
                 // skipping it would silently drop this reference to it if the other thread does finish opening it.
                 // Fail the scan instead, as the work queue does when a worker thread does not finish in time
-                throw new IllegalStateException(
+                final var timeout = new IllegalStateException(
                         "Timed out after " + TimeUnit.NANOSECONDS.toMillis(scanSpec.getWorkerTimeoutNanos())
                                 + "ms waiting for another thread to open the classpath element "
                                 + workUnit.classpathEntryObj()
                                 + ". The other thread may be blocked reading it from a filesystem or network (call "
                                 + "ClassGraph#setWorkerTimeout(Duration) to allow more time)",
                         e);
+                // Record the timeout before throwing it, as the work queue does, so that the other worker threads
+                // stop at their next check, and so that WorkQueue#close() only polls the stuck thread rather than
+                // waiting for it for a second full timeout
+                interruptionChecker.setExecutionException(new ExecutionException(timeout));
+                throw timeout;
             } catch (final Exception e) {
                 if (log != null) {
                     log.log("Skipping invalid classpath entry " + workUnit.classpathEntryObj() + " : "

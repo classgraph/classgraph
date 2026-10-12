@@ -13,10 +13,16 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.junit.jupiter.api.Test;
@@ -69,6 +75,11 @@ public class StuckClasspathElementTimeoutTest {
      * filter stands in for anything that can block while a classpath element is opened, such as a read from a
      * network filesystem.
      *
+     * <p>
+     * Once the calling thread has timed out, the stuck worker thread is only polled, not waited for for a second
+     * timeout, since the scan fails whatever the worker thread does. The executor records how long each wait for a
+     * worker thread was allowed to take, so this is checked without timing the scan.
+     *
      * @param tempDir
      *            the directory to make the classpath elements in.
      * @throws Exception
@@ -88,6 +99,8 @@ public class StuckClasspathElementTimeoutTest {
         final var parentOpening = new CountDownLatch(1);
         final var workerOpeningStuck = new CountDownLatch(1);
         final var releaseWorker = new CountDownLatch(1);
+        // The timeout of each timed wait for a worker thread to finish, in nanoseconds
+        final var workerWaitNanos = new ConcurrentLinkedQueue<Long>();
 
         // Hold back the worker thread until the calling thread has taken the first work unit, "parent"
         final var executorService = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS,
@@ -96,6 +109,18 @@ public class StuckClasspathElementTimeoutTest {
             public void execute(final Runnable command) {
                 workQueueStarted.set(true);
                 super.execute(command);
+            }
+
+            @Override
+            protected <T> RunnableFuture<T> newTaskFor(final Callable<T> callable) {
+                return new FutureTask<>(callable) {
+                    @Override
+                    public T get(final long timeout, final TimeUnit unit)
+                            throws InterruptedException, ExecutionException, TimeoutException {
+                        workerWaitNanos.add(unit.toNanos(timeout));
+                        return super.get(timeout, unit);
+                    }
+                };
             }
 
             @Override
@@ -134,6 +159,7 @@ public class StuckClasspathElementTimeoutTest {
             assertThat(thrown.getCause()).isInstanceOf(IllegalStateException.class)
                     .hasMessageStartingWith("Timed out after 500ms waiting for another thread to open the "
                             + "classpath element " + tempDir.resolve("stuck").toRealPath());
+            assertThat(workerWaitNanos).isNotEmpty().containsOnly(0L);
         } finally {
             parentOpening.countDown();
             workerOpeningStuck.countDown();
