@@ -73,10 +73,10 @@ class UnscannedModules {
     private final ScanSpec scanSpec;
 
     /**
-     * A map from the name of a package to the module that contains the package, or null until the map is built on
+     * A map from the name of a package to the modules that contain the package, or null until the map is built on
      * the first lookup.
      */
-    private @Nullable Map<String, ModuleReference> packageNameToModule;
+    private @Nullable Map<String, List<ModuleReference>> packageNameToModule;
 
     /**
      * A map from a module to the classpath element that was created for it, for the modules that have been looked
@@ -121,17 +121,21 @@ class UnscannedModules {
         if (unscannedModules.isEmpty()) {
             return null;
         }
-        // A class can only be in the module that contains its package (a package is not allowed to be split across
-        // two modules in the same module layer), so there is at most one module to look in
+        // Separate layers may contain modules with the same package. Search each candidate in module order:
+        // first-wins applies to class names, not to every class in a package.
         final var packageName = PackageInfo.getParentPackageName(className);
-        final var moduleReference = packageName == null ? null : packageNameToModule().get(packageName);
-        if (moduleReference == null) {
+        final var moduleReferences = packageName == null ? null : packageNameToModule().get(packageName);
+        if (moduleReferences == null) {
             return null;
         }
-        final var classpathElement = classpathElementForModule(moduleReference, log);
-        final var classfileResource = classpathElement.getResource(classfilePath);
-        return classfileResource == null ? null
-                : new ClassfileScanWorkUnit(classpathElement, classfileResource, /* isExternalClass = */ true);
+        for (final var moduleReference : moduleReferences) {
+            final var classpathElement = classpathElementForModule(moduleReference, log);
+            final var classfileResource = classpathElement.getResource(classfilePath);
+            if (classfileResource != null) {
+                return new ClassfileScanWorkUnit(classpathElement, classfileResource, /* isExternalClass = */ true);
+            }
+        }
+        return null;
     }
 
     /**
@@ -152,20 +156,23 @@ class UnscannedModules {
     }
 
     /**
-     * Get the map from the name of a package to the module that contains the package, building it if this is the
+     * Get the map from the name of a package to the modules that contain the package, building it if this is the
      * first lookup.
      *
-     * @return the map from package name to module
+     * @return the map from package name to modules, in module order
      */
-    private Map<String, ModuleReference> packageNameToModule() {
+    private Map<String, List<ModuleReference>> packageNameToModule() {
         var map = packageNameToModule;
         if (map == null) {
             map = new HashMap<>();
             for (final ModuleReference moduleReference : unscannedModules) {
                 for (final String packageName : moduleReference.descriptor().packages()) {
-                    // If a package is somehow in more than one module, the module that comes first in the module
-                    // order wins, as it would if the modules were being scanned
-                    map.putIfAbsent(packageName, moduleReference);
+                    var modules = map.get(packageName);
+                    if (modules == null) {
+                        modules = new ArrayList<>();
+                        map.put(packageName, modules);
+                    }
+                    modules.add(moduleReference);
                 }
             }
             packageNameToModule = map;
