@@ -11,6 +11,9 @@ import java.lang.module.ModuleDescriptor;
 import java.lang.module.ModuleReader;
 import java.lang.module.ModuleReference;
 import java.net.URI;
+import java.net.URL;
+import java.net.URLClassLoader;
+import java.nio.file.FileSystem;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.ClosedFileSystemException;
 import java.nio.file.FileSystems;
@@ -26,6 +29,8 @@ import java.util.zip.ZipOutputStream;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+
+import io.github.classgraph.base.LogNode;
 
 /** A filesystem view is a supported filesystem input, including another view of a view. */
 public class VfsRecursiveWrappingTest {
@@ -88,6 +93,41 @@ public class VfsRecursiveWrappingTest {
         } finally {
             for (var i = wrappers.size() - 1; i >= 0; i--) {
                 wrappers.get(i).close();
+            }
+        }
+    }
+
+    /**
+     * Copies loaded by plugins remain case-sensitive VFS providers, not opaque native filesystems.
+     *
+     * @throws Exception
+     *             if the isolated provider cannot be loaded or a wrapper cannot be opened or closed.
+     */
+    @Test
+    public void isolatedProvidersDoNotMultiplyRecursiveLookups() throws Exception {
+        final var module = new CountingModule();
+        final var wrappers = new ArrayList<AutoCloseable>();
+        final var urls = new URL[] { Vfs.class.getProtectionDomain().getCodeSource().getLocation(),
+                LogNode.class.getProtectionDomain().getCodeSource().getLocation() };
+        try (var loader = new URLClassLoader(urls, ClassLoader.getPlatformClassLoader()); var source = new Vfs()) {
+            final var isolatedVfs = Class.forName(Vfs.class.getName(), true, loader);
+            var path = source.open(module).asFileSystem().getPath("/");
+            final var depth = 8;
+            try {
+                for (var level = 0; level < depth; level++) {
+                    final var wrapper = level % 2 == 0 ? isolatedVfs.getConstructor().newInstance() : new Vfs();
+                    wrappers.add((AutoCloseable) wrapper);
+                    final var root = wrapper.getClass().getMethod("open", Path.class).invoke(wrapper, path);
+                    final var view = (FileSystem) root.getClass().getMethod("asFileSystem").invoke(root);
+                    path = view.getPath("/");
+                }
+                module.lookups.set(0);
+                assertThat(Files.readString(path.resolve("file.txt"))).isEqualTo(CONTENT);
+                assertThat(module.lookups.get()).isLessThanOrEqualTo(4 * (depth + 1));
+            } finally {
+                for (var i = wrappers.size() - 1; i >= 0; i--) {
+                    wrappers.get(i).close();
+                }
             }
         }
     }

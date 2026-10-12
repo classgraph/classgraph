@@ -342,7 +342,11 @@ public final class DirRoot extends VfsRoot {
         // file is stored under, and this method matches names exactly, so such a match is not one
         // Another VFS view already enforces exact names. Rechecking its existence and real path here would
         // recursively duplicate those lookups at every wrapper level instead of delegating once.
-        if (!(resolved instanceof VfsPath) && Files.exists(resolved) && isCaseFoldedMatch(dir, resolved)) {
+        // The provider name also recognizes copies loaded by plugins in other classloaders: their namespace has
+        // the same exact-match contract, even though their VfsPath is not an instance of this loader's class.
+        final boolean classGraphView = resolved instanceof VfsPath || VfsFileSystemProvider.class.getName()
+                .equals(resolved.getFileSystem().provider().getClass().getName());
+        if (!classGraphView && Files.exists(resolved) && isCaseFoldedMatch(dir, resolved)) {
             return null;
         }
         return resolved;
