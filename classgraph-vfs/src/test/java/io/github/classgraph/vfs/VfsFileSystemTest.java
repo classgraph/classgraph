@@ -55,6 +55,7 @@ import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 import java.util.zip.CRC32;
 import java.util.zip.ZipEntry;
@@ -68,6 +69,41 @@ import io.github.classgraph.base.internal.path.FastPathResolver;
 
 /** Tests the read-only {@link FileSystem} view of a {@link VfsRoot}. */
 public class VfsFileSystemTest {
+    /**
+     * Keeping a closed channel reachable must not keep its inflated content or owning root reachable through it.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws Exception
+     *             if the fixture cannot be written, read or inspected.
+     */
+    @Test
+    public void closedBufferedChannelDetachesItsOpenState(@TempDir final Path tempDir) throws Exception {
+        final var jar = tempDir.resolve("buffered.jar");
+        final var content = new byte[2 * 1024 * 1024];
+        try (var out = new ZipOutputStream(Files.newOutputStream(jar))) {
+            out.putNextEntry(new ZipEntry("large"));
+            out.write(content);
+            out.closeEntry();
+        }
+        try (var vfs = new Vfs()) {
+            final var root = vfs.open(jar);
+            final var path = root.asFileSystem().getPath("/large");
+            final var channel = FileChannel.open(path);
+            assertThat(channel.size()).isEqualTo(content.length);
+            final var field = VfsFileChannel.class.getDeclaredField("state");
+            field.setAccessible(true);
+            final var state = (AtomicReference<?>) field.get(channel);
+            assertThat(state.get()).isNotNull();
+            channel.close();
+            assertThat(state.get()).isNull();
+            assertThatThrownBy(() -> channel.read(ByteBuffer.allocate(1)))
+                    .isInstanceOf(ClosedChannelException.class);
+            assertThat(root.isClosed()).isFalse();
+            assertThat(Files.readAllBytes(path)).isEqualTo(content);
+        }
+    }
+
     /**
      * Relative paths cannot navigate between distinct filesystem views, including empty paths.
      *
