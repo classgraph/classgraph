@@ -76,6 +76,7 @@ public final class ReflectionUtils {
             // log anything. (The "requires static" in module-info.java does not resolve Narcissus: a Narcissus jar
             // on the module path is only resolved if the application requires it, or by --add-modules.)
         } catch (final Throwable t) {
+            ReflectionDriver.rethrowIfVirtualMachineError(t);
             // Narcissus is present, but could not be used (most likely its native library has not been compiled
             // for this platform or architecture). This is worth reporting, since it was added deliberately.
             System.err.println("ClassGraph could not use the Narcissus reflection driver: " + t);
