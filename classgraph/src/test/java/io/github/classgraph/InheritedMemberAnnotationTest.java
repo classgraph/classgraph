@@ -175,6 +175,33 @@ public class InheritedMemberAnnotationTest {
         }
     }
 
+    /** Forward lookup and its boolean convenience query also exclude noninheritable declarations. */
+    @Test
+    public void forwardMethodLookupDoesNotInheritStaticInterfaceOrPrivateAncestorMethods() {
+        try (var scanResult = scan()) {
+            final var iface = scanResult.getClassInfo(Iface.class.getName());
+            assertThat(iface.getMethodInfo("staticMethod")).hasSize(1);
+            assertThat(iface.hasMethod("staticMethod")).isTrue();
+            for (final var type : new Class<?>[] { SubIface.class, Impl.class, ImplSub.class }) {
+                final var info = scanResult.getClassInfo(type.getName());
+                assertThat(info.getMethodInfo("staticMethod")).isEmpty();
+                assertThat(info.getMethodInfo().getNames()).doesNotContain("staticMethod");
+                assertThat(info.hasMethod("staticMethod")).isFalse();
+                assertThat(info.hasMethodAnnotation(OnStaticMethod.class)).isFalse();
+                assertThat(info.hasMethodParameterAnnotation(OnStaticMethodParam.class)).isFalse();
+                assertThat(info.getMethodInfo("defaultMethod")).hasSize(1);
+                // The JVM's public-method view independently confirms the interface-static rule.
+                assertThat(Arrays.stream(type.getMethods()).map(method -> method.getName()))
+                        .doesNotContain("staticMethod");
+            }
+            final var base = scanResult.getClassInfo(Base.class.getName());
+            final var sub = scanResult.getClassInfo(Sub.class.getName());
+            assertThat(base.getDeclaredMethodInfo("privateMethod")).hasSize(1);
+            assertThat(sub.getMethodInfo("privateMethod")).isEmpty();
+            assertThat(sub.hasMethod("privateMethod")).isFalse();
+        }
+    }
+
     /** A private field, method or method parameter that carries a repeated annotation is not inherited. */
     @Test
     public void privateMembersWithRepeatedAnnotationAreNotInherited() {
