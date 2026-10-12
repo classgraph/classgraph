@@ -31,6 +31,7 @@ package io.github.classgraph.classpath.internal;
 import java.lang.module.ModuleReference;
 import java.lang.module.ResolvedModule;
 import java.net.URI;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -142,12 +143,19 @@ public class ModuleFinder {
      */
     private static void findLayerOrder(final ModuleLayer layer, final Set<ModuleLayer> layerVisited,
             final Set<ModuleLayer> parentLayers, final List<ModuleLayer> layerOrderOut) {
-        if (layerVisited.add(layer)) {
-            layerOrderOut.add(layer);
-            final var parents = layer.parents();
+        final var pending = new ArrayDeque<ModuleLayer>();
+        pending.push(layer);
+        while (!pending.isEmpty()) {
+            final var current = pending.pop();
+            if (!layerVisited.add(current)) {
+                continue;
+            }
+            layerOrderOut.add(current);
+            final var parents = current.parents();
             parentLayers.addAll(parents);
-            for (final ModuleLayer parent : parents) {
-                findLayerOrder(parent, layerVisited, parentLayers, layerOrderOut);
+            // Reverse the push order to preserve the caller's parent order in depth-first preorder.
+            for (var i = parents.size() - 1; i >= 0; i--) {
+                pending.push(parents.get(i));
             }
         }
     }
