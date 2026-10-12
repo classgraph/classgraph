@@ -1150,8 +1150,8 @@ class Scanner {
                 scannedClassfiles);
         processWorkUnits(classfileScanWorkItems,
                 topLevelLog == null ? null : topLevelLog.log("Scanning classfiles"), classfileWorkUnitProcessor);
-        // Only scanning classfiles looks up external classes, so what the classpath elements remembered while doing
-        // that is no longer needed, and is not kept for the life of the ScanResult
+        // Only the classfile scan looks up external classes, so what the classpath elements remembered to speed
+        // that up is no longer needed, and should not be kept for as long as the scan result is open
         for (final ClasspathElement classpathElement : finalClasspathEltOrder) {
             classpathElement.classfileScanFinished();
         }

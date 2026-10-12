@@ -187,8 +187,8 @@ final class WorkQueue<T> implements AutoCloseable {
      *            {@link InterruptionChecker#progress()}: a work unit finishing on any thread, or a worker reporting
      *            progress from within a long work unit. The timeout applies once the calling thread has no work of
      *            its own left to do, and while waiting for the workers to finish. The waits are timed by an
-     *            {@link IdleTimeout}, so a pause of the whole JVM, for example in a debugger, counts only as one
-     *            slice, and can use up at most one slice of the timeout.
+     *            {@link IdleTimeout}, so a pause of the whole JVM, for example at a breakpoint that suspends all
+     *            threads, counts only as one slice, and can use up at most one slice of the timeout.
      * @param log
      *            The log.
      * @param workUnitProcessor
@@ -483,8 +483,10 @@ final class WorkQueue<T> implements AutoCloseable {
             try {
                 // Block on completion using future.get(), which may throw one of the exceptions below. A timed wait
                 // is made in slices, and gives up once no thread has made progress for the worker timeout
-                if (timeoutNanos == 0L || timeoutNanos == Long.MAX_VALUE) {
-                    future.get(timeoutNanos, TimeUnit.NANOSECONDS);
+                if (timeoutNanos == 0L) {
+                    future.get(0L, TimeUnit.NANOSECONDS);
+                } else if (timeoutNanos == Long.MAX_VALUE) {
+                    future.get();
                 } else {
                     for (;;) {
                         try {

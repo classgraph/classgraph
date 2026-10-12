@@ -112,7 +112,7 @@ import org.jspecify.annotations.Nullable;
  * <p>
  * Every method is safe to call from multiple threads at once. Two threads that ask for the same path at the same
  * time get back the same {@link VfsRoot}, and the jarfile behind it is only read once: the second thread waits for
- * the first, until the first has made no progress for as long as
+ * the first, until the first makes no progress for as long as
  * {@link VfsSpec#setOpenWaitTimeout(java.time.Duration)} allows. How storage is read is set by a copy of the
  * {@link VfsSpec} this {@link Vfs} was constructed with, taken by the constructor, so its settings cannot change
  * while it is open. {@link #close()} takes effect the moment it is called, so a thread that calls any other method

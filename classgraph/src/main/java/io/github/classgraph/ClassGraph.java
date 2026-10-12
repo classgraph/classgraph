@@ -1511,9 +1511,10 @@ public final class ClassGraph {
      *
      * <p>
      * The waits are made in slices of one tenth of the timeout, or one second if that is shorter. A pause of the
-     * whole JVM, for example at a breakpoint in a debugger, after SIGSTOP, or while the machine is asleep, counts
-     * as at most one second (or one tenth of the timeout, if that is shorter), so a pause can only make the scan
-     * time out if the scan had already gone that close to the timeout with no progress.
+     * whole JVM, for example at a breakpoint that suspends all threads, or after SIGSTOP, counts as at most one
+     * second (or one tenth of the timeout, if that is shorter), so a pause can only make the scan time out if the
+     * scan had already gone that close to the timeout with no progress. A breakpoint that suspends only a worker
+     * thread is not a pause of the whole JVM, so set a longer timeout, or 0, while debugging a scan.
      *
      * <p>
      * A scan that makes no progress cannot complete. The two known causes are a classloading deadlock, where the

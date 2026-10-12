@@ -173,7 +173,7 @@ class ScanSpec {
     /**
      * How long the scan may go with no progress before it fails (see
      * {@link ClassGraph#setWorkerTimeout(Duration)}). A timeout that is zero, negative, or too long to express in
-     * nanoseconds means "wait indefinitely", which was the behavior before this timeout was added.
+     * nanoseconds means "wait indefinitely".
      */
     public Duration workerTimeout = ClassGraph.DEFAULT_WORKER_TIMEOUT;
 

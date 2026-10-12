@@ -108,9 +108,8 @@ public final class TempFile {
      *            The path to derive the temporary filename from.
      * @return The temporary {@link File}.
      * @throws IOException
-     *             If the temporary file could not be created, including when the temporary directory that the
-     *             {@code java.io.tmpdir} system property named when the JVM started cannot be represented in the
-     *             encoding used for filenames.
+     *             If the temporary file could not be created, including when the JDK could not set up its temporary
+     *             directory.
      */
     public static File create(final String path) throws IOException {
         var leafname = sanitizeFilename(PathSyntax.simpleName(path));
@@ -148,8 +147,8 @@ public final class TempFile {
      *            The sanitized leafname to end the temporary filename with.
      * @return The temporary {@link File}.
      * @throws IOException
-     *             If the temporary file could not be created, including when the JDK could not resolve its
-     *             temporary directory.
+     *             If the temporary file could not be created, including when the JDK could not set up its temporary
+     *             directory.
      * @throws InvalidPathException
      *             If the temporary filename cannot be represented in the encoding that filenames are stored in.
      */
