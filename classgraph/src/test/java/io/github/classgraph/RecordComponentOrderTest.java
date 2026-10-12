@@ -13,7 +13,8 @@ import org.junit.jupiter.api.io.TempDir;
 
 /**
  * The record components of a record are listed in declaration order, which is the order of the record's
- * {@code Record} attribute, not the order of its fields, which are sorted by name.
+ * {@code Record} attribute, not the order of its fields, which are sorted by name. A malformed {@code Record}
+ * attribute loses only the component list: the class is still scanned, and the attributes after it are still read.
  */
 public class RecordComponentOrderTest {
     /** A record whose components are not in alphabetical order. */
@@ -35,12 +36,15 @@ public class RecordComponentOrderTest {
                 .enableFieldInfo().ignoreClassVisibility().ignoreFieldVisibility().scan();
     }
 
-    /** The record components are listed in declaration order. */
+    /** The record components are listed in declaration order, not in the order of their names. */
     @Test
     public void recordComponentsAreListedInDeclarationOrder() {
         try (var scanResult = scanRecords()) {
-            assertThat(scanResult.getClassInfo(R.class.getName()).toString())
+            final var classInfo = scanResult.getClassInfo(R.class.getName());
+            assertThat(classInfo.toString())
                     .isEqualTo("public static final record " + R.class.getName() + "(int zb, java.lang.String za)");
+            assertThat(classInfo.toStringWithSimpleNames())
+                    .isEqualTo("public static final record R(int zb, String za)");
         }
     }
 
@@ -55,12 +59,13 @@ public class RecordComponentOrderTest {
         }
     }
 
-    /** A record with no components is listed with an empty component list. */
+    /** A record with no components is listed with an empty component list, as it is written in Java source. */
     @Test
     public void aRecordWithNoComponentsHasAnEmptyComponentList() {
         try (var scanResult = scanRecords()) {
-            assertThat(scanResult.getClassInfo(E.class.getName()).toString())
-                    .isEqualTo("public static final record " + E.class.getName() + "()");
+            final var classInfo = scanResult.getClassInfo(E.class.getName());
+            assertThat(classInfo.toString()).isEqualTo("public static final record " + E.class.getName() + "()");
+            assertThat(classInfo.toStringWithSimpleNames()).isEqualTo("public static final record E()");
         }
     }
 
@@ -85,7 +90,8 @@ public class RecordComponentOrderTest {
     /**
      * Write the classfile of the record {@code p.R}, which has the one component {@code int x}, and a
      * {@code SourceFile} attribute after its {@code Record} attribute, optionally followed by a second
-     * {@code Record} attribute that also lists the one component {@code int x}.
+     * {@code Record} attribute that lists the one component {@code int y}. The class has the field {@code y} only
+     * if it has the second {@code Record} attribute.
      *
      * @param componentsCount
      *            the {@code components_count} written in the {@code Record} attribute.
@@ -101,12 +107,13 @@ public class RecordComponentOrderTest {
      */
     private static byte[] recordClassfile(final int componentsCount, final int componentAttributeLength,
             final int secondComponentsCount) throws IOException {
+        final var hasSecondRecordAttribute = secondComponentsCount != -1;
         final var byteArrayOutputStream = new ByteArrayOutputStream();
         try (var out = new DataOutputStream(byteArrayOutputStream)) {
             out.writeInt(0xCAFEBABE);
             out.writeShort(0); // Minor version
             out.writeShort(61); // Major version (Java 17)
-            out.writeShort(11); // Constant pool count
+            out.writeShort(12); // Constant pool count
             out.writeByte(1); // #1
             out.writeUTF("p/R");
             out.writeByte(7); // #2: class ref to #1
@@ -127,17 +134,25 @@ public class RecordComponentOrderTest {
             out.writeUTF("R.java");
             out.writeByte(1); // #10
             out.writeUTF("Signature");
+            out.writeByte(1); // #11
+            out.writeUTF("y");
             out.writeShort(0x0031); // ACC_PUBLIC | ACC_FINAL | ACC_SUPER
             out.writeShort(2); // this_class
             out.writeShort(4); // super_class
             out.writeShort(0); // Number of interfaces
-            out.writeShort(1); // Number of fields
+            out.writeShort(hasSecondRecordAttribute ? 2 : 1); // Number of fields
             out.writeShort(0x0012); // ACC_PRIVATE | ACC_FINAL
             out.writeShort(5); // "x"
             out.writeShort(6); // "I"
             out.writeShort(0); // Number of attributes
+            if (hasSecondRecordAttribute) {
+                out.writeShort(0x0012); // ACC_PRIVATE | ACC_FINAL
+                out.writeShort(11); // "y"
+                out.writeShort(6); // "I"
+                out.writeShort(0); // Number of attributes
+            }
             out.writeShort(0); // Number of methods
-            out.writeShort(secondComponentsCount == -1 ? 2 : 3); // Number of attributes
+            out.writeShort(hasSecondRecordAttribute ? 3 : 2); // Number of attributes
             out.writeShort(7); // "Record"
             final var hasComponentAttribute = componentAttributeLength != -1;
             out.writeInt(2 + 6 + (hasComponentAttribute ? 6 : 0));
@@ -154,11 +169,11 @@ public class RecordComponentOrderTest {
             out.writeShort(8); // "SourceFile"
             out.writeInt(2);
             out.writeShort(9); // "R.java"
-            if (secondComponentsCount != -1) {
+            if (hasSecondRecordAttribute) {
                 out.writeShort(7); // "Record"
                 out.writeInt(2 + 6);
                 out.writeShort(secondComponentsCount);
-                out.writeShort(5); // name_index: "x"
+                out.writeShort(11); // name_index: "y"
                 out.writeShort(6); // descriptor_index: "I"
                 out.writeShort(0); // attributes_count
             }
@@ -216,7 +231,23 @@ public class RecordComponentOrderTest {
 
     /**
      * A second {@code Record} attribute, which a class should not have, replaces the component names read from the
-     * first if it is well-formed, and is skipped, keeping them, if it is malformed.
+     * first if it is well-formed.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if a file could not be written.
+     */
+    @Test
+    public void aWellFormedSecondRecordAttributeReplacesTheComponentsOfTheFirst(@TempDir final Path tempDir)
+            throws IOException {
+        assertThat(scanRecordClassfile(tempDir, recordClassfile(1, -1, 1)))
+                .isEqualTo("public final record p.R(int y) in R.java");
+    }
+
+    /**
+     * A second {@code Record} attribute that is malformed is skipped, keeping the component names read from the
+     * first.
      *
      * @param tempDir
      *            a temporary directory.
@@ -226,9 +257,7 @@ public class RecordComponentOrderTest {
     @Test
     public void aMalformedSecondRecordAttributeKeepsTheComponentsOfTheFirst(@TempDir final Path tempDir)
             throws IOException {
-        assertThat(scanRecordClassfile(tempDir.resolve("validSecond"), recordClassfile(1, -1, 1)))
-                .isEqualTo("public final record p.R(int x) in R.java");
-        assertThat(scanRecordClassfile(tempDir.resolve("malformedSecond"), recordClassfile(1, -1, 2)))
+        assertThat(scanRecordClassfile(tempDir, recordClassfile(1, -1, 2)))
                 .isEqualTo("public final record p.R(int x) in R.java");
     }
 }

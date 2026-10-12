@@ -392,8 +392,9 @@ public final class VfsSpec {
      * a local file that blocks forever still times out. The wait is made in slices of one tenth of the timeout, or
      * one second if that is shorter. A slice in which the whole JVM was paused, for example at a breakpoint that
      * suspends all threads, counts as at most one slice, so a pause can only make the wait time out if the other
-     * thread had already gone that close to the timeout with no progress. A breakpoint that suspends only a worker
-     * thread is not a pause of the whole JVM, so set a longer timeout, or 0, while debugging a scan.
+     * thread had already gone that close to the timeout with no progress. A breakpoint that suspends only the
+     * thread that is opening the path is not a pause of the whole JVM, so set a longer timeout, or 0, while
+     * debugging.
      *
      * <p>
      * This applies only to the wait for another thread, not to the time a thread takes to open a path itself. When
