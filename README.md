@@ -206,7 +206,7 @@ This will allow you to build a local SNAPSHOT jar for each of the five modules, 
 
 [See the wiki for complete documentation and usage information.](https://github.com/classgraph/classgraph/wiki)
 
-**ClassGraph was known as FastClasspathScanner prior to version 4.**
+**ClassGraph was formerly known as FastClasspathScanner.**
 
 ## Mailing List
 
