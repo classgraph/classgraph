@@ -225,7 +225,8 @@ public abstract class Slice implements AutoCloseable {
      * @param maxSize
      *            the largest size that the array may grow to, which is at most {@link #MAX_BUFFER_SIZE}.
      * @param interruptionChecker
-     *            the InterruptionChecker to report progress to after each block read, or null to report none.
+     *            the InterruptionChecker to report progress to after each read that returns bytes, or null to
+     *            report none.
      * @return the bytes read, and the byte that was read past {@code maxSize}, if any.
      * @throws IOException
      *             if the stream could not be read.
@@ -241,6 +242,9 @@ public abstract class Slice implements AutoCloseable {
                 final var nextByte = inputStream.read();
                 if (nextByte < 0) {
                     break;
+                }
+                if (interruptionChecker != null) {
+                    interruptionChecker.progress();
                 }
                 if (buf.length >= maxSize) {
                     return new StreamPrefix(buf, nextByte);

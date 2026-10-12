@@ -48,6 +48,9 @@ import java.util.zip.ZipOutputStream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import io.github.classgraph.base.internal.concurrency.IdleTimeout;
+import org.jspecify.annotations.Nullable;
+
 /** Tests {@link VfsRoot#walk(VfsVisitor)}. */
 public class VfsWalkTest {
     /** Records what a walk offered, so that a test can assert on the order and on what was skipped. */
@@ -177,6 +180,51 @@ public class VfsWalkTest {
             root.walk(recorder);
             assertThat(recorder.entryNames)
                     .isEqualTo(root.getEntries().stream().map(VfsEntry::getPathFromRoot).toList());
+        }
+    }
+
+    /**
+     * Listing a directory counts as progress, so that a thread waiting for the walk to finish, for example to open
+     * the same directory, does not time out while a large directory on a slow filesystem is still being listed. An
+     * {@link IdleTimeout} with a timeout of 1ns, started when the walk enters a directory, has seen progress by the
+     * time the walk visits the file in that directory, which it lists in between. (Each directory of the tree holds
+     * at most one file.)
+     */
+    @Test
+    public void listingADirectoryCountsAsProgress(@TempDir final File tempDir) throws IOException {
+        try (var vfs = new Vfs()) {
+            final var visits = new ArrayList<String>();
+            final var visitsWithoutProgress = new ArrayList<String>();
+            final var visitor = new VfsVisitor() {
+                /** Started when the walk enters a directory. */
+                private @Nullable IdleTimeout idleTimeout;
+
+                @Override
+                public boolean enterDirectory(final String dirName) {
+                    idleTimeout = new IdleTimeout(vfs.interruptionChecker(), /* timeoutNanos = */ 1L);
+                    idleTimeout.nextWaitNanos();
+                    return true;
+                }
+
+                @Override
+                public boolean visitEntry(final VfsEntry entry) {
+                    try {
+                        // Without progress since the directory was entered, the 1ns timeout has run out by now
+                        Thread.sleep(1L);
+                    } catch (final InterruptedException e) {
+                        throw new IllegalStateException(e);
+                    }
+                    visits.add(entry.getPathFromRoot());
+                    if (idleTimeout == null || idleTimeout.hasRunOut()) {
+                        visitsWithoutProgress.add(entry.getPathFromRoot());
+                    }
+                    return true;
+                }
+            };
+            vfs.open(writeDirTree(tempDir).getPath()).walk(visitor);
+
+            assertThat(visits).containsExactly("root.txt", "com/xyz/widget.txt", "empty/deep/leaf.txt");
+            assertThat(visitsWithoutProgress).isEmpty();
         }
     }
 

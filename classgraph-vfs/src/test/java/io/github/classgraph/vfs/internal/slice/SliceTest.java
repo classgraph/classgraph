@@ -10,12 +10,14 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.Timeout.ThreadMode;
 import org.junit.jupiter.api.io.TempDir;
 
+import io.github.classgraph.base.internal.concurrency.IdleTimeout;
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
 import io.github.classgraph.vfs.VfsSpec;
 import io.github.classgraph.vfs.Vfs;
@@ -481,6 +483,52 @@ public class SliceTest {
             // The slices belong to this test, so this test closes them
             first.close();
             second.close();
+        }
+    }
+
+    /**
+     * The single byte read to find out whether a stream goes on past a full array counts as progress, as the block
+     * reads do, so that a thread waiting for this one does not count the time to that byte as idle. The stream
+     * understates its length by one byte, so that byte is the last one read, and the read after it finds the end of
+     * the stream.
+     *
+     * @throws IOException
+     *             if the stream could not be read
+     * @throws InterruptedException
+     *             if the test thread was interrupted
+     */
+    @Test
+    public void theByteReadPastAFullArrayCountsAsProgress() throws IOException, InterruptedException {
+        final var vfs = vfs();
+        // Started when the single byte is read, so that only progress reported from then on resets it
+        final var idleTimeoutFromSingleByteRead = new AtomicReference<IdleTimeout>();
+        final var stream = new InputStream() {
+            private final InputStream wrapped = new ByteArrayInputStream(CONTENT);
+
+            @Override
+            public int read() throws IOException {
+                final var idleTimeout = new IdleTimeout(vfs.interruptionChecker(), /* timeoutNanos = */ 1L);
+                idleTimeout.nextWaitNanos();
+                idleTimeoutFromSingleByteRead.set(idleTimeout);
+                return wrapped.read();
+            }
+
+            @Override
+            public int read(final byte[] buf, final int off, final int len) throws IOException {
+                return wrapped.read(buf, off, len);
+            }
+        };
+        try {
+            final var slice = Slice.fromInputStream(stream, "understated.bin",
+                    /* inputStreamLengthHint = */ CONTENT.length - 1, vfs, /* log = */ null);
+            assertThat(slice.load()).containsExactly(CONTENT);
+            final var idleTimeout = idleTimeoutFromSingleByteRead.get();
+            assertThat(idleTimeout).isNotNull();
+            // Without progress since the single byte was read, the 1ns timeout would have run out by now
+            Thread.sleep(1L);
+            assertThat(idleTimeout.hasRunOut()).isFalse();
+        } finally {
+            vfs.close(/* log = */ null);
         }
     }
 }
