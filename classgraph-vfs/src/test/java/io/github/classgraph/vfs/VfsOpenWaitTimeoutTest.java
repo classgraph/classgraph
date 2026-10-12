@@ -47,17 +47,19 @@ import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.Timeout.ThreadMode;
 
 /**
- * A thread that asks for a jarfile that another thread is already opening waits for that thread, but for no longer
- * than {@link VfsSpec#setOpenWaitTimeout(Duration)} allows, since the other thread may be stuck.
+ * A thread that asks for a jarfile that another thread is already opening waits for that thread, but only while
+ * that thread makes progress, and for no longer than {@link VfsSpec#setOpenWaitTimeout(Duration)} allows once it
+ * stops, since the other thread may be stuck.
  */
 public class VfsOpenWaitTimeoutTest {
     /**
-     * An HTTP server on the loopback interface that answers a request for a jarfile by sending the response one
-     * byte at a time, slowly enough that the download never finishes, but quickly enough that the read timeout of
-     * the download never expires. This stands in for a slow server, or a network filesystem that is very slow to
-     * read.
+     * An HTTP server on the loopback interface that answers a request for a jarfile by sending the headers of the
+     * response and then nothing until it is closed. This stands in for a server or a network filesystem that has
+     * stopped sending: the thread downloading the jarfile is stuck until the read timeout of the download, which is
+     * far longer than the timeout used here. (A server that sends a byte now and then is not stuck, since every
+     * byte that arrives counts as progress.)
      */
-    private static final class TricklingJarServer implements Closeable {
+    private static final class StuckJarServer implements Closeable {
         /** The socket the server listens on. */
         private final ServerSocket serverSocket;
 
@@ -73,7 +75,7 @@ public class VfsOpenWaitTimeoutTest {
          * @throws IOException
          *             if the server socket could not be opened.
          */
-        TricklingJarServer() throws IOException {
+        StuckJarServer() throws IOException {
             serverSocket = new ServerSocket(0, /* backlog = */ 50, InetAddress.getLoopbackAddress());
             final var thread = new Thread(this::serve);
             thread.setDaemon(true);
@@ -89,10 +91,8 @@ public class VfsOpenWaitTimeoutTest {
                     final var outputStream = socket.getOutputStream();
                     outputStream.write(("HTTP/1.1 200 OK\r\nContent-Length: 1000000\r\nConnection: close\r\n\r\n")
                             .getBytes(StandardCharsets.ISO_8859_1));
-                    do {
-                        outputStream.write(0);
-                        outputStream.flush();
-                    } while (!closed.await(100, TimeUnit.MILLISECONDS));
+                    outputStream.flush();
+                    closed.await();
                 } catch (final IOException _) {
                     // The server socket was closed at the end of the test, or the client hung up
                 } catch (final InterruptedException _) {
@@ -160,7 +160,7 @@ public class VfsOpenWaitTimeoutTest {
     @Timeout(value = 60, threadMode = ThreadMode.SEPARATE_THREAD)
     public void aThreadWaitingForAnotherThreadToOpenTheSameJarfileTimesOut() throws Exception {
         try (var vfs = new Vfs(new VfsSpec().setOpenWaitTimeout(Duration.ofMillis(300)))) {
-            final var server = new TricklingJarServer();
+            final var server = new StuckJarServer();
             final var jarURL = server.jarURL();
             final var opener = Thread.ofPlatform().start(() -> {
                 try {

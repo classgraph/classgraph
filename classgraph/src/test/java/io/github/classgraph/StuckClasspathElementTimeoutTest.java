@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
+import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
@@ -13,6 +14,9 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
@@ -24,6 +28,10 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.jar.JarEntry;
+import java.util.jar.JarOutputStream;
+
+import io.github.classgraph.vfs.VfsSpec;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -31,8 +39,9 @@ import org.junit.jupiter.api.io.TempDir;
 /**
  * A classpath element that is named twice, once on the classpath and once by the {@code Class-Path} manifest entry
  * of another classpath element, is opened once, by whichever thread reaches it first, and the other thread waits
- * for it. If the thread opening it never finishes, the waiting thread must give up after the worker timeout, as
- * every other wait in a scan does, rather than wait forever.
+ * for it. If the thread opening it never finishes, the waiting thread must give up once the worker timeout has
+ * passed with no progress, as every other wait in a scan does, rather than wait forever. If the thread opening it
+ * is slow but still making progress, the waiting thread must keep waiting.
  */
 public class StuckClasspathElementTimeoutTest {
     /**
@@ -170,14 +179,19 @@ public class StuckClasspathElementTimeoutTest {
     }
 
     /**
-     * An HTTP server on the loopback interface that answers a request for a jarfile by sending the response one
-     * byte at a time, slowly enough that the download never finishes, but quickly enough that the read timeout of
-     * the download never expires. This stands in for a slow server, or a network filesystem that is very slow to
-     * read.
+     * An HTTP server on the loopback interface that answers a request for a jarfile. Given a body, it sends the
+     * body in 20 parts, 100 ms apart, which stands in for a slow download that is still making progress. Given no
+     * body, it sends the headers and then nothing until it is closed, which stands in for a server or a network
+     * filesystem that has stopped sending: the thread downloading the jarfile is stuck until the read timeout of
+     * the download, which is longer than the worker timeouts used here. (A server that sends a byte now and then is
+     * not stuck, since every byte that arrives counts as progress.)
      */
-    private static final class TricklingJarServer implements Closeable {
+    private static final class SlowJarServer implements Closeable {
         /** The socket the server listens on. */
         private final ServerSocket serverSocket;
+
+        /** The body to send, or null to send none. */
+        private final byte[] body;
 
         /** Counted down once the server has received a request. */
         private final CountDownLatch requestReceived = new CountDownLatch(1);
@@ -188,10 +202,13 @@ public class StuckClasspathElementTimeoutTest {
         /**
          * Constructor. Starts the server.
          *
+         * @param body
+         *            the body to send, or null to send none.
          * @throws IOException
          *             if the server socket could not be opened.
          */
-        TricklingJarServer() throws IOException {
+        SlowJarServer(final byte[] body) throws IOException {
+            this.body = body;
             serverSocket = new ServerSocket(0, /* backlog = */ 50, InetAddress.getLoopbackAddress());
             final var thread = new Thread(this::serve);
             thread.setDaemon(true);
@@ -205,12 +222,20 @@ public class StuckClasspathElementTimeoutTest {
                     readRequest(socket.getInputStream());
                     requestReceived.countDown();
                     final var outputStream = socket.getOutputStream();
-                    outputStream.write(("HTTP/1.1 200 OK\r\nContent-Length: 1000000\r\nConnection: close\r\n\r\n")
-                            .getBytes(StandardCharsets.ISO_8859_1));
-                    do {
-                        outputStream.write(0);
-                        outputStream.flush();
-                    } while (!closed.await(100, TimeUnit.MILLISECONDS));
+                    outputStream
+                            .write(("HTTP/1.1 200 OK\r\nContent-Length: " + (body == null ? 1000000 : body.length)
+                                    + "\r\nConnection: close\r\n\r\n").getBytes(StandardCharsets.ISO_8859_1));
+                    outputStream.flush();
+                    if (body == null) {
+                        closed.await();
+                    } else {
+                        final var partLength = (body.length + 19) / 20;
+                        for (var offset = 0; offset < body.length
+                                && !closed.await(100, TimeUnit.MILLISECONDS); offset += partLength) {
+                            outputStream.write(body, offset, Math.min(partLength, body.length - offset));
+                            outputStream.flush();
+                        }
+                    }
                 } catch (final IOException _) {
                     // The server socket was closed at the end of the test, or the client hung up
                 } catch (final InterruptedException _) {
@@ -300,7 +325,7 @@ public class StuckClasspathElementTimeoutTest {
                 }
             }
         };
-        try (var server = new TricklingJarServer()) {
+        try (var server = new SlowJarServer(/* body = */ null)) {
             final var jarURL = server.jarURL();
             final var thrown = assertTimeoutPreemptively(Duration.ofSeconds(20),
                     () -> catchThrowable(() -> new ClassGraph().enableRemoteJarScanning()
@@ -327,5 +352,160 @@ public class StuckClasspathElementTimeoutTest {
             executorService.shutdown();
             assertThat(executorService.awaitTermination(20, TimeUnit.SECONDS)).isTrue();
         }
+    }
+
+    /**
+     * A jarfile holding one resource, {@code pkgroot/resource.txt}.
+     *
+     * @return the jarfile's bytes.
+     * @throws IOException
+     *             if the jarfile could not be written.
+     */
+    private static byte[] jarWithOneResource() throws IOException {
+        final var bytes = new ByteArrayOutputStream();
+        try (var jarOut = new JarOutputStream(bytes)) {
+            jarOut.putNextEntry(new JarEntry("pkgroot/resource.txt"));
+            jarOut.write(new byte[100000]);
+            jarOut.closeEntry();
+        }
+        return bytes.toByteArray();
+    }
+
+    /**
+     * Scan a directory "parent" and the given remote classpath entries with a worker timeout of one second, while
+     * the server sends the remote jarfile over about two seconds. As in
+     * {@link #aThreadWaitingForAnotherThreadToOpenTheSameJarfileTimesOut(Path)}, the calling thread opens "parent"
+     * and is held there until the worker thread has started downloading the jarfile, and then waits for the worker
+     * thread. The download makes progress the whole time, so the scan must not time out, however long the download
+     * takes in all.
+     *
+     * @param tempDir
+     *            the directory to make "parent" in.
+     * @param server
+     *            the server.
+     * @param maxBufferedJarRAMSize
+     *            the largest jarfile to download into RAM rather than to a temporary file.
+     * @param remoteClasspathEntries
+     *            the remote classpath entries.
+     * @throws Exception
+     *             if the scan failed.
+     */
+    private static void scanWhileTheDownloadMakesProgress(final Path tempDir, final SlowJarServer server,
+            final int maxBufferedJarRAMSize, final String... remoteClasspathEntries) throws Exception {
+        makeDirWithClassPath(tempDir.resolve("parent"), "other/");
+        Files.createDirectories(tempDir.resolve("other"));
+        final List<Object> classpath = new ArrayList<>();
+        classpath.add(tempDir.resolve("parent").toString());
+        classpath.addAll(Arrays.asList(remoteClasspathEntries));
+        final var parentOpening = new CountDownLatch(1);
+
+        // Hold back the worker thread until the calling thread has taken the first work unit, "parent"
+        final var executorService = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS,
+                new LinkedBlockingQueue<>()) {
+            @Override
+            protected void beforeExecute(final Thread t, final Runnable r) {
+                try {
+                    parentOpening.await(30, TimeUnit.SECONDS);
+                } catch (final InterruptedException _) {
+                    t.interrupt();
+                }
+            }
+        };
+        try (server) {
+            assertTimeoutPreemptively(Duration.ofSeconds(20), () -> {
+                try (var scanResult = new ClassGraph().enableRemoteJarScanning().enableClasspathEntries(classpath)
+                        .filterClasspathElements(location -> {
+                            if (names(location, "other")) {
+                                parentOpening.countDown();
+                                try {
+                                    server.awaitRequest();
+                                } catch (final InterruptedException _) {
+                                    Thread.currentThread().interrupt();
+                                }
+                            }
+                            return true;
+                        }).setMaxBufferedJarRAMSize(maxBufferedJarRAMSize).setWorkerTimeout(Duration.ofSeconds(1))
+                        .scan(executorService, 2)) {
+                    assertThat(scanResult.getResourcesWithLeafName("resource.txt")).isNotEmpty();
+                }
+            });
+        } finally {
+            parentOpening.countDown();
+            executorService.shutdown();
+            assertThat(executorService.awaitTermination(20, TimeUnit.SECONDS)).isTrue();
+        }
+    }
+
+    /**
+     * The calling thread waits in the work queue for a worker thread that is downloading a classpath element slowly
+     * but steadily, for longer than the worker timeout. The worker timeout counts time with no progress, so the
+     * scan succeeds.
+     *
+     * @param tempDir
+     *            the directory to make the classpath elements in.
+     * @throws Exception
+     *             if the scan failed.
+     */
+    @Test
+    public void aThreadWaitingForASlowButProgressingWorkerDoesNotTimeOut(@TempDir final Path tempDir)
+            throws Exception {
+        final var server = new SlowJarServer(jarWithOneResource());
+        scanWhileTheDownloadMakesProgress(tempDir, server, VfsSpec.DEFAULT_MAX_BUFFERED_JAR_RAM_SIZE,
+                server.jarURL());
+    }
+
+    /**
+     * As {@link #aThreadWaitingForASlowButProgressingWorkerDoesNotTimeOut(Path)}, but the jarfile is larger than
+     * the largest jarfile that is downloaded into RAM, so it is written to a temporary file as it arrives, and the
+     * progress is reported from there. The scan succeeds.
+     *
+     * @param tempDir
+     *            the directory to make the classpath elements in.
+     * @throws Exception
+     *             if the scan failed.
+     */
+    @Test
+    public void aThreadWaitingForAWorkerThatSpillsASlowDownloadToDiskDoesNotTimeOut(@TempDir final Path tempDir)
+            throws Exception {
+        final var jar = jarWithOneResource();
+        final var server = new SlowJarServer(jar);
+        scanWhileTheDownloadMakesProgress(tempDir, server, /* maxBufferedJarRAMSize = */ jar.length / 20,
+                server.jarURL());
+    }
+
+    /**
+     * As {@link #aThreadWaitingForAStuckClasspathElementTimesOut(Path)}, but the classpath element is a remote
+     * jarfile, named twice with the scheme spelled differently, whose download is slow and steady rather than
+     * stuck, and takes longer than the worker timeout. The two names are the same URL, so the calling thread waits
+     * for the worker thread to open the classpath element. The scan succeeds.
+     *
+     * @param tempDir
+     *            the directory to make the classpath elements in.
+     * @throws Exception
+     *             if the scan failed.
+     */
+    @Test
+    public void aThreadWaitingForAProgressingClasspathElementDoesNotTimeOut(@TempDir final Path tempDir)
+            throws Exception {
+        final var server = new SlowJarServer(jarWithOneResource());
+        scanWhileTheDownloadMakesProgress(tempDir, server, VfsSpec.DEFAULT_MAX_BUFFERED_JAR_RAM_SIZE,
+                server.jarURL(), "HTTP" + server.jarURL().substring("http".length()));
+    }
+
+    /**
+     * As {@link #aThreadWaitingForAnotherThreadToOpenTheSameJarfileTimesOut(Path)}, but the download of the remote
+     * jarfile is slow and steady rather than stuck, and takes longer than the worker timeout. The scan succeeds.
+     *
+     * @param tempDir
+     *            the directory to make the classpath elements in.
+     * @throws Exception
+     *             if the scan failed.
+     */
+    @Test
+    public void aThreadWaitingForAnotherThreadToDownloadTheSameJarfileDoesNotTimeOut(@TempDir final Path tempDir)
+            throws Exception {
+        final var server = new SlowJarServer(jarWithOneResource());
+        scanWhileTheDownloadMakesProgress(tempDir, server, VfsSpec.DEFAULT_MAX_BUFFERED_JAR_RAM_SIZE,
+                server.jarURL(), server.jarURL() + "!/pkgroot");
     }
 }

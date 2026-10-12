@@ -222,6 +222,9 @@ public final class DirRoot extends VfsRoot {
         try (var dirStream = Files.newDirectoryStream(currDir)) {
             for (final Path child : dirStream) {
                 children.add(child);
+                // Each entry listed counts as progress, so that the threads waiting for this one do not time out
+                // while a large directory on a slow filesystem is still being listed
+                getVfs().interruptionChecker().progress();
             }
         } catch (final IOException e) {
             // A directory that cannot be opened is skipped, rather than aborting the whole listing

@@ -40,6 +40,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
 import io.github.classgraph.base.LogNode;
+import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
 import io.github.classgraph.vfs.Vfs;
 import io.github.classgraph.vfs.internal.InputStreamUtils;
 import io.github.classgraph.vfs.internal.TempFile;
@@ -172,7 +173,10 @@ public abstract class Slice implements AutoCloseable {
         }
         // inputStreamLengthHint is unknown (-1) or no longer than maxBufferedJarRAMSize, so read the stream into an
         // array, unless it turns out to be longer than maxBufferedJarRAMSize after all
-        final var prefix = readUpTo(inputStream, inputStreamLengthHint, maxBufferedJarRAMSize);
+        // Each block read counts as progress, so that the threads waiting for this one, for example to open the
+        // same jarfile, do not time out while a slow download is still arriving
+        final var prefix = readUpTo(inputStream, inputStreamLengthHint, maxBufferedJarRAMSize,
+                vfs.interruptionChecker());
         if (prefix.overflowByte() < 0) {
             return new ArraySlice(prefix.bytes(), vfs);
         }
@@ -220,12 +224,14 @@ public abstract class Slice implements AutoCloseable {
      *            the length of the stream if known, else -1L.
      * @param maxSize
      *            the largest size that the array may grow to, which is at most {@link #MAX_BUFFER_SIZE}.
+     * @param interruptionChecker
+     *            the InterruptionChecker to report progress to after each block read, or null to report none.
      * @return the bytes read, and the byte that was read past {@code maxSize}, if any.
      * @throws IOException
      *             if the stream could not be read.
      */
-    private static StreamPrefix readUpTo(final InputStream inputStream, final long lengthHint, final int maxSize)
-            throws IOException {
+    private static StreamPrefix readUpTo(final InputStream inputStream, final long lengthHint, final int maxSize,
+            final @Nullable InterruptionChecker interruptionChecker) throws IOException {
         var buf = new byte[lengthHint <= 0L ? Math.min(DEFAULT_BUFFER_SIZE, maxSize)
                 : (int) Math.min(Math.min(lengthHint, MAX_INITIAL_BUFFER_SIZE), maxSize)];
         var bufBytesUsed = 0;
@@ -249,6 +255,9 @@ public abstract class Slice implements AutoCloseable {
                     break;
                 }
                 bufBytesUsed += bytesRead;
+                if (interruptionChecker != null) {
+                    interruptionChecker.progress();
+                }
             }
         }
         // Trim the array to the length of the stream, if the length was unknown or overstated
@@ -336,6 +345,9 @@ public abstract class Slice implements AutoCloseable {
             int bytesRead;
             while ((bytesRead = InputStreamUtils.readAtLeastOne(inputStream, copyBuf, 0, copyBuf.length)) > 0) {
                 outputStream.write(copyBuf, 0, bytesRead);
+                // Each block written counts as progress, so that the threads waiting for this one do not time out
+                // while a slow download is still arriving
+                vfs.interruptionChecker().progress();
             }
         }
 
@@ -434,7 +446,8 @@ public abstract class Slice implements AutoCloseable {
             if (uncompressedLengthHint > MAX_BUFFER_SIZE) {
                 throw new IOException("InputStream is too large to read");
             }
-            final var prefix = readUpTo(inputStream, uncompressedLengthHint, MAX_BUFFER_SIZE);
+            final var prefix = readUpTo(inputStream, uncompressedLengthHint, MAX_BUFFER_SIZE,
+                    /* interruptionChecker = */ null);
             if (prefix.overflowByte() >= 0) {
                 throw new IOException("InputStream too large to read into array");
             }

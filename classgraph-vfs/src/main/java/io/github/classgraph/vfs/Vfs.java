@@ -112,12 +112,13 @@ import org.jspecify.annotations.Nullable;
  * <p>
  * Every method is safe to call from multiple threads at once. Two threads that ask for the same path at the same
  * time get back the same {@link VfsRoot}, and the jarfile behind it is only read once: the second thread waits for
- * the first, for no longer than {@link VfsSpec#setOpenWaitTimeout(java.time.Duration)} allows. How storage is read
- * is set by a copy of the {@link VfsSpec} this {@link Vfs} was constructed with, taken by the constructor, so its
- * settings cannot change while it is open. {@link #close()} takes effect the moment it is called, so a thread that
- * calls any other method after that -- even while the close is still running -- gets an {@link IOException} from an
- * {@code open} method, or an {@link IllegalStateException} from {@link #verbose()}, rather than a root backed by
- * storage that is being released.
+ * the first, until the first has made no progress for as long as
+ * {@link VfsSpec#setOpenWaitTimeout(java.time.Duration)} allows. How storage is read is set by a copy of the
+ * {@link VfsSpec} this {@link Vfs} was constructed with, taken by the constructor, so its settings cannot change
+ * while it is open. {@link #close()} takes effect the moment it is called, so a thread that calls any other method
+ * after that -- even while the close is still running -- gets an {@link IOException} from an {@code open} method,
+ * or an {@link IllegalStateException} from {@link #verbose()}, rather than a root backed by storage that is being
+ * released.
  */
 public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
     /** The settings that govern how storage is read: a copy of those passed in, which cannot be changed. */
@@ -343,8 +344,8 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      *            builds the root if no thread has opened that key yet.
      * @return the root open at that key.
      * @throws IOException
-     *             if the key could not be opened or read, if another thread was opening it and did not finish
-     *             within {@link VfsSpec#getOpenWaitTimeout()}, or if this {@link Vfs} has been closed.
+     *             if the key could not be opened or read, if another thread was opening it and made no progress for
+     *             {@link VfsSpec#getOpenWaitTimeout()}, or if this {@link Vfs} has been closed.
      * @throws InterruptedException
      *             if the thread was interrupted.
      */
@@ -353,9 +354,9 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
         for (;;) {
             final VfsRoot root;
             try {
-                // Wait no longer than the timeout for another thread that is opening the same key, since that
-                // thread may be stuck reading it
-                root = rootsByPath.get(key, factory, vfsSpec.openWaitTimeoutNanos());
+                // Give up waiting for another thread that is opening the same key once the timeout has passed with
+                // no progress, since that thread may be stuck reading it
+                root = rootsByPath.get(key, factory, interruptionChecker, vfsSpec.openWaitTimeoutNanos());
             } catch (final TimeoutException e) {
                 final var timeout = new IOException(
                         "Timed out after " + TimeUnit.NANOSECONDS.toMillis(vfsSpec.openWaitTimeoutNanos())
@@ -1097,11 +1098,15 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
 
     /**
      * Returns the interruption checker shared by every thread reading through this {@link Vfs}, so that a thread
-     * that is interrupted while reading stops all the others too.
+     * that is interrupted while reading stops all the others too, and so that a thread that is making progress
+     * reading, such as downloading a jarfile, can report it, to keep the threads waiting for it from timing out.
+     * Public only because the slice package reports progress through it, and not part of the API.
      *
      * @return the interruption checker.
+     * @hidden
      */
-    InterruptionChecker interruptionChecker() {
+    @SuppressWarnings("exports")
+    public InterruptionChecker interruptionChecker() {
         return interruptionChecker;
     }
 

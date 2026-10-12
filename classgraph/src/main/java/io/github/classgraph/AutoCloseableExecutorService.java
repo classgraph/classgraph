@@ -49,7 +49,8 @@ class AutoCloseableExecutorService extends ThreadPoolExecutor {
      *
      * <p>
      * This is a grace period for the worker threads to unwind, not a worker timeout: by the time the executor is
-     * closed, {@link WorkQueue#close()} has already waited up to the scan's worker timeout for each of its workers.
+     * closed, {@link WorkQueue#close()} has already waited for its workers until they finished, or until they made
+     * no progress for the scan's worker timeout.
      */
     private static final long TERMINATION_TIMEOUT_MILLIS = 2500;
 

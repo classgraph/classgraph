@@ -159,9 +159,11 @@ class Scanner {
         // The virtual filesystem owns the file handles, memory mappings and temporary files that everything read
         // during the scan is backed by. It is given no log node of its own, since each part of the scan passes the
         // log node that what it reads should be logged under. A thread that waits for another thread to open the
-        // same jarfile waits no longer than the worker timeout, as a thread waiting for another thread to open the
-        // same classpath element does, since the other thread may be stuck, and this may be the calling thread,
-        // which is the thread that applies the worker timeout to the other threads.
+        // same jarfile gives up once the worker timeout has passed with no progress, as a thread waiting for
+        // another thread to open the same classpath element does, since the other thread may be stuck, and this
+        // may be the calling thread, which is the thread that applies the worker timeout to the other threads. The
+        // virtual filesystem shares the scan's InterruptionChecker, so that the progress it reports while reading,
+        // such as the bytes of a download, keeps the threads waiting for it from timing out.
         this.vfs = new Vfs(scanSpec.vfsSpec.copy().setOpenWaitTimeout(scanSpec.workerTimeout), interruptionChecker);
         this.numParallelTasks = numParallelTasks;
         this.topLevelLog = topLevelLog;
@@ -664,9 +666,9 @@ class Scanner {
 
                 // Create a ClasspathElementZip or ClasspathElementDir from the classpath entry. Use a singleton map
                 // to ensure that classpath elements are only opened once per unique Path, URL, or URI. If another
-                // thread is opening the same classpath element, wait for it for no longer than the worker timeout,
-                // since that thread may be stuck, and this may be the calling thread, which is the thread that
-                // applies the worker timeout to the other threads
+                // thread is opening the same classpath element, wait for it until the worker timeout has passed with
+                // no progress, since that thread may be stuck, and this may be the calling thread, which is the
+                // thread that applies the worker timeout to the other threads
                 final var classpathElement = classpathEntryObjToClasspathEntrySingletonMap.get(classpathEntryObj,
                         () -> {
                             final ClasspathElement classpathElt = isJar
@@ -687,7 +689,7 @@ class Scanner {
                             classpathElt.open(workQueue, subLog);
 
                             return classpathElt;
-                        }, scanSpec.getWorkerTimeoutNanos());
+                        }, interruptionChecker, scanSpec.getWorkerTimeoutNanos());
 
                 // Register this work unit's reference to the classpath element. This has to be done for every work
                 // unit that references the classpath element, rather than only when the classpath element is
@@ -714,7 +716,7 @@ class Scanner {
             } catch (final TimeoutException e) {
                 // The classpath element is not invalid, so it must not be skipped by the catch-all handler below:
                 // skipping it would silently drop this reference to it if the other thread does finish opening it.
-                // Fail the scan instead, as the work queue does when a worker thread does not finish in time
+                // Fail the scan instead, as the work queue does when a worker thread makes no progress in time
                 final var timeout = new IllegalStateException(
                         "Timed out after " + TimeUnit.NANOSECONDS.toMillis(scanSpec.getWorkerTimeoutNanos())
                                 + "ms waiting for another thread to open the classpath element "
