@@ -731,10 +731,13 @@ public class NestedJarHandler {
      * {@code Files.createTempFile} or {@code Files.createTempDirectory} in the JVM. That call may be ClassGraph's,
      * so on those JDKs a cleared property, or a value that is not a valid path, gives an {@link IOException} here,
      * which leaves the helper class usable by the rest of the application once the property is set to a valid
-     * value again. If the property was cleared after the initializer ran, the JDK would still create the file, but
-     * ClassGraph cannot tell whether the initializer has run, so that case gives an {@link IOException} too. If a
-     * security manager does not let ClassGraph read the property, the check is skipped, since the JDK reads it with
-     * its own permissions.
+     * value again. If the property was cleared, or set to a value that is not a valid path, after the initializer
+     * ran, the JDK would still create the file, but ClassGraph cannot tell whether the initializer has run, so that
+     * case gives an {@link IOException} too. If a security manager does not let ClassGraph read the property, the
+     * check is skipped, so if the property is then not set or not a valid path, ClassGraph's call breaks
+     * {@code Files.createTempFile} for the rest of the JVM, as any other first call would. The check is also made
+     * when the JDK version is not known (when {@link VersionFinder#JAVA_MAJOR_VERSION} is 0), since on JDK 16 and
+     * later it can at worst give an {@link IOException} for a value the JDK would ignore.
      *
      * @throws IOException
      *             If the property is not set, or is not a valid path.
