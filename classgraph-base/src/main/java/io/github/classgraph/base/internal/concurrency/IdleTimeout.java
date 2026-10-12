@@ -34,8 +34,9 @@ import java.util.concurrent.TimeUnit;
  * Times a wait for other threads that gives up only once none of them has made progress for the whole timeout.
  * Progress is anything reported to {@link InterruptionChecker#progress()}. The wait is made in slices of one tenth
  * of the timeout, or one second if that is shorter. A slice that took longer than it should have, because the whole
- * JVM was paused (by a debugger, by SIGSTOP, or by a suspended virtual machine), counts only as one slice, so a
- * pause can use up at most one slice of the timeout.
+ * JVM was paused (at a breakpoint that suspends all threads, or by SIGSTOP), counts only as one slice, so a pause
+ * can use up at most one slice of the timeout. A breakpoint that suspends only a worker thread is not a pause of
+ * the whole JVM, so set a longer timeout, or 0, while debugging a scan.
  *
  * <pre>
  * var idleTimeout = new IdleTimeout(interruptionChecker, timeoutNanos);

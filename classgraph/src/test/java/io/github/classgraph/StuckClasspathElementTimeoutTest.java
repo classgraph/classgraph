@@ -170,8 +170,8 @@ public class StuckClasspathElementTimeoutTest {
                                     }).setWorkerTimeout(Duration.ofMillis(500)).scan(executorService, 2).close()));
             assertThat(thrown).isInstanceOf(ClassGraphException.class);
             assertThat(thrown.getCause()).isInstanceOf(IllegalStateException.class)
-                    .hasMessageStartingWith("Timed out after 500ms waiting for another thread to open the "
-                            + "classpath element " + tempDir.resolve("stuck").toRealPath());
+                    .hasMessageStartingWith("Timed out after 500ms with no progress, waiting for another thread to "
+                            + "open the classpath element " + tempDir.resolve("stuck").toRealPath());
             assertThat(workerWaitNanos).isNotEmpty().containsOnly(0L);
         } finally {
             parentOpening.countDown();
@@ -371,8 +371,8 @@ public class StuckClasspathElementTimeoutTest {
      * @param classPath
      *            the value of the {@code Class-Path} entry of its manifest, or null for no manifest.
      * @param dataSize
-     *            the size of a file {@code pkgroot/data.bin} of random bytes to put in the jarfile, stored without
-     *            compression, or 0 for none.
+     *            the size of a file {@code pkgroot/resource.txt} of random bytes to put in the jarfile, stored
+     *            without compression, or 0 for none.
      * @return the bytes of the jarfile.
      * @throws IOException
      *             if the jarfile could not be made.
@@ -391,7 +391,7 @@ public class StuckClasspathElementTimeoutTest {
                 new Random(1).nextBytes(data);
                 final var crc = new CRC32();
                 crc.update(data);
-                final var entry = new JarEntry("pkgroot/data.bin");
+                final var entry = new JarEntry("pkgroot/resource.txt");
                 entry.setMethod(ZipEntry.STORED);
                 entry.setSize(dataSize);
                 entry.setCrc(crc.getValue());
@@ -453,7 +453,8 @@ public class StuckClasspathElementTimeoutTest {
      * Scan a classpath in which the calling thread opens a directory "parent", while the worker thread downloads
      * {@code slow.jar}, and then waits for the worker thread. The calling thread is held in the filter when it is
      * asked about "other", the classpath element that "parent" names, until the worker thread has started
-     * downloading {@code slow.jar}.
+     * downloading {@code slow.jar}. A scan that succeeds must find {@code pkgroot/resource.txt} in
+     * {@code slow.jar}.
      *
      * @param tempDir
      *            the directory to make "parent" and "other" in.
@@ -463,7 +464,7 @@ public class StuckClasspathElementTimeoutTest {
      *            the largest jarfile that is downloaded into memory rather than to a temporary file.
      * @param classpathAfterParent
      *            the classpath elements after "parent".
-     * @return what the scan threw, or null if it did not throw.
+     * @return what the scan, or the check of what it found, threw, or null if neither threw.
      * @throws Exception
      *             if the classpath elements could not be made.
      */
@@ -479,23 +480,28 @@ public class StuckClasspathElementTimeoutTest {
         classpath.add(tempDir.resolve("parent").toString());
         Collections.addAll(classpath, classpathAfterParent);
         try {
-            return assertTimeoutPreemptively(Duration.ofSeconds(20),
-                    () -> catchThrowable(() -> new ClassGraph().enableRemoteJarScanning()
-                            .enableClasspathEntries(classpath).setMaxBufferedJarRAMSize(maxBufferedJarRAMSize)
-                            .filterClasspathElements(location -> {
-                                if (names(location, "other")) {
-                                    parentOpening.countDown();
-                                    try {
-                                        server.awaitSlowJarRequest();
-                                    } catch (final InterruptedException e) {
-                                        Thread.currentThread().interrupt();
-                                    }
+            return assertTimeoutPreemptively(Duration.ofSeconds(20), () -> catchThrowable(() -> {
+                try (var scanResult = new ClassGraph().enableRemoteJarScanning().enableClasspathEntries(classpath)
+                        .setMaxBufferedJarRAMSize(maxBufferedJarRAMSize).filterClasspathElements(location -> {
+                            if (names(location, "other")) {
+                                parentOpening.countDown();
+                                try {
+                                    server.awaitSlowJarRequest();
+                                } catch (final InterruptedException e) {
+                                    Thread.currentThread().interrupt();
                                 }
-                                return true;
-                            }).setWorkerTimeout(Duration.ofMillis(SLOW_WORKER_TIMEOUT_MILLIS))
-                            .scan(executorService, 2).close()));
+                            }
+                            return true;
+                        }).setWorkerTimeout(Duration.ofMillis(SLOW_WORKER_TIMEOUT_MILLIS))
+                        .scan(executorService, 2)) {
+                    assertThat(scanResult.getResourcesWithLeafName("resource.txt")).isNotEmpty();
+                }
+            }));
         } finally {
             parentOpening.countDown();
+            // Close the server first, so that a worker thread stuck downloading a jarfile that has stalled fails at
+            // once, rather than after the read timeout of the download
+            server.close();
             shutDown(executorService);
         }
     }
@@ -524,7 +530,7 @@ public class StuckClasspathElementTimeoutTest {
             assertThat(thrown).isInstanceOf(ClassGraphException.class);
             assertThat(thrown.getCause()).isInstanceOf(IOException.class)
                     .hasMessageStartingWith("Timed out after " + SLOW_WORKER_TIMEOUT_MILLIS
-                            + "ms waiting for another thread to open " + jarURL + ".")
+                            + "ms with no progress, waiting for another thread to open " + jarURL + ".")
                     .hasMessageContaining("ClassGraph#setWorkerTimeout(Duration)");
         }
     }
@@ -623,23 +629,26 @@ public class StuckClasspathElementTimeoutTest {
         };
         try (var server = new SlowJarServer(makeJar(/* classPath = */ null, 100000),
                 Map.of("parent.jar", makeJar(/* classPath = */ "slow.jar", /* dataSize = */ 0)))) {
-            final var thrown = assertTimeoutPreemptively(Duration.ofSeconds(20),
-                    () -> catchThrowable(() -> new ClassGraph().enableRemoteJarScanning()
-                            .enableClasspathEntries(server.jarURL("parent.jar"), server.jarURL("slow.jar"))
-                            .filterClasspathElements(location -> {
-                                if (names(location, "slow.jar") && workQueueStarted.get()) {
-                                    // The calling thread is opening "parent.jar". Hold it there until the worker
-                                    // thread has started downloading "slow.jar"
-                                    parentOpening.countDown();
-                                    try {
-                                        server.awaitSlowJarRequest();
-                                    } catch (final InterruptedException e) {
-                                        Thread.currentThread().interrupt();
-                                    }
+            final var thrown = assertTimeoutPreemptively(Duration.ofSeconds(20), () -> catchThrowable(() -> {
+                try (var scanResult = new ClassGraph().enableRemoteJarScanning()
+                        .enableClasspathEntries(server.jarURL("parent.jar"), server.jarURL("slow.jar"))
+                        .filterClasspathElements(location -> {
+                            if (names(location, "slow.jar") && workQueueStarted.get()) {
+                                // The calling thread is opening "parent.jar". Hold it there until the worker
+                                // thread has started downloading "slow.jar"
+                                parentOpening.countDown();
+                                try {
+                                    server.awaitSlowJarRequest();
+                                } catch (final InterruptedException e) {
+                                    Thread.currentThread().interrupt();
                                 }
-                                return true;
-                            }).setWorkerTimeout(Duration.ofMillis(SLOW_WORKER_TIMEOUT_MILLIS))
-                            .scan(executorService, 2).close()));
+                            }
+                            return true;
+                        }).setWorkerTimeout(Duration.ofMillis(SLOW_WORKER_TIMEOUT_MILLIS))
+                        .scan(executorService, 2)) {
+                    assertThat(scanResult.getResourcesWithLeafName("resource.txt")).isNotEmpty();
+                }
+            }));
             assertScanSucceeded(thrown);
         } finally {
             parentOpening.countDown();

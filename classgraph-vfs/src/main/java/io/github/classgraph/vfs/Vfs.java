@@ -360,7 +360,7 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
             } catch (final TimeoutException e) {
                 final var timeout = new IOException(
                         "Timed out after " + TimeUnit.NANOSECONDS.toMillis(vfsSpec.openWaitTimeoutNanos())
-                                + "ms waiting for another thread to open " + key
+                                + "ms with no progress, waiting for another thread to open " + key
                                 + ". The other thread may be blocked reading it from a filesystem or network "
                                 + "(VfsSpec#setOpenWaitTimeout(Duration) sets how long to wait, and a ClassGraph "
                                 + "scan sets it to ClassGraph#setWorkerTimeout(Duration))",

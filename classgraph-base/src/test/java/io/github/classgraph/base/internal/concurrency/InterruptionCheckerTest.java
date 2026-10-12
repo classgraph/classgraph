@@ -138,9 +138,9 @@ public class InterruptionCheckerTest {
 
     /**
      * An {@link IdleTimeout} counts a slice of the wait that took far longer than it should have, which is what a
-     * pause of the whole JVM (by a debugger, by SIGSTOP, or by a suspended virtual machine) looks like to the
-     * waiting thread, only as one slice, so a pause can use up at most one slice of the timeout. It still runs out
-     * once the waits add up to the timeout with no progress, and progress starts the timeout again.
+     * pause of the whole JVM (at a breakpoint that suspends all threads, or by SIGSTOP) looks like to the waiting
+     * thread, only as one slice, so a pause can use up at most one slice of the timeout. It still runs out once the
+     * waits add up to the timeout with no progress, and progress starts the timeout again.
      *
      * @throws InterruptedException
      *             if the test thread was interrupted.
