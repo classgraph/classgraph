@@ -66,6 +66,7 @@ import io.github.classgraph.base.internal.path.FastPathResolver;
 import io.github.classgraph.base.internal.path.FileUtils;
 import io.github.classgraph.base.internal.path.PathSyntax;
 import io.github.classgraph.base.internal.utils.Assert;
+import io.github.classgraph.vfs.internal.StoragePaths;
 import io.github.classgraph.vfs.internal.recycler.RecycledInflaterInputStream;
 import io.github.classgraph.vfs.internal.recycler.Recycler;
 import io.github.classgraph.vfs.internal.zip.JarOpener;
@@ -651,7 +652,7 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
                     return recordPathKey(resolvedPath, openReentrant(resolvePath(dirAtURL.toString()), outerLog));
                 }
                 // Open the directory under the key open(Path) opens it under, unless that is this path itself
-                final var pathKey = dirAtURL.toUri().toString();
+                final var pathKey = StoragePaths.toURI(dirAtURL).toString();
                 return recordPathKey(resolvedPath, pathKey.equals(resolvedPath) ? adopt(new DirRoot(this, dirAtURL))
                         : openInOtherFilesystem(dirAtURL, pathKey, outerLog));
             }
@@ -750,7 +751,8 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      * another filesystem is read through that filesystem, unless {@link VfsSpec#denyURLScheme(String)} denied the
      * scheme of its URI, in which case it is refused, as it is when it is named by that URI. For a path in a
      * zipfile mounted as a filesystem, whose URI is a {@code jar:} URI, the scheme checked is that of the
-     * filesystem that holds the zipfile.
+     * filesystem that holds the zipfile. For a ClassGraph filesystem view, the checked URI is its underlying
+     * storage URI, rather than the {@code cgvfs:} URI of the view.
      *
      * @param path
      *            the directory or jarfile to open.
@@ -768,7 +770,7 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
         }
         // A path in another filesystem is keyed by its URI, since its string form is only meaningful within that
         // filesystem, and could collide with a path in the default one
-        final var key = path.toUri().toString();
+        final var key = StoragePaths.toURI(path).toString();
         checkNotClosed(key);
         // A path in a filesystem whose scheme has been denied is refused, as it is when it is named by its URI.
         // The URI of a path in a mounted zipfile is a "jar:" URI, which resolving strips down to the location of

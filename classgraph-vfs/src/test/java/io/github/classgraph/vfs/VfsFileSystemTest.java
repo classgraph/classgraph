@@ -70,6 +70,17 @@ import io.github.classgraph.base.internal.path.FastPathResolver;
 /** Tests the read-only {@link FileSystem} view of a {@link VfsRoot}. */
 public class VfsFileSystemTest {
     /**
+     * Read the storage URI explicitly rather than the filesystem provider URI.
+     *
+     * @param path
+     *            a virtual filesystem path.
+     * @return its underlying storage URI.
+     */
+    private static URI storageURI(final Path path) {
+        return ((VfsPath) path).toStorageUri();
+    }
+
+    /**
      * Keeping a closed channel reachable must not keep its inflated content or owning root reachable through it.
      *
      * @param tempDir
@@ -873,20 +884,20 @@ public class VfsFileSystemTest {
             final var dirRoot = vfs.open(dir);
             final var dirFileSystem = dirRoot.asFileSystem();
             // A path of a directory root names a file, and reads back through the default filesystem provider
-            final var fileURI = dirFileSystem.getPath("/com/xyz/Widget.class").toUri();
+            final var fileURI = storageURI(dirFileSystem.getPath("/com/xyz/Widget.class"));
             assertThat(fileURI.getScheme()).isEqualTo("file");
             assertThat(Files.readAllBytes(Path.of(fileURI))).isEqualTo(contentOf("com/xyz/Widget.class"));
-            assertThat(dirFileSystem.getPath("/").toUri()).isEqualTo(dirRoot.getURI());
+            assertThat(storageURI(dirFileSystem.getPath("/"))).isEqualTo(dirRoot.getURI());
             // A directory of the filesystem has no VfsEntry, but still names the directory it is a view of
-            assertThat(dirFileSystem.getPath("/com/xyz").toUri().toString()).endsWith("/com/xyz");
+            assertThat(storageURI(dirFileSystem.getPath("/com/xyz")).toString()).endsWith("/com/xyz");
 
             final var jarRoot = vfs.open(jarFile);
             final var jarFileSystem = jarRoot.asFileSystem();
-            final var entryURI = jarFileSystem.getPath("/com/xyz/Widget.class").toUri();
+            final var entryURI = storageURI(jarFileSystem.getPath("/com/xyz/Widget.class"));
             assertThat(entryURI.toString()).startsWith("jar:").endsWith("!/com/xyz/Widget.class");
             assertThat(entryURI)
                     .isEqualTo(Objects.requireNonNull(jarRoot.getEntry("com/xyz/Widget.class")).getURI());
-            assertThat(jarFileSystem.getPath("/com/xyz").toUri().toString()).endsWith("!/com/xyz");
+            assertThat(storageURI(jarFileSystem.getPath("/com/xyz")).toString()).endsWith("!/com/xyz");
         }
     }
 
@@ -909,10 +920,11 @@ public class VfsFileSystemTest {
             final var fileSystem = vfs.open(explodedModule(moduleDir)).asFileSystem();
 
             // A resource of the module has a URI of its own, which the module reader supplies
-            assertThat(fileSystem.getPath("/com/xyz/Widget.class").toUri())
+            assertThat(storageURI(fileSystem.getPath("/com/xyz/Widget.class")))
                     .isEqualTo(moduleDir.resolve("com/xyz/Widget.class").toUri());
             // A directory of the module has no resource to ask, so its URI is formed from the module's location
-            assertThat(fileSystem.getPath("/com/xyz").toUri()).hasScheme("file").asString().endsWith("/com/xyz");
+            assertThat(storageURI(fileSystem.getPath("/com/xyz"))).hasScheme("file").asString()
+                    .endsWith("/com/xyz");
         }
     }
 
@@ -1022,7 +1034,7 @@ public class VfsFileSystemTest {
 
         try (var vfs = new Vfs()) {
             final var jarRoot = vfs.open(jarFile);
-            final var rootURI = jarRoot.asFileSystem().getPath("/").toUri();
+            final var rootURI = storageURI(jarRoot.asFileSystem().getPath("/"));
             assertThat(rootURI).isEqualTo(jarRoot.resolveURI(""));
             assertThat(rootURI.toString()).startsWith("jar:file:").endsWith("app.jar!/");
         }
@@ -1044,13 +1056,13 @@ public class VfsFileSystemTest {
 
         try (var vfs = new Vfs(); var otherVfs = new Vfs()) {
             final var wholeView = vfs.open(jarFile).asFileSystem();
-            final var wholeRootURI = wholeView.getPath("/").toUri();
+            final var wholeRootURI = storageURI(wholeView.getPath("/"));
             final var packageRootView = vfs.open(jarFile.getPath() + "!/BOOT-INF/classes").asFileSystem();
-            final var packageRootURI = packageRootView.getPath("/").toUri();
+            final var packageRootURI = storageURI(packageRootView.getPath("/"));
             assertThat(packageRootURI.toString()).startsWith("jar:file:").endsWith("app.jar!/BOOT-INF/classes");
             assertThat(packageRootURI).isNotEqualTo(wholeRootURI);
             // A directory of the package root is named within the package root, the way its files are
-            assertThat(packageRootView.getPath("/com").toUri().toString()).isEqualTo(packageRootURI + "/com");
+            assertThat(storageURI(packageRootView.getPath("/com")).toString()).isEqualTo(packageRootURI + "/com");
 
             // Another Vfs opens a path of a filesystem it does not own by the path's URI, so the two views must not
             // open as the same root there
@@ -1096,8 +1108,8 @@ public class VfsFileSystemTest {
             for (final var rootDir : rootDirs) {
                 final var fileSystem = rootDir.getKey();
                 for (final var dirName : dirNames) {
-                    final var dirURI = fileSystem.getPath("/" + dirName).toUri();
-                    final var fileURI = fileSystem.getPath("/" + dirName + "/X.class").toUri();
+                    final var dirURI = storageURI(fileSystem.getPath("/" + dirName));
+                    final var fileURI = storageURI(fileSystem.getPath("/" + dirName + "/X.class"));
                     // The default filesystem's URI of the directory, less the '/' it ends a directory's URI with
                     final var defaultDirURI = rootDir.getValue().resolve(dirName).toUri().toString();
                     assertThat(dirURI.toString()).isEqualTo(defaultDirURI.substring(0, defaultDirURI.length() - 1));
@@ -1126,14 +1138,14 @@ public class VfsFileSystemTest {
 
         try (var vfs = new Vfs()) {
             final var fileSystem = vfs.open(moduleReference).asFileSystem();
-            final var rootURI = fileSystem.getPath("/").toUri();
+            final var rootURI = storageURI(fileSystem.getPath("/"));
             assertThat(rootURI.toString()).startsWith("jar:file:").endsWith("library.jar!/");
-            assertThat(fileSystem.getPath("/com/xyz").toUri().toString()).isEqualTo(rootURI + "com/xyz");
+            assertThat(storageURI(fileSystem.getPath("/com/xyz")).toString()).isEqualTo(rootURI + "com/xyz");
 
             final var jrtFileSystem = vfs.open(ModuleFinder.ofSystem().find("java.logging").orElseThrow())
                     .asFileSystem();
-            assertThat(jrtFileSystem.getPath("/").toUri()).isEqualTo(URI.create("jrt:/java.logging"));
-            assertThat(jrtFileSystem.getPath("/java/util").toUri())
+            assertThat(storageURI(jrtFileSystem.getPath("/"))).isEqualTo(URI.create("jrt:/java.logging"));
+            assertThat(storageURI(jrtFileSystem.getPath("/java/util")))
                     .isEqualTo(URI.create("jrt:/java.logging/java/util"));
         }
     }
