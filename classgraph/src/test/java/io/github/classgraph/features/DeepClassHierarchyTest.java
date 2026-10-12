@@ -30,6 +30,35 @@ public class DeepClassHierarchyTest {
     private static final long STACK_SIZE = 128 * 1024;
 
     /**
+     * A deep chain with an override at every level still selects the most specific declaration, without computing a
+     * transitive closure for every interface.
+     *
+     * @param tempDir
+     *            the fixture directory.
+     * @throws Exception
+     *             if fixture creation or lookup fails.
+     */
+    @Test
+    public void deepInterfaceOverridesChooseTheMostSpecificDeclaration(@TempDir final File tempDir)
+            throws Exception {
+        for (var i = 0; i < DEPTH; i++) {
+            Files.write(new File(tempDir, "I" + i + ".class").toPath(), classfileBytes("I" + i, "java/lang/Object",
+                    i == DEPTH - 1 ? null : "I" + (i + 1), /* isInterface = */ true, /* declareMembers = */ true));
+        }
+        Files.write(new File(tempDir, "Impl.class").toPath(),
+                classfileBytes("Impl", "java/lang/Object", "I0", /* isInterface = */ false, false));
+        try (var scanResult = new ClassGraph().enableClassInfo().enableMethodInfo().enableClasspathEntries(tempDir)
+                .scan()) {
+            final var classInfo = scanResult.getClassInfo("Impl");
+            assertThat(classInfo).isNotNull();
+            final var methods = callWithSmallStack(() -> classInfo.getMethodInfo("m"));
+            assertThat(methods).hasSize(1);
+            assertThat(methods.get(0).getClassInfo().getName()).isEqualTo("I0");
+            assertThat(classInfo.getMethodInfo("m")).containsExactlyElementsOf(methods);
+        }
+    }
+
+    /**
      * Generate an abstract class or an interface that extends the given superclass and implements at most one
      * interface, and that optionally declares a field {@code int f} and an abstract method {@code void m()}.
      *
