@@ -279,10 +279,11 @@ new Vfs(new VfsSpec().denyURLScheme("https").setMaxBufferedJarRAMSize(65536))
 | `enableMultiReleaseVersions()` / `disableMultiReleaseVersions()` | enabled | Whether to serve each entry of a multi-release jarfile in the highest version that does not exceed this JVM's major version, as the JVM does, rather than reporting every version under its own `META-INF/versions/<N>/` path |
 | `denyURLScheme(String)` / `allowURLScheme(String)` | none denied | A URL scheme a jarfile may **not** be opened from, e.g. `"https"`. Every scheme the JVM has a handler for is allowed until it is denied. Denying `file:` or `jar:` has no effect, since both prefixes are stripped before a path is opened. Call once per scheme |
 | `setMaxBufferedJarRAMSize(int)` | 64MB | How many bytes of a jarfile may be held in RAM before it is spilled to a temporary file |
+| `setOpenWaitTimeout(Duration)` | zero (wait indefinitely) | How long a thread opening a path waits for another thread that is already opening the same directory or jarfile, counting only time in which no thread reading through the `Vfs` made progress. When the wait times out, the waiting `open` throws `IOException`. `ClassGraph` sets this to its worker timeout |
 
 `new Vfs()` uses the default of every setting. Each setting has a matching getter --
-`isNestedJarsEnabled()`, `isMultiReleaseVersionsEnabled()`, `getDeniedURLSchemes()` and
-`getMaxBufferedJarRAMSize()` -- and `VfsSpec.DEFAULT_ENABLE_NESTED_JARS`,
+`isNestedJarsEnabled()`, `isMultiReleaseVersionsEnabled()`, `getDeniedURLSchemes()`,
+`getMaxBufferedJarRAMSize()` and `getOpenWaitTimeout()` -- and `VfsSpec.DEFAULT_ENABLE_NESTED_JARS`,
 `VfsSpec.DEFAULT_ENABLE_MULTI_RELEASE_VERSIONS` and `VfsSpec.DEFAULT_MAX_BUFFERED_JAR_RAM_SIZE` name
 the defaults.
 
