@@ -36,6 +36,7 @@ import java.lang.module.ModuleReference;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.nio.file.FileSystem;
 import java.nio.file.FileSystemNotFoundException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
@@ -147,13 +148,38 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      * The roots that have been opened from a path, keyed by every path that names each -- the path as it was
      * opened, its canonical form, and the path the root reports itself at -- so that one directory or jarfile named
      * several ways is opened once. A root opened through a {@link Path} in a non-default filesystem is keyed only
-     * by the URI of that path, and by the URL it was opened by, if it was opened by one. Two threads that ask for
-     * the same path at the same time build the root only once, since a lookup for a key whose root is still being
-     * built blocks until it is ready. The enclosing jarfiles of a nested jarfile are opened through this same
-     * cache, one frame of re-entry per {@code "!"} section, so each of them is a root in its own right, cached
-     * under its own path.
+     * by its filesystem identity and provider URI, and by the URL it was opened by, if it was opened by one. Two
+     * threads that ask for the same path at the same time build the root only once, since a lookup for a key whose
+     * root is still being built blocks until it is ready. The enclosing jarfiles of a nested jarfile are opened
+     * through this same cache, one frame of re-entry per {@code "!"} section, so each of them is a root in its own
+     * right, cached under its own path.
      */
-    private final SingletonMap<String, VfsRoot> rootsByPath = new SingletonMap<>(closed);
+    private final SingletonMap<Object, VfsRoot> rootsByPath = new SingletonMap<>(closed);
+
+    /**
+     * A provider URI identifies a path only within its particular filesystem instance.
+     *
+     * @param fileSystem
+     *            the source filesystem, compared by identity.
+     * @param uri
+     *            the path's provider URI within that filesystem.
+     */
+    private record PathKey(FileSystem fileSystem, URI uri) {
+        @Override
+        public boolean equals(final @Nullable Object other) {
+            return other instanceof PathKey key && fileSystem == key.fileSystem && uri.equals(key.uri);
+        }
+
+        @Override
+        public int hashCode() {
+            return 31 * System.identityHashCode(fileSystem) + uri.hashCode();
+        }
+
+        @Override
+        public String toString() {
+            return uri.toString();
+        }
+    }
 
     /** The roots that have been opened from a {@link ModuleReference}, keyed by that module. */
     private final Map<ModuleReference, VfsRoot> rootsByModule = new ConcurrentHashMap<>();
@@ -350,7 +376,7 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      * @throws InterruptedException
      *             if the thread was interrupted.
      */
-    private VfsRoot openThroughCache(final String key, final boolean aliasReportedPath,
+    private VfsRoot openThroughCache(final Object key, final boolean aliasReportedPath,
             final SingletonMap.NewInstanceFactory<VfsRoot> factory) throws IOException, InterruptedException {
         for (;;) {
             final VfsRoot root;
@@ -398,7 +424,7 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
             if (isClosed()) {
                 root.close();
             }
-            checkNotClosed(key);
+            checkNotClosed(key.toString());
             // The root was closed by hand while this Vfs stayed open: discard the stale cache entry, unless
             // another thread already replaced it, and retry, so that the caller gets a live root back
             rootsByPath.discard(key, root);
@@ -433,7 +459,7 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      *
      * <p>
      * A root read through a {@link Path} in a non-default filesystem is never recorded under the path it reports
-     * itself at, for the reason {@link #openThroughCache(String, boolean, SingletonMap.NewInstanceFactory)} gives:
+     * itself at, for the reason {@link #openThroughCache(Object, boolean, SingletonMap.NewInstanceFactory)} gives:
      * that path can name the storage behind the filesystem rather than the filesystem. Such a root is reached by a
      * path string when that string is a URL that the filesystem's provider serves.
      *
@@ -442,7 +468,7 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      * @param openedKey
      *            the key it was opened or found by.
      */
-    private void registerAlias(final VfsRoot root, final String openedKey) {
+    private void registerAlias(final VfsRoot root, final Object openedKey) {
         final var nioPath = root.getNioPath();
         if (nioPath != null && nioPath.getFileSystem() != FileSystems.getDefault()) {
             return;
@@ -460,7 +486,7 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      * it is being built under back out of {@link #rootsByPath}, so that closing the root removes it from the cache.
      * The cache entry itself is written by the cache once the build returns, so a root closed in the narrow window
      * between this registration and that write leaves a stale entry behind, which
-     * {@link #openThroughCache(String, boolean, SingletonMap.NewInstanceFactory)} discards and retries when it is
+     * {@link #openThroughCache(Object, boolean, SingletonMap.NewInstanceFactory)} discards and retries when it is
      * next looked up.
      *
      * @param key
@@ -469,7 +495,7 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      *            the root being returned for that key.
      * @return the root.
      */
-    private VfsRoot recordPathKey(final String key, final VfsRoot root) {
+    private VfsRoot recordPathKey(final Object key, final VfsRoot root) {
         root.addUnregistration(() -> rootsByPath.discard(key, root));
         return root;
     }
@@ -482,7 +508,7 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      * fields are not yet set -- such a close would release nothing of what the child goes on to own. If the
      * container was closed before the child was added, the container's close may not have seen it, so the child is
      * closed here instead, and the caller -- always a build running under
-     * {@link #openThroughCache(String, boolean, SingletonMap.NewInstanceFactory)} -- then sees a closed root,
+     * {@link #openThroughCache(Object, boolean, SingletonMap.NewInstanceFactory)} -- then sees a closed root,
      * discards it, and retries or turns its caller away. The closed root is returned rather than an exception being
      * thrown, so that the caller retries against the container's replacement and gets a live root back: a race with
      * a close of the container is not a failure of the path.
@@ -658,9 +684,8 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
                     return recordPathKey(resolvedPath, openReentrant(resolvePath(dirAtURL.toString()), outerLog));
                 }
                 // Open the directory under the key open(Path) opens it under, unless that is this path itself
-                final var pathKey = StoragePaths.toURI(dirAtURL).toString();
-                return recordPathKey(resolvedPath, pathKey.equals(resolvedPath) ? adopt(new DirRoot(this, dirAtURL))
-                        : openInOtherFilesystem(dirAtURL, pathKey, outerLog));
+                final var pathKey = new PathKey(dirAtURL.getFileSystem(), dirAtURL.toUri());
+                return recordPathKey(resolvedPath, openInOtherFilesystem(dirAtURL, pathKey, outerLog));
             }
             return recordPathKey(resolvedPath, adopt(new ArchiveRoot(this, /* container = */ null,
                     JarOpener.openJarFromURL(resolvedPath, this, logNode))));
@@ -761,6 +786,11 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      * filesystem that holds the zipfile. For a ClassGraph filesystem view, the checked URI is its underlying
      * storage URI, rather than the {@code cgvfs:} URI of the view.
      *
+     * <p>
+     * A directory in another ClassGraph filesystem view can itself be wrapped, repeatedly. Each filesystem instance
+     * has its own cache identity, even if its paths report the same storage URI as another instance. The source
+     * filesystem is borrowed, not closed by this {@link Vfs}, and must remain open while the wrapped root is used.
+     *
      * @param path
      *            the directory or jarfile to open.
      * @return the opened root.
@@ -775,14 +805,16 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
             // string form of the path can express
             return open(path.toString());
         }
-        // A path in another filesystem is keyed by its URI, since its string form is only meaningful within that
-        // filesystem, and could collide with a path in the default one
-        final var key = StoragePaths.toURI(path).toString();
-        checkNotClosed(key);
+        // A view's storage URI deliberately does not identify its filesystem lifetime, and an archive root's
+        // storage URI can also name its container file. Use the source view's identity and provider URI for its
+        // cache key, while retaining the underlying storage URI for scheme checks and reporting.
+        final var storageURI = StoragePaths.toURI(path).toString();
+        final var key = new PathKey(path.getFileSystem(), path.toUri());
+        checkNotClosed(storageURI);
         // A path in a filesystem whose scheme has been denied is refused, as it is when it is named by its URI.
         // The URI of a path in a mounted zipfile is a "jar:" URI, which resolving strips down to the location of
         // the zipfile, so what is checked is the scheme of the filesystem that holds the zipfile, if it has one
-        final var resolvedKey = resolvePath(key);
+        final var resolvedKey = resolvePath(storageURI);
         if (PathSyntax.hasURLScheme(resolvedKey)) {
             JarOpener.checkURLSchemeNotDenied(resolvedKey, this);
         }
@@ -810,7 +842,7 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      * @throws InterruptedException
      *             if the thread was interrupted.
      */
-    private VfsRoot openInOtherFilesystem(final Path path, final String key, final @Nullable LogNode outerLog)
+    private VfsRoot openInOtherFilesystem(final Path path, final PathKey key, final @Nullable LogNode outerLog)
             throws IOException, InterruptedException {
         // Open the path itself, rather than taking its URI apart again and looking for a file of that name
         return openThroughCache(key, /* aliasReportedPath = */ false, () -> {
