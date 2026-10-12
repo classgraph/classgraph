@@ -184,7 +184,8 @@ public class WorkQueue<T> implements AutoCloseable {
      *            {@link InterruptionChecker#progress()}: a work unit finishing on any thread, or a worker reporting
      *            progress from within a long work unit. The timeout applies once the calling thread has no work of
      *            its own left to do, and while waiting for the workers to finish. A pause of the whole JVM, for
-     *            example in a debugger, counts as at most one slice of the wait: see {@link IdleTimeout}.
+     *            example at a breakpoint that suspends all threads, counts as at most one slice of the wait: see
+     *            {@link IdleTimeout}.
      * @param log
      *            The log.
      * @param workUnitProcessor

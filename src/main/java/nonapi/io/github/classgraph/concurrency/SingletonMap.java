@@ -283,7 +283,8 @@ public abstract class SingletonMap<K, V, E extends Exception> {
      * network filesystem that never returns, and without a timeout every thread that asks for the same key would
      * then be stuck too. A thread that is creating the value slowly but steadily, for example by downloading a
      * large jarfile, reports its progress, and the wait for it goes on for as long as that progress continues. A
-     * pause of the whole JVM, for example in a debugger, counts as at most one slice of the wait: see
+     * pause of the whole JVM, for example at a breakpoint that suspends all threads, counts as at most one slice of
+     * the wait: see
      * {@link IdleTimeout}. The timeout bounds only the wait for another thread's value, not the time this thread
      * spends creating the value itself.
      *
