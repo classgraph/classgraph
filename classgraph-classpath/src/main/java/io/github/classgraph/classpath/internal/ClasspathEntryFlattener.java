@@ -29,11 +29,12 @@
 package io.github.classgraph.classpath.internal;
 
 import java.nio.file.Path;
+import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.IdentityHashMap;
-import java.util.Set;
+import java.util.Iterator;
 import java.util.function.Predicate;
 
 import org.jspecify.annotations.Nullable;
@@ -45,6 +46,17 @@ import org.jspecify.annotations.Nullable;
  * object names the same classpath entries on both.
  */
 final class ClasspathEntryFlattener {
+    /**
+     * An active container and the iterator that resumes its expansion after a nested container finishes.
+     *
+     * @param container
+     *            the array or iterable being expanded, or null for the initial single-entry frame.
+     * @param elements
+     *            the iterator to resume after a nested container finishes.
+     */
+    private record Expansion(@Nullable Object container, Iterator<?> elements) {
+    }
+
     /** Constructor. */
     private ClasspathEntryFlattener() {
         // Cannot be constructed
@@ -71,42 +83,33 @@ final class ClasspathEntryFlattener {
      */
     static boolean forEachEntry(final @Nullable Object object, final Predicate<@Nullable Object> action) {
         // Compared by identity, since the hashCode() of a collection that contains itself overflows the stack
-        return forEachEntry(object, action, Collections.newSetFromMap(new IdentityHashMap<>()));
-    }
-
-    /**
-     * Pass each classpath entry held by an object to an action.
-     *
-     * @param object
-     *            the classpath entry, or the array or {@link Iterable} of classpath entries.
-     * @param action
-     *            the action to apply to each classpath entry.
-     * @param expanding
-     *            the arrays and {@link Iterable}s that are being expanded by the callers of this call, compared by
-     *            identity.
-     * @return true if the action returned true for at least one classpath entry.
-     */
-    private static boolean forEachEntry(final @Nullable Object object, final Predicate<@Nullable Object> action,
-            final Set<Object> expanding) {
-        // A Path is tested for before Iterable is, since a Path is an Iterable of its own name elements
-        if (object instanceof Path || !(object instanceof Iterable<?> || object instanceof Object[])) {
-            return action.test(object);
-        }
-        if (!expanding.add(object)) {
-            // The string form of an array or Collection names no file, and the string form of a Collection that
-            // holds itself through another Collection recurses until the stack overflows, so it is skipped. Any
-            // other Iterable that is met again, such as an Ant Resource, which yields only itself, is one entry
-            return !(object instanceof Collection<?> || object instanceof Object[]) && action.test(object);
-        }
+        final var expanding = Collections.newSetFromMap(new IdentityHashMap<Object, Boolean>());
+        final var stack = new ArrayDeque<Expansion>();
+        stack.push(new Expansion(null, Collections.singletonList(object).iterator()));
         var accepted = false;
-        try {
-            final Iterable<?> elements = object instanceof final Object[] array ? Arrays.asList(array)
-                    : (Iterable<?>) object;
-            for (final @Nullable Object element : elements) {
-                accepted |= forEachEntry(element, action, expanding);
+        while (!stack.isEmpty()) {
+            final var frame = stack.peek();
+            if (!frame.elements.hasNext()) {
+                stack.pop();
+                if (frame.container != null) {
+                    expanding.remove(frame.container);
+                }
+                continue;
             }
-        } finally {
-            expanding.remove(object);
+            final var element = frame.elements.next();
+            // Path is itself Iterable, but its name components are not classpath entries.
+            if (element instanceof Path || !(element instanceof Iterable<?> || element instanceof Object[])) {
+                accepted |= action.test(element);
+            } else if (!expanding.add(element)) {
+                // Cyclic containers name no file; a self-yielding Ant Resource is still a single entry.
+                if (!(element instanceof Collection<?> || element instanceof Object[])) {
+                    accepted |= action.test(element);
+                }
+            } else {
+                final Iterable<?> elements = element instanceof Object[] array ? Arrays.asList(array)
+                        : (Iterable<?>) element;
+                stack.push(new Expansion(element, elements.iterator()));
+            }
         }
         return accepted;
     }
