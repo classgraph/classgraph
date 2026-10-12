@@ -29,6 +29,33 @@ import org.junit.jupiter.api.io.TempDir;
  * second, so both modules are looked in to complete the class graph above it.
  */
 public class LookupOnlyModuleOrderTest {
+    /**
+     * A package in the first layer must not hide different classes in the same package of a later layer.
+     *
+     * @param tempDir
+     *            the fixture directory.
+     * @throws IOException
+     *             if the fixture cannot be compiled.
+     */
+    @Test
+    public void lookupSearchesEveryLayerContainingThePackage(@TempDir final Path tempDir) throws IOException {
+        final var first = compileModule(tempDir, "other", "lookuponly.shared", "public class Other {}", "Other");
+        final var second = compileModule(tempDir, "base", "lookuponly.shared",
+                "public class Base { public void inherited() {} }", "Base");
+        final var source = writeSource(tempDir.resolve("src"), "lookuponly/cp/Sub.java",
+                "package lookuponly.cp; public class Sub extends lookuponly.shared.Base {}");
+        final var output = Files.createDirectory(tempDir.resolve("classes"));
+        assertThat(ToolProvider.getSystemJavaCompiler().run(null, null, null, "-d", output.toString(), "-cp",
+                second.toString(), source.toString())).isZero();
+        try (var result = new ClassGraph().enableModuleLayers(defineLayer(first), defineLayer(second))
+                .enableNonSystemModules().acceptModules("no.such.module").enableClasspathEntries(output)
+                .acceptPackages(SUB_PACKAGE).enableClassInfo().enableMethodInfo().enableExternalClasses().scan()) {
+            assertThat(result.getClassInfo(SUB_PACKAGE + ".Sub").getMethodInfo("inherited")).hasSize(1);
+            assertThat(result.getClassInfo("lookuponly.shared.Base").getModuleInfo().getLocationURI())
+                    .isEqualTo(second.toUri());
+        }
+    }
+
     /** The name of both modules. */
     private static final String MODULE_NAME = "lookuponly.mod";
 
