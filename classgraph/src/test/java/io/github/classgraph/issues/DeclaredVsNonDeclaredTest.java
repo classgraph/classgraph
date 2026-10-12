@@ -155,11 +155,9 @@ public class DeclaredVsNonDeclaredTest {
 
         // Non-"declared" fields, subclass
 
-        assertThat(getClassGraphFieldNames.apply(subClassInfo))
-                .containsExactlyInAnyOrder(ignoreVisibility
-                        ? new String[] { "publicSuperClassField", "publicSubClassField", "privateSuperClassField",
-                                "privateSubClassField" }
-                        : new String[] { "publicSuperClassField", "publicSubClassField" });
+        assertThat(getClassGraphFieldNames.apply(subClassInfo)).containsExactlyInAnyOrder(ignoreVisibility
+                ? new String[] { "publicSuperClassField", "publicSubClassField", "privateSubClassField" }
+                : new String[] { "publicSuperClassField", "publicSubClassField" });
         assertThat(getClassFieldNames.apply(SubClass.class)).containsExactlyInAnyOrder("publicSuperClassField",
                 "publicSubClassField");
 
