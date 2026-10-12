@@ -408,6 +408,56 @@ public class SliceTest {
     }
 
     /**
+     * Each byte read by the single-byte {@link InputStream#read()}, which is how a stream that returns zero from a
+     * read of a non-empty buffer is read, is reported as progress, as the bytes of a block read are, both while the
+     * stream is buffered in RAM and while it is spilled to disk. Otherwise a thread waiting for a download that
+     * arrives this way could time out while the download is still making progress.
+     *
+     * @throws IOException
+     *             if a stream could not be read
+     */
+    @Test
+    public void eachByteOfASingleByteReadIsReportedAsProgress() throws IOException {
+        for (final int maxBufferedJarRAMSize : new int[] { 64 * 1024 * 1024, CONTENT.length / 2 }) {
+            final InputStream stream = new InputStream() {
+                private final InputStream wrapped = new ByteArrayInputStream(CONTENT);
+
+                @Override
+                public int read() throws IOException {
+                    return wrapped.read();
+                }
+
+                @Override
+                public int read(final byte[] buf, final int off, final int len) throws IOException {
+                    return 0;
+                }
+            };
+            final AtomicInteger progressCount = new AtomicInteger();
+            final ScanSpec scanSpec = new ScanSpec();
+            scanSpec.maxBufferedJarRAMSize = maxBufferedJarRAMSize;
+            final NestedJarHandler nestedJarHandler = new NestedJarHandler(scanSpec, new InterruptionChecker() {
+                @Override
+                public void progress() {
+                    progressCount.incrementAndGet();
+                }
+            }, new ReflectionUtils());
+            try {
+                // The larger limit reads the stream into RAM, and the smaller one spills it to disk, since the
+                // length hint is longer than the limit
+                final Slice slice = nestedJarHandler.readAllBytesWithSpilloverToDisk(stream, "onebyte.bin",
+                        /* inputStreamLengthHint = */ CONTENT.length, /* log = */ null);
+                assertThat(slice).isInstanceOf(
+                        maxBufferedJarRAMSize < CONTENT.length ? FileSlice.class : ArraySlice.class);
+                assertThat(slice.load()).containsExactly(CONTENT);
+                assertThat(progressCount.get()).as("progress reported for a %s", slice.getClass().getSimpleName())
+                        .isEqualTo(CONTENT.length);
+            } finally {
+                nestedJarHandler.close(/* log = */ null);
+            }
+        }
+    }
+
+    /**
      * A file is memory-mapped on every JDK when the scan spec asks for it. On JDK 22 or later the mapping is
      * unmapped by closing the arena it was made in; below that it is unmapped by {@code Unsafe::invokeCleaner},
      * the only method there is that can unmap a file on demand.

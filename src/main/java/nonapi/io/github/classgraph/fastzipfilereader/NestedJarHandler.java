@@ -1380,6 +1380,7 @@ public class NestedJarHandler {
                         // Reached the end of the stream
                         break;
                     }
+                    interruptionChecker.progress();
                     // There is more of the stream to read. Only grow the buffer if it is actually full -- the read
                     // can also have returned zero from a buffer with room left in it, and doubling the buffer on
                     // every one of those reads would grow it to the maximum RAM buffer size to hold a handful of
@@ -1477,6 +1478,7 @@ public class NestedJarHandler {
                         break;
                     }
                     outputStream.write(nextByte);
+                    interruptionChecker.progress();
                 }
             }
         }
