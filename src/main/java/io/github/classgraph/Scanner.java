@@ -42,6 +42,8 @@ import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -275,7 +277,7 @@ class Scanner implements Callable<ScanResult> {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * Recursively perform a depth-first search of jar interdependencies, breaking cycles if necessary, to determine
+     * Perform an iterative depth-first search of jar interdependencies, breaking cycles if necessary, to determine
      * the final classpath element order.
      *
      * @param currClasspathElement
@@ -285,28 +287,35 @@ class Scanner implements Callable<ScanResult> {
      * @param order
      *            the classpath element order
      */
-    private static void findClasspathOrderRec(final ClasspathElement currClasspathElement,
+    private static void appendClasspathSubtree(final ClasspathElement currClasspathElement,
             final Set<ClasspathElement> visitedClasspathElts, final List<ClasspathElement> order) {
-        if (visitedClasspathElts.add(currClasspathElement)) {
+        final Deque<ClasspathElement> pending = new ArrayDeque<>();
+        pending.push(currClasspathElement);
+        while (!pending.isEmpty()) {
+            final ClasspathElement element = pending.pop();
+            if (!visitedClasspathElts.add(element)) {
+                continue;
+            }
             // The classpath order requires a preorder traversal of the DAG of classpath dependencies
-            if (!currClasspathElement.skipClasspathElement) {
+            if (!element.skipClasspathElement) {
                 // Don't add a classpath element if it is marked to be skipped.
-                order.add(currClasspathElement);
+                order.add(element);
                 // Whether or not a classpath element should be skipped, add any child classpath elements that are
-                // not marked to be skipped (i.e. keep recursing below)
+                // not marked to be skipped (i.e. keep traversing below)
             }
             // Sort child elements into the order they were listed in by this classpath element, then traverse to
             // them in order
             final List<ClasspathElement.ChildClasspathElement> childClasspathElementsSorted = CollectionUtils
-                    .sortCopy(currClasspathElement.childClasspathElements);
-            for (final ClasspathElement.ChildClasspathElement childClasspathElt : childClasspathElementsSorted) {
-                findClasspathOrderRec(childClasspathElt.classpathElement, visitedClasspathElts, order);
+                    .sortCopy(element.childClasspathElements);
+            // Reverse pushes preserve declaration order without consuming one Java stack frame per jarfile.
+            for (int i = childClasspathElementsSorted.size() - 1; i >= 0; i--) {
+                pending.push(childClasspathElementsSorted.get(i).classpathElement);
             }
         }
     }
 
     /**
-     * Recursively perform a depth-first traversal of child classpath elements, breaking cycles if necessary, to
+     * Perform an iterative depth-first traversal of child classpath elements, breaking cycles if necessary, to
      * determine the final classpath element order. This causes child classpath elements to be inserted in-place in
      * the classpath order, after the parent classpath element that contained them.
      *
@@ -322,7 +331,7 @@ class Scanner implements Callable<ScanResult> {
         final Set<ClasspathElement> visitedClasspathElts = new HashSet<>();
         final List<ClasspathElement> order = new ArrayList<>();
         for (final ClasspathElement elt : toplevelClasspathEltsSorted) {
-            findClasspathOrderRec(elt, visitedClasspathElts, order);
+            appendClasspathSubtree(elt, visitedClasspathElts, order);
         }
         return order;
     }
