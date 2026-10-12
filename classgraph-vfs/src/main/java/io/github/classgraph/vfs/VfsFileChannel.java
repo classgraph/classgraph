@@ -69,8 +69,11 @@ final class VfsFileChannel extends FileChannel {
      *            the root that tracks and closes the channel.
      * @param owner
      *            the filesystem view that also owns the channel's lifetime.
+     * @param entry
+     *            the entry to stream for bounded-memory transfers.
      */
-    private record OpenState(VfsEntry.RandomAccessContent content, VfsRoot root, VfsFileSystem owner) {
+    private record OpenState(VfsEntry.RandomAccessContent content, VfsRoot root, VfsFileSystem owner,
+            VfsEntry entry) {
     }
 
     /**
@@ -94,10 +97,12 @@ final class VfsFileChannel extends FileChannel {
      *            built.
      * @param owner
      *            the filesystem view.
+     * @param entry
+     *            the entry to stream for transfers.
      */
     private VfsFileChannel(final VfsEntry.RandomAccessContent content, final VfsRoot root,
-            final VfsFileSystem owner) {
-        state = new AtomicReference<>(new OpenState(content, root, owner));
+            final VfsFileSystem owner, final VfsEntry entry) {
+        state = new AtomicReference<>(new OpenState(content, root, owner, entry));
     }
 
     /**
@@ -118,7 +123,7 @@ final class VfsFileChannel extends FileChannel {
         final var content = entry.openRandomAccess();
         final VfsFileChannel channel;
         try {
-            channel = new VfsFileChannel(content, root, owner);
+            channel = new VfsFileChannel(content, root, owner, entry);
         } catch (final RuntimeException | Error e) {
             // The caller never sees the channel if this throws, so nothing else would release the content
             content.closeAction().run();
@@ -264,25 +269,43 @@ final class VfsFileChannel extends FileChannel {
         if (!target.isOpen()) {
             throw new ClosedChannelException();
         }
-        // Copied a buffer at a time, so that transferring a large entry does not need a buffer as large as the
-        // entry, which could not even be allocated for an entry of 2GB or more
-        final var buf = ByteBuffer.allocate((int) Math.min(count, TRANSFER_BUF_SIZE));
-        var numBytesTransferred = 0L;
-        while (numBytesTransferred < count) {
-            buf.clear().limit((int) Math.min(buf.capacity(), count - numBytesTransferred));
-            if (read(buf, fromPosition + numBytesTransferred) <= 0) {
-                // End of the content
-                break;
-            }
-            buf.flip();
-            numBytesTransferred += target.write(buf);
-            if (buf.hasRemaining()) {
-                // A non-blocking target that will not take the whole buffer ends the transfer early, as it does
-                // for a file channel
-                break;
-            }
+        if (count == 0) {
+            return 0;
         }
-        return numBytesTransferred;
+        final var open = openState();
+        // Use a separate stream: the random-access reader retains every inflated byte before the requested
+        // offset, so using positional reads here would still retain the entire transferred prefix.
+        try (var stream = open.owner().openInputStream(open.entry())) {
+            var remainingSkip = fromPosition;
+            while (remainingSkip > 0) {
+                checkOpen();
+                final var skipped = stream.skip(remainingSkip);
+                if (skipped > 0) {
+                    remainingSkip -= skipped;
+                } else if (stream.read() == -1) {
+                    return 0;
+                } else {
+                    remainingSkip--;
+                }
+            }
+            final var buffer = new byte[(int) Math.min(count, TRANSFER_BUF_SIZE)];
+            var numBytesTransferred = 0L;
+            while (numBytesTransferred < count) {
+                checkOpen();
+                final var numRead = stream.read(buffer, 0,
+                        (int) Math.min(buffer.length, count - numBytesTransferred));
+                if (numRead == -1) {
+                    break;
+                }
+                final var buf = ByteBuffer.wrap(buffer, 0, numRead);
+                numBytesTransferred += target.write(buf);
+                if (buf.hasRemaining()) {
+                    // A non-blocking target that will not take the whole buffer ends the transfer early.
+                    break;
+                }
+            }
+            return numBytesTransferred;
+        }
     }
 
     @Override
