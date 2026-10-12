@@ -68,6 +68,30 @@ import io.github.classgraph.base.internal.path.FastPathResolver;
 /** Tests the read-only {@link FileSystem} view of a {@link VfsRoot}. */
 public class VfsFileSystemTest {
     /**
+     * Relative paths cannot navigate between distinct filesystem views, including empty paths.
+     *
+     * @param tempDir
+     *            a temporary directory.
+     * @throws IOException
+     *             if a root cannot be opened.
+     */
+    @Test
+    public void relativizeRejectsOtherFilesystemViews(@TempDir final Path tempDir) throws IOException {
+        try (var vfs = new Vfs(); var otherVfs = new Vfs()) {
+            final var first = vfs.open(tempDir).asFileSystem();
+            final var otherView = otherVfs.open(tempDir).asFileSystem();
+            final var otherRoot = vfs.open(Files.createDirectory(tempDir.resolve("other"))).asFileSystem();
+            for (final var other : List.of(otherView, otherRoot)) {
+                for (final var name : List.of("", "a", "/a")) {
+                    assertThatThrownBy(() -> first.getPath(name).relativize(other.getPath(name)))
+                            .isInstanceOf(IllegalArgumentException.class);
+                }
+            }
+            assertThat(first.getPath("/a").relativize(first.getPath("/b")).toString()).isEqualTo("../b");
+        }
+    }
+
+    /**
      * Even an empty scattering read checks the channel's lifecycle.
      *
      * @param tempDir
