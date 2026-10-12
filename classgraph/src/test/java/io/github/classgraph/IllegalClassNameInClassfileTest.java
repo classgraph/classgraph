@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.lang.annotation.RetentionPolicy;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -338,19 +339,20 @@ public class IllegalClassNameInClassfileTest {
     }
 
     /**
-     * Annotation types for the tests of nested annotations, and the classes that use them. The annotation
-     * {@code p.In} is given an illegal name in the classfiles of the classes that use it, by
-     * {@link #compileWithIllegalNestedAnnotations(Path)}.
+     * Annotation types for the tests of nested annotations, and the classes that use them, with {@code %1$s} in
+     * place of the retention policy of the annotation types. The annotation {@code p.In} is given an illegal name
+     * in the classfiles of the classes that use it, by
+     * {@link #compileWithIllegalNestedAnnotations(Path, RetentionPolicy)}.
      */
     private static final String NESTED_ANNOTATION_SOURCES = """
             package p;
             import java.lang.annotation.*;
-            @Retention(RetentionPolicy.RUNTIME) @interface Good {}
-            @Retention(RetentionPolicy.RUNTIME) @interface In {}
-            @Retention(RetentionPolicy.RUNTIME) @interface Outer { In value(); }
-            @Retention(RetentionPolicy.RUNTIME) @interface Holder { In[] value() default {}; }
-            @Retention(RetentionPolicy.RUNTIME) @interface Holders { Holder[] value(); }
-            @Retention(RetentionPolicy.RUNTIME) @interface Defaults {
+            @Retention(RetentionPolicy.%1$s) @interface Good {}
+            @Retention(RetentionPolicy.%1$s) @interface In {}
+            @Retention(RetentionPolicy.%1$s) @interface Outer { In value(); }
+            @Retention(RetentionPolicy.%1$s) @interface Holder { In[] value() default {}; }
+            @Retention(RetentionPolicy.%1$s) @interface Holders { Holder[] value(); }
+            @Retention(RetentionPolicy.%1$s) @interface Defaults {
                 int x() default 1;
                 In one() default @In;
                 In[] many() default { @In };
@@ -359,26 +361,38 @@ public class IllegalClassNameInClassfileTest {
             @Holder({ @In }) @Good @Holders({ @Holder, @Holder(@In) }) class ArrayHoldsIllegal {}
             """;
 
+    /**
+     * The retention policies that the nested annotation tests are run with: {@code RUNTIME} annotations are read
+     * from the {@code RuntimeVisibleAnnotations} attribute, and {@code CLASS} annotations from the
+     * {@code RuntimeInvisibleAnnotations} attribute.
+     */
+    private static final List<RetentionPolicy> RETENTION_POLICIES = List.of(RetentionPolicy.RUNTIME,
+            RetentionPolicy.CLASS);
+
     /** The classes whose classfiles refer to {@code p.In}, and in which its name is made illegal. */
     private static final List<String> CLASSES_USING_IN = List.of("NestedIllegal", "ArrayHoldsIllegal", "Defaults");
 
     /**
-     * Compile {@link #NESTED_ANNOTATION_SOURCES}, then replace the type descriptor {@code Lp/In;} in the constant
-     * pool of each class in {@link #CLASSES_USING_IN} with the illegal {@code Lp/I;;}, which has the same length.
-     * The whole constant pool entry is matched, including its tag and length, so that a method descriptor such as
-     * {@code ()Lp/In;}, which is a separate entry, is left unchanged.
+     * Compile {@link #NESTED_ANNOTATION_SOURCES} with the given retention policy, then replace the type descriptor
+     * {@code Lp/In;} in the constant pool of each class in {@link #CLASSES_USING_IN} with the illegal
+     * {@code Lp/I;;}, which has the same length. The whole constant pool entry is matched, including its tag and
+     * length, so that a method descriptor such as {@code ()Lp/In;}, which is a separate entry, is left unchanged.
      *
      * @param tempDir
      *            a temporary directory.
+     * @param retentionPolicy
+     *            the retention policy of the annotation types.
      * @return the directory holding the classfiles.
      * @throws IOException
      *             if a file could not be read or written.
      */
-    private static Path compileWithIllegalNestedAnnotations(final Path tempDir) throws IOException {
-        final var srcFile = tempDir.resolve("src/p/Sources.java");
+    private static Path compileWithIllegalNestedAnnotations(final Path tempDir,
+            final RetentionPolicy retentionPolicy) throws IOException {
+        final var dir = tempDir.resolve(retentionPolicy.name());
+        final var srcFile = dir.resolve("src/p/Sources.java");
         Files.createDirectories(srcFile.getParent());
-        Files.writeString(srcFile, NESTED_ANNOTATION_SOURCES);
-        final var classesDir = Files.createDirectories(tempDir.resolve("classes"));
+        Files.writeString(srcFile, NESTED_ANNOTATION_SOURCES.formatted(retentionPolicy.name()));
+        final var classesDir = Files.createDirectories(dir.resolve("classes"));
         final var compiler = ToolProvider.getSystemJavaCompiler();
         assertThat(compiler).as("the tests must be run on a JDK, not a JRE").isNotNull();
         assertThat(compiler.run(/* in = */ null, /* out = */ null, /* err = */ null, "-d", classesDir.toString(),
@@ -412,21 +426,25 @@ public class IllegalClassNameInClassfileTest {
     @Test
     public void anAnnotationHoldingANestedAnnotationWithAnIllegalNameIsSkipped(@TempDir final Path tempDir)
             throws IOException {
-        final var classesDir = compileWithIllegalNestedAnnotations(tempDir);
-        for (final var className : List.of("NestedIllegal", "ArrayHoldsIllegal")) {
-            final var classfile = Files.readAllBytes(classesDir.resolve("p/" + className + ".class"));
-            assertThat(new ByteClassLoader().define(classfile).getName()).isEqualTo("p." + className);
-        }
-        try (var scanResult = new ClassGraph().enableClassInfo().enableAnnotationInfo().ignoreClassVisibility()
-                .enableClasspathEntries(classesDir).scan()) {
-            assertThat(scanResult.getAllClasses().getNames()).noneMatch(name -> name.contains(";"));
-            // @Outer(@In), where @In has an illegal name, comes before @Good
-            assertThat(scanResult.getClassInfo("p.NestedIllegal").getAllAnnotationInfo().getNames())
-                    .containsExactly("p.Good");
-            // @Holder({@In}) holds an illegal annotation in an array, and @Holders({@Holder, @Holder(@In)}) holds
-            // an array with a legal annotation and one that holds an illegal annotation
-            assertThat(scanResult.getClassInfo("p.ArrayHoldsIllegal").getAllAnnotationInfo().getNames())
-                    .containsExactly("p.Good");
+        for (final var retentionPolicy : RETENTION_POLICIES) {
+            final var classesDir = compileWithIllegalNestedAnnotations(tempDir, retentionPolicy);
+            for (final var className : List.of("NestedIllegal", "ArrayHoldsIllegal")) {
+                final var classfile = Files.readAllBytes(classesDir.resolve("p/" + className + ".class"));
+                assertThat(new ByteClassLoader().define(classfile).getName()).as(retentionPolicy + " " + className)
+                        .isEqualTo("p." + className);
+            }
+            try (var scanResult = new ClassGraph().enableClassInfo().enableAnnotationInfo().ignoreClassVisibility()
+                    .enableClasspathEntries(classesDir).scan()) {
+                assertThat(scanResult.getAllClasses().getNames()).as(retentionPolicy.name())
+                        .noneMatch(name -> name.contains(";"));
+                // @Outer(@In), where @In has an illegal name, comes before @Good
+                assertThat(scanResult.getClassInfo("p.NestedIllegal").getAllAnnotationInfo().getNames())
+                        .as(retentionPolicy.name()).containsExactly("p.Good");
+                // @Holder({@In}) holds an illegal annotation in an array, and @Holders({@Holder, @Holder(@In)})
+                // holds an array with a legal annotation and one that holds an illegal annotation
+                assertThat(scanResult.getClassInfo("p.ArrayHoldsIllegal").getAllAnnotationInfo().getNames())
+                        .as(retentionPolicy.name()).containsExactly("p.Good");
+            }
         }
     }
 
@@ -442,14 +460,17 @@ public class IllegalClassNameInClassfileTest {
     @Test
     public void anAnnotationDefaultHoldingAnAnnotationWithAnIllegalNameIsSkipped(@TempDir final Path tempDir)
             throws IOException {
-        final var classesDir = compileWithIllegalNestedAnnotations(tempDir);
-        try (var scanResult = new ClassGraph().enableClassInfo().enableMethodInfo().enableAnnotationInfo()
-                .ignoreClassVisibility().enableClasspathEntries(classesDir).scan()) {
-            final var defaults = scanResult.getClassInfo("p.Defaults");
-            assertThat(defaults.getDeclaredMethodInfo().getNames()).containsExactlyInAnyOrder("x", "one", "many");
-            final var defaultValues = defaults.getAnnotationDefaultParameterValues();
-            assertThat(defaultValues.getNames()).containsExactly("x");
-            assertThat(defaultValues.getValue("x")).isEqualTo(1);
+        for (final var retentionPolicy : RETENTION_POLICIES) {
+            final var classesDir = compileWithIllegalNestedAnnotations(tempDir, retentionPolicy);
+            try (var scanResult = new ClassGraph().enableClassInfo().enableMethodInfo().enableAnnotationInfo()
+                    .ignoreClassVisibility().enableClasspathEntries(classesDir).scan()) {
+                final var defaults = scanResult.getClassInfo("p.Defaults");
+                assertThat(defaults.getDeclaredMethodInfo().getNames()).as(retentionPolicy.name())
+                        .containsExactlyInAnyOrder("x", "one", "many");
+                final var defaultValues = defaults.getAnnotationDefaultParameterValues();
+                assertThat(defaultValues.getNames()).as(retentionPolicy.name()).containsExactly("x");
+                assertThat(defaultValues.getValue("x")).as(retentionPolicy.name()).isEqualTo(1);
+            }
         }
     }
 
