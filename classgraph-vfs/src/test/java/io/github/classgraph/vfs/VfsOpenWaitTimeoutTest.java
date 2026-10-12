@@ -174,13 +174,14 @@ public class VfsOpenWaitTimeoutTest {
 
                 assertThatThrownBy(() -> vfs.open(jarURL)).isInstanceOf(IOException.class)
                         .hasMessageStartingWith(
-                                "Timed out after 300ms waiting for another thread to open " + jarURL + ".")
+                                "Timed out after 300ms with no progress, waiting for another thread " + "to open "
+                                        + jarURL + ".")
                         .hasCauseInstanceOf(TimeoutException.class);
                 assertThat(vfs.interruptionChecker().getExecutionException()).isNotNull();
 
                 assertThatThrownBy(() -> vfs.open(jarURL + "!/pkgroot")).isInstanceOf(IOException.class)
-                        .hasMessageContaining(
-                                "Timed out after 300ms waiting for another thread to open " + jarURL + ".")
+                        .hasMessageContaining("Timed out after 300ms with no progress, waiting for another thread "
+                                + "to open " + jarURL + ".")
                         .hasRootCauseInstanceOf(TimeoutException.class);
             } finally {
                 server.close();

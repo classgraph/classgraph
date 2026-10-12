@@ -373,7 +373,8 @@ public class WorkQueueTest {
         final var timeout = interruptionChecker.getExecutionException();
         assertThat(timeout).isNotNull();
         assertThat(InterruptionChecker.getCause(timeout)).isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("Timed out after 250ms waiting for a worker thread to finish");
+                .hasMessageContaining(
+                        "Timed out after 250ms with no progress, waiting for a worker thread to finish");
     }
 
     /**
@@ -416,7 +417,8 @@ public class WorkQueueTest {
 
                 assertThat(thrown).isInstanceOf(ExecutionException.class);
                 assertThat(InterruptionChecker.getCause(thrown)).isInstanceOf(IllegalStateException.class)
-                        .hasMessageContaining("Timed out after 250ms waiting for a worker thread to finish");
+                        .hasMessageContaining(
+                                "Timed out after 250ms with no progress, waiting for a worker thread to finish");
                 // The timeout is recorded too, so that the other workers stop
                 assertThat(interruptionChecker.getExecutionException()).isSameAs(thrown);
             } finally {

@@ -413,11 +413,12 @@ final class WorkQueue<T> implements AutoCloseable {
     private ExecutionException newWorkerTimeoutException() {
         return new ExecutionException(new IllegalStateException("Timed out after "
                 + TimeUnit.NANOSECONDS.toMillis(workerTimeoutNanos)
-                + "ms waiting for a worker thread to finish. Either the calling thread holds a lock that the "
-                + "classloader needs in order to load one of ClassGraph's own classes on a worker thread, which "
-                + "deadlocks the scan (call scan(1) to run the whole scan on the calling thread, so that no class "
-                + "is loaded on a worker thread), or a worker thread is blocked reading a classpath element from a "
-                + "filesystem or network (call ClassGraph#setWorkerTimeout(Duration) to allow more time)"));
+                + "ms with no progress, waiting for a worker thread to finish. Either the calling thread holds a "
+                + "lock that the classloader needs in order to load one of ClassGraph's own classes on a worker "
+                + "thread, which deadlocks the scan (call scan(1) to run the whole scan on the calling thread, so "
+                + "that no class is loaded on a worker thread), or a worker thread is blocked reading a classpath "
+                + "element from a filesystem or network (call ClassGraph#setWorkerTimeout(Duration) to allow more "
+                + "time)"));
     }
 
     /**

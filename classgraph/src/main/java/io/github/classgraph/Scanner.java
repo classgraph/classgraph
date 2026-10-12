@@ -719,7 +719,7 @@ class Scanner {
                 // Fail the scan instead, as the work queue does when a worker thread makes no progress in time
                 final var timeout = new IllegalStateException(
                         "Timed out after " + TimeUnit.NANOSECONDS.toMillis(scanSpec.getWorkerTimeoutNanos())
-                                + "ms waiting for another thread to open the classpath element "
+                                + "ms with no progress, waiting for another thread to open the classpath element "
                                 + workUnit.classpathEntryObj()
                                 + ". The other thread may be blocked reading it from a filesystem or network (call "
                                 + "ClassGraph#setWorkerTimeout(Duration) to allow more time)",

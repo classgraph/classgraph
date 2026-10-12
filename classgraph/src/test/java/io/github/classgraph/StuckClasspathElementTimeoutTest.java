@@ -166,8 +166,8 @@ public class StuckClasspathElementTimeoutTest {
                                     }).setWorkerTimeout(Duration.ofMillis(500)).scan(executorService, 2).close()));
             assertThat(thrown).isInstanceOf(ClassGraphException.class);
             assertThat(thrown.getCause()).isInstanceOf(IllegalStateException.class)
-                    .hasMessageStartingWith("Timed out after 500ms waiting for another thread to open the "
-                            + "classpath element " + tempDir.resolve("stuck").toRealPath());
+                    .hasMessageStartingWith("Timed out after 500ms with no progress, waiting for another thread to "
+                            + "open the classpath element " + tempDir.resolve("stuck").toRealPath());
             assertThat(workerWaitNanos).isNotEmpty().containsOnly(0L);
         } finally {
             parentOpening.countDown();
@@ -343,9 +343,8 @@ public class StuckClasspathElementTimeoutTest {
                                 return true;
                             }).setWorkerTimeout(Duration.ofMillis(500)).scan(executorService, 2).close()));
             assertThat(thrown).isInstanceOf(ClassGraphException.class);
-            assertThat(thrown.getCause()).isInstanceOf(IOException.class)
-                    .hasMessageStartingWith(
-                            "Timed out after 500ms waiting for another thread to open " + jarURL + ".")
+            assertThat(thrown.getCause()).isInstanceOf(IOException.class).hasMessageStartingWith(
+                    "Timed out after 500ms with no progress, waiting for another thread to open " + jarURL + ".")
                     .hasMessageContaining("ClassGraph#setWorkerTimeout(Duration)");
         } finally {
             parentOpening.countDown();
