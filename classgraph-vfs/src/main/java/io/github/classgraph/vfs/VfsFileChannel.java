@@ -129,6 +129,7 @@ final class VfsFileChannel extends FileChannel {
     @Override
     public synchronized long read(final ByteBuffer[] dsts, final int offset, final int length) throws IOException {
         Objects.checkFromIndexSize(offset, length, dsts.length);
+        checkOpen();
         var total = 0L;
         for (var i = offset; i < offset + length; i++) {
             final var numBytes = read(dsts[i]);
