@@ -300,13 +300,16 @@ public final class VfsPath implements Path {
      * not counted as a directory to climb out of. The empty path gives the other path unchanged.
      *
      * @throws IllegalArgumentException
-     *             if one path is absolute and the other is relative, or if the normalized base path still has a
-     *             {@code ".."} segment after the segments the two paths share, since no relative path then leads to
-     *             the other path.
+     *             if the paths belong to different filesystem views, if one path is absolute and the other is
+     *             relative, or if the normalized base path still has a {@code ".."} segment after the segments the
+     *             two paths share, since no relative path then leads to the other path.
      */
     @Override
     public Path relativize(final Path other) {
         final var otherPath = check(other);
+        if (fileSystem != otherPath.fileSystem) {
+            throw new IllegalArgumentException("Cannot relativize paths from different filesystem views");
+        }
         if (otherPath.absolute != absolute) {
             throw new IllegalArgumentException("Cannot relativize " + other + " against " + this
                     + " : one is absolute and the other is relative");
