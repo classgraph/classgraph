@@ -103,6 +103,12 @@ new ClassGraph().enableModuleLayers(pluginLayer).enableNonSystemModules()
         .ignoreParentModuleLayers().scan();
 ```
 
+### Independent classloader namespaces
+
+A scan builds one graph keyed by fully qualified class name, not by the JVM's `(defining classloader, class name)` identity. When enabled sources contain different definitions of the same name, the first definition in scan order wins. The graph therefore cannot represent both definitions, or each definition's distinct superclass and member relationships, in one `ScanResult`.
+
+For isolated plugins or application classloaders that intentionally reuse class names, run a separate scan per namespace: `.enableClassLoaders(pluginLoader).ignoreParentClassLoaders()`, or `.enableClasspathEntries(pluginClasspath)` when the complete classpath is already known. For independent named-module layers, use `.enableModuleLayers(pluginLayer).enableNonSystemModules().ignoreParentModuleLayers()` in each scan. Enable parent sources only when they belong to the namespace you want to inspect. Keep results separate rather than merging them by name. This is a metadata graph, not a simulation of arbitrary runtime classloader delegation.
+
 ### Capabilities
 
 ClassGraph provides a number of important capabilities to the JVM ecosystem:
