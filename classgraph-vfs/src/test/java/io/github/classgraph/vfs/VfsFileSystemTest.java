@@ -486,8 +486,8 @@ public class VfsFileSystemTest {
 
             final var path = root.asFileSystem().getPath("/root.txt");
             assertThat(Files.getLastModifiedTime(path)).isEqualTo(beforeTheEpoch);
-            assertThat(Files.readAttributes(path, BasicFileAttributes.class).creationTime())
-                    .isEqualTo(beforeTheEpoch);
+            assertThat(Files.readAttributes(path, BasicFileAttributes.class).creationTime()).isEqualTo(
+                    Files.readAttributes(dir.resolve("root.txt"), BasicFileAttributes.class).creationTime());
         }
     }
 

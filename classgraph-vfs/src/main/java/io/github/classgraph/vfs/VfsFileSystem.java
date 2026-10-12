@@ -37,6 +37,7 @@ import java.nio.file.ClosedFileSystemException;
 import java.nio.file.FileStore;
 import java.nio.file.FileSystem;
 import java.nio.file.Path;
+import java.nio.file.Files;
 import java.nio.file.PathMatcher;
 import java.nio.file.WatchService;
 import java.nio.file.attribute.BasicFileAttributeView;
@@ -69,6 +70,8 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>
  * The filesystem separator is {@code '/'} for every kind of root, and the root directory is {@code "/"}.
+ * Directory-backed views read native directories on each operation, including empty directories and changes made
+ * after the view was created. Archive and module directories are synthesized from their resource names.
  */
 final class VfsFileSystem extends FileSystem {
     /** The number to give the next view that is created. */
@@ -437,6 +440,14 @@ final class VfsFileSystem extends FileSystem {
      *             if the entries of the root could not be listed.
      */
     boolean isDirectory(final String name) throws IOException {
+        ensureOpen();
+        if (root instanceof DirRoot dirRoot) {
+            final var path = dirRoot.pathForNio(name);
+            return path != null && Files.isDirectory(path);
+        }
+        if (name.isEmpty()) {
+            return true;
+        }
         return index().childNamesByDir().containsKey(name);
     }
 
@@ -464,6 +475,21 @@ final class VfsFileSystem extends FileSystem {
      */
     @Nullable
     List<String> childNames(final String name) throws IOException {
+        ensureOpen();
+        if (root instanceof DirRoot dirRoot) {
+            final var path = dirRoot.pathForNio(name);
+            if (path == null || !Files.isDirectory(path)) {
+                return null;
+            }
+            final List<String> names = new ArrayList<>();
+            try (var listing = Files.newDirectoryStream(path)) {
+                for (final var child : listing) {
+                    names.add(child.getFileName().toString());
+                }
+            }
+            names.sort(String::compareTo);
+            return List.copyOf(names);
+        }
         return index().childNamesByDir().get(name);
     }
 
