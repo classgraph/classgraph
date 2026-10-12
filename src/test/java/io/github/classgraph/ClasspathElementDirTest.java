@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.tools.JavaCompiler;
 import javax.tools.ToolProvider;
@@ -15,13 +16,17 @@ import org.junit.jupiter.api.io.TempDir;
 
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
 import nonapi.io.github.classgraph.classloaderhandler.ClassLoaderHandlerRegistry;
+import nonapi.io.github.classgraph.concurrency.InterruptionChecker;
+import nonapi.io.github.classgraph.fastzipfilereader.NestedJarHandler;
+import nonapi.io.github.classgraph.reflection.ReflectionUtils;
 import nonapi.io.github.classgraph.scanspec.ScanSpec;
 
 /**
  * When scanning is extended to an external class, its classfile is looked up in every directory classpath element
  * that comes before the one that holds it. A directory that does not hold the class' package must not cost one
  * file lookup per class, so it looks up each package directory only once per scan. Whether a file was looked up
- * cannot be seen through the public API, so the classpath element is tested directly here.
+ * cannot be seen through the public API, so the classpath element is tested directly here. So is the progress
+ * that scanning a directory reports, which the public API cannot see either.
  */
 class ClasspathElementDirTest {
     /** Build a directory classpath element. */
@@ -81,6 +86,36 @@ class ClasspathElementDirTest {
         createFile(tempDir.resolve("lib/B.class"));
         classpathElement.classfileScanFinished();
         assertThat(classpathElement.getResourceDuringScan("lib/B.class")).isNotNull();
+    }
+
+    /**
+     * Scanning a directory classpath element reports progress for each file or subdirectory it lists, so that a
+     * thread waiting for the scan of a large directory does not time out while the listing goes on.
+     */
+    @Test
+    void scanningADirReportsProgressForEachEntry(@TempDir final Path tempDir) throws IOException {
+        for (int i = 0; i < 5; i++) {
+            createFile(tempDir.resolve("file" + i + ".txt"));
+        }
+        createFile(tempDir.resolve("sub/A.txt"));
+        createFile(tempDir.resolve("sub/B.txt"));
+        final AtomicInteger progressCount = new AtomicInteger();
+        final NestedJarHandler nestedJarHandler = new NestedJarHandler(new ScanSpec(), new InterruptionChecker() {
+            @Override
+            public void progress() {
+                progressCount.incrementAndGet();
+            }
+        }, new ReflectionUtils());
+        try {
+            final ClasspathEntryWorkUnit workUnit = new ClasspathEntryWorkUnit(tempDir, /* classLoader = */ null,
+                    /* parentClasspathElement = */ null, /* orderWithinParentClasspathElement = */ 0,
+                    /* packageRootPrefix = */ "", ClassLoaderHandlerRegistry.NO_PACKAGE_ROOT_PREFIXES);
+            new ClasspathElementDir(workUnit, nestedJarHandler, new ScanSpec()).scanPaths(/* log = */ null);
+        } finally {
+            nestedJarHandler.close(/* log = */ null);
+        }
+        // Six entries in the directory (five files and sub), and two in sub
+        assertThat(progressCount.get()).isGreaterThanOrEqualTo(8);
     }
 
     /**
