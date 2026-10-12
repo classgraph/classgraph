@@ -4,7 +4,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.ByteArrayOutputStream;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.lang.module.ModuleDescriptor;
+import java.lang.module.ModuleReader;
+import java.lang.module.ModuleReference;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.ClosedFileSystemException;
 import java.nio.file.FileSystems;
@@ -12,6 +18,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -20,6 +29,69 @@ import org.junit.jupiter.api.io.TempDir;
 
 /** A filesystem view is a supported filesystem input, including another view of a view. */
 public class VfsRecursiveWrappingTest {
+    /** A module whose resource metadata lookups can be counted independently of filesystem timing. */
+    private static final class CountingModule extends ModuleReference {
+        /** Number of lookups of the resource URI. */
+        final AtomicInteger lookups = new AtomicInteger();
+
+        /** Construct the synthetic module. */
+        CountingModule() {
+            super(ModuleDescriptor.newModule("recursive.module").build(), URI.create("memory:/recursive.module"));
+        }
+
+        @Override
+        public ModuleReader open() {
+            return new ModuleReader() {
+                @Override
+                public Optional<URI> find(final String name) {
+                    lookups.incrementAndGet();
+                    return name.equals("file.txt") ? Optional.of(URI.create("memory:/recursive.module/file.txt"))
+                            : Optional.empty();
+                }
+
+                @Override
+                public Optional<InputStream> open(final String name) {
+                    return name.equals("file.txt")
+                            ? Optional.of(new ByteArrayInputStream(CONTENT.getBytes(StandardCharsets.UTF_8)))
+                            : Optional.empty();
+                }
+
+                @Override
+                public Stream<String> list() {
+                    return Stream.of("file.txt");
+                }
+
+                @Override
+                public void close() {
+                    // The fixture owns no external resources.
+                }
+            };
+        }
+    }
+
+    /** An already case-sensitive VFS namespace must not be revalidated recursively at every wrapper level. */
+    @Test
+    public void deepModuleWrappersDoNotMultiplyResourceLookups() throws IOException {
+        final var module = new CountingModule();
+        final var wrappers = new ArrayList<Vfs>();
+        try (var source = new Vfs()) {
+            var path = source.open(module).asFileSystem().getPath("/");
+            final var depth = 8;
+            for (var level = 0; level < depth; level++) {
+                final var wrapper = new Vfs();
+                wrappers.add(wrapper);
+                path = wrapper.open(path).asFileSystem().getPath("/");
+            }
+            module.lookups.set(0);
+            assertThat(Files.readString(path.resolve("file.txt"))).isEqualTo(CONTENT);
+            assertThat(module.lookups.get()).isLessThanOrEqualTo(4 * (depth + 1));
+        } finally {
+            for (var i = wrappers.size() - 1; i >= 0; i--) {
+                wrappers.get(i).close();
+            }
+        }
+    }
+
     /** The resource text in every fixture. */
     private static final String CONTENT = "recursive wrapping";
 

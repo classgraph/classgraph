@@ -340,7 +340,9 @@ public final class DirRoot extends VfsRoot {
         }
         // The filesystems of Windows and macOS answer a lookup for a name whose case does not match the name the
         // file is stored under, and this method matches names exactly, so such a match is not one
-        if (Files.exists(resolved) && isCaseFoldedMatch(dir, resolved)) {
+        // Another VFS view already enforces exact names. Rechecking its existence and real path here would
+        // recursively duplicate those lookups at every wrapper level instead of delegating once.
+        if (!(resolved instanceof VfsPath) && Files.exists(resolved) && isCaseFoldedMatch(dir, resolved)) {
             return null;
         }
         return resolved;
