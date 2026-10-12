@@ -672,8 +672,8 @@ public class NestedJarHandler {
             filenameBase = filenameBase.substring(startIdx);
         }
         // The directory is left to the JDK, as for every other temporary file. Before JDK 16, the JDK reads the
-        // java.io.tmpdir system property when it first creates a temporary file in the JVM, and this call may be
-        // that one, so the property is checked first. From JDK 16, the JDK uses the value given when the JVM
+        // java.io.tmpdir system property during the first call to Files.createTempFile or
+        // Files.createTempDirectory in the JVM, and this call may be that one, so the property is checked first. From JDK 16, the JDK uses the value given when the JVM
         // started, which ClassGraph cannot change, so there is nothing to check.
         if (VersionFinder.JAVA_MAJOR_VERSION < 16) {
             checkTempDirPropertyBeforeJdk16();
@@ -712,8 +712,8 @@ public class NestedJarHandler {
             // JVM: see checkTempDirPropertyBeforeJdk16()
             throw new IOException("The JDK could not set up its temporary directory from the java.io.tmpdir system "
                     + "property (from JDK 16, the value given when the JVM started; before JDK 16, the value it had "
-                    + "when the JDK first created a temporary file), so it cannot create temporary files in this "
-                    + "JVM", e);
+                    + "at the first call to Files.createTempFile or Files.createTempDirectory), so it cannot create "
+                    + "temporary files in this JVM", e);
         }
     }
 
@@ -722,12 +722,14 @@ public class NestedJarHandler {
      * {@link Files#createTempFile(String, String, java.nio.file.attribute.FileAttribute...)}.
      *
      * <p>
-     * That method resolves the temporary directory once, in the static initializer of its helper class. If the
-     * initializer throws, the first call in the JVM throws {@link ExceptionInInitializerError}, and every later
-     * call throws {@link NoClassDefFoundError}, for the life of the JVM. From JDK 16 (JDK-8245194), the initializer
-     * uses the value that the property had when the JVM started, so changing the property later has no effect, and
-     * this check is not made. Before JDK 16, the initializer uses the value the property has when it runs, during
-     * the first call to {@code Files.createTempFile} in the JVM. That call may be ClassGraph's, so on those JDKs a
+     * That method, like {@code Files.createTempDirectory}, resolves the temporary directory once, in the static
+     * initializer of the helper class that both use. If the initializer throws, the first of those calls in the
+     * JVM throws {@link ExceptionInInitializerError}, and every later one throws {@link NoClassDefFoundError}, for
+     * the life of the JVM. From JDK 16 (JDK-8245194), the initializer uses the value that the property had when
+     * the JVM started, so changing the property later has no effect, and this check is not made. Before JDK 16, the
+     * initializer uses the value the property has when it runs, during the first call to
+     * {@code Files.createTempFile} or {@code Files.createTempDirectory} in the JVM. That call may be ClassGraph's,
+     * so on those JDKs a
      * cleared property, or a value that is not a valid path, gives an {@link IOException} here, which leaves the
      * helper class usable by the rest of the application once the property is set to a valid value again. If the
      * property was cleared after the initializer ran, the JDK would still create the file, but ClassGraph cannot

@@ -306,8 +306,8 @@ public class TempFilenameSanitizationTest {
          *             deleted.
          */
         public static void main(final String[] args) throws IOException {
-            // The JDK resolves the temporary directory when it first creates a temporary file (before JDK 16), or
-            // at startup (from JDK 16), and keeps using that directory whatever the property is changed to later
+            // The JDK resolves the temporary directory at the first call to Files.createTempFile (before JDK 16),
+            // or at startup (from JDK 16), and keeps using that directory whatever the property is changed to later
             Files.delete(Files.createTempFile("classgraph", ".tmp"));
             final String startupTempDirName = System.getProperty("java.io.tmpdir");
             final NestedJarHandler nestedJarHandler = new NestedJarHandler(new ScanSpec(),
@@ -474,10 +474,10 @@ public class TempFilenameSanitizationTest {
     /**
      * A JVM started under the C locale on Linux cannot represent a temporary directory with a non-ASCII name. If
      * the {@code java.io.tmpdir} system property is then cleared, or changed to a directory it can represent,
-     * creating a temporary file must not throw an {@link Error}. From JDK 16, the JDK uses the directory given at
-     * startup, so it throws an {@link IOException}. Before JDK 16, the JDK uses the value the property has when it
-     * first creates a temporary file, so a cleared property throws an {@link IOException}, and a directory that it
-     * can represent is used.
+     * creating a temporary file for a nested jar must not throw an {@link Error}. From JDK 16, the JDK uses the
+     * directory given at startup, so ClassGraph throws an {@link IOException}. Before JDK 16, the JDK uses the value
+     * the property has at the first call to {@code Files.createTempFile}, so a cleared property makes ClassGraph
+     * throw an {@link IOException}, and a directory that the JVM can represent is used.
      *
      * @param parentDir
      *            the directory that holds the temporary directory of the child JVM.
@@ -515,9 +515,9 @@ public class TempFilenameSanitizationTest {
     }
 
     /**
-     * Before JDK 16, the JDK resolves the temporary directory from the {@code java.io.tmpdir} system property when
-     * it first creates a temporary file, and if the property has been cleared, it can never create a temporary
-     * file again in this JVM. Creating a temporary file for a nested jar must throw an {@link IOException} without
+     * Before JDK 16, the JDK resolves the temporary directory from the {@code java.io.tmpdir} system property at the
+     * first call to {@code Files.createTempFile}, and if the property has been cleared, that method can never create
+     * a temporary file again in this JVM. Creating a temporary file for a nested jar must throw an {@link IOException} without
      * asking the JDK, so that the JDK can still create temporary files once the property is set again.
      *
      * @param tempDir
