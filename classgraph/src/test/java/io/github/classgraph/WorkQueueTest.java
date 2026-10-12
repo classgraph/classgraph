@@ -337,7 +337,6 @@ public class WorkQueueTest {
     @Test
     public void aWorkerThatNeverFinishesTimesOut() {
         final var interruptionChecker = new InterruptionChecker();
-        final var callingThread = Thread.currentThread();
         // Released at the end of the test, so that the stuck worker thread can finish
         final var releaseWorker = new CountDownLatch(1);
         // Counted down once the worker thread is stuck, so that the calling thread cannot stop the queue first
@@ -345,19 +344,27 @@ public class WorkQueueTest {
 
         final Throwable thrown;
         try (var executorService = new AutoCloseableExecutorService(2)) {
-            thrown = catchThrowable(() -> WorkQueue.runWorkQueue(List.of(1, 2), executorService,
-                    interruptionChecker, /* numParallelTasks = */ 2, Duration.ofMillis(250).toNanos(),
-                    /* log = */ null, (workUnit, workQueue, log) -> {
-                        if (Thread.currentThread() == callingThread) {
-                            // Stop the work queue, so that the calling thread reaches the completion barrier in
-                            // WorkQueue#close() while the worker thread is still stuck
-                            workerIsStuck.await();
-                            throw new IllegalStateException("stopping the work queue");
-                        }
-                        workerIsStuck.countDown();
-                        releaseWorker.await();
-                    }));
-            releaseWorker.countDown();
+            try {
+                // Run the work queue on another thread, so that the test fails rather than hangs if close() waits
+                // for the stuck worker forever
+                thrown = assertTimeoutPreemptively(Duration.ofSeconds(10), () -> {
+                    final var callingThread = Thread.currentThread();
+                    return catchThrowable(() -> WorkQueue.runWorkQueue(List.of(1, 2), executorService,
+                            interruptionChecker, /* numParallelTasks = */ 2, Duration.ofMillis(250).toNanos(),
+                            /* log = */ null, (workUnit, workQueue, log) -> {
+                                if (Thread.currentThread() == callingThread) {
+                                    // Stop the work queue, so that the calling thread reaches the completion
+                                    // barrier in WorkQueue#close() while the worker thread is still stuck
+                                    workerIsStuck.await();
+                                    throw new IllegalStateException("stopping the work queue");
+                                }
+                                workerIsStuck.countDown();
+                                releaseWorker.await();
+                            }));
+                });
+            } finally {
+                releaseWorker.countDown();
+            }
         }
 
         // The reason the calling thread stopped is reported, rather than being masked by the timeout
@@ -509,9 +516,9 @@ public class WorkQueueTest {
     }
 
     /**
-     * The worker timeout counts from when a work unit last finished, not from when the calling thread ran out of
-     * work, so a work queue whose workers are still finishing work units is not stopped, however long the workers
-     * take altogether.
+     * The worker timeout counts only time in which no work unit finished, not the time since the calling thread ran
+     * out of work, so a work queue whose workers are still finishing work units is not stopped, however long the
+     * workers take altogether.
      *
      * @throws Exception
      *             if the work queue failed.
@@ -552,6 +559,89 @@ public class WorkQueueTest {
         }
 
         assertThat(processed).hasSize(numWorkers + 1);
+        assertThat(interruptionChecker.getExecutionException()).isNull();
+    }
+
+    /**
+     * A worker that reports progress from within a work unit is not timed out while the calling thread waits for
+     * more work, however long the work unit takes, which is the case for a slow download of a jarfile. Here the
+     * work unit takes four times the worker timeout, and reports progress ten times per timeout.
+     */
+    @Test
+    public void aWorkerThatKeepsReportingProgressDoesNotTimeOut() {
+        final var interruptionChecker = new InterruptionChecker();
+        // Counted down once the worker thread has a work unit, so that the calling thread cannot take both
+        final var workerStarted = new CountDownLatch(1);
+        final Set<Integer> processed = ConcurrentHashMap.newKeySet();
+
+        try (var executorService = new AutoCloseableExecutorService(2)) {
+            final var thrown = assertTimeoutPreemptively(Duration.ofSeconds(20), () -> {
+                final var callingThread = Thread.currentThread();
+                return catchThrowable(() -> WorkQueue.runWorkQueue(List.of(1, 2), executorService,
+                        interruptionChecker, /* numParallelTasks = */ 2, Duration.ofMillis(250).toNanos(),
+                        /* log = */ null, (workUnit, workQueue, log) -> {
+                            if (Thread.currentThread() == callingThread) {
+                                // Finish this work unit once the worker has the other one, leaving the calling
+                                // thread with nothing to do but wait for more work
+                                assertThat(workerStarted.await(10, TimeUnit.SECONDS)).isTrue();
+                            } else {
+                                workerStarted.countDown();
+                                for (var i = 0; i < 40; i++) {
+                                    Thread.sleep(25);
+                                    interruptionChecker.progress();
+                                }
+                            }
+                            processed.add(workUnit);
+                        }));
+            });
+            assertThat(thrown).isNull();
+        }
+
+        assertThat(processed).containsExactlyInAnyOrder(1, 2);
+        assertThat(interruptionChecker.getExecutionException()).isNull();
+    }
+
+    /**
+     * {@link WorkQueue#close()} waits for a worker that reports progress from within a work unit, however long the
+     * work unit takes, rather than giving up after the worker timeout. Here the calling thread fails, so it reaches
+     * {@link WorkQueue#close()} while the worker is still running a work unit that takes four times the worker
+     * timeout, and reports progress ten times per timeout. A timeout here would be recorded in the
+     * {@link InterruptionChecker}.
+     */
+    @Test
+    public void closeWaitsForAWorkerThatKeepsReportingProgress() {
+        final var interruptionChecker = new InterruptionChecker();
+        final var failure = new IllegalStateException("stopping the work queue");
+        // Counted down once the worker thread has a work unit, so that the calling thread cannot take both
+        final var workerStarted = new CountDownLatch(1);
+        // Counted down once the worker thread has finished its work unit
+        final var workerFinished = new CountDownLatch(1);
+
+        final Throwable thrown;
+        try (var executorService = new AutoCloseableExecutorService(2)) {
+            thrown = assertTimeoutPreemptively(Duration.ofSeconds(20), () -> {
+                final var callingThread = Thread.currentThread();
+                return catchThrowable(() -> WorkQueue.runWorkQueue(List.of(1, 2), executorService,
+                        interruptionChecker, /* numParallelTasks = */ 2, Duration.ofMillis(250).toNanos(),
+                        /* log = */ null, (workUnit, workQueue, log) -> {
+                            if (Thread.currentThread() == callingThread) {
+                                assertThat(workerStarted.await(10, TimeUnit.SECONDS)).isTrue();
+                                throw failure;
+                            }
+                            workerStarted.countDown();
+                            for (var i = 0; i < 40; i++) {
+                                Thread.sleep(25);
+                                interruptionChecker.progress();
+                            }
+                            workerFinished.countDown();
+                        }));
+            });
+        }
+
+        assertThat(thrown).isInstanceOf(ExecutionException.class);
+        assertThat(InterruptionChecker.getCause(thrown)).isSameAs(failure);
+        // close() returned only once the worker had finished, and did not record a timeout
+        assertThat(workerFinished.getCount()).isZero();
         assertThat(interruptionChecker.getExecutionException()).isNull();
     }
 }

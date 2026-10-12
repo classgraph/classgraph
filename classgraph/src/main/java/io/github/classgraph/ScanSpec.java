@@ -171,9 +171,9 @@ class ScanSpec {
     // -------------------------------------------------------------------------------------------------------------
 
     /**
-     * The maximum length of time to wait for a worker thread to finish. A timeout that is zero, negative, or too
-     * long to express in nanoseconds means "wait indefinitely", which was the behavior before this timeout was
-     * added.
+     * How long the scan may go with no progress before it fails (see
+     * {@link ClassGraph#setWorkerTimeout(Duration)}). A timeout that is zero, negative, or too long to express in
+     * nanoseconds means "wait indefinitely".
      */
     public Duration workerTimeout = ClassGraph.DEFAULT_WORKER_TIMEOUT;
 
@@ -181,9 +181,9 @@ class ScanSpec {
      * Get {@link #workerTimeout} in nanoseconds, for {@link Future#get(long, TimeUnit)} and
      * {@link java.util.concurrent.BlockingQueue#poll(long, TimeUnit)}.
      *
-     * @return the number of nanoseconds to wait for a worker thread to finish, or {@link Long#MAX_VALUE} if
-     *         {@link #workerTimeout} is zero, negative, or too long to express in nanoseconds, meaning that worker
-     *         threads should be waited for indefinitely.
+     * @return the number of nanoseconds with no progress after which to stop waiting for the other threads of the
+     *         scan, or {@link Long#MAX_VALUE} if {@link #workerTimeout} is zero, negative, or too long to express
+     *         in nanoseconds, meaning that worker threads should be waited for indefinitely.
      */
     public long getWorkerTimeoutNanos() {
         try {

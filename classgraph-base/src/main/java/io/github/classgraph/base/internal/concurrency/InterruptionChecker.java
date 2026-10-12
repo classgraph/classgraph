@@ -30,6 +30,7 @@ package io.github.classgraph.base.internal.concurrency;
 
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.jspecify.annotations.Nullable;
@@ -49,6 +50,26 @@ public class InterruptionChecker {
     /** The first {@link ExecutionException} that was thrown. */
     private final AtomicReference<@Nullable ExecutionException> thrownExecutionException = //
             new AtomicReference<>();
+
+    /** The number of times any thread has reported progress. */
+    private final AtomicLong progressCount = new AtomicLong();
+
+    /**
+     * Record that a thread that shares this InterruptionChecker made progress, so that a thread waiting for it with
+     * an {@link IdleTimeout} does not time out.
+     */
+    public void progress() {
+        progressCount.incrementAndGet();
+    }
+
+    /**
+     * Get the number of times {@link #progress()} has been called.
+     *
+     * @return the number of times {@link #progress()} has been called.
+     */
+    long getProgressCount() {
+        return progressCount.get();
+    }
 
     /**
      * Interrupt this thread, and record the interruption so that the other threads that share this

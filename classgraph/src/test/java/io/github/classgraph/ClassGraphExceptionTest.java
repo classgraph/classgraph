@@ -15,6 +15,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
@@ -86,6 +87,7 @@ public class ClassGraphExceptionTest {
      */
     @ParameterizedTest
     @EnumSource(ExecutorFailure.class)
+    @Timeout(60)
     public void aFailedScanDoesNotInterruptTheCallingThread(final ExecutorFailure failure) {
         final ExecutorService executorService = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS,
                 new LinkedBlockingQueue<>()) {

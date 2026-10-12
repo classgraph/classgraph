@@ -89,7 +89,8 @@ public final class VfsSpec {
     private volatile int maxBufferedJarRAMSize = DEFAULT_MAX_BUFFERED_JAR_RAM_SIZE;
 
     /**
-     * How long to wait for another thread that is opening the same path, or zero or negative to wait indefinitely.
+     * How long to wait for another thread that is opening the same path while it makes no progress, or zero or
+     * negative to wait indefinitely.
      */
     private volatile Duration openWaitTimeout = Duration.ZERO;
 
@@ -374,24 +375,37 @@ public final class VfsSpec {
     }
 
     /**
-     * Set the maximum length of time that a thread opening a path waits for another thread that is already opening
-     * the same directory or jarfile. A path is only opened once, however many threads ask for it at the same time,
-     * so the threads that ask for it while it is being opened wait for the thread that is opening it. That thread
-     * can be stuck, for example reading a jarfile from a server that sends it very slowly, or from a network
-     * filesystem that does not answer, and without a timeout every thread that needs the same jarfile -- including
-     * a thread that opens a jarfile nested within it, or a package root within it -- would then be stuck too.
+     * Set how long a thread opening a path waits for another thread that is already opening the same directory or
+     * jarfile, while that thread makes no progress. A path is only opened once, however many threads ask for it at
+     * the same time, so the threads that ask for it while it is being opened wait for the thread that is opening
+     * it. That thread can be stuck, for example reading a jarfile from a server that stops sending it, or from a
+     * network filesystem that does not answer, and without a timeout every thread that needs the same jarfile --
+     * including a thread that opens a jarfile nested within it, or a package root within it -- would then be stuck
+     * too.
      *
      * <p>
-     * This bounds only the wait for another thread, not the time a thread takes to open a path itself. When the
-     * wait times out, the {@code open} method that was waiting throws {@link java.io.IOException}. The thread that
-     * was opening the path is not stopped, and a later {@code open} of the same path gets its root if it finishes.
+     * The timeout counts only time in which no thread reading through the {@link Vfs} made progress, so a thread
+     * that is opening a path slowly but steadily is waited for however long it takes. Progress is reported for the
+     * bytes read while a jarfile is downloaded from a URL, or while a deflated nested jarfile is read into memory;
+     * for the bytes written while either is written to a temporary file; and for each entry listed in a directory.
+     * Reading a local jarfile, or a jarfile nested within it without compression, reports no progress, so a read of
+     * a local file that blocks forever still times out. The wait is made in slices of one tenth of the timeout, or
+     * one second if that is shorter. A slice in which the whole JVM was paused, for example in a debugger, counts
+     * as at most one slice, so a pause can only make the wait time out if the other thread had already gone that
+     * close to the timeout with no progress.
+     *
+     * <p>
+     * This applies only to the wait for another thread, not to the time a thread takes to open a path itself. When
+     * the wait times out, the {@code open} method that was waiting throws {@link java.io.IOException}. The thread
+     * that was opening the path is not stopped, and a later {@code open} of the same path gets its root if it
+     * finishes.
      *
      * <p>
      * Default: zero, which waits indefinitely, as does any timeout that is negative or too long to express in
      * nanoseconds. {@code ClassGraph} sets this to its worker timeout.
      *
      * @param openWaitTimeout
-     *            the maximum length of time to wait for another thread to open the same path.
+     *            how long to wait for another thread to open the same path while it makes no progress.
      * @return this (for method chaining).
      * @throws IllegalStateException
      *             if this is the copy that a {@link Vfs} holds, which {@link Vfs#getVfsSpec()} returns.
@@ -404,8 +418,8 @@ public final class VfsSpec {
     }
 
     /**
-     * The maximum length of time that a thread opening a path waits for another thread that is already opening the
-     * same directory or jarfile.
+     * How long a thread opening a path waits for another thread that is already opening the same directory or
+     * jarfile, while that thread makes no progress. See {@link #setOpenWaitTimeout(Duration)}.
      *
      * @return the timeout, which waits indefinitely if it is zero or negative.
      */

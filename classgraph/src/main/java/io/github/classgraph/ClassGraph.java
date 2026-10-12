@@ -134,9 +134,9 @@ public final class ClassGraph {
     );
 
     /**
-     * The default maximum length of time to wait for a worker thread to finish. This is far longer than a healthy
-     * scan of local files takes to open or scan any one classpath element, but short enough that a scan that can
-     * never finish is reported rather than hanging forever.
+     * The default length of time that a scan may go with no progress before it fails (see
+     * {@link #setWorkerTimeout(Duration)}). This is far longer than a healthy scan ever goes without progress, but
+     * short enough that a scan that can never finish is reported rather than hanging forever.
      */
     static final Duration DEFAULT_WORKER_TIMEOUT = Duration.ofMinutes(1);
 
@@ -1487,31 +1487,48 @@ public final class ClassGraph {
     }
 
     /**
-     * Set the maximum length of time to wait for a worker thread to finish, once the calling thread has run out of
-     * work of its own to do. If no worker thread finishes a unit of work (opening or scanning a classpath element,
-     * or scanning a classfile) within this time, the scan throws {@link ClassGraphException} rather than blocking
-     * forever. The time counts from when a unit of work last finished, so a scan whose worker threads are still
-     * finishing units of work is not stopped, however long it takes altogether. The one exception is a thread
-     * waiting for another thread to open a classpath element that both of them need (because it is listed twice,
-     * for example once on the classpath and once in the {@code Class-Path} entry of a jarfile's manifest), or a
-     * jarfile that both of their classpath elements are read from (for example a jarfile and a package root within
-     * it): that wait is limited to this time from when it starts, whatever other work finishes meanwhile.
+     * Set how long a scan may go with no progress before it fails. A thread that is waiting for other threads --
+     * the calling thread once it has run out of work of its own to do, or any thread waiting for another thread to
+     * open a classpath element that both of them need (because it is listed twice, for example once on the
+     * classpath and once in the {@code Class-Path} entry of a jarfile's manifest), or a jarfile that both of their
+     * classpath elements are read from (for example a jarfile and a package root within it) -- gives up once no
+     * thread of the scan has made progress for this long, and the scan then throws {@link ClassGraphException}
+     * rather than blocking forever. The timeout is not a limit on how long the scan takes altogether: a scan that
+     * keeps making progress is never stopped, however long it takes.
      *
      * <p>
-     * A worker thread that never finishes means the scan cannot complete. The two known causes are a classloading
-     * deadlock, where the calling thread holds a lock that the classloader needs in order to load one of
-     * ClassGraph's own classes on a worker thread (#933) -- which can be avoided by calling {@link #scan(int)} with
-     * a {@code numThreads} of 1, so that nothing is loaded on a worker thread -- and a worker thread blocking
-     * indefinitely on a filesystem or network read of a classpath element.
+     * Progress is any of the following, on any thread of the scan:
+     * <ul>
+     * <li>a unit of work finishing, such as opening or scanning a classpath element, or scanning a classfile;
+     * <li>bytes arriving while a jarfile is downloaded from a URL;
+     * <li>bytes being read while a deflated jarfile nested within another jarfile is inflated;
+     * <li>bytes being written while either of these is written to a temporary file, because it is larger than
+     * {@link #setMaxBufferedJarRAMSize(int)};
+     * <li>a file or subdirectory being listed while a directory classpath element is scanned.
+     * </ul>
+     * Nothing else counts. In particular, a single read of a local jarfile or a classfile that blocks makes no
+     * progress until it returns, and neither does reading a module.
      *
      * <p>
-     * Default: 1 minute. Set a longer timeout if a single classpath element can take longer than that to open or
-     * scan, for example a large jar downloaded from a slow server, or a large directory on a slow network
-     * filesystem. A timeout that is zero or negative disables the timeout, so that worker threads are waited for
-     * indefinitely.
+     * The waits are made in slices of one tenth of the timeout, or one second if that is shorter. A pause of the
+     * whole JVM, for example at a breakpoint in a debugger, after SIGSTOP, or while the machine is asleep, counts
+     * as at most one second (or one tenth of the timeout, if that is shorter), so a pause can only make the scan
+     * time out if the scan had already gone that close to the timeout with no progress.
+     *
+     * <p>
+     * A scan that makes no progress cannot complete. The two known causes are a classloading deadlock, where the
+     * calling thread holds a lock that the classloader needs in order to load one of ClassGraph's own classes on a
+     * worker thread (#933) -- which can be avoided by calling {@link #scan(int)} with a {@code numThreads} of 1, so
+     * that nothing is loaded on a worker thread -- and a worker thread blocking indefinitely on a filesystem or
+     * network read of a classpath element.
+     *
+     * <p>
+     * Default: 1 minute. Set a longer timeout if a single read of a classpath element can block for longer than
+     * that, for example on a slow network filesystem. A timeout that is zero or negative disables the timeout, so
+     * that the scan waits indefinitely.
      *
      * @param workerTimeout
-     *            the maximum length of time to wait for a worker thread to finish.
+     *            how long the scan may go with no progress before it fails.
      * @return this (for method chaining).
      */
     public ClassGraph setWorkerTimeout(final Duration workerTimeout) {
