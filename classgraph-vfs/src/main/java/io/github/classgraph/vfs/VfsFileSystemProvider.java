@@ -1058,6 +1058,7 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
             return null;
         }
         final var vfsPath = check(path);
+        final var linkOptions = options.clone();
         return type.cast(new BasicFileAttributeView() {
             @Override
             public String name() {
@@ -1066,7 +1067,7 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
 
             @Override
             public BasicFileAttributes readAttributes() throws IOException {
-                return attributesOf(vfsPath);
+                return attributesOf(vfsPath, linkOptions);
             }
 
             @Override
@@ -1083,7 +1084,7 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
         if (type != BasicFileAttributes.class) {
             throw new UnsupportedOperationException("Unsupported file attributes type: " + type.getName());
         }
-        return type.cast(attributesOf(check(path)));
+        return type.cast(attributesOf(check(path), options));
     }
 
     @Override
@@ -1095,7 +1096,7 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
             throw new UnsupportedOperationException("Unsupported file attribute view: " + view);
         }
         final var requested = attributes.substring(colonIdx + 1);
-        final var attrs = attributesOf(check(path));
+        final var attrs = attributesOf(check(path), options);
         final var names = "*".equals(requested) ? ATTRIBUTE_NAMES : List.of(requested.split(","));
         final Map<String, Object> selected = new LinkedHashMap<>();
         try {
@@ -1146,15 +1147,31 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
      *
      * @param path
      *            the path.
+     * @param options
+     *            whether to follow symbolic links.
      * @return the attributes.
      * @throws NoSuchFileException
      *             if the path names nothing in the filesystem.
      * @throws IOException
      *             if the entries of the root could not be listed.
      */
-    private static BasicFileAttributes attributesOf(final VfsPath path) throws IOException {
+    private static BasicFileAttributes attributesOf(final VfsPath path, final LinkOption... options)
+            throws IOException {
+        for (final var option : options) {
+            Objects.requireNonNull(option, "link option must not be null");
+        }
         final var name = path.entryName();
         final var fileSystem = path.vfsFileSystem();
+        fileSystem.ensureOpen();
+        if (fileSystem.getRoot() instanceof DirRoot dirRoot) {
+            final var nativePath = dirRoot.pathForNio(name);
+            if (nativePath == null) {
+                throw new NoSuchFileException(path.toString());
+            }
+            // Native attributes preserve empty-directory metadata, symbolic links and file keys. In particular,
+            // Files.walk must see a link with NOFOLLOW_LINKS and detect cycles with FOLLOW_LINKS.
+            return Files.readAttributes(nativePath, BasicFileAttributes.class, options);
+        }
         final var entry = fileSystem.entry(name);
         if (entry == null) {
             if (!fileSystem.isDirectory(name)) {

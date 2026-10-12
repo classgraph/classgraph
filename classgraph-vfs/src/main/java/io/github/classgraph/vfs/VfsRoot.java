@@ -988,14 +988,16 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
      *
      * <p>
      * The path separator is {@code '/'} and the root directory is {@code "/"}, whichever kind of root this is.
-     * Directories are synthesized from the names of the entries below them, since a jarfile need not contain an
-     * entry for every directory whose contents it holds, and the whole entry list is read to do that, so the first
-     * call is as expensive as {@link #getEntries()}.
+     * Native directory views include empty directories and reflect subsequent changes to the underlying filesystem.
+     * For archives and modules, directories are synthesized from the names of the entries below them, since a
+     * jarfile need not contain an entry for every directory whose contents it holds. Their first directory listing
+     * is as expensive as {@link #getEntries()}; individual file lookups do not enumerate the entire root.
      *
      * <p>
-     * The size of a module entry is not known without reading it, so it is found by reading the whole entry, each
-     * time {@link java.nio.file.attribute.BasicFileAttributes#size()} is called, which needs this root to be open.
-     * If the entry cannot be read, {@code size()} and {@link java.nio.file.Files#size(Path)} throw an
+     * The size of a module entry is not known without reading it, so it is counted through a bounded-memory stream
+     * on the first {@link java.nio.file.attribute.BasicFileAttributes#size()} call for an attribute snapshot, which
+     * needs this root to be open. A successful count is cached on that snapshot; a fresh attribute lookup counts
+     * again. If the entry cannot be read, {@code size()} and {@link java.nio.file.Files#size(Path)} throw an
      * {@link UncheckedIOException}, and
      * {@link java.nio.file.Files#readAttributes(Path, String, java.nio.file.LinkOption...)} throws the
      * {@link java.io.IOException} it wraps.
@@ -1006,11 +1008,11 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
      *
      * <p>
      * A filesystem is a view of this root, and the two do not close each other. Its {@link FileSystem#close()}
-     * closes only the view, leaving this root and the {@link Vfs} that opened it open and readable, and a later
-     * call here hands out a fresh view. Closing this root closes every view of it, in the same one-way manner: a
-     * view of a closed root reports itself closed and refuses to be read through, and this method then throws.
-     * Release the file handles, memory mappings and temporary files by closing this root or its {@link Vfs}, not by
-     * closing a view.
+     * closes the view and handles opened through it, leaving this root and the {@link Vfs} that opened it open and
+     * readable, and a later call here hands out a fresh view. Closing this root closes every view of it, in the
+     * same one-way manner: a view of a closed root reports itself closed and refuses to be read through, and this
+     * method then throws. Release the remaining root-owned file handles, memory mappings and temporary files by
+     * closing this root or its {@link Vfs}, not just a view.
      *
      * <p>
      * A filesystem created by {@link java.nio.file.FileSystems#newFileSystem(java.net.URI, java.util.Map)} for a
