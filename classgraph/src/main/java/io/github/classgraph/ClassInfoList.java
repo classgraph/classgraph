@@ -164,12 +164,28 @@ public final class ClassInfoList extends MappableInfoList<ClassInfo> {
      *            whether to sort by name
      */
     ClassInfoList(final List<ClassInfo> reachableClasses, final boolean sortByName) {
+        this(reachableClasses, new LinkedHashSet<>(reachableClasses), sortByName);
+    }
+
+    /**
+     * Construct from completed, owned collections, preserving occurrences as well as direct-relatedness.
+     *
+     * @param reachableClasses
+     *            the completed list, including any repeated declarations.
+     * @param directlyRelatedClasses
+     *            the directly related classes, all of which occur in the list.
+     * @param sortByName
+     *            whether to sort the list.
+     */
+    private ClassInfoList(final List<ClassInfo> reachableClasses, final Set<ClassInfo> directlyRelatedClasses,
+            final boolean sortByName) {
         super(sortByName ? CollectionUtils.sortCopy(reachableClasses) : reachableClasses);
         this.sortByName = sortByName;
-        directlyRelatedClasses = new LinkedHashSet<>(reachableClasses);
-        // Rebuilding the direct list from directlyRelatedClasses would drop any duplicate, so this list is its own
-        // direct list
-        directOnlyList = this;
+        this.directlyRelatedClasses = directlyRelatedClasses;
+        if (directlyRelatedClasses.containsAll(reachableClasses)) {
+            // Rebuilding an all-direct list from a set would drop repeated declarations.
+            directOnlyList = this;
+        }
     }
 
     /**
@@ -315,7 +331,7 @@ public final class ClassInfoList extends MappableInfoList<ClassInfo> {
      */
     public ClassInfoList filter(final Predicate<ClassInfo> filter) {
         Assert.notNull(filter, "filter");
-        final Set<ClassInfo> reachableClassesFiltered = new LinkedHashSet<>(size());
+        final List<ClassInfo> reachableClassesFiltered = new ArrayList<>(size());
         final Set<ClassInfo> directlyRelatedClassesFiltered = new LinkedHashSet<>(directlyRelatedClasses.size());
         for (final ClassInfo ci : this) {
             if (filter.test(ci)) {
