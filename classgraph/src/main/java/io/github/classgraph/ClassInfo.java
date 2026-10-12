@@ -107,8 +107,9 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     private boolean isRecord;
 
     /**
-     * The names of the record components, in declaration order, or null if the class is not a record or its
-     * {@code Record} attribute is malformed.
+     * The names of the record components, in declaration order, or null if the class is not a record, its
+     * {@code Record} attribute is malformed, or its classfile was not scanned. They are read whether or not field
+     * info is enabled.
      */
     private @Nullable List<String> recordComponentNames;
 

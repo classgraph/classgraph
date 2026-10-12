@@ -110,7 +110,7 @@ class Classfile {
 
     /**
      * The names of the record components, in declaration order, or null if this class is not a record or its
-     * {@code Record} attribute is malformed.
+     * {@code Record} attribute is malformed. They are read whether or not field info is enabled.
      */
     private @Nullable List<String> recordComponentNames;
 
@@ -1309,7 +1309,8 @@ class Classfile {
      * Read the contents of an annotation element value from classfile, at the nesting depth set by
      * {@link #readAnnotationElementValue()}.
      *
-     * @return the annotation element value
+     * @return the annotation element value, or {@link #ILLEGAL_ANNOTATION} if it is an annotation whose class name
+     *         is illegal, or an array or annotation that holds one.
      * @throws IOException
      *             If an IO exception occurs.
      */
@@ -1680,8 +1681,9 @@ class Classfile {
      * since the JVM rejects it too.
      *
      * <p>
-     * A {@code Record} attribute is read in the same way. Only the order of the record components is read from it,
-     * so if it is malformed, only that order is lost.
+     * The names of the record components are read from the {@code Record} attribute in the same way. The JVM does
+     * check that attribute, but only the order of the components is read from it, so a malformed one loses only
+     * that order, and the class is still scanned.
      *
      * @param <T>
      *            the type of what is read from the attribute
@@ -2667,11 +2669,12 @@ class Classfile {
                         classTypeAnnotations, this::readClassTypeAnnotations);
             } else if (constantPoolStringEquals(attributeNameCpIdx, "Record")) {
                 isRecord = true;
-                // Each record component has a field and an accessor method of the same name and type, which are
-                // read with the other fields and methods. Only the components' names are read here, since the
-                // order of the fields in a classfile is not specified, and the fields are sorted by name. A class
-                // should have only one Record attribute; if it has another, a well-formed one replaces the names
-                // read before it, and a malformed one keeps them.
+                // Each record component has a field of the same name and type, but the fields are sorted by name,
+                // so read only the names of the components, which give their declaration order. They are read
+                // even if field info is not enabled, so that a record with no components can be told apart from a
+                // record whose components are not known. A malformed attribute loses only the names, not the
+                // class. A class should have only one Record attribute; if it has another, a well-formed one
+                // replaces the names read before it, and a malformed one keeps them.
                 recordComponentNames = readAnnotationAttribute(attributeNameCpIdx, attributeLength, "the class",
                         recordComponentNames, earlier -> readRecordComponentNames());
             } else if (constantPoolStringEquals(attributeNameCpIdx, "InnerClasses")) {
@@ -2693,30 +2696,6 @@ class Classfile {
                 reader().skip(attributeLength);
             }
         }
-    }
-
-    /**
-     * Read the names of the record components from the {@code record_components_info} entries of the class'
-     * {@code Record} attribute (JVMS 4.7.30).
-     *
-     * @return the names of the record components, in declaration order.
-     * @throws IOException
-     *             if an I/O exception occurs, or the attribute is malformed.
-     */
-    private List<String> readRecordComponentNames() throws IOException {
-        final var componentsCount = reader().readUnsignedShort();
-        final List<String> componentNames = new ArrayList<>(componentsCount);
-        for (var i = 0; i < componentsCount; i++) {
-            componentNames.add(requireConstantPoolString(getConstantPoolString(reader().readUnsignedShort()),
-                    "record component name"));
-            reader().skip(2); // descriptor_index
-            final var componentAttributesCount = reader().readUnsignedShort();
-            for (var j = 0; j < componentAttributesCount; j++) {
-                reader().skip(2); // attribute_name_index
-                reader().skip(reader().readInt()); // attribute_length, then the attribute's contents
-            }
-        }
-        return componentNames;
     }
 
     /**
@@ -2799,6 +2778,30 @@ class Classfile {
             }
         }
         return typeAnnotations;
+    }
+
+    /**
+     * Read the names of the record components from the {@code record_components_info} entries of the class'
+     * {@code Record} attribute (JVMS 4.7.30).
+     *
+     * @return the names of the record components, in declaration order.
+     * @throws IOException
+     *             if an I/O exception occurs, or the attribute is malformed.
+     */
+    private List<String> readRecordComponentNames() throws IOException {
+        final var componentsCount = reader().readUnsignedShort();
+        final List<String> componentNames = new ArrayList<>(componentsCount);
+        for (var i = 0; i < componentsCount; i++) {
+            componentNames.add(requireConstantPoolString(getConstantPoolString(reader().readUnsignedShort()),
+                    "record component name"));
+            reader().skip(2); // descriptor_index
+            final var componentAttributesCount = reader().readUnsignedShort();
+            for (var j = 0; j < componentAttributesCount; j++) {
+                reader().skip(2); // attribute_name_index
+                reader().skip(reader().readInt()); // attribute_length, then the attribute's contents
+            }
+        }
+        return componentNames;
     }
 
     /**
