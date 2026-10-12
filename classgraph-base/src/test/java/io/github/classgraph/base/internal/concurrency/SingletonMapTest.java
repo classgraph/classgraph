@@ -221,7 +221,8 @@ public class SingletonMapTest {
             assertThat(creatorInNewInstance.await(5, TimeUnit.SECONDS)).isTrue();
             final var startNanos = System.nanoTime();
             assertThatThrownBy(() -> map.map.get("theKey", () -> "fromWaiter", new InterruptionChecker(),
-                    TimeUnit.MILLISECONDS.toNanos(100))).isInstanceOf(TimeoutException.class);
+                    TimeUnit.MILLISECONDS.toNanos(100))).isInstanceOf(TimeoutException.class)
+                    .hasMessageStartingWith("Timed out after 100ms with no progress");
             assertThat(System.nanoTime() - startNanos).isGreaterThanOrEqualTo(TimeUnit.MILLISECONDS.toNanos(100));
         } finally {
             letCreatorFinish.countDown();

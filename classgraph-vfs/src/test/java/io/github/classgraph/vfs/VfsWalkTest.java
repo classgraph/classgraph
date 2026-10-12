@@ -41,6 +41,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Predicate;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -49,6 +50,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import io.github.classgraph.base.internal.concurrency.IdleTimeout;
+import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
 import org.jspecify.annotations.Nullable;
 
 /** Tests {@link VfsRoot#walk(VfsVisitor)}. */
@@ -225,6 +227,49 @@ public class VfsWalkTest {
 
             assertThat(visits).containsExactly("root.txt", "com/xyz/widget.txt", "empty/deep/leaf.txt");
             assertThat(visitsWithoutProgress).isEmpty();
+        }
+    }
+
+    /**
+     * Each entry listed in a directory counts as progress, not just the listing as a whole, so that a directory
+     * holding a great many entries keeps reporting progress while it is listed. A directory is listed in full
+     * before its first entry is visited.
+     */
+    @Test
+    public void eachEntryListedCountsAsProgress(@TempDir final File tempDir) throws IOException {
+        for (final var name : List.of("a.txt", "b.txt", "c.txt", "d/e.txt")) {
+            final var file = tempDir.toPath().resolve(name);
+            Files.createDirectories(file.getParent());
+            Files.writeString(file, name);
+        }
+        final var progressCount = new AtomicLong();
+        final var interruptionChecker = new InterruptionChecker() {
+            @Override
+            public void progress() {
+                progressCount.incrementAndGet();
+                super.progress();
+            }
+        };
+        try (var vfs = new Vfs(new VfsSpec(), interruptionChecker)) {
+            final var root = vfs.open(tempDir.getPath());
+            final var progressBeforeWalk = progressCount.get();
+            final var progressAtFirstVisit = new long[] { -1L };
+            root.walk(new VfsVisitor() {
+                @Override
+                public boolean enterDirectory(final String dirName) {
+                    return true;
+                }
+
+                @Override
+                public boolean visitEntry(final VfsEntry entry) {
+                    if (progressAtFirstVisit[0] < 0L) {
+                        progressAtFirstVisit[0] = progressCount.get();
+                    }
+                    return true;
+                }
+            });
+            // The four entries of the top directory: a.txt, b.txt, c.txt and d
+            assertThat(progressAtFirstVisit[0] - progressBeforeWalk).isGreaterThanOrEqualTo(4L);
         }
     }
 

@@ -88,6 +88,15 @@ public final class IdleTimeout {
     }
 
     /**
+     * Get the timeout.
+     *
+     * @return the timeout in nanoseconds.
+     */
+    public long getTimeoutNanos() {
+        return timeoutNanos;
+    }
+
+    /**
      * Start the next slice of the wait.
      *
      * @return how long to wait for, in nanoseconds.

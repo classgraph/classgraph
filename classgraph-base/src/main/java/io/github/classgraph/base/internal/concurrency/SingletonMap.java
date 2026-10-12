@@ -255,8 +255,10 @@ public class SingletonMap<K, V> {
             } else {
                 while (!initialized.await(idleTimeout.nextWaitNanos(), TimeUnit.NANOSECONDS)) {
                     if (idleTimeout.hasRunOut()) {
-                        throw new TimeoutException(
-                                "Timed out waiting for another thread to create the value for key " + key);
+                        throw new TimeoutException("Timed out after "
+                                + TimeUnit.NANOSECONDS.toMillis(idleTimeout.getTimeoutNanos())
+                                + "ms with no progress, waiting for another thread to create the value for key "
+                                + key);
                     }
                 }
             }
