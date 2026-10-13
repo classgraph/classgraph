@@ -860,42 +860,6 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     }
 
     /**
-     * Whether a declaration belongs in this class's effective member view. Package access must survive every
-     * superclass step; returning to the declaring package after crossing a package boundary does not restore it.
-     *
-     * @param declaringClass
-     *            the class or interface declaring the member.
-     * @param modifiers
-     *            the member modifiers.
-     * @param isField
-     *            whether the member is a field.
-     * @return whether the member is declared here or can be inherited here.
-     */
-    private boolean includesMemberOf(final ClassInfo declaringClass, final int modifiers, final boolean isField) {
-        if (declaringClass == this) {
-            return true;
-        }
-        if (!declaringClass.isInheritedMember(modifiers, isField)) {
-            return false;
-        }
-        if (Modifier.isPublic(modifiers) || Modifier.isProtected(modifiers)) {
-            return true;
-        }
-        final var declaringPackage = declaringClass.getPackageName();
-        final Set<ClassInfo> visited = new HashSet<>();
-        for (var receiver = this; receiver != null
-                && visited.add(receiver); receiver = receiver.superclassIncludingExternal()) {
-            if (!declaringPackage.equals(receiver.getPackageName())) {
-                return false;
-            }
-            if (receiver == declaringClass) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
      * Add field info. Called once per class, from {@code Classfile#linkClassInfo}, after {@link #addScannedClass},
      * which rejects a second classfile for the same class.
      *
@@ -1927,7 +1891,12 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      */
     public boolean hasField(final String fieldName) {
         Assert.notNull(fieldName, "fieldName");
-        return getFieldInfo(fieldName) != null;
+        for (final ClassInfo ci : getFieldOverrideOrder()) {
+            if (ci.hasDeclaredField(fieldName)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -2001,8 +1970,8 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      */
     public boolean hasFieldAnnotation(final String fieldAnnotationName) {
         Assert.notNull(fieldAnnotationName, "fieldAnnotationName");
-        for (final FieldInfo fi : getFieldInfo()) {
-            if (fi.hasAnnotation(fieldAnnotationName)) {
+        for (final ClassInfo ci : getFieldOverrideOrder()) {
+            if (ci.hasDeclaredFieldAnnotation(fieldAnnotationName)) {
                 return true;
             }
         }
@@ -2039,7 +2008,16 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      */
     public boolean hasMethod(final String methodName) {
         Assert.notNull(methodName, "methodName");
-        return !getMethodInfoWithName(methodName).isEmpty();
+        if ("<init>".equals(methodName) || "<clinit>".equals(methodName)) {
+            // Constructors and static initializer blocks are not inherited
+            return hasDeclaredMethod(methodName);
+        }
+        for (final ClassInfo ci : getMethodOverrideOrder()) {
+            if (ci.hasDeclaredMethod(methodName)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -2114,8 +2092,8 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      */
     public boolean hasMethodAnnotation(final String methodAnnotationName) {
         Assert.notNull(methodAnnotationName, "methodAnnotationName");
-        for (final MethodInfo mi : getMethodInfo()) {
-            if (mi.hasAnnotation(methodAnnotationName)) {
+        for (final ClassInfo ci : getMethodOverrideOrder()) {
+            if (ci.hasDeclaredMethodAnnotation(methodAnnotationName)) {
                 return true;
             }
         }
@@ -2195,8 +2173,8 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      */
     public boolean hasMethodParameterAnnotation(final String methodParameterAnnotationName) {
         Assert.notNull(methodParameterAnnotationName, "methodParameterAnnotationName");
-        for (final MethodInfo mi : getMethodInfo()) {
-            if (mi.hasParameterAnnotation(methodParameterAnnotationName)) {
+        for (final ClassInfo ci : getMethodOverrideOrder()) {
+            if (ci.hasDeclaredMethodParameterAnnotation(methodParameterAnnotationName)) {
                 return true;
             }
         }
@@ -2837,18 +2815,6 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
                                 .reachableClasses());
             }
         }
-        // The declaring-class graph is a candidate index, not proof of member inheritance: an override, a hidden
-        // field, or a package boundary can remove the annotated declaration from a descendant's effective view.
-        classesWithAnnotation.removeIf(ci -> {
-            if (relType == RelType.CLASSES_WITH_FIELD_ANNOTATION) {
-                return ci.getFieldInfo().stream().noneMatch(fi -> fi.hasAnnotation(getName()));
-            }
-            if (relType == RelType.CLASSES_WITH_METHOD_PARAMETER_ANNOTATION) {
-                return ci.getMethodAndConstructorInfo().stream()
-                        .noneMatch(mi -> mi.hasParameterAnnotation(getName()));
-            }
-            return ci.getMethodAndConstructorInfo().stream().noneMatch(mi -> mi.hasAnnotation(getName()));
-        });
         return new ClassInfoList(
                 ClassInfo.filterClassInfo(classesWithAnnotation, scanResult().scanSpec,
                         /* excludeExternalClasses = */ true),
@@ -3083,11 +3049,6 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
         final Set<Entry<String, String>> nameAndTypeDescriptorSet = new HashSet<>();
         for (final ClassInfo ci : getMethodOverrideOrder()) {
             for (final MethodInfo mi : declaredMethodsOf.apply(ci)) {
-                // Scanning a declaration does not make it inheritable. In particular, static and private
-                // interface methods belong only to that interface, even when visibility checks are disabled.
-                if (!includesMemberOf(ci, mi.getModifiers(), /* isField = */ false)) {
-                    continue;
-                }
                 // If method has not been overridden by method of same name and type descriptor
                 if (nameAndTypeDescriptorSet.add(new SimpleEntry<>(mi.getName(), mi.getTypeDescriptorString()))) {
                     // Add method to output order
@@ -3170,9 +3131,8 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     }
 
     /**
-     * Returns information on visible methods declared by this class or inherited from its interfaces or
-     * superclasses, that are not constructors. Private ancestor methods and static interface methods are never
-     * inherited, even if {@link ClassGraph#ignoreMethodVisibility()} was called. See also:
+     * Returns information on visible methods declared by this class, or by its interfaces or superclasses, that are
+     * not constructors. See also:
      *
      * <ul>
      * <li>{@link #getMethodInfo(String)}
@@ -3730,8 +3690,7 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
             for (final FieldInfo fi : declaredFieldInfo) {
                 // A field is hidden by a field of the same name in a class earlier in the override order, but not
                 // by a field of its own class: a class may declare two fields of the same name with different types
-                if (!hidingFieldNames.contains(fi.getName())
-                        && includesMemberOf(ci, fi.getModifiers(), /* isField = */ true)) {
+                if (!hidingFieldNames.contains(fi.getName())) {
                     fieldInfoList.add(fi);
                 }
             }
@@ -3833,9 +3792,14 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     public @Nullable FieldInfo getFieldInfo(final String fieldName) {
         Assert.notNull(fieldName, "fieldName");
         scanResult().scanSpec.checkFieldInfoEnabled();
-        // Use the same hiding and inheritance policy as the unnamed view, including classfiles with several
-        // fields of one name but different descriptors or visibility.
-        return getFieldInfo().get(fieldName);
+        // Implement field overriding
+        for (final ClassInfo ci : getFieldOverrideOrder()) {
+            final var fi = ci.getDeclaredFieldInfo(fieldName);
+            if (fi != null) {
+                return fi;
+            }
+        }
+        return null;
     }
 
     /**
