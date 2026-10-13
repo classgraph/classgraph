@@ -44,11 +44,12 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import org.jspecify.annotations.Nullable;
+
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.path.FileUtils;
 import io.github.classgraph.base.internal.path.URLPaths;
 import io.github.classgraph.base.internal.utils.CollectionUtils;
-import org.jspecify.annotations.Nullable;
 
 /** A directory in a filesystem. */
 public final class DirRoot extends VfsRoot {
@@ -147,10 +148,9 @@ public final class DirRoot extends VfsRoot {
     void walkImpl(final VfsVisitor visitor, final @Nullable LogNode log) throws IOException {
         // Symlinks can make a directory tree cyclic, so record the canonical paths of the directories on the way
         // down to the one being walked -- otherwise a directory that contains a symlink to one of its own ancestors
-        // makes the traversal never finish. Only those ancestors are recorded, not every
-        // directory walked so far, so that a directory reached a second time by another path that is not a cycle,
-        // such as a symlink to a sibling directory, is walked again under that path, as Files.walk does with
-        // FOLLOW_LINKS.
+        // makes the walk never finish. Only those ancestors are recorded, not every directory walked so far, so
+        // that a directory reached a second time by another path that is not a cycle, such as a symlink to a sibling
+        // directory, is walked again under that path, as Files.walk does with FOLLOW_LINKS.
         walkIteratively(visitor, log);
     }
 
@@ -189,7 +189,7 @@ public final class DirRoot extends VfsRoot {
             }
             final var currDir = step.path;
             final var namePrefix = step.namePrefix;
-            // Ask before listing, since not listing an unwanted directory is the whole point of asking.
+            // Ask before listing, since not listing an unwanted directory is the whole point of asking
             if (!visitor.enterDirectory(namePrefix.isEmpty() ? "/" : namePrefix)) {
                 continue;
             }
@@ -197,6 +197,7 @@ public final class DirRoot extends VfsRoot {
             try {
                 canonicalDir = currDir.toRealPath();
             } catch (final IOException e) {
+                // A directory that cannot be resolved is skipped, rather than aborting the whole listing
                 if (log != null) {
                     log.log("Could not canonicalize path: " + currDir + " : " + e);
                 }
@@ -208,6 +209,8 @@ public final class DirRoot extends VfsRoot {
                 }
                 continue;
             }
+            // walkChildren pushes the subdirectories on top of this step, so the directory stays among the recorded
+            // ancestors until all of them have been walked
             pending.push(new WalkStep(canonicalDir, "", true));
             if (!walkChildren(currDir, namePrefix, visitor, pending, log)) {
                 return false;
@@ -254,7 +257,7 @@ public final class DirRoot extends VfsRoot {
         // Windows, which would order the same set of files differently there.
         CollectionUtils.sortIfNotEmpty(children,
                 Comparator.comparing(child -> String.valueOf(child.getFileName())));
-        // Visit the files of a directory before recursing into its subdirectories, so that the reads that follow
+        // Visit the files of a directory before walking its subdirectories, so that the reads that follow
         // the walk are grouped the same way the filesystem groups the metadata they need
         final List<Path> subDirs = new ArrayList<>();
         for (final Path child : children) {
@@ -268,6 +271,7 @@ public final class DirRoot extends VfsRoot {
                 return false;
             }
         }
+        // Push in reverse, so that the subdirectories are walked in sorted order
         for (var i = subDirs.size() - 1; i >= 0; i--) {
             final var subDir = subDirs.get(i);
             pending.push(new WalkStep(subDir, namePrefix + subDir.getFileName() + "/", false));

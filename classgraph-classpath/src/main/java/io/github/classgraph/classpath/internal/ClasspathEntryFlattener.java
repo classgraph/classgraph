@@ -71,7 +71,7 @@ final class ClasspathEntryFlattener {
      * <p>
      * An array or {@link Iterable} that is met again while its own elements are being passed on is not expanded
      * again, which would never end: an array or {@link Collection} is skipped, since every entry it holds is
-     * already being passed on by the call that is expanding it, and any other {@link Iterable} is passed on as one
+     * already being passed on by the expansion that encloses it, and any other {@link Iterable} is passed on as one
      * classpath entry. (An Apache Ant {@code FileResource} is an {@link Iterable} that yields only itself, and its
      * string form is the path of its file.)
      *
@@ -82,7 +82,8 @@ final class ClasspathEntryFlattener {
      * @return true if the action returned true for at least one classpath entry.
      */
     static boolean forEachEntry(final @Nullable Object object, final Predicate<@Nullable Object> action) {
-        // Compared by identity, since the hashCode() of a collection that contains itself overflows the stack
+        // The arrays and Iterables that enclose the element being expanded, compared by identity, since the
+        // hashCode() of a collection that contains itself overflows the stack
         final var expanding = Collections.newSetFromMap(new IdentityHashMap<Object, Boolean>());
         final var stack = new ArrayDeque<Expansion>();
         stack.push(new Expansion(null, Collections.singletonList(object).iterator()));
@@ -97,11 +98,13 @@ final class ClasspathEntryFlattener {
                 continue;
             }
             final var element = frame.elements.next();
-            // Path is itself Iterable, but its name components are not classpath entries.
+            // A Path is tested for before Iterable is, since a Path is an Iterable of its own name elements
             if (element instanceof Path || !(element instanceof Iterable<?> || element instanceof Object[])) {
                 accepted |= action.test(element);
             } else if (!expanding.add(element)) {
-                // Cyclic containers name no file; a self-yielding Ant Resource is still a single entry.
+                // The string form of an array or Collection names no file, and the string form of a Collection that
+                // holds itself through another Collection recurses until the stack overflows, so it is skipped. Any
+                // other Iterable that is met again, such as an Ant Resource, which yields only itself, is one entry
                 if (!(element instanceof Collection<?> || element instanceof Object[])) {
                     accepted |= action.test(element);
                 }
