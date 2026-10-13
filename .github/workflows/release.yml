@@ -1,0 +1,109 @@
+# Release ClassGraph 4, 5 or 6 to Maven Central: Actions tab -> "Release" -> "Run workflow".
+#
+# This file only needs to exist on main. It checks out the branch of the chosen release line, runs
+# release:prepare (which commits the release version, tags it, commits the next snapshot version, and
+# pushes the commits and the tag) and release:perform (which signs the artifacts and publishes them to
+# Maven Central), then creates a draft GitHub release for the tag, for you to edit and publish.
+#
+# Repository secrets it needs (Settings -> Secrets and variables -> Actions):
+#   GPG_PRIVATE_KEY   the ASCII-armored secret signing key
+#   GPG_PASSPHRASE    the passphrase of that key
+#   CENTRAL_USERNAME  the username of a Maven Central Portal user token
+#   CENTRAL_PASSWORD  the password of that token
+name: Release
+
+permissions:
+  contents: write
+
+on:
+  workflow_dispatch:
+    inputs:
+      line:
+        description: 'Release line'
+        required: true
+        type: choice
+        options:
+          - '6 (main, JDK 25)'
+          - '5 (v5, JDK 17)'
+          - '4 (v4, JDK 8)'
+      releaseVersion:
+        description: 'Version to release, e.g. 6.0.1'
+        required: true
+        type: string
+      developmentVersion:
+        description: 'Next snapshot version, e.g. 6.0.2-SNAPSHOT'
+        required: true
+        type: string
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Choose the branch and JDK
+      id: line
+      env:
+        LINE: ${{ inputs.line }}
+        RELEASE_VERSION: ${{ inputs.releaseVersion }}
+        DEVELOPMENT_VERSION: ${{ inputs.developmentVersion }}
+      run: |
+        case "$LINE" in
+          6*) branch=main; jdk=25; major=6 ;;
+          5*) branch=v5; jdk=17; major=5 ;;
+          4*) branch=v4; jdk=8; major=4 ;;
+          *) echo "Unknown release line: $LINE"; exit 1 ;;
+        esac
+        # Catch a version typed for the wrong line, or a snapshot version given as the release version
+        [[ "$RELEASE_VERSION" =~ ^$major\.[0-9]+\.[0-9]+$ ]] \
+          || { echo "releaseVersion must look like $major.x.y"; exit 1; }
+        [[ "$DEVELOPMENT_VERSION" =~ ^$major\.[0-9]+\.[0-9]+-SNAPSHOT$ ]] \
+          || { echo "developmentVersion must look like $major.x.y-SNAPSHOT"; exit 1; }
+        echo "branch=$branch" >> "$GITHUB_OUTPUT"
+        echo "jdk=$jdk" >> "$GITHUB_OUTPUT"
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      with:
+        ref: ${{ steps.line.outputs.branch }}
+        fetch-depth: 0
+    - name: Set up JDK
+      uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+      with:
+        distribution: 'zulu'
+        java-version: ${{ steps.line.outputs.jdk }}
+        cache: 'maven'
+        # Writes ~/.m2/settings.xml with a "central" server whose credentials are read from these
+        # environment variables when Maven runs
+        server-id: central
+        server-username: CENTRAL_USERNAME
+        server-password: CENTRAL_PASSWORD
+        # Imports the signing key into the runner's GnuPG keyring
+        gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
+        gpg-passphrase: MAVEN_GPG_PASSPHRASE
+    - name: Release to Maven Central
+      env:
+        CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
+        CENTRAL_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}
+        # maven-gpg-plugin reads the passphrase from this variable
+        MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        RELEASE_VERSION: ${{ inputs.releaseVersion }}
+        DEVELOPMENT_VERSION: ${{ inputs.developmentVersion }}
+      run: |
+        git config user.name "Luke Hutchison"
+        git config user.email "luke.hutch@gmail.com"
+        # The pom signs with the key named by gpg.keyname, so name the key that was just imported
+        keyid=$(gpg --list-secret-keys --with-colons | awk -F: '$1 == "sec" { print $5; exit }')
+        # -Darguments is passed to the builds that release:prepare and release:perform fork, and
+        # replaces the pom's <arguments>-Prelease</arguments>, so -Prelease is repeated in it
+        ./mvnw -B -Prelease -Dgpg.keyname="$keyid" -Darguments="-Prelease -Dgpg.keyname=$keyid" \
+          -DreleaseVersion="$RELEASE_VERSION" -DdevelopmentVersion="$DEVELOPMENT_VERSION" \
+          -Dtag="classgraph-$RELEASE_VERSION" \
+          release:prepare release:perform
+    - name: Create a draft GitHub release
+      env:
+        GH_TOKEN: ${{ github.token }}
+        RELEASE_VERSION: ${{ inputs.releaseVersion }}
+      run: |
+        gh release create "classgraph-$RELEASE_VERSION" --draft --verify-tag \
+          --title "ClassGraph $RELEASE_VERSION" --generate-notes
