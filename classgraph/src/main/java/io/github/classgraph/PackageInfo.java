@@ -191,6 +191,15 @@ public final class PackageInfo implements Comparable<PackageInfo>, HasName, HasA
         return annotations;
     }
 
+    @Override
+    public AnnotationInfoList getDirectAnnotationInfo() {
+        // scanResult is only null if the scan has not completed, which callers cannot observe
+        if (scanResult != null) {
+            scanResult.scanSpec.checkAnnotationInfoEnabled();
+        }
+        return AnnotationInfoList.getDirectAnnotations(annotationInfoList);
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**

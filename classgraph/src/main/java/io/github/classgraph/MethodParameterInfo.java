@@ -208,6 +208,13 @@ public final class MethodParameterInfo implements HasAnnotations {
         }
     }
 
+    @Override
+    public AnnotationInfoList getDirectAnnotationInfo() {
+        Objects.requireNonNull(scanResult).scanSpec.checkAnnotationInfoEnabled();
+        return annotationInfo == null ? AnnotationInfoList.EMPTY_LIST
+                : AnnotationInfoList.getDirectAnnotations(Arrays.asList(annotationInfo));
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**

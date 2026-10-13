@@ -422,6 +422,21 @@ public final class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
         return new AnnotationInfoList(reachableAnnotationInfo, directAnnotationsSorted);
     }
 
+    /**
+     * Get the list of annotations directly present on an annotated element, without finding their meta-annotations.
+     * The list is equal to the list that {@link #directOnly()} returns for the list built by
+     * {@link #getIndirectAnnotations(List, ClassInfo)}.
+     *
+     * @param directAnnotationInfo
+     *            the annotations directly present on the annotated element, or null if none.
+     * @return the annotations, sorted by name, with the same stable sort as
+     *         {@link #getIndirectAnnotations(List, ClassInfo)}.
+     */
+    static AnnotationInfoList getDirectAnnotations(final @Nullable List<AnnotationInfo> directAnnotationInfo) {
+        return directAnnotationInfo == null || directAnnotationInfo.isEmpty() ? EMPTY_LIST
+                : new AnnotationInfoList(sortCopyByName(directAnnotationInfo));
+    }
+
     // -------------------------------------------------------------------------------------------------------------
 
     /**

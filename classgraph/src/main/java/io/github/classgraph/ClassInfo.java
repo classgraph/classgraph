@@ -275,8 +275,14 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
     /** The annotations, once they are loaded */
     private @Nullable ClassInfoList annotationsRef;
 
+    /** The annotations directly present on this class, once they are loaded */
+    private @Nullable ClassInfoList directAnnotationsRef;
+
     /** The annotation infos, once they are loaded */
     private @Nullable AnnotationInfoList annotationInfoRef;
+
+    /** The annotation infos directly present on this class, once they are loaded */
+    private @Nullable AnnotationInfoList directAnnotationInfoRef;
 
     // -------------------------------------------------------------------------------------------------------------
 
@@ -2704,7 +2710,21 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
      */
     public ClassInfoList getDirectAnnotations() {
-        return getAllAnnotations().directOnly();
+        synchronized (this) {
+            if (directAnnotationsRef != null) {
+                return directAnnotationsRef;
+            }
+
+            scanResult().scanSpec.checkAnnotationInfoEnabled();
+
+            // The same classes as getAllAnnotations().directOnly(), without finding the meta-annotations and the
+            // inherited annotations of superclasses
+            directAnnotationsRef = new ClassInfoList(
+                    this.filterClassInfo(RelType.CLASS_ANNOTATIONS, /* excludeExternalClasses = */ true)
+                            .directlyRelatedClasses(),
+                    /* sortByName = */ true);
+            return directAnnotationsRef;
+        }
     }
 
     /**
@@ -2868,6 +2888,20 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
 
             annotationInfoRef = AnnotationInfoList.getIndirectAnnotations(annotationInfo, this);
             return annotationInfoRef;
+        }
+    }
+
+    @Override
+    public AnnotationInfoList getDirectAnnotationInfo() {
+        synchronized (this) {
+            if (directAnnotationInfoRef != null) {
+                return directAnnotationInfoRef;
+            }
+
+            scanResult().scanSpec.checkAnnotationInfoEnabled();
+
+            directAnnotationInfoRef = AnnotationInfoList.getDirectAnnotations(annotationInfo);
+            return directAnnotationInfoRef;
         }
     }
 

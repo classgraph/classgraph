@@ -72,6 +72,9 @@ public abstract sealed class ClassMemberInfo extends ScanResultObject implements
     /** The annotation infos, once they are loaded */
     private @Nullable AnnotationInfoList annotationInfoRef;
 
+    /** The annotation infos directly present on the class member, once they are loaded */
+    private @Nullable AnnotationInfoList directAnnotationInfoRef;
+
     /**
      * Constructor.
      *
@@ -306,6 +309,20 @@ public abstract sealed class ClassMemberInfo extends ScanResultObject implements
             annotationInfoRef = annotationInfo == null ? AnnotationInfoList.EMPTY_LIST
                     : AnnotationInfoList.getIndirectAnnotations(annotationInfo, /* annotatedClass = */ null);
             return annotationInfoRef;
+        }
+    }
+
+    @Override
+    public AnnotationInfoList getDirectAnnotationInfo() {
+        synchronized (this) {
+            if (directAnnotationInfoRef != null) {
+                return directAnnotationInfoRef;
+            }
+
+            scanResult().scanSpec.checkAnnotationInfoEnabled();
+
+            directAnnotationInfoRef = AnnotationInfoList.getDirectAnnotations(annotationInfo);
+            return directAnnotationInfoRef;
         }
     }
 
