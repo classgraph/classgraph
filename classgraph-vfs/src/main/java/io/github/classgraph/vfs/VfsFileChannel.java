@@ -29,6 +29,7 @@
 package io.github.classgraph.vfs;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.ClosedChannelException;
@@ -85,6 +86,46 @@ final class VfsFileChannel extends FileChannel {
 
     /** The size of the buffer {@link #transferTo(long, long, WritableByteChannel)} copies through. */
     private static final int TRANSFER_BUF_SIZE = 16384;
+
+    /**
+     * The stream that {@link #transferTo(long, long, WritableByteChannel)} reads through, kept between calls. A
+     * caller that copies the content a chunk at a time, or that calls again after a target took only part of a
+     * transfer, then continues from where the last transfer stopped, rather than inflating or streaming the content
+     * again from the beginning on every call. Null when there is none yet, and while a transfer is using it.
+     * {@link #implCloseChannel()} closes it.
+     */
+    private final AtomicReference<@Nullable TransferCursor> transferCursor = new AtomicReference<>();
+
+    /** Serializes transfers, which share {@link #transferCursor}. */
+    private final Object transferLock = new Object();
+
+    /**
+     * A stream over the content, and the last buffer read from it, which still holds whatever part of it a target
+     * did not take.
+     */
+    private static final class TransferCursor {
+        /** The stream, which only reads forward. */
+        final InputStream stream;
+
+        /** The bytes last read from the stream. */
+        final byte[] buffer = new byte[TRANSFER_BUF_SIZE];
+
+        /** The position in the content of the first byte in {@link #buffer}. */
+        long bufferPosition;
+
+        /** The number of bytes in {@link #buffer}. The stream is at {@code bufferPosition + bufferLength}. */
+        int bufferLength;
+
+        /**
+         * Constructor.
+         *
+         * @param stream
+         *            a stream over the content, at its beginning.
+         */
+        TransferCursor(final InputStream stream) {
+            this.stream = stream;
+        }
+    }
 
     /**
      * Constructor.
@@ -273,38 +314,97 @@ final class VfsFileChannel extends FileChannel {
             return 0;
         }
         final var open = openState();
-        // Use a separate stream: the random-access reader retains every inflated byte before the requested
-        // offset, so using positional reads here would still retain the entire transferred prefix.
-        try (var stream = open.owner().openInputStream(open.entry())) {
-            var remainingSkip = fromPosition;
-            while (remainingSkip > 0) {
-                checkOpen();
-                final var skipped = stream.skip(remainingSkip);
-                if (skipped > 0) {
-                    remainingSkip -= skipped;
-                } else if (stream.read() == -1) {
-                    return 0;
-                } else {
-                    remainingSkip--;
+        // Read through a stream of its own rather than through the random-access reader, which retains every
+        // inflated byte before the offset it reads at, so it would retain the whole of the transferred prefix
+        synchronized (transferLock) {
+            var cursor = transferCursor.getAndSet(null);
+            var keepCursor = false;
+            try {
+                if (cursor != null && fromPosition < cursor.bufferPosition) {
+                    // The stream cannot go back, so start again from the beginning
+                    cursor.stream.close();
+                    cursor = null;
+                }
+                if (cursor == null) {
+                    cursor = new TransferCursor(open.owner().openInputStream(open.entry()));
+                }
+                var numBytesTransferred = 0L;
+                var pos = fromPosition;
+                while (numBytesTransferred < count) {
+                    checkOpen();
+                    var streamPosition = cursor.bufferPosition + cursor.bufferLength;
+                    if (pos >= streamPosition) {
+                        // Nothing that is needed is left in the buffer, so skip forward and read some more
+                        while (streamPosition < pos) {
+                            final var skipped = cursor.stream.skip(pos - streamPosition);
+                            if (skipped > 0) {
+                                streamPosition += skipped;
+                            } else if (cursor.stream.read() == -1) {
+                                break;
+                            } else {
+                                streamPosition++;
+                            }
+                        }
+                        cursor.bufferPosition = streamPosition;
+                        cursor.bufferLength = 0;
+                        if (streamPosition < pos) {
+                            // The position is beyond the end of the content
+                            break;
+                        }
+                        final var numRead = cursor.stream.read(cursor.buffer, 0,
+                                (int) Math.min(cursor.buffer.length, count - numBytesTransferred));
+                        if (numRead == -1) {
+                            break;
+                        }
+                        cursor.bufferLength = numRead;
+                    }
+                    final var offset = (int) (pos - cursor.bufferPosition);
+                    final var buf = ByteBuffer.wrap(cursor.buffer, offset,
+                            (int) Math.min(cursor.bufferLength - offset, count - numBytesTransferred));
+                    final var numWritten = target.write(buf);
+                    numBytesTransferred += numWritten;
+                    pos += numWritten;
+                    if (buf.hasRemaining()) {
+                        // A non-blocking target that will not take the whole buffer ends the transfer early. What
+                        // it did not take stays in the buffer, for the call that the caller makes next
+                        break;
+                    }
+                }
+                keepCursor = true;
+                return numBytesTransferred;
+            } finally {
+                if (cursor != null) {
+                    if (keepCursor) {
+                        transferCursor.set(cursor);
+                        if (!isOpen()) {
+                            // The channel was closed during the transfer, after implCloseChannel() looked for
+                            // the cursor, so it is closed here instead
+                            closeTransferCursor();
+                        }
+                    } else {
+                        // After an exception, the buffer may not match the stream position, so start again on the
+                        // next call. Close quietly, so that the exception that ended the transfer is the one thrown
+                        try {
+                            cursor.stream.close();
+                        } catch (final IOException e) {
+                            // Nothing can be done about a stream that cannot be closed
+                        }
+                    }
                 }
             }
-            final var buffer = new byte[(int) Math.min(count, TRANSFER_BUF_SIZE)];
-            var numBytesTransferred = 0L;
-            while (numBytesTransferred < count) {
-                checkOpen();
-                final var numRead = stream.read(buffer, 0,
-                        (int) Math.min(buffer.length, count - numBytesTransferred));
-                if (numRead == -1) {
-                    break;
-                }
-                final var buf = ByteBuffer.wrap(buffer, 0, numRead);
-                numBytesTransferred += target.write(buf);
-                if (buf.hasRemaining()) {
-                    // A non-blocking target that will not take the whole buffer ends the transfer early.
-                    break;
-                }
-            }
-            return numBytesTransferred;
+        }
+    }
+
+    /**
+     * Close the stream that transfers read through, if there is one.
+     *
+     * @throws IOException
+     *             if the stream could not be closed.
+     */
+    private void closeTransferCursor() throws IOException {
+        final var cursor = transferCursor.getAndSet(null);
+        if (cursor != null) {
+            cursor.stream.close();
         }
     }
 
@@ -367,6 +467,11 @@ final class VfsFileChannel extends FileChannel {
         // on the root for as long as it stays open. Harmless if the root is the one doing the closing, since it
         // drains its set before it closes what was in it
         final var open = state.getAndSet(null);
+        try {
+            closeTransferCursor();
+        } catch (final IOException e) {
+            // Nothing can be done about a stream that cannot be closed, and the channel is closed regardless
+        }
         if (open != null) {
             open.root().untrackOpenHandle(this);
             open.owner().unregister(this);

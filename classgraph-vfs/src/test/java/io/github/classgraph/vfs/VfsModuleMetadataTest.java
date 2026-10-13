@@ -2,8 +2,8 @@ package io.github.classgraph.vfs;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.io.InputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.module.ModuleDescriptor;
 import java.lang.module.ModuleReader;
 import java.lang.module.ModuleReference;
@@ -94,6 +94,65 @@ public class VfsModuleMetadataTest {
     }
 
     /**
+     * Transfers that continue where the last one stopped, whether because the caller copies a chunk at a time or
+     * because the target took only part of a transfer, read on through one stream, and read each byte once.
+     *
+     * @throws IOException
+     *             if the resource cannot be read.
+     */
+    @Test
+    public void consecutiveTransfersReadThroughOneStream() throws IOException {
+        final var length = 100_000L;
+        final var bytesRead = new AtomicLong();
+        final var streamsOpened = new AtomicLong();
+        try (var vfs = new Vfs()) {
+            final var path = vfs.open(streamingModule(length, bytesRead, streamsOpened)).asFileSystem()
+                    .getPath("/payload");
+            try (var channel = FileChannel.open(path)) {
+                final var bytesWritten = new AtomicLong();
+                final var target = new WritableByteChannel() {
+                    @Override
+                    public int write(final ByteBuffer source) {
+                        // Take at most 1000 bytes, so that every transfer of 4096 bytes ends early
+                        final var count = Math.min(source.remaining(), 1000);
+                        for (var i = 0; i < count; i++) {
+                            assertThat(source.get()).isEqualTo((byte) 7);
+                        }
+                        bytesWritten.addAndGet(count);
+                        return count;
+                    }
+
+                    @Override
+                    public boolean isOpen() {
+                        return true;
+                    }
+
+                    @Override
+                    public void close() {
+                        // This synthetic target owns no resources.
+                    }
+                };
+                // Opening the channel opens a stream for its positional reads, which the transfers do not use
+                final var streamsOpenedBefore = streamsOpened.get();
+                var position = 0L;
+                while (position < length) {
+                    final var numTransferred = channel.transferTo(position, 4096, target);
+                    assertThat(numTransferred).isPositive();
+                    position += numTransferred;
+                }
+                assertThat(channel.transferTo(position, 4096, target)).isZero();
+                assertThat(bytesWritten.get()).isEqualTo(length);
+                assertThat(streamsOpened.get() - streamsOpenedBefore).isEqualTo(1);
+                assertThat(bytesRead.get()).isEqualTo(length);
+
+                // A transfer from an earlier position has to start again from the beginning
+                assertThat(channel.transferTo(10, 500, target)).isEqualTo(500);
+                assertThat(streamsOpened.get() - streamsOpenedBefore).isEqualTo(2);
+            }
+        }
+    }
+
+    /**
      * Unknown sizes may exceed the array limit, and successful attribute snapshots are counted only once.
      *
      * @throws IOException
@@ -124,6 +183,22 @@ public class VfsModuleMetadataTest {
      * @return the module reference.
      */
     private static ModuleReference streamingModule(final long length, final AtomicLong bytesRead) {
+        return streamingModule(length, bytesRead, new AtomicLong());
+    }
+
+    /**
+     * Create a synthetic module with a large streaming resource and no whole-resource buffer operation.
+     *
+     * @param length
+     *            the resource length.
+     * @param bytesRead
+     *            the counter for bytes actually read.
+     * @param streamsOpened
+     *            the counter for streams opened on the resource.
+     * @return the module reference.
+     */
+    private static ModuleReference streamingModule(final long length, final AtomicLong bytesRead,
+            final AtomicLong streamsOpened) {
         final var uri = URI.create("test-module:/streaming");
         return new ModuleReference(ModuleDescriptor.newModule("test.streaming").build(), uri) {
             @Override
@@ -139,6 +214,7 @@ public class VfsModuleMetadataTest {
                         if (!name.equals("payload")) {
                             return Optional.empty();
                         }
+                        streamsOpened.incrementAndGet();
                         return Optional.of(new InputStream() {
                             private long position;
 
