@@ -67,7 +67,6 @@ import io.github.classgraph.base.internal.path.FastPathResolver;
 import io.github.classgraph.base.internal.path.FileUtils;
 import io.github.classgraph.base.internal.path.PathSyntax;
 import io.github.classgraph.base.internal.utils.Assert;
-import io.github.classgraph.vfs.internal.StoragePaths;
 import io.github.classgraph.vfs.internal.recycler.RecycledInflaterInputStream;
 import io.github.classgraph.vfs.internal.recycler.Recycler;
 import io.github.classgraph.vfs.internal.zip.JarOpener;
@@ -148,21 +147,21 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      * The roots that have been opened from a path, keyed by every path that names each -- the path as it was
      * opened, its canonical form, and the path the root reports itself at -- so that one directory or jarfile named
      * several ways is opened once. A root opened through a {@link Path} in a non-default filesystem is keyed only
-     * by its filesystem identity and provider URI, and by the URL it was opened by, if it was opened by one. Two
-     * threads that ask for the same path at the same time build the root only once, since a lookup for a key whose
-     * root is still being built blocks until it is ready. The enclosing jarfiles of a nested jarfile are opened
-     * through this same cache, one frame of re-entry per {@code "!"} section, so each of them is a root in its own
-     * right, cached under its own path.
+     * by its filesystem identity and URI, and by the URL it was opened by, if it was opened by one. Two threads
+     * that ask for the same path at the same time build the root only once, since a lookup for a key whose root is
+     * still being built blocks until it is ready. The enclosing jarfiles of a nested jarfile are opened through
+     * this same cache, one frame of re-entry per {@code "!"} section, so each of them is a root in its own right,
+     * cached under its own path.
      */
     private final SingletonMap<Object, VfsRoot> rootsByPath = new SingletonMap<>(closed);
 
     /**
-     * A provider URI identifies a path only within its particular filesystem instance.
+     * The URI of a path identifies it only within its particular filesystem instance.
      *
      * @param fileSystem
      *            the source filesystem, compared by identity.
      * @param uri
-     *            the path's provider URI within that filesystem.
+     *            the path's URI.
      */
     private record PathKey(FileSystem fileSystem, URI uri) {
         @Override
@@ -359,7 +358,7 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      *
      * @param key
      *            the cache key: a path in the form {@link #resolvePath(String)} returns, or the filesystem identity
-     *            and provider URI of a {@link Path} in a non-default filesystem.
+     *            and URI of a {@link Path} in a non-default filesystem.
      * @param aliasReportedPath
      *            whether to also record the root under the path it reports itself at. This is false for a root
      *            opened through a {@link Path} in a non-default filesystem, whose reported path names the file the
@@ -776,13 +775,12 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      * another filesystem is read through that filesystem, unless {@link VfsSpec#denyURLScheme(String)} denied the
      * scheme of its URI, in which case it is refused, as it is when it is named by that URI. For a path in a
      * zipfile mounted as a filesystem, whose URI is a {@code jar:} URI, the scheme checked is that of the
-     * filesystem that holds the zipfile. For a ClassGraph filesystem view, the checked URI is its underlying
-     * storage URI, rather than the {@code cgvfs:} URI of the view.
+     * filesystem that holds the zipfile.
      *
      * <p>
      * A directory in another ClassGraph filesystem view can itself be wrapped, repeatedly. Each filesystem instance
-     * has its own cache identity, even if its paths report the same storage URI as another instance. The source
-     * filesystem is borrowed, not closed by this {@link Vfs}, and must remain open while the wrapped root is used.
+     * has its own cache identity, even if its paths report the same URI as another instance. The source filesystem
+     * is borrowed, not closed by this {@link Vfs}, and must remain open while the wrapped root is used.
      *
      * @param path
      *            the directory or jarfile to open.
@@ -798,16 +796,17 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
             // string form of the path can express
             return open(path.toString());
         }
-        // A view's storage URI deliberately does not identify its filesystem lifetime, and an archive root's
-        // storage URI can also name its container file. Use the source view's identity and provider URI for its
-        // cache key, while retaining the underlying storage URI for scheme checks and reporting.
-        final var storageURI = StoragePaths.toURI(path).toString();
+        // A path in another filesystem is keyed by its URI, since its string form is only meaningful within that
+        // filesystem, and could collide with a path in the default one. The key also holds the filesystem, since
+        // two filesystems, such as two views of one directory or two mounts of one zipfile, report the same URI
+        // for paths whose lifetimes differ
+        final var uri = path.toUri().toString();
         final var key = new PathKey(path.getFileSystem(), path.toUri());
-        checkNotClosed(storageURI);
+        checkNotClosed(uri);
         // A path in a filesystem whose scheme has been denied is refused, as it is when it is named by its URI.
         // The URI of a path in a mounted zipfile is a "jar:" URI, which resolving strips down to the location of
         // the zipfile, so what is checked is the scheme of the filesystem that holds the zipfile, if it has one
-        final var resolvedKey = resolvePath(storageURI);
+        final var resolvedKey = resolvePath(uri);
         if (PathSyntax.hasURLScheme(resolvedKey)) {
             JarOpener.checkURLSchemeNotDenied(resolvedKey, this);
         }
@@ -826,7 +825,7 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      * @param path
      *            the directory or jarfile to open.
      * @param key
-     *            the cache key, containing the source filesystem identity and the path's provider URI.
+     *            the cache key, containing the source filesystem identity and the path's URI.
      * @param outerLog
      *            the log node to log under, or null to skip logging.
      * @return the opened root.

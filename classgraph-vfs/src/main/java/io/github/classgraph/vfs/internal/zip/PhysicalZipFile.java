@@ -39,7 +39,6 @@ import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.path.FastPathResolver;
 import io.github.classgraph.base.internal.path.FileUtils;
 import io.github.classgraph.vfs.Vfs;
-import io.github.classgraph.vfs.internal.StoragePaths;
 import io.github.classgraph.vfs.internal.slice.PathSlice;
 import io.github.classgraph.vfs.internal.slice.Slice;
 import org.jspecify.annotations.Nullable;
@@ -115,7 +114,7 @@ public final class PhysicalZipFile {
     PhysicalZipFile(final Path path, final Vfs vfs, final @Nullable LogNode log) throws IOException {
         this.path = path;
         this.file = null;
-        this.pathStr = StoragePaths.pathStr(path);
+        this.pathStr = FileUtils.pathStr(path);
         this.slice = new PathSlice(path, vfs, log);
         this.nestedJarInflationAllowance = new NestedJarInflationAllowance(pathStr, slice.sliceLength);
         this.bytesToGiveBack = new AtomicLong();

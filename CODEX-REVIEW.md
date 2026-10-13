@@ -434,8 +434,6 @@ One corrective exception was necessary: R11's link-cycle regression exposed its 
 
 A subsequent R07 test-only correction (`2020082bd` on main, folded into the v5 R07 backport) compares storage URIs against real paths: macOS's `/var` alias and Windows short temporary-directory names need not retain their original spelling after canonicalization. A new symlink-alias regression verifies canonical storage naming, provider URI separation, and readable contents. Production behavior is unchanged.
 
-R07's additional plugin-style verification found the same class-identity limitation in `StoragePaths`: a `VfsPath` loaded by an isolated ClassGraph copy was treated as an unrelated provider, leaking a `cgvfs:` identifier into storage reporting and underlying-scheme policy. A pre-fix assertion expected the native `file:` directory URI and received `cgvfs:` instead. The bridge now calls the isolated copy's public `toStorageUri()` method, falls back to the old `toUri()` behavior for pre-separation copies, and does not cache reflective members or classes that would retain plugin classloaders. `isolatedPathsRetainStorageNamingAndSchemePolicy` verifies directory and missing-path storage URIs, readable archive contents and archive storage naming, and denial of an underlying `jimfs:` scheme. This is a separate main/v5 correction, with no public API change; native `file:` and `jar:` paths retain their existing scheme-policy exemption.
-
 | Finding | Main commit | v5 backport | Disposition |
 | --- | --- | --- | --- |
 | R01/R23 | `f05d0e46c` | `6a1411fa4` | Reverse annotation matches use effective member rules; override, hiding, private/static-interface and package-access regressions cover the shared policy. |

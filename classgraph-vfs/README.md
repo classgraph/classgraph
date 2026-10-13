@@ -25,7 +25,7 @@ the settings a `Vfs` is constructed with, `CloseableByteBuffer` wraps a buffer y
 and `VfsVisitor` is the callback that `VfsRoot#walk()` takes. Those six types are the API you call.
 Two more are public only because `java.nio.file` needs them to be: `VfsFileSystemProvider`, which
 `ServiceLoader` instantiates to serve the `cgvfs:` URL scheme, and `VfsPath`, the `Path` of a
-filesystem view, which adds `toStorageUri()` and the `toCgvfsUri()` alias for `toUri()`. `Vfs` also has two public members
+filesystem view, whose one addition to `Path` is `toCgvfsUri()`. `Vfs` also has two public members
 that are not part of the API, since they name types from packages that are not exported to every
 module: a constructor that takes a type which, on the module path, only ClassGraph's own modules can
 obtain, and `inflaterRecycler()`, which the virtual filesystem's internal packages read through. See
@@ -181,7 +181,7 @@ A view can itself be wrapped: `wrapper.open(root.asFileSystem().getPath("/"))` o
 backed by that filesystem, and its resulting view can be wrapped again. The source filesystem is
 borrowed and must remain open while the wrapper is used. Closing the wrapper does not close the
 source. Cache identity includes the filesystem instance, so separate views remain independent
-even if their storage URIs match.
+even if their paths have the same URI.
 
 The one exception is a filesystem that `FileSystems.newFileSystem` created, for a `cgvfs:` URI or
 for a directory: it created the `Vfs` behind it, and is the only reference you have to it, so
@@ -244,13 +244,13 @@ module name against instead of the boot layer. Only one module of a given name c
 `newFileSystem` at a time, whatever its layer; to read two at once, open each with
 `vfs.openModule(name, layer).asFileSystem()`.
 
-`VfsPath.toUri()` writes a `cgvfs:` URI matching its provider; `toCgvfsUri()` is an alias. Forming
-either URI does not require an installed provider or an open filesystem. `Paths.get(uri)` resolves
-back to an equal path only while a filesystem registered by `FileSystems.newFileSystem(uri, env)`
-remains open; borrowed views are not registered. Provider lookup may be unavailable when
-ClassGraph is loaded by a child classloader, such as in a servlet container, Spring Boot fat jar
-or OSGi bundle. `VfsPath.toStorageUri()` instead returns the underlying `file:`, `jar:`, `jrt:` or
-other storage URI, which does not identify the filesystem view or its lifetime.
+`VfsPath.toCgvfsUri()` writes a path back out as a `cgvfs:` URI, and throws
+`FileSystemNotFoundException` if the scheme is not installed in this JVM, rather than handing back a
+URI that nothing could resolve. (`ServiceLoader` only finds the provider if `classgraph-vfs` is
+loaded by the system class loader, so the scheme is silently absent inside a servlet container, a
+Spring Boot fat jar or an OSGi bundle, which load it in a child loader.) `Path.toUri()` is
+unchanged, and still returns the `file:`, `jar:` or `jrt:` URI of the underlying storage, which
+names the same bytes to code that has never heard of ClassGraph.
 
 ## What it reads that `java.util.zip` does not
 

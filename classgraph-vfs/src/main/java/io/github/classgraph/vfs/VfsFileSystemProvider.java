@@ -1002,7 +1002,7 @@ public final class VfsFileSystemProvider extends FileSystemProvider {
      * <p>
      * Native directory files use their underlying provider's identity, including symbolic links, hard links and
      * different views. Archive and module files use the identity of their opened root and normalized entry name;
-     * independently opened roots are separate namespaces, even if they report the same storage URI.
+     * independently opened roots are separate namespaces, even if they report the same URI.
      */
     @Override
     public boolean isSameFile(final Path path, final Path path2) throws IOException {

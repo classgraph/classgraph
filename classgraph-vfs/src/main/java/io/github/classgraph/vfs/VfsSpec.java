@@ -253,8 +253,7 @@ public final class VfsSpec {
      * or a {@link java.nio.file.Path}. The scheme of a {@link java.nio.file.Path} is the scheme of its URI, so a
      * path in a filesystem whose provider serves the denied scheme is refused. A path in a zipfile mounted as a
      * filesystem has a {@code jar:} URI, so what is checked for it is the scheme of the filesystem that holds the
-     * zipfile. For a {@link VfsPath}, the checked scheme is that of {@link VfsPath#toStorageUri()}, not the
-     * {@code cgvfs:} URI of its view.
+     * zipfile.
      *
      * <p>
      * Denying {@code file:} or {@code jar:} has no effect. A {@code file:} URL names a local file, and a
