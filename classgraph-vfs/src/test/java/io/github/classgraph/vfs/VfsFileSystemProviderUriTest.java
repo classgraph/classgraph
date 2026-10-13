@@ -518,7 +518,7 @@ public class VfsFileSystemProviderUriTest {
 
     /**
      * A path of a filesystem created from a URI can be written back as a {@code "cgvfs:"} URI, and reading that URI
-     * gives an equal path. {@link VfsPath#toStorageUri()} separately names the underlying storage.
+     * gives an equal path. {@link VfsPath#toUri()} still gives the URI of the underlying storage.
      *
      * @param tempDir
      *            a temporary directory.
@@ -536,10 +536,9 @@ public class VfsFileSystemProviderUriTest {
             assertThat(uri.getScheme()).isEqualTo("cgvfs");
             assertThat(uri.getSchemeSpecificPart()).endsWith("library.jar!/com/xyz/Widget.class");
             assertThat(Paths.get(uri)).isEqualTo(path);
-            assertThat(path.toUri()).isEqualTo(uri);
 
-            // Storage naming is explicit, so generic Path-to-URI conversion preserves the provider.
-            assertThat(path.toStorageUri().getScheme()).isEqualTo("jar");
+            // toUri still names the storage, so that code that has never heard of ClassGraph can read it
+            assertThat(path.toUri().getScheme()).isEqualTo("jar");
 
             // The root directory has no entry name after the "!/"
             final var rootUri = ((VfsPath) fileSystem.getPath("/")).toCgvfsUri();

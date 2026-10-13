@@ -44,7 +44,6 @@ import java.util.List;
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.path.FileUtils;
 import io.github.classgraph.base.internal.path.URLPaths;
-import io.github.classgraph.vfs.internal.StoragePaths;
 import io.github.classgraph.vfs.internal.module.ModuleReaderUtils;
 import io.github.classgraph.vfs.internal.recycler.Recycler;
 import org.jspecify.annotations.Nullable;
@@ -177,7 +176,7 @@ public final class ModuleRoot extends VfsRoot {
         if (moduleDir != null && Files.isDirectory(moduleDir)) {
             // A module that was exploded into a directory is read from that directory, so a name within it is named
             // the way a name within a directory root is, rather than as an entry of a jarfile that does not exist
-            return StoragePaths.toURI(moduleDir.resolve(pathWithinRoot));
+            return URLPaths.toURI(moduleDir.resolve(pathWithinRoot));
         }
         final var rootURIStr = getURI().toString();
         final var entryPath = URLPaths.encodePath(pathWithinRoot);
