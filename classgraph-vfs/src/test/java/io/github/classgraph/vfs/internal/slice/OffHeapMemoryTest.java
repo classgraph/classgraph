@@ -14,10 +14,11 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.security.Permission;
 
-import io.github.classgraph.base.LogNode;
-import io.github.classgraph.base.internal.utils.VersionFinder;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+
+import io.github.classgraph.base.LogNode;
+import io.github.classgraph.base.internal.utils.VersionFinder;
 
 /**
  * Tests for {@link OffHeapMemory}.

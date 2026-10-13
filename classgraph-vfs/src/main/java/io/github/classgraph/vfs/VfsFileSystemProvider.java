@@ -77,10 +77,11 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Pattern;
 
+import org.jspecify.annotations.Nullable;
+
 import io.github.classgraph.base.internal.path.FastPathResolver;
 import io.github.classgraph.base.internal.path.URLPaths;
 import io.github.classgraph.base.internal.utils.Assert;
-import org.jspecify.annotations.Nullable;
 
 /**
  * The {@link FileSystemProvider} of the read-only {@link VfsFileSystem} views of a {@link VfsRoot}, registered

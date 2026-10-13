@@ -33,8 +33,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import io.github.classgraph.base.LogNode;
 import org.jspecify.annotations.Nullable;
+
+import io.github.classgraph.base.LogNode;
 
 /**
  * The base class for all parsed elements of the generic signature grammar in section 4.7.9.1 of the JVM

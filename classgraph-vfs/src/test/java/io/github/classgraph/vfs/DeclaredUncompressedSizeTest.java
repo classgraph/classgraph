@@ -16,9 +16,10 @@ import java.util.zip.Deflater;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
-import io.github.classgraph.vfs.reader.RandomAccessOrSequentialReader;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+
+import io.github.classgraph.vfs.reader.RandomAccessOrSequentialReader;
 
 /**
  * The uncompressed size that a zip entry declares is only a hint for the size of the buffer it is inflated into,

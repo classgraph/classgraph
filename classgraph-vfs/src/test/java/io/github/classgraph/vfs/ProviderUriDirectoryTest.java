@@ -17,13 +17,15 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-import com.google.common.jimfs.Configuration;
-import com.google.common.jimfs.Jimfs;
-import io.github.classgraph.base.internal.path.FastPathResolver;
-import io.github.classgraph.vfs.internal.zip.ProviderOnlySchemeFileSystemProvider;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.jspecify.annotations.Nullable;
+
+import com.google.common.jimfs.Configuration;
+import com.google.common.jimfs.Jimfs;
+
+import io.github.classgraph.base.internal.path.FastPathResolver;
+import io.github.classgraph.vfs.internal.zip.ProviderOnlySchemeFileSystemProvider;
 
 /**
  * A directory named by a URI whose scheme an installed filesystem provider serves is opened as a directory, by

@@ -42,11 +42,12 @@ import java.nio.file.attribute.PosixFilePermission;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.jspecify.annotations.Nullable;
+
 import io.github.classgraph.base.internal.path.PathSyntax;
 import io.github.classgraph.base.internal.utils.Assert;
 import io.github.classgraph.vfs.reader.RandomAccessOrSequentialReader;
 import io.github.classgraph.vfs.reader.RandomAccessReader;
-import org.jspecify.annotations.Nullable;
 
 /**
  * One file within a {@link VfsRoot}: a file in a directory tree, an entry of a jarfile, or a resource in a module.

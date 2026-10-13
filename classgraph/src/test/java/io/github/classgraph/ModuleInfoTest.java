@@ -20,7 +20,6 @@ import java.util.jar.Manifest;
 import javax.tools.ToolProvider;
 
 import org.jspecify.annotations.Nullable;
-
 import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;

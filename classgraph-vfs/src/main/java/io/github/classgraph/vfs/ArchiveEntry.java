@@ -35,9 +35,10 @@ import java.util.Collections;
 import java.util.EnumSet;
 import java.util.Set;
 
+import org.jspecify.annotations.Nullable;
+
 import io.github.classgraph.vfs.internal.zip.FastZipEntry;
 import io.github.classgraph.vfs.reader.RandomAccessOrSequentialReader;
-import org.jspecify.annotations.Nullable;
 
 /** One entry of a zipfile or jarfile. */
 final class ArchiveEntry extends VfsEntry {

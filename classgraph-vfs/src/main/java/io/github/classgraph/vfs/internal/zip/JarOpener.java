@@ -34,9 +34,10 @@ import java.io.InputStream;
 import java.nio.file.Path;
 import java.util.Locale;
 
+import org.jspecify.annotations.Nullable;
+
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.vfs.Vfs;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Opens toplevel jarfiles, however they are named -- by a canonical {@link File}, by a URL, by a {@link Path} in a

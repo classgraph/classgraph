@@ -46,12 +46,12 @@ import java.util.function.Predicate;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import io.github.classgraph.base.internal.concurrency.IdleTimeout;
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
-import org.jspecify.annotations.Nullable;
 
 /** Tests {@link VfsRoot#walk(VfsVisitor)}. */
 public class VfsWalkTest {

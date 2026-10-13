@@ -36,10 +36,11 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
+import org.jspecify.annotations.Nullable;
+
 import io.github.classgraph.Classfile.ClassContainment;
 import io.github.classgraph.Classfile.TypePathNode;
 import io.github.classgraph.base.internal.utils.Assert;
-import org.jspecify.annotations.Nullable;
 
 // TODO: once ClassGraph's minimum supported JDK version is 21 or later, each place that tests for more than one
 // subclass of TypeSignature in turn, and so could use a pattern switch, has a TODO of its own.

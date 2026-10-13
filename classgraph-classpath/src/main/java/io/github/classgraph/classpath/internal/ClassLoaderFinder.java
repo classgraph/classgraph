@@ -34,8 +34,9 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Set;
 
-import io.github.classgraph.base.LogNode;
 import org.jspecify.annotations.Nullable;
+
+import io.github.classgraph.base.LogNode;
 
 /** Finds the classloaders that are present in the environment of the caller. */
 public class ClassLoaderFinder {

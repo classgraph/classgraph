@@ -38,10 +38,11 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Objects;
 
+import org.jspecify.annotations.Nullable;
+
 import io.github.classgraph.base.internal.utils.Assert;
 import io.github.classgraph.vfs.Vfs;
 import io.github.classgraph.vfs.VfsRoot;
-import org.jspecify.annotations.Nullable;
 
 /**
  * One element of the classpath: a directory or a jarfile that classes and resources are loaded from.

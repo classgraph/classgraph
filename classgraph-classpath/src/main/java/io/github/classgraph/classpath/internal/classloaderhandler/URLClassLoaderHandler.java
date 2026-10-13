@@ -31,11 +31,12 @@ package io.github.classgraph.classpath.internal.classloaderhandler;
 import java.net.URL;
 import java.net.URLClassLoader;
 
+import org.jspecify.annotations.Nullable;
+
 import io.github.classgraph.base.ClassGraphLog;
 import io.github.classgraph.classpath.ClassLoaderHandler;
 import io.github.classgraph.classpath.ClassLoaderOrder;
 import io.github.classgraph.classpath.ClasspathOrder;
-import org.jspecify.annotations.Nullable;
 
 /**
  * ClassLoaderHandler that is able to extract the URLs from a URLClassLoader.

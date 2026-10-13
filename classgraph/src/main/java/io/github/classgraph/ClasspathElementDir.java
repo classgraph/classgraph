@@ -38,6 +38,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.jspecify.annotations.Nullable;
+
 import io.github.classgraph.ScanSpec.ScanSpecPathMatch;
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
 import io.github.classgraph.base.LogNode;
@@ -48,7 +50,6 @@ import io.github.classgraph.vfs.Vfs;
 import io.github.classgraph.vfs.VfsEntry;
 import io.github.classgraph.vfs.VfsRoot;
 import io.github.classgraph.vfs.VfsVisitor;
-import org.jspecify.annotations.Nullable;
 
 /** A directory classpath element, using the {@link Path} API. */
 final class ClasspathElementDir extends ClasspathElement {

@@ -24,15 +24,15 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
-import io.github.classgraph.vfs.VfsSpec;
 import io.github.classgraph.vfs.Vfs;
-import org.jspecify.annotations.Nullable;
+import io.github.classgraph.vfs.VfsSpec;
 
 /**
  * Tests fetching a jar named by a URL, which is how a jar that is not a file on the local filesystem is reached.

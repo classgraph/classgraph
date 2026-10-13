@@ -40,8 +40,9 @@ import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 
-import io.github.classgraph.base.internal.utils.VersionFinder;
 import org.jspecify.annotations.Nullable;
+
+import io.github.classgraph.base.internal.utils.VersionFinder;
 
 /**
  * The verbose log that ClassGraph writes what it is doing to: a tree of log entries that may be added in any order,

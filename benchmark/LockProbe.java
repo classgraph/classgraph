@@ -1,7 +1,8 @@
-import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ScanResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
+
+import io.github.classgraph.ClassGraph;
+import io.github.classgraph.ScanResult;
 
 /**
  * Can a jar be deleted or replaced while ClassGraph is holding a ScanResult over it? Some versions of Windows

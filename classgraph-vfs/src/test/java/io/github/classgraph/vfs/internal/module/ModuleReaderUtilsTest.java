@@ -22,10 +22,11 @@ import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
-import io.github.classgraph.base.LogNode;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+
+import io.github.classgraph.base.LogNode;
 
 /**
  * Tests for the calls into the module system. Some {@link ModuleReader} implementations in the wild break the

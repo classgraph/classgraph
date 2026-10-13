@@ -42,10 +42,11 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.jspecify.annotations.Nullable;
+
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.concurrency.IdleTimeout;
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
-import org.jspecify.annotations.Nullable;
 
 // TODO: once ClassGraph's minimum supported JDK version is 21 or later, revisit the way work is scheduled across
 // worker threads, both here and in AutoCloseableExecutorService. Virtual threads (JDK 21) are the obvious thing to

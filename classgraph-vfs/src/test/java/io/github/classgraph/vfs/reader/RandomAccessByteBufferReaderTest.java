@@ -10,8 +10,9 @@ import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import io.github.classgraph.base.internal.utils.VersionFinder;
 import org.junit.jupiter.api.Test;
+
+import io.github.classgraph.base.internal.utils.VersionFinder;
 
 /**
  * Tests {@link RandomAccessByteBufferReader}, which is the reader used for memory-mapped files, against

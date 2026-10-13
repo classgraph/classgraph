@@ -38,8 +38,9 @@ import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileTime;
 
-import io.github.classgraph.base.internal.utils.VersionFinder;
 import org.jspecify.annotations.Nullable;
+
+import io.github.classgraph.base.internal.utils.VersionFinder;
 
 /**
  * The operations that ask the filesystem about a {@link File} or a {@link Path}: whether it exists, what kind of

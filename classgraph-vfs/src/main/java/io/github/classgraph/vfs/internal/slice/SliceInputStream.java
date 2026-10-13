@@ -33,8 +33,9 @@ import java.io.InputStream;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import io.github.classgraph.vfs.reader.RandomAccessReader;
 import org.jspecify.annotations.Nullable;
+
+import io.github.classgraph.vfs.reader.RandomAccessReader;
 
 /**
  * An {@link InputStream} that reads the bytes of a {@link Slice}, in order, through the slice's

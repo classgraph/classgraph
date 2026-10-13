@@ -30,8 +30,9 @@ package io.github.classgraph.classpath;
 
 import java.util.List;
 
-import io.github.classgraph.base.ClassGraphLog;
 import org.jspecify.annotations.Nullable;
+
+import io.github.classgraph.base.ClassGraphLog;
 
 /**
  * Teaches ClassGraph how to read the classpath out of a {@link ClassLoader} that it does not already know about.

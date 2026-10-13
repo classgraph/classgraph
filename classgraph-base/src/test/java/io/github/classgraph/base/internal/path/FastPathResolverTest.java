@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
-import io.github.classgraph.base.internal.utils.VersionFinder;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -17,6 +16,8 @@ import java.time.Duration;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+
+import io.github.classgraph.base.internal.utils.VersionFinder;
 
 /** Tests for {@link FastPathResolver}. */
 public class FastPathResolverTest {

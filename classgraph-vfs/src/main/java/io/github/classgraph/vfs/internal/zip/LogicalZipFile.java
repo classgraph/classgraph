@@ -41,6 +41,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.zip.CRC32;
 
+import org.jspecify.annotations.Nullable;
+
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.path.PathSyntax;
 import io.github.classgraph.base.internal.utils.CollectionUtils;
@@ -50,7 +52,6 @@ import io.github.classgraph.vfs.internal.ManifestParser;
 import io.github.classgraph.vfs.internal.slice.ArraySlice;
 import io.github.classgraph.vfs.internal.slice.Slice;
 import io.github.classgraph.vfs.reader.RandomAccessReader;
-import org.jspecify.annotations.Nullable;
 
 /**
  * A zipfile, read from a byte range of a {@link PhysicalZipFile}: the whole of it, for a toplevel zipfile or a

@@ -43,6 +43,8 @@ import java.util.concurrent.Future;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
+import org.jspecify.annotations.Nullable;
+
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
 import io.github.classgraph.base.internal.path.PathList;
@@ -54,7 +56,6 @@ import io.github.classgraph.classpath.ModulePathInfo;
 import io.github.classgraph.classpath.internal.CallStackInfo;
 import io.github.classgraph.classpath.internal.ClasspathSpec;
 import io.github.classgraph.classpath.internal.ScanSourceSpec;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Uber-fast, ultra-lightweight Java classpath and module path scanner. Scans classfiles in the classpath and/or

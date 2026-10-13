@@ -32,9 +32,10 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
+import org.jspecify.annotations.Nullable;
+
 import io.github.classgraph.Classfile.ClassContainment;
 import io.github.classgraph.Classfile.TypePathNode;
-import org.jspecify.annotations.Nullable;
 
 /**
  * A type signature for a base type (byte, char, double, float, int, long, short, boolean, or void). This

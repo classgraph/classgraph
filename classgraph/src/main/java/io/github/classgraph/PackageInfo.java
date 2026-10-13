@@ -36,8 +36,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-import io.github.classgraph.base.internal.utils.Assert;
 import org.jspecify.annotations.Nullable;
+
+import io.github.classgraph.base.internal.utils.Assert;
 
 /** Holds metadata about a package encountered during a scan. */
 public final class PackageInfo implements Comparable<PackageInfo>, HasName, HasAnnotations {

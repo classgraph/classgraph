@@ -37,6 +37,8 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
+import org.jspecify.annotations.Nullable;
+
 import io.github.classgraph.ScanSpec.ScanSpecPathMatch;
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
 import io.github.classgraph.base.LogNode;
@@ -45,7 +47,6 @@ import io.github.classgraph.vfs.Vfs;
 import io.github.classgraph.vfs.VfsEntry;
 import io.github.classgraph.vfs.VfsRoot;
 import io.github.classgraph.vfs.VfsVisitor;
-import org.jspecify.annotations.Nullable;
 
 /**
  * A module classpath element.

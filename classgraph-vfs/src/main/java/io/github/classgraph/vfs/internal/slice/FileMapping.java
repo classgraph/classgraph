@@ -33,9 +33,10 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.jspecify.annotations.Nullable;
+
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.utils.VersionFinder;
-import org.jspecify.annotations.Nullable;
 
 /**
  * A memory mapping of a whole file, owned by the toplevel {@link Slice} that mapped it. Every slice of that file

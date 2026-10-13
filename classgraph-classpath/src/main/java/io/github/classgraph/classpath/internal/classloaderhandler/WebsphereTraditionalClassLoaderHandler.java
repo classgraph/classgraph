@@ -28,10 +28,11 @@
  */
 package io.github.classgraph.classpath.internal.classloaderhandler;
 
+import org.jspecify.annotations.Nullable;
+
 import io.github.classgraph.base.ClassGraphLog;
 import io.github.classgraph.base.internal.reflection.ReflectionUtils;
 import io.github.classgraph.classpath.ClasspathOrder;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Handle the WebSphere traditional ClassLoaders.

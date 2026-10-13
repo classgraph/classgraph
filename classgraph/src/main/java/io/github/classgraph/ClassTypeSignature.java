@@ -34,8 +34,9 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
-import io.github.classgraph.TypeUtils.ModifierType;
 import org.jspecify.annotations.Nullable;
+
+import io.github.classgraph.TypeUtils.ModifierType;
 
 /**
  * The generic type signature of a class declaration: its type parameters, its superclass, and its superinterfaces.

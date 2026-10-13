@@ -41,10 +41,11 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.BaseStream;
 
+import org.jspecify.annotations.Nullable;
+
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.path.PathList;
 import io.github.classgraph.base.internal.utils.Assert;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Where the classpath elements and modules are looked for. Nothing is looked for until something here is enabled.

@@ -35,10 +35,11 @@ import java.util.Calendar;
 import java.util.Locale;
 import java.util.TimeZone;
 
+import org.jspecify.annotations.Nullable;
+
 import io.github.classgraph.base.internal.utils.VersionFinder;
 import io.github.classgraph.vfs.internal.recycler.RecycledInflaterInputStream;
 import io.github.classgraph.vfs.internal.slice.Slice;
-import org.jspecify.annotations.Nullable;
 
 /** A zip entry within a {@link LogicalZipFile}. */
 public final class FastZipEntry implements Comparable<FastZipEntry> {

@@ -46,8 +46,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import io.github.classgraph.base.internal.utils.Assert;
 import org.jspecify.annotations.Nullable;
+
+import io.github.classgraph.base.internal.utils.Assert;
 
 /**
  * A path within a {@link VfsFileSystem}. Paths are separated by {@code '/'}, whichever kind of root the filesystem

@@ -31,8 +31,9 @@ package io.github.classgraph.vfs;
 import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicReference;
 
-import io.github.classgraph.base.internal.utils.Assert;
 import org.jspecify.annotations.Nullable;
+
+import io.github.classgraph.base.internal.utils.Assert;
 
 /**
  * A wrapper for {@link ByteBuffer} that implements the {@link AutoCloseable} interface, releasing the

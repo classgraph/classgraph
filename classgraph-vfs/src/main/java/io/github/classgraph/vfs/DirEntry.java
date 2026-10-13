@@ -39,9 +39,10 @@ import java.util.Collections;
 import java.util.EnumSet;
 import java.util.Set;
 
+import org.jspecify.annotations.Nullable;
+
 import io.github.classgraph.base.internal.path.FileUtils;
 import io.github.classgraph.vfs.internal.slice.PathSlice;
-import org.jspecify.annotations.Nullable;
 
 /** One file in a directory tree. */
 final class DirEntry extends VfsEntry {

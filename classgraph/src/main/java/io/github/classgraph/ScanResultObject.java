@@ -33,8 +33,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-import io.github.classgraph.base.LogNode;
 import org.jspecify.annotations.Nullable;
+
+import io.github.classgraph.base.LogNode;
 
 /**
  * A superclass of objects accessible from a {@link ScanResult}. Most of them refer to a class, and can return its

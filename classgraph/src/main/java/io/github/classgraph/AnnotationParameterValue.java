@@ -37,9 +37,10 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
+import org.jspecify.annotations.Nullable;
+
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.utils.StringUtils;
-import org.jspecify.annotations.Nullable;
 
 /**
  * The name and value of an annotation parameter.

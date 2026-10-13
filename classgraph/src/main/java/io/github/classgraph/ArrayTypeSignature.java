@@ -33,9 +33,10 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
+import org.jspecify.annotations.Nullable;
+
 import io.github.classgraph.Classfile.ClassContainment;
 import io.github.classgraph.Classfile.TypePathNode;
-import org.jspecify.annotations.Nullable;
 
 /**
  * An array type signature, i.e. an element type with one or more array dimensions. This corresponds to the

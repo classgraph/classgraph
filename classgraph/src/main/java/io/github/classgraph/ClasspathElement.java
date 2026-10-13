@@ -44,6 +44,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.jspecify.annotations.Nullable;
+
 import io.github.classgraph.ScanSpec.ScanSpecPathMatch;
 import io.github.classgraph.Scanner.ClasspathEntryWorkUnit;
 import io.github.classgraph.base.LogNode;
@@ -51,7 +53,6 @@ import io.github.classgraph.base.internal.path.FileUtils;
 import io.github.classgraph.base.internal.path.PathSyntax;
 import io.github.classgraph.vfs.Vfs;
 import io.github.classgraph.vfs.VfsSpec;
-import org.jspecify.annotations.Nullable;
 
 /** A classpath element (a directory or jarfile on the classpath). */
 abstract sealed class ClasspathElement implements Comparable<ClasspathElement>

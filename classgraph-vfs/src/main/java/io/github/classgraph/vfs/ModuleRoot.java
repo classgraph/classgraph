@@ -41,12 +41,13 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import org.jspecify.annotations.Nullable;
+
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.path.FileUtils;
 import io.github.classgraph.base.internal.path.URLPaths;
 import io.github.classgraph.vfs.internal.module.ModuleReaderUtils;
 import io.github.classgraph.vfs.internal.recycler.Recycler;
-import org.jspecify.annotations.Nullable;
 
 /** A module of the module path, or of the running JDK. */
 public final class ModuleRoot extends VfsRoot {

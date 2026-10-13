@@ -15,8 +15,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
-import io.github.classgraph.vfs.VfsSpec;
 import io.github.classgraph.vfs.Vfs;
+import io.github.classgraph.vfs.VfsSpec;
 
 /**
  * Each zip entry is an entry of its own: two entries are equal only if they are the same object. The entries of a

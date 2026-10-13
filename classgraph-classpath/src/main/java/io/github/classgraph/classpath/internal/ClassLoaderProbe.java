@@ -31,6 +31,8 @@ package io.github.classgraph.classpath.internal;
 import java.util.List;
 import java.util.Set;
 
+import org.jspecify.annotations.Nullable;
+
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.path.PathList;
 import io.github.classgraph.classpath.ClassLoaderHandler;
@@ -40,7 +42,6 @@ import io.github.classgraph.classpath.internal.ScanSourceSpec.DetectedClassLoade
 import io.github.classgraph.classpath.internal.ScanSourceSpec.NamedClassLoaders;
 import io.github.classgraph.classpath.internal.ScanSourceSpec.NamedClasspathEntries;
 import io.github.classgraph.classpath.internal.classloaderhandler.ClassLoaderHandlerRegistry;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Finds the classpath elements and modules of the sources that the caller enabled, in the order classes are
