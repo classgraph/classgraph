@@ -44,7 +44,6 @@ import java.util.Collection;
 import java.util.Deque;
 import java.util.EnumMap;
 import java.util.HashSet;
-import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -2243,8 +2242,8 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
      * Get the classes and interfaces in the order of overridden methods, in descending priority.
      * <p>
      * First collects this class and all its superclasses, as their methods always have a higher priority than any
-     * method declared by an interface. Then orders interfaces by their direct extension edges, placing each
-     * interface before its parents. The order of unrelated interfaces is unspecified.
+     * method declared by an interface. Then collects the interfaces, inserting each interface before any interface
+     * that it extends that was already collected. The order of unrelated interfaces is unspecified.
      * <p>
      * See Java Language Specification 8.4.8 for details.
      *
@@ -2259,8 +2258,6 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
                 // levels deep cannot overflow the call stack
                 final Set<ClassInfo> visited = new HashSet<>();
                 final List<ClassInfo> overrideOrder = new ArrayList<>();
-                final List<ClassInfo> interfaces = new ArrayList<>();
-                final Map<ClassInfo, Integer> childCounts = new HashMap<>();
                 final Deque<ClassInfo> stack = new ArrayDeque<>();
                 stack.push(this);
                 while (!stack.isEmpty()) {
@@ -2281,45 +2278,28 @@ public sealed class ClassInfo extends ScanResultObject implements Comparable<Cla
                             stack.push(superclass);
                         }
                     } else {
-                        interfaces.add(classInfo);
-                        final var parents = classInfo.relatedClasses.get(RelType.IMPLEMENTED_INTERFACES);
-                        if (parents != null) {
-                            for (final var parent : parents) {
-                                childCounts.merge(parent, 1, Integer::sum);
+                        // overrideOrder already contains all concrete classes now. This is an interface. If one of
+                        // the extended interfaces is already in the output, then this needs to be added before it.
+                        // Otherwise, this is unrelated to all collected ClassInfo so far and can simply be added to
+                        // the result. The compiler should've prevented inheriting unrelated interfaces with methods
+                        // having the same signature. Can still happen thanks to dynamically linking a different
+                        // interface during runtime, for which the returned order is undefined.
+                        final var interfaces = classInfo.allSuperinterfacesIncludingExternal();
+                        var minIndex = Integer.MAX_VALUE;
+                        for (final ClassInfo iface : interfaces) {
+                            if (!visited.contains(iface)) {
+                                continue;
                             }
-                            pushInReverseOrder(parents, stack);
+                            final var currIdx = overrideOrder.indexOf(iface);
+                            minIndex = currIdx >= 0 && currIdx < minIndex ? currIdx : minIndex;
                         }
-                    }
-                }
-                // Kahn's algorithm on direct child-to-parent edges visits each interface and edge once. Computing
-                // every transitive closure, and inserting into the result, made deep interface chains quadratic.
-                final Deque<ClassInfo> ready = new ArrayDeque<>();
-                for (final var iface : interfaces) {
-                    if (!childCounts.containsKey(iface)) {
-                        ready.addLast(iface);
-                    }
-                }
-                final Set<ClassInfo> emitted = new HashSet<>(overrideOrder);
-                while (!ready.isEmpty()) {
-                    final var iface = ready.removeFirst();
-                    if (!emitted.add(iface)) {
-                        continue;
-                    }
-                    overrideOrder.add(iface);
-                    final var parents = iface.relatedClasses.get(RelType.IMPLEMENTED_INTERFACES);
-                    if (parents != null) {
-                        for (final var parent : parents) {
-                            if (childCounts.merge(parent, -1, Integer::sum) == 0) {
-                                ready.addLast(parent);
-                            }
+                        if (minIndex == Integer.MAX_VALUE) {
+                            overrideOrder.add(classInfo);
+                        } else {
+                            overrideOrder.add(minIndex, classInfo);
                         }
-                    }
-                }
-                // Invalid classfiles can contain cycles. There is no legal override order for them, but still
-                // return each remaining declaration once, in deterministic discovery order.
-                for (final var iface : interfaces) {
-                    if (!emitted.contains(iface)) {
-                        overrideOrder.add(iface);
+                        // Search the extended interfaces next
+                        pushInReverseOrder(interfaces, stack);
                     }
                 }
                 methodOverrideOrder = overrideOrder;
