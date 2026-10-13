@@ -70,4 +70,15 @@ public class MethodOverrideOrderTest {
                 .isEqualTo("io.github.classgraph.issues.issue772.ExampleC");
     }
 
+    /**
+     * Tests that an interface's superinterfaces are listed before the next interface the class implements, the
+     * order getMethodInfo() has always returned.
+     */
+    @Test
+    public void superinterfacesPrecedeTheNextImplementedInterface() {
+        final var classInfo = scanResult.getClassInfo("io.github.classgraph.issues.issue772.ExampleD$Child");
+        assertThat(classInfo).isNotNull();
+        assertThat(classInfo.getMethodInfo().getNames()).containsExactly("i1", "j", "i2");
+    }
+
 }
