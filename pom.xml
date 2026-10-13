@@ -7,7 +7,7 @@
 
 	<groupId>io.github.classgraph</groupId>
 	<artifactId>classgraph-parent</artifactId>
-	<version>5.0.0-SNAPSHOT</version>
+	<version>5.0.0</version>
 	<packaging>pom</packaging>
 	<name>ClassGraph (parent)</name>
 
@@ -47,7 +47,7 @@
 		<connection>scm:git:https://github.com/classgraph/classgraph.git</connection>
 		<developerConnection>scm:git:https://github.com/classgraph/classgraph.git</developerConnection>
 		<url>https://github.com/classgraph/classgraph</url>
-		<tag>HEAD</tag>
+		<tag>classgraph-5.0.0</tag>
 	</scm>
 
 	<issueManagement>
@@ -421,16 +421,12 @@
 									<!-- module-info.java requires cannot be resolved. Every main source other than -->
 									<!-- module-info.java is under "io", and this fails the build if that ever stops -->
 									<!-- being true, rather than quietly leaving the new file unchecked. -->
-									<fileset id="ecjUncheckedMainSources" dir="${project.build.sourceDirectory}"
-										includes="**/*.java" excludes="io/**,module-info.java" />
-									<pathconvert property="ecjUncheckedMainSourceList"
-										refid="ecjUncheckedMainSources" setonempty="false" />
-									<fail if="ecjUncheckedMainSourceList"
-										message="The Eclipse compiler check only covers the &quot;io&quot; subdirectory of the source root, so these sources would go unchecked: ${ecjUncheckedMainSourceList}. Move them under &quot;io&quot;, or extend the ecj-check-main execution in the root pom.xml to cover them." />
+									<fileset id="ecjUncheckedMainSources" dir="${project.build.sourceDirectory}" includes="**/*.java" excludes="io/**,module-info.java" />
+									<pathconvert property="ecjUncheckedMainSourceList" refid="ecjUncheckedMainSources" setonempty="false" />
+									<fail if="ecjUncheckedMainSourceList" message="The Eclipse compiler check only covers the &quot;io&quot; subdirectory of the source root, so these sources would go unchecked: ${ecjUncheckedMainSourceList}. Move them under &quot;io&quot;, or extend the ecj-check-main execution in the root pom.xml to cover them." />
 									<!-- On the classpath but not yet created, and ecj grumbles about that -->
 									<mkdir dir="${project.build.outputDirectory}" />
-									<java classname="org.eclipse.jdt.internal.compiler.batch.Main" fork="true"
-										failonerror="true" dir="${project.basedir}">
+									<java classname="org.eclipse.jdt.internal.compiler.batch.Main" fork="true" failonerror="true" dir="${project.basedir}">
 										<classpath refid="maven.plugin.classpath" />
 										<arg value="--release" />
 										<arg value="${maven.compiler.release}" />
@@ -465,18 +461,15 @@
 									<!-- than letting ecj report a confusing resolution error. -->
 									<fail message="Test sources now contain a module descriptor, which the ecj-check-test execution in the root pom.xml cannot compile. See the note on ecj-check-main.">
 										<condition>
-											<available
-												file="${project.build.testSourceDirectory}/module-info.java" />
+											<available file="${project.build.testSourceDirectory}/module-info.java" />
 										</condition>
 									</fail>
 									<!-- build-helper adds src/test/perf as a second test source root, and only some -->
 									<!-- modules have one -->
-									<available property="ecjHasPerfTestSources" file="${project.basedir}/src/test/perf"
-										type="dir" />
+									<available property="ecjHasPerfTestSources" file="${project.basedir}/src/test/perf" type="dir" />
 									<!-- On the classpath but not yet created, and ecj grumbles about that -->
 									<mkdir dir="${project.build.testOutputDirectory}" />
-									<java classname="org.eclipse.jdt.internal.compiler.batch.Main" fork="true"
-										failonerror="true" dir="${project.basedir}">
+									<java classname="org.eclipse.jdt.internal.compiler.batch.Main" fork="true" failonerror="true" dir="${project.basedir}">
 										<classpath refid="maven.plugin.classpath" />
 										<arg value="--release" />
 										<arg value="${maven.compiler.release}" />
