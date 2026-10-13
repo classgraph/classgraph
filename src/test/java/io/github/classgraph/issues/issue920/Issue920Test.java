@@ -1,13 +1,14 @@
 package io.github.classgraph.issues.issue920;
 
-import io.github.classgraph.ClassGraph;
-import io.github.classgraph.MethodInfo;
-import io.github.classgraph.MethodInfoList;
-import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.lang.reflect.Modifier;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import org.junit.jupiter.api.Test;
+
+import io.github.classgraph.ClassGraph;
+import io.github.classgraph.MethodInfo;
+import io.github.classgraph.MethodInfoList;
 
 /**
  * ClassGraph used to return incorrect modifiers for non-public constructors if

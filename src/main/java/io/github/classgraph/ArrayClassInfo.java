@@ -28,11 +28,6 @@
  */
 package io.github.classgraph;
 
-import java.util.Map;
-import java.util.Set;
-
-import nonapi.io.github.classgraph.utils.LogNode;
-
 /**
  * Holds metadata about an array class. This class extends {@link ClassInfo} with additional methods relevant to
  * array classes, in particular {@link #getArrayTypeSignature()}, {@link #getTypeSignatureStr()},
