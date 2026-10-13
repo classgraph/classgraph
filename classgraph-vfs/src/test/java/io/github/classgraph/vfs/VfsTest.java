@@ -13,12 +13,12 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.JarURLConnection;
-import java.net.URI;
 import java.lang.module.ModuleDescriptor;
 import java.lang.module.ModuleFinder;
 import java.lang.module.ModuleReader;
 import java.lang.module.ModuleReference;
+import java.net.JarURLConnection;
+import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystems;
@@ -40,13 +40,15 @@ import java.util.zip.CRC32;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
-import com.google.common.jimfs.Configuration;
-import com.google.common.jimfs.Jimfs;
-import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledOnOs;
 import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
+
+import com.google.common.jimfs.Configuration;
+import com.google.common.jimfs.Jimfs;
+
+import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
 
 /** Tests the public API of the virtual filesystem. */
 public class VfsTest {

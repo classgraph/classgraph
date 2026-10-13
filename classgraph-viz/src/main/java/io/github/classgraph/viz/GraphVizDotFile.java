@@ -42,6 +42,8 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.function.Supplier;
 
+import org.jspecify.annotations.Nullable;
+
 import io.github.classgraph.AnnotationInfo;
 import io.github.classgraph.AnnotationInfoList;
 import io.github.classgraph.ArrayTypeSignature;
@@ -58,7 +60,6 @@ import io.github.classgraph.ScanResult;
 import io.github.classgraph.TypeArgument;
 import io.github.classgraph.TypeParameter;
 import io.github.classgraph.TypeSignature;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Renders the class graph found by ClassGraph as a <a href="https://graphviz.org/">GraphViz</a> {@code .dot} file,

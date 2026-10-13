@@ -44,12 +44,13 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.zip.ZipEntry;
 
+import org.jspecify.annotations.Nullable;
+
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.utils.ProxyingInputStream;
 import io.github.classgraph.vfs.CloseableByteBuffer;
 import io.github.classgraph.vfs.Vfs;
 import io.github.classgraph.vfs.VfsEntry;
-import org.jspecify.annotations.Nullable;
 
 /**
  * A classpath or module path resource (i.e. file) that was found in an accepted/non-rejected package inside a

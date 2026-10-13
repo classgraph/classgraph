@@ -59,9 +59,10 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
+import org.jspecify.annotations.Nullable;
+
 import io.github.classgraph.base.internal.path.PathSyntax;
 import io.github.classgraph.base.internal.utils.Assert;
-import org.jspecify.annotations.Nullable;
 
 /**
  * A read-only {@link FileSystem} view of a {@link VfsRoot}, so that a directory, a jarfile, a jarfile nested inside

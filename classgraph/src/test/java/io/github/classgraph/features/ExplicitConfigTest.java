@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.UnaryOperator;
 
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.ClassGraph;
@@ -17,7 +18,6 @@ import io.github.classgraph.base.ClassGraphLog;
 import io.github.classgraph.classpath.ClassLoaderHandler;
 import io.github.classgraph.classpath.ClassLoaderOrder;
 import io.github.classgraph.classpath.ClasspathOrder;
-import org.jspecify.annotations.Nullable;
 
 /**
  * No config method turns on another config method, so an option that is only read by another option has to be asked

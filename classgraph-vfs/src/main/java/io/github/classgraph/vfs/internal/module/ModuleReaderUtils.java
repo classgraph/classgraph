@@ -42,8 +42,9 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import io.github.classgraph.base.LogNode;
 import org.jspecify.annotations.Nullable;
+
+import io.github.classgraph.base.LogNode;
 
 /**
  * Helper methods for opening a {@link ModuleReference} and for calling {@link ModuleReader}, which convert its

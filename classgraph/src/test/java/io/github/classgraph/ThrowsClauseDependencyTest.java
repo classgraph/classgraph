@@ -1,7 +1,8 @@
 package io.github.classgraph;
 
-import java.io.Serial;
 import static org.assertj.core.api.Assertions.assertThat;
+
+import java.io.Serial;
 
 import org.junit.jupiter.api.Test;
 

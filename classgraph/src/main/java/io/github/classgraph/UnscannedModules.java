@@ -34,10 +34,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.jspecify.annotations.Nullable;
+
 import io.github.classgraph.Scanner.ClassfileScanWorkUnit;
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.vfs.Vfs;
-import org.jspecify.annotations.Nullable;
 
 /**
  * The modules that are not being scanned, but whose classfiles may still be read in order to complete the class

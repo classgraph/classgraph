@@ -37,8 +37,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import io.github.classgraph.base.LogNode;
 import org.jspecify.annotations.Nullable;
+
+import io.github.classgraph.base.LogNode;
 
 /**
  * Holds metadata about a specific annotation instance on a class, method, method parameter or field.

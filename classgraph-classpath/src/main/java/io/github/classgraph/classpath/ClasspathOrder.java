@@ -33,8 +33,9 @@ import java.net.URI;
 import java.net.URL;
 import java.nio.file.Path;
 
-import io.github.classgraph.base.ClassGraphLog;
 import org.jspecify.annotations.Nullable;
+
+import io.github.classgraph.base.ClassGraphLog;
 
 /**
  * The classpath entries found so far, in the order that classes are resolved from them, built up by

@@ -51,11 +51,12 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.jspecify.annotations.Nullable;
+
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.path.PathSyntax;
 import io.github.classgraph.base.internal.utils.Assert;
 import io.github.classgraph.vfs.internal.ManifestParser;
-import org.jspecify.annotations.Nullable;
 
 /**
  * A tree of files that was opened by a {@link Vfs}: a directory, a jarfile (which may be nested within other

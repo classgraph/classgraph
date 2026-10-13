@@ -37,8 +37,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import io.github.classgraph.base.internal.utils.Assert;
 import org.jspecify.annotations.Nullable;
+
+import io.github.classgraph.base.internal.utils.Assert;
 
 /**
  * Holds metadata about a named module encountered during a scan.

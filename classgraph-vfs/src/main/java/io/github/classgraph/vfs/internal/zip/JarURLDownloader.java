@@ -40,9 +40,10 @@ import java.nio.file.FileSystemNotFoundException;
 import java.nio.file.Path;
 import java.util.Locale;
 
+import org.jspecify.annotations.Nullable;
+
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.vfs.Vfs;
-import org.jspecify.annotations.Nullable;
 
 /** Fetch a jarfile named by a URL, so that it can be scanned. */
 final class JarURLDownloader {

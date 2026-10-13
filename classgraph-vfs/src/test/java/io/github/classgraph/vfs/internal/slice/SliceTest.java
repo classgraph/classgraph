@@ -19,8 +19,8 @@ import org.junit.jupiter.api.io.TempDir;
 
 import io.github.classgraph.base.internal.concurrency.IdleTimeout;
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
-import io.github.classgraph.vfs.VfsSpec;
 import io.github.classgraph.vfs.Vfs;
+import io.github.classgraph.vfs.VfsSpec;
 
 /**
  * Tests for the identity of a {@link Slice}, for the reading of an {@link InputStream} into a {@link Slice}, and

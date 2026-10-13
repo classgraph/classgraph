@@ -36,11 +36,12 @@ import java.nio.ByteOrder;
 import java.nio.charset.Charset;
 import java.util.Arrays;
 
+import org.jspecify.annotations.Nullable;
+
 import io.github.classgraph.base.internal.utils.StringUtils;
 import io.github.classgraph.vfs.VfsEntry;
 import io.github.classgraph.vfs.internal.InputStreamUtils;
 import io.github.classgraph.vfs.internal.slice.Slice;
-import org.jspecify.annotations.Nullable;
 
 /**
  * A reader that works as either a {@link RandomAccessReader} or a {@link SequentialReader}. The content is read as

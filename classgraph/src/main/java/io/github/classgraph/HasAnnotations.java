@@ -33,8 +33,9 @@ import java.lang.annotation.Inherited;
 import java.lang.annotation.Repeatable;
 import java.lang.reflect.AnnotatedElement;
 
-import io.github.classgraph.base.internal.utils.Assert;
 import org.jspecify.annotations.Nullable;
+
+import io.github.classgraph.base.internal.utils.Assert;
 
 /**
  * An element that annotations can be applied to: a class ({@link ClassInfo}), a field ({@link FieldInfo}), a method

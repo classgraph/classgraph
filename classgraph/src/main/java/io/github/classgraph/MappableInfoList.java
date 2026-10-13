@@ -33,8 +33,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
-import io.github.classgraph.base.internal.utils.Assert;
 import org.jspecify.annotations.Nullable;
+
+import io.github.classgraph.base.internal.utils.Assert;
 
 /**
  * A list of named objects that can be indexed by name.

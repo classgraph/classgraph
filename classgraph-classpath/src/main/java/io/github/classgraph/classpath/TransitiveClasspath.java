@@ -37,11 +37,12 @@ import java.util.List;
 import java.util.Set;
 import java.util.function.Predicate;
 
+import org.jspecify.annotations.Nullable;
+
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.classpath.internal.ClasspathExpander;
 import io.github.classgraph.classpath.internal.ClasspathOrderBuilder;
 import io.github.classgraph.vfs.Vfs;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Expands the classpath elements that the classloaders declared with the classpath elements that those in turn

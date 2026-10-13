@@ -11,8 +11,8 @@ import java.util.List;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 
-import org.junit.jupiter.api.Test;
 import org.jspecify.annotations.Nullable;
+import org.junit.jupiter.api.Test;
 
 /** Deep nesting, cycle detection, and atomic values share the same flattening contract. */
 public class ClasspathEntryFlattenerTest {

@@ -22,12 +22,12 @@ import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import io.github.classgraph.vfs.Vfs;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Tests for the classpath element of a module, and for the resources read from it. A module is read through a

@@ -47,11 +47,13 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map.Entry;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
+
+import org.jspecify.annotations.Nullable;
 
 import io.github.classgraph.Classfile.ClassContainment;
 import io.github.classgraph.Classfile.TypeAnnotation;
@@ -59,7 +61,6 @@ import io.github.classgraph.TypeUtils.ModifierType;
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.utils.Assert;
 import io.github.classgraph.base.internal.utils.CollectionUtils;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Holds metadata about a class encountered during a scan.

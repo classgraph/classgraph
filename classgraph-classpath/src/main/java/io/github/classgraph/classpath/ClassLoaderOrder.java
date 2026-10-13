@@ -28,8 +28,9 @@
  */
 package io.github.classgraph.classpath;
 
-import io.github.classgraph.base.ClassGraphLog;
 import org.jspecify.annotations.Nullable;
+
+import io.github.classgraph.base.ClassGraphLog;
 
 /**
  * The order in which a {@link ClassLoader} and the classloaders it delegates to resolve classes, built up by

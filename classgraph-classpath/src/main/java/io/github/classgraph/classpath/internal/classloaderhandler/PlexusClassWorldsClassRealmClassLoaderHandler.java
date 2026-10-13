@@ -28,10 +28,11 @@
  */
 package io.github.classgraph.classpath.internal.classloaderhandler;
 
+import org.jspecify.annotations.Nullable;
+
 import io.github.classgraph.base.ClassGraphLog;
 import io.github.classgraph.base.internal.reflection.ReflectionUtils;
 import io.github.classgraph.classpath.ClassLoaderOrder;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Finds the classloader delegation order of the {@code ClassRealm} classloader of Plexus ClassWorlds, which Maven

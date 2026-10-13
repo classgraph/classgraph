@@ -38,13 +38,14 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
+import org.jspecify.annotations.Nullable;
+
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
 import io.github.classgraph.vfs.Vfs;
 import io.github.classgraph.vfs.internal.InputStreamUtils;
 import io.github.classgraph.vfs.internal.TempFile;
 import io.github.classgraph.vfs.reader.RandomAccessReader;
-import org.jspecify.annotations.Nullable;
 
 /**
  * A slice of a file ({@link PathSlice}) or of a byte array ({@link ArraySlice}). The content of an

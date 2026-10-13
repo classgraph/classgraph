@@ -34,9 +34,10 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
+import org.jspecify.annotations.Nullable;
+
 import io.github.classgraph.Classfile.ClassContainment;
 import io.github.classgraph.Classfile.TypePathNode;
-import org.jspecify.annotations.Nullable;
 
 /**
  * A reference to a type variable, e.g. the {@code T} in {@code List<T>}. This corresponds to the

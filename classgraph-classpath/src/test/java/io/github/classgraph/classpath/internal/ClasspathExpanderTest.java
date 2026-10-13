@@ -18,13 +18,15 @@ import java.util.zip.CRC32;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
 import com.google.common.jimfs.Configuration;
 import com.google.common.jimfs.Jimfs;
+
 import io.github.classgraph.classpath.internal.ClasspathExpander.ChildEntry;
 import io.github.classgraph.vfs.Vfs;
 import io.github.classgraph.vfs.VfsRoot;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 
 /** Tests for {@link ClasspathExpander}. */
 public class ClasspathExpanderTest {

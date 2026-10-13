@@ -39,12 +39,13 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.jspecify.annotations.Nullable;
+
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.path.URLPaths;
 import io.github.classgraph.vfs.internal.zip.JarOpener;
 import io.github.classgraph.vfs.internal.zip.LogicalZipFile;
 import io.github.classgraph.vfs.internal.zip.PhysicalZipFile;
-import org.jspecify.annotations.Nullable;
 
 /** A zipfile or jarfile, which may itself be nested within other jarfiles. */
 public final class ArchiveRoot extends VfsRoot {

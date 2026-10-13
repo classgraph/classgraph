@@ -28,11 +28,12 @@
  */
 package io.github.classgraph.issues.issue267;
 
+import org.jspecify.annotations.Nullable;
+
 import io.github.classgraph.base.ClassGraphLog;
 import io.github.classgraph.classpath.ClassLoaderHandler;
 import io.github.classgraph.classpath.ClassLoaderOrder;
 import io.github.classgraph.classpath.ClasspathOrder;
-import org.jspecify.annotations.Nullable;
 
 /**
  * A {@link ClassLoaderHandler} for {@link FakeRestartClassLoader}, which resolves classes parent-last.

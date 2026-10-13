@@ -61,9 +61,10 @@ import java.util.zip.CRC32;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
-import io.github.classgraph.vfs.internal.slice.PathSlice;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+
+import io.github.classgraph.vfs.internal.slice.PathSlice;
 
 /**
  * Tests closing a single {@link VfsRoot} while the {@link Vfs} that opened it stays open: that the close removes

@@ -11,9 +11,9 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.function.Predicate;
 
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.jspecify.annotations.Nullable;
 
 import io.github.classgraph.base.ClassGraphLog;
 import io.github.classgraph.classpath.ClassLoaderHandler;

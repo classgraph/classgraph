@@ -39,6 +39,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
+import org.jspecify.annotations.Nullable;
+
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.path.FastPathResolver;
 import io.github.classgraph.base.internal.path.FileUtils;
@@ -47,7 +49,6 @@ import io.github.classgraph.base.internal.path.URLPaths;
 import io.github.classgraph.vfs.ArchiveRoot;
 import io.github.classgraph.vfs.VfsEntry;
 import io.github.classgraph.vfs.VfsRoot;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Finds the classpath entries that a classpath element adds to the classpath: the jarfiles in its automatic lib

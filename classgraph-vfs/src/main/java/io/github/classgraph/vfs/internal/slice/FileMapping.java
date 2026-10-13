@@ -33,8 +33,9 @@ import java.lang.foreign.Arena;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 
-import io.github.classgraph.base.LogNode;
 import org.jspecify.annotations.Nullable;
+
+import io.github.classgraph.base.LogNode;
 
 /**
  * A memory mapping of a whole file, owned by the toplevel {@link Slice} that mapped it. Every slice of that file

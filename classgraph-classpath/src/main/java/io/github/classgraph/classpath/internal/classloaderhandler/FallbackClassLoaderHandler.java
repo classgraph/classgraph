@@ -33,12 +33,13 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
+import org.jspecify.annotations.Nullable;
+
 import io.github.classgraph.base.ClassGraphLog;
 import io.github.classgraph.base.internal.reflection.ReflectionUtils;
 import io.github.classgraph.classpath.ClassLoaderHandler;
 import io.github.classgraph.classpath.ClassLoaderOrder;
 import io.github.classgraph.classpath.ClasspathOrder;
-import org.jspecify.annotations.Nullable;
 
 /**
  * The handler for a classloader that no other handler recognizes. It reads the classpath from any of a range of

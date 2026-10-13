@@ -31,12 +31,13 @@ package io.github.classgraph.classpath.internal.classloaderhandler;
 import java.io.File;
 import java.lang.reflect.Array;
 
+import org.jspecify.annotations.Nullable;
+
 import io.github.classgraph.base.ClassGraphLog;
 import io.github.classgraph.base.internal.reflection.ReflectionUtils;
 import io.github.classgraph.classpath.ClassLoaderHandler;
 import io.github.classgraph.classpath.ClassLoaderOrder;
 import io.github.classgraph.classpath.ClasspathOrder;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Extract classpath entries from the Eclipse Equinox ClassLoader.

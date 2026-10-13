@@ -35,13 +35,14 @@ import java.nio.channels.FileChannel;
 import java.nio.file.Path;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.jspecify.annotations.Nullable;
+
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.path.FastPathResolver;
 import io.github.classgraph.base.internal.path.FileUtils;
 import io.github.classgraph.vfs.Vfs;
 import io.github.classgraph.vfs.internal.slice.PathSlice;
 import io.github.classgraph.vfs.internal.slice.Slice;
-import org.jspecify.annotations.Nullable;
 
 /**
  * A physical zipfile, backed by a {@link File} (which may be mmap'd using a {@link FileChannel}), a {@link Path},

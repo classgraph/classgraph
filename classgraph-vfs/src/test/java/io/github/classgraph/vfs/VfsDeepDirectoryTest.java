@@ -1,6 +1,7 @@
 package io.github.classgraph.vfs;
 
 import static org.assertj.core.api.Assertions.assertThat;
+
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
@@ -8,6 +9,7 @@ import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.Test;
+
 import com.google.common.jimfs.Configuration;
 import com.google.common.jimfs.Jimfs;
 

@@ -44,6 +44,8 @@ import java.nio.file.StandardOpenOption;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.jspecify.annotations.Nullable;
+
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.path.FileUtils;
 import io.github.classgraph.base.internal.utils.VersionFinder;
@@ -53,7 +55,6 @@ import io.github.classgraph.vfs.internal.TempFile;
 import io.github.classgraph.vfs.reader.RandomAccessByteBufferReader;
 import io.github.classgraph.vfs.reader.RandomAccessFileChannelReader;
 import io.github.classgraph.vfs.reader.RandomAccessReader;
-import org.jspecify.annotations.Nullable;
 
 /** A {@link Path} slice. */
 public final class PathSlice extends Slice {

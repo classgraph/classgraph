@@ -43,12 +43,13 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.jspecify.annotations.Nullable;
+
 import io.github.classgraph.Scanner.ClassfileScanWorkUnit;
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.utils.CollectionUtils;
 import io.github.classgraph.base.internal.utils.StringUtils;
 import io.github.classgraph.vfs.reader.RandomAccessOrSequentialReader;
-import org.jspecify.annotations.Nullable;
 
 /**
  * A classfile binary format parser. Each instance parses one classfile, in its constructor, through a

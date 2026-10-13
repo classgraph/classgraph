@@ -37,8 +37,9 @@ import java.nio.channels.FileChannel;
 import java.nio.charset.Charset;
 import java.util.Objects;
 
-import io.github.classgraph.base.internal.utils.StringUtils;
 import org.jspecify.annotations.Nullable;
+
+import io.github.classgraph.base.internal.utils.StringUtils;
 
 /**
  * {@link RandomAccessReader} for a {@link FileChannel}. Reads in <b>little endian</b> order by default, as required

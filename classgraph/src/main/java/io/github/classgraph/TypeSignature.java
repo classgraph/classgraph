@@ -36,10 +36,11 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
+import org.jspecify.annotations.Nullable;
+
 import io.github.classgraph.Classfile.ClassContainment;
 import io.github.classgraph.Classfile.TypePathNode;
 import io.github.classgraph.base.internal.utils.Assert;
-import org.jspecify.annotations.Nullable;
 
 /**
  * A type signature for a reference type or base type. Subclasses are {@link ReferenceTypeSignature} (whose own

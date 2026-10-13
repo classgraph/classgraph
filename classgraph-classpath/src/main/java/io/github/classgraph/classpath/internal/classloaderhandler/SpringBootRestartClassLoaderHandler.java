@@ -28,9 +28,10 @@
  */
 package io.github.classgraph.classpath.internal.classloaderhandler;
 
+import org.jspecify.annotations.Nullable;
+
 import io.github.classgraph.base.ClassGraphLog;
 import io.github.classgraph.classpath.ClassLoaderOrder;
-import org.jspecify.annotations.Nullable;
 
 /**
  * This handler uses parent-last delegation order (i.e. it adds the classloader itself to the classloader order

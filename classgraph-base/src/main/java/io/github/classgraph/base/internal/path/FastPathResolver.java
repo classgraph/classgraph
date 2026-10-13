@@ -32,9 +32,10 @@ import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 import java.util.regex.Pattern;
 
+import org.jspecify.annotations.Nullable;
+
 import io.github.classgraph.base.internal.utils.VersionFinder;
 import io.github.classgraph.base.internal.utils.VersionFinder.OperatingSystem;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Resolve relative paths and URLs/URIs against a base path, faster than Java's URL/URI parser and much faster than

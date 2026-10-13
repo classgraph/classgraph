@@ -34,12 +34,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.jspecify.annotations.Nullable;
+
 import io.github.classgraph.ClassInfo.RelType;
 import io.github.classgraph.Classfile.TypeAnnotation;
 import io.github.classgraph.TypeUtils.ModifierType;
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.utils.StringUtils;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Holds metadata about fields of a class encountered during a scan. All values are taken directly out of the

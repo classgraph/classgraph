@@ -20,11 +20,12 @@ import java.util.zip.ZipOutputStream;
 
 import javax.tools.ToolProvider;
 
-import com.sun.management.UnixOperatingSystemMXBean;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledOnOs;
 import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
+
+import com.sun.management.UnixOperatingSystemMXBean;
 
 /**
  * Closing a virtual filesystem releases every file handle it opened. The caches of opened roots and of zipfiles

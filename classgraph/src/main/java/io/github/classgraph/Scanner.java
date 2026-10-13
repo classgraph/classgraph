@@ -64,6 +64,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import org.jspecify.annotations.Nullable;
+
 import io.github.classgraph.Classfile.ClassfileFormatException;
 import io.github.classgraph.Classfile.SkipClassException;
 import io.github.classgraph.WorkQueue.WorkUnitProcessor;
@@ -78,7 +80,6 @@ import io.github.classgraph.classpath.internal.CallStackInfo;
 import io.github.classgraph.classpath.internal.ClassLoaderProbe;
 import io.github.classgraph.classpath.internal.ScanSourceSpec;
 import io.github.classgraph.vfs.Vfs;
-import org.jspecify.annotations.Nullable;
 
 /** The classpath scanner. */
 class Scanner {

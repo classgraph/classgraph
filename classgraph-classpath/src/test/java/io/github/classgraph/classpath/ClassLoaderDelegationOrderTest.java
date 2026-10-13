@@ -39,11 +39,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import io.github.classgraph.base.ClassGraphLog;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Tests that a classloader and the classloaders it delegates to are placed in the classpath in the order that the

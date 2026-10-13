@@ -9,10 +9,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
 
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
 import io.github.classgraph.base.ClassGraphLog;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Test that a classloader that delegates to its parent last has its own classpath elements ordered before its

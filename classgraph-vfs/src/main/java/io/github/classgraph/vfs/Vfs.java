@@ -58,11 +58,13 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.zip.Inflater;
 
+import org.jspecify.annotations.Nullable;
+
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
+import io.github.classgraph.base.internal.concurrency.SingletonMap;
 import io.github.classgraph.base.internal.concurrency.SingletonMap.NewInstanceException;
 import io.github.classgraph.base.internal.concurrency.SingletonMap.NullSingletonException;
-import io.github.classgraph.base.internal.concurrency.SingletonMap;
 import io.github.classgraph.base.internal.path.FastPathResolver;
 import io.github.classgraph.base.internal.path.FileUtils;
 import io.github.classgraph.base.internal.path.PathSyntax;
@@ -70,7 +72,6 @@ import io.github.classgraph.base.internal.utils.Assert;
 import io.github.classgraph.vfs.internal.recycler.RecycledInflaterInputStream;
 import io.github.classgraph.vfs.internal.recycler.Recycler;
 import io.github.classgraph.vfs.internal.zip.JarOpener;
-import org.jspecify.annotations.Nullable;
 
 /**
  * A virtual filesystem: opens a directory, a jarfile, or a module, however it is named -- by path string, by

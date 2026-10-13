@@ -30,9 +30,9 @@ package io.github.classgraph.issues.issue223;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import javax.persistence.Entity;
-
 import java.util.function.Predicate;
+
+import javax.persistence.Entity;
 
 import org.junit.jupiter.api.Test;
 

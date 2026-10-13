@@ -25,8 +25,8 @@ import org.junit.jupiter.api.io.TempDir;
 
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
-import io.github.classgraph.vfs.VfsSpec;
 import io.github.classgraph.vfs.Vfs;
+import io.github.classgraph.vfs.VfsSpec;
 
 /**
  * Tests that a {@link PathSlice} for a whole file is memory-mapped when the vfs scan spec says files are

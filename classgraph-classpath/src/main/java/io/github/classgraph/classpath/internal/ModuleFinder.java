@@ -39,9 +39,10 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
+import org.jspecify.annotations.Nullable;
+
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.utils.CollectionUtils;
-import org.jspecify.annotations.Nullable;
 
 /** Finds the modules of the module layers that are searched, and splits them into system and non-system modules. */
 public class ModuleFinder {

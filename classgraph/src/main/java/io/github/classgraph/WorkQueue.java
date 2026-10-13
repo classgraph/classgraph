@@ -42,10 +42,11 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.jspecify.annotations.Nullable;
+
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.concurrency.IdleTimeout;
 import io.github.classgraph.base.internal.concurrency.InterruptionChecker;
-import org.jspecify.annotations.Nullable;
 
 // Work is scheduled here, and in AutoCloseableExecutorService, on a fixed pool of platform threads. Virtual threads
 // are the obvious thing to reach for instead, but measurement says they would not make a scan of local files any

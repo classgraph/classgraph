@@ -34,9 +34,10 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
+import org.jspecify.annotations.Nullable;
+
 import io.github.classgraph.Classfile.ClassContainment;
 import io.github.classgraph.Classfile.TypePathNode;
-import org.jspecify.annotations.Nullable;
 
 /**
  * A type parameter of a generic class or method declaration, e.g. the {@code T extends Comparable<T>} in

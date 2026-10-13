@@ -36,10 +36,11 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.Predicate;
 
+import org.jspecify.annotations.Nullable;
+
 import io.github.classgraph.base.LogNode;
 import io.github.classgraph.base.internal.utils.Assert;
 import io.github.classgraph.base.internal.utils.CollectionUtils;
-import org.jspecify.annotations.Nullable;
 
 /** A list of {@link FieldInfo} objects, which can be indexed by field name. */
 public final class FieldInfoList extends MappableInfoList<FieldInfo> {

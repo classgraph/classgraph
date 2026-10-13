@@ -36,9 +36,10 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
+import org.jspecify.annotations.Nullable;
+
 import io.github.classgraph.Classfile.ClassContainment;
 import io.github.classgraph.Classfile.TypePathNode;
-import org.jspecify.annotations.Nullable;
 
 /**
  * A reference to a class type, with any type arguments it was parameterized with. This corresponds to the

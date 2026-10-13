@@ -12,9 +12,10 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.Map;
 
-import io.github.classgraph.base.LogNode;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+
+import io.github.classgraph.base.LogNode;
 
 /** Tests for {@link FileMapping}. */
 // #939

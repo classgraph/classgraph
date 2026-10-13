@@ -38,10 +38,11 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.Predicate;
 
+import org.jspecify.annotations.Nullable;
+
 import io.github.classgraph.ClassInfo.ReachableAndDirectlyRelatedClasses;
 import io.github.classgraph.base.internal.utils.Assert;
 import io.github.classgraph.base.internal.utils.CollectionUtils;
-import org.jspecify.annotations.Nullable;
 
 /**
  * A <i>uniquified</i> (deduplicated) list of {@link ClassInfo} objects, which stores both reachable classes
