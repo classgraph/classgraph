@@ -44,7 +44,10 @@ public class JarURLRedirectTest {
          */
         CannedResponseHttpServer(final String statusLine, final String location, final byte[] body)
                 throws IOException {
-            serverSocket = new ServerSocket(0, /* backlog = */ 1, InetAddress.getLoopbackAddress());
+            // Not a backlog of 1: a redirect loop makes 21 connections back to back, one of which can arrive while
+            // the server is still closing the last one, and Windows refuses a connection outright when the backlog
+            // is full (Linux drops the SYN, so the client retries)
+            serverSocket = new ServerSocket(0, /* backlog = */ 50, InetAddress.getLoopbackAddress());
             final Thread thread = new Thread(new Runnable() {
                 @Override
                 public void run() {
