@@ -101,7 +101,7 @@ public class Issue420Test {
             Files.createDirectories(memFsDirPath);
             final Path memFsFilePath = memFs.getPath(memFsDirPath + "/" + className + ".class");
             final Path memFsCopyOfClassFile = Files.copy(jarPath, memFsFilePath);
-            assertThat(Files.exists(memFsCopyOfClassFile));
+            assertThat(memFsCopyOfClassFile).exists();
             final Path memFsRoot = memFs.getPath("");
             final URL memFsRootURL = memFsRoot.toUri().toURL();
             try (URLClassLoader childClassLoader = new URLClassLoader(new URL[] { memFsRootURL },
