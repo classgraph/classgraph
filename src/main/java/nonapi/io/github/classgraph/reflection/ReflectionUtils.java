@@ -29,7 +29,6 @@
 package nonapi.io.github.classgraph.reflection;
 
 import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -57,7 +56,6 @@ public final class ReflectionUtils {
             try {
                 reflectionDriver = new NarcissusReflectionDriver();
             } catch (final Throwable t) {
-                rethrowIfVirtualMachineError(t);
                 System.err.println("Could not load Narcissus reflection driver: " + t);
                 // Fall back to standard reflection driver
             }
@@ -71,24 +69,7 @@ public final class ReflectionUtils {
             accessControllerDoPrivileged = reflectionDriver.findMethod(accessControllerClass, null, "doPrivileged",
                     privilegedActionClass);
         } catch (final Throwable t) {
-            rethrowIfVirtualMachineError(t);
             // Ignore
-        }
-    }
-
-    /**
-     * Fatal VM failures, including reflective wrappers, are not optional-library failures.
-     *
-     * @param throwable
-     *            the caught failure.
-     */
-    private static void rethrowIfVirtualMachineError(final Throwable throwable) {
-        Throwable cause = throwable;
-        while (cause instanceof InvocationTargetException) {
-            cause = ((InvocationTargetException) cause).getCause();
-        }
-        if (cause instanceof VirtualMachineError) {
-            throw (VirtualMachineError) cause;
         }
     }
 
