@@ -28,25 +28,25 @@
  */
 package io.github.classgraph.vfs;
 
-import java.io.IOError;
 import java.io.Closeable;
+import java.io.IOError;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.nio.file.ClosedFileSystemException;
 import java.nio.file.FileStore;
 import java.nio.file.FileSystem;
-import java.nio.file.Path;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.PathMatcher;
 import java.nio.file.WatchService;
 import java.nio.file.attribute.BasicFileAttributeView;
 import java.nio.file.attribute.FileAttributeView;
 import java.nio.file.attribute.FileStoreAttributeView;
 import java.nio.file.attribute.UserPrincipalLookupService;
-import java.util.HashMap;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
