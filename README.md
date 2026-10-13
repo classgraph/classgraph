@@ -26,6 +26,8 @@ ClassGraph is an uber-fast parallelized classpath scanner and module scanner for
 
 ## ClassGraph 6 is released
 
+After 10 billion tokens of deep and extensive codebase analysis and improvement, ClassGraph version 6 has been released: optimized, re-architected, modernized, and made futureproof.
+
 **ClassGraph 6 is the new mainline release, for JDK 25 and newer.** Its API is new, and all code that uses ClassGraph should be ported to ClassGraph 6. The **[porting guide](https://github.com/classgraph/classgraph/wiki/Porting-ClassGraph-4.x-code-to-ClassGraph-6.x)** walks through the port step by step, and a coding agent can follow it for you.
 
 | Version | JDK | Status |
@@ -37,7 +39,7 @@ ClassGraph is an uber-fast parallelized classpath scanner and module scanner for
 **ClassGraph is now split into five reusable libraries**, so that a project depends only on the part it uses. Two of them are useful on their own, without the scanner:
 
 * [`classgraph-base`](classgraph-base/README.md) -- shared internals, and the verbose log.
-* [`classgraph-vfs`](classgraph-vfs/README.md) -- a read-only virtual filesystem over directories, jarfiles and modules.
+* [`classgraph-vfs`](classgraph-vfs/README.md) -- a read-only virtual filesystem over directories, jarfiles and modules, and the fastest, most flexible, most powerful and most parallelizable virtual filesystem for the JVM ecosystem. It opens a directory, jarfile or module however it is named, reads jarfiles nested to any depth in place without extracting them, and returns content as a stream, channel, ByteBuffer, byte array, string or java.nio.file.Path. Lookups and reads take no locks: looking up every entry of a 26,970-entry jarfile is 6× faster than java.util.zip.ZipFile on one thread and 141× faster on 32 threads.
 * [`classgraph-classpath`](classgraph-classpath/README.md) -- finds the classpath and the module path of a running JVM, in the order the classloaders search them, including the classpath of Spring Boot, Tomcat, JBoss, WebLogic, WebSphere, OSGi, Quarkus and other container classloaders. No scanning and no classfile parsing.
 * [`classgraph`](classgraph/README.md) -- scanning, and the class graph API.
 * [`classgraph-viz`](classgraph-viz/README.md) -- GraphViz `.dot` file generation.
