@@ -204,8 +204,10 @@ jobs:
         set -eu
         # The dependencies of the main sources: Narcissus, JSpecify and the JetBrains annotations. Each
         # module's list is written to its own file, then the lists are merged. The modules themselves
-        # are left out, since they are compiled from source below.
-        ./mvnw --no-transfer-progress -B -q dependency:build-classpath -DincludeScope=compile \
+        # are left out, since they are compiled from source below. They must still be resolved before
+        # they are excluded, and they are not in the local repository, so "compile" runs first: it lets
+        # Maven resolve each module to the target/classes of the module it depends on.
+        ./mvnw --no-transfer-progress -B -q compile dependency:build-classpath -DincludeScope=compile \
             -DexcludeGroupIds=io.github.classgraph -Dmdep.outputFile=target/module-path.txt
         module_path="$(for f in */target/module-path.txt; do cat "$f"; echo; done \
             | tr ':' '\n' | sed '/^$/d' | sort -u | paste -sd:)"
