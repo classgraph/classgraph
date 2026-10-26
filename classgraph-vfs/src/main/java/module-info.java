@@ -66,6 +66,9 @@ module io.github.classgraph.vfs {
     // A downstream module that depends on JSpecify itself still sees the annotations.
     requires static org.jspecify;
 
+    // JetBrains @Unmodifiable annotations, for the same reason
+    requires static org.jetbrains.annotations;
+
     // Register the "cgvfs:" URL scheme, so that a "cgvfs:" URI can be opened through java.nio.file.FileSystems
     // without the caller having to install anything. The equivalent registration for the classpath is the file
     // src/main/resources/META-INF/services/java.nio.file.spi.FileSystemProvider -- change both together.

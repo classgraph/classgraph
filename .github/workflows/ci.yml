@@ -191,18 +191,21 @@ jobs:
             .github/jpms-consumer/module-info.java .github/jpms-consumer/jpmsconsumer/Main.java
         java --module-path "$module_path:$classes" -m jpmsconsumer/jpmsconsumer.Main
     # The build switches off javac's "exports" lint (see javacLintSuppressions in pom.xml), because it
-    # warns about every JSpecify annotation in an exported signature. That also hides the warning that
-    # matters: a public member of an exported package whose signature names a type that is not exported,
-    # which ships as API that other modules can call even though they cannot name that type. This
-    # compiles the modules again with the lint on, and fails on any warning that is not about JSpecify.
-    # A member that is meant to be like that must be marked @SuppressWarnings("exports").
+    # warns about every JSpecify and JetBrains annotation in an exported signature. That also hides the
+    # warning that matters: a public member of an exported package whose signature names a type that is
+    # not exported, which ships as API that other modules can call even though they cannot name that
+    # type. This compiles the modules again with the lint on, and fails on any warning that is not about
+    # the annotations. A member that is meant to be like that must be marked @SuppressWarnings("exports").
     - name: Check that exported signatures name only exported types
       run: |
         set -eu
-        # The dependencies of the main sources, Narcissus and JSpecify. The plugin lists the test
-        # libraries too, but nothing requires them, so they are never resolved.
-        module_path="$(./mvnw --no-transfer-progress -B -q -pl classgraph-base dependency:build-classpath \
-            -Dmdep.outputFile=/dev/stdout)"
+        # The dependencies of the main sources: Narcissus, JSpecify and the JetBrains annotations. Each
+        # module's list is written to its own file, then the lists are merged. The modules themselves
+        # are left out, since they are compiled from source below.
+        ./mvnw --no-transfer-progress -B -q dependency:build-classpath -DincludeScope=compile \
+            -DexcludeGroupIds=io.github.classgraph -Dmdep.outputFile=target/module-path.txt
+        module_path="$(for f in */target/module-path.txt; do cat "$f"; echo; done \
+            | tr ':' '\n' | sed '/^$/d' | sort -u | paste -sd:)"
         log="$(mktemp)"
         source_path=()
         modules=""
@@ -212,15 +215,16 @@ jobs:
             source_path+=(--module-source-path "$name=$module/src/main/java")
             modules="$modules${modules:+,}$name"
         done
-        # -Xmaxwarns: the JSpecify warnings alone number more than 100, and javac prints only the
+        # -Xmaxwarns: the annotation warnings alone number more than 100, and javac prints only the
         # first 100 warnings by default, so one after those would be lost.
         if ! javac -Xlint:exports -Xmaxwarns 100000 -proc:none -d "$(mktemp -d)" "${source_path[@]}" \
                 --module-path "$module_path" --module "$modules" > "$log" 2>&1; then
             cat "$log"
             exit 1
         fi
-        if grep -F '[exports]' "$log" | grep -vF 'in module org.jspecify is not indirectly exported'; then
+        if grep -F '[exports]' "$log" | grep -vF -e 'in module org.jspecify is not indirectly exported' \
+                -e 'in module org.jetbrains.annotations is not indirectly exported'; then
             echo "FAIL : the signatures above name a type that is not exported to every module"
             exit 1
         fi
-        echo "ok   : $(grep -cF '[exports]' "$log") [exports] warnings, all about JSpecify"
+        echo "ok   : $(grep -cF '[exports]' "$log") [exports] warnings, all about JSpecify or JetBrains"

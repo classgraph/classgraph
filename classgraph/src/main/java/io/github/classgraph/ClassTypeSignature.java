@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
+import org.jetbrains.annotations.Unmodifiable;
 import org.jspecify.annotations.Nullable;
 
 import io.github.classgraph.TypeUtils.ModifierType;
@@ -128,7 +129,7 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
      *
      * @return The type parameters for the class.
      */
-    public List<TypeParameter> getTypeParameters() {
+    public @Unmodifiable List<TypeParameter> getTypeParameters() {
         return Collections.unmodifiableList(typeParameters);
     }
 
@@ -147,7 +148,7 @@ public final class ClassTypeSignature extends HierarchicalTypeSignature {
      *
      * @return The type signatures of any superinterfaces.
      */
-    public List<ClassRefTypeSignature> getSuperinterfaceSignatures() {
+    public @Unmodifiable List<ClassRefTypeSignature> getSuperinterfaceSignatures() {
         return Collections.unmodifiableList(superinterfaceSignatures);
     }
 

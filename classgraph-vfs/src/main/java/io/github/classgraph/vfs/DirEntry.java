@@ -39,6 +39,7 @@ import java.util.Collections;
 import java.util.EnumSet;
 import java.util.Set;
 
+import org.jetbrains.annotations.Unmodifiable;
 import org.jspecify.annotations.Nullable;
 
 import io.github.classgraph.base.internal.path.FileUtils;
@@ -156,7 +157,7 @@ final class DirEntry extends VfsEntry {
     }
 
     @Override
-    public @Nullable Set<PosixFilePermission> getPosixFilePermissions() {
+    public @Nullable @Unmodifiable Set<PosixFilePermission> getPosixFilePermissions() {
         // On a POSIX filesystem, the attributes read while listing the directory are already POSIX attributes, so
         // the permissions come for free
         if (attributes instanceof final PosixFileAttributes posixAttributes) {

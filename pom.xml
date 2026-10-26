@@ -82,10 +82,11 @@
 		<!-- org.jspecify". That would force every modular downstream project to put JSpecify on its -->
 		<!-- own module path, which is what broke Log4j 2.24.0 for its users; JSpecify is therefore a -->
 		<!-- plain "requires static", and the annotations are simply invisible to a downstream module -->
-		<!-- that does not depend on JSpecify itself. The jpms-consumer job in .github/workflows/ci.yml -->
-		<!-- still compiles the modules with "exports" switched on, and fails on any warning that is -->
-		<!-- not about JSpecify; a public member that is meant to name a type which is not exported -->
-		<!-- must say so with @SuppressWarnings("exports"). A module may switch off further categories. -->
+		<!-- that does not depend on JSpecify itself. The same holds for the JetBrains @Unmodifiable -->
+		<!-- annotations. The jpms-consumer job in .github/workflows/ci.yml still compiles the modules -->
+		<!-- with "exports" switched on, and fails on any warning that is not about these annotations; -->
+		<!-- a public member that is meant to name a type which is not exported must say so with -->
+		<!-- @SuppressWarnings("exports"). A module may switch off further categories. -->
 		<javacLintSuppressions>-Xlint:-exports</javacLintSuppressions>
 
 		<!-- The OSGi manifest entries that differ between modules. Set by each module; they must -->
@@ -192,6 +193,15 @@
 				<groupId>org.jspecify</groupId>
 				<artifactId>jspecify</artifactId>
 				<version>1.0.1</version>
+				<scope>provided</scope>
+			</dependency>
+			<dependency>
+				<!-- JetBrains @Unmodifiable annotations, which Kotlin 2.3.20+ reads to map a returned -->
+				<!-- collection to a read-only Kotlin type (#948). "provided" scope, like JSpecify. The -->
+				<!-- annotations are CLASS-retained, so they are never loaded at runtime. -->
+				<groupId>org.jetbrains</groupId>
+				<artifactId>annotations</artifactId>
+				<version>26.1.0</version>
 				<scope>provided</scope>
 			</dependency>
 		</dependencies>

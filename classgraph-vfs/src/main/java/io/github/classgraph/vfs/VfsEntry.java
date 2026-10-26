@@ -42,6 +42,7 @@ import java.nio.file.attribute.PosixFilePermission;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.jetbrains.annotations.Unmodifiable;
 import org.jspecify.annotations.Nullable;
 
 import io.github.classgraph.base.internal.path.PathSyntax;
@@ -263,7 +264,7 @@ public abstract sealed class VfsEntry permits ArchiveEntry, DirEntry, ModuleEntr
      *         order, or null if the root does not record them -- which is the case for a module resource, for a
      *         jarfile written without them, and for a file in a filesystem that does not support them.
      */
-    public @Nullable Set<PosixFilePermission> getPosixFilePermissions() {
+    public @Nullable @Unmodifiable Set<PosixFilePermission> getPosixFilePermissions() {
         return null;
     }
 

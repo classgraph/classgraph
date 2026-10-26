@@ -44,6 +44,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.zip.ZipEntry;
 
+import org.jetbrains.annotations.Unmodifiable;
 import org.jspecify.annotations.Nullable;
 
 import io.github.classgraph.base.LogNode;
@@ -564,7 +565,7 @@ public final class Resource implements AutoCloseable, Comparable<Resource> {
      * @return The set of {@link PosixFilePermission} permission flags for the resource, as an unmodifiable set that
      *         iterates in {@link PosixFilePermission} declaration order, or null if unknown.
      */
-    public @Nullable Set<PosixFilePermission> getPosixFilePermissions() {
+    public @Nullable @Unmodifiable Set<PosixFilePermission> getPosixFilePermissions() {
         return entry.getPosixFilePermissions();
     }
 

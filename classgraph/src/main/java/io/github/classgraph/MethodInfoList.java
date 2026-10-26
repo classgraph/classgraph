@@ -38,6 +38,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.Predicate;
 
+import org.jetbrains.annotations.Unmodifiable;
 import org.jspecify.annotations.Nullable;
 
 import io.github.classgraph.base.LogNode;
@@ -121,7 +122,7 @@ public final class MethodInfoList extends InfoList<MethodInfo> {
      *         that name, sorted by method name. Each map value lists the methods with that name in the order they
      *         appear in this list.
      */
-    public Map<String, MethodInfoList> asMap() {
+    public @Unmodifiable Map<String, MethodInfoList> asMap() {
         // Note that MethodInfoList extends InfoList rather than MappableInfoList, because one name can be shared by
         // multiple MethodInfo objects (so asMap() needs to be of type Map<String, MethodInfoList> rather than
         // Map<String, MethodInfo>)

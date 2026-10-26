@@ -51,6 +51,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.jetbrains.annotations.Unmodifiable;
 import org.jspecify.annotations.Nullable;
 
 import io.github.classgraph.base.LogNode;
@@ -431,7 +432,7 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
      *             if the entries could not be listed, or if the root, or the {@link Vfs} that opened it, has been
      *             closed.
      */
-    public final List<VfsEntry> getEntries() throws IOException {
+    public final @Unmodifiable List<VfsEntry> getEntries() throws IOException {
         checkNotClosed(getPath());
         return getEntriesImpl();
     }
@@ -458,7 +459,7 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
      *             closed.
      */
     @Override
-    public final Iterator<VfsEntry> iterator() {
+    public final @Unmodifiable Iterator<VfsEntry> iterator() {
         try {
             return getEntries().iterator();
         } catch (final IOException e) {
@@ -747,7 +748,7 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
      *             if the root could not be searched, or if the root, or the {@link Vfs} that opened it, has been
      *             closed.
      */
-    public final List<VfsEntry> getEntriesCaseInsensitive(final String name) throws IOException {
+    public final @Unmodifiable List<VfsEntry> getEntriesCaseInsensitive(final String name) throws IOException {
         Assert.notNull(name, "name");
         return Collections.unmodifiableList(findEntriesCaseInsensitive(name, /* firstMatchOnly = */ false));
     }
@@ -810,7 +811,7 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
      *             if the entries could not be listed, or if the root, or the {@link Vfs} that opened it, has been
      *             closed.
      */
-    public final List<VfsEntry> getEntries(final String pathPrefix) throws IOException {
+    public final @Unmodifiable List<VfsEntry> getEntries(final String pathPrefix) throws IOException {
         Assert.notNull(pathPrefix, "pathPrefix");
         return Collections.unmodifiableList(findEntriesWithPrefix(pathPrefix, /* firstMatchOnly = */ false));
     }
@@ -906,7 +907,7 @@ public abstract sealed class VfsRoot implements Iterable<VfsEntry>, AutoCloseabl
      *             if the manifest file could not be read, or if the root, or the {@link Vfs} that opened it, has
      *             been closed.
      */
-    public synchronized @Nullable Map<String, String> getManifest() throws IOException {
+    public synchronized @Nullable @Unmodifiable Map<String, String> getManifest() throws IOException {
         // Checked even when the manifest has already been read, so that a root of a closed Vfs reports itself as
         // closed rather than answering out of a cache that was warmed while it was open
         checkNotClosed(getPath());

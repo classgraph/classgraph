@@ -43,6 +43,8 @@ import java.util.Objects;
 import java.util.TreeMap;
 import java.util.function.Predicate;
 
+import org.jetbrains.annotations.Unmodifiable;
+
 import io.github.classgraph.base.internal.path.PathSyntax;
 import io.github.classgraph.base.internal.utils.Assert;
 
@@ -155,7 +157,7 @@ public final class ResourceList extends UnmodifiableList<Resource> implements Au
      * @return The paths of all resources in this list relative to the package root, by calling
      *         {@link Resource#getPath()} for each item in the list.
      */
-    public List<String> getPaths() {
+    public @Unmodifiable List<String> getPaths() {
         final List<String> resourcePaths = new ArrayList<>(this.size());
         for (final Resource resource : this) {
             resourcePaths.add(resource.getPath());
@@ -169,7 +171,7 @@ public final class ResourceList extends UnmodifiableList<Resource> implements Au
      * @return The paths of all resources in this list relative to the jarfile or directory that contains them, by
      *         calling {@link Resource#getPathRelativeToContainer()} for each item in the list.
      */
-    public List<String> getPathsRelativeToContainer() {
+    public @Unmodifiable List<String> getPathsRelativeToContainer() {
         final List<String> resourcePaths = new ArrayList<>(this.size());
         for (final Resource resource : this) {
             resourcePaths.add(resource.getPathRelativeToContainer());
@@ -184,7 +186,7 @@ public final class ResourceList extends UnmodifiableList<Resource> implements Au
      * @throws IllegalStateException
      *             if any resource's URI could not be converted to a {@link URL}.
      */
-    public List<URL> getURLs() {
+    public @Unmodifiable List<URL> getURLs() {
         final List<URL> resourceURLs = new ArrayList<>(this.size());
         for (final Resource resource : this) {
             resourceURLs.add(resource.getURL());
@@ -200,7 +202,7 @@ public final class ResourceList extends UnmodifiableList<Resource> implements Au
      *             if any resource's {@link URI} could not be formed, for example for a resource obtained from a
      *             module that does not report where its resources are.
      */
-    public List<URI> getURIs() {
+    public @Unmodifiable List<URI> getURIs() {
         final List<URI> resourceURIs = new ArrayList<>(this.size());
         for (final Resource resource : this) {
             resourceURIs.add(resource.getURI());
@@ -246,7 +248,7 @@ public final class ResourceList extends UnmodifiableList<Resource> implements Au
      *         no empty, "." or ".." segments, and {@link Map#get(Object)} does not normalize the path it is given.
      *         To look up a path written in another form, use {@link #get(String)}.
      */
-    public Map<String, ResourceList> asMap() {
+    public @Unmodifiable Map<String, ResourceList> asMap() {
         final Map<String, List<Resource>> pathToResources = new TreeMap<>();
         for (final Resource resource : this) {
             pathToResources.computeIfAbsent(resource.getPath(), _ -> new ArrayList<>(1)).add(resource);
@@ -267,7 +269,7 @@ public final class ResourceList extends UnmodifiableList<Resource> implements Au
      *         and the value is a {@link ResourceList} of at least two unique {@link Resource} objects that have
      *         that path. The entries are unmodifiable.
      */
-    public List<Entry<String, ResourceList>> findDuplicatePaths() {
+    public @Unmodifiable List<@Unmodifiable Entry<String, ResourceList>> findDuplicatePaths() {
         final List<Entry<String, ResourceList>> duplicatePaths = new ArrayList<>();
         // asMap() is sorted by path, and its entries are unmodifiable
         for (final Entry<String, ResourceList> pathAndResourceList : asMap().entrySet()) {
