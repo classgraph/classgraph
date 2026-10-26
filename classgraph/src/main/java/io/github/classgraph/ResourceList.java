@@ -57,6 +57,7 @@ import io.github.classgraph.base.internal.utils.Assert;
  * every method that would add, remove, replace or sort an element throws {@link UnsupportedOperationException}.
  * Copy the list if you need a modifiable version of it, e.g. {@code new ArrayList<>(list)}.
  */
+@Unmodifiable // Ignored by Kotlin for now: see the TODO in UnmodifiableList
 public final class ResourceList extends UnmodifiableList<Resource> implements AutoCloseable {
     /** An unmodifiable empty {@link ResourceList}. */
     static final ResourceList EMPTY_LIST = new ResourceList(List.of());

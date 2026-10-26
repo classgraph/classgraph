@@ -34,10 +34,13 @@ import java.util.List;
 import java.util.Objects;
 import java.util.function.Predicate;
 
+import org.jetbrains.annotations.Unmodifiable;
+
 import io.github.classgraph.base.internal.utils.Assert;
 import io.github.classgraph.base.internal.utils.CollectionUtils;
 
 /** A list of {@link PackageInfo} objects, which can be indexed by package name. */
+@Unmodifiable // Ignored by Kotlin for now: see the TODO in UnmodifiableList
 public final class PackageInfoList extends MappableInfoList<PackageInfo> {
     /** An unmodifiable empty {@link PackageInfoList}. */
     static final PackageInfoList EMPTY_LIST = new PackageInfoList(List.of());

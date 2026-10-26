@@ -45,6 +45,7 @@ import org.jetbrains.annotations.Unmodifiable;
  * @param <T>
  *            the element type
  */
+@Unmodifiable // Ignored by Kotlin for now: see the TODO in UnmodifiableList
 public sealed class InfoList<T extends HasName> extends UnmodifiableList<T>
         permits MappableInfoList, MethodInfoList {
     /**
