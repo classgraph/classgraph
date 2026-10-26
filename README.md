@@ -179,6 +179,26 @@ All five share the `io.github.classgraph` group id and a single version number. 
 `classgraph-vfs` alone if you want only the classpath finder or only the virtual filesystem,
 without the scanner.
 
+To keep several ClassGraph artifacts on the same version, import the `classgraph-bom` bill of
+materials (published from version 6.0.1 on), and leave the version out of each ClassGraph dependency:
+
+```xml
+<dependencyManagement>
+    <dependencies>
+        <dependency>
+            <groupId>io.github.classgraph</groupId>
+            <artifactId>classgraph-bom</artifactId>
+            <version>X.Y.Z</version>
+            <type>pom</type>
+            <scope>import</scope>
+        </dependency>
+    </dependencies>
+</dependencyManagement>
+```
+
+In Gradle, use `implementation(platform("io.github.classgraph:classgraph-bom:X.Y.Z"))`.
+The BOM pins only the ClassGraph artifacts, and no third-party libraries.
+
 See instructions for [use as a module](https://github.com/classgraph/classgraph/wiki#use-as-a-module).
 
 ### Strong encapsulation

@@ -1,0 +1,124 @@
+<!-- The ClassGraph bill of materials (BOM): import it into <dependencyManagement> to pin every ClassGraph -->
+<!-- artifact to the same version. -->
+<!-- -->
+<!-- It deliberately does not inherit from classgraph-parent. Importing a BOM imports its effective -->
+<!-- <dependencyManagement>, which would then include the parent's version pins for JUnit, AssertJ, JSpecify, -->
+<!-- Narcissus and the rest, and would override those versions in the importing project. So the project -->
+<!-- metadata and the release profile that the other modules inherit are repeated here instead; keep them -->
+<!-- in step with ../pom.xml. -->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<groupId>io.github.classgraph</groupId>
+	<artifactId>classgraph-bom</artifactId>
+	<version>6.0.1-SNAPSHOT</version>
+	<packaging>pom</packaging>
+	<name>ClassGraph BOM</name>
+
+	<description>Bill of materials that pins every ClassGraph artifact to the same version.</description>
+
+	<url>https://github.com/classgraph/classgraph</url>
+
+	<licenses>
+		<license>
+			<name>The MIT License (MIT)</name>
+			<url>http://opensource.org/licenses/MIT</url>
+			<distribution>repo</distribution>
+		</license>
+	</licenses>
+
+	<developers>
+		<developer>
+			<name>Luke Hutchison</name>
+			<email>luke.hutch@gmail.com</email>
+			<organization>ClassGraph</organization>
+			<organizationUrl>https://github.com/classgraph</organizationUrl>
+		</developer>
+	</developers>
+
+	<scm>
+		<connection>scm:git:https://github.com/classgraph/classgraph.git</connection>
+		<developerConnection>scm:git:https://github.com/classgraph/classgraph.git</developerConnection>
+		<url>https://github.com/classgraph/classgraph</url>
+		<tag>HEAD</tag>
+	</scm>
+
+	<issueManagement>
+		<url>https://github.com/classgraph/classgraph/issues</url>
+	</issueManagement>
+
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>io.github.classgraph</groupId>
+				<artifactId>classgraph-base</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>io.github.classgraph</groupId>
+				<artifactId>classgraph-vfs</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>io.github.classgraph</groupId>
+				<artifactId>classgraph-classpath</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>io.github.classgraph</groupId>
+				<artifactId>classgraph</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>io.github.classgraph</groupId>
+				<artifactId>classgraph-viz</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
+	<profiles>
+		<!-- The same as the release profile in ../pom.xml, so that this pom is signed and uploaded in the same -->
+		<!-- bundle as the other modules. -->
+		<profile>
+			<id>release</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.sonatype.central</groupId>
+						<artifactId>central-publishing-maven-plugin</artifactId>
+						<version>0.11.0</version>
+						<extensions>true</extensions>
+						<configuration>
+							<publishingServerId>central</publishingServerId>
+							<autoPublish>true</autoPublish>
+							<deploymentName>${project.groupId}:classgraph:${project.version}</deploymentName>
+						</configuration>
+					</plugin>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-gpg-plugin</artifactId>
+						<version>3.2.8</version>
+						<configuration>
+							<gpgArguments>
+								<arg>--pinentry-mode</arg>
+								<arg>loopback</arg>
+							</gpgArguments>
+							<keyname>${gpg.keyname}</keyname>
+							<passphraseServerId>${gpg.keyname}</passphraseServerId>
+						</configuration>
+						<executions>
+							<execution>
+								<id>sign-artifacts</id>
+								<phase>verify</phase>
+								<goals>
+									<goal>sign</goal>
+								</goals>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
+</project>
