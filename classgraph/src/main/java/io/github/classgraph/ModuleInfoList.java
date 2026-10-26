@@ -34,10 +34,13 @@ import java.util.List;
 import java.util.Objects;
 import java.util.function.Predicate;
 
+import org.jetbrains.annotations.Unmodifiable;
+
 import io.github.classgraph.base.internal.utils.Assert;
 import io.github.classgraph.base.internal.utils.CollectionUtils;
 
 /** A list of {@link ModuleInfo} objects, which can be indexed by module name. */
+@Unmodifiable // Ignored by Kotlin for now: see the TODO in UnmodifiableList
 public final class ModuleInfoList extends MappableInfoList<ModuleInfo> {
     /** An unmodifiable empty {@link ModuleInfoList}. */
     static final ModuleInfoList EMPTY_LIST = new ModuleInfoList(List.of());

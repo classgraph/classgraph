@@ -43,6 +43,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.Predicate;
 
+import org.jetbrains.annotations.Unmodifiable;
 import org.jspecify.annotations.Nullable;
 
 import io.github.classgraph.ClassInfo.RelType;
@@ -62,6 +63,7 @@ import io.github.classgraph.base.internal.utils.CollectionUtils;
  * the annotations are directly present is reported by {@link #directOnly()}, and is not part of the comparison, so
  * two lists that hold the same annotations are equal even when they were reached in different ways.
  */
+@Unmodifiable // Ignored by Kotlin for now: see the TODO in UnmodifiableList
 public final class AnnotationInfoList extends MappableInfoList<AnnotationInfo> {
     /**
      * The annotations in this list that are directly present on the annotated item, rather than reached through a

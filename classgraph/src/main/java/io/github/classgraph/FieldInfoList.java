@@ -36,6 +36,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.Predicate;
 
+import org.jetbrains.annotations.Unmodifiable;
 import org.jspecify.annotations.Nullable;
 
 import io.github.classgraph.base.LogNode;
@@ -43,6 +44,7 @@ import io.github.classgraph.base.internal.utils.Assert;
 import io.github.classgraph.base.internal.utils.CollectionUtils;
 
 /** A list of {@link FieldInfo} objects, which can be indexed by field name. */
+@Unmodifiable // Ignored by Kotlin for now: see the TODO in UnmodifiableList
 public final class FieldInfoList extends MappableInfoList<FieldInfo> {
     /** An unmodifiable empty {@link FieldInfoList}. */
     static final FieldInfoList EMPTY_LIST = new FieldInfoList(List.of());

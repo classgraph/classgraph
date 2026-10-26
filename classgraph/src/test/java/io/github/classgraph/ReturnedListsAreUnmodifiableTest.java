@@ -1,6 +1,7 @@
 package io.github.classgraph;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -8,6 +9,8 @@ import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.Set;
 import java.util.TreeSet;
 
 import org.junit.jupiter.api.Test;
@@ -205,6 +208,7 @@ public class ReturnedListsAreUnmodifiableTest {
 
     /** The other mutating methods on a returned list should be rejected too, not just {@code add}. */
     @Test
+    @SuppressWarnings("deprecation") // The mutators are deprecated because they always throw
     public void allMutatorsAreRejectedOnReturnedLists() {
         try (var scanResult = new ClassGraph().enableClasspath()
                 .acceptPackages(ClassWithMembers.class.getPackage().getName()).enableClassInfo().enableFieldInfo()
@@ -223,6 +227,12 @@ public class ReturnedListsAreUnmodifiableTest {
             // value is in the list
             assertThat(throwsUnsupported(() -> classInfoList.remove(classInfoList.get(0)))).isTrue();
             assertThat(throwsUnsupported(() -> classInfoList.remove(new Object()))).isTrue();
+            assertThat(throwsUnsupported(() -> classInfoList.add(classInfoList.get(0)))).isTrue();
+            assertThat(throwsUnsupported(() -> classInfoList.add(0, classInfoList.get(0)))).isTrue();
+            assertThat(throwsUnsupported(() -> classInfoList.addFirst(classInfoList.get(0)))).isTrue();
+            assertThat(throwsUnsupported(() -> classInfoList.addLast(classInfoList.get(0)))).isTrue();
+            assertThat(throwsUnsupported(classInfoList::removeFirst)).isTrue();
+            assertThat(throwsUnsupported(classInfoList::removeLast)).isTrue();
             assertThat(throwsUnsupported(() -> classInfoList.listIterator().add(classInfoList.get(0)))).isTrue();
             assertThat(throwsUnsupported(() -> classInfoList.listIterator(1).set(classInfoList.get(0)))).isTrue();
             assertThat(throwsUnsupported(() -> classInfoList.iterator().remove())).isTrue();
@@ -231,10 +241,36 @@ public class ReturnedListsAreUnmodifiableTest {
     }
 
     /**
+     * Every mutator of every public list class is deprecated, so that the compiler warns about a call to it, in
+     * Java and in Kotlin.
+     */
+    @Test
+    public void allMutatorsAreDeprecated() {
+        final var mutatorNames = Set.of("add", "addAll", "set", "remove", "removeAll", "retainAll", "removeIf",
+                "replaceAll", "sort", "clear", "addFirst", "addLast", "removeFirst", "removeLast");
+        for (final Class<?> listClass : List.<Class<?>> of(InfoList.class, MappableInfoList.class,
+                ClassInfoList.class, MethodInfoList.class, FieldInfoList.class, AnnotationInfoList.class,
+                AnnotationParameterValueList.class, PackageInfoList.class, ModuleInfoList.class,
+                ResourceList.class)) {
+            int numMutators = 0;
+            for (final Method method : listClass.getMethods()) {
+                if (mutatorNames.contains(method.getName())) {
+                    assertThat(method.isAnnotationPresent(Deprecated.class))
+                            .as("%s.%s", listClass.getSimpleName(), method).isTrue();
+                    numMutators++;
+                }
+            }
+            // add, addAll, remove: 2 overloads each
+            assertThat(numMutators).isEqualTo(mutatorNames.size() + 3);
+        }
+    }
+
+    /**
      * A mutation that would not actually change the contents of a returned list should still be rejected, matching
      * the contract of the unmodifiable views returned by {@link java.util.Collections}.
      */
     @Test
+    @SuppressWarnings("deprecation") // The mutators are deprecated because they always throw
     public void noOpMutatorsAreRejectedOnReturnedLists() {
         try (var scanResult = new ClassGraph().enableClasspath()
                 .acceptPackages(ClassWithMembers.class.getPackage().getName()).enableClassInfo().enableFieldInfo()
@@ -251,6 +287,10 @@ public class ReturnedListsAreUnmodifiableTest {
             assertThat(throwsUnsupported(() -> emptyList.addAll(0, List.of()))).isTrue();
             assertThat(throwsUnsupported(() -> emptyList.removeAll(List.of()))).isTrue();
             assertThat(throwsUnsupported(() -> emptyList.retainAll(List.of()))).isTrue();
+            // Except that, as with the views returned by java.util.Collections, there is no first or last element
+            // to remove
+            assertThatExceptionOfType(NoSuchElementException.class).isThrownBy(emptyList::removeFirst);
+            assertThatExceptionOfType(NoSuchElementException.class).isThrownBy(emptyList::removeLast);
 
             // A non-empty returned list, given collection arguments that would not change it
             final ClassInfoList allClasses = scanResult.getAllClasses();

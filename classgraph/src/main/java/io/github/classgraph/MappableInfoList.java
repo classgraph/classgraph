@@ -44,6 +44,7 @@ import io.github.classgraph.base.internal.utils.Assert;
  * @param <T>
  *            the element type
  */
+@Unmodifiable // Ignored by Kotlin for now: see the TODO in UnmodifiableList
 public sealed class MappableInfoList<T extends HasName> extends InfoList<T> permits AnnotationInfoList,
         AnnotationParameterValueList, ClassInfoList, FieldInfoList, ModuleInfoList, PackageInfoList {
     /**

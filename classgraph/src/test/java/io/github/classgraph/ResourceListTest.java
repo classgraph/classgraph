@@ -78,6 +78,7 @@ public class ResourceListTest {
 
     /** A {@link ResourceList} can be built from an existing collection of resources. */
     @Test
+    @SuppressWarnings("deprecation") // The mutators are deprecated because they always throw
     public void aResourceListCanBeBuiltFromACollection() {
         try (var scanResult = scanFixtureDir()) {
             final var allResources = scanResult.getAllResources();

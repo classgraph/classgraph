@@ -34,6 +34,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
+import org.jetbrains.annotations.Unmodifiable;
 import org.jspecify.annotations.Nullable;
 
 import io.github.classgraph.base.LogNode;
@@ -41,6 +42,7 @@ import io.github.classgraph.base.internal.utils.Assert;
 import io.github.classgraph.base.internal.utils.CollectionUtils;
 
 /** A list of {@link AnnotationParameterValue} objects, which can be indexed by annotation parameter name. */
+@Unmodifiable // Ignored by Kotlin for now: see the TODO in UnmodifiableList
 public final class AnnotationParameterValueList extends MappableInfoList<AnnotationParameterValue> {
     /** An unmodifiable empty {@link AnnotationParameterValueList}. */
     static final AnnotationParameterValueList EMPTY_LIST = new AnnotationParameterValueList(List.of());

@@ -55,6 +55,7 @@ import io.github.classgraph.base.internal.utils.CollectionUtils;
  * to a {@link MethodInfoList}. Use {@link #getSingleMethod(String)} when you expect exactly one method of a given
  * name.
  */
+@Unmodifiable // Ignored by Kotlin for now: see the TODO in UnmodifiableList
 public final class MethodInfoList extends InfoList<MethodInfo> {
     /** An unmodifiable empty {@link MethodInfoList}. */
     static final MethodInfoList EMPTY_LIST = new MethodInfoList(List.of());

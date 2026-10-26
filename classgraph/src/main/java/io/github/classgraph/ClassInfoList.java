@@ -38,6 +38,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.Predicate;
 
+import org.jetbrains.annotations.Unmodifiable;
 import org.jspecify.annotations.Nullable;
 
 import io.github.classgraph.ClassInfo.ReachableAndDirectlyRelatedClasses;
@@ -65,6 +66,7 @@ import io.github.classgraph.base.internal.utils.CollectionUtils;
  * classes are directly related is reported by {@link #directOnly()}, and is not part of the comparison, so two
  * lists that hold the same classes are equal even when they were reached by different relationships.
  */
+@Unmodifiable // Ignored by Kotlin for now: see the TODO in UnmodifiableList
 public final class ClassInfoList extends MappableInfoList<ClassInfo> {
     /** Directly related classes. */
     private final Set<ClassInfo> directlyRelatedClasses;
