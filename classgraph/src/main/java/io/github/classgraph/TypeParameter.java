@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
+import org.jetbrains.annotations.Unmodifiable;
 import org.jspecify.annotations.Nullable;
 
 import io.github.classgraph.Classfile.ClassContainment;
@@ -98,7 +99,7 @@ public final class TypeParameter extends HierarchicalTypeSignature {
      *
      * @return Get the type parameter interface bound(s), which may be the empty list.
      */
-    public List<ReferenceTypeSignature> getInterfaceBounds() {
+    public @Unmodifiable List<ReferenceTypeSignature> getInterfaceBounds() {
         return Collections.unmodifiableList(interfaceBounds);
     }
 

@@ -58,6 +58,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.zip.Inflater;
 
+import org.jetbrains.annotations.Unmodifiable;
 import org.jspecify.annotations.Nullable;
 
 import io.github.classgraph.base.LogNode;
@@ -1041,7 +1042,7 @@ public final class Vfs implements AutoCloseable, Iterable<VfsRoot> {
      * @return an iterator over the roots this {@link Vfs} has cached.
      */
     @Override
-    public Iterator<VfsRoot> iterator() {
+    public @Unmodifiable Iterator<VfsRoot> iterator() {
         if (isClosed()) {
             return Collections.emptyIterator();
         }

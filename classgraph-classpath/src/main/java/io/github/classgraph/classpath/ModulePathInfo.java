@@ -35,6 +35,8 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
+import org.jetbrains.annotations.Unmodifiable;
+
 import io.github.classgraph.base.internal.path.PathList;
 import io.github.classgraph.base.internal.reflection.ReflectionUtils;
 import io.github.classgraph.base.internal.utils.StringUtils;
@@ -206,7 +208,7 @@ public final class ModulePathInfo {
      *
      * @return The module path, as an unmodifiable set.
      */
-    public Set<String> getModulePath() {
+    public @Unmodifiable Set<String> getModulePath() {
         return Collections.unmodifiableSet(modulePath);
     }
 
@@ -218,7 +220,7 @@ public final class ModulePathInfo {
      *
      * @return The added modules, as an unmodifiable set.
      */
-    public Set<String> getAddModules() {
+    public @Unmodifiable Set<String> getAddModules() {
         return Collections.unmodifiableSet(addModules);
     }
 
@@ -229,7 +231,7 @@ public final class ModulePathInfo {
      *
      * @return The module patch directives, as an unmodifiable set.
      */
-    public Set<String> getPatchModules() {
+    public @Unmodifiable Set<String> getPatchModules() {
         return Collections.unmodifiableSet(patchModules);
     }
 
@@ -241,7 +243,7 @@ public final class ModulePathInfo {
      *
      * @return The {@code exports} directives, as an unmodifiable set.
      */
-    public Set<String> getAddExports() {
+    public @Unmodifiable Set<String> getAddExports() {
         return Collections.unmodifiableSet(addExports);
     }
 
@@ -253,7 +255,7 @@ public final class ModulePathInfo {
      *
      * @return The {@code opens} directives, as an unmodifiable set.
      */
-    public Set<String> getAddOpens() {
+    public @Unmodifiable Set<String> getAddOpens() {
         return Collections.unmodifiableSet(addOpens);
     }
 
@@ -264,7 +266,7 @@ public final class ModulePathInfo {
      *
      * @return The {@code reads} directives, as an unmodifiable set.
      */
-    public Set<String> getAddReads() {
+    public @Unmodifiable Set<String> getAddReads() {
         return Collections.unmodifiableSet(addReads);
     }
 

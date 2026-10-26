@@ -30,6 +30,7 @@ package io.github.classgraph.classpath;
 
 import java.util.List;
 
+import org.jetbrains.annotations.Unmodifiable;
 import org.jspecify.annotations.Nullable;
 
 import io.github.classgraph.base.ClassGraphLog;
@@ -73,9 +74,11 @@ import io.github.classgraph.base.ClassGraphLog;
  */
 public interface ClassLoaderHandler {
     /** The package root prefixes for classpath elements that have no automatic package roots at all. */
+    @Unmodifiable
     List<String> NO_PACKAGE_ROOT_PREFIXES = List.of();
 
     /** The lib dirs for classpath elements that have no automatic lib dirs at all. */
+    @Unmodifiable
     List<String> NO_LIB_DIR_PREFIXES = List.of();
 
     /**

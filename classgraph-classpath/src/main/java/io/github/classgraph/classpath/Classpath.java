@@ -34,6 +34,8 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
+import org.jetbrains.annotations.Unmodifiable;
+
 import io.github.classgraph.classpath.internal.ClassLoaderProbe;
 import io.github.classgraph.classpath.internal.ClasspathSpec;
 import io.github.classgraph.vfs.Vfs;
@@ -112,7 +114,7 @@ public final class Classpath implements AutoCloseable, Iterable<ClasspathEntry> 
      *
      * @return the classpath elements, as an unmodifiable list.
      */
-    public List<ClasspathEntry> getEntries() {
+    public @Unmodifiable List<ClasspathEntry> getEntries() {
         return entries;
     }
 
@@ -123,7 +125,7 @@ public final class Classpath implements AutoCloseable, Iterable<ClasspathEntry> 
      * @return an iterator over the classpath elements.
      */
     @Override
-    public Iterator<ClasspathEntry> iterator() {
+    public @Unmodifiable Iterator<ClasspathEntry> iterator() {
         return entries.iterator();
     }
 
@@ -133,7 +135,7 @@ public final class Classpath implements AutoCloseable, Iterable<ClasspathEntry> 
      *
      * @return the classpath element locations, as an unmodifiable list.
      */
-    public List<String> getLocations() {
+    public @Unmodifiable List<String> getLocations() {
         return entries.stream().map(ClasspathEntry::getLocation).toList();
     }
 
@@ -145,7 +147,7 @@ public final class Classpath implements AutoCloseable, Iterable<ClasspathEntry> 
      *
      * @return the modules, as an unmodifiable list.
      */
-    public List<ModuleReference> getModules() {
+    public @Unmodifiable List<ModuleReference> getModules() {
         final List<ModuleReference> modules = new ArrayList<>(systemModules.size() + nonSystemModules.size());
         modules.addAll(systemModules);
         modules.addAll(nonSystemModules);
@@ -161,7 +163,7 @@ public final class Classpath implements AutoCloseable, Iterable<ClasspathEntry> 
      *
      * @return the system modules, as an unmodifiable list.
      */
-    public List<ModuleReference> getSystemModules() {
+    public @Unmodifiable List<ModuleReference> getSystemModules() {
         return systemModules;
     }
 
@@ -171,7 +173,7 @@ public final class Classpath implements AutoCloseable, Iterable<ClasspathEntry> 
      *
      * @return the non-system modules, as an unmodifiable list.
      */
-    public List<ModuleReference> getNonSystemModules() {
+    public @Unmodifiable List<ModuleReference> getNonSystemModules() {
         return nonSystemModules;
     }
 

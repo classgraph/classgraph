@@ -43,6 +43,7 @@ import java.util.concurrent.Future;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
+import org.jetbrains.annotations.Unmodifiable;
 import org.jspecify.annotations.Nullable;
 
 import io.github.classgraph.base.LogNode;
@@ -1892,7 +1893,7 @@ public final class ClassGraph {
      * @throws IllegalArgumentException
      *             if a config option was enabled without the config option that reads it.
      */
-    public List<File> getClasspathFiles() {
+    public @Unmodifiable List<File> getClasspathFiles() {
         // A jarfile downloaded from a URL into a temporary file is listed by that file, which is deleted when the
         // ScanResult is closed, before this returns, so a file that is gone by then is left out
         return withClasspathScanResult(ScanResult::getClasspathFiles).stream().filter(File::exists).toList();
@@ -1936,7 +1937,7 @@ public final class ClassGraph {
      * @throws IllegalArgumentException
      *             if a config option was enabled without the config option that reads it.
      */
-    public List<URI> getClasspathURIs() {
+    public @Unmodifiable List<URI> getClasspathURIs() {
         return withClasspathScanResult(ScanResult::getClasspathURIs);
     }
 
@@ -1954,7 +1955,7 @@ public final class ClassGraph {
      * @throws IllegalArgumentException
      *             if a config option was enabled without the config option that reads it.
      */
-    public List<URL> getClasspathURLs() {
+    public @Unmodifiable List<URL> getClasspathURLs() {
         return withClasspathScanResult(ScanResult::getClasspathURLs);
     }
 
@@ -1973,7 +1974,7 @@ public final class ClassGraph {
      * @throws IllegalArgumentException
      *             if a config option was enabled without the config option that reads it.
      */
-    public List<ModuleReference> getModuleReferences() {
+    public @Unmodifiable List<ModuleReference> getModuleReferences() {
         return withClasspathScanResult(ScanResult::getModuleReferences);
     }
 

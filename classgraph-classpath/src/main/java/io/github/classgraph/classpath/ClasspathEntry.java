@@ -38,6 +38,7 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Objects;
 
+import org.jetbrains.annotations.Unmodifiable;
 import org.jspecify.annotations.Nullable;
 
 import io.github.classgraph.base.internal.utils.Assert;
@@ -219,7 +220,7 @@ public abstract sealed class ClasspathEntry {
      *
      * @return the package root prefixes, as an unmodifiable list.
      */
-    public List<String> getPackageRootPrefixes() {
+    public @Unmodifiable List<String> getPackageRootPrefixes() {
         return packageRootPrefixes;
     }
 
@@ -234,7 +235,7 @@ public abstract sealed class ClasspathEntry {
      *
      * @return the lib dir prefixes, as an unmodifiable list.
      */
-    public List<String> getLibDirPrefixes() {
+    public @Unmodifiable List<String> getLibDirPrefixes() {
         return libDirPrefixes;
     }
 

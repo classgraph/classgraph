@@ -32,6 +32,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import org.jetbrains.annotations.Unmodifiable;
+
 /**
  * A list of named objects.
  *
@@ -63,7 +65,7 @@ public sealed class InfoList<T extends HasName> extends UnmodifiableList<T>
      *
      * @return The names of all items in this list, by calling {@code getName()} on each item in the list.
      */
-    public List<String> getNames() {
+    public @Unmodifiable List<String> getNames() {
         if (this.isEmpty()) {
             return List.of();
         } else {
@@ -82,7 +84,7 @@ public sealed class InfoList<T extends HasName> extends UnmodifiableList<T>
      * @return The String representations of all items in this list, by calling {@code toString()} on each item in
      *         the list.
      */
-    public List<String> getAsStrings() {
+    public @Unmodifiable List<String> getAsStrings() {
         if (this.isEmpty()) {
             return List.of();
         } else {
@@ -105,7 +107,7 @@ public sealed class InfoList<T extends HasName> extends UnmodifiableList<T>
      *         "https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Class.html#getSimpleName()">
      *         simple names</a> of any named classes.
      */
-    public List<String> getAsStringsWithSimpleNames() {
+    public @Unmodifiable List<String> getAsStringsWithSimpleNames() {
         if (this.isEmpty()) {
             return List.of();
         } else {

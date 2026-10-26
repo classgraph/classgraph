@@ -35,6 +35,7 @@ import java.util.Collections;
 import java.util.EnumSet;
 import java.util.Set;
 
+import org.jetbrains.annotations.Unmodifiable;
 import org.jspecify.annotations.Nullable;
 
 import io.github.classgraph.vfs.internal.zip.FastZipEntry;
@@ -108,7 +109,7 @@ final class ArchiveEntry extends VfsEntry {
     }
 
     @Override
-    public @Nullable Set<PosixFilePermission> getPosixFilePermissions() {
+    public @Nullable @Unmodifiable Set<PosixFilePermission> getPosixFilePermissions() {
         final var fileAttributes = zipEntry.fileAttributes;
         if (fileAttributes == 0) {
             // Zip entries written by tools that do not record Unix mode bits have zero file attributes

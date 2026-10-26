@@ -34,6 +34,8 @@ import java.util.Collections;
 import java.util.Set;
 import java.util.TreeSet;
 
+import org.jetbrains.annotations.Unmodifiable;
+
 import io.github.classgraph.base.internal.path.URLPaths;
 import io.github.classgraph.base.internal.utils.Assert;
 import io.github.classgraph.vfs.internal.zip.LogicalZipFile;
@@ -322,7 +324,7 @@ public final class VfsSpec {
      * @return the denied schemes, sorted by scheme name, as an unmodifiable set, which is empty if no scheme has
      *         been denied.
      */
-    public Set<String> getDeniedURLSchemes() {
+    public @Unmodifiable Set<String> getDeniedURLSchemes() {
         return deniedURLSchemes;
     }
 

@@ -64,4 +64,7 @@ module io.github.classgraph.classpath {
     // downstream project to put JSpecify on its own module path, which is what broke Log4j 2.24.0 for its users.
     // A downstream module that depends on JSpecify itself still sees the annotations.
     requires static org.jspecify;
+
+    // JetBrains @Unmodifiable annotations, for the same reason
+    requires static org.jetbrains.annotations;
 }

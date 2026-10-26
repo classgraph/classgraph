@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
+import org.jetbrains.annotations.Unmodifiable;
 import org.jspecify.annotations.Nullable;
 
 import io.github.classgraph.base.internal.utils.Assert;
@@ -65,7 +66,7 @@ public sealed class MappableInfoList<T extends HasName> extends InfoList<T> perm
      * @return An index for this list, as a map from the name of each list item (obtained by calling
      *         {@code getName()} on each list item) to the list item, sorted by name.
      */
-    public Map<String, T> asMap() {
+    public @Unmodifiable Map<String, T> asMap() {
         final Map<String, T> nameToInfoObject = new TreeMap<>();
         for (final T i : this) {
             nameToInfoObject.putIfAbsent(i.getName(), i);

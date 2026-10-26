@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
+import org.jetbrains.annotations.Unmodifiable;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -92,7 +93,7 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
      *
      * @return The type parameters for the method, or the empty list if the method is not generic.
      */
-    public List<TypeParameter> getTypeParameters() {
+    public @Unmodifiable List<TypeParameter> getTypeParameters() {
         return Collections.unmodifiableList(typeParameters);
     }
 
@@ -121,7 +122,7 @@ public final class MethodTypeSignature extends HierarchicalTypeSignature {
      *
      * @return The throws types for the method, as {@link TypeSignature} parsed type objects.
      */
-    public List<ClassRefOrTypeVariableSignature> getThrowsSignatures() {
+    public @Unmodifiable List<ClassRefOrTypeVariableSignature> getThrowsSignatures() {
         return Collections.unmodifiableList(throwsSignatures);
     }
 

@@ -36,6 +36,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
+import org.jetbrains.annotations.Unmodifiable;
 import org.jspecify.annotations.Nullable;
 
 import io.github.classgraph.Classfile.ClassContainment;
@@ -164,7 +165,7 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
      *
      * @return The type arguments for the base class.
      */
-    public List<TypeArgument> getTypeArguments() {
+    public @Unmodifiable List<TypeArgument> getTypeArguments() {
         return Collections.unmodifiableList(typeArguments);
     }
 
@@ -173,7 +174,7 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
      *
      * @return The class suffixes (for nested classes), or the empty list if none.
      */
-    public List<String> getSuffixes() {
+    public @Unmodifiable List<String> getSuffixes() {
         return Collections.unmodifiableList(suffixes);
     }
 
@@ -183,7 +184,7 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
      * @return The list of type arguments for the suffixes (nested classes), one list per suffix, or the empty list
      *         if none.
      */
-    public List<List<TypeArgument>> getSuffixTypeArguments() {
+    public @Unmodifiable List<@Unmodifiable List<TypeArgument>> getSuffixTypeArguments() {
         final List<List<TypeArgument>> unmodifiableSuffixTypeArguments = new ArrayList<>(
                 suffixTypeArguments.size());
         for (final List<TypeArgument> typeArgs : suffixTypeArguments) {
@@ -261,7 +262,7 @@ public final class ClassRefTypeSignature extends ClassRefOrTypeVariableSignature
      * @throws IllegalStateException
      *             if {@link ClassGraph#enableAnnotationInfo()} was not called before scanning.
      */
-    public List<AnnotationInfoList> getSuffixTypeAnnotationInfo() {
+    public @Unmodifiable List<AnnotationInfoList> getSuffixTypeAnnotationInfo() {
         checkTypeAnnotationInfoEnabled();
         synchronized (this) {
             final var typeAnnotations = suffixTypeAnnotations;

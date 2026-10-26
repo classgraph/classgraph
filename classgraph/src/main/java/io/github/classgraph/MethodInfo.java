@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.jetbrains.annotations.Unmodifiable;
 import org.jspecify.annotations.Nullable;
 
 import io.github.classgraph.ClassInfo.RelType;
@@ -409,7 +410,7 @@ public final class MethodInfo extends ClassMemberInfo implements Comparable<Meth
      *
      * @return The names of the exceptions thrown by the method, as an unmodifiable list (the list may be empty).
      */
-    public List<String> getThrownExceptionNames() {
+    public @Unmodifiable List<String> getThrownExceptionNames() {
         return thrownExceptionNames == null ? List.of() : thrownExceptionNames;
     }
 
@@ -528,7 +529,7 @@ public final class MethodInfo extends ClassMemberInfo implements Comparable<Meth
      * @return The {@link MethodParameterInfo} objects for the method parameters, one per parameter, as an
      *         unmodifiable list (the list may be empty).
      */
-    public List<MethodParameterInfo> getParameterInfo() {
+    public @Unmodifiable List<MethodParameterInfo> getParameterInfo() {
         synchronized (this) {
             if (parameterInfo == null) {
                 parameterInfo = buildParameterInfo();

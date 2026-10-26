@@ -53,6 +53,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 
+import org.jetbrains.annotations.Unmodifiable;
 import org.jspecify.annotations.Nullable;
 
 import io.github.classgraph.base.LogNode;
@@ -556,7 +557,7 @@ public final class ScanResult implements AutoCloseable {
      * @throws IllegalStateException
      *             if this {@link ScanResult} has been closed.
      */
-    public List<File> getClasspathFiles() {
+    public @Unmodifiable List<File> getClasspathFiles() {
         checkNotClosed();
         // A set, since every jarfile nested within the same outermost jarfile has that jarfile as its file
         final Set<File> classpathElementOrderFiles = new LinkedHashSet<>();
@@ -594,7 +595,7 @@ public final class ScanResult implements AutoCloseable {
      * @throws IllegalStateException
      *             if this {@link ScanResult} has been closed.
      */
-    public List<URI> getClasspathURIs() {
+    public @Unmodifiable List<URI> getClasspathURIs() {
         checkNotClosed();
         final List<URI> classpathElementOrderURIs = new ArrayList<>();
         for (final ClasspathElement classpathElement : classpathOrder()) {
@@ -615,7 +616,7 @@ public final class ScanResult implements AutoCloseable {
      * @throws IllegalStateException
      *             if this {@link ScanResult} has been closed.
      */
-    public List<URL> getClasspathURLs() {
+    public @Unmodifiable List<URL> getClasspathURLs() {
         checkNotClosed();
         final List<URL> classpathElementOrderURLs = new ArrayList<>();
         for (final URI uri : getClasspathURIs()) {
@@ -642,7 +643,7 @@ public final class ScanResult implements AutoCloseable {
      * @throws IllegalStateException
      *             if this {@link ScanResult} has been closed.
      */
-    public List<ModuleReference> getModuleReferences() {
+    public @Unmodifiable List<ModuleReference> getModuleReferences() {
         checkNotClosed();
         final List<ModuleReference> moduleReferences = new ArrayList<>();
         for (final ClasspathElement classpathElement : classpathOrder()) {
@@ -712,7 +713,7 @@ public final class ScanResult implements AutoCloseable {
      * @throws IllegalStateException
      *             if this {@link ScanResult} has been closed.
      */
-    public Map<String, ResourceList> getAllResourcesAsMap() {
+    public @Unmodifiable Map<String, ResourceList> getAllResourcesAsMap() {
         checkNotClosed();
         synchronized (this) {
             var pathToAcceptedResources = pathToAcceptedResourcesCached;
@@ -1020,7 +1021,7 @@ public final class ScanResult implements AutoCloseable {
      *             if this {@link ScanResult} has been closed, or if {@link ClassGraph#enableClassInfo()} and
      *             {@link ClassGraph#enableInterClassDependencies()} were not both called before scanning.
      */
-    public Map<ClassInfo, ClassInfoList> getClassDependencyMap() {
+    public @Unmodifiable Map<ClassInfo, ClassInfoList> getClassDependencyMap() {
         // Checked here too, since with no classes no class is asked for its dependencies
         scanSpec.checkInterClassDependenciesEnabled();
         final Map<ClassInfo, ClassInfoList> map = new TreeMap<>();
@@ -1046,7 +1047,7 @@ public final class ScanResult implements AutoCloseable {
      *             if this {@link ScanResult} has been closed, or if {@link ClassGraph#enableClassInfo()} and
      *             {@link ClassGraph#enableInterClassDependencies()} were not both called before scanning.
      */
-    public Map<ClassInfo, ClassInfoList> getReverseClassDependencyMap() {
+    public @Unmodifiable Map<ClassInfo, ClassInfoList> getReverseClassDependencyMap() {
         // Checked here too, since with no classes no class is asked for its dependencies
         scanSpec.checkInterClassDependenciesEnabled();
         final Map<ClassInfo, Set<ClassInfo>> revMapSet = new HashMap<>();
@@ -1154,7 +1155,7 @@ public final class ScanResult implements AutoCloseable {
      *             if this {@link ScanResult} has been closed, or if {@link ClassGraph#enableClassInfo()} was not
      *             called before scanning.
      */
-    public Map<String, ClassInfo> getAllClassesAsMap() {
+    public @Unmodifiable Map<String, ClassInfo> getAllClassesAsMap() {
         return getAllClasses().asMap();
     }
 
