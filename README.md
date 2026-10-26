@@ -179,8 +179,16 @@ All five share the `io.github.classgraph` group id and a single version number. 
 `classgraph-vfs` alone if you want only the classpath finder or only the virtual filesystem,
 without the scanner.
 
-To keep several ClassGraph artifacts on the same version, import the `classgraph-bom` bill of
-materials (published from version 6.0.1 on), and leave the version out of each ClassGraph dependency:
+Each artifact depends on the ones it needs at its own version, so a project that depends on
+only one ClassGraph artifact (usually `classgraph`) gets matching versions of the others with no
+further setup, and does not need a bill of materials.
+
+A bill of materials, `classgraph-bom` (published from version 6.0.1 on), is useful only if your
+project depends directly on more than one ClassGraph artifact, so that you can state the version
+once, or if another library in your build depends on a ClassGraph artifact at a different version.
+In the second case Maven uses the version declared nearest to your project in the dependency
+tree, which can mix ClassGraph versions; importing the BOM overrides that. To use it, import it,
+and leave the version out of each ClassGraph dependency:
 
 ```xml
 <dependencyManagement>
