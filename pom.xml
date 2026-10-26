@@ -21,6 +21,8 @@
 		<module>classgraph-classpath</module>
 		<module>classgraph</module>
 		<module>classgraph-viz</module>
+		<!-- Does not inherit from this pom; see the comment at its top -->
+		<module>classgraph-bom</module>
 	</modules>
 
 	<licenses>
