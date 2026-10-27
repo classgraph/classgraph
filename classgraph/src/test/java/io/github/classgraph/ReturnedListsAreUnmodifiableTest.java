@@ -7,6 +7,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -292,6 +293,19 @@ public class ReturnedListsAreUnmodifiableTest {
             assertThat(throwsUnsupported(() -> allClasses.addAll(List.of()))).isTrue();
             assertThat(throwsUnsupported(() -> allClasses.removeAll(List.of()))).isTrue();
             assertThat(throwsUnsupported(() -> allClasses.retainAll(allClasses))).isTrue();
+
+            // The reversed view of a returned list. On JDK 21 and later, List's default reversed() returns a view
+            // that lets these succeed on an empty list, as does Collections.unmodifiableList(list).reversed().
+            final var expectedReversed = new ArrayList<>(allClasses);
+            Collections.reverse(expectedReversed);
+            assertThat(allClasses.reversed()).containsExactlyElementsOf(expectedReversed);
+            for (final List<ClassInfo> reversed : List.of(emptyList.reversed(), allClasses.reversed())) {
+                assertThat(throwsUnsupported(reversed::clear)).isTrue();
+                assertThat(throwsUnsupported(() -> reversed.addAll(List.of()))).isTrue();
+                assertThat(throwsUnsupported(() -> reversed.removeAll(List.of()))).isTrue();
+                assertThat(throwsUnsupported(() -> reversed.retainAll(reversed))).isTrue();
+                assertThat(throwsUnsupported(() -> reversed.removeIf(ci -> false))).isTrue();
+            }
         }
     }
 
