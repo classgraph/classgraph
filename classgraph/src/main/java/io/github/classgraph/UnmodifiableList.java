@@ -29,6 +29,7 @@
 package io.github.classgraph;
 
 import java.util.AbstractList;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -63,12 +64,13 @@ import org.jetbrains.annotations.Unmodifiable;
  * @param <T>
  *            the element type
  */
-// TODO: This class and every public list class that extends it is annotated @Unmodifiable, but Kotlin ignores the
-// annotation on a class: it honors it only on a method that returns a java.util collection interface type. Kotlin
-// therefore still sees these lists as MutableList, and only the deprecation of the mutators below makes it warn about
-// a call to one of them. Update this whenever Kotlin resolves https://youtrack.jetbrains.com/issue/KT-70485 in a
-// reasonable way, so that Kotlin sees these classes as read-only lists. See also
-// https://github.com/classgraph/classgraph/issues/948
+// TODO: This class and every public list class that extends it is annotated @Unmodifiable, as are the views returned
+// by iterator(), listIterator(), subList() and reversed() below, but Kotlin ignores the annotation on a class, and on
+// a method that overrides a method of a java.util interface: it honors it only on a method that returns a java.util
+// collection interface type and overrides nothing. Kotlin therefore still sees these lists and their views as
+// mutable, and only the deprecation of the mutators below makes it warn about a call to one of them on a list.
+// Update this whenever Kotlin resolves https://youtrack.jetbrains.com/issue/KT-70485 in a reasonable way, so that
+// Kotlin sees these classes as read-only lists. See also https://github.com/classgraph/classgraph/issues/948
 @Unmodifiable
 abstract class UnmodifiableList<T> extends AbstractList<T> implements RandomAccess {
     /** The elements of this list, as an unmodifiable view. */
@@ -107,21 +109,38 @@ abstract class UnmodifiableList<T> extends AbstractList<T> implements RandomAcce
     // Views of this list, which have to reject modification too. These are delegated to the unmodifiable view of
     // the elements, rather than inherited from AbstractList, because AbstractList's iterators reject modification
     // only once they have an element to modify: listIterator(i).set(x) throws IllegalStateException rather than
-    // UnsupportedOperationException if next() has not been called yet.
+    // UnsupportedOperationException if next() has not been called yet. Their @Unmodifiable annotations are ignored by
+    // Kotlin for now: see the TODO on this class.
 
     @Override
-    public Iterator<T> iterator() {
+    public @Unmodifiable Iterator<T> iterator() {
         return elements.iterator();
     }
 
     @Override
-    public ListIterator<T> listIterator(final int index) {
+    public @Unmodifiable ListIterator<T> listIterator() {
+        return elements.listIterator();
+    }
+
+    @Override
+    public @Unmodifiable ListIterator<T> listIterator(final int index) {
         return elements.listIterator(index);
     }
 
     @Override
-    public List<T> subList(final int fromIndex, final int toIndex) {
+    public @Unmodifiable List<T> subList(final int fromIndex, final int toIndex) {
         return elements.subList(fromIndex, toIndex);
+    }
+
+    // List's default reversed() returns a view whose addAll(), removeAll() and retainAll() succeed when they would
+    // not change the list, as Collections.unmodifiableList(list).reversed() does too. Since this list never changes,
+    // a reversed copy is equivalent to a view.
+
+    @Override
+    public @Unmodifiable List<T> reversed() {
+        final var reversed = new ArrayList<>(elements);
+        Collections.reverse(reversed);
+        return Collections.unmodifiableList(reversed);
     }
 
     // -------------------------------------------------------------------------------------------------------------
