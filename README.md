@@ -20,7 +20,7 @@ ClassGraph is an uber-fast parallelized classpath scanner and module scanner for
 [![Dependent repos](https://img.shields.io/librariesio/dependent-repos/maven/io.github.classgraph:classgraph)](https://github.com/classgraph/classgraph/network/dependents?package_id=UGFja2FnZS0xODcxNTE4NTM%3D)
 <br>
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.classgraph/classgraph)](https://mvnrepository.com/artifact/io.github.classgraph/classgraph)
-[![Javadocs](https://javadoc.io/badge2/io.github.classgraph/classgraph/6.0.0/javadoc.svg)](https://javadoc.io/doc/io.github.classgraph/classgraph/6.0.0)
+[![Javadocs](https://javadoc.io/badge2/io.github.classgraph/classgraph/6.0.1/javadoc.svg)](https://javadoc.io/doc/io.github.classgraph/classgraph/6.0.1)
 <br>
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/classgraph/classgraph/blob/main/LICENSE-ClassGraph.txt)
 
