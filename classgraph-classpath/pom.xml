@@ -28,7 +28,6 @@
 		     import, and they are not covered by the project's API compatibility guarantees. -->
 		<osgiExportPackage>io.github.classgraph.classpath;version="${project.version}",io.github.classgraph.classpath.internal;x-internal:=true</osgiExportPackage>
 		<osgiImportPackage>io.github.classgraph.base,io.github.classgraph.base.internal.concurrency,io.github.classgraph.base.internal.path,io.github.classgraph.base.internal.reflection,io.github.classgraph.base.internal.utils,io.github.classgraph.vfs,org.jetbrains.annotations;resolution:="optional",org.jspecify.annotations;resolution:="optional"</osgiImportPackage>
-		<osgiDependencies>io.github.classgraph.vfs export,java.management</osgiDependencies>
 
 		<!-- This module has sources and produces a jar, so it needs the ecj checks and the license copies -->
 		<maven.antrun.skip>false</maven.antrun.skip>
@@ -56,4 +55,22 @@
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<configuration>
+					<archive>
+						<manifestEntries>
+							<!-- The JDK modules that src/main/java/module-info.java requires, for WildFly: see the -->
+							<!-- comment on the manifest entries in the parent pom.xml -->
+							<Dependencies>java.management</Dependencies>
+						</manifestEntries>
+					</archive>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
 </project>
