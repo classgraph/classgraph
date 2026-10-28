@@ -85,10 +85,21 @@ jobs:
       env:
         GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
       run: |
-        printf '%s\n' "$GPG_PRIVATE_KEY" | gpg --batch --import
+        status=0
+        printf '%s\n' "$GPG_PRIVATE_KEY" | gpg --batch --import || status=$?
         if ! gpg --list-secret-keys --with-colons | grep -q '^sec:'; then
           echo "The GPG_PRIVATE_KEY secret holds no private key: set it to the output of"
           echo "gpg --armor --export-secret-keys <key ID>"
+          # Describe the secret without printing it. The armor lines are the same public text in every
+          # key, and are spaced out because the log would otherwise mask them as part of the secret.
+          # --list-packets prints the packet types and key IDs only.
+          echo "gpg exit status $status; $(gpg --version | head -n 1)"
+          printf '%s' "$GPG_PRIVATE_KEY" | wc -c | xargs echo "bytes:"
+          printf '%s\n' "$GPG_PRIVATE_KEY" | wc -l | xargs echo "lines:"
+          printf '%s' "$GPG_PRIVATE_KEY" | tr -cd '\r' | wc -c | xargs echo "carriage returns:"
+          printf '%s\n' "$GPG_PRIVATE_KEY" | tr -d '\r' | grep -E '^-----(BEGIN|END) [A-Z0-9 ]+-----$' \
+            | sed 's/./& /g' || echo "no armor lines"
+          printf '%s\n' "$GPG_PRIVATE_KEY" | gpg --list-packets 2>&1 | grep -E '^(:|# off=|gpg:)' || true
           exit 1
         fi
     - name: Release to Maven Central
