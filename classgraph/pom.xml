@@ -4,7 +4,7 @@
 	<parent>
 		<groupId>io.github.classgraph</groupId>
 		<artifactId>classgraph-parent</artifactId>
-		<version>5.0.1-SNAPSHOT</version>
+		<version>5.0.1</version>
 	</parent>
 
 	<artifactId>classgraph</artifactId>
